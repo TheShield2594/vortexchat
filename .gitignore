@@ -15,8 +15,6 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
-apps/web/.env.local
-apps/signal/.env
 
 # Supabase local state
 .supabase/

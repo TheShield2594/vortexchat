@@ -31,8 +31,8 @@ export default function RegisterPage() {
       return
     }
 
-    if (form.password.length < 8) {
-      toast({ variant: "destructive", title: "Password must be at least 8 characters" })
+    if (form.password.length < 12) {
+      toast({ variant: "destructive", title: "Password must be at least 12 characters" })
       return
     }
 
