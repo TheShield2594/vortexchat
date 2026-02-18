@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 223 7% 20%;
+    --foreground: 220 9% 95%;
+    --card: 220 7% 18%;
+    --card-foreground: 220 9% 95%;
+    --popover: 220 7% 14%;
+    --popover-foreground: 220 9% 95%;
+    --primary: 235 86% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 6% 18%;
+    --secondary-foreground: 215 8% 73%;
+    --muted: 220 5% 30%;
+    --muted-foreground: 215 8% 60%;
+    --accent: 235 86% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 359 87% 57%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 6% 25%;
+    --input: 220 6% 18%;
+    --ring: 235 86% 65%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1a1b1e;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #111214;
+  }
+}
+
+@layer utilities {
+  /* Speaking animation */
+  .speaking-ring {
+    box-shadow: 0 0 0 3px #23a55a;
+    animation: speaking-pulse 1s ease-in-out infinite;
+  }
+
+  /* Message hover bg */
+  .message-hover:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+  }
+
+  /* Channel hover */
+  .channel-hover:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: #dbdee1;
+  }
+
+  .channel-active {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #f2f3f5;
+  }
+
+  /* Mention highlight */
+  .mention-highlight {
+    background-color: rgba(88, 101, 242, 0.1);
+    border-left: 2px solid #5865f2;
+  }
+
+  /* No scrollbar class */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Discord-like message formatting */
+.message-content code {
+  background: #1e1f22;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875em;
+}
+
+.message-content pre {
+  background: #1e1f22;
+  border-radius: 4px;
+  padding: 8px 12px;
+  overflow-x: auto;
+}
+
+.message-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.message-content strong {
+  font-weight: 700;
+}
+
+.message-content em {
+  font-style: italic;
+}
+
+.message-content s {
+  text-decoration: line-through;
+}
+
+.message-content a {
+  color: #00a8fc;
+  text-decoration: none;
+}
+
+.message-content a:hover {
+  text-decoration: underline;
+}
+
+/* Blockquote */
+.message-content blockquote {
+  border-left: 4px solid #4e5058;
+  padding-left: 12px;
+  margin: 4px 0;
+  color: #b5bac1;
+}
