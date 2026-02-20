@@ -66,11 +66,12 @@ export default function RegisterPage() {
         description: "Check your email to verify your account, then log in.",
       })
       router.push("/login")
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Something went wrong"
       toast({
         variant: "destructive",
         title: "Registration failed",
-        description: error.message,
+        description: message,
       })
     } finally {
       setLoading(false)
@@ -78,22 +79,22 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="rounded-lg p-8 shadow-2xl" style={{ background: '#313338' }}>
+    <div className="rounded-lg p-8 shadow-2xl bg-vortex-bg-primary">
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#5865f2' }}>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center bg-vortex-accent">
             <Zap className="w-7 h-7 text-white" />
           </div>
         </div>
         <h1 className="text-2xl font-bold text-white">Create an account</h1>
-        <p style={{ color: '#b5bac1' }} className="text-sm mt-1">
+        <p className="text-sm mt-1 text-vortex-text-secondary">
           Join Vortex — it&apos;s free, no strings attached.
         </p>
       </div>
 
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
             Email <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -101,13 +102,12 @@ export default function RegisterPage() {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            className="h-10 bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
             Username <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -116,13 +116,12 @@ export default function RegisterPage() {
             onChange={(e) => setForm({ ...form, username: e.target.value })}
             placeholder="cooluser123"
             required
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            className="h-10 bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
             Display Name
           </Label>
           <Input
@@ -130,13 +129,12 @@ export default function RegisterPage() {
             value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
             placeholder="How others see you"
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            className="h-10 bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
             Password <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -144,13 +142,12 @@ export default function RegisterPage() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            className="h-10 bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
             Confirm Password <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -158,30 +155,28 @@ export default function RegisterPage() {
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             required
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            className="h-10 bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
           />
         </div>
 
         <Button
           type="submit"
           disabled={loading}
-          className="w-full h-11 font-medium mt-2"
-          style={{ background: '#5865f2' }}
+          className="w-full h-11 font-medium mt-2 bg-vortex-accent"
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Continue
         </Button>
       </form>
 
-      <p className="text-center text-sm mt-6" style={{ color: '#b5bac1' }}>
+      <p className="text-center text-sm mt-6 text-vortex-text-secondary">
         Already have an account?{" "}
-        <Link href="/login" className="hover:underline" style={{ color: '#00a8fc' }}>
+        <Link href="/login" className="hover:underline text-vortex-link">
           Log In
         </Link>
       </p>
 
-      <p className="text-center text-xs mt-4" style={{ color: '#4e5058' }}>
+      <p className="text-center text-xs mt-4 text-vortex-text-muted">
         By registering, you agree to Vortex&apos;s terms of service.
         No data is sold. This is self-hosted.
       </p>

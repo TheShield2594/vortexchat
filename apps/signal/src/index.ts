@@ -11,6 +11,19 @@ const SUPABASE_URL = process.env.SUPABASE_URL ?? ""
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "*").split(",")
 
+// WebRTC signaling types (browser-native types not available in Node)
+interface SessionDescription {
+  type: string
+  sdp?: string
+}
+
+interface IceCandidate {
+  candidate?: string
+  sdpMid?: string | null
+  sdpMLineIndex?: number | null
+  usernameFragment?: string | null
+}
+
 // Supabase admin client (for verifying auth tokens + updating voice_states)
 const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -38,6 +51,34 @@ const io = new Server(httpServer, {
 
 const rooms = new RoomManager()
 
+/** Fire-and-forget Supabase update with error logging */
+function syncVoiceState(
+  action: "upsert" | "update" | "delete",
+  filter: { userId: string; channelId: string },
+  data?: Record<string, unknown>
+): void {
+  if (!supabase) return
+
+  let query
+  if (action === "upsert") {
+    query = supabase.from("voice_states").upsert(data as never)
+  } else if (action === "update") {
+    query = supabase.from("voice_states")
+      .update(data as never)
+      .eq("user_id", filter.userId)
+      .eq("channel_id", filter.channelId)
+  } else {
+    query = supabase.from("voice_states")
+      .delete()
+      .eq("user_id", filter.userId)
+      .eq("channel_id", filter.channelId)
+  }
+
+  query.then(({ error }) => {
+    if (error) console.error(`[voice_states] ${action} failed:`, error.message)
+  })
+}
+
 io.on("connection", (socket: Socket) => {
   console.log(`[connect] ${socket.id}`)
 
@@ -57,7 +98,7 @@ io.on("connection", (socket: Socket) => {
 
     // Verify auth token if supabase configured
     if (supabase) {
-      const authToken = socket.handshake.auth?.token
+      const authToken = socket.handshake.auth?.token as string | undefined
       if (authToken) {
         const { data: { user }, error } = await supabase.auth.getUser(authToken)
         if (error || !user || user.id !== userId) {
@@ -104,7 +145,6 @@ io.on("connection", (socket: Socket) => {
 
     // Update Supabase voice_states
     if (supabase) {
-      // Get serverId from channel
       const { data: channel } = await supabase
         .from("channels")
         .select("server_id")
@@ -112,10 +152,10 @@ io.on("connection", (socket: Socket) => {
         .single()
 
       if (channel) {
-        await supabase.from("voice_states").upsert({
+        syncVoiceState("upsert", { userId, channelId }, {
           user_id: userId,
           channel_id: channelId,
-          server_id: channel.server_id,
+          server_id: (channel as { server_id: string }).server_id,
           muted: false,
           deafened: false,
           speaking: false,
@@ -128,15 +168,15 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── WebRTC Signaling ───────────────────────────────────────────────────────
-  socket.on("offer", ({ to, offer }: { to: string; offer: RTCSessionDescriptionInit }) => {
+  socket.on("offer", ({ to, offer }: { to: string; offer: SessionDescription }) => {
     io.to(to).emit("offer", { from: socket.id, offer })
   })
 
-  socket.on("answer", ({ to, answer }: { to: string; answer: RTCSessionDescriptionInit }) => {
+  socket.on("answer", ({ to, answer }: { to: string; answer: SessionDescription }) => {
     io.to(to).emit("answer", { from: socket.id, answer })
   })
 
-  socket.on("ice-candidate", ({ to, candidate }: { to: string; candidate: RTCIceCandidateInit }) => {
+  socket.on("ice-candidate", ({ to, candidate }: { to: string; candidate: IceCandidate }) => {
     io.to(to).emit("ice-candidate", { from: socket.id, candidate })
   })
 
@@ -147,14 +187,7 @@ io.on("connection", (socket: Socket) => {
 
     rooms.updatePeer(peer.channelId, socket.id, { speaking })
     socket.to(peer.channelId).emit("peer-speaking", { peerId: socket.id, speaking })
-
-    if (supabase) {
-      supabase.from("voice_states")
-        .update({ speaking })
-        .eq("user_id", peer.userId)
-        .eq("channel_id", peer.channelId)
-        .then()
-    }
+    syncVoiceState("update", peer, { speaking })
   })
 
   socket.on("toggle-mute", ({ muted }: { muted: boolean }) => {
@@ -163,14 +196,7 @@ io.on("connection", (socket: Socket) => {
 
     rooms.updatePeer(peer.channelId, socket.id, { muted })
     socket.to(peer.channelId).emit("peer-muted", { peerId: socket.id, muted })
-
-    if (supabase) {
-      supabase.from("voice_states")
-        .update({ muted })
-        .eq("user_id", peer.userId)
-        .eq("channel_id", peer.channelId)
-        .then()
-    }
+    syncVoiceState("update", peer, { muted })
   })
 
   socket.on("toggle-deafen", ({ deafened }: { deafened: boolean }) => {
@@ -179,14 +205,7 @@ io.on("connection", (socket: Socket) => {
 
     rooms.updatePeer(peer.channelId, socket.id, { deafened })
     socket.to(peer.channelId).emit("peer-deafened", { peerId: socket.id, deafened })
-
-    if (supabase) {
-      supabase.from("voice_states")
-        .update({ deafened })
-        .eq("user_id", peer.userId)
-        .eq("channel_id", peer.channelId)
-        .then()
-    }
+    syncVoiceState("update", peer, { deafened })
   })
 
   socket.on("screen-share", ({ sharing }: { sharing: boolean }) => {
@@ -195,14 +214,7 @@ io.on("connection", (socket: Socket) => {
 
     rooms.updatePeer(peer.channelId, socket.id, { screenSharing: sharing })
     socket.to(peer.channelId).emit("peer-screen-share", { peerId: socket.id, sharing })
-
-    if (supabase) {
-      supabase.from("voice_states")
-        .update({ self_stream: sharing })
-        .eq("user_id", peer.userId)
-        .eq("channel_id", peer.channelId)
-        .then()
-    }
+    syncVoiceState("update", peer, { self_stream: sharing })
   })
 
   // ─── Leave room explicitly ──────────────────────────────────────────────────
@@ -211,26 +223,18 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── Disconnect ─────────────────────────────────────────────────────────────
-  socket.on("disconnect", (reason) => {
+  socket.on("disconnect", (reason: string) => {
     console.log(`[disconnect] ${socket.id} — ${reason}`)
     const left = rooms.leaveAll(socket.id)
 
     for (const { channelId, userId } of left) {
       socket.to(channelId).emit("peer-left", { peerId: socket.id, userId })
-
-      if (supabase) {
-        supabase.from("voice_states")
-          .delete()
-          .eq("user_id", userId)
-          .eq("channel_id", channelId)
-          .then()
-      }
+      syncVoiceState("delete", { userId, channelId })
     }
   })
 
   // ─── Helper ─────────────────────────────────────────────────────────────────
   function findPeerRoom(socketId: string): { channelId: string; userId: string } | null {
-    // We need to search all rooms for this socket (it should only be in one)
     const socketRooms = Array.from(socket.rooms).filter((r) => r !== socket.id)
     for (const channelId of socketRooms) {
       const peer = rooms.getPeer(channelId, socketId)
@@ -246,14 +250,7 @@ io.on("connection", (socket: Socket) => {
     rooms.leave(channelId, socket.id)
     socket.leave(channelId)
     socket.to(channelId).emit("peer-left", { peerId: socket.id, userId: peer.userId })
-
-    if (supabase) {
-      supabase.from("voice_states")
-        .delete()
-        .eq("user_id", peer.userId)
-        .eq("channel_id", channelId)
-        .then()
-    }
+    syncVoiceState("delete", { userId: peer.userId, channelId })
 
     console.log(`[leave] ${peer.userId} ← room ${channelId}`)
   }

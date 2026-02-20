@@ -35,7 +35,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
   const screenStream = useRef<MediaStream | null>(null)
   const socketRef = useRef<Socket | null>(null)
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
-  const harkRef = useRef<any>(null)
+  const harkRef = useRef<{ stop: () => void } | null>(null)
 
   const signalUrl = process.env.NEXT_PUBLIC_SIGNAL_URL ?? "http://localhost:3001"
 
@@ -260,7 +260,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     } else {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { cursor: "always" } as any,
+          video: { cursor: "always" } as MediaTrackConstraints,
           audio: false,
         })
         screenStream.current = stream

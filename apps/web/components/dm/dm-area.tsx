@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { DirectMessageRow, UserRow } from "@/types/database"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, AtSign } from "lucide-react"
+import { Send } from "lucide-react"
 import { format } from "date-fns"
 
 interface Props {
@@ -52,10 +52,12 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
       .eq("receiver_id", currentUserId)
       .eq("sender_id", partner.id)
       .is("read_at", null)
-      .then()
+      .then(({ error }) => {
+        if (error) console.error("[dm] mark-read failed:", error.message)
+      })
 
     return () => { supabase.removeChannel(channel) }
-  }, [currentUserId, partner.id])
+  }, [currentUserId, partner.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSend() {
     if (!content.trim() || sending) return
@@ -85,22 +87,19 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
   const partnerInitials = partnerName.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "#313338" }}>
+    <div className="flex flex-col flex-1 overflow-hidden bg-vortex-bg-primary">
       {/* Header */}
-      <div
-        className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: "#1e1f22" }}
-      >
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-vortex-bg-tertiary flex-shrink-0">
         <Avatar className="w-8 h-8">
           {partner.avatar_url && <AvatarImage src={partner.avatar_url} />}
-          <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "12px" }}>
+          <AvatarFallback className="bg-vortex-accent text-white text-xs">
             {partnerInitials}
           </AvatarFallback>
         </Avatar>
         <div>
           <span className="font-semibold text-white">{partnerName}</span>
           {partner.status_message && (
-            <div className="text-xs" style={{ color: "#949ba4" }}>{partner.status_message}</div>
+            <div className="text-xs text-vortex-interactive">{partner.status_message}</div>
           )}
         </div>
       </div>
@@ -111,12 +110,12 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
           <div className="text-center py-16">
             <Avatar className="w-20 h-20 mx-auto mb-4">
               {partner.avatar_url && <AvatarImage src={partner.avatar_url} />}
-              <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "28px" }}>
+              <AvatarFallback className="bg-vortex-accent text-white text-[28px]">
                 {partnerInitials}
               </AvatarFallback>
             </Avatar>
             <h2 className="text-2xl font-bold text-white mb-1">{partnerName}</h2>
-            <p style={{ color: "#b5bac1" }} className="text-sm">
+            <p className="text-sm text-vortex-text-secondary">
               This is the beginning of your direct message history with <strong>{partnerName}</strong>.
             </p>
           </div>
@@ -133,7 +132,7 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
               {!isGrouped && (
                 <Avatar className="w-8 h-8 flex-shrink-0 mt-0.5">
                   {isOwn ? null : (partner.avatar_url && <AvatarImage src={partner.avatar_url} />)}
-                  <AvatarFallback style={{ background: isOwn ? "#5865f2" : "#36393f", color: "white", fontSize: "12px" }}>
+                  <AvatarFallback className={`text-white text-xs ${isOwn ? "bg-vortex-accent" : "bg-[#36393f]"}`}>
                     {isOwn ? "ME" : partnerInitials}
                   </AvatarFallback>
                 </Avatar>
@@ -144,16 +143,16 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
                     <span className="text-sm font-semibold text-white">
                       {isOwn ? "You" : partnerName}
                     </span>
-                    <span className="text-xs" style={{ color: "#4e5058" }}>
+                    <span className="text-xs text-vortex-text-muted">
                       {format(new Date(msg.created_at), "h:mm a")}
                     </span>
                   </div>
                 )}
-                <p className="text-sm break-words" style={{ color: "#dcddde" }}>
+                <p className="text-sm break-words text-vortex-interactive-hover">
                   {msg.content}
                 </p>
                 {msg.edited_at && (
-                  <span className="text-xs" style={{ color: "#4e5058" }}> (edited)</span>
+                  <span className="text-xs text-vortex-text-muted"> (edited)</span>
                 )}
               </div>
             </div>
@@ -164,21 +163,20 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
 
       {/* Input */}
       <div className="px-4 pb-4 flex-shrink-0">
-        <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#383a40" }}>
+        <div className="flex items-center gap-2 rounded-lg px-3 py-2 bg-[#383a40]">
           <input
             type="text"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             placeholder={`Message @${partnerName}`}
-            className="flex-1 bg-transparent text-sm focus:outline-none"
-            style={{ color: "#dcddde" }}
+            className="flex-1 bg-transparent text-sm text-vortex-interactive-hover focus:outline-none"
           />
           {content.trim() && (
             <button
               onClick={handleSend}
               disabled={sending}
-              style={{ color: "#5865f2" }}
+              className="text-vortex-accent"
             >
               <Send className="w-5 h-5" />
             </button>

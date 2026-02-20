@@ -29,11 +29,12 @@ export default function LoginPage() {
       if (error) throw error
       router.push("/channels/@me")
       router.refresh()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Invalid email or password"
       toast({
         variant: "destructive",
         title: "Login failed",
-        description: error.message || "Invalid email or password",
+        description: message,
       })
     } finally {
       setLoading(false)
@@ -56,11 +57,12 @@ export default function LoginPage() {
         title: "Magic link sent!",
         description: `Check ${form.email} for your login link.`,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Something went wrong"
       toast({
         variant: "destructive",
         title: "Failed to send magic link",
-        description: error.message,
+        description: message,
       })
     } finally {
       setMagicLinkLoading(false)
@@ -68,22 +70,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="rounded-lg p-8 shadow-2xl" style={{ background: '#313338' }}>
+    <div className="rounded-lg p-8 shadow-2xl bg-vortex-bg-primary">
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#5865f2' }}>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center bg-vortex-accent">
             <Zap className="w-7 h-7 text-white" />
           </div>
         </div>
         <h1 className="text-2xl font-bold text-white">Welcome back!</h1>
-        <p style={{ color: '#b5bac1' }} className="text-sm mt-1">
+        <p className="text-sm mt-1 text-vortex-text-secondary">
           We&apos;re so excited to see you again!
         </p>
       </div>
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
             Email <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -92,14 +94,13 @@ export default function LoginPage() {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            className="h-10 bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
           />
         </div>
 
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+            <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
               Password <span className="text-red-500">*</span>
             </Label>
           </div>
@@ -109,16 +110,14 @@ export default function LoginPage() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            className="h-10 bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
           />
         </div>
 
         <Button
           type="submit"
           disabled={loading}
-          className="w-full h-11 font-medium"
-          style={{ background: '#5865f2' }}
+          className="w-full h-11 font-medium bg-vortex-accent"
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Log In
@@ -127,10 +126,10 @@ export default function LoginPage() {
 
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" style={{ borderColor: '#4e5058' }} />
+          <span className="w-full border-t border-vortex-text-muted" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span style={{ background: '#313338', color: '#4e5058' }} className="px-2">or</span>
+          <span className="px-2 bg-vortex-bg-primary text-vortex-text-muted">or</span>
         </div>
       </div>
 
@@ -139,16 +138,15 @@ export default function LoginPage() {
         variant="outline"
         disabled={magicLinkLoading}
         onClick={handleMagicLink}
-        className="w-full h-10"
-        style={{ borderColor: '#4e5058', color: '#b5bac1', background: 'transparent' }}
+        className="w-full h-10 border-vortex-text-muted text-vortex-text-secondary bg-transparent"
       >
         {magicLinkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Send Magic Link
       </Button>
 
-      <p className="text-center text-sm mt-6" style={{ color: '#b5bac1' }}>
+      <p className="text-center text-sm mt-6 text-vortex-text-secondary">
         Need an account?{" "}
-        <Link href="/register" className="hover:underline" style={{ color: '#00a8fc' }}>
+        <Link href="/register" className="hover:underline text-vortex-link">
           Register
         </Link>
       </p>

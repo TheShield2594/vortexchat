@@ -41,7 +41,7 @@ export function useRealtimeMessages(
           filter: `channel_id=eq.${channelId}`,
         },
         (payload) => {
-          onUpdate(payload.new as any)
+          onUpdate(payload.new as Partial<MessageWithAuthor> & { id: string })
         }
       )
       .subscribe()
@@ -49,5 +49,5 @@ export function useRealtimeMessages(
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [channelId])
+  }, [channelId]) // eslint-disable-line react-hooks/exhaustive-deps
 }

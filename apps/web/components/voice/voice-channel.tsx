@@ -38,20 +38,20 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
 
   useEffect(() => {
     // Track voice state in Supabase
-    async function joinVoiceState() {
-      await supabase
-        .from("voice_states")
-        .upsert({
-          user_id: currentUserId,
-          channel_id: channelId,
-          server_id: serverId,
-          muted,
-          deafened,
-          speaking,
-          self_stream: screenSharing,
-        })
-    }
-    joinVoiceState()
+    supabase
+      .from("voice_states")
+      .upsert({
+        user_id: currentUserId,
+        channel_id: channelId,
+        server_id: serverId,
+        muted,
+        deafened,
+        speaking,
+        self_stream: screenSharing,
+      })
+      .then(({ error }) => {
+        if (error) console.error("[voice_states] upsert failed:", error.message)
+      })
 
     return () => {
       supabase
@@ -59,9 +59,11 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         .delete()
         .eq("user_id", currentUserId)
         .eq("channel_id", channelId)
-        .then()
+        .then(({ error }) => {
+          if (error) console.error("[voice_states] delete failed:", error.message)
+        })
     }
-  }, [channelId, currentUserId, serverId])
+  }, [channelId, currentUserId, serverId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync mute/deafen state to DB
   useEffect(() => {
@@ -70,8 +72,10 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
       .update({ muted, deafened, speaking, self_stream: screenSharing })
       .eq("user_id", currentUserId)
       .eq("channel_id", channelId)
-      .then()
-  }, [muted, deafened, speaking, screenSharing])
+      .then(({ error }) => {
+        if (error) console.error("[voice_states] update failed:", error.message)
+      })
+  }, [muted, deafened, speaking, screenSharing, currentUserId, channelId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch participants from voice_states
   useEffect(() => {
@@ -80,7 +84,14 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         .from("voice_states")
         .select("user_id, users(*)")
         .eq("channel_id", channelId)
-      setVoiceParticipants(data?.map((d: any) => d.users).filter(Boolean) ?? [])
+
+      const users = data
+        ?.map((d) => {
+          const joined = d as { users: UserRow | null }
+          return joined.users
+        })
+        .filter((u): u is UserRow => u !== null) ?? []
+      setVoiceParticipants(users)
     }
     fetchParticipants()
 
@@ -91,7 +102,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [channelId])
+  }, [channelId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleLeave() {
     leaveChannel()
@@ -102,15 +113,12 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col flex-1" style={{ background: "#313338" }}>
+      <div className="flex flex-col flex-1 bg-vortex-bg-primary">
         {/* Header */}
-        <div
-          className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-          style={{ borderColor: "#1e1f22" }}
-        >
-          <Volume2 className="w-5 h-5" style={{ color: "#23a55a" }} />
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-vortex-bg-tertiary flex-shrink-0">
+          <Volume2 className="w-5 h-5 text-vortex-success" />
           <span className="font-semibold text-white">{channelName}</span>
-          <span className="text-sm ml-1" style={{ color: "#949ba4" }}>
+          <span className="text-sm ml-1 text-vortex-interactive">
             — Voice Connected
           </span>
         </div>
@@ -119,16 +127,16 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         <div className="flex-1 flex items-center justify-center p-8">
           {peerArray.length === 0 && !currentUser ? (
             <div className="text-center">
-              <Volume2 className="w-16 h-16 mx-auto mb-4" style={{ color: "#4e5058" }} />
+              <Volume2 className="w-16 h-16 mx-auto mb-4 text-vortex-text-muted" />
               <p className="text-white text-lg font-semibold mb-1">
-                You're the only one here
+                You&apos;re the only one here
               </p>
-              <p style={{ color: "#949ba4" }} className="text-sm">
+              <p className="text-sm text-vortex-interactive">
                 Invite others to join this voice channel
               </p>
             </div>
           ) : (
-            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", width: "100%" }}>
+            <div className="grid gap-4 w-full" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
               {/* Local user tile */}
               {currentUser && (
                 <ParticipantTile
@@ -162,16 +170,15 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         </div>
 
         {/* Controls */}
-        <div
-          className="flex items-center justify-center gap-3 py-4 border-t flex-shrink-0"
-          style={{ borderColor: "#1e1f22", background: "#232428" }}
-        >
+        <div className="flex items-center justify-center gap-3 py-4 border-t border-vortex-bg-tertiary bg-vortex-bg-overlay flex-shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={toggleMute}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-                style={{ background: muted ? "#f23f43" : "#4e5058" }}
+                className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
+                  muted ? "bg-vortex-danger" : "bg-vortex-text-muted"
+                )}
               >
                 {muted ? (
                   <MicOff className="w-5 h-5 text-white" />
@@ -187,8 +194,10 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
             <TooltipTrigger asChild>
               <button
                 onClick={toggleDeafen}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-                style={{ background: deafened ? "#f23f43" : "#4e5058" }}
+                className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
+                  deafened ? "bg-vortex-danger" : "bg-vortex-text-muted"
+                )}
               >
                 <Headphones className="w-5 h-5 text-white" />
               </button>
@@ -200,8 +209,10 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
             <TooltipTrigger asChild>
               <button
                 onClick={toggleScreenShare}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-                style={{ background: screenSharing ? "#23a55a" : "#4e5058" }}
+                className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
+                  screenSharing ? "bg-vortex-success" : "bg-vortex-text-muted"
+                )}
               >
                 {screenSharing ? (
                   <MonitorOff className="w-5 h-5 text-white" />
@@ -217,8 +228,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
             <TooltipTrigger asChild>
               <button
                 onClick={handleLeave}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-                style={{ background: "#f23f43" }}
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-vortex-danger"
               >
                 <PhoneOff className="w-5 h-5 text-white" />
               </button>
@@ -245,7 +255,7 @@ function ParticipantTile({
   isLocal,
   screenStream,
 }: {
-  user?: any
+  user?: UserRow
   speaking: boolean
   muted: boolean
   deafened: boolean
@@ -274,40 +284,34 @@ function ParticipantTile({
   return (
     <div
       className={cn(
-        "rounded-lg p-4 flex flex-col items-center gap-3 relative",
+        "rounded-lg p-4 flex flex-col items-center gap-3 relative bg-vortex-bg-tertiary min-h-[160px]",
         speaking && !muted && "ring-2 ring-green-500"
       )}
-      style={{ background: "#1e1f22", minHeight: "160px" }}
     >
       {screenStream ? (
         <video
           ref={screenRef}
           autoPlay
           playsInline
-          className="w-full rounded object-contain"
-          style={{ maxHeight: "200px" }}
+          className="w-full rounded object-contain max-h-[200px]"
         />
       ) : (
-        <>
-          <div className={cn("relative", speaking && !muted && "speaking-ring rounded-full")}>
-            <Avatar className="w-20 h-20">
-              {user?.avatar_url && <AvatarImage src={user.avatar_url} />}
-              <AvatarFallback
-                style={{ background: "#5865f2", color: "white", fontSize: "24px" }}
-              >
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </>
+        <div className={cn("relative", speaking && !muted && "speaking-ring rounded-full")}>
+          <Avatar className="w-20 h-20">
+            {user?.avatar_url && <AvatarImage src={user.avatar_url} />}
+            <AvatarFallback className="bg-vortex-accent text-white text-2xl">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+        </div>
       )}
 
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-white">{displayName}</span>
-        {muted && <MicOff className="w-3 h-3" style={{ color: "#f23f43" }} />}
-        {deafened && <Headphones className="w-3 h-3" style={{ color: "#f23f43" }} />}
+        {muted && <MicOff className="w-3 h-3 text-vortex-danger" />}
+        {deafened && <Headphones className="w-3 h-3 text-vortex-danger" />}
         {isLocal && (
-          <span className="text-xs px-1 rounded" style={{ background: "#5865f2", color: "white" }}>
+          <span className="text-xs px-1 rounded bg-vortex-accent text-white">
             You
           </span>
         )}

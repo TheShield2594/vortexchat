@@ -13,7 +13,8 @@ services:
     env_file:
       - ./apps/web/.env.local
     depends_on:
-      - signal
+      signal:
+        condition: service_healthy
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -31,6 +32,12 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.signal.rule=Host(`signal.yourdomain.com`)"
