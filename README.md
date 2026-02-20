@@ -1,6 +1,6 @@
-# Vortex — Self-hosted Discord Clone
+# Vortex — Discord Clone
 
-A full-featured, self-hosted Discord clone built with Next.js 14, Supabase, and WebRTC.
+A full-featured Discord clone built with Next.js 14, Supabase, and WebRTC.
 
 ## Features
 
@@ -24,12 +24,12 @@ A full-featured, self-hosted Discord clone built with Next.js 14, Supabase, and 
 | Layer | Tech |
 |-------|------|
 | Frontend | Next.js 14 (App Router), Tailwind CSS, shadcn/ui |
-| Database | Supabase (PostgreSQL + Realtime + Storage) |
+| Database | Supabase Cloud (PostgreSQL + Realtime + Storage) |
 | Auth | Supabase Auth |
 | Voice signaling | Node.js + socket.io |
 | Voice transport | WebRTC (RTCPeerConnection) |
 | State management | Zustand |
-| Deployment | Coolify (Docker) |
+| Deployment | Vercel (web) · Railway (signal) · Supabase Cloud (DB) |
 
 ## Quick Start (Local Dev)
 
@@ -78,10 +78,11 @@ vortex/
 │   │   │   ├── roles/        # RoleManager
 │   │   │   ├── layout/       # ServerSidebar, ChannelSidebar, MemberList
 │   │   │   └── modals/       # Create server/channel, profile, settings
-│   │   └── lib/
-│   │       ├── supabase/     # client, server, middleware helpers
-│   │       ├── webrtc/       # useVoice hook
-│   │       └── stores/       # Zustand app store
+│   │   ├── lib/
+│   │   │   ├── supabase/     # client, server, middleware helpers
+│   │   │   ├── webrtc/       # useVoice hook
+│   │   │   └── stores/       # Zustand app store
+│   │   └── vercel.json       # Vercel build config
 │   └── signal/               # Node.js WebRTC signaling server
 │       └── src/
 │           ├── index.ts      # socket.io server
@@ -90,13 +91,18 @@ vortex/
 │   └── shared/               # Shared types + permission bitmasks
 ├── supabase/
 │   └── migrations/           # SQL migrations + RLS policies
-├── docker-compose.yml
-└── coolify/                  # Deployment guide
+├── docker-compose.yml        # Local dev only
+└── deploy/                   # Deployment guide (Vercel + Railway + Supabase Cloud)
 ```
 
 ## Deployment
 
-See [coolify/README.md](./coolify/README.md) for full Coolify deployment instructions.
+See [deploy/README.md](./deploy/README.md) for full deployment instructions.
+
+**Summary:**
+- **Web app** → [Vercel](https://vercel.com) — connect repo, set root directory to `apps/web`
+- **Signal server** → [Railway](https://railway.app) — deploys from `apps/signal/Dockerfile`
+- **Database / Auth / Storage** → [Supabase Cloud](https://supabase.com)
 
 ## Permissions Bitmask
 

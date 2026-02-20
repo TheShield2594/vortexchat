@@ -10,7 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.80.0",
+    "@supabase/supabase-js": "^2.97.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "socket.io": "^4.8.3"

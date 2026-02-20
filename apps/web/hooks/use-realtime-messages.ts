@@ -29,7 +29,7 @@ export function useRealtimeMessages(
             .select(`*, author:users(*), attachments(*), reactions(*)`)
             .eq("id", payload.new.id)
             .single()
-          if (data) onInsert(data as MessageWithAuthor)
+          if (data) onInsert(data as unknown as MessageWithAuthor)
         }
       )
       .on(

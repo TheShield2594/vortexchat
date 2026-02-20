@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       users: {
@@ -52,6 +52,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       servers: {
         Row: {
@@ -81,6 +82,7 @@ export interface Database {
           description?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       server_members: {
         Row: {
@@ -101,6 +103,7 @@ export interface Database {
           nickname?: string | null
           joined_at?: string
         }
+        Relationships: []
       }
       roles: {
         Row: {
@@ -139,6 +142,7 @@ export interface Database {
           is_default?: boolean
           created_at?: string
         }
+        Relationships: []
       }
       member_roles: {
         Row: {
@@ -156,6 +160,7 @@ export interface Database {
           user_id?: string
           role_id?: string
         }
+        Relationships: []
       }
       channels: {
         Row: {
@@ -194,6 +199,7 @@ export interface Database {
           nsfw?: boolean
           created_at?: string
         }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -226,6 +232,7 @@ export interface Database {
           reply_to_id?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       attachments: {
         Row: {
@@ -261,6 +268,7 @@ export interface Database {
           height?: number | null
           created_at?: string
         }
+        Relationships: []
       }
       reactions: {
         Row: {
@@ -281,6 +289,7 @@ export interface Database {
           emoji?: string
           created_at?: string
         }
+        Relationships: []
       }
       direct_messages: {
         Row: {
@@ -313,6 +322,7 @@ export interface Database {
           edited_at?: string | null
           deleted_at?: string | null
         }
+        Relationships: []
       }
       voice_states: {
         Row: {
@@ -345,7 +355,11 @@ export interface Database {
           self_stream?: boolean
           joined_at?: string
         }
+        Relationships: []
       }
+    }
+    Views: {
+      [_ in never]: never
     }
     Functions: {
       is_server_member: {
@@ -364,6 +378,12 @@ export interface Database {
         Args: { p_server_id: string; p_permission: number; p_user_id?: string }
         Returns: boolean
       }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
