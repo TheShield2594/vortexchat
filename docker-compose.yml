@@ -1,3 +1,5 @@
+# Local development only — not used in production.
+# Production: web → Vercel, signal → Railway, database → Supabase Cloud
 version: '3.8'
 
 services:
@@ -15,9 +17,6 @@ services:
     depends_on:
       - signal
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`vortex.yourdomain.com`)"
 
   # ─── Vortex Signaling Server (Node.js WebRTC) ────────────────────────────────
   signal:
@@ -31,9 +30,6 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.signal.rule=Host(`signal.yourdomain.com`)"
 
 networks:
   default:
