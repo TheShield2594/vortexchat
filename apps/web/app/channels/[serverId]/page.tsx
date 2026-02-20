@@ -2,24 +2,25 @@ import { redirect } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 interface Props {
-  params: { serverId: string }
+  params: Promise<{ serverId: string }>
 }
 
 export default async function ServerHomePage({ params }: Props) {
-  const supabase = createServerSupabaseClient()
+  const { serverId } = await params
+  const supabase = await createServerSupabaseClient()
 
   // Get first text channel in the server
   const { data: channel } = await supabase
     .from("channels")
     .select("id")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("type", "text")
     .order("position", { ascending: true })
     .limit(1)
     .single()
 
   if (channel) {
-    redirect(`/channels/${params.serverId}/${channel.id}`)
+    redirect(`/channels/${serverId}/${channel.id}`)
   }
 
   return (

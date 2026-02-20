@@ -3,9 +3,10 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export async function GET(
   request: Request,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const { serverId } = await params
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -19,7 +20,7 @@ export async function GET(
       user:users(*),
       roles:member_roles(role_id, roles(*))
     `)
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -30,9 +31,10 @@ export async function GET(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const { serverId } = await params
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -43,7 +45,7 @@ export async function DELETE(
   const { error } = await supabase
     .from("server_members")
     .delete()
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("user_id", targetUserId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

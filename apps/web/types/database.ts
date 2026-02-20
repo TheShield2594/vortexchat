@@ -52,6 +52,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       servers: {
         Row: {
@@ -81,6 +82,15 @@ export interface Database {
           description?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "servers_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       server_members: {
         Row: {
@@ -101,6 +111,22 @@ export interface Database {
           nickname?: string | null
           joined_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "server_members_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "server_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       roles: {
         Row: {
@@ -139,6 +165,15 @@ export interface Database {
           is_default?: boolean
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "roles_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       member_roles: {
         Row: {
@@ -156,6 +191,15 @@ export interface Database {
           user_id?: string
           role_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "member_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       channels: {
         Row: {
@@ -194,6 +238,51 @@ export interface Database {
           nsfw?: boolean
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "channels_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      channel_permissions: {
+        Row: {
+          channel_id: string
+          role_id: string
+          allow: number
+          deny: number
+        }
+        Insert: {
+          channel_id: string
+          role_id: string
+          allow?: number
+          deny?: number
+        }
+        Update: {
+          channel_id?: string
+          role_id?: string
+          allow?: number
+          deny?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_permissions_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       messages: {
         Row: {
@@ -226,6 +315,22 @@ export interface Database {
           reply_to_id?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       attachments: {
         Row: {
@@ -261,6 +366,15 @@ export interface Database {
           height?: number | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       reactions: {
         Row: {
@@ -281,6 +395,22 @@ export interface Database {
           emoji?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       direct_messages: {
         Row: {
@@ -313,6 +443,66 @@ export interface Database {
           edited_at?: string | null
           deleted_at?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      dm_attachments: {
+        Row: {
+          id: string
+          message_id: string
+          url: string
+          filename: string
+          size: number
+          content_type: string
+          width: number | null
+          height: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          url: string
+          filename: string
+          size: number
+          content_type: string
+          width?: number | null
+          height?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          url?: string
+          filename?: string
+          size?: number
+          content_type?: string
+          width?: number | null
+          height?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       voice_states: {
         Row: {
@@ -345,7 +535,33 @@ export interface Database {
           self_stream?: boolean
           joined_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "voice_states_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_states_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_states_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          }
+        ]
       }
+    }
+    Views: {
+      [_ in never]: never
     }
     Functions: {
       is_server_member: {
@@ -364,6 +580,12 @@ export interface Database {
         Args: { p_server_id: string; p_permission: number; p_user_id?: string }
         Returns: boolean
       }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }

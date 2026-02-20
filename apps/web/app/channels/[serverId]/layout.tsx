@@ -4,11 +4,12 @@ import { ChannelSidebar } from "@/components/layout/channel-sidebar"
 
 interface Props {
   children: React.ReactNode
-  params: { serverId: string }
+  params: Promise<{ serverId: string }>
 }
 
 export default async function ServerLayout({ children, params }: Props) {
-  const supabase = createServerSupabaseClient()
+  const { serverId } = await params
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect("/login")
@@ -17,7 +18,7 @@ export default async function ServerLayout({ children, params }: Props) {
   const { data: member } = await supabase
     .from("server_members")
     .select("server_id")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("user_id", user.id)
     .single()
 
@@ -27,7 +28,7 @@ export default async function ServerLayout({ children, params }: Props) {
   const { data: server } = await supabase
     .from("servers")
     .select("*")
-    .eq("id", params.serverId)
+    .eq("id", serverId)
     .single()
 
   if (!server) notFound()
@@ -35,14 +36,14 @@ export default async function ServerLayout({ children, params }: Props) {
   const { data: channels } = await supabase
     .from("channels")
     .select("*")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .order("position", { ascending: true })
 
   // Fetch member's roles for permission checks
   const { data: memberRoles } = await supabase
     .from("member_roles")
     .select("role_id, roles(*)")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("user_id", user.id)
 
   const userRoles = memberRoles?.map((mr) => mr.roles).filter(Boolean) as any[] ?? []

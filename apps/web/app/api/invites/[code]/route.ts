@@ -3,14 +3,15 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export async function GET(
   request: Request,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const { code } = await params
+  const supabase = await createServerSupabaseClient()
 
   const { data: server } = await supabase
     .from("servers")
     .select("id, name, icon_url, description")
-    .eq("invite_code", params.code.toLowerCase())
+    .eq("invite_code", code.toLowerCase())
     .single()
 
   if (!server) {
@@ -28,9 +29,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const { code } = await params
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -40,7 +42,7 @@ export async function POST(
   const { data: server } = await supabase
     .from("servers")
     .select("id, name")
-    .eq("invite_code", params.code.toLowerCase())
+    .eq("invite_code", code.toLowerCase())
     .single()
 
   if (!server) {

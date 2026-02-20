@@ -5,11 +5,12 @@ import { VoiceChannel } from "@/components/voice/voice-channel"
 import { MemberList } from "@/components/layout/member-list"
 
 interface Props {
-  params: { serverId: string; channelId: string }
+  params: Promise<{ serverId: string; channelId: string }>
 }
 
 export default async function ChannelPage({ params }: Props) {
-  const supabase = createServerSupabaseClient()
+  const { serverId, channelId } = await params
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect("/login")
@@ -18,8 +19,8 @@ export default async function ChannelPage({ params }: Props) {
   const { data: channel } = await supabase
     .from("channels")
     .select("*")
-    .eq("id", params.channelId)
-    .eq("server_id", params.serverId)
+    .eq("id", channelId)
+    .eq("server_id", serverId)
     .single()
 
   if (!channel) notFound()
@@ -35,7 +36,7 @@ export default async function ChannelPage({ params }: Props) {
         attachments(*),
         reactions(*)
       `)
-      .eq("channel_id", params.channelId)
+      .eq("channel_id", channelId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50)
@@ -47,7 +48,7 @@ export default async function ChannelPage({ params }: Props) {
   const { data: member } = await supabase
     .from("server_members")
     .select("nickname")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("user_id", user.id)
     .single()
 
@@ -57,7 +58,7 @@ export default async function ChannelPage({ params }: Props) {
         <VoiceChannel
           channelId={channel.id}
           channelName={channel.name}
-          serverId={params.serverId}
+          serverId={serverId}
           currentUserId={user.id}
         />
       </div>
@@ -70,9 +71,9 @@ export default async function ChannelPage({ params }: Props) {
         channel={channel}
         initialMessages={messages}
         currentUserId={user.id}
-        serverId={params.serverId}
+        serverId={serverId}
       />
-      <MemberList serverId={params.serverId} />
+      <MemberList serverId={serverId} />
     </div>
   )
 }

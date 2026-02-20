@@ -3,16 +3,17 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export async function GET(
   request: Request,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const { serverId } = await params
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { data: roles, error } = await supabase
     .from("roles")
     .select("*")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .order("position", { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -22,9 +23,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const { serverId } = await params
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -33,7 +35,7 @@ export async function POST(
   const { data: role, error } = await supabase
     .from("roles")
     .insert({
-      server_id: params.serverId,
+      server_id: serverId,
       name: body.name ?? "New Role",
       color: body.color ?? "#99aab5",
       permissions: body.permissions ?? 3,
