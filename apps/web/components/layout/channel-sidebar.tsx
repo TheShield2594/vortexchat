@@ -14,6 +14,7 @@ import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { UserPanel } from "@/components/layout/user-panel"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
+import { useUnreadChannels } from "@/hooks/use-unread-channels"
 
 interface Props {
   server: ServerRow
@@ -57,6 +58,14 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
   const [showServerSettings, setShowServerSettings] = useState(false)
   const [createChannelCategoryId, setCreateChannelCategoryId] = useState<string | undefined>()
   const router = useRouter()
+
+  const textChannelIds = channels.filter((c) => c.type === "text").map((c) => c.id)
+  const { unreadChannelIds, mentionCounts } = useUnreadChannels(
+    server.id,
+    textChannelIds,
+    currentUserId,
+    activeChannelId
+  )
 
   const grouped = groupChannels(channels)
 
@@ -140,6 +149,8 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                       channel={channel}
                       isActive={activeChannelId === channel.id}
                       isVoiceActive={voiceChannelId === channel.id}
+                      isUnread={unreadChannelIds.has(channel.id)}
+                      mentionCount={mentionCounts[channel.id] ?? 0}
                       onClick={() => {
                         if (channel.type === "text") {
                           router.push(`/channels/${server.id}/${channel.id}`)
@@ -198,30 +209,58 @@ function ChannelItem({
   channel,
   isActive,
   isVoiceActive,
+  isUnread,
+  mentionCount,
   onClick,
 }: {
   channel: ChannelRow
   isActive: boolean
   isVoiceActive: boolean
+  isUnread: boolean
+  mentionCount: number
   onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm",
+        "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel",
         isActive || isVoiceActive
           ? "bg-white/10 text-white"
+          : isUnread
+          ? "text-white hover:bg-white/5"
           : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
       )}
     >
+      {/* Unread left bar */}
+      {isUnread && !isActive && (
+        <span
+          className="absolute left-0 w-1 rounded-r"
+          style={{ height: "8px", background: "white" }}
+        />
+      )}
+
       {channel.type === "text" ? (
         <Hash className="w-4 h-4 flex-shrink-0" />
       ) : (
         <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
       )}
-      <span className="truncate">{channel.name}</span>
-      {isVoiceActive && (
+      <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>
+        {channel.name}
+      </span>
+
+      {/* Mention badge */}
+      {mentionCount > 0 && !isActive && (
+        <span
+          className="flex-shrink-0 text-xs font-bold text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center"
+          style={{ background: "#f23f43", fontSize: "11px" }}
+        >
+          {mentionCount > 99 ? "99+" : mentionCount}
+        </span>
+      )}
+
+      {/* Voice active pulse */}
+      {isVoiceActive && !mentionCount && (
         <span className="ml-auto">
           <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
         </span>

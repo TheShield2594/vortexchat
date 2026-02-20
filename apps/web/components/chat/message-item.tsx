@@ -33,6 +33,9 @@ export function MessageItem({
   const [showActions, setShowActions] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const isOwn = message.author_id === currentUserId
+  const isMentioned =
+    (message.mentions ?? []).includes(currentUserId) ||
+    message.mention_everyone
 
   const displayName =
     message.author?.display_name || message.author?.username || "Unknown"
@@ -59,22 +62,52 @@ export function MessageItem({
   }
 
   function renderContent(content: string) {
-    // Simple markdown-like parsing
-    return content
+    // Escape HTML to prevent XSS, then apply safe markdown transforms
+    const safe = content
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+
+    return safe
+      // Code blocks (before inline code so ``` doesn't get eaten)
+      .replace(/```(\w*)\n?([\s\S]*?)```/g, (_, _lang, code) =>
+        `<pre style="background:#1e1f22;border-radius:4px;padding:8px 12px;overflow-x:auto;margin:4px 0;font-size:0.85em;white-space:pre-wrap"><code>${code.trimEnd()}</code></pre>`
+      )
+      // Inline code
+      .replace(/`([^`\n]+)`/g, '<code style="background:#1e1f22;padding:1px 5px;border-radius:3px;font-size:0.9em;font-family:monospace">$1</code>')
+      // Bold
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      // Italic
       .replace(/\*(.*?)\*/g, "<em>$1</em>")
+      // Underline
+      .replace(/__(.*?)__/g, "<u>$1</u>")
+      // Strikethrough
       .replace(/~~(.*?)~~/g, "<s>$1</s>")
-      .replace(/`(.*?)`/g, "<code>$1</code>")
-      .replace(/<@(\w+)>/g, '<span style="color:#5865f2;background:rgba(88,101,242,0.1);padding:0 2px;border-radius:3px">@$1</span>')
-      .replace(/https?:\/\/[^\s]+/g, (url) => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`)
+      // Spoiler — hidden until clicked
+      .replace(/\|\|(.*?)\|\|/g, '<span onclick="this.style.color=\'#dcddde\';this.style.background=\'transparent\'" style="background:#1e1f22;color:#1e1f22;border-radius:3px;padding:0 3px;cursor:pointer" title="Click to reveal">$1</span>')
+      // Blockquote (line starting with &gt; after escaping)
+      .replace(/^&gt; (.+)$/gm, '<div style="border-left:4px solid #4e5058;padding-left:8px;margin:2px 0;color:#b5bac1">$1</div>')
+      // @mention pills
+      .replace(/@(everyone|here)/g, '<span style="color:#fff;background:rgba(250,166,26,0.3);padding:0 3px;border-radius:3px;font-weight:500">@$1</span>')
+      .replace(/@(\w+)/g, '<span style="color:#5865f2;background:rgba(88,101,242,0.15);padding:0 3px;border-radius:3px;font-weight:500">@$1</span>')
+      // Auto-link URLs
+      .replace(/https?:\/\/[^\s&<>"]+/g, (url) =>
+        `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#00a8fc;text-decoration:underline">${url}</a>`
+      )
   }
 
   return (
     <div
       className={cn(
         "relative group px-4 message-hover",
-        isGrouped ? "py-0.5" : "pt-4 pb-0.5"
+        isGrouped ? "py-0.5" : "pt-4 pb-0.5",
+        isMentioned ? "mention-highlight" : ""
       )}
+      style={isMentioned ? {
+        background: "rgba(250, 166, 26, 0.05)",
+        borderLeft: "2px solid #f9a31a",
+      } : undefined}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false) }}
     >

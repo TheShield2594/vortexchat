@@ -9,6 +9,7 @@ import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
+import { useTyping } from "@/hooks/use-typing"
 
 interface Props {
   channel: ChannelRow
@@ -17,12 +18,44 @@ interface Props {
   serverId: string
 }
 
+// Parse @username mentions and resolve to user IDs
+function parseMentions(content: string, members: Array<{ user_id: string; username: string }>) {
+  const mentionEveryone = /@everyone|@here/.test(content)
+  const mentions: string[] = []
+  for (const match of content.matchAll(/@(\w+)/g)) {
+    const uname = match[1].toLowerCase()
+    if (uname === "everyone" || uname === "here") continue
+    const member = members.find((m) => m.username.toLowerCase() === uname)
+    if (member && !mentions.includes(member.user_id)) mentions.push(member.user_id)
+  }
+  return { mentions, mentionEveryone }
+}
+
 export function ChatArea({ channel, initialMessages, currentUserId, serverId }: Props) {
-  const { setActiveChannel } = useAppStore()
+  const { setActiveChannel, currentUser } = useAppStore()
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
+  const [serverMembers, setServerMembers] = useState<Array<{ user_id: string; username: string }>>([])
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
+
+  const currentDisplayName = currentUser?.display_name || currentUser?.username || "User"
+  const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
+
+  // Fetch server members for @mention resolution
+  useEffect(() => {
+    supabase
+      .from("server_members")
+      .select("user_id, users(username)")
+      .eq("server_id", serverId)
+      .then(({ data }) => {
+        if (data) {
+          setServerMembers(
+            data.map((m: any) => ({ user_id: m.user_id, username: m.users?.username ?? "" }))
+          )
+        }
+      })
+  }, [serverId])
 
   useEffect(() => {
     setActiveChannel(channel.id)
@@ -39,24 +72,41 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
     bottomRef.current?.scrollIntoView()
   }, [])
 
-  // Realtime subscription
-  useRealtimeMessages(channel.id, (newMessage) => {
-    setMessages((prev) => {
-      // Avoid duplicates
-      if (prev.some((m) => m.id === newMessage.id)) return prev
-      return [...prev, newMessage]
-    })
-  }, (updatedMessage) => {
-    setMessages((prev) =>
-      prev.map((m) => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m)
-    )
-  })
+  // Realtime subscription (messages + reactions)
+  useRealtimeMessages(
+    channel.id,
+    (newMessage) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMessage.id)) return prev
+        return [...prev, newMessage]
+      })
+    },
+    (updatedMessage) => {
+      setMessages((prev) =>
+        prev.map((m) => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m)
+      )
+    },
+    (reaction, eventType) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== reaction.message_id) return m
+          if (eventType === "INSERT") {
+            // Avoid duplicate
+            if (m.reactions.some((r) => r.message_id === reaction.message_id && r.user_id === reaction.user_id && r.emoji === reaction.emoji)) return m
+            return { ...m, reactions: [...m.reactions, reaction] }
+          } else {
+            return { ...m, reactions: m.reactions.filter((r) => !(r.user_id === reaction.user_id && r.emoji === reaction.emoji)) }
+          }
+        })
+      )
+    }
+  )
 
   async function handleSendMessage(content: string, attachmentFiles?: File[]) {
     if (!content.trim() && (!attachmentFiles || attachmentFiles.length === 0)) return
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    // Parse @mention tags from the message content
+    const { mentions, mentionEveryone } = parseMentions(content, serverMembers)
 
     // Upload attachments first
     const attachments: { url: string; filename: string; size: number; content_type: string }[] = []
@@ -83,27 +133,28 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
       }
     }
 
-    const { data: message, error } = await supabase
-      .from("messages")
-      .insert({
-        channel_id: channel.id,
-        author_id: user.id,
+    // Send message via API route (enforces rate limiting + slowmode server-side)
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channelId: channel.id,
         content: content.trim() || null,
-        reply_to_id: replyTo?.id || null,
-      })
-      .select(`*, author:users(*), attachments(*), reactions(*)`)
-      .single()
+        replyToId: replyTo?.id || null,
+        mentions,
+        mentionEveryone,
+        attachments,
+      }),
+    })
 
-    if (error) {
-      console.error("Failed to send message:", error)
+    if (!res.ok) {
+      const { error: errMsg } = await res.json().catch(() => ({ error: "Failed to send" }))
+      console.error("Failed to send message:", errMsg)
+      // Surface slowmode / rate limit errors to user
+      if (res.status === 429) {
+        alert(errMsg)
+      }
       return
-    }
-
-    // Insert attachments
-    if (attachments.length > 0 && message) {
-      await supabase.from("attachments").insert(
-        attachments.map((a) => ({ ...a, message_id: message.id }))
-      )
     }
 
     setReplyTo(null)
@@ -226,12 +277,33 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
         </div>
       </div>
 
+      {/* Typing indicator */}
+      {typingUsers.length > 0 && (
+        <div className="px-4 pb-1 flex items-center gap-1 text-xs" style={{ color: '#b5bac1', minHeight: '20px' }}>
+          <span className="flex gap-0.5 mr-1">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="w-1 h-1 rounded-full bg-current inline-block animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </span>
+          <span className="font-semibold text-white">
+            {typingUsers.map((u) => u.displayName).join(", ")}
+          </span>
+          <span>{typingUsers.length === 1 ? " is" : " are"} typing...</span>
+        </div>
+      )}
+
       {/* Message input */}
       <MessageInput
         channelName={channel.name}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         onSend={handleSendMessage}
+        onTyping={onKeystroke}
+        onSent={onSent}
       />
     </div>
   )

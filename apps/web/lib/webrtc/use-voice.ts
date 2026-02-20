@@ -170,6 +170,27 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     }
   }, [channelId, userId])
 
+  function buildIceServers(): RTCIceServer[] {
+    const servers: RTCIceServer[] = [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+    ]
+
+    const turnUrl = process.env.NEXT_PUBLIC_TURN_URL
+    const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL
+    const username = process.env.NEXT_PUBLIC_TURN_USERNAME
+    const credential = process.env.NEXT_PUBLIC_TURN_CREDENTIAL
+
+    if (turnUrl && username && credential) {
+      servers.push({ urls: turnUrl, username, credential })
+    }
+    if (turnsUrl && username && credential) {
+      servers.push({ urls: turnsUrl, username, credential })
+    }
+
+    return servers
+  }
+
   function createPeerConnection(
     peerId: string,
     peerUserId: string,
@@ -178,10 +199,8 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     stream: MediaStream
   ) {
     const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-      ],
+      iceServers: buildIceServers(),
+      iceTransportPolicy: process.env.NEXT_PUBLIC_TURN_URL ? "all" : "all",
     })
 
     peerConnections.current.set(peerId, pc)

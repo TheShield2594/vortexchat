@@ -2,18 +2,20 @@
 
 import { useEffect } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import type { MessageWithAuthor } from "@/types/database"
+import type { MessageWithAuthor, ReactionRow } from "@/types/database"
 
 export function useRealtimeMessages(
   channelId: string,
   onInsert: (message: MessageWithAuthor) => void,
-  onUpdate: (message: Partial<MessageWithAuthor> & { id: string }) => void
+  onUpdate: (message: Partial<MessageWithAuthor> & { id: string }) => void,
+  onReactionChange?: (reaction: ReactionRow, eventType: "INSERT" | "DELETE") => void
 ) {
   const supabase = createClientSupabaseClient()
 
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${channelId}`)
+      // New message
       .on(
         "postgres_changes",
         {
@@ -23,7 +25,6 @@ export function useRealtimeMessages(
           filter: `channel_id=eq.${channelId}`,
         },
         async (payload) => {
-          // Fetch full message with relations
           const { data } = await supabase
             .from("messages")
             .select(`*, author:users(*), attachments(*), reactions(*)`)
@@ -32,6 +33,7 @@ export function useRealtimeMessages(
           if (data) onInsert(data as MessageWithAuthor)
         }
       )
+      // Edited / soft-deleted message
       .on(
         "postgres_changes",
         {
@@ -42,6 +44,30 @@ export function useRealtimeMessages(
         },
         (payload) => {
           onUpdate(payload.new as any)
+        }
+      )
+      // Reaction added
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "reactions",
+        },
+        (payload) => {
+          onReactionChange?.(payload.new as ReactionRow, "INSERT")
+        }
+      )
+      // Reaction removed
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "reactions",
+        },
+        (payload) => {
+          onReactionChange?.(payload.old as ReactionRow, "DELETE")
         }
       )
       .subscribe()

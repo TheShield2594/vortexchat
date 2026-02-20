@@ -204,6 +204,8 @@ export interface Database {
           edited_at: string | null
           deleted_at: string | null
           reply_to_id: string | null
+          mentions: string[]
+          mention_everyone: boolean
           created_at: string
         }
         Insert: {
@@ -214,6 +216,8 @@ export interface Database {
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
+          mentions?: string[]
+          mention_everyone?: boolean
           created_at?: string
         }
         Update: {
@@ -224,6 +228,8 @@ export interface Database {
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
+          mentions?: string[]
+          mention_everyone?: boolean
           created_at?: string
         }
       }
@@ -363,6 +369,10 @@ export interface Database {
       has_permission: {
         Args: { p_server_id: string; p_permission: number; p_user_id?: string }
         Returns: boolean
+      }
+      mark_channel_read: {
+        Args: { p_channel_id: string }
+        Returns: void
       }
     }
   }
