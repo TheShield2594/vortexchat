@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
-import { Hash, AtSign, Upload } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { Hash } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
 
 interface Props {
@@ -110,18 +109,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
+    <div className="flex flex-col flex-1 overflow-hidden bg-vortex-bg-primary">
       {/* Channel header */}
-      <div
-        className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: '#1e1f22' }}
-      >
-        <Hash className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-vortex-bg-tertiary flex-shrink-0">
+        <Hash className="w-5 h-5 flex-shrink-0 text-vortex-interactive" />
         <span className="font-semibold text-white">{channel.name}</span>
         {channel.topic && (
           <>
-            <span style={{ color: '#4e5058' }}>|</span>
-            <span className="text-sm truncate" style={{ color: '#949ba4' }}>
+            <span className="text-vortex-text-muted">|</span>
+            <span className="text-sm truncate text-vortex-interactive">
               {channel.topic}
             </span>
           </>
@@ -133,16 +129,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
         {/* Channel welcome message */}
         {messages.length === 0 && (
           <div className="px-4 py-8">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ background: '#4e5058' }}
-            >
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-vortex-text-muted">
               <Hash className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">
               Welcome to #{channel.name}!
             </h2>
-            <p style={{ color: '#b5bac1' }}>
+            <p className="text-vortex-text-secondary">
               This is the start of the #{channel.name} channel.
               {channel.topic && ` ${channel.topic}`}
             </p>

@@ -1,19 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
   Plus, Settings, Mic, MicOff, Headphones, PhoneOff
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
-import type { ChannelRow, RoleRow, ServerRow, UserRow } from "@/types/database"
+import type { ChannelRow, RoleRow, ServerRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { UserPanel } from "@/components/layout/user-panel"
-import { PERMISSIONS, hasPermission } from "@vortex/shared"
+import { hasPermission } from "@vortex/shared"
 
 interface Props {
   server: ServerRow
@@ -62,7 +62,7 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
 
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
-  const canManageChannels = isOwner || hasPermission(userPermissions as any, "MANAGE_CHANNELS")
+  const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
 
   function toggleCategory(id: string) {
     setCollapsedCategories((prev) => {
@@ -75,15 +75,11 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div
-        className="w-60 flex flex-col flex-shrink-0"
-        style={{ background: '#2b2d31' }}
-      >
+      <div className="w-60 flex flex-col flex-shrink-0 bg-vortex-bg-secondary">
         {/* Server header */}
         <button
           onClick={() => setShowServerSettings(true)}
-          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-white/5 transition-colors group"
-          style={{ borderColor: '#1e1f22' }}
+          className="flex items-center justify-between px-4 py-3 border-b border-vortex-bg-tertiary cursor-pointer hover:bg-white/5 transition-colors group"
         >
           <span className="font-semibold text-white truncate text-sm">{server.name}</span>
           <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white transition-colors" />
@@ -100,14 +96,11 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                 >
                   <div className="flex items-center gap-1">
                     {collapsedCategories.has(category.id) ? (
-                      <ChevronRight className="w-3 h-3" style={{ color: '#949ba4' }} />
+                      <ChevronRight className="w-3 h-3 text-vortex-interactive" />
                     ) : (
-                      <ChevronDown className="w-3 h-3" style={{ color: '#949ba4' }} />
+                      <ChevronDown className="w-3 h-3 text-vortex-interactive" />
                     )}
-                    <span
-                      className="text-xs font-semibold uppercase tracking-wider"
-                      style={{ color: '#949ba4' }}
-                    >
+                    <span className="text-xs font-semibold uppercase tracking-wider text-vortex-interactive">
                       {category.name}
                     </span>
                   </div>
@@ -120,8 +113,7 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                             setCreateChannelCategoryId(category.id)
                             setShowCreateChannel(true)
                           }}
-                          className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity"
-                          style={{ color: '#949ba4' }}
+                          className="opacity-0 group-hover:opacity-100 text-vortex-interactive hover:text-white transition-opacity"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -163,8 +155,7 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                   setCreateChannelCategoryId(undefined)
                   setShowCreateChannel(true)
                 }}
-                className="flex items-center gap-1 px-2 py-1 rounded w-full hover:bg-white/5 transition-colors"
-                style={{ color: '#949ba4' }}
+                className="flex items-center gap-1 px-2 py-1 rounded w-full hover:bg-white/5 transition-colors text-vortex-interactive"
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-sm">Add Channel</span>
@@ -218,7 +209,7 @@ function ChannelItem({
       {channel.type === "text" ? (
         <Hash className="w-4 h-4 flex-shrink-0" />
       ) : (
-        <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
+        <Volume2 className={cn("w-4 h-4 flex-shrink-0", isVoiceActive && "text-vortex-success")} />
       )}
       <span className="truncate">{channel.name}</span>
       {isVoiceActive && (

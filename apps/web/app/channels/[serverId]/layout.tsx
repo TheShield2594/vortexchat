@@ -46,7 +46,7 @@ export default async function ServerLayout({ children, params }: Props) {
     .eq("server_id", serverId)
     .eq("user_id", user.id)
 
-  const userRoles = memberRoles?.map((mr) => mr.roles).filter(Boolean) as any[] ?? []
+  const userRoles = memberRoles?.map((mr) => mr.roles).filter((r): r is NonNullable<typeof r> => r !== null) ?? []
 
   return (
     <div className="flex flex-1 overflow-hidden">

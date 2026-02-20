@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { cn } from "@/lib/utils/cn"
 
 interface Props {
   open: boolean
@@ -57,8 +58,9 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
       if (type === "text") {
         router.push(`/channels/${serverId}/${channel.id}`)
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create channel", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Failed to create channel", description: message })
     } finally {
       setLoading(false)
       setName("")
@@ -89,17 +91,17 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
 
   return (
     <Dialog open={open} onOpenChange={() => { setName(""); setType("text"); onClose() }}>
-      <DialogContent style={{ background: '#313338', borderColor: '#1e1f22', maxWidth: '460px' }}>
+      <DialogContent className="max-w-[460px] bg-vortex-bg-primary border-vortex-bg-tertiary">
         <DialogHeader>
           <DialogTitle className="text-white">Create Channel</DialogTitle>
           {categoryId && (
-            <p className="text-sm" style={{ color: '#b5bac1' }}>in a category</p>
+            <p className="text-sm text-vortex-text-secondary">in a category</p>
           )}
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: '#b5bac1' }}>
+            <Label className="text-xs font-semibold uppercase tracking-wider mb-3 block text-vortex-text-secondary">
               Channel Type
             </Label>
             <div className="space-y-2">
@@ -107,16 +109,20 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
                 <button
                   key={t}
                   onClick={() => setType(t)}
-                  className="w-full flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left"
-                  style={{
-                    background: type === t ? '#5865f2' : '#2b2d31',
-                    border: `1px solid ${type === t ? '#5865f2' : 'transparent'}`,
-                  }}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left",
+                    type === t
+                      ? "bg-vortex-accent border border-vortex-accent"
+                      : "bg-vortex-bg-secondary border border-transparent"
+                  )}
                 >
-                  <span style={{ color: type === t ? 'white' : '#949ba4' }}>{icon}</span>
+                  <span className={type === t ? "text-white" : "text-vortex-interactive"}>{icon}</span>
                   <div>
                     <div className="font-medium text-white text-sm">{label}</div>
-                    <div className="text-xs" style={{ color: type === t ? 'rgba(255,255,255,0.7)' : '#949ba4' }}>
+                    <div className={cn(
+                      "text-xs",
+                      type === t ? "text-white/70" : "text-vortex-interactive"
+                    )}>
                       {description}
                     </div>
                   </div>
@@ -126,23 +132,25 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
               Channel Name <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
               {type === "text" && (
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vortex-interactive" />
               )}
               {type === "voice" && (
-                <Volume2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+                <Volume2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vortex-interactive" />
               )}
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={type === "category" ? "New Category" : type === "voice" ? "General" : "new-channel"}
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                className={type !== "category" ? "pl-8" : ""}
-                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                className={cn(
+                  "bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary",
+                  type !== "category" && "pl-8"
+                )}
               />
             </div>
           </div>
@@ -151,16 +159,14 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
             <Button
               variant="ghost"
               onClick={() => { setName(""); setType("text"); onClose() }}
-              className="flex-1"
-              style={{ color: '#b5bac1' }}
+              className="flex-1 text-vortex-text-secondary"
             >
               Cancel
             </Button>
             <Button
               onClick={handleCreate}
               disabled={loading || !name.trim()}
-              className="flex-1"
-              style={{ background: '#5865f2' }}
+              className="flex-1 bg-vortex-accent"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Channel

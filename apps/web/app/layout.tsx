@@ -20,7 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={inter.className} style={{ background: '#313338' }}>
+      <body className={`${inter.className} bg-vortex-bg-primary`}>
         {children}
         <Toaster />
       </body>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { io, type Socket } from "socket.io-client"
+import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 interface PeerState {
   stream: MediaStream
@@ -79,10 +80,13 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           return
         }
 
-        // Connect to signaling server
+        // Connect to signaling server with auth token
+        const supabase = createClientSupabaseClient()
+        const { data: { session } } = await supabase.auth.getSession()
         const socket = io(signalUrl, {
           transports: ["websocket"],
           reconnectionAttempts: 5,
+          auth: { token: session?.access_token },
         })
         socketRef.current = socket
 

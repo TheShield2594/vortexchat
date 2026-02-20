@@ -13,6 +13,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { UserRow } from "@/types/database"
+import { cn } from "@/lib/utils/cn"
 
 interface Props {
   open: boolean
@@ -54,7 +55,6 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
     try {
       let avatarUrl = user.avatar_url
 
-      // Upload new avatar if changed
       if (avatarFile) {
         const ext = avatarFile.name.split(".").pop()
         const path = `${user.id}/avatar.${ext}`
@@ -90,8 +90,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
       setCurrentUser(data)
       toast({ title: "Profile updated!" })
       onClose()
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to save profile", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Failed to save profile", description: message })
     } finally {
       setLoading(false)
     }
@@ -114,51 +115,42 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent
-        className="max-w-2xl max-h-[90vh] overflow-hidden p-0"
-        style={{ background: "#313338", borderColor: "#1e1f22" }}
-      >
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0 bg-vortex-bg-primary border-vortex-bg-tertiary">
         <div className="flex h-full min-h-[500px]">
           {/* Settings nav */}
-          <div className="w-52 flex-shrink-0 p-4 flex flex-col" style={{ background: "#2b2d31" }}>
-            <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#949ba4" }}>
+          <div className="w-52 flex-shrink-0 p-4 flex flex-col bg-vortex-bg-secondary">
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-2 text-vortex-interactive">
               User Settings
             </h3>
 
             <Tabs defaultValue="profile" orientation="vertical" className="flex-1">
               <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
-                <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
+                <TabsTrigger value="profile" className="w-full justify-start text-sm text-vortex-text-secondary data-[state=active]:bg-white/10 data-[state=active]:text-white rounded">
                   My Account
                 </TabsTrigger>
-                <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
+                <TabsTrigger value="appearance" className="w-full justify-start text-sm text-vortex-text-secondary data-[state=active]:bg-white/10 data-[state=active]:text-white rounded">
                   Appearance
                 </TabsTrigger>
               </TabsList>
 
-              {/* Main content */}
               <div className="flex-1 overflow-y-auto p-6">
                 <TabsContent value="profile" className="mt-0 space-y-6">
                   {/* Profile preview card */}
-                  <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #1e1f22" }}>
-                    {/* Banner */}
+                  <div className="rounded-lg overflow-hidden border border-vortex-bg-tertiary">
                     <div
                       className="h-20 cursor-pointer relative"
                       style={{ background: bannerColor }}
                       onClick={() => {}}
                     />
-
-                    {/* Avatar */}
-                    <div className="px-4 pb-4" style={{ background: "#232428" }}>
+                    <div className="px-4 pb-4 bg-vortex-bg-overlay">
                       <div className="relative inline-block -mt-8 mb-3">
                         <div
                           className="cursor-pointer"
                           onClick={() => avatarRef.current?.click()}
                         >
-                          <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "#232428" } as any}>
+                          <Avatar className="w-20 h-20 ring-4 ring-vortex-bg-overlay">
                             {avatarPreview && <AvatarImage src={avatarPreview} />}
-                            <AvatarFallback
-                              style={{ background: "#5865f2", color: "white", fontSize: "24px" }}
-                            >
+                            <AvatarFallback className="bg-vortex-accent text-white text-2xl">
                               {displayNamePreview.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -175,9 +167,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         />
                       </div>
                       <div className="font-bold text-white">{displayNamePreview}</div>
-                      <div className="text-sm" style={{ color: "#b5bac1" }}>#{user.username}</div>
+                      <div className="text-sm text-vortex-text-secondary">#{user.username}</div>
                       {user.custom_tag && (
-                        <div className="text-xs mt-1" style={{ color: "#949ba4" }}>{user.custom_tag}</div>
+                        <div className="text-xs mt-1 text-vortex-interactive">{user.custom_tag}</div>
                       )}
                     </div>
                   </div>
@@ -185,42 +177,42 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   {/* Form fields */}
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                         Display Name
                       </Label>
                       <Input
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder={user.username}
-                        style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }}
+                        className="bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                         Username
                       </Label>
                       <Input
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }}
+                        className="bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                         Custom Tag / Subtitle
                       </Label>
                       <Input
                         value={customTag}
                         onChange={(e) => setCustomTag(e.target.value)}
                         placeholder="e.g. Game Dev | Coffee Addict"
-                        style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }}
+                        className="bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                         About Me
                       </Label>
                       <textarea
@@ -229,16 +221,15 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         placeholder="Tell the world a little about yourself"
                         rows={3}
                         maxLength={190}
-                        className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
-                        style={{ background: "#1e1f22", color: "#f2f3f5", border: "1px solid #1e1f22" }}
+                        className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none bg-vortex-bg-tertiary text-vortex-text-primary border border-vortex-bg-tertiary"
                       />
-                      <div className="text-right text-xs" style={{ color: "#4e5058" }}>
+                      <div className="text-right text-xs text-vortex-text-muted">
                         {bio.length}/190
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                         Status
                       </Label>
                       <div className="grid grid-cols-2 gap-2">
@@ -246,12 +237,12 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           <button
                             key={value}
                             onClick={() => setStatus(value)}
-                            className="flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors text-left"
-                            style={{
-                              background: status === value ? "rgba(255,255,255,0.1)" : "#1e1f22",
-                              border: `1px solid ${status === value ? "#5865f2" : "transparent"}`,
-                              color: "#f2f3f5",
-                            }}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors text-left text-vortex-text-primary",
+                              status === value
+                                ? "bg-white/10 border border-vortex-accent"
+                                : "bg-vortex-bg-tertiary border border-transparent"
+                            )}
                           >
                             <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
                             {label}
@@ -261,7 +252,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                         Custom Status
                       </Label>
                       <Input
@@ -269,12 +260,12 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         onChange={(e) => setStatusMessage(e.target.value)}
                         placeholder="What are you up to?"
                         maxLength={128}
-                        style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }}
+                        className="bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                         Banner Color
                       </Label>
                       <div className="flex flex-wrap gap-2">
@@ -301,11 +292,11 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-2 border-t" style={{ borderColor: "#1e1f22" }}>
+                  <div className="flex gap-2 pt-2 border-t border-vortex-bg-tertiary">
                     <Button
                       variant="ghost"
                       onClick={handleLogout}
-                      style={{ color: "#f23f43" }}
+                      className="text-vortex-danger"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
                       Log Out
@@ -313,8 +304,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     <Button
                       onClick={handleSave}
                       disabled={loading}
-                      className="ml-auto"
-                      style={{ background: "#5865f2" }}
+                      className="ml-auto bg-vortex-accent"
                     >
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Save Changes

@@ -1,17 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { Mic, MicOff, Headphones, PhoneOff, Settings } from "lucide-react"
+import { PhoneOff, Settings } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ProfileSettingsModal } from "@/components/modals/profile-settings-modal"
-import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { cn } from "@/lib/utils/cn"
 
 export function UserPanel() {
   const { currentUser, voiceChannelId, setVoiceChannel } = useAppStore()
-  const [muted, setMuted] = useState(false)
-  const [deafened, setDeafened] = useState(false)
   const [showProfileSettings, setShowProfileSettings] = useState(false)
 
   if (!currentUser) return null
@@ -19,50 +17,54 @@ export function UserPanel() {
   const displayName = currentUser.display_name || currentUser.username
   const initials = displayName.slice(0, 2).toUpperCase()
 
-  function getStatusColor(status: string) {
+  function getStatusClass(status: string) {
     switch (status) {
-      case "online": return "#23a55a"
-      case "idle": return "#f0b132"
-      case "dnd": return "#f23f43"
-      default: return "#80848e"
+      case "online": return "bg-vortex-success"
+      case "idle": return "bg-[#f0b132]"
+      case "dnd": return "bg-vortex-danger"
+      default: return "bg-[#80848e]"
     }
   }
 
   return (
-    <div
-      className="flex items-center gap-2 p-2 border-t"
-      style={{ background: '#232428', borderColor: '#1e1f22' }}
-    >
+    <div className="flex items-center gap-2 p-2 border-t bg-vortex-bg-overlay border-vortex-bg-tertiary">
       {/* Avatar with status */}
-      <div className="relative flex-shrink-0 cursor-pointer" onClick={() => setShowProfileSettings(true)}>
+      <button
+        className="relative flex-shrink-0"
+        onClick={() => setShowProfileSettings(true)}
+        aria-label="Open profile settings"
+      >
         <Avatar className="w-8 h-8">
           {currentUser.avatar_url && <AvatarImage src={currentUser.avatar_url} />}
-          <AvatarFallback style={{ background: '#5865f2', color: 'white', fontSize: '12px' }}>
+          <AvatarFallback className="bg-vortex-accent text-white text-xs">
             {initials}
           </AvatarFallback>
         </Avatar>
         <span
-          className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-          style={{
-            background: getStatusColor(currentUser.status),
-            borderColor: '#232428',
-          }}
+          className={cn(
+            "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-vortex-bg-overlay",
+            getStatusClass(currentUser.status)
+          )}
         />
-      </div>
+      </button>
 
       {/* Username */}
-      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowProfileSettings(true)}>
+      <button
+        className="flex-1 min-w-0 text-left"
+        onClick={() => setShowProfileSettings(true)}
+        aria-label="Open profile settings"
+      >
         <div className="text-xs font-semibold text-white truncate">{displayName}</div>
         {currentUser.status_message ? (
-          <div className="text-xs truncate" style={{ color: '#949ba4' }}>
+          <div className="text-xs truncate text-vortex-interactive">
             {currentUser.status_message}
           </div>
         ) : (
-          <div className="text-xs" style={{ color: '#949ba4' }}>
+          <div className="text-xs text-vortex-interactive">
             #{currentUser.username}
           </div>
         )}
-      </div>
+      </button>
 
       {/* Controls */}
       <div className="flex items-center gap-0.5">
@@ -71,8 +73,8 @@ export function UserPanel() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setVoiceChannel(null, null)}
-                className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors"
-                style={{ color: '#f23f43' }}
+                className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors text-vortex-danger"
+                aria-label="Disconnect from voice"
               >
                 <PhoneOff className="w-4 h-4" />
               </button>
@@ -84,35 +86,9 @@ export function UserPanel() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={() => setMuted(!muted)}
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
-              style={{ color: muted ? '#f23f43' : '#949ba4' }}
-            >
-              {muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{muted ? "Unmute" : "Mute"}</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setDeafened(!deafened)}
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
-              style={{ color: deafened ? '#f23f43' : '#949ba4' }}
-            >
-              <Headphones className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{deafened ? "Undeafen" : "Deafen"}</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
               onClick={() => setShowProfileSettings(true)}
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
-              style={{ color: '#949ba4' }}
+              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors text-vortex-interactive"
+              aria-label="User settings"
             >
               <Settings className="w-4 h-4" />
             </button>

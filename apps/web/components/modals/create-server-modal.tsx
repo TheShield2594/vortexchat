@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Upload, X } from "lucide-react"
+import { Loader2, Upload } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { cn } from "@/lib/utils/cn"
 
 interface Props {
   open: boolean
@@ -64,8 +65,9 @@ export function CreateServerModal({ open, onClose }: Props) {
       toast({ title: `Server "${server.name}" created!` })
       onClose()
       router.push(`/channels/${server.id}`)
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create server", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Failed to create server", description: message })
     } finally {
       setLoading(false)
     }
@@ -96,8 +98,9 @@ export function CreateServerModal({ open, onClose }: Props) {
       toast({ title: `Joined "${server.name}"!` })
       onClose()
       router.push(`/channels/${server.id}`)
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to join server", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Failed to join server", description: message })
     } finally {
       setLoading(false)
     }
@@ -121,12 +124,12 @@ export function CreateServerModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent style={{ background: '#313338', borderColor: '#1e1f22', maxWidth: '440px' }}>
+      <DialogContent className="max-w-[440px] bg-vortex-bg-primary border-vortex-bg-tertiary">
         <DialogHeader>
           <DialogTitle className="text-white text-center text-xl">
             {mode === "create" ? "Customize Your Server" : "Join a Server"}
           </DialogTitle>
-          <p className="text-center text-sm" style={{ color: '#b5bac1' }}>
+          <p className="text-center text-sm text-vortex-text-secondary">
             {mode === "create"
               ? "Give your server a personality with a name and icon."
               : "Enter an invite code to join an existing server."}
@@ -136,15 +139,23 @@ export function CreateServerModal({ open, onClose }: Props) {
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setMode("create")}
-            className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${mode === "create" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
-            style={{ background: mode === "create" ? '#5865f2' : '#2b2d31' }}
+            className={cn(
+              "flex-1 py-2 rounded text-sm font-medium transition-colors",
+              mode === "create"
+                ? "bg-vortex-accent text-white"
+                : "bg-vortex-bg-secondary text-gray-400 hover:text-gray-200"
+            )}
           >
             Create New
           </button>
           <button
             onClick={() => setMode("join")}
-            className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${mode === "join" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
-            style={{ background: mode === "join" ? '#5865f2' : '#2b2d31' }}
+            className={cn(
+              "flex-1 py-2 rounded text-sm font-medium transition-colors",
+              mode === "join"
+                ? "bg-vortex-accent text-white"
+                : "bg-vortex-bg-secondary text-gray-400 hover:text-gray-200"
+            )}
           >
             Join Existing
           </button>
@@ -152,19 +163,17 @@ export function CreateServerModal({ open, onClose }: Props) {
 
         {mode === "create" ? (
           <div className="space-y-4">
-            {/* Icon upload */}
             <div className="flex justify-center">
               <div
                 onClick={() => fileRef.current?.click()}
-                className="w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-white/50 transition-colors overflow-hidden"
-                style={{ borderColor: '#4e5058' }}
+                className="w-20 h-20 rounded-full border-2 border-dashed border-vortex-text-muted flex items-center justify-center cursor-pointer hover:border-white/50 transition-colors overflow-hidden"
               >
                 {iconPreview ? (
                   <img src={iconPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="text-center">
-                    <Upload className="w-5 h-5 mx-auto mb-1" style={{ color: '#949ba4' }} />
-                    <span className="text-xs" style={{ color: '#949ba4' }}>UPLOAD</span>
+                    <Upload className="w-5 h-5 mx-auto mb-1 text-vortex-interactive" />
+                    <span className="text-xs text-vortex-interactive">UPLOAD</span>
                   </div>
                 )}
               </div>
@@ -172,7 +181,7 @@ export function CreateServerModal({ open, onClose }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                 Server Name <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -180,15 +189,14 @@ export function CreateServerModal({ open, onClose }: Props) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Awesome Server"
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                className="bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
               />
             </div>
 
             <Button
               onClick={handleCreate}
               disabled={loading || !name.trim()}
-              className="w-full"
-              style={{ background: '#5865f2' }}
+              className="w-full bg-vortex-accent"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Server
@@ -197,7 +205,7 @@ export function CreateServerModal({ open, onClose }: Props) {
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-vortex-text-secondary">
                 Invite Code
               </Label>
               <Input
@@ -205,15 +213,14 @@ export function CreateServerModal({ open, onClose }: Props) {
                 onChange={(e) => setJoinCode(e.target.value)}
                 placeholder="e.g. abc123def456"
                 onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                className="bg-vortex-bg-tertiary border-vortex-bg-tertiary text-vortex-text-primary"
               />
             </div>
 
             <Button
               onClick={handleJoin}
               disabled={loading || !joinCode.trim()}
-              className="w-full"
-              style={{ background: '#5865f2' }}
+              className="w-full bg-vortex-accent"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Join Server

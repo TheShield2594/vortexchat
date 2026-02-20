@@ -31,11 +31,11 @@ export default async function ChannelsLayout({
 
   const servers = serverMembers
     ?.map((m) => m.servers)
-    .filter(Boolean) as any[] ?? []
+    .filter((s): s is NonNullable<typeof s> => s !== null) ?? []
 
   return (
     <AppProvider user={profile} servers={servers}>
-      <div className="flex h-screen overflow-hidden" style={{ background: '#313338' }}>
+      <div className="flex h-screen overflow-hidden bg-vortex-bg-primary">
         <ServerSidebar />
         {children}
       </div>

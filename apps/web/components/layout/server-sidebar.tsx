@@ -18,10 +18,7 @@ export function ServerSidebar() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div
-        className="flex flex-col items-center w-[72px] py-3 gap-2 flex-shrink-0 overflow-y-auto no-scrollbar"
-        style={{ background: '#1e1f22' }}
-      >
+      <div className="flex flex-col items-center w-[72px] py-3 gap-2 flex-shrink-0 overflow-y-auto no-scrollbar bg-vortex-bg-tertiary">
         {/* DMs / Home */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -31,23 +28,22 @@ export function ServerSidebar() {
               className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 group",
                 activeServerId === null
-                  ? "rounded-2xl"
-                  : "hover:rounded-2xl"
+                  ? "rounded-2xl bg-vortex-accent"
+                  : "hover:rounded-2xl bg-vortex-bg-primary"
               )}
-              style={{
-                background: activeServerId === null ? '#5865f2' : '#313338',
-              }}
             >
               <MessageSquare
-                className="w-6 h-6 transition-colors"
-                style={{ color: activeServerId === null ? 'white' : '#949ba4' }}
+                className={cn(
+                  "w-6 h-6 transition-colors",
+                  activeServerId === null ? "text-white" : "text-vortex-interactive"
+                )}
               />
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right">Direct Messages</TooltipContent>
         </Tooltip>
 
-        <Separator className="w-8 my-1" style={{ background: '#3f4147' }} />
+        <Separator className="w-8 my-1 bg-[#3f4147]" />
 
         {/* Server list */}
         {servers.map((server) => (
@@ -62,17 +58,16 @@ export function ServerSidebar() {
           />
         ))}
 
-        <Separator className="w-8 my-1" style={{ background: '#3f4147' }} />
+        <Separator className="w-8 my-1 bg-[#3f4147]" />
 
         {/* Add server */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               onClick={() => setShowCreateServer(true)}
-              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group"
-              style={{ background: '#313338' }}
+              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group bg-vortex-bg-primary"
             >
-              <Plus className="w-6 h-6 transition-colors" style={{ color: '#23a55a' }} />
+              <Plus className="w-6 h-6 transition-colors text-vortex-success" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Add a Server</TooltipContent>
@@ -82,10 +77,9 @@ export function ServerSidebar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200"
-              style={{ background: '#313338' }}
+              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 bg-vortex-bg-primary"
             >
-              <Compass className="w-6 h-6" style={{ color: '#23a55a' }} />
+              <Compass className="w-6 h-6 text-vortex-success" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Explore Public Servers</TooltipContent>
@@ -123,19 +117,18 @@ function ServerIcon({
           {/* Active indicator */}
           <div
             className={cn(
-              "absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-200",
+              "absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-200 bg-vortex-text-primary",
               isActive
                 ? "h-10 -left-3"
                 : "h-5 -left-3 opacity-0 group-hover:opacity-100 group-hover:h-5"
             )}
-            style={{ background: '#f2f3f5' }}
           />
           <div
             className={cn(
               "w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden",
-              isActive ? "rounded-2xl" : "rounded-full hover:rounded-2xl"
+              isActive ? "rounded-2xl" : "rounded-full hover:rounded-2xl",
+              !server.icon_url && "bg-[#36393f]"
             )}
-            style={{ background: server.icon_url ? 'transparent' : '#36393f' }}
           >
             {server.icon_url ? (
               <img
