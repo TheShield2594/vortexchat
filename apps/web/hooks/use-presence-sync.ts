@@ -11,7 +11,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
  * Also writes status to users table on mount (online) and on beforeunload (offline)
  * so the DB field stays consistent with presence.
  */
-export function usePresenceSync(userId: string | null, status?: string) {
+export function usePresenceSync(userId: string | null, status?: 'online' | 'idle' | 'dnd' | 'invisible' | 'offline') {
   const supabase = createClientSupabaseClient()
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
