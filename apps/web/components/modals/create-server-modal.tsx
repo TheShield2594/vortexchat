@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import type { ServerRow } from "@/types/database"
 
 interface Props {
   open: boolean
@@ -52,10 +53,21 @@ export function CreateServerModal({ open, onClose }: Props) {
         iconUrl = urlData.publicUrl
       }
 
-      const { data: server, error } = await supabase
+      // Insert and fetch separately — PostgREST's INSERT RETURNING
+      // can't read back the row within the same statement due to the
+      // SELECT RLS policy checking server_members (added by AFTER INSERT trigger)
+      const { error: insertError } = await supabase
         .from("servers")
         .insert({ name: name.trim(), owner_id: user.id, icon_url: iconUrl })
+
+      if (insertError) throw insertError
+
+      const { data: server, error } = await supabase
+        .from("servers")
         .select()
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .single()
 
       if (error) throw error
@@ -75,23 +87,17 @@ export function CreateServerModal({ open, onClose }: Props) {
     if (!joinCode.trim()) return
     setLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not authenticated")
+      const { data, error } = await supabase
+        .rpc("join_server_by_invite", { p_invite_code: joinCode.trim() })
 
-      const { data: server } = await supabase
-        .from("servers")
-        .select("*")
-        .eq("invite_code", joinCode.trim().toLowerCase())
-        .single()
+      if (error) {
+        if (error.message.includes("Invalid invite code")) {
+          throw new Error("Invalid invite code. Please check and try again.")
+        }
+        throw error
+      }
 
-      if (!server) throw new Error("Invalid invite code")
-
-      const { error } = await supabase
-        .from("server_members")
-        .insert({ server_id: server.id, user_id: user.id })
-
-      if (error && !error.message.includes("duplicate")) throw error
-
+      const server = data as unknown as ServerRow
       addServer(server)
       toast({ title: `Joined "${server.name}"!` })
       onClose()
@@ -107,12 +113,14 @@ export function CreateServerModal({ open, onClose }: Props) {
     const file = e.target.files?.[0]
     if (!file) return
     setIconFile(file)
+    if (iconPreview) URL.revokeObjectURL(iconPreview)
     setIconPreview(URL.createObjectURL(file))
   }
 
   function handleClose() {
     setName("")
     setIconFile(null)
+    if (iconPreview) URL.revokeObjectURL(iconPreview)
     setIconPreview(null)
     setJoinCode("")
     setMode("create")

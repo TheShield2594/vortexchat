@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { ServerSidebar } from "@/components/layout/server-sidebar"
 import { AppProvider } from "@/components/layout/app-provider"
+import type { ServerRow } from "@/types/database"
 
 export default async function ChannelsLayout({
   children,
@@ -31,7 +32,7 @@ export default async function ChannelsLayout({
 
   const servers = serverMembers
     ?.map((m) => m.servers)
-    .filter(Boolean) as any[] ?? []
+    .filter(Boolean) as unknown as ServerRow[] ?? []
 
   return (
     <AppProvider user={profile} servers={servers}>

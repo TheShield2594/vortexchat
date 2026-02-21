@@ -26,7 +26,7 @@ export function useRealtimeMessages(
           // Fetch full message with relations
           const { data } = await supabase
             .from("messages")
-            .select(`*, author:users(*), attachments(*), reactions(*)`)
+            .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
             .eq("id", payload.new.id)
             .single()
           if (data) onInsert(data as unknown as MessageWithAuthor)
@@ -41,7 +41,7 @@ export function useRealtimeMessages(
           filter: `channel_id=eq.${channelId}`,
         },
         (payload) => {
-          onUpdate(payload.new as any)
+          onUpdate(payload.new as Partial<MessageWithAuthor> & { id: string })
         }
       )
       .subscribe()

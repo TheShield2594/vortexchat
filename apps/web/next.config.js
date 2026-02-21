@@ -4,11 +4,11 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: '*.supabase.co',
       },
       {
-        protocol: 'http',
-        hostname: '**',
+        protocol: 'https',
+        hostname: '*.supabase.in',
       },
     ],
   },
@@ -18,6 +18,14 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: ['@vortex/shared'],
+  async rewrites() {
+    return [
+      {
+        source: '/channels/@me',
+        destination: '/channels/me',
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig

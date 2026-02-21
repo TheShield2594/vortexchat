@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("messages")
-    .select(`*, author:users(*), attachments(*), reactions(*)`)
+    .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
     .eq("channel_id", channelId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })

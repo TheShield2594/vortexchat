@@ -16,6 +16,10 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("Auth callback: code exchange failed", error)
     } else {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from("users").update({ status: "online" }).eq("id", user.id)
+      }
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

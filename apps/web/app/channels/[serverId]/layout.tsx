@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { ChannelSidebar } from "@/components/layout/channel-sidebar"
+import type { RoleRow } from "@/types/database"
 
 interface Props {
   children: React.ReactNode
@@ -46,7 +47,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
     .eq("server_id", params.serverId)
     .eq("user_id", user.id)
 
-  const userRoles = memberRoles?.map((mr) => mr.roles).filter(Boolean) as any[] ?? []
+  const userRoles = memberRoles?.map((mr) => mr.roles).filter(Boolean) as unknown as RoleRow[] ?? []
 
   return (
     <div className="flex flex-1 overflow-hidden">

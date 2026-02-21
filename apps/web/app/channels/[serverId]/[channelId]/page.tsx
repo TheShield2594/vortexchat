@@ -32,7 +32,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
       .from("messages")
       .select(`
         *,
-        author:users(*),
+        author:users!messages_author_id_fkey(*),
         attachments(*),
         reactions(*)
       `)

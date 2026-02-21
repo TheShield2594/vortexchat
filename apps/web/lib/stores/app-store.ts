@@ -1,6 +1,14 @@
 import { create } from "zustand"
 import type { ServerRow, ChannelRow, UserRow } from "@/types/database"
 
+export interface MemberForMention {
+  user_id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  nickname: string | null
+}
+
 interface AppState {
   // Current user
   currentUser: UserRow | null
@@ -19,6 +27,10 @@ interface AppState {
   addChannel: (channel: ChannelRow) => void
   updateChannel: (id: string, updates: Partial<ChannelRow>) => void
   removeChannel: (id: string) => void
+
+  // Members (for mention autocomplete)
+  members: Record<string, MemberForMention[]> // serverId -> members
+  setMembers: (serverId: string, members: MemberForMention[]) => void
 
   // Active state
   activeServerId: string | null
@@ -54,15 +66,16 @@ export const useAppStore = create<AppState>((set) => ({
   setChannels: (serverId, channels) =>
     set((state) => ({ channels: { ...state.channels, [serverId]: channels } })),
   addChannel: (channel) =>
-    set((state) => ({
-      channels: {
-        ...state.channels,
-        [channel.server_id]: [
-          ...(state.channels[channel.server_id] || []),
-          channel,
-        ],
-      },
-    })),
+    set((state) => {
+      const existing = state.channels[channel.server_id] || []
+      if (existing.some((c) => c.id === channel.id)) return state
+      return {
+        channels: {
+          ...state.channels,
+          [channel.server_id]: [...existing, channel],
+        },
+      }
+    }),
   updateChannel: (id, updates) =>
     set((state) => {
       const newChannels = { ...state.channels }
@@ -81,6 +94,10 @@ export const useAppStore = create<AppState>((set) => ({
       }
       return { channels: newChannels }
     }),
+
+  members: {},
+  setMembers: (serverId, members) =>
+    set((state) => ({ members: { ...state.members, [serverId]: members } })),
 
   activeServerId: null,
   activeChannelId: null,

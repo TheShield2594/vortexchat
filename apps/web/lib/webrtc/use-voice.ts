@@ -36,7 +36,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
   const screenStream = useRef<MediaStream | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
-  const harkRef = useRef<any>(null)
+  const harkRef = useRef<{ stop: () => void } | null>(null)
   // Stable unique ID for this client session — replaces socket.id
   const clientIdRef = useRef<string>(crypto.randomUUID())
   const supabaseRef = useRef(createClientSupabaseClient())
@@ -341,7 +341,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     } else {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { cursor: "always" } as any,
+          video: { cursor: "always" } as MediaTrackConstraints,
           audio: false,
         })
         screenStream.current = stream
@@ -359,8 +359,8 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           screenStream.current = null
           setScreenSharing(false)
         }
-      } catch (e) {
-        console.log("Screen share cancelled or failed:", e)
+      } catch {
+        // User cancelled the screen share picker — no action needed
       }
     }
   }, [screenSharing])

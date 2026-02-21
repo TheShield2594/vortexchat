@@ -27,6 +27,7 @@ export default function LoginPage() {
         password: form.password,
       })
       if (error) throw error
+      await supabase.from("users").update({ status: "online" }).eq("id", (await supabase.auth.getUser()).data.user!.id)
       router.push("/channels/@me")
       router.refresh()
     } catch (error: any) {
