@@ -7,7 +7,7 @@ interface Props {
 }
 
 export default async function DMChannelPage({ params }: Props) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 

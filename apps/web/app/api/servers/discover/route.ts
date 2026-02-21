@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // GET /api/servers/discover?q=search&cursor=uuid
 // Lists public servers, optionally filtered by name
 export async function GET(req: NextRequest) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   // Allow unauthenticated browsing
   const { searchParams } = new URL(req.url)
   const q = searchParams.get("q")?.trim()

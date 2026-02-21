@@ -6,7 +6,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { serverId: string } }
 ) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

@@ -6,7 +6,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { channelId: string } }
 ) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -25,7 +25,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { channelId: string } }
 ) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -53,7 +53,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { channelId: string } }
 ) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

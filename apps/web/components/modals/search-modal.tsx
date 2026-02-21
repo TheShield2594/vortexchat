@@ -19,7 +19,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<NodeJS.Timeout>()
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -64,7 +64,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
     const v = e.target.value
     setQuery(v)
     setOffset(0)
-    clearTimeout(debounceRef.current)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => search(v, 0), 300)
   }
 

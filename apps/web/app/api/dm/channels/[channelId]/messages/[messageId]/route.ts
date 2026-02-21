@@ -6,7 +6,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { channelId: string; messageId: string } }
 ) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -32,7 +32,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { channelId: string; messageId: string } }
 ) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

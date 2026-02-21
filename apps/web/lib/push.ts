@@ -33,7 +33,7 @@ export async function sendPushToUser(
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return // push not configured
   ensureVapid()
 
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: subs } = await supabase
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth")
@@ -73,7 +73,7 @@ export async function sendPushToChannel(opts: {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
 
   const { serverId, channelId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
 
   let memberIds: string[] = []
 
