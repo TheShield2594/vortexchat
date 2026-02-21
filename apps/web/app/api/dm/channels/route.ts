@@ -32,14 +32,15 @@ export async function GET() {
 
   // 4. Fetch user profiles for all unique member IDs
   const allUserIds = Array.from(new Set((allMemberRows ?? []).map((m) => m.user_id)))
-  const { data: userRows } = allUserIds.length
+  const userRowsQuery = allUserIds.length
     ? await supabase
         .from("users")
         .select("id, username, display_name, avatar_url, status, status_message")
         .in("id", allUserIds)
-    : { data: [] }
+    : null
+  const userRows = userRowsQuery?.data ?? []
 
-  const userMap = Object.fromEntries((userRows ?? []).map((u) => [u.id, u]))
+  const userMap = Object.fromEntries(userRows.map((u) => [u.id, u]))
 
   // Build members-per-channel map
   const membersByChannel: Record<string, typeof userRows> = {}
