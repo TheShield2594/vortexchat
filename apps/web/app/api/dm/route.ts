@@ -23,8 +23,8 @@ export async function GET(request: Request) {
       .eq("receiver_id", user.id)
       .order("created_at", { ascending: false })
 
-    const partnerIds = new Set([
-      ...(sent?.map((m) => m.receiver_id) ?? []),
+    const partnerIds = new Set<string>([
+      ...(sent?.map((m) => m.receiver_id).filter((id): id is string => id !== null) ?? []),
       ...(received?.map((m) => m.sender_id) ?? []),
     ])
 

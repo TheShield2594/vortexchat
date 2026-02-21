@@ -20,18 +20,33 @@ export async function GET(
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  // Fetch channel + members
+  // Fetch channel info (flat, no joins)
   const { data: channel } = await supabase
     .from("dm_channels")
-    .select(`
-      id, name, icon_url, is_group, owner_id, updated_at,
-      dm_channel_members(
-        user_id,
-        users(id, username, display_name, avatar_url, status, status_message)
-      )
-    `)
+    .select("id, name, icon_url, is_group, owner_id, updated_at")
     .eq("id", params.channelId)
     .single()
+
+  // Fetch member user_ids
+  const { data: memberRows } = await supabase
+    .from("dm_channel_members")
+    .select("user_id")
+    .eq("dm_channel_id", params.channelId)
+
+  const memberIds = memberRows?.map((r) => r.user_id) ?? []
+
+  // Fetch user profiles for members
+  const { data: memberUsers } = memberIds.length
+    ? await supabase
+        .from("users")
+        .select("id, username, display_name, avatar_url, status, status_message")
+        .in("id", memberIds)
+    : { data: [] }
+
+  const members = memberUsers ?? []
+  const partner = channel && !channel.is_group
+    ? (members.find((u) => u.id !== user.id) ?? null)
+    : null
 
   // Fetch messages with pagination
   const { searchParams } = new URL(req.url)
@@ -40,7 +55,7 @@ export async function GET(
 
   let query = supabase
     .from("direct_messages")
-    .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
+    .select("id, dm_channel_id, sender_id, content, edited_at, deleted_at, created_at, sender:users!sender_id(id, username, display_name, avatar_url, status)")
     .eq("dm_channel_id", params.channelId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
@@ -54,11 +69,6 @@ export async function GET(
 
   // Mark as read
   await supabase.rpc("mark_dm_read", { p_dm_channel_id: params.channelId })
-
-  const members = channel?.dm_channel_members?.map((m: any) => m.users).filter(Boolean) ?? []
-  const partner = channel && !channel.is_group
-    ? members.find((u: any) => u.id !== user.id)
-    : null
 
   return NextResponse.json({
     channel: { ...channel, members, partner },

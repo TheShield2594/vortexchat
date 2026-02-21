@@ -7,69 +7,85 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Get all DM channels the user is a member of
+  // 1. Get all channel IDs the user belongs to
   const { data: memberships, error } = await supabase
     .from("dm_channel_members")
-    .select(`
-      dm_channel_id,
-      dm_channels(
-        id, name, icon_url, is_group, owner_id, updated_at,
-        dm_channel_members(
-          user_id,
-          users(id, username, display_name, avatar_url, status, status_message)
-        )
-      )
-    `)
+    .select("dm_channel_id")
     .eq("user_id", user.id)
-    .order("dm_channel_id")
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Get latest message per channel and unread count
-  const channelIds = memberships?.map((m: any) => m.dm_channel_id) ?? []
+  const channelIds = memberships?.map((m) => m.dm_channel_id) ?? []
+  if (!channelIds.length) return NextResponse.json([])
 
-  let latestMessages: Record<string, any> = {}
-  let readStates: Record<string, string> = {}
+  // 2. Fetch channel metadata
+  const { data: channelRows } = await supabase
+    .from("dm_channels")
+    .select("id, name, icon_url, is_group, owner_id, updated_at")
+    .in("id", channelIds)
 
-  if (channelIds.length > 0) {
-    const { data: latest } = await supabase
-      .from("direct_messages")
-      .select("dm_channel_id, content, created_at, sender_id")
-      .in("dm_channel_id", channelIds)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
+  // 3. Fetch all members across these channels
+  const { data: allMemberRows } = await supabase
+    .from("dm_channel_members")
+    .select("dm_channel_id, user_id")
+    .in("dm_channel_id", channelIds)
 
-    // First result per channel is the latest
-    for (const msg of latest ?? []) {
-      if (!latestMessages[msg.dm_channel_id]) {
-        latestMessages[msg.dm_channel_id] = msg
-      }
-    }
+  // 4. Fetch user profiles for all unique member IDs
+  const allUserIds = [...new Set((allMemberRows ?? []).map((m) => m.user_id))]
+  const { data: userRows } = allUserIds.length
+    ? await supabase
+        .from("users")
+        .select("id, username, display_name, avatar_url, status, status_message")
+        .in("id", allUserIds)
+    : { data: [] }
 
-    const { data: reads } = await supabase
-      .from("dm_read_states")
-      .select("dm_channel_id, last_read_at")
-      .eq("user_id", user.id)
-      .in("dm_channel_id", channelIds)
+  const userMap = Object.fromEntries((userRows ?? []).map((u) => [u.id, u]))
 
-    for (const r of reads ?? []) {
-      readStates[r.dm_channel_id] = r.last_read_at
+  // Build members-per-channel map
+  const membersByChannel: Record<string, typeof userRows> = {}
+  for (const row of allMemberRows ?? []) {
+    if (!membersByChannel[row.dm_channel_id]) membersByChannel[row.dm_channel_id] = []
+    const u = userMap[row.user_id]
+    if (u) membersByChannel[row.dm_channel_id]!.push(u)
+  }
+
+  // 5. Get latest message per channel
+  const { data: latest } = await supabase
+    .from("direct_messages")
+    .select("dm_channel_id, content, created_at, sender_id")
+    .in("dm_channel_id", channelIds)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+
+  const latestMessages: Record<string, any> = {}
+  for (const msg of latest ?? []) {
+    if (msg.dm_channel_id && !latestMessages[msg.dm_channel_id]) {
+      latestMessages[msg.dm_channel_id] = msg
     }
   }
 
-  const channels = (memberships ?? []).map((m: any) => {
-    const ch = m.dm_channels
-    const channelId = m.dm_channel_id
-    const latest = latestMessages[channelId]
-    const lastRead = readStates[channelId]
-    const isUnread = latest && (!lastRead || latest.created_at > lastRead) && latest.sender_id !== user.id
+  // 6. Get read states
+  const { data: reads } = await supabase
+    .from("dm_read_states")
+    .select("dm_channel_id, last_read_at")
+    .eq("user_id", user.id)
+    .in("dm_channel_id", channelIds)
 
-    // For 1:1 DMs, find the partner
-    const members = (ch.dm_channel_members ?? []).map((mem: any) => mem.users).filter(Boolean)
-    const partner = ch.is_group ? null : members.find((u: any) => u.id !== user.id)
+  const readStates: Record<string, string> = {}
+  for (const r of reads ?? []) {
+    readStates[r.dm_channel_id] = r.last_read_at
+  }
+
+  // 7. Assemble result
+  const channels = (channelRows ?? []).map((ch) => {
+    const members = membersByChannel[ch.id] ?? []
+    const partner = ch.is_group ? null : (members.find((u) => u.id !== user.id) ?? null)
+    const latest = latestMessages[ch.id] ?? null
+    const lastRead = readStates[ch.id]
+    const isUnread = !!(latest && (!lastRead || latest.created_at > lastRead) && latest.sender_id !== user.id)
 
     return {
-      id: channelId,
+      id: ch.id,
       name: ch.name,
       icon_url: ch.icon_url,
       is_group: ch.is_group,
@@ -77,12 +93,11 @@ export async function GET() {
       updated_at: ch.updated_at,
       members,
       partner,
-      latest_message: latest ?? null,
-      is_unread: !!isUnread,
+      latest_message: latest,
+      is_unread: isUnread,
     }
   })
 
-  // Sort by most recently active
   channels.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
 
   return NextResponse.json(channels)
@@ -98,30 +113,40 @@ export async function POST(req: NextRequest) {
   const { userIds, name } = await req.json()
   if (!userIds?.length) return NextResponse.json({ error: "userIds required" }, { status: 400 })
 
-  const allMembers = [...new Set([user.id, ...userIds])]
+  const allMembers = [...new Set([user.id, ...userIds])] as string[]
   const isGroup = allMembers.length > 2
 
   if (!isGroup) {
-    // 1:1 DM: check if a channel already exists between these two users
-    const partnerId = userIds[0]
-    const { data: existing } = await supabase
+    const partnerId = userIds[0] as string
+
+    // Find existing 1:1 channel between current user and partner
+    const { data: userMems } = await supabase
       .from("dm_channel_members")
-      .select("dm_channel_id, dm_channels!inner(is_group)")
+      .select("dm_channel_id")
       .eq("user_id", user.id)
 
-    for (const row of existing ?? []) {
-      if ((row as any).dm_channels?.is_group) continue
-      // Check if partner is also a member
-      const { data: partnerMem } = await supabase
-        .from("dm_channel_members")
-        .select("dm_channel_id")
-        .eq("dm_channel_id", row.dm_channel_id)
-        .eq("user_id", partnerId)
-        .single()
+    const userChannelIds = (userMems ?? []).map((m) => m.dm_channel_id)
 
-      if (partnerMem) {
-        // Existing 1:1 channel — return it
-        return NextResponse.json({ id: row.dm_channel_id, existing: true })
+    if (userChannelIds.length > 0) {
+      // Get non-group channels from those IDs
+      const { data: nonGroupChannels } = await supabase
+        .from("dm_channels")
+        .select("id")
+        .in("id", userChannelIds)
+        .eq("is_group", false)
+
+      for (const ch of nonGroupChannels ?? []) {
+        // Check if partner is also a member of this channel
+        const { data: partnerMem } = await supabase
+          .from("dm_channel_members")
+          .select("dm_channel_id")
+          .eq("dm_channel_id", ch.id)
+          .eq("user_id", partnerId)
+          .single()
+
+        if (partnerMem) {
+          return NextResponse.json({ id: ch.id, existing: true })
+        }
       }
     }
   }

@@ -33,6 +33,9 @@ CREATE INDEX IF NOT EXISTS dm_channel_members_user_idx ON public.dm_channel_memb
 ALTER TABLE public.direct_messages
   ADD COLUMN IF NOT EXISTS dm_channel_id UUID REFERENCES public.dm_channels(id) ON DELETE CASCADE;
 
+-- Allow receiver_id to be NULL for new group DM messages (which use dm_channel_id instead)
+ALTER TABLE public.direct_messages ALTER COLUMN receiver_id DROP NOT NULL;
+
 -- Create a dm_channel for every unique 1:1 pair that has messages
 DO $$
 DECLARE
