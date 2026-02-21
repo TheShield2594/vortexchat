@@ -48,7 +48,7 @@ export async function GET(
   const { data: users } = await supabase
     .from("users")
     .select("id, username, display_name, avatar_url")
-    .in("id", [...userIds])
+    .in("id", Array.from(userIds))
 
   const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]))
 
