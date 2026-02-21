@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { Hash, Pin, ChevronDown } from "lucide-react"
+import { MobileMenuButton } from "@/components/layout/mobile-nav"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
@@ -248,6 +249,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
         style={{ borderColor: '#1e1f22' }}
       >
+        <MobileMenuButton />
         <Hash className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
         <span className="font-semibold text-white">{channel.name}</span>
         {channel.topic && (

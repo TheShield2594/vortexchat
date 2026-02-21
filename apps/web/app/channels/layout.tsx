@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { ServerSidebar } from "@/components/layout/server-sidebar"
 import { AppProvider } from "@/components/layout/app-provider"
+import { ChannelsShell } from "@/components/layout/channels-shell"
 
 export default async function ChannelsLayout({
   children,
@@ -35,10 +35,9 @@ export default async function ChannelsLayout({
 
   return (
     <AppProvider user={profile} servers={servers}>
-      <div className="flex h-screen overflow-hidden" style={{ background: '#313338' }}>
-        <ServerSidebar />
+      <ChannelsShell>
         {children}
-      </div>
+      </ChannelsShell>
     </AppProvider>
   )
 }

@@ -8,13 +8,38 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { CreateServerModal } from "@/components/modals/create-server-modal"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils/cn"
+import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 export function ServerSidebar() {
   const { servers, activeServerId, setActiveServer } = useAppStore()
   const [showCreateServer, setShowCreateServer] = useState(false)
+  const [dmUnread, setDmUnread] = useState(false)
   const router = useRouter()
+  const supabase = createClientSupabaseClient()
+
+  useEffect(() => {
+    async function checkUnread() {
+      try {
+        const res = await fetch("/api/dm/channels")
+        if (res.ok) {
+          const data = await res.json()
+          setDmUnread(data.some((ch: any) => ch.is_unread))
+        }
+      } catch {}
+    }
+    checkUnread()
+
+    const ch = supabase
+      .channel("dm-unread-badge")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, () => {
+        checkUnread()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(ch) }
+  }, [supabase])
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -27,9 +52,9 @@ export function ServerSidebar() {
           <TooltipTrigger asChild>
             <Link
               href="/channels/@me"
-              onClick={() => setActiveServer(null)}
+              onClick={() => { setActiveServer(null); setDmUnread(false) }}
               className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 group",
+                "relative w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 group",
                 activeServerId === null
                   ? "rounded-2xl"
                   : "hover:rounded-2xl"
@@ -42,6 +67,12 @@ export function ServerSidebar() {
                 className="w-6 h-6 transition-colors"
                 style={{ color: activeServerId === null ? 'white' : '#949ba4' }}
               />
+              {dmUnread && activeServerId !== null && (
+                <span
+                  className="absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border-2"
+                  style={{ background: "#f23f43", borderColor: "#1e1f22" }}
+                />
+              )}
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right">Direct Messages</TooltipContent>
