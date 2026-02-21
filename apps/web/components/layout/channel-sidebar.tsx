@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
   Plus, Settings, Mic, MicOff, Headphones, PhoneOff,
-  UserPlus, Search
+  UserPlus, Search, Bell
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import type { ChannelRow, RoleRow, ServerRow, UserRow } from "@/types/database"
@@ -15,6 +15,9 @@ import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { InviteModal } from "@/components/modals/invite-modal"
 import { SearchModal } from "@/components/modals/search-modal"
+import { NotificationSettingsModal } from "@/components/modals/notification-settings-modal"
+import { ChannelPermissionsEditor } from "@/components/modals/channel-permissions-editor"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { UserPanel } from "@/components/layout/user-panel"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
 import { useUnreadChannels } from "@/hooks/use-unread-channels"
@@ -194,6 +197,8 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                       isVoiceActive={voiceChannelId === channel.id}
                       isUnread={unreadChannelIds.has(channel.id)}
                       mentionCount={mentionCounts[channel.id] ?? 0}
+                      serverId={server.id}
+                      isOwner={isOwner}
                       onClick={() => {
                         if (channel.type === "text") {
                           router.push(`/channels/${server.id}/${channel.id}`)
@@ -267,6 +272,7 @@ function ChannelItem({
   isVoiceActive,
   isUnread,
   mentionCount,
+  serverId,
   onClick,
 }: {
   channel: ChannelRow
@@ -274,53 +280,115 @@ function ChannelItem({
   isVoiceActive: boolean
   isUnread: boolean
   mentionCount: number
+  serverId: string
+  isOwner?: boolean
   onClick: () => void
 }) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [showNotifModal, setShowNotifModal] = useState(false)
+  const [showPermsModal, setShowPermsModal] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setContextMenu(null)
+    }
+    if (contextMenu) document.addEventListener("mousedown", close)
+    return () => document.removeEventListener("mousedown", close)
+  }, [contextMenu])
+
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel",
-        isActive || isVoiceActive
-          ? "bg-white/10 text-white"
-          : isUnread
-          ? "text-white hover:bg-white/5"
-          : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
-      )}
-    >
-      {/* Unread left bar */}
-      {isUnread && !isActive && (
-        <span
-          className="absolute left-0 w-1 rounded-r"
-          style={{ height: "8px", background: "white" }}
-        />
-      )}
+    <div className="relative">
+      <button
+        onClick={onClick}
+        onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY }) }}
+        className={cn(
+          "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel",
+          isActive || isVoiceActive
+            ? "bg-white/10 text-white"
+            : isUnread
+            ? "text-white hover:bg-white/5"
+            : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
+        )}
+      >
+        {/* Unread left bar */}
+        {isUnread && !isActive && (
+          <span
+            className="absolute left-0 w-1 rounded-r"
+            style={{ height: "8px", background: "white" }}
+          />
+        )}
 
-      {channel.type === "text" ? (
-        <Hash className="w-4 h-4 flex-shrink-0" />
-      ) : (
-        <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
-      )}
-      <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>
-        {channel.name}
-      </span>
+        {channel.type === "text" ? (
+          <Hash className="w-4 h-4 flex-shrink-0" />
+        ) : (
+          <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
+        )}
+        <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>
+          {channel.name}
+        </span>
 
-      {/* Mention badge */}
-      {mentionCount > 0 && !isActive && (
-        <span
-          className="flex-shrink-0 text-xs font-bold text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center"
-          style={{ background: "#f23f43", fontSize: "11px" }}
+        {/* Mention badge */}
+        {mentionCount > 0 && !isActive && (
+          <span
+            className="flex-shrink-0 text-xs font-bold text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center"
+            style={{ background: "#f23f43", fontSize: "11px" }}
+          >
+            {mentionCount > 99 ? "99+" : mentionCount}
+          </span>
+        )}
+
+        {/* Voice active pulse */}
+        {isVoiceActive && !mentionCount && (
+          <span className="ml-auto">
+            <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
+          </span>
+        )}
+      </button>
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          className="fixed z-50 rounded-lg shadow-2xl overflow-hidden py-1 min-w-[180px]"
+          style={{ left: contextMenu.x, top: contextMenu.y, background: "#111214", border: "1px solid #1e1f22" }}
         >
-          {mentionCount > 99 ? "99+" : mentionCount}
-        </span>
+          <button
+            onClick={() => { setShowNotifModal(true); setContextMenu(null) }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-white/5"
+            style={{ color: "#b5bac1" }}
+          >
+            <Bell className="w-4 h-4" />
+            Notification Settings
+          </button>
+          {isOwner && (
+            <button
+              onClick={() => { setShowPermsModal(true); setContextMenu(null) }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-white/5"
+              style={{ color: "#b5bac1" }}
+            >
+              <Settings className="w-4 h-4" />
+              Channel Permissions
+            </button>
+          )}
+        </div>
       )}
 
-      {/* Voice active pulse */}
-      {isVoiceActive && !mentionCount && (
-        <span className="ml-auto">
-          <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
-        </span>
-      )}
-    </button>
+      <NotificationSettingsModal
+        open={showNotifModal}
+        onClose={() => setShowNotifModal(false)}
+        channelId={channel.id}
+        label={`#${channel.name}`}
+      />
+
+      <Dialog open={showPermsModal} onOpenChange={setShowPermsModal}>
+        <DialogContent style={{ background: "#313338", borderColor: "#1e1f22" }} className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">#{channel.name} — Permissions</DialogTitle>
+          </DialogHeader>
+          <ChannelPermissionsEditor channelId={channel.id} serverId={serverId} />
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

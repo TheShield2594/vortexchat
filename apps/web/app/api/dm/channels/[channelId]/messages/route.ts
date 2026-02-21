@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { sendPushToChannel } from "@/lib/push"
 
 // POST /api/dm/channels/[channelId]/messages — send a message
 export async function POST(
@@ -35,6 +36,15 @@ export async function POST(
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Send push notifications (fire-and-forget)
+  const senderName = (message as any)?.sender?.display_name || (message as any)?.sender?.username || "Someone"
+  sendPushToChannel({
+    dmChannelId: params.channelId,
+    senderName,
+    content,
+    excludeUserId: user.id,
+  }).catch(() => {})
 
   return NextResponse.json(message, { status: 201 })
 }

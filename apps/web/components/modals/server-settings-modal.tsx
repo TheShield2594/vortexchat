@@ -1,17 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, Copy, RefreshCw, Trash2 } from "lucide-react"
+import { Loader2, Copy, RefreshCw } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ServerRow } from "@/types/database"
 import { RoleManager } from "@/components/roles/role-manager"
+import { AuditLogViewer } from "@/components/modals/audit-log-viewer"
 
 interface Props {
   open: boolean
@@ -26,6 +28,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner }: Props) {
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(server.name)
   const [description, setDescription] = useState(server.description ?? "")
+  const [isPublic, setIsPublic] = useState((server as any).is_public ?? false)
   const supabase = createClientSupabaseClient()
 
   async function handleSave() {
@@ -34,7 +37,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner }: Props) {
     try {
       const { error } = await supabase
         .from("servers")
-        .update({ name: name.trim(), description: description.trim() || null })
+        .update({ name: name.trim(), description: description.trim() || null, is_public: isPublic })
         .eq("id", server.id)
 
       if (error) throw error
@@ -94,6 +97,11 @@ export function ServerSettingsModal({ open, onClose, server, isOwner }: Props) {
                 <TabsTrigger value="invites" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
                   Invites
                 </TabsTrigger>
+                {isOwner && (
+                  <TabsTrigger value="audit" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
+                    Audit Log
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <div className="flex-1 overflow-y-auto p-4">
@@ -124,6 +132,16 @@ export function ServerSettingsModal({ open, onClose, server, isOwner }: Props) {
                       placeholder="What's this server about?"
                     />
                   </div>
+
+                  {isOwner && (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-sm font-medium text-white">Public Server</Label>
+                        <p className="text-xs" style={{ color: '#949ba4' }}>List this server on Discover</p>
+                      </div>
+                      <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+                    </div>
+                  )}
 
                   {isOwner && (
                     <Button onClick={handleSave} disabled={loading} style={{ background: '#5865f2' }}>
@@ -172,6 +190,12 @@ export function ServerSettingsModal({ open, onClose, server, isOwner }: Props) {
                     Share this code with friends to invite them to your server.
                   </p>
                 </TabsContent>
+
+                {isOwner && (
+                  <TabsContent value="audit" className="mt-0">
+                    <AuditLogViewer serverId={server.id} />
+                  </TabsContent>
+                )}
               </div>
             </Tabs>
           </div>

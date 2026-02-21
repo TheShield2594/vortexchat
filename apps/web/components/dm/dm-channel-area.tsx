@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, X } from "lucide-react"
+import { Send, Phone, Video, Users, X, Paperclip, Pencil, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
@@ -47,6 +47,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [content, setContent] = useState("")
   const [sending, setSending] = useState(false)
   const [inCall, setInCall] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState("")
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
@@ -143,6 +147,60 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     setLoadingMore(true)
     await loadMessages(messages[0].created_at)
     setLoadingMore(false)
+  }
+
+  async function handleEditSave(messageId: string) {
+    if (!editContent.trim()) return
+    const res = await fetch(`/api/dm/channels/${channelId}/messages/${messageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: editContent.trim() }),
+    })
+    if (res.ok) {
+      setMessages((prev) =>
+        prev.map((m) => m.id === messageId ? { ...m, content: editContent.trim(), edited_at: new Date().toISOString() } : m)
+      )
+    }
+    setEditingId(null)
+  }
+
+  async function handleDelete(messageId: string) {
+    const res = await fetch(`/api/dm/channels/${channelId}/messages/${messageId}`, { method: "DELETE" })
+    if (res.ok) {
+      setMessages((prev) => prev.filter((m) => m.id !== messageId))
+    }
+  }
+
+  async function handleFileUpload(file: File) {
+    if (!file) return
+    setUploadingFile(true)
+    try {
+      const ext = file.name.split(".").pop()
+      const path = `dm-attachments/${channelId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from("attachments")
+        .upload(path, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage.from("attachments").getPublicUrl(path)
+
+      // Send as a message with file URL
+      const fileContent = `[${file.name}](${publicUrl})`
+      const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: fileContent }),
+      })
+      if (res.ok) {
+        const msg = await res.json()
+        setMessages((prev) => [...prev, msg])
+      }
+    } catch (e) {
+      console.error("File upload failed:", e)
+    } finally {
+      setUploadingFile(false)
+    }
   }
 
   if (!channel) {
@@ -256,9 +314,13 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const isOwn = msg.sender_id === currentUserId
           const senderName = msg.sender?.display_name || msg.sender?.username || "Unknown"
           const senderInitials = senderName.slice(0, 2).toUpperCase()
+          const isEditing = editingId === msg.id
+
+          // Render image attachments inline (markdown-style links to images)
+          const imageMatch = msg.content?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
 
           return (
-            <div key={msg.id} className={cn("flex items-start gap-3", isGrouped ? "pl-11" : "")}>
+            <div key={msg.id} className={cn("group flex items-start gap-3 hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
               {!isGrouped && (
                 <Avatar className="w-8 h-8 flex-shrink-0 mt-0.5">
                   {msg.sender?.avatar_url && <AvatarImage src={msg.sender.avatar_url} />}
@@ -278,13 +340,64 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     </span>
                   </div>
                 )}
-                <p className="text-sm break-words" style={{ color: "#dcddde" }}>
-                  {msg.content}
-                </p>
-                {msg.edited_at && (
+                {isEditing ? (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      autoFocus
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) handleEditSave(msg.id)
+                        if (e.key === "Escape") setEditingId(null)
+                      }}
+                      className="flex-1 bg-transparent border-b text-sm focus:outline-none"
+                      style={{ color: "#dcddde", borderColor: "#5865f2" }}
+                    />
+                    <button onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "#5865f2", color: "white" }}>Save</button>
+                    <button onClick={() => setEditingId(null)} className="text-xs" style={{ color: "#949ba4" }}>Cancel</button>
+                  </div>
+                ) : imageMatch ? (
+                  <div className="mt-1">
+                    <a href={imageMatch[2]} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={imageMatch[2]}
+                        alt={imageMatch[1]}
+                        className="max-w-xs max-h-60 rounded object-contain"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                      />
+                    </a>
+                    <span className="text-xs" style={{ color: "#949ba4" }}>{imageMatch[1]}</span>
+                  </div>
+                ) : (
+                  <p className="text-sm break-words" style={{ color: "#dcddde" }}>
+                    {msg.content}
+                  </p>
+                )}
+                {msg.edited_at && !isEditing && (
                   <span className="text-xs" style={{ color: "#4e5058" }}> (edited)</span>
                 )}
               </div>
+              {/* Hover actions — own messages only */}
+              {isOwn && !isEditing && (
+                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-opacity">
+                  <button
+                    onClick={() => { setEditingId(msg.id); setEditContent(msg.content) }}
+                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
+                    style={{ color: "#949ba4" }}
+                    title="Edit"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(msg.id)}
+                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20"
+                    style={{ color: "#949ba4" }}
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
@@ -294,6 +407,26 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       {/* Input */}
       <div className="px-4 pb-4 flex-shrink-0">
         <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#383a40" }}>
+          {/* File upload */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingFile}
+            className="flex-shrink-0 transition-colors hover:text-white"
+            style={{ color: "#949ba4" }}
+            title="Attach file"
+          >
+            {uploadingFile
+              ? <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+              : <Paperclip className="w-5 h-5" />}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*,.pdf,.txt,.zip,.mp4,.webm"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = "" }}
+          />
+
           <input
             type="text"
             value={content}

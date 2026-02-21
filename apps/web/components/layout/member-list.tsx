@@ -5,7 +5,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { UserX, Shield, ShieldOff } from "lucide-react"
+import { UserX, Shield, ShieldOff, Tag } from "lucide-react"
 import type { MemberWithRoles } from "@/types/database"
 
 interface Props {
@@ -16,12 +16,15 @@ interface PresenceState {
   [userId: string]: { status: string; speaking?: boolean; voice_channel_id?: string }
 }
 
+interface RoleOption { id: string; name: string; color: string }
+
 export function MemberList({ serverId }: Props) {
   const { memberListOpen } = useAppStore()
   const [members, setMembers] = useState<MemberWithRoles[]>([])
   const [presence, setPresence] = useState<PresenceState>({})
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [serverOwnerId, setServerOwnerId] = useState<string | null>(null)
+  const [serverRoles, setServerRoles] = useState<RoleOption[]>([])
   const supabase = createClientSupabaseClient()
 
   useEffect(() => {
@@ -33,6 +36,9 @@ export function MemberList({ serverId }: Props) {
     })
     supabase.from("servers").select("owner_id").eq("id", serverId).single().then(({ data }) => {
       if (data) setServerOwnerId(data.owner_id)
+    })
+    supabase.from("roles").select("id, name, color").eq("server_id", serverId).order("position", { ascending: false }).then(({ data }) => {
+      if (data) setServerRoles(data)
     })
   }, [serverId])
 
@@ -124,8 +130,11 @@ export function MemberList({ serverId }: Props) {
                 member={member}
                 presence={presence[member.user_id]}
                 canModerate={currentUserId === serverOwnerId && member.user_id !== currentUserId}
+                serverId={serverId}
+                serverRoles={serverRoles}
                 onKick={() => handleKick(member.user_id)}
                 onBan={(reason) => handleBan(member.user_id, reason)}
+                onRolesChange={fetchMembers}
               />
             ))}
           </div>
@@ -147,8 +156,11 @@ export function MemberList({ serverId }: Props) {
                 presence={presence[member.user_id]}
                 offline
                 canModerate={currentUserId === serverOwnerId && member.user_id !== currentUserId}
+                serverId={serverId}
+                serverRoles={serverRoles}
                 onKick={() => handleKick(member.user_id)}
                 onBan={(reason) => handleBan(member.user_id, reason)}
+                onRolesChange={fetchMembers}
               />
             ))}
           </div>
@@ -163,15 +175,21 @@ function MemberItem({
   presence,
   offline,
   canModerate,
+  serverId,
+  serverRoles,
   onKick,
   onBan,
+  onRolesChange,
 }: {
   member: MemberWithRoles
   presence?: { status: string; speaking?: boolean; voice_channel_id?: string }
   offline?: boolean
   canModerate?: boolean
+  serverId?: string
+  serverRoles?: RoleOption[]
   onKick?: () => void
   onBan?: (reason?: string) => void
+  onRolesChange?: () => void
 }) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -298,6 +316,42 @@ function MemberItem({
             <Shield className="w-4 h-4" />
             Ban {displayName}
           </button>
+
+          {serverRoles && serverRoles.length > 0 && (
+            <>
+              <div className="h-px mx-2 my-1" style={{ background: "#1e1f22" }} />
+              <div className="px-3 py-1 text-xs font-semibold uppercase" style={{ color: "#949ba4" }}>Roles</div>
+              {serverRoles.filter((r) => !(r as any).is_default).map((role) => {
+                const hasRole = member.roles?.some((mr: any) => mr.role_id === role.id)
+                return (
+                  <button
+                    key={role.id}
+                    onClick={async () => {
+                      setContextMenu(null)
+                      if (!serverId) return
+                      if (hasRole) {
+                        await fetch(`/api/servers/${serverId}/members/${member.user_id}/roles?roleId=${role.id}`, { method: "DELETE" })
+                      } else {
+                        await fetch(`/api/servers/${serverId}/members/${member.user_id}/roles`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ roleId: role.id }),
+                        })
+                      }
+                      onRolesChange?.()
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-left transition-colors hover:bg-white/5"
+                    style={{ color: hasRole ? role.color : "#b5bac1" }}
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: role.color }} />
+                    <Tag className="w-3 h-3" />
+                    <span className="flex-1 truncate">{role.name}</span>
+                    {hasRole && <span className="text-xs" style={{ color: "#23a55a" }}>✓</span>}
+                  </button>
+                )
+              })}
+            </>
+          )}
         </div>
       )}
     </div>

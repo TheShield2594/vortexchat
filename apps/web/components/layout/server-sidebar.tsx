@@ -112,12 +112,13 @@ export function ServerSidebar() {
         {/* Explore */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Link
+              href="/channels/discover"
               className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200"
               style={{ background: '#313338' }}
             >
               <Compass className="w-6 h-6" style={{ color: '#23a55a' }} />
-            </button>
+            </Link>
           </TooltipTrigger>
           <TooltipContent side="right">Explore Public Servers</TooltipContent>
         </Tooltip>

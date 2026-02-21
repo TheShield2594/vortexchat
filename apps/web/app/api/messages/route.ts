@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
+import { sendPushToChannel } from "@/lib/push"
 
 export async function GET(request: Request) {
   const supabase = createServerSupabaseClient()
@@ -140,6 +141,17 @@ export async function POST(request: Request) {
       attachments.map((a) => ({ ...a, message_id: message.id }))
     )
   }
+
+  // --- Send push notifications (fire-and-forget) ---
+  const senderName = (message as any)?.author?.display_name || (message as any)?.author?.username || "Someone"
+  sendPushToChannel({
+    serverId: channel.server_id,
+    channelId,
+    senderName,
+    content: content?.trim() ?? "Sent an attachment",
+    mentionedIds: mentions,
+    excludeUserId: user.id,
+  }).catch(() => {})
 
   return NextResponse.json(message, { status: 201 })
 }
