@@ -45,11 +45,11 @@ class RateLimiter {
   // Periodically clean up stale keys (call from a setInterval if needed)
   cleanup(maxAgeMs = 60_000) {
     const cutoff = Date.now() - maxAgeMs
-    for (const [key, entry] of this.windows) {
-      if (entry.timestamps.every((t) => t < cutoff)) {
+    this.windows.forEach((entry, key) => {
+      if (entry.timestamps.every((t: number) => t < cutoff)) {
         this.windows.delete(key)
       }
-    }
+    })
   }
 }
 

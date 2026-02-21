@@ -48,6 +48,7 @@ export function usePresenceSync(userId: string | null, status?: 'online' | 'idle
 
     // Mark offline when tab closes
     function handleBeforeUnload() {
+      if (!userId) return
       // Best-effort — may not complete but Supabase Presence auto-expires
       channel.untrack()
       supabase
