@@ -346,7 +346,15 @@ export type Database = {
           edited_at?: string | null
           deleted_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       server_bans: {
         Row: {
@@ -370,7 +378,22 @@ export type Database = {
           reason?: string | null
           banned_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "server_bans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "server_bans_banned_by_fkey"
+            columns: ["banned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       invites: {
         Row: {
@@ -406,7 +429,22 @@ export type Database = {
           temporary?: boolean
           created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invites_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       friendships: {
         Row: {
@@ -508,7 +546,15 @@ export type Database = {
           allow_permissions?: number
           deny_permissions?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "channel_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       dm_channels: {
         Row: {

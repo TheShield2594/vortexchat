@@ -5,7 +5,7 @@ async function resolveInvite(supabase: ReturnType<typeof createServerSupabaseCli
   // Check new invites table first
   const { data: invite } = await supabase
     .from("invites")
-    .select("*, server:servers(id, name, icon_url, description)")
+    .select("*")
     .eq("code", code)
     .single()
 
@@ -18,7 +18,13 @@ async function resolveInvite(supabase: ReturnType<typeof createServerSupabaseCli
     if (invite.max_uses !== null && invite.uses >= invite.max_uses) {
       return { error: "This invite link has reached its maximum uses", status: 410 }
     }
-    return { server: invite.server, inviteId: invite.code, inviteUses: invite.uses }
+    const { data: server } = await supabase
+      .from("servers")
+      .select("id, name, icon_url, description")
+      .eq("id", invite.server_id)
+      .single()
+    if (!server) return { error: "Server not found", status: 404 }
+    return { server, inviteId: invite.code, inviteUses: invite.uses }
   }
 
   // Fall back to legacy servers.invite_code
