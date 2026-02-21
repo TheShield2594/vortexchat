@@ -31,7 +31,7 @@ export async function GET() {
     .in("dm_channel_id", channelIds)
 
   // 4. Fetch user profiles for all unique member IDs
-  const allUserIds = [...new Set((allMemberRows ?? []).map((m) => m.user_id))]
+  const allUserIds = Array.from(new Set((allMemberRows ?? []).map((m) => m.user_id)))
   const { data: userRows } = allUserIds.length
     ? await supabase
         .from("users")
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
   const { userIds, name } = await req.json()
   if (!userIds?.length) return NextResponse.json({ error: "userIds required" }, { status: 400 })
 
-  const allMembers = [...new Set([user.id, ...userIds])] as string[]
+  const allMembers = Array.from(new Set([user.id, ...userIds])) as string[]
   const isGroup = allMembers.length > 2
 
   if (!isGroup) {
