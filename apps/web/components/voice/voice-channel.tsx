@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
-  Monitor, MonitorOff, Video, VideoOff,
+  Monitor, MonitorOff, Video, VideoOff, Radio,
 } from "lucide-react"
 import { useVoice } from "@/lib/webrtc/use-voice"
+import { usePushToTalk } from "@/hooks/use-push-to-talk"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -23,6 +24,7 @@ interface Props {
 export function VoiceChannel({ channelId, channelName, serverId, currentUserId }: Props) {
   const { currentUser, setVoiceChannel } = useAppStore()
   const [voiceParticipants, setVoiceParticipants] = useState<UserRow[]>([])
+  const [pttEnabled, setPttEnabled] = useState(false)
   const supabase = createClientSupabaseClient()
 
   const {
@@ -41,6 +43,13 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     screenStream,
     cameraStream,
   } = useVoice(channelId, currentUserId)
+
+  // Push-to-talk: temporarily unmutes while key is held (default: Space)
+  usePushToTalk(
+    pttEnabled,
+    () => { if (muted) toggleMute() },
+    () => { if (!muted) toggleMute() }
+  )
 
   useEffect(() => {
     async function joinVoiceState() {
@@ -207,6 +216,20 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
               </button>
             </TooltipTrigger>
             <TooltipContent>{deafened ? "Undeafen" : "Deafen"}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setPttEnabled((v) => !v)}
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+                style={{ background: pttEnabled ? "#5865f2" : "#4e5058" }}
+                title="Push-to-Talk (Space)"
+              >
+                <Radio className="w-5 h-5 text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{pttEnabled ? "Disable PTT" : "Enable Push-to-Talk (Space)"}</TooltipContent>
           </Tooltip>
 
           <Tooltip>

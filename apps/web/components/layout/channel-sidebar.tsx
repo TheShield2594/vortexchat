@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Settings, Mic, MicOff, Headphones, PhoneOff
+  Plus, Settings, Mic, MicOff, Headphones, PhoneOff,
+  UserPlus, Search
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import type { ChannelRow, RoleRow, ServerRow, UserRow } from "@/types/database"
@@ -12,6 +13,8 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
+import { InviteModal } from "@/components/modals/invite-modal"
+import { SearchModal } from "@/components/modals/search-modal"
 import { UserPanel } from "@/components/layout/user-panel"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
 import { useUnreadChannels } from "@/hooks/use-unread-channels"
@@ -56,6 +59,8 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showServerSettings, setShowServerSettings] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   const [createChannelCategoryId, setCreateChannelCategoryId] = useState<string | undefined>()
   const router = useRouter()
 
@@ -72,6 +77,18 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
   const canManageChannels = isOwner || hasPermission(userPermissions as any, "MANAGE_CHANNELS")
+
+  // Ctrl+K / Cmd+K to open search
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault()
+        setShowSearch(true)
+      }
+    }
+    window.addEventListener("keydown", handleKey)
+    return () => window.removeEventListener("keydown", handleKey)
+  }, [])
 
   function toggleCategory(id: string) {
     setCollapsedCategories((prev) => {
@@ -97,6 +114,32 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
           <span className="font-semibold text-white truncate text-sm">{server.name}</span>
           <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white transition-colors" />
         </button>
+
+        {/* Quick action bar: invite + search */}
+        <div className="px-3 py-2 flex gap-1.5 border-b flex-shrink-0" style={{ borderColor: "#1e1f22" }}>
+          <button
+            onClick={() => setShowSearch(true)}
+            className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors hover:bg-white/5"
+            style={{ background: "#1e1f22", color: "#949ba4" }}
+            title="Search (Ctrl+K)"
+          >
+            <Search className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">Search</span>
+            <kbd className="ml-auto text-xs px-1 rounded" style={{ background: "#2b2d31", color: "#4e5058" }}>⌃K</kbd>
+          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setShowInvite(true)}
+                className="w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-white/5"
+                style={{ color: "#949ba4" }}
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Invite People</TooltipContent>
+          </Tooltip>
+        </div>
 
         {/* Channel list */}
         <div className="flex-1 overflow-y-auto py-2">
@@ -200,6 +243,19 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
           server={server}
           isOwner={isOwner}
         />
+        {showInvite && (
+          <InviteModal
+            serverId={server.id}
+            serverName={server.name}
+            onClose={() => setShowInvite(false)}
+          />
+        )}
+        {showSearch && (
+          <SearchModal
+            serverId={server.id}
+            onClose={() => setShowSearch(false)}
+          />
+        )}
       </div>
     </TooltipProvider>
   )

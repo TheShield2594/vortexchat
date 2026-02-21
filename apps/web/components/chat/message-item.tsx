@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
-import { Reply, Edit2, Trash2, MoreHorizontal, Smile } from "lucide-react"
+import { Reply, Edit2, Trash2, MoreHorizontal, Smile, Pin, PinOff } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
@@ -13,20 +13,24 @@ interface Props {
   message: MessageWithAuthor
   isGrouped: boolean
   currentUserId: string
+  canManage?: boolean
   onReply: () => void
   onEdit: (content: string) => Promise<void>
   onDelete: () => Promise<void>
   onReaction: (emoji: string) => Promise<void>
+  onPin?: () => Promise<void>
 }
 
 export function MessageItem({
   message,
   isGrouped,
   currentUserId,
+  canManage,
   onReply,
   onEdit,
   onDelete,
   onReaction,
+  onPin,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
@@ -111,6 +115,14 @@ export function MessageItem({
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false) }}
     >
+      {/* Pinned indicator */}
+      {(message as any).pinned && (
+        <div className="flex items-center gap-1 mb-1 text-xs" style={{ color: "#f0b232" }}>
+          <Pin className="w-3 h-3" />
+          <span>Pinned message</span>
+        </div>
+      )}
+
       {/* Reply reference */}
       {message.reply_to_id && message.reply_to && (
         <div className="flex items-center gap-2 mb-1 ml-10 text-xs" style={{ color: '#949ba4' }}>
@@ -284,6 +296,17 @@ export function MessageItem({
           >
             <Reply className="w-4 h-4" />
           </button>
+
+          {(isOwn || canManage) && onPin && (
+            <button
+              onClick={onPin}
+              className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+              style={{ color: (message as any).pinned ? "#f0b232" : "#b5bac1" }}
+              title={(message as any).pinned ? "Unpin" : "Pin"}
+            >
+              {(message as any).pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+            </button>
+          )}
 
           {isOwn && (
             <button

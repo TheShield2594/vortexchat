@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Hash, AtSign, Upload } from "lucide-react"
+import { Hash, Pin, ChevronDown } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
@@ -36,11 +36,92 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [serverMembers, setServerMembers] = useState<Array<{ user_id: string; username: string }>>([])
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(initialMessages.length === 50)
+  const [showPinned, setShowPinned] = useState(false)
+  const [pinnedMessages, setPinnedMessages] = useState<MessageWithAuthor[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
+  const topSentinelRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "User"
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
+
+  // Load older messages when scrolled to top
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMore || !hasMore || messages.length === 0) return
+    setLoadingMore(true)
+    const oldest = messages[0]
+    const { data } = await supabase
+      .from("messages")
+      .select(`*, author:users(*), attachments(*), reactions(*)`)
+      .eq("channel_id", channel.id)
+      .is("deleted_at", null)
+      .lt("created_at", oldest.created_at)
+      .order("created_at", { ascending: false })
+      .limit(50)
+    const older = ((data ?? []) as MessageWithAuthor[]).reverse()
+    if (older.length < 50) setHasMore(false)
+    if (older.length > 0) {
+      // Preserve scroll position
+      const container = scrollContainerRef.current
+      const prevHeight = container?.scrollHeight ?? 0
+      setMessages((prev) => [...older, ...prev])
+      requestAnimationFrame(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight - prevHeight
+        }
+      })
+    }
+    setLoadingMore(false)
+  }, [loadingMore, hasMore, messages, channel.id, supabase])
+
+  // IntersectionObserver to trigger load more when top sentinel is visible
+  useEffect(() => {
+    const sentinel = topSentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMoreMessages()
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadMoreMessages])
+
+  // Fetch pinned messages
+  const fetchPinnedMessages = useCallback(async () => {
+    const { data } = await supabase
+      .from("messages")
+      .select(`*, author:users(*), attachments(*), reactions(*)`)
+      .eq("channel_id", channel.id)
+      .eq("pinned", true)
+      .is("deleted_at", null)
+      .order("pinned_at", { ascending: false })
+    setPinnedMessages((data ?? []) as MessageWithAuthor[])
+  }, [channel.id, supabase])
+
+  useEffect(() => {
+    if (showPinned) fetchPinnedMessages()
+  }, [showPinned, fetchPinnedMessages])
+
+  async function handlePin(message: MessageWithAuthor) {
+    const isPinned = (message as any).pinned
+    const method = isPinned ? "DELETE" : "PUT"
+    const res = await fetch(`/api/messages/${message.id}/pin`, { method })
+    if (res.ok) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id
+            ? { ...m, pinned: !isPinned, pinned_at: isPinned ? null : new Date().toISOString(), pinned_by: isPinned ? null : currentUserId } as any
+            : m
+        )
+      )
+      if (showPinned) fetchPinnedMessages()
+    }
+  }
 
   // Fetch server members for @mention resolution
   useEffect(() => {
@@ -177,10 +258,46 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
             </span>
           </>
         )}
+        <button
+          onClick={() => setShowPinned((v) => !v)}
+          className="ml-auto flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors hover:bg-white/5"
+          style={{ color: showPinned ? "#f0b232" : "#949ba4" }}
+          title="Pinned Messages"
+        >
+          <Pin className="w-4 h-4" />
+          Pins
+        </button>
       </div>
 
+      {/* Pinned messages panel */}
+      {showPinned && (
+        <div
+          className="border-b flex-shrink-0 max-h-64 overflow-y-auto"
+          style={{ borderColor: "#1e1f22", background: "#2b2d31" }}
+        >
+          <div className="px-4 py-2 text-xs font-semibold uppercase flex items-center gap-2" style={{ color: "#f0b232" }}>
+            <Pin className="w-3 h-3" />
+            Pinned Messages — {pinnedMessages.length}
+          </div>
+          {pinnedMessages.length === 0 ? (
+            <p className="px-4 pb-3 text-sm" style={{ color: "#949ba4" }}>No pinned messages yet</p>
+          ) : (
+            pinnedMessages.map((msg) => (
+              <div key={msg.id} className="flex items-start gap-2 px-4 py-2 hover:bg-white/5 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-white mr-2">
+                    {msg.author?.display_name || msg.author?.username}
+                  </span>
+                  <span className="text-sm truncate" style={{ color: "#b5bac1" }}>{msg.content}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         {/* Channel welcome message */}
         {messages.length === 0 && (
           <div className="px-4 py-8">
@@ -200,6 +317,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
           </div>
         )}
 
+        {/* Top sentinel for infinite scroll */}
+        <div ref={topSentinelRef} className="h-1" />
+        {loadingMore && (
+          <div className="flex justify-center py-2">
+            <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+          </div>
+        )}
+
         {/* Message list */}
         <div className="pb-4">
           {messages.map((message, i) => {
@@ -216,7 +341,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
                 message={message}
                 isGrouped={!!isGrouped}
                 currentUserId={currentUserId}
+                canManage={true}
                 onReply={() => setReplyTo(message)}
+                onPin={() => handlePin(message)}
                 onEdit={async (content) => {
                   const { error } = await supabase
                     .from("messages")

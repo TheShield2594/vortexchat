@@ -212,6 +212,9 @@ export type Database = {
           reply_to_id: string | null
           mentions: string[]
           mention_everyone: boolean
+          pinned: boolean
+          pinned_at: string | null
+          pinned_by: string | null
           created_at: string
         }
         Insert: {
@@ -224,6 +227,9 @@ export type Database = {
           reply_to_id?: string | null
           mentions?: string[]
           mention_everyone?: boolean
+          pinned?: boolean
+          pinned_at?: string | null
+          pinned_by?: string | null
           created_at?: string
         }
         Update: {
@@ -236,6 +242,9 @@ export type Database = {
           reply_to_id?: string | null
           mentions?: string[]
           mention_everyone?: boolean
+          pinned?: boolean
+          pinned_at?: string | null
+          pinned_by?: string | null
           created_at?: string
         }
         Relationships: []
@@ -327,6 +336,66 @@ export type Database = {
           read_at?: string | null
           edited_at?: string | null
           deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      server_bans: {
+        Row: {
+          server_id: string
+          user_id: string
+          banned_by: string | null
+          reason: string | null
+          banned_at: string
+        }
+        Insert: {
+          server_id: string
+          user_id: string
+          banned_by?: string | null
+          reason?: string | null
+          banned_at?: string
+        }
+        Update: {
+          server_id?: string
+          user_id?: string
+          banned_by?: string | null
+          reason?: string | null
+          banned_at?: string
+        }
+        Relationships: []
+      }
+      invites: {
+        Row: {
+          code: string
+          server_id: string
+          channel_id: string | null
+          created_by: string | null
+          max_uses: number | null
+          uses: number
+          expires_at: string | null
+          temporary: boolean
+          created_at: string
+        }
+        Insert: {
+          code: string
+          server_id: string
+          channel_id?: string | null
+          created_by?: string | null
+          max_uses?: number | null
+          uses?: number
+          expires_at?: string | null
+          temporary?: boolean
+          created_at?: string
+        }
+        Update: {
+          code?: string
+          server_id?: string
+          channel_id?: string | null
+          created_by?: string | null
+          max_uses?: number | null
+          uses?: number
+          expires_at?: string | null
+          temporary?: boolean
+          created_at?: string
         }
         Relationships: []
       }
@@ -437,6 +506,8 @@ export type ReactionRow = Database['public']['Tables']['reactions']['Row']
 export type DirectMessageRow = Database['public']['Tables']['direct_messages']['Row']
 export type VoiceStateRow = Database['public']['Tables']['voice_states']['Row']
 export type FriendshipRow = Database['public']['Tables']['friendships']['Row']
+export type ServerBanRow = Database['public']['Tables']['server_bans']['Row']
+export type InviteRow = Database['public']['Tables']['invites']['Row']
 
 // Extended types with relations
 export interface MessageWithAuthor extends MessageRow {
