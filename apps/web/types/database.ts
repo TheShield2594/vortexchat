@@ -330,6 +330,33 @@ export type Database = {
         }
         Relationships: []
       }
+      friendships: {
+        Row: {
+          id: string
+          requester_id: string
+          addressee_id: string
+          status: 'pending' | 'accepted' | 'blocked'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          requester_id: string
+          addressee_id: string
+          status?: 'pending' | 'accepted' | 'blocked'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          requester_id?: string
+          addressee_id?: string
+          status?: 'pending' | 'accepted' | 'blocked'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       voice_states: {
         Row: {
           user_id: string
@@ -409,6 +436,7 @@ export type AttachmentRow = Database['public']['Tables']['attachments']['Row']
 export type ReactionRow = Database['public']['Tables']['reactions']['Row']
 export type DirectMessageRow = Database['public']['Tables']['direct_messages']['Row']
 export type VoiceStateRow = Database['public']['Tables']['voice_states']['Row']
+export type FriendshipRow = Database['public']['Tables']['friendships']['Row']
 
 // Extended types with relations
 export interface MessageWithAuthor extends MessageRow {
@@ -426,4 +454,8 @@ export interface ServerWithChannels extends ServerRow {
 export interface MemberWithRoles extends ServerMemberRow {
   user: UserRow
   roles: RoleRow[]
+}
+
+export interface FriendWithUser extends FriendshipRow {
+  friend: UserRow
 }
