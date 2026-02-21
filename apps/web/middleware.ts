@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import type { User } from "@supabase/supabase-js"
 import { updateSession } from "@/lib/supabase/middleware"
 
 const PUBLIC_ROUTES = ["/login", "/register", "/api/auth", "/auth/callback"]
@@ -18,7 +19,7 @@ export async function middleware(request: NextRequest) {
 
   // Update session and get user in a single call
   let response: NextResponse
-  let user: Awaited<ReturnType<typeof updateSession>>["user"]
+  let user: User | null = null
 
   try {
     const result = await updateSession(request)
@@ -27,6 +28,8 @@ export async function middleware(request: NextRequest) {
   } catch {
     // If Supabase is unreachable or misconfigured, fail open to login
     const loginUrl = new URL("/login", request.url)
+    const dest = request.nextUrl.searchParams.get("redirect") || request.nextUrl.pathname
+    loginUrl.searchParams.set("redirect", dest)
     return NextResponse.redirect(loginUrl)
   }
 
