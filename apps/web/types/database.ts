@@ -109,7 +109,22 @@ export type Database = {
           nickname?: string | null
           joined_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "server_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "server_members_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       roles: {
         Row: {
@@ -166,7 +181,22 @@ export type Database = {
           user_id?: string
           role_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "member_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_roles_server_id_user_id_fkey"
+            columns: ["server_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "server_members"
+            referencedColumns: ["server_id", "user_id"]
+          }
+        ]
       }
       channels: {
         Row: {
