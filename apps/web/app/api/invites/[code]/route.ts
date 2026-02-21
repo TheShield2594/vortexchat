@@ -3,9 +3,10 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export async function GET(
   request: Request,
-  { params }: { params: { code: string } }
+  { params: paramsPromise }: { params: Promise<{ code: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
 
   const { data: server } = await supabase
     .from("servers")
@@ -28,12 +29,13 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { code: string } }
+  { params: paramsPromise }: { params: Promise<{ code: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  if (!user) {
+  if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -51,7 +53,7 @@ export async function POST(
     .from("server_members")
     .insert({ server_id: server.id, user_id: user.id })
 
-  if (error && !error.message.includes("duplicate")) {
+  if (error && error.code !== "23505") {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

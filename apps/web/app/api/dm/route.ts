@@ -2,9 +2,9 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export async function GET(request: Request) {
-  const supabase = createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const partnerId = searchParams.get("partnerId")
@@ -32,10 +32,16 @@ export async function GET(request: Request) {
 
     const { data: partners } = await supabase
       .from("users")
-      .select("*")
+      .select("id, username, display_name, avatar_url, status, status_message")
       .in("id", Array.from(partnerIds))
 
     return NextResponse.json(partners ?? [])
+  }
+
+  // Validate partnerId is a valid UUID to prevent PostgREST filter injection
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(partnerId)) {
+    return NextResponse.json({ error: "Invalid partnerId" }, { status: 400 })
   }
 
   // Get messages with specific partner
@@ -53,9 +59,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { receiverId, content } = await request.json()
 

@@ -1,15 +1,18 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Settings, Mic, MicOff, Headphones, PhoneOff
+  Plus, Clipboard, Trash2
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
-import type { ChannelRow, RoleRow, ServerRow, UserRow } from "@/types/database"
+import type { ChannelRow, RoleRow, ServerRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
+import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { useToast } from "@/components/ui/use-toast"
 import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { UserPanel } from "@/components/layout/user-panel"
@@ -50,19 +53,74 @@ function groupChannels(channels: ChannelRow[]): GroupedChannels {
   return result
 }
 
-export function ChannelSidebar({ server, channels, currentUserId, isOwner, userRoles }: Props) {
-  const { activeChannelId, voiceChannelId, setVoiceChannel } = useAppStore()
+export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
+  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, removeChannel } = useAppStore()
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showServerSettings, setShowServerSettings] = useState(false)
   const [createChannelCategoryId, setCreateChannelCategoryId] = useState<string | undefined>()
   const router = useRouter()
+  const { toast } = useToast()
+  const supabase = createClientSupabaseClient()
 
+  async function handleDeleteChannel(channelId: string, channelName: string) {
+    if (!window.confirm(`Are you sure you want to delete #${channelName}? This cannot be undone.`)) return
+    try {
+      const { error } = await supabase.from("channels").delete().eq("id", channelId)
+      if (error) throw error
+      removeChannel(channelId)
+      if (activeChannelId === channelId) {
+        router.push(`/channels/${server.id}`)
+      }
+      toast({ title: "Channel deleted" })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to delete channel", description: error.message })
+    }
+  }
+
+  // Seed store with server-fetched channels once per server (not on every re-render,
+  // which would overwrite channels added via realtime or addChannel)
+  const seededServerRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (seededServerRef.current !== server.id) {
+      setChannels(server.id, initialChannels)
+      seededServerRef.current = server.id
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [server.id, setChannels])
+
+  // Subscribe to realtime channel changes so other users see new/deleted channels
+  useEffect(() => {
+    const supabase = createClientSupabaseClient()
+    const subscription = supabase
+      .channel(`channels:${server.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "channels", filter: `server_id=eq.${server.id}` },
+        (payload) => {
+          addChannel(payload.new as ChannelRow)
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "channels", filter: `server_id=eq.${server.id}` },
+        (payload) => {
+          removeChannel((payload.old as { id: string }).id)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }, [server.id, addChannel, removeChannel])
+
+  const channels = storeChannels[server.id] ?? initialChannels
   const grouped = groupChannels(channels)
 
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
-  const canManageChannels = isOwner || hasPermission(userPermissions as any, "MANAGE_CHANNELS")
+  const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
 
   function toggleCategory(id: string) {
     setCollapsedCategories((prev) => {
@@ -140,6 +198,7 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                       channel={channel}
                       isActive={activeChannelId === channel.id}
                       isVoiceActive={voiceChannelId === channel.id}
+                      canManageChannels={canManageChannels}
                       onClick={() => {
                         if (channel.type === "text") {
                           router.push(`/channels/${server.id}/${channel.id}`)
@@ -148,6 +207,7 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                           router.push(`/channels/${server.id}/${channel.id}`)
                         }
                       }}
+                      onDelete={() => handleDeleteChannel(channel.id, channel.name)}
                     />
                   ))}
                 </div>
@@ -198,34 +258,61 @@ function ChannelItem({
   channel,
   isActive,
   isVoiceActive,
+  canManageChannels,
   onClick,
+  onDelete,
 }: {
   channel: ChannelRow
   isActive: boolean
   isVoiceActive: boolean
+  canManageChannels: boolean
   onClick: () => void
+  onDelete: () => void
 }) {
+  const { toast } = useToast()
+
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm",
-        isActive || isVoiceActive
-          ? "bg-white/10 text-white"
-          : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
-      )}
-    >
-      {channel.type === "text" ? (
-        <Hash className="w-4 h-4 flex-shrink-0" />
-      ) : (
-        <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
-      )}
-      <span className="truncate">{channel.name}</span>
-      {isVoiceActive && (
-        <span className="ml-auto">
-          <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
-        </span>
-      )}
-    </button>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          onClick={onClick}
+          className={cn(
+            "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm",
+            isActive || isVoiceActive
+              ? "bg-white/10 text-white"
+              : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
+          )}
+        >
+          {channel.type === "text" ? (
+            <Hash className="w-4 h-4 flex-shrink-0" />
+          ) : (
+            <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
+          )}
+          <span className="truncate">{channel.name}</span>
+          {isVoiceActive && (
+            <span className="ml-auto">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
+            </span>
+          )}
+        </button>
+      </ContextMenuTrigger>
+
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={() => {
+          navigator.clipboard.writeText(channel.id)
+          toast({ title: "Channel ID copied!" })
+        }}>
+          <Clipboard className="w-4 h-4 mr-2" /> Copy Channel ID
+        </ContextMenuItem>
+        {canManageChannels && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 className="w-4 h-4 mr-2" /> Delete Channel
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

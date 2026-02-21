@@ -4,13 +4,18 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: '*.supabase.co',
       },
       {
-        protocol: 'http',
-        hostname: '**',
+        protocol: 'https',
+        hostname: '*.supabase.in',
       },
     ],
+  },
+  eslint: {
+    // ESLint linting is run separately via `eslint .` — skip during `next build`
+    // to avoid a workspace hoisting issue with minimatch versions
+    ignoreDuringBuilds: true,
   },
   transpilePackages: ['@vortex/shared'],
 }

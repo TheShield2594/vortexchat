@@ -56,7 +56,7 @@ export default function RegisterPage() {
             username: form.username.toLowerCase(),
             display_name: form.displayName || form.username,
           },
-          emailRedirectTo: `${window.location.origin}/channels/@me`,
+          emailRedirectTo: `${window.location.origin}/channels/me`,
         },
       })
       if (error) throw error

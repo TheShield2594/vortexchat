@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
-import { Hash, AtSign, Upload } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { Hash, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
 
 interface Props {
@@ -18,16 +17,20 @@ interface Props {
 }
 
 export function ChatArea({ channel, initialMessages, currentUserId, serverId }: Props) {
-  const { setActiveChannel } = useAppStore()
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore()
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
 
   useEffect(() => {
+    setActiveServer(serverId)
     setActiveChannel(channel.id)
-    return () => setActiveChannel(null)
-  }, [channel.id, setActiveChannel])
+    return () => {
+      setActiveServer(null)
+      setActiveChannel(null)
+    }
+  }, [serverId, channel.id, setActiveServer, setActiveChannel])
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -91,7 +94,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
         content: content.trim() || null,
         reply_to_id: replyTo?.id || null,
       })
-      .select(`*, author:users(*), attachments(*), reactions(*)`)
+      .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
       .single()
 
     if (error) {
@@ -126,6 +129,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
             </span>
           </>
         )}
+        <div className="ml-auto flex items-center">
+          <button
+            onClick={toggleMemberList}
+            className="p-1.5 rounded hover:bg-white/10 transition-colors"
+            title={memberListOpen ? "Hide Member List" : "Show Member List"}
+          >
+            <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}

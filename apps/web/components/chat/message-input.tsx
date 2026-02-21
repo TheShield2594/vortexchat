@@ -1,9 +1,12 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
-import { Plus, Send, X, Paperclip, Smile, Reply } from "lucide-react"
+import { useState, useRef, useEffect } from "react"
+import { Plus, Send, X, Smile, Reply } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
+import { useAppStore } from "@/lib/stores/app-store"
+import { useMentionAutocomplete } from "@/hooks/use-mention-autocomplete"
+import { MentionSuggestions } from "@/components/chat/mention-suggestions"
 
 interface Props {
   channelName: string
@@ -16,11 +19,33 @@ const COMMON_EMOJIS = ["😀", "😂", "❤️", "👍", "👎", "🔥", "✅", 
 
 export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Props) {
   const [content, setContent] = useState("")
+  const [cursorPosition, setCursorPosition] = useState(0)
   const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileUrlCache = useRef(new Map<File, string>())
+
+  // Mention autocomplete
+  const { activeServerId, members: membersByServer } = useAppStore()
+  const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
+  const mention = useMentionAutocomplete({ content, cursorPosition, members })
+
+  function getPreviewUrl(file: File): string {
+    let url = fileUrlCache.current.get(file)
+    if (!url) {
+      url = URL.createObjectURL(file)
+      fileUrlCache.current.set(file, url)
+    }
+    return url
+  }
+
+  useEffect(() => {
+    return () => {
+      fileUrlCache.current.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [])
 
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
@@ -28,6 +53,8 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
     try {
       await onSend(content, files)
       setContent("")
+      fileUrlCache.current.forEach((url) => URL.revokeObjectURL(url))
+      fileUrlCache.current.clear()
       setFiles([])
     } finally {
       setSending(false)
@@ -36,10 +63,35 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Let mention autocomplete consume the event first
+    if (mention.isOpen) {
+      if (e.key === "Enter" || e.key === "Tab") {
+        const selected = mention.filteredMembers[mention.selectedIndex]
+        if (selected) {
+          e.preventDefault()
+          insertMention(selected)
+          return
+        }
+      }
+      if (mention.handleKeyDown(e)) return
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSend()
     }
+  }
+
+  function insertMention(member: typeof members[number]) {
+    const { newContent, newCursorPosition } = mention.selectMember(member)
+    setContent(newContent)
+    setCursorPosition(newCursorPosition)
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = newCursorPosition
+        textareaRef.current.selectionEnd = newCursorPosition
+      }
+    })
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -68,9 +120,14 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
   // Auto-resize textarea
   function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setContent(e.target.value)
+    setCursorPosition(e.target.selectionStart)
     const el = e.target
     el.style.height = "auto"
     el.style.height = Math.min(el.scrollHeight, 200) + "px"
+  }
+
+  function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>) {
+    setCursorPosition(e.currentTarget.selectionStart)
   }
 
   return (
@@ -105,7 +162,7 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
             <div key={i} className="relative group">
               {file.type.startsWith("image/") ? (
                 <img
-                  src={URL.createObjectURL(file)}
+                  src={getPreviewUrl(file)}
                   alt={file.name}
                   className="w-20 h-20 object-cover rounded"
                 />
@@ -118,7 +175,11 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
                 </div>
               )}
               <button
-                onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                onClick={() => {
+                  const url = fileUrlCache.current.get(files[i])
+                  if (url) { URL.revokeObjectURL(url); fileUrlCache.current.delete(files[i]) }
+                  setFiles((prev) => prev.filter((_, j) => j !== i))
+                }}
                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ background: "#f23f43" }}
               >
@@ -155,17 +216,34 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
         />
 
         {/* Text input */}
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={`Message #${channelName}`}
-          rows={1}
-          className="flex-1 resize-none bg-transparent text-sm focus:outline-none py-1"
-          style={{ color: "#dcddde", maxHeight: "200px", lineHeight: "1.5" }}
-        />
+        <div className="flex-1 relative">
+          {/* Mention autocomplete dropdown */}
+          {mention.isOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 z-50">
+              <MentionSuggestions
+                members={mention.filteredMembers}
+                selectedIndex={mention.selectedIndex}
+                onSelect={(member) => {
+                  insertMention(member)
+                  textareaRef.current?.focus()
+                }}
+              />
+            </div>
+          )}
+
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onSelect={handleSelect}
+            placeholder={`Message #${channelName}`}
+            rows={1}
+            className="w-full resize-none bg-transparent text-sm focus:outline-none py-1"
+            style={{ color: "#dcddde", maxHeight: "200px", lineHeight: "1.5" }}
+          />
+        </div>
 
         {/* Emoji picker toggle */}
         <div className="relative flex-shrink-0 mb-1">
@@ -187,7 +265,11 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
                 <button
                   key={emoji}
                   onClick={() => {
-                    setContent((prev) => prev + emoji)
+                    setContent((prev) => {
+                      const next = prev + emoji
+                      setCursorPosition(next.length)
+                      return next
+                    })
                     setShowEmojiPicker(false)
                     textareaRef.current?.focus()
                   }}

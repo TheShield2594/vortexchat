@@ -2,11 +2,12 @@ import { redirect } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 interface Props {
-  params: { serverId: string }
+  params: Promise<{ serverId: string }>
 }
 
-export default async function ServerHomePage({ params }: Props) {
-  const supabase = createServerSupabaseClient()
+export default async function ServerHomePage({ params: paramsPromise }: Props) {
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
 
   // Get first text channel in the server
   const { data: channel } = await supabase

@@ -5,14 +5,15 @@ import { VoiceChannel } from "@/components/voice/voice-channel"
 import { MemberList } from "@/components/layout/member-list"
 
 interface Props {
-  params: { serverId: string; channelId: string }
+  params: Promise<{ serverId: string; channelId: string }>
 }
 
-export default async function ChannelPage({ params }: Props) {
-  const supabase = createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default async function ChannelPage({ params: paramsPromise }: Props) {
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (!user) redirect("/login")
+  if (error || !user) redirect("/login")
 
   // Fetch channel
   const { data: channel } = await supabase
@@ -31,7 +32,7 @@ export default async function ChannelPage({ params }: Props) {
       .from("messages")
       .select(`
         *,
-        author:users(*),
+        author:users!messages_author_id_fkey(*),
         attachments(*),
         reactions(*)
       `)
@@ -42,14 +43,6 @@ export default async function ChannelPage({ params }: Props) {
 
     messages = (data ?? []).reverse()
   }
-
-  // Fetch user profile for nickname
-  const { data: member } = await supabase
-    .from("server_members")
-    .select("nickname")
-    .eq("server_id", params.serverId)
-    .eq("user_id", user.id)
-    .single()
 
   if (channel.type === "voice") {
     return (

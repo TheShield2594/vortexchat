@@ -378,6 +378,10 @@ export type Database = {
         Args: { p_server_id: string; p_permission: number; p_user_id?: string }
         Returns: boolean
       }
+      join_server_by_invite: {
+        Args: { p_invite_code: string }
+        Returns: Database['public']['Tables']['servers']['Row']
+      }
     }
     Enums: {
       [_ in never]: never

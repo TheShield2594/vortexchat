@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Upload, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import type { ServerRow } from "@/types/database"
 
 interface Props {
   open: boolean
@@ -28,6 +29,16 @@ export function CreateServerModal({ open, onClose }: Props) {
   const [mode, setMode] = useState<"create" | "join">("create")
   const fileRef = useRef<HTMLInputElement>(null)
   const supabase = createClientSupabaseClient()
+
+  // Revoke blob URL on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (iconPreview && iconPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(iconPreview)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleCreate() {
     if (!name.trim()) return
@@ -52,10 +63,26 @@ export function CreateServerModal({ open, onClose }: Props) {
         iconUrl = urlData.publicUrl
       }
 
+      // Insert and fetch separately — PostgREST's INSERT RETURNING
+      // can't read back the row within the same statement due to the
+      // SELECT RLS policy checking server_members (added by AFTER INSERT trigger).
+      // The fetch-back filters on owner_id + name to narrow the race window;
+      // concurrent creates of the same-named server by one user is practically
+      // impossible, but an RPC returning the inserted row would eliminate it entirely.
+      const serverName = name.trim()
+      const { error: insertError } = await supabase
+        .from("servers")
+        .insert({ name: serverName, owner_id: user.id, icon_url: iconUrl })
+
+      if (insertError) throw insertError
+
       const { data: server, error } = await supabase
         .from("servers")
-        .insert({ name: name.trim(), owner_id: user.id, icon_url: iconUrl })
         .select()
+        .eq("owner_id", user.id)
+        .eq("name", serverName)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .single()
 
       if (error) throw error
@@ -75,23 +102,17 @@ export function CreateServerModal({ open, onClose }: Props) {
     if (!joinCode.trim()) return
     setLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not authenticated")
+      const { data, error } = await supabase
+        .rpc("join_server_by_invite", { p_invite_code: joinCode.trim() })
 
-      const { data: server } = await supabase
-        .from("servers")
-        .select("*")
-        .eq("invite_code", joinCode.trim().toLowerCase())
-        .single()
+      if (error) {
+        if (error.message.includes("Invalid invite code")) {
+          throw new Error("Invalid invite code. Please check and try again.")
+        }
+        throw error
+      }
 
-      if (!server) throw new Error("Invalid invite code")
-
-      const { error } = await supabase
-        .from("server_members")
-        .insert({ server_id: server.id, user_id: user.id })
-
-      if (error && !error.message.includes("duplicate")) throw error
-
+      const server = data as unknown as ServerRow
       addServer(server)
       toast({ title: `Joined "${server.name}"!` })
       onClose()
@@ -107,12 +128,14 @@ export function CreateServerModal({ open, onClose }: Props) {
     const file = e.target.files?.[0]
     if (!file) return
     setIconFile(file)
+    if (iconPreview) URL.revokeObjectURL(iconPreview)
     setIconPreview(URL.createObjectURL(file))
   }
 
   function handleClose() {
     setName("")
     setIconFile(null)
+    if (iconPreview) URL.revokeObjectURL(iconPreview)
     setIconPreview(null)
     setJoinCode("")
     setMode("create")

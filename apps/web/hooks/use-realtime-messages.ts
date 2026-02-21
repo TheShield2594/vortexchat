@@ -2,12 +2,12 @@
 
 import { useEffect } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import type { MessageWithAuthor } from "@/types/database"
+import type { MessageWithAuthor, MessageRow } from "@/types/database"
 
 export function useRealtimeMessages(
   channelId: string,
   onInsert: (message: MessageWithAuthor) => void,
-  onUpdate: (message: Partial<MessageWithAuthor> & { id: string }) => void
+  onUpdate: (message: MessageRow) => void
 ) {
   const supabase = createClientSupabaseClient()
 
@@ -26,7 +26,7 @@ export function useRealtimeMessages(
           // Fetch full message with relations
           const { data } = await supabase
             .from("messages")
-            .select(`*, author:users(*), attachments(*), reactions(*)`)
+            .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
             .eq("id", payload.new.id)
             .single()
           if (data) onInsert(data as unknown as MessageWithAuthor)
@@ -41,7 +41,7 @@ export function useRealtimeMessages(
           filter: `channel_id=eq.${channelId}`,
         },
         (payload) => {
-          onUpdate(payload.new as any)
+          onUpdate(payload.new as MessageRow)
         }
       )
       .subscribe()
