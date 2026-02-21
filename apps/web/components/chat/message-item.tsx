@@ -1,10 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { format, formatDistanceToNow } from "date-fns"
-import { Reply, Edit2, Trash2, MoreHorizontal, Smile, Pin, PinOff } from "lucide-react"
+import { format } from "date-fns"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import type { MessageWithAuthor } from "@/types/database"
+import { UserProfilePopover } from "@/components/user-profile-popover"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { useToast } from "@/components/ui/use-toast"
+import type { MessageWithAuthor, AttachmentRow } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
@@ -13,33 +16,33 @@ interface Props {
   message: MessageWithAuthor
   isGrouped: boolean
   currentUserId: string
-  canManage?: boolean
   onReply: () => void
   onEdit: (content: string) => Promise<void>
   onDelete: () => Promise<void>
   onReaction: (emoji: string) => Promise<void>
-  onPin?: () => Promise<void>
 }
 
 export function MessageItem({
   message,
   isGrouped,
   currentUserId,
-  canManage,
   onReply,
   onEdit,
   onDelete,
   onReaction,
-  onPin,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
   const [showActions, setShowActions] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const { toast } = useToast()
   const isOwn = message.author_id === currentUserId
-  const isMentioned =
-    (message.mentions ?? []).includes(currentUserId) ||
-    message.mention_everyone
+
+  function confirmDelete() {
+    if (window.confirm("Are you sure you want to delete this message? This cannot be undone.")) {
+      onDelete()
+    }
+  }
 
   const displayName =
     message.author?.display_name || message.author?.username || "Unknown"
@@ -65,277 +68,332 @@ export function MessageItem({
     setIsEditing(false)
   }
 
-  function renderContent(content: string) {
-    // Escape HTML to prevent XSS, then apply safe markdown transforms
-    const safe = content
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
+  function renderContent(content: string): React.ReactNode {
+    const pattern = /(https?:\/\/[^\s]+|\*\*(.*?)\*\*|\*(.*?)\*|~~(.*?)~~|`(.*?)`|<@(\w+)>)/g
+    const parts: React.ReactNode[] = []
+    let lastIndex = 0
+    let match
+    let key = 0
 
-    return safe
-      // Code blocks (before inline code so ``` doesn't get eaten)
-      .replace(/```(\w*)\n?([\s\S]*?)```/g, (_, _lang, code) =>
-        `<pre style="background:#1e1f22;border-radius:4px;padding:8px 12px;overflow-x:auto;margin:4px 0;font-size:0.85em;white-space:pre-wrap"><code>${code.trimEnd()}</code></pre>`
-      )
-      // Inline code
-      .replace(/`([^`\n]+)`/g, '<code style="background:#1e1f22;padding:1px 5px;border-radius:3px;font-size:0.9em;font-family:monospace">$1</code>')
-      // Bold
-      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-      // Italic
-      .replace(/\*(.*?)\*/g, "<em>$1</em>")
-      // Underline
-      .replace(/__(.*?)__/g, "<u>$1</u>")
-      // Strikethrough
-      .replace(/~~(.*?)~~/g, "<s>$1</s>")
-      // Spoiler — hidden until clicked
-      .replace(/\|\|(.*?)\|\|/g, '<span onclick="this.style.color=\'#dcddde\';this.style.background=\'transparent\'" style="background:#1e1f22;color:#1e1f22;border-radius:3px;padding:0 3px;cursor:pointer" title="Click to reveal">$1</span>')
-      // Blockquote (line starting with &gt; after escaping)
-      .replace(/^&gt; (.+)$/gm, '<div style="border-left:4px solid #4e5058;padding-left:8px;margin:2px 0;color:#b5bac1">$1</div>')
-      // @mention pills
-      .replace(/@(everyone|here)/g, '<span style="color:#fff;background:rgba(250,166,26,0.3);padding:0 3px;border-radius:3px;font-weight:500">@$1</span>')
-      .replace(/@(\w+)/g, '<span style="color:#5865f2;background:rgba(88,101,242,0.15);padding:0 3px;border-radius:3px;font-weight:500">@$1</span>')
-      // Auto-link URLs
-      .replace(/https?:\/\/[^\s&<>"]+/g, (url) =>
-        `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#00a8fc;text-decoration:underline">${url}</a>`
-      )
+    while ((match = pattern.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(content.slice(lastIndex, match.index))
+      }
+
+      const full = match[0]
+      if (/^https?:\/\//.test(full)) {
+        parts.push(
+          <a
+            key={key++}
+            href={full}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+            style={{ color: "#00a8fc" }}
+          >
+            {full}
+          </a>
+        )
+      } else if (match[2] !== undefined) {
+        parts.push(<strong key={key++}>{match[2]}</strong>)
+      } else if (match[3] !== undefined) {
+        parts.push(<em key={key++}>{match[3]}</em>)
+      } else if (match[4] !== undefined) {
+        parts.push(<s key={key++}>{match[4]}</s>)
+      } else if (match[5] !== undefined) {
+        parts.push(
+          <code key={key++} className="px-1 py-0.5 rounded text-sm" style={{ background: "rgba(0,0,0,0.3)" }}>
+            {match[5]}
+          </code>
+        )
+      } else if (match[6] !== undefined) {
+        parts.push(
+          <span
+            key={key++}
+            className="px-0.5 rounded"
+            style={{ color: "#5865f2", background: "rgba(88,101,242,0.1)" }}
+          >
+            @{match[6]}
+          </span>
+        )
+      }
+
+      lastIndex = match.index + full.length
+    }
+
+    if (lastIndex < content.length) {
+      parts.push(content.slice(lastIndex))
+    }
+
+    return parts
   }
 
   return (
-    <div
-      className={cn(
-        "relative group px-4 message-hover",
-        isGrouped ? "py-0.5" : "pt-4 pb-0.5",
-        isMentioned ? "mention-highlight" : ""
-      )}
-      style={isMentioned ? {
-        background: "rgba(250, 166, 26, 0.05)",
-        borderLeft: "2px solid #f9a31a",
-      } : undefined}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false) }}
-    >
-      {/* Pinned indicator */}
-      {(message as any).pinned && (
-        <div className="flex items-center gap-1 mb-1 text-xs" style={{ color: "#f0b232" }}>
-          <Pin className="w-3 h-3" />
-          <span>Pinned message</span>
-        </div>
-      )}
-
-      {/* Reply reference */}
-      {message.reply_to_id && message.reply_to && (
-        <div className="flex items-center gap-2 mb-1 ml-10 text-xs" style={{ color: '#949ba4' }}>
-          <Reply className="w-3 h-3 -scale-x-100" />
-          <span className="font-medium" style={{ color: '#b5bac1' }}>
-            {message.reply_to.author?.display_name || message.reply_to.author?.username}
-          </span>
-          <span className="truncate">{message.reply_to.content}</span>
-        </div>
-      )}
-
-      <div className="flex gap-3">
-        {/* Avatar or timestamp gutter */}
-        <div className="w-10 flex-shrink-0">
-          {!isGrouped ? (
-            <Avatar className="w-10 h-10">
-              {message.author?.avatar_url && (
-                <AvatarImage src={message.author.avatar_url} />
-              )}
-              <AvatarFallback
-                style={{ background: "#5865f2", color: "white", fontSize: "14px" }}
-              >
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <span
-              className="text-xs opacity-0 group-hover:opacity-100 transition-opacity pt-1 block text-right pr-1"
-              style={{ color: "#4e5058", fontSize: "10px" }}
-            >
-              {format(timestamp, "HH:mm")}
-            </span>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          className={cn(
+            "relative group px-4 message-hover",
+            isGrouped ? "py-0.5" : "pt-4 pb-0.5"
           )}
-        </div>
+          onMouseEnter={() => setShowActions(true)}
+          onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false) }}
+        >
+          {/* Reply reference */}
+          {message.reply_to_id && message.reply_to && (
+            <div className="flex items-center gap-2 mb-1 ml-10 text-xs" style={{ color: '#949ba4' }}>
+              <Reply className="w-3 h-3 -scale-x-100" />
+              <span className="font-medium" style={{ color: '#b5bac1' }}>
+                {message.reply_to.author?.display_name || message.reply_to.author?.username}
+              </span>
+              <span className="truncate">{message.reply_to.content}</span>
+            </div>
+          )}
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {!isGrouped && (
-            <div className="flex items-baseline gap-2 mb-0.5">
-              <span className="font-semibold text-white hover:underline cursor-pointer">
-                {displayName}
-              </span>
-              <span className="text-xs" style={{ color: "#4e5058" }}>
-                {format(timestamp, "MM/dd/yyyy h:mm a")}
-              </span>
-              {message.edited_at && (
-                <span className="text-xs" style={{ color: "#4e5058" }}>
-                  (edited)
+          <div className="flex gap-3">
+            {/* Avatar or timestamp gutter */}
+            <div className="w-10 flex-shrink-0">
+              {!isGrouped ? (
+                <UserProfilePopover
+                  user={message.author}
+                  displayName={displayName}
+                  status={message.author?.status}
+                  side="right"
+                  align="start"
+                >
+                  <div className="cursor-pointer">
+                    <Avatar className="w-10 h-10">
+                      {message.author?.avatar_url && (
+                        <AvatarImage src={message.author.avatar_url} />
+                      )}
+                      <AvatarFallback
+                        style={{ background: "#5865f2", color: "white", fontSize: "14px" }}
+                      >
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                </UserProfilePopover>
+              ) : (
+                <span
+                  className="text-xs opacity-0 group-hover:opacity-100 transition-opacity pt-1 block text-right pr-1"
+                  style={{ color: "#4e5058", fontSize: "10px" }}
+                >
+                  {format(timestamp, "HH:mm")}
                 </span>
               )}
             </div>
-          )}
 
-          {isEditing ? (
-            <div>
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleEditSubmit()
-                  }
-                  if (e.key === "Escape") {
-                    setIsEditing(false)
-                    setEditContent(message.content ?? "")
-                  }
-                }}
-                className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
-                style={{
-                  background: "#1e1f22",
-                  color: "#f2f3f5",
-                  border: "1px solid #5865f2",
-                }}
-                rows={3}
-                autoFocus
-              />
-              <div className="flex gap-2 mt-1 text-xs" style={{ color: "#949ba4" }}>
-                <span>ESC to cancel</span>
-                <span>·</span>
-                <button
-                  onClick={handleEditSubmit}
-                  style={{ color: "#00a8fc" }}
-                >
-                  Enter to save
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {message.content && (
-                <p
-                  className="text-sm leading-relaxed message-content break-words"
-                  style={{ color: "#dcddde" }}
-                  dangerouslySetInnerHTML={{
-                    __html: renderContent(message.content),
-                  }}
-                />
-              )}
-
-              {/* Attachments */}
-              {message.attachments?.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  {message.attachments.map((attachment) => (
-                    <AttachmentDisplay key={attachment.id} attachment={attachment} />
-                  ))}
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              {!isGrouped && (
+                <div className="flex items-baseline gap-2 mb-0.5">
+                  <UserProfilePopover
+                    user={message.author}
+                    displayName={displayName}
+                    status={message.author?.status}
+                    side="right"
+                    align="start"
+                  >
+                    <span className="font-semibold text-white hover:underline cursor-pointer">
+                      {displayName}
+                    </span>
+                  </UserProfilePopover>
+                  <span className="text-xs" style={{ color: "#4e5058" }}>
+                    {format(timestamp, "MM/dd/yyyy h:mm a")}
+                  </span>
+                  {message.edited_at && (
+                    <span className="text-xs" style={{ color: "#4e5058" }}>
+                      (edited)
+                    </span>
+                  )}
                 </div>
               )}
 
-              {/* Reactions */}
-              {Object.entries(reactionGroups).length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {Object.entries(reactionGroups).map(([emoji, { count, hasOwn }]) => (
+              {isEditing ? (
+                <div>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault()
+                        handleEditSubmit()
+                      }
+                      if (e.key === "Escape") {
+                        setIsEditing(false)
+                        setEditContent(message.content ?? "")
+                      }
+                    }}
+                    className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
+                    style={{
+                      background: "#1e1f22",
+                      color: "#f2f3f5",
+                      border: "1px solid #5865f2",
+                    }}
+                    rows={3}
+                    autoFocus
+                  />
+                  <div className="flex gap-2 mt-1 text-xs" style={{ color: "#949ba4" }}>
+                    <span>ESC to cancel</span>
+                    <span>·</span>
+                    <button
+                      onClick={handleEditSubmit}
+                      style={{ color: "#00a8fc" }}
+                    >
+                      Enter to save
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {message.content && (
+                    <p
+                      className="text-sm leading-relaxed message-content break-words"
+                      style={{ color: "#dcddde" }}
+                    >
+                      {renderContent(message.content)}
+                    </p>
+                  )}
+
+                  {/* Attachments */}
+                  {message.attachments?.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {message.attachments.map((attachment) => (
+                        <AttachmentDisplay key={attachment.id} attachment={attachment} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Reactions */}
+                  {Object.entries(reactionGroups).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {Object.entries(reactionGroups).map(([emoji, { count, hasOwn }]) => (
+                        <button
+                          key={emoji}
+                          onClick={() => onReaction(emoji)}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-colors"
+                          style={{
+                            background: hasOwn
+                              ? "rgba(88,101,242,0.3)"
+                              : "rgba(255,255,255,0.06)",
+                            border: `1px solid ${hasOwn ? "#5865f2" : "transparent"}`,
+                            color: "#dcddde",
+                          }}
+                        >
+                          {emoji} {count}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          {showActions && !isEditing && (
+            <div
+              className="absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden"
+              style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
+            >
+              {/* Quick reactions */}
+              {showEmojiPicker && (
+                <div className="flex items-center px-1">
+                  {QUICK_REACTIONS.map((emoji) => (
                     <button
                       key={emoji}
-                      onClick={() => onReaction(emoji)}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-colors"
-                      style={{
-                        background: hasOwn
-                          ? "rgba(88,101,242,0.3)"
-                          : "rgba(255,255,255,0.06)",
-                        border: `1px solid ${hasOwn ? "#5865f2" : "transparent"}`,
-                        color: "#dcddde",
-                      }}
+                      onClick={() => { onReaction(emoji); setShowEmojiPicker(false) }}
+                      className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm transition-colors"
                     >
-                      {emoji} {count}
+                      {emoji}
                     </button>
                   ))}
                 </div>
               )}
-            </>
-          )}
-        </div>
-      </div>
 
-      {/* Action buttons */}
-      {showActions && !isEditing && (
-        <div
-          className="absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden"
-          style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
-        >
-          {/* Quick reactions */}
-          {showEmojiPicker && (
-            <div className="flex items-center px-1">
-              {QUICK_REACTIONS.map((emoji) => (
+              <button
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                style={{ color: "#b5bac1" }}
+                title="Add Reaction"
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={onReply}
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                style={{ color: "#b5bac1" }}
+                title="Reply"
+              >
+                <Reply className="w-4 h-4" />
+              </button>
+
+              {isOwn && (
                 <button
-                  key={emoji}
-                  onClick={() => { onReaction(emoji); setShowEmojiPicker(false) }}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm transition-colors"
+                  onClick={() => setIsEditing(true)}
+                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  style={{ color: "#b5bac1" }}
+                  title="Edit"
                 >
-                  {emoji}
+                  <Edit2 className="w-4 h-4" />
                 </button>
-              ))}
+              )}
+
+              {isOwn && (
+                <button
+                  onClick={confirmDelete}
+                  className="w-8 h-8 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                  style={{ color: "#f23f43" }}
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           )}
-
-          <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
-            style={{ color: "#b5bac1" }}
-            title="Add Reaction"
-          >
-            <Smile className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={onReply}
-            className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
-            style={{ color: "#b5bac1" }}
-            title="Reply"
-          >
-            <Reply className="w-4 h-4" />
-          </button>
-
-          {(isOwn || canManage) && onPin && (
-            <button
-              onClick={onPin}
-              className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
-              style={{ color: (message as any).pinned ? "#f0b232" : "#b5bac1" }}
-              title={(message as any).pinned ? "Unpin" : "Pin"}
-            >
-              {(message as any).pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-            </button>
-          )}
-
-          {isOwn && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
-              style={{ color: "#b5bac1" }}
-              title="Edit"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-          )}
-
-          {isOwn && (
-            <button
-              onClick={onDelete}
-              className="w-8 h-8 flex items-center justify-center hover:bg-red-500/20 transition-colors"
-              style={{ color: "#f23f43" }}
-              title="Delete"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
         </div>
-      )}
-    </div>
+      </ContextMenuTrigger>
+
+      <ContextMenuContent className="w-52">
+        <ContextMenuItem onClick={onReply}>
+          <Reply className="w-4 h-4 mr-2" /> Reply
+        </ContextMenuItem>
+        {isOwn && (
+          <ContextMenuItem onClick={() => setIsEditing(true)}>
+            <Edit2 className="w-4 h-4 mr-2" /> Edit Message
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        {message.content && (
+          <ContextMenuItem onClick={() => {
+            navigator.clipboard.writeText(message.content!)
+            toast({ title: "Text copied!" })
+          }}>
+            <Clipboard className="w-4 h-4 mr-2" /> Copy Text
+          </ContextMenuItem>
+        )}
+        <ContextMenuItem onClick={() => {
+          navigator.clipboard.writeText(message.id)
+          toast({ title: "Message ID copied!" })
+        }}>
+          <Hash className="w-4 h-4 mr-2" /> Copy Message ID
+        </ContextMenuItem>
+        {isOwn && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={confirmDelete}>
+              <Trash2 className="w-4 h-4 mr-2" /> Delete Message
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
-function AttachmentDisplay({ attachment }: { attachment: any }) {
+function AttachmentDisplay({ attachment }: { attachment: AttachmentRow }) {
   const isImage = attachment.content_type?.startsWith("image/")
 
   if (isImage) {

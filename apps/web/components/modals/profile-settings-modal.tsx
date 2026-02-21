@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Loader2, Upload, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -32,6 +32,9 @@ const BANNER_PRESETS = [
   "#3ba55c", "#faa61a", "#7289da", "#2c2f33", "#99aab5",
 ]
 
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
+
 export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const router = useRouter()
   const { toast } = useToast()
@@ -49,6 +52,16 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = createClientSupabaseClient()
 
+  // Revoke blob URL on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(avatarPreview)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function handleSave() {
     setLoading(true)
     try {
@@ -60,7 +73,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         const path = `${user.id}/avatar.${ext}`
         const { error: uploadError } = await supabase.storage
           .from("avatars")
-          .upload(path, avatarFile, { upsert: true })
+          .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type })
         if (uploadError) throw uploadError
 
         const { data } = supabase.storage.from("avatars").getPublicUrl(path)
@@ -106,7 +119,29 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "Unsupported image format",
+        description: "Avatars must be JPG, PNG, GIF, or WebP.",
+      })
+      e.target.value = ""
+      return
+    }
+
+    if (file.size > MAX_AVATAR_SIZE) {
+      toast({
+        variant: "destructive",
+        title: "Image too large",
+        description: "Avatars must be under 5 MB.",
+      })
+      e.target.value = ""
+      return
+    }
+
     setAvatarFile(file)
+    if (avatarPreview && avatarPreview.startsWith("blob:")) URL.revokeObjectURL(avatarPreview)
     setAvatarPreview(URL.createObjectURL(file))
   }
 
@@ -118,33 +153,32 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         className="max-w-2xl max-h-[90vh] overflow-hidden p-0"
         style={{ background: "#313338", borderColor: "#1e1f22" }}
       >
-        <div className="flex h-full min-h-[500px]">
+        <Tabs defaultValue="profile" orientation="vertical" className="flex h-[80vh]">
           {/* Settings nav */}
           <div className="w-52 flex-shrink-0 p-4 flex flex-col" style={{ background: "#2b2d31" }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#949ba4" }}>
               User Settings
             </h3>
 
-            <Tabs defaultValue="profile" orientation="vertical" className="flex-1">
-              <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
-                <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
-                  My Account
-                </TabsTrigger>
-                <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
-                  Appearance
-                </TabsTrigger>
-              </TabsList>
+            <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
+              <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
+                My Account
+              </TabsTrigger>
+              <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
+                Appearance
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-              {/* Main content */}
-              <div className="flex-1 overflow-y-auto p-6">
+          {/* Main content */}
+          <div className="flex-1 overflow-y-auto p-6">
                 <TabsContent value="profile" className="mt-0 space-y-6">
                   {/* Profile preview card */}
                   <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #1e1f22" }}>
                     {/* Banner */}
                     <div
-                      className="h-20 cursor-pointer relative"
-                      style={{ background: bannerColor }}
-                      onClick={() => {}}
+                      className="h-20 relative"
+                      style={{ background: /^#[0-9a-f]{6}$/i.test(bannerColor) ? bannerColor : "#5865f2" }}
                     />
 
                     {/* Avatar */}
@@ -154,7 +188,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           className="cursor-pointer"
                           onClick={() => avatarRef.current?.click()}
                         >
-                          <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "#232428" } as any}>
+                          <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "#232428" } as React.CSSProperties}>
                             {avatarPreview && <AvatarImage src={avatarPreview} />}
                             <AvatarFallback
                               style={{ background: "#5865f2", color: "white", fontSize: "24px" }}
@@ -169,7 +203,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         <input
                           ref={avatarRef}
                           type="file"
-                          accept="image/*"
+                          accept=".jpg,.jpeg,.png,.gif,.webp"
                           className="hidden"
                           onChange={handleAvatarChange}
                         />
@@ -290,13 +324,34 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                             }}
                           />
                         ))}
-                        <input
-                          type="color"
-                          value={bannerColor}
-                          onChange={(e) => setBannerColor(e.target.value)}
-                          className="w-8 h-8 rounded-full cursor-pointer border-0 p-0"
+                        {/* Custom color: show swatch of chosen color when custom, rainbow wheel otherwise */}
+                        <label
+                          className="w-8 h-8 rounded-full cursor-pointer transition-transform hover:scale-110 relative flex items-center justify-center overflow-hidden"
+                          style={{
+                            outline: !BANNER_PRESETS.includes(bannerColor) ? "2px solid white" : "none",
+                            outlineOffset: "2px",
+                          }}
                           title="Custom color"
-                        />
+                        >
+                          {/* Rainbow background always visible as a ring */}
+                          <span
+                            className="absolute inset-0 rounded-full"
+                            style={{ background: "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)" }}
+                          />
+                          {/* If custom color is active, show it as inner circle */}
+                          {!BANNER_PRESETS.includes(bannerColor) && (
+                            <span
+                              className="absolute rounded-full"
+                              style={{ inset: "3px", background: bannerColor }}
+                            />
+                          )}
+                          <input
+                            type="color"
+                            value={bannerColor}
+                            onChange={(e) => setBannerColor(e.target.value)}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                          />
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -325,10 +380,8 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                 <TabsContent value="appearance" className="mt-0">
                   <div className="text-white">Appearance settings coming soon.</div>
                 </TabsContent>
-              </div>
-            </Tabs>
           </div>
-        </div>
+        </Tabs>
       </DialogContent>
     </Dialog>
   )

@@ -17,37 +17,12 @@ interface UseVoiceReturn {
   deafened: boolean
   speaking: boolean
   screenSharing: boolean
-  videoEnabled: boolean
   localStream: React.RefObject<MediaStream | null>
   screenStream: React.RefObject<MediaStream | null>
-  cameraStream: React.RefObject<MediaStream | null>
   toggleMute: () => void
   toggleDeafen: () => void
   toggleScreenShare: () => Promise<void>
-  toggleVideo: () => Promise<void>
   leaveChannel: () => void
-}
-
-/** Build ICE server list with optional TURN relay from env vars. */
-function buildIceServers(): RTCIceServer[] {
-  const servers: RTCIceServer[] = [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ]
-
-  const turnUrl = process.env.NEXT_PUBLIC_TURN_URL
-  const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL
-  const username = process.env.NEXT_PUBLIC_TURN_USERNAME
-  const credential = process.env.NEXT_PUBLIC_TURN_CREDENTIAL
-
-  if (turnUrl && username && credential) {
-    servers.push({ urls: turnUrl, username, credential })
-  }
-  if (turnsUrl && username && credential) {
-    servers.push({ urls: turnsUrl, username, credential })
-  }
-
-  return servers
 }
 
 export function useVoice(channelId: string, userId: string): UseVoiceReturn {
@@ -56,15 +31,13 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
   const [deafened, setDeafened] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [screenSharing, setScreenSharing] = useState(false)
-  const [videoEnabled, setVideoEnabled] = useState(false)
 
   const localStream = useRef<MediaStream | null>(null)
   const screenStream = useRef<MediaStream | null>(null)
-  const cameraStream = useRef<MediaStream | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
-  const harkRef = useRef<any>(null)
-  // Stable unique ID for this client session
+  const harkRef = useRef<{ stop: () => void } | null>(null)
+  // Stable unique ID for this client session — replaces socket.id
   const clientIdRef = useRef<string>(crypto.randomUUID())
   const supabaseRef = useRef(createClientSupabaseClient())
 
@@ -81,7 +54,12 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       rtChannel: RealtimeChannel,
       stream: MediaStream
     ): RTCPeerConnection {
-      const pc = new RTCPeerConnection({ iceServers: buildIceServers() })
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+        ],
+      })
 
       peerConnections.current.set(peerId, pc)
 
@@ -145,7 +123,9 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       return pc
     }
 
-    // ─── Deterministic initiator: lexicographically greater clientId initiates ─
+    // ─── Handle a peer (either existing at join time or newly arrived) ─────────
+    // We use a deterministic initiator rule to avoid offer glare:
+    // the client with the lexicographically greater clientId always initiates.
     function handlePeer(
       peerClientId: string,
       peerUserId: string,
@@ -180,19 +160,21 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
         // Create Supabase Realtime channel for this voice room
         const rtChannel = supabase.channel(`voice-room:${channelId}`, {
           config: {
+            // self: false → we don't receive our own broadcast messages
             broadcast: { self: false },
             presence: { key: myClientId },
           },
         })
         channelRef.current = rtChannel
 
-        // ─── Broadcast: WebRTC offer ──────────────────────────────────────────
+        // ─── Broadcast: WebRTC offer ────────────────────────────────────────────
         rtChannel.on("broadcast", { event: "offer" }, async ({ payload }) => {
           if (payload.to !== myClientId || !mounted) return
           const from = payload.from as string
 
           let pc = peerConnections.current.get(from)
           if (!pc) {
+            // Peer initiated, we are the non-initiator
             pc = createPeerConnection(from, payload.userId as string, false, rtChannel, stream)
           }
 
@@ -207,21 +189,21 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           })
         })
 
-        // ─── Broadcast: WebRTC answer ─────────────────────────────────────────
+        // ─── Broadcast: WebRTC answer ───────────────────────────────────────────
         rtChannel.on("broadcast", { event: "answer" }, async ({ payload }) => {
           if (payload.to !== myClientId) return
           const pc = peerConnections.current.get(payload.from as string)
           if (pc) await pc.setRemoteDescription(payload.answer as RTCSessionDescriptionInit)
         })
 
-        // ─── Broadcast: ICE candidates ────────────────────────────────────────
+        // ─── Broadcast: ICE candidates ──────────────────────────────────────────
         rtChannel.on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
           if (payload.to !== myClientId) return
           const pc = peerConnections.current.get(payload.from as string)
           if (pc) await pc.addIceCandidate(payload.candidate as RTCIceCandidateInit)
         })
 
-        // ─── Broadcast: peer voice state ──────────────────────────────────────
+        // ─── Broadcast: peer voice state ────────────────────────────────────────
         rtChannel.on("broadcast", { event: "peer-speaking" }, ({ payload }) => {
           setPeers((prev) => {
             const next = new Map(prev)
@@ -240,7 +222,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           })
         })
 
-        // ─── Presence: new peer joined after us ───────────────────────────────
+        // ─── Presence: new peer joined after us ────────────────────────────────
         rtChannel.on("presence", { event: "join" }, ({ newPresences }) => {
           if (!mounted) return
           for (const p of (newPresences as unknown) as Array<{ client_id: string; user_id: string }>) {
@@ -248,7 +230,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           }
         })
 
-        // ─── Presence: peer left ──────────────────────────────────────────────
+        // ─── Presence: peer left ───────────────────────────────────────────────
         rtChannel.on("presence", { event: "leave" }, ({ leftPresences }) => {
           for (const p of (leftPresences as unknown) as Array<{ client_id: string }>) {
             const pc = peerConnections.current.get(p.client_id)
@@ -268,6 +250,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           rtChannel.subscribe(async (status) => {
             if (status === "SUBSCRIBED") {
               clearTimeout(timeout)
+              // Announce ourselves to the room
               await rtChannel.track({ client_id: myClientId, user_id: userId })
 
               // Connect to any peers already in the room
@@ -285,7 +268,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           })
         })
 
-        // ─── Voice Activity Detection ─────────────────────────────────────────
+        // ─── Voice Activity Detection ──────────────────────────────────────────
         try {
           const { default: hark } = await import("hark")
           const speechEvents = hark(stream, { interval: 50, threshold: -65 })
@@ -358,7 +341,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     } else {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { cursor: "always" } as any,
+          video: { cursor: "always" } as MediaTrackConstraints,
           audio: false,
         })
         screenStream.current = stream
@@ -376,57 +359,20 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           screenStream.current = null
           setScreenSharing(false)
         }
-      } catch (e) {
-        console.log("Screen share cancelled or failed:", e)
+      } catch (err) {
+        // AbortError = user dismissed picker, NotAllowedError = permission denied
+        if (err instanceof DOMException && (err.name === "AbortError" || err.name === "NotAllowedError")) {
+          return
+        }
+        console.error("Screen share failed:", err)
       }
     }
   }, [screenSharing])
-
-  const toggleVideo = useCallback(async () => {
-    if (videoEnabled) {
-      // Stop camera and remove video track from all peer connections
-      cameraStream.current?.getTracks().forEach((t) => t.stop())
-      cameraStream.current = null
-      setVideoEnabled(false)
-      peerConnections.current.forEach((pc) => {
-        const senders = pc.getSenders().filter((s) => s.track?.kind === "video" && !screenSharing)
-        senders.forEach((s) => {
-          try { pc.removeTrack(s) } catch {}
-        })
-      })
-    } else {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        })
-        cameraStream.current = stream
-        setVideoEnabled(true)
-
-        // Add/replace video track in all peer connections
-        peerConnections.current.forEach((pc) => {
-          const [videoTrack] = stream.getVideoTracks()
-          const sender = pc.getSenders().find((s) => s.track?.kind === "video")
-          if (sender) sender.replaceTrack(videoTrack)
-          else pc.addTrack(videoTrack, stream)
-        })
-
-        // If user closes camera externally (e.g. OS revokes permission)
-        stream.getVideoTracks()[0].onended = () => {
-          cameraStream.current = null
-          setVideoEnabled(false)
-        }
-      } catch (e) {
-        console.log("Camera access failed:", e)
-      }
-    }
-  }, [videoEnabled, screenSharing])
 
   const leaveChannel = useCallback(() => {
     harkRef.current?.stop()
     localStream.current?.getTracks().forEach((t) => t.stop())
     screenStream.current?.getTracks().forEach((t) => t.stop())
-    cameraStream.current?.getTracks().forEach((t) => t.stop())
     if (channelRef.current) {
       supabaseRef.current.removeChannel(channelRef.current)
       channelRef.current = null
@@ -442,14 +388,11 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     deafened,
     speaking,
     screenSharing,
-    videoEnabled,
     localStream,
     screenStream,
-    cameraStream,
     toggleMute,
     toggleDeafen,
     toggleScreenShare,
-    toggleVideo,
     leaveChannel,
   }
 }

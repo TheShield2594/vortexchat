@@ -4,9 +4,9 @@ import { rateLimiter } from "@/lib/rate-limit"
 import { sendPushToChannel } from "@/lib/push"
 
 export async function GET(request: Request) {
-  const supabase = createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const channelId = searchParams.get("channelId")
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("messages")
-    .select(`*, author:users(*), attachments(*), reactions(*)`)
+    .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
     .eq("channel_id", channelId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })

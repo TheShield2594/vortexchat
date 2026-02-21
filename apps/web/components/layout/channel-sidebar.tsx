@@ -1,26 +1,22 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Settings, Mic, MicOff, Headphones, PhoneOff,
-  UserPlus, Search, Bell
+  Plus, Clipboard, Trash2
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
-import type { ChannelRow, RoleRow, ServerRow, UserRow } from "@/types/database"
+import type { ChannelRow, RoleRow, ServerRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
+import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { useToast } from "@/components/ui/use-toast"
 import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
-import { InviteModal } from "@/components/modals/invite-modal"
-import { SearchModal } from "@/components/modals/search-modal"
-import { NotificationSettingsModal } from "@/components/modals/notification-settings-modal"
-import { ChannelPermissionsEditor } from "@/components/modals/channel-permissions-editor"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { UserPanel } from "@/components/layout/user-panel"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
-import { useUnreadChannels } from "@/hooks/use-unread-channels"
 
 interface Props {
   server: ServerRow
@@ -57,41 +53,74 @@ function groupChannels(channels: ChannelRow[]): GroupedChannels {
   return result
 }
 
-export function ChannelSidebar({ server, channels, currentUserId, isOwner, userRoles }: Props) {
-  const { activeChannelId, voiceChannelId, setVoiceChannel } = useAppStore()
+export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
+  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, removeChannel } = useAppStore()
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showServerSettings, setShowServerSettings] = useState(false)
-  const [showInvite, setShowInvite] = useState(false)
-  const [showSearch, setShowSearch] = useState(false)
   const [createChannelCategoryId, setCreateChannelCategoryId] = useState<string | undefined>()
   const router = useRouter()
+  const { toast } = useToast()
+  const supabase = createClientSupabaseClient()
 
-  const textChannelIds = channels.filter((c) => c.type === "text").map((c) => c.id)
-  const { unreadChannelIds, mentionCounts } = useUnreadChannels(
-    server.id,
-    textChannelIds,
-    currentUserId,
-    activeChannelId
-  )
+  async function handleDeleteChannel(channelId: string, channelName: string) {
+    if (!window.confirm(`Are you sure you want to delete #${channelName}? This cannot be undone.`)) return
+    try {
+      const { error } = await supabase.from("channels").delete().eq("id", channelId)
+      if (error) throw error
+      removeChannel(channelId)
+      if (activeChannelId === channelId) {
+        router.push(`/channels/${server.id}`)
+      }
+      toast({ title: "Channel deleted" })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to delete channel", description: error.message })
+    }
+  }
 
+  // Seed store with server-fetched channels once per server (not on every re-render,
+  // which would overwrite channels added via realtime or addChannel)
+  const seededServerRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (seededServerRef.current !== server.id) {
+      setChannels(server.id, initialChannels)
+      seededServerRef.current = server.id
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [server.id, setChannels])
+
+  // Subscribe to realtime channel changes so other users see new/deleted channels
+  useEffect(() => {
+    const supabase = createClientSupabaseClient()
+    const subscription = supabase
+      .channel(`channels:${server.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "channels", filter: `server_id=eq.${server.id}` },
+        (payload) => {
+          addChannel(payload.new as ChannelRow)
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "channels", filter: `server_id=eq.${server.id}` },
+        (payload) => {
+          removeChannel((payload.old as { id: string }).id)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }, [server.id, addChannel, removeChannel])
+
+  const channels = storeChannels[server.id] ?? initialChannels
   const grouped = groupChannels(channels)
 
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
-  const canManageChannels = isOwner || hasPermission(userPermissions as any, "MANAGE_CHANNELS")
-
-  // Ctrl+K / Cmd+K to open search
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault()
-        setShowSearch(true)
-      }
-    }
-    window.addEventListener("keydown", handleKey)
-    return () => window.removeEventListener("keydown", handleKey)
-  }, [])
+  const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
 
   function toggleCategory(id: string) {
     setCollapsedCategories((prev) => {
@@ -117,32 +146,6 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
           <span className="font-semibold text-white truncate text-sm">{server.name}</span>
           <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white transition-colors" />
         </button>
-
-        {/* Quick action bar: invite + search */}
-        <div className="px-3 py-2 flex gap-1.5 border-b flex-shrink-0" style={{ borderColor: "#1e1f22" }}>
-          <button
-            onClick={() => setShowSearch(true)}
-            className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors hover:bg-white/5"
-            style={{ background: "#1e1f22", color: "#949ba4" }}
-            title="Search (Ctrl+K)"
-          >
-            <Search className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">Search</span>
-            <kbd className="ml-auto text-xs px-1 rounded" style={{ background: "#2b2d31", color: "#4e5058" }}>⌃K</kbd>
-          </button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setShowInvite(true)}
-                className="w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-white/5"
-                style={{ color: "#949ba4" }}
-              >
-                <UserPlus className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Invite People</TooltipContent>
-          </Tooltip>
-        </div>
 
         {/* Channel list */}
         <div className="flex-1 overflow-y-auto py-2">
@@ -195,10 +198,7 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                       channel={channel}
                       isActive={activeChannelId === channel.id}
                       isVoiceActive={voiceChannelId === channel.id}
-                      isUnread={unreadChannelIds.has(channel.id)}
-                      mentionCount={mentionCounts[channel.id] ?? 0}
-                      serverId={server.id}
-                      isOwner={isOwner}
+                      canManageChannels={canManageChannels}
                       onClick={() => {
                         if (channel.type === "text") {
                           router.push(`/channels/${server.id}/${channel.id}`)
@@ -207,6 +207,7 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
                           router.push(`/channels/${server.id}/${channel.id}`)
                         }
                       }}
+                      onDelete={() => handleDeleteChannel(channel.id, channel.name)}
                     />
                   ))}
                 </div>
@@ -248,19 +249,6 @@ export function ChannelSidebar({ server, channels, currentUserId, isOwner, userR
           server={server}
           isOwner={isOwner}
         />
-        {showInvite && (
-          <InviteModal
-            serverId={server.id}
-            serverName={server.name}
-            onClose={() => setShowInvite(false)}
-          />
-        )}
-        {showSearch && (
-          <SearchModal
-            serverId={server.id}
-            onClose={() => setShowSearch(false)}
-          />
-        )}
       </div>
     </TooltipProvider>
   )
@@ -270,126 +258,61 @@ function ChannelItem({
   channel,
   isActive,
   isVoiceActive,
-  isUnread,
-  mentionCount,
-  serverId,
-  isOwner,
+  canManageChannels,
   onClick,
+  onDelete,
 }: {
   channel: ChannelRow
   isActive: boolean
   isVoiceActive: boolean
-  isUnread: boolean
-  mentionCount: number
-  serverId: string
-  isOwner?: boolean
+  canManageChannels: boolean
   onClick: () => void
+  onDelete: () => void
 }) {
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
-  const [showNotifModal, setShowNotifModal] = useState(false)
-  const [showPermsModal, setShowPermsModal] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function close(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setContextMenu(null)
-    }
-    if (contextMenu) document.addEventListener("mousedown", close)
-    return () => document.removeEventListener("mousedown", close)
-  }, [contextMenu])
+  const { toast } = useToast()
 
   return (
-    <div className="relative">
-      <button
-        onClick={onClick}
-        onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY }) }}
-        className={cn(
-          "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel",
-          isActive || isVoiceActive
-            ? "bg-white/10 text-white"
-            : isUnread
-            ? "text-white hover:bg-white/5"
-            : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
-        )}
-      >
-        {/* Unread left bar */}
-        {isUnread && !isActive && (
-          <span
-            className="absolute left-0 w-1 rounded-r"
-            style={{ height: "8px", background: "white" }}
-          />
-        )}
-
-        {channel.type === "text" ? (
-          <Hash className="w-4 h-4 flex-shrink-0" />
-        ) : (
-          <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
-        )}
-        <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>
-          {channel.name}
-        </span>
-
-        {/* Mention badge */}
-        {mentionCount > 0 && !isActive && (
-          <span
-            className="flex-shrink-0 text-xs font-bold text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center"
-            style={{ background: "#f23f43", fontSize: "11px" }}
-          >
-            {mentionCount > 99 ? "99+" : mentionCount}
-          </span>
-        )}
-
-        {/* Voice active pulse */}
-        {isVoiceActive && !mentionCount && (
-          <span className="ml-auto">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
-          </span>
-        )}
-      </button>
-
-      {/* Right-click context menu */}
-      {contextMenu && (
-        <div
-          ref={menuRef}
-          className="fixed z-50 rounded-lg shadow-2xl overflow-hidden py-1 min-w-[180px]"
-          style={{ left: contextMenu.x, top: contextMenu.y, background: "#111214", border: "1px solid #1e1f22" }}
-        >
-          <button
-            onClick={() => { setShowNotifModal(true); setContextMenu(null) }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-white/5"
-            style={{ color: "#b5bac1" }}
-          >
-            <Bell className="w-4 h-4" />
-            Notification Settings
-          </button>
-          {isOwner && (
-            <button
-              onClick={() => { setShowPermsModal(true); setContextMenu(null) }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-white/5"
-              style={{ color: "#b5bac1" }}
-            >
-              <Settings className="w-4 h-4" />
-              Channel Permissions
-            </button>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          onClick={onClick}
+          className={cn(
+            "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm",
+            isActive || isVoiceActive
+              ? "bg-white/10 text-white"
+              : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
           )}
-        </div>
-      )}
+        >
+          {channel.type === "text" ? (
+            <Hash className="w-4 h-4 flex-shrink-0" />
+          ) : (
+            <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
+          )}
+          <span className="truncate">{channel.name}</span>
+          {isVoiceActive && (
+            <span className="ml-auto">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
+            </span>
+          )}
+        </button>
+      </ContextMenuTrigger>
 
-      <NotificationSettingsModal
-        open={showNotifModal}
-        onClose={() => setShowNotifModal(false)}
-        channelId={channel.id}
-        label={`#${channel.name}`}
-      />
-
-      <Dialog open={showPermsModal} onOpenChange={setShowPermsModal}>
-        <DialogContent style={{ background: "#313338", borderColor: "#1e1f22" }} className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-white">#{channel.name} — Permissions</DialogTitle>
-          </DialogHeader>
-          <ChannelPermissionsEditor channelId={channel.id} serverId={serverId} />
-        </DialogContent>
-      </Dialog>
-    </div>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={() => {
+          navigator.clipboard.writeText(channel.id)
+          toast({ title: "Channel ID copied!" })
+        }}>
+          <Clipboard className="w-4 h-4 mr-2" /> Copy Channel ID
+        </ContextMenuItem>
+        {canManageChannels && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 className="w-4 h-4 mr-2" /> Delete Channel
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

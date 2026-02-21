@@ -801,6 +801,10 @@ export type Database = {
         Args: { p_dm_channel_id: string }
         Returns: void
       }
+      join_server_by_invite: {
+        Args: { p_invite_code: string }
+        Returns: Database['public']['Tables']['servers']['Row']
+      }
     }
     Enums: {
       [_ in never]: never

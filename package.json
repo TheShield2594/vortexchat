@@ -7,6 +7,9 @@
     "apps/*",
     "packages/*"
   ],
+  "overrides": {
+    "minimatch": "^10.2.1"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
