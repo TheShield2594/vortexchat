@@ -62,6 +62,8 @@ export type Database = {
           owner_id: string
           invite_code: string
           description: string | null
+          is_public: boolean
+          member_count: number
           created_at: string
         }
         Insert: {
@@ -71,6 +73,8 @@ export type Database = {
           owner_id: string
           invite_code?: string
           description?: string | null
+          is_public?: boolean
+          member_count?: number
           created_at?: string
         }
         Update: {
@@ -80,6 +84,8 @@ export type Database = {
           owner_id?: string
           invite_code?: string
           description?: string | null
+          is_public?: boolean
+          member_count?: number
           created_at?: string
         }
         Relationships: []
@@ -310,7 +316,8 @@ export type Database = {
         Row: {
           id: string
           sender_id: string
-          receiver_id: string
+          receiver_id: string | null
+          dm_channel_id: string | null
           content: string | null
           created_at: string
           read_at: string | null
@@ -320,7 +327,8 @@ export type Database = {
         Insert: {
           id?: string
           sender_id: string
-          receiver_id: string
+          receiver_id?: string | null
+          dm_channel_id?: string | null
           content?: string | null
           created_at?: string
           read_at?: string | null
@@ -330,7 +338,8 @@ export type Database = {
         Update: {
           id?: string
           sender_id?: string
-          receiver_id?: string
+          receiver_id?: string | null
+          dm_channel_id?: string | null
           content?: string | null
           created_at?: string
           read_at?: string | null
@@ -459,6 +468,210 @@ export type Database = {
         }
         Relationships: []
       }
+      read_states: {
+        Row: {
+          user_id: string
+          channel_id: string
+          last_read_at: string
+          mention_count: number
+        }
+        Insert: {
+          user_id: string
+          channel_id: string
+          last_read_at?: string
+          mention_count?: number
+        }
+        Update: {
+          user_id?: string
+          channel_id?: string
+          last_read_at?: string
+          mention_count?: number
+        }
+        Relationships: []
+      }
+      channel_permissions: {
+        Row: {
+          channel_id: string
+          role_id: string
+          allow_permissions: number
+          deny_permissions: number
+        }
+        Insert: {
+          channel_id: string
+          role_id: string
+          allow_permissions?: number
+          deny_permissions?: number
+        }
+        Update: {
+          channel_id?: string
+          role_id?: string
+          allow_permissions?: number
+          deny_permissions?: number
+        }
+        Relationships: []
+      }
+      dm_channels: {
+        Row: {
+          id: string
+          name: string | null
+          icon_url: string | null
+          owner_id: string | null
+          is_group: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name?: string | null
+          icon_url?: string | null
+          owner_id?: string | null
+          is_group?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string | null
+          icon_url?: string | null
+          owner_id?: string | null
+          is_group?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dm_channel_members: {
+        Row: {
+          dm_channel_id: string
+          user_id: string
+          added_by: string | null
+          added_at: string
+        }
+        Insert: {
+          dm_channel_id: string
+          user_id: string
+          added_by?: string | null
+          added_at?: string
+        }
+        Update: {
+          dm_channel_id?: string
+          user_id?: string
+          added_by?: string | null
+          added_at?: string
+        }
+        Relationships: []
+      }
+      dm_read_states: {
+        Row: {
+          user_id: string
+          dm_channel_id: string
+          last_read_at: string
+        }
+        Insert: {
+          user_id: string
+          dm_channel_id: string
+          last_read_at?: string
+        }
+        Update: {
+          user_id?: string
+          dm_channel_id?: string
+          last_read_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          user_agent: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          user_agent?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          endpoint?: string
+          p256dh?: string
+          auth?: string
+          user_agent?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      notification_settings: {
+        Row: {
+          id: string
+          user_id: string
+          server_id: string | null
+          channel_id: string | null
+          mode: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          server_id?: string | null
+          channel_id?: string | null
+          mode?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          server_id?: string | null
+          channel_id?: string | null
+          mode?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          server_id: string
+          actor_id: string | null
+          action: string
+          target_id: string | null
+          target_type: string | null
+          changes: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          actor_id?: string | null
+          action: string
+          target_id?: string | null
+          target_type?: string | null
+          changes?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          actor_id?: string | null
+          action?: string
+          target_id?: string | null
+          target_type?: string | null
+          changes?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -482,6 +695,10 @@ export type Database = {
       }
       mark_channel_read: {
         Args: { p_channel_id: string }
+        Returns: void
+      }
+      mark_dm_read: {
+        Args: { p_dm_channel_id: string }
         Returns: void
       }
     }

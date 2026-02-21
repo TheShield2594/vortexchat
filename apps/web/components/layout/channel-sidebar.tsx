@@ -273,6 +273,7 @@ function ChannelItem({
   isUnread,
   mentionCount,
   serverId,
+  isOwner,
   onClick,
 }: {
   channel: ChannelRow

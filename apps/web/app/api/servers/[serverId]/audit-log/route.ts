@@ -27,19 +27,40 @@ export async function GET(
 
   let query = supabase
     .from("audit_logs")
-    .select(`
-      id, action, target_user_id, reason, metadata, created_at,
-      actor:users!audit_logs_actor_id_fkey(id, username, display_name, avatar_url),
-      target:users!audit_logs_target_user_id_fkey(id, username, display_name, avatar_url)
-    `)
+    .select("id, action, actor_id, target_id, target_type, changes, created_at")
     .eq("server_id", params.serverId)
     .order("created_at", { ascending: false })
     .limit(limit)
 
   if (before) query = query.lt("created_at", before)
 
-  const { data, error } = await query
+  const { data: entries, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!entries?.length) return NextResponse.json([])
 
-  return NextResponse.json(data ?? [])
+  // Collect unique user IDs for actors and targets
+  const userIds = new Set<string>()
+  for (const e of entries) {
+    if (e.actor_id) userIds.add(e.actor_id)
+    if (e.target_id && e.target_type === "user") userIds.add(e.target_id)
+  }
+
+  const { data: users } = await supabase
+    .from("users")
+    .select("id, username, display_name, avatar_url")
+    .in("id", [...userIds])
+
+  const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]))
+
+  const result = entries.map((e) => ({
+    id: e.id,
+    action: e.action,
+    reason: (e.changes as any)?.reason ?? null,
+    metadata: e.changes,
+    created_at: e.created_at,
+    actor: e.actor_id ? userMap[e.actor_id] ?? null : null,
+    target: e.target_id && e.target_type === "user" ? userMap[e.target_id] ?? null : null,
+  }))
+
+  return NextResponse.json(result)
 }
