@@ -93,7 +93,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
     })
     if (res.ok) {
       const { id } = await res.json()
-      router.push(`/channels/@me/${id}`)
+      router.push(`/channels/me/${id}`)
       onNavigate?.()
       fetchChannels()
     }
@@ -131,7 +131,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
           </div>
         )}
         {channels.map((ch) => {
-          const isActive = pathname === `/channels/@me/${ch.id}`
+          const isActive = pathname === `/channels/me/${ch.id}`
           const displayName = ch.is_group
             ? (ch.name || ch.members.map((m) => m.display_name || m.username).join(", "))
             : (ch.partner?.display_name || ch.partner?.username || "Unknown")
@@ -140,7 +140,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
           return (
             <button
               key={ch.id}
-              onClick={() => { router.push(`/channels/@me/${ch.id}`); onNavigate?.() }}
+              onClick={() => { router.push(`/channels/me/${ch.id}`); onNavigate?.() }}
               className={cn(
                 "w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-left transition-colors",
                 isActive

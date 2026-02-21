@@ -115,8 +115,8 @@ export async function sendPushToChannel(opts: {
     url: channelId && serverId
       ? `/channels/${serverId}/${channelId}`
       : dmChannelId
-      ? `/channels/@me/${dmChannelId}`
-      : "/channels/@me",
+      ? `/channels/me/${dmChannelId}`
+      : "/channels/me",
     tag: channelId ?? dmChannelId ?? "message",
   }
 

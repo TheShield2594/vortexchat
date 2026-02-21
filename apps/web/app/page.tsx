@@ -6,7 +6,7 @@ export default async function HomePage() {
   const { data: { session } } = await supabase.auth.getSession()
 
   if (session) {
-    redirect("/channels/@me")
+    redirect("/channels/me")
   } else {
     redirect("/login")
   }

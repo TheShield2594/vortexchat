@@ -51,7 +51,7 @@ export function ServerSidebar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Link
-              href="/channels/@me"
+              href="/channels/me"
               onClick={() => { setActiveServer(null); setDmUnread(false) }}
               className={cn(
                 "relative w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 group",

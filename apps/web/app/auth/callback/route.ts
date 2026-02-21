@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const next =
     rawNext.startsWith("/") && !rawNext.startsWith("//")
       ? rawNext
-      : "/channels/@me"
+      : "/channels/me"
 
   if (code) {
     const supabase = createServerSupabaseClient()

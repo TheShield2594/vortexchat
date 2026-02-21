@@ -27,7 +27,7 @@ export default function LoginPage() {
         password: form.password,
       })
       if (error) throw error
-      router.push("/channels/@me")
+      router.push("/channels/me")
       router.refresh()
     } catch (error: any) {
       toast({
@@ -49,7 +49,7 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: form.email,
-        options: { emailRedirectTo: `${window.location.origin}/channels/@me` },
+        options: { emailRedirectTo: `${window.location.origin}/channels/me` },
       })
       if (error) throw error
       toast({
