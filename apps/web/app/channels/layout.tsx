@@ -8,7 +8,7 @@ export default async function ChannelsLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {

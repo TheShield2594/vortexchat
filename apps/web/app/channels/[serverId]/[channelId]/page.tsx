@@ -5,11 +5,12 @@ import { VoiceChannel } from "@/components/voice/voice-channel"
 import { MemberList } from "@/components/layout/member-list"
 
 interface Props {
-  params: { serverId: string; channelId: string }
+  params: Promise<{ serverId: string; channelId: string }>
 }
 
-export default async function ChannelPage({ params }: Props) {
-  const supabase = createServerSupabaseClient()
+export default async function ChannelPage({ params: paramsPromise }: Props) {
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect("/login")

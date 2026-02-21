@@ -4,11 +4,12 @@ import { ChannelSidebar } from "@/components/layout/channel-sidebar"
 
 interface Props {
   children: React.ReactNode
-  params: { serverId: string }
+  params: Promise<{ serverId: string }>
 }
 
-export default async function ServerLayout({ children, params }: Props) {
-  const supabase = createServerSupabaseClient()
+export default async function ServerLayout({ children, params: paramsPromise }: Props) {
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect("/login")

@@ -3,9 +3,10 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export async function GET(
   request: Request,
-  { params }: { params: { code: string } }
+  { params: paramsPromise }: { params: Promise<{ code: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
 
   const { data: server } = await supabase
     .from("servers")
@@ -28,9 +29,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { code: string } }
+  { params: paramsPromise }: { params: Promise<{ code: string }> }
 ) {
-  const supabase = createServerSupabaseClient()
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {

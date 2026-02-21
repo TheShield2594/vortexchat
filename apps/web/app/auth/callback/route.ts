@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       : "/channels/@me"
 
   if (code) {
-    const supabase = createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
       console.error("Auth callback: code exchange failed", error)

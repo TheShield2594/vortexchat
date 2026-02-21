@@ -58,12 +58,14 @@ io.on("connection", (socket: Socket) => {
     // Verify auth token if supabase configured
     if (supabase) {
       const authToken = socket.handshake.auth?.token
-      if (authToken) {
-        const { data: { user }, error } = await supabase.auth.getUser(authToken)
-        if (error || !user || user.id !== userId) {
-          socket.emit("error", { message: "Unauthorized" })
-          return
-        }
+      if (!authToken) {
+        socket.emit("error", { message: "Authentication required" })
+        return
+      }
+      const { data: { user }, error } = await supabase.auth.getUser(authToken)
+      if (error || !user || user.id !== userId) {
+        socket.emit("error", { message: "Unauthorized" })
+        return
       }
     }
 
