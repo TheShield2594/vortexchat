@@ -71,13 +71,15 @@ export function MemberList({ serverId }: Props) {
       if (rolesRes.error) console.error("Failed to fetch member roles:", rolesRes.error)
 
       // Build a map of user_id -> roles
+      type MemberRoleRow = { user_id: string; roles: RoleRow | null }
       const rolesByUser: Record<string, RoleRow[]> = {}
-      for (const mr of (rolesRes.data ?? []) as unknown as Array<{ user_id: string; roles: RoleRow }>) {
+      for (const mr of ((rolesRes.data ?? []) as unknown as MemberRoleRow[])) {
         if (!rolesByUser[mr.user_id]) rolesByUser[mr.user_id] = []
         if (mr.roles) rolesByUser[mr.user_id].push(mr.roles)
       }
 
-      const merged: MemberData[] = ((membersRes.data ?? []) as unknown as MemberData[]).map((m) => ({
+      type RawMember = Omit<MemberData, "roles"> & { roles?: unknown }
+      const merged: MemberData[] = ((membersRes.data ?? []) as unknown as RawMember[]).map((m) => ({
         ...m,
         roles: rolesByUser[m.user_id] ?? [],
       }))

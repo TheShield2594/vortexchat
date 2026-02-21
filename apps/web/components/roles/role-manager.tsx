@@ -69,8 +69,11 @@ export function RoleManager({ serverId, isOwner }: Props) {
       .from("server_members")
       .select("user_id, users(*)")
       .eq("server_id", serverId)
+    type MemberWithUser = { user_id: string; users: UserRow | null }
     setAllMembers(
-      (data ?? []).map((m) => ({ ...(m.users as unknown as UserRow), user_id: m.user_id }))
+      ((data ?? []) as unknown as MemberWithUser[])
+        .filter((m) => m.users !== null)
+        .map((m) => ({ ...m.users!, user_id: m.user_id }))
     )
   }
 
@@ -80,8 +83,11 @@ export function RoleManager({ serverId, isOwner }: Props) {
       .select("user_id, users(*)")
       .eq("server_id", serverId)
       .eq("role_id", roleId)
+    type RoleMemberWithUser = { user_id: string; users: UserRow | null }
     setRoleMembers(
-      (data ?? []).map((m) => m.users as unknown as UserRow)
+      ((data ?? []) as unknown as RoleMemberWithUser[])
+        .map((m) => m.users)
+        .filter((u): u is UserRow => u !== null)
     )
   }
 
@@ -318,11 +324,11 @@ export function RoleManager({ serverId, isOwner }: Props) {
                 )}
               </div>
 
-              {showAddMember && (
+              {showAddMember && (() => {
+                const availableMembers = allMembers.filter((m) => !roleMembers.some((rm) => rm.id === m.id))
+                return (
                 <div className="mb-2 p-2 rounded space-y-1 max-h-32 overflow-y-auto" style={{ background: '#1e1f22' }}>
-                  {allMembers
-                    .filter((m) => !roleMembers.some((rm) => rm.id === m.id))
-                    .map((member) => (
+                  {availableMembers.map((member) => (
                       <button
                         key={member.id}
                         onClick={() => handleAddMemberToRole(member.id)}
@@ -338,11 +344,12 @@ export function RoleManager({ serverId, isOwner }: Props) {
                         <span>{member.display_name || member.username}</span>
                       </button>
                     ))}
-                  {allMembers.filter((m) => !roleMembers.some((rm) => rm.id === m.id)).length === 0 && (
+                  {availableMembers.length === 0 && (
                     <p className="text-xs text-center py-1" style={{ color: '#949ba4' }}>All members have this role</p>
                   )}
                 </div>
-              )}
+                )
+              })()}
 
               <div className="space-y-1 max-h-28 overflow-y-auto">
                 {roleMembers.map((member) => (

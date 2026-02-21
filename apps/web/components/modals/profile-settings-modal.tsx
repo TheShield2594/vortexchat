@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Loader2, Upload, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -32,6 +32,9 @@ const BANNER_PRESETS = [
   "#3ba55c", "#faa61a", "#7289da", "#2c2f33", "#99aab5",
 ]
 
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
+
 export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const router = useRouter()
   const { toast } = useToast()
@@ -49,6 +52,16 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = createClientSupabaseClient()
 
+  // Revoke blob URL on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(avatarPreview)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function handleSave() {
     setLoading(true)
     try {
@@ -60,7 +73,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         const path = `${user.id}/avatar.${ext}`
         const { error: uploadError } = await supabase.storage
           .from("avatars")
-          .upload(path, avatarFile, { upsert: true })
+          .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type })
         if (uploadError) throw uploadError
 
         const { data } = supabase.storage.from("avatars").getPublicUrl(path)
@@ -102,9 +115,6 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
     router.push("/login")
     router.refresh()
   }
-
-  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
-  const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -167,9 +177,8 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #1e1f22" }}>
                     {/* Banner */}
                     <div
-                      className="h-20 cursor-pointer relative"
-                      style={{ background: bannerColor }}
-                      onClick={() => {}}
+                      className="h-20 relative"
+                      style={{ background: /^#[0-9a-f]{6}$/i.test(bannerColor) ? bannerColor : "#5865f2" }}
                     />
 
                     {/* Avatar */}

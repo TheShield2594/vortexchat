@@ -33,7 +33,7 @@ export function ServerSidebar() {
       if (error) throw error
       removeServer(server.id)
       toast({ title: `Left ${server.name}` })
-      router.push("/channels/@me")
+      router.push("/channels/me")
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to leave server", description: error.message })
     }
@@ -49,7 +49,7 @@ export function ServerSidebar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Link
-              href="/channels/@me"
+              href="/channels/me"
               onClick={() => setActiveServer(null)}
               className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 group",

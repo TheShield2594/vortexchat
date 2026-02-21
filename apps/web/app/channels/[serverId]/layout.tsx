@@ -11,9 +11,9 @@ interface Props {
 export default async function ServerLayout({ children, params: paramsPromise }: Props) {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (!user) redirect("/login")
+  if (error || !user) redirect("/login")
 
   // Verify user is member of this server
   const { data: member } = await supabase
@@ -47,7 +47,10 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
     .eq("server_id", params.serverId)
     .eq("user_id", user.id)
 
-  const userRoles = memberRoles?.map((mr) => mr.roles).filter(Boolean) as unknown as RoleRow[] ?? []
+  type MemberRoleWithRole = { role_id: string; roles: RoleRow | null }
+  const userRoles = ((memberRoles ?? []) as unknown as MemberRoleWithRole[])
+    .map((mr) => mr.roles)
+    .filter((r): r is RoleRow => r !== null)
 
   return (
     <div className="flex flex-1 overflow-hidden">

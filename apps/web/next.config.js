@@ -18,14 +18,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: ['@vortex/shared'],
-  async rewrites() {
-    return [
-      {
-        source: '/channels/@me',
-        destination: '/channels/me',
-      },
-    ]
-  },
 }
 
 module.exports = nextConfig

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Upload, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -30,6 +30,16 @@ export function CreateServerModal({ open, onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const supabase = createClientSupabaseClient()
 
+  // Revoke blob URL on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (iconPreview && iconPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(iconPreview)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function handleCreate() {
     if (!name.trim()) return
     setLoading(true)
@@ -55,10 +65,14 @@ export function CreateServerModal({ open, onClose }: Props) {
 
       // Insert and fetch separately — PostgREST's INSERT RETURNING
       // can't read back the row within the same statement due to the
-      // SELECT RLS policy checking server_members (added by AFTER INSERT trigger)
+      // SELECT RLS policy checking server_members (added by AFTER INSERT trigger).
+      // The fetch-back filters on owner_id + name to narrow the race window;
+      // concurrent creates of the same-named server by one user is practically
+      // impossible, but an RPC returning the inserted row would eliminate it entirely.
+      const serverName = name.trim()
       const { error: insertError } = await supabase
         .from("servers")
-        .insert({ name: name.trim(), owner_id: user.id, icon_url: iconUrl })
+        .insert({ name: serverName, owner_id: user.id, icon_url: iconUrl })
 
       if (insertError) throw insertError
 
@@ -66,6 +80,7 @@ export function CreateServerModal({ open, onClose }: Props) {
         .from("servers")
         .select()
         .eq("owner_id", user.id)
+        .eq("name", serverName)
         .order("created_at", { ascending: false })
         .limit(1)
         .single()

@@ -10,9 +10,9 @@ export default async function ChannelsLayout({
   children: React.ReactNode
 }) {
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (!user) {
+  if (error || !user) {
     redirect("/login")
   }
 
@@ -30,9 +30,10 @@ export default async function ChannelsLayout({
     .eq("user_id", user.id)
     .order("joined_at", { ascending: true })
 
-  const servers = serverMembers
-    ?.map((m) => m.servers)
-    .filter(Boolean) as unknown as ServerRow[] ?? []
+  type ServerMemberWithServer = { server_id: string; servers: ServerRow | null }
+  const servers = ((serverMembers ?? []) as unknown as ServerMemberWithServer[])
+    .map((m) => m.servers)
+    .filter((s): s is ServerRow => s !== null)
 
   return (
     <AppProvider user={profile} servers={servers}>

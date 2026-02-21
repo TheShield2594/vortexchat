@@ -38,6 +38,12 @@ export function MessageItem({
   const { toast } = useToast()
   const isOwn = message.author_id === currentUserId
 
+  function confirmDelete() {
+    if (window.confirm("Are you sure you want to delete this message? This cannot be undone.")) {
+      onDelete()
+    }
+  }
+
   const displayName =
     message.author?.display_name || message.author?.username || "Unknown"
   const initials = displayName.slice(0, 2).toUpperCase()
@@ -63,7 +69,7 @@ export function MessageItem({
   }
 
   function renderContent(content: string): React.ReactNode {
-    const pattern = /(\*\*(.*?)\*\*|\*(.*?)\*|~~(.*?)~~|`(.*?)`|<@(\w+)>|https?:\/\/[^\s]+)/g
+    const pattern = /(https?:\/\/[^\s]+|\*\*(.*?)\*\*|\*(.*?)\*|~~(.*?)~~|`(.*?)`|<@(\w+)>)/g
     const parts: React.ReactNode[] = []
     let lastIndex = 0
     let match
@@ -75,7 +81,20 @@ export function MessageItem({
       }
 
       const full = match[0]
-      if (match[2] !== undefined) {
+      if (/^https?:\/\//.test(full)) {
+        parts.push(
+          <a
+            key={key++}
+            href={full}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+            style={{ color: "#00a8fc" }}
+          >
+            {full}
+          </a>
+        )
+      } else if (match[2] !== undefined) {
         parts.push(<strong key={key++}>{match[2]}</strong>)
       } else if (match[3] !== undefined) {
         parts.push(<em key={key++}>{match[3]}</em>)
@@ -96,19 +115,6 @@ export function MessageItem({
           >
             @{match[6]}
           </span>
-        )
-      } else if (/^https?:\/\//.test(full)) {
-        parts.push(
-          <a
-            key={key++}
-            href={full}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline"
-            style={{ color: "#00a8fc" }}
-          >
-            {full}
-          </a>
         )
       }
 
@@ -337,7 +343,7 @@ export function MessageItem({
 
               {isOwn && (
                 <button
-                  onClick={onDelete}
+                  onClick={confirmDelete}
                   className="w-8 h-8 flex items-center justify-center hover:bg-red-500/20 transition-colors"
                   style={{ color: "#f23f43" }}
                   title="Delete"
@@ -377,7 +383,7 @@ export function MessageItem({
         {isOwn && (
           <>
             <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={onDelete}>
+            <ContextMenuItem variant="destructive" onClick={confirmDelete}>
               <Trash2 className="w-4 h-4 mr-2" /> Delete Message
             </ContextMenuItem>
           </>

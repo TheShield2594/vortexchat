@@ -11,9 +11,9 @@ interface Props {
 export default async function ChannelPage({ params: paramsPromise }: Props) {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (!user) redirect("/login")
+  if (error || !user) redirect("/login")
 
   // Fetch channel
   const { data: channel } = await supabase
@@ -43,14 +43,6 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
 
     messages = (data ?? []).reverse()
   }
-
-  // Fetch user profile for nickname
-  const { data: member } = await supabase
-    .from("server_members")
-    .select("nickname")
-    .eq("server_id", params.serverId)
-    .eq("user_id", user.id)
-    .single()
 
   if (channel.type === "voice") {
     return (

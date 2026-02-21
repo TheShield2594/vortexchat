@@ -3,11 +3,11 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export default async function HomePage() {
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (user) {
-    redirect("/channels/@me")
-  } else {
+  if (error || !user) {
     redirect("/login")
+  } else {
+    redirect("/channels/me")
   }
 }

@@ -66,10 +66,12 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
     // Let mention autocomplete consume the event first
     if (mention.isOpen) {
       if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault()
         const selected = mention.filteredMembers[mention.selectedIndex]
-        if (selected) insertMention(selected)
-        return
+        if (selected) {
+          e.preventDefault()
+          insertMention(selected)
+          return
+        }
       }
       if (mention.handleKeyDown(e)) return
     }
@@ -263,7 +265,11 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
                 <button
                   key={emoji}
                   onClick={() => {
-                    setContent((prev) => prev + emoji)
+                    setContent((prev) => {
+                      const next = prev + emoji
+                      setCursorPosition(next.length)
+                      return next
+                    })
                     setShowEmojiPicker(false)
                     textareaRef.current?.focus()
                   }}

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 
-export default function GlobalError({
+export default function Error({
   error,
   reset,
 }: {
@@ -10,11 +10,15 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("Unhandled error:", error)
+    // TODO: replace with error monitoring service (e.g. Sentry.captureException(error))
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Unhandled error:", error)
+    }
   }, [error])
 
   return (
     <div
+      role="alert"
       className="flex flex-col items-center justify-center min-h-screen gap-4"
       style={{ background: "#313338", color: "#f2f3f5" }}
     >
@@ -23,6 +27,7 @@ export default function GlobalError({
         An unexpected error occurred. Please try again.
       </p>
       <button
+        type="button"
         onClick={reset}
         className="px-4 py-2 rounded text-sm font-medium text-white transition-colors hover:opacity-90"
         style={{ background: "#5865f2" }}

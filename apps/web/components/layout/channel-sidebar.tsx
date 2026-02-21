@@ -63,7 +63,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const { toast } = useToast()
   const supabase = createClientSupabaseClient()
 
-  async function handleDeleteChannel(channelId: string) {
+  async function handleDeleteChannel(channelId: string, channelName: string) {
+    if (!window.confirm(`Are you sure you want to delete #${channelName}? This cannot be undone.`)) return
     try {
       const { error } = await supabase.from("channels").delete().eq("id", channelId)
       if (error) throw error
@@ -85,7 +86,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       setChannels(server.id, initialChannels)
       seededServerRef.current = server.id
     }
-  }, [server.id, initialChannels, setChannels])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [server.id, setChannels])
 
   // Subscribe to realtime channel changes so other users see new/deleted channels
   useEffect(() => {
@@ -205,7 +207,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                           router.push(`/channels/${server.id}/${channel.id}`)
                         }
                       }}
-                      onDelete={() => handleDeleteChannel(channel.id)}
+                      onDelete={() => handleDeleteChannel(channel.id, channel.name)}
                     />
                   ))}
                 </div>

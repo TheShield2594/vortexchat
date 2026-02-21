@@ -37,7 +37,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
         ? name.trim()
         : name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
 
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from("channels")
         .select("id")
         .eq("server_id", serverId)
@@ -45,6 +45,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
         .eq("type", type)
         .maybeSingle()
 
+      if (checkError) throw checkError
       if (existing) {
         throw new Error(`A ${type} channel named "${channelName}" already exists.`)
       }

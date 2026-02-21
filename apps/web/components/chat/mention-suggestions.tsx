@@ -13,6 +13,8 @@ interface Props {
 export function MentionSuggestions({ members, selectedIndex, onSelect }: Props) {
   const listRef = useRef<HTMLDivElement>(null)
 
+  if (members.length === 0) return null
+
   // Scroll selected item into view
   useEffect(() => {
     const el = listRef.current?.children[selectedIndex] as HTMLElement | undefined
@@ -22,6 +24,8 @@ export function MentionSuggestions({ members, selectedIndex, onSelect }: Props) 
   return (
     <div
       ref={listRef}
+      role="listbox"
+      aria-label="Mention suggestions"
       className="rounded-lg shadow-xl overflow-y-auto max-h-52 py-1"
       style={{
         background: "#2b2d31",
@@ -36,6 +40,8 @@ export function MentionSuggestions({ members, selectedIndex, onSelect }: Props) 
         return (
           <button
             key={member.user_id}
+            role="option"
+            aria-selected={isSelected}
             className="flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors"
             style={{
               background: isSelected ? "rgba(88,101,242,0.2)" : "transparent",

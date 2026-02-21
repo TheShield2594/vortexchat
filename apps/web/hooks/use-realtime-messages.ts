@@ -2,12 +2,12 @@
 
 import { useEffect } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import type { MessageWithAuthor } from "@/types/database"
+import type { MessageWithAuthor, MessageRow } from "@/types/database"
 
 export function useRealtimeMessages(
   channelId: string,
   onInsert: (message: MessageWithAuthor) => void,
-  onUpdate: (message: Partial<MessageWithAuthor> & { id: string }) => void
+  onUpdate: (message: MessageRow) => void
 ) {
   const supabase = createClientSupabaseClient()
 
@@ -41,7 +41,7 @@ export function useRealtimeMessages(
           filter: `channel_id=eq.${channelId}`,
         },
         (payload) => {
-          onUpdate(payload.new as Partial<MessageWithAuthor> & { id: string })
+          onUpdate(payload.new as MessageRow)
         }
       )
       .subscribe()

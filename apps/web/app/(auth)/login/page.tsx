@@ -28,7 +28,7 @@ export default function LoginPage() {
       })
       if (error) throw error
       await supabase.from("users").update({ status: "online" }).eq("id", (await supabase.auth.getUser()).data.user!.id)
-      router.push("/channels/@me")
+      router.push("/channels/me")
       router.refresh()
     } catch (error: any) {
       toast({
@@ -50,7 +50,7 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: form.email,
-        options: { emailRedirectTo: `${window.location.origin}/channels/@me` },
+        options: { emailRedirectTo: `${window.location.origin}/channels/me` },
       })
       if (error) throw error
       toast({

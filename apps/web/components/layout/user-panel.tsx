@@ -11,6 +11,17 @@ import { ProfileSettingsModal } from "@/components/modals/profile-settings-modal
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { UserRow } from "@/types/database"
 
+const STATUS_OPTIONS: { value: UserRow["status"]; label: string; color: string }[] = [
+  { value: "online", label: "Online", color: "#23a55a" },
+  { value: "idle", label: "Idle", color: "#f0b132" },
+  { value: "dnd", label: "Do Not Disturb", color: "#f23f43" },
+  { value: "invisible", label: "Invisible", color: "#80848e" },
+]
+
+function getStatusColor(status: string) {
+  return STATUS_OPTIONS.find((o) => o.value === status)?.color ?? "#80848e"
+}
+
 export function UserPanel() {
   const { currentUser, voiceChannelId, setVoiceChannel, setCurrentUser } = useAppStore()
   const [muted, setMuted] = useState(false)
@@ -24,34 +35,20 @@ export function UserPanel() {
   const displayName = currentUser.display_name || currentUser.username
   const initials = displayName.slice(0, 2).toUpperCase()
 
-  function getStatusColor(status: string) {
-    switch (status) {
-      case "online": return "#23a55a"
-      case "idle": return "#f0b132"
-      case "dnd": return "#f23f43"
-      default: return "#80848e"
-    }
-  }
-
   async function handleSetStatus(status: UserRow["status"]) {
     try {
+      const latestUser = useAppStore.getState().currentUser
+      if (!latestUser) return
       const { error } = await supabase
         .from("users")
         .update({ status })
-        .eq("id", currentUser!.id)
+        .eq("id", latestUser.id)
       if (error) throw error
-      setCurrentUser({ ...currentUser!, status })
+      setCurrentUser({ ...latestUser, status })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to update status", description: error.message })
     }
   }
-
-  const STATUS_OPTIONS: { value: UserRow["status"]; label: string; color: string }[] = [
-    { value: "online", label: "Online", color: "#23a55a" },
-    { value: "idle", label: "Idle", color: "#f0b132" },
-    { value: "dnd", label: "Do Not Disturb", color: "#f23f43" },
-    { value: "invisible", label: "Invisible", color: "#80848e" },
-  ]
 
   return (
     <div

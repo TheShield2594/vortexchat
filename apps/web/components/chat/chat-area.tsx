@@ -26,7 +26,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   useEffect(() => {
     setActiveServer(serverId)
     setActiveChannel(channel.id)
-    return () => setActiveChannel(null)
+    return () => {
+      setActiveServer(null)
+      setActiveChannel(null)
+    }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
 
   // Scroll to bottom on new messages

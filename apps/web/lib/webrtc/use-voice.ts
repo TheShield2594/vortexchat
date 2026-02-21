@@ -359,8 +359,12 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           screenStream.current = null
           setScreenSharing(false)
         }
-      } catch {
-        // User cancelled the screen share picker — no action needed
+      } catch (err) {
+        // AbortError = user dismissed picker, NotAllowedError = permission denied
+        if (err instanceof DOMException && (err.name === "AbortError" || err.name === "NotAllowedError")) {
+          return
+        }
+        console.error("Screen share failed:", err)
       }
     }
   }, [screenSharing])

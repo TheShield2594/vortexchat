@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Loader2, Copy, RefreshCw, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -25,9 +25,15 @@ export function ServerSettingsModal({ open, onClose, server, isOwner }: Props) {
   const { updateServer, servers } = useAppStore()
   const liveServer = servers.find((s) => s.id === server.id) ?? server
   const [loading, setLoading] = useState(false)
-  const [name, setName] = useState(server.name)
-  const [description, setDescription] = useState(server.description ?? "")
+  const [name, setName] = useState(liveServer.name)
+  const [description, setDescription] = useState(liveServer.description ?? "")
   const supabase = createClientSupabaseClient()
+
+  // Sync form state when liveServer changes (e.g., realtime update from another tab)
+  useEffect(() => {
+    setName(liveServer.name)
+    setDescription(liveServer.description ?? "")
+  }, [liveServer.name, liveServer.description])
 
   async function handleSave() {
     if (!name.trim()) return
@@ -82,7 +88,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner }: Props) {
           {/* Settings sidebar */}
           <div className="w-48 flex-shrink-0 p-4 flex flex-col" style={{ background: '#2b2d31' }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#949ba4' }}>
-              {server.name}
+              {liveServer.name}
             </h3>
             <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
               <TabsTrigger value="overview" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
