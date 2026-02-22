@@ -248,26 +248,27 @@ export async function POST(request: Request) {
           createServiceRoleClient()
             .then((serviceSupabase) => {
               for (const alertChannelId of alertChannels) {
-                serviceSupabase
-                  .from("messages")
-                  .insert({
-                    channel_id: alertChannelId,
-                    author_id: SYSTEM_BOT_ID,
-                    content: `⚠️ AutoMod flagged a message from <@${user.id}>: ${violations[0].reason}`,
-                    mentions: [],
-                    mention_everyone: false,
-                  })
-                  .then(() =>
-                    supabase.from("audit_logs").insert({
-                      server_id: serverId,
-                      actor_id: null,
-                      action: "automod_alert",
-                      target_id: user.id,
-                      target_type: "user",
-                      changes: { channel_id: alertChannelId, reason: violations[0].reason },
+                Promise.resolve(
+                  serviceSupabase
+                    .from("messages")
+                    .insert({
+                      channel_id: alertChannelId,
+                      author_id: SYSTEM_BOT_ID,
+                      content: `⚠️ AutoMod flagged a message from <@${user.id}>: ${violations[0].reason}`,
+                      mentions: [],
+                      mention_everyone: false,
                     })
-                  )
-                  .catch(() => {})
+                    .then(() =>
+                      supabase.from("audit_logs").insert({
+                        server_id: serverId,
+                        actor_id: null,
+                        action: "automod_alert",
+                        target_id: user.id,
+                        target_type: "user",
+                        changes: { channel_id: alertChannelId, reason: violations[0].reason },
+                      })
+                    )
+                ).catch(() => {})
               }
             })
             .catch(() => {})
