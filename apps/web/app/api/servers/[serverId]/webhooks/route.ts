@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 
 // GET /api/servers/[serverId]/webhooks
 export async function GET(
@@ -10,6 +11,11 @@ export async function GET(
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_WEBHOOKS")) {
+    return NextResponse.json({ error: "Missing MANAGE_WEBHOOKS permission" }, { status: 403 })
+  }
 
   const { data, error } = await supabase
     .from("webhooks")
@@ -31,6 +37,11 @@ export async function POST(
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_WEBHOOKS")) {
+    return NextResponse.json({ error: "Missing MANAGE_WEBHOOKS permission" }, { status: 403 })
+  }
 
   let channelId: string | undefined
   let name: string | undefined
@@ -63,6 +74,11 @@ export async function DELETE(
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_WEBHOOKS")) {
+    return NextResponse.json({ error: "Missing MANAGE_WEBHOOKS permission" }, { status: 403 })
+  }
 
   const webhookId = req.nextUrl.searchParams.get("webhookId")
   if (!webhookId) return NextResponse.json({ error: "webhookId required" }, { status: 400 })

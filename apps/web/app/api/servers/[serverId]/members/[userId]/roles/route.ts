@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 
 // POST /api/servers/[serverId]/members/[userId]/roles — assign a role to a member
 export async function POST(
@@ -12,14 +13,9 @@ export async function POST(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Verify caller is owner or has MANAGE_ROLES permission
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", serverId)
-    .single()
-
-  if (server?.owner_id !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
+    return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
   }
 
   const { roleId } = await req.json()
@@ -47,14 +43,9 @@ export async function DELETE(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", serverId)
-    .single()
-
-  if (server?.owner_id !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
+    return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
   }
 
   const { searchParams } = new URL(req.url)
