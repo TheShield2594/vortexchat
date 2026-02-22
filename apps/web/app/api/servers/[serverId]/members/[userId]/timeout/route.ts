@@ -6,12 +6,14 @@
  * DELETE /api/servers/[serverId]/members/[userId]/timeout
  *   Remove an active timeout.
  *
- * Requires MODERATE_MEMBERS (permission bit 40) or ownership.
+ * Requires MODERATE_MEMBERS (permission bit 10, i.e. 1 << 10 = 1024) or ownership.
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { aggregateMemberPermissions } from "@/lib/server-auth"
 
 const MODERATE_MEMBERS = 1 << 10  // 1024
+const MAX_TIMEOUT_SECONDS = 2_419_200  // 28 days
 
 type Params = { params: Promise<{ serverId: string; userId: string }> }
 
@@ -29,11 +31,7 @@ async function checkModeratePermission(
     .eq("user_id", actorId)
     .single()
 
-  const perms: number =
-    (member as any)?.member_roles
-      ?.flatMap((mr: any) => mr.roles?.permissions ?? 0)
-      .reduce((acc: number, p: number) => acc | p, 0) ?? 0
-
+  const perms = aggregateMemberPermissions((member as any)?.member_roles ?? [])
   return (perms & MODERATE_MEMBERS) !== 0
 }
 
@@ -49,12 +47,20 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
   if (userId === server.owner_id) return NextResponse.json({ error: "Cannot timeout the server owner" }, { status: 400 })
 
+  // Prevent moderators from timing out their own account
+  if (userId === user.id) return NextResponse.json({ error: "Cannot timeout yourself" }, { status: 400 })
+
   const canModerate = await checkModeratePermission(supabase, serverId, user.id, server.owner_id)
   if (!canModerate) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const { duration_seconds, reason } = await req.json()
   if (!duration_seconds || duration_seconds <= 0)
     return NextResponse.json({ error: "duration_seconds must be a positive number" }, { status: 400 })
+  if (duration_seconds > MAX_TIMEOUT_SECONDS)
+    return NextResponse.json(
+      { error: `duration_seconds must not exceed ${MAX_TIMEOUT_SECONDS} (28 days)` },
+      { status: 400 }
+    )
 
   const until = new Date(Date.now() + duration_seconds * 1000).toISOString()
 

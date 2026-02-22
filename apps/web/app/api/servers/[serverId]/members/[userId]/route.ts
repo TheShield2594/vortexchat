@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { aggregateMemberPermissions } from "@/lib/server-auth"
 
 const KICK_MEMBERS = 8
 
@@ -20,9 +21,7 @@ async function getMemberPermissions(supabase: Awaited<ReturnType<typeof createSe
     .eq("user_id", userId)
     .single()
 
-  return (member as any)?.member_roles
-    ?.flatMap((mr: any) => mr.roles?.permissions ?? 0)
-    .reduce((acc: number, p: number) => acc | p, 0) ?? 0
+  return aggregateMemberPermissions((member as any)?.member_roles ?? [])
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
@@ -86,6 +85,37 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (!isOwner) {
     const perms = await getMemberPermissions(supabase, serverId, user.id)
     if ((perms & KICK_MEMBERS) === 0) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    // Role hierarchy check: requester must outrank the target.
+    // Fetch both members' role positions and compare.
+    const [requesterRoles, targetRoles] = await Promise.all([
+      supabase
+        .from("member_roles")
+        .select("roles(position)")
+        .eq("server_id", serverId)
+        .eq("user_id", user.id),
+      supabase
+        .from("member_roles")
+        .select("roles(position)")
+        .eq("server_id", serverId)
+        .eq("user_id", userId),
+    ])
+
+    const requesterMaxPosition = (requesterRoles.data ?? []).reduce(
+      (max: number, mr: any) => Math.max(max, mr.roles?.position ?? 0),
+      0
+    )
+    const targetMaxPosition = (targetRoles.data ?? []).reduce(
+      (max: number, mr: any) => Math.max(max, mr.roles?.position ?? 0),
+      0
+    )
+
+    if (targetMaxPosition >= requesterMaxPosition) {
+      return NextResponse.json(
+        { error: "Cannot kick a member with equal or higher role" },
+        { status: 403 }
+      )
+    }
   }
 
   const { error } = await supabase

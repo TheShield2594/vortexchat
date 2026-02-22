@@ -5,34 +5,14 @@
  * Only the server owner may read or change these settings.
  */
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { requireServerOwner } from "@/lib/server-auth"
 import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string }> }
 
-async function requireOwner(serverId: string) {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { supabase, user: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
-
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", serverId)
-    .single()
-
-  if (!server) return { supabase, user, error: NextResponse.json({ error: "Server not found" }, { status: 404 }) }
-  if (server.owner_id !== user.id)
-    return { supabase, user, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
-
-  return { supabase, user, error: null }
-}
-
 export async function GET(_req: NextRequest, { params }: Params) {
   const { serverId } = await params
-  const { supabase, error } = await requireOwner(serverId)
+  const { supabase, error } = await requireServerOwner(serverId)
   if (error) return error
 
   const { data, error: dbErr } = await supabase
@@ -47,14 +27,46 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { serverId } = await params
-  const { supabase, user, error } = await requireOwner(serverId)
+  const { supabase, user, error } = await requireServerOwner(serverId)
   if (error) return error
 
-  const body = await req.json()
-  const allowed = ["verification_level", "explicit_content_filter", "default_message_notifications", "screening_enabled"]
+  let body: Record<string, unknown>
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
   const updates: Record<string, unknown> = {}
-  for (const key of allowed) {
-    if (key in body) updates[key] = body[key]
+
+  // Validate each field against its expected type and range before persisting.
+  if ("verification_level" in body) {
+    const v = body.verification_level
+    if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 4) {
+      return NextResponse.json({ error: "verification_level must be an integer 0–4" }, { status: 400 })
+    }
+    updates.verification_level = v
+  }
+  if ("explicit_content_filter" in body) {
+    const v = body.explicit_content_filter
+    if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 2) {
+      return NextResponse.json({ error: "explicit_content_filter must be an integer 0–2" }, { status: 400 })
+    }
+    updates.explicit_content_filter = v
+  }
+  if ("default_message_notifications" in body) {
+    const v = body.default_message_notifications
+    if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 1) {
+      return NextResponse.json({ error: "default_message_notifications must be an integer 0–1" }, { status: 400 })
+    }
+    updates.default_message_notifications = v
+  }
+  if ("screening_enabled" in body) {
+    const v = body.screening_enabled
+    if (typeof v !== "boolean") {
+      return NextResponse.json({ error: "screening_enabled must be a boolean" }, { status: 400 })
+    }
+    updates.screening_enabled = v
   }
 
   if (Object.keys(updates).length === 0)

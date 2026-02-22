@@ -57,17 +57,22 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
   if (server.owner_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { title, description, rules_text, require_acceptance } = await req.json()
+  let title: unknown, description: unknown, rules_text: unknown, require_acceptance: unknown
+  try {
+    ;({ title, description, rules_text, require_acceptance } = await req.json())
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
 
   const { data, error } = await supabase
     .from("screening_configs")
     .upsert(
       {
         server_id: serverId,
-        title: title ?? "Server Rules",
-        description: description ?? null,
-        rules_text: rules_text ?? "",
-        require_acceptance: require_acceptance ?? true,
+        title: (title as string) ?? "Server Rules",
+        description: (description as string) ?? null,
+        rules_text: (rules_text as string) ?? "",
+        require_acceptance: (require_acceptance as boolean) ?? true,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "server_id" }
@@ -91,6 +96,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
   if (server.owner_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  await supabase.from("screening_configs").delete().eq("server_id", serverId)
+  const { error, count } = await supabase
+    .from("screening_configs")
+    .delete()
+    .eq("server_id", serverId)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (count === 0) return NextResponse.json({ error: "Screening config not found" }, { status: 404 })
+
   return NextResponse.json({ message: "Screening config removed" })
 }

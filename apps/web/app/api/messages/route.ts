@@ -103,39 +103,34 @@ export async function POST(request: Request) {
 
   const serverId: string | null = channel.server_id ?? null
 
-  // --- Screening check: if server has screening enabled, the member must have accepted ---
+  // --- Run server lookup, member screening, and timeout queries concurrently ---
   if (serverId) {
-    const { data: server } = await supabase
-      .from("servers")
-      .select("screening_enabled")
-      .eq("id", serverId)
-      .single()
-
-    if (server?.screening_enabled) {
-      const { data: screeningPassed } = await supabase
+    const [serverResult, screeningResult, timeoutResult] = await Promise.all([
+      supabase.from("servers").select("screening_enabled").eq("id", serverId).single(),
+      supabase
         .from("member_screening")
         .select("accepted_at")
         .eq("server_id", serverId)
         .eq("user_id", user.id)
-        .maybeSingle()
+        .maybeSingle(),
+      supabase
+        .from("member_timeouts")
+        .select("timed_out_until")
+        .eq("server_id", serverId)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ])
 
-      if (!screeningPassed) {
-        return NextResponse.json(
-          { error: "You must accept the server rules before sending messages.", code: "SCREENING_REQUIRED" },
-          { status: 403 }
-        )
-      }
+    const server = serverResult.data
+    const screeningPassed = screeningResult.data
+    const timeout = timeoutResult.data
+
+    if (server?.screening_enabled && !screeningPassed) {
+      return NextResponse.json(
+        { error: "You must accept the server rules before sending messages.", code: "SCREENING_REQUIRED" },
+        { status: 403 }
+      )
     }
-  }
-
-  // --- Timeout check: timed-out members cannot send messages ---
-  if (serverId) {
-    const { data: timeout } = await supabase
-      .from("member_timeouts")
-      .select("timed_out_until")
-      .eq("server_id", serverId)
-      .eq("user_id", user.id)
-      .maybeSingle()
 
     if (timeout && new Date(timeout.timed_out_until) > new Date()) {
       return NextResponse.json(
@@ -183,19 +178,35 @@ export async function POST(request: Request) {
       .eq("enabled", true)
 
     if (rawRules?.length) {
-      const rules = rawRules as unknown as AutoModRuleWithParsed[]
+      // Validate and normalize each rule before evaluation to avoid crashes on
+      // malformed JSONB config/actions stored in the database.
+      const rules: AutoModRuleWithParsed[] = rawRules.reduce<AutoModRuleWithParsed[]>((acc, r) => {
+        if (!r || typeof r !== "object") return acc
+        const config =
+          r.config && typeof r.config === "object" && !Array.isArray(r.config) ? r.config : {}
+        const actions = Array.isArray(r.actions)
+          ? r.actions.filter((a: any) => a && typeof a === "object" && typeof a.type === "string")
+          : []
+        acc.push({ ...r, config, actions } as AutoModRuleWithParsed)
+        return acc
+      }, [])
+
       const violations = evaluateAllRules(rules, content.trim(), mentions)
 
       if (violations.length > 0) {
-        // Always log first violation to audit trail
+        // Determine whether the message will be blocked before writing the audit
+        // log so the action name accurately reflects what happened.
+        const blocked = shouldBlockMessage(violations)
+
         await supabase.from("audit_logs").insert({
           server_id: serverId,
           actor_id: user.id,
-          action: "automod_block",
+          action: blocked ? "automod_block" : "automod_action",
           target_id: user.id,
           target_type: "user",
           changes: {
             channel_id: channelId,
+            blocked,
             violations: violations.map((v) => ({ rule_id: v.rule_id, rule_name: v.rule_name, reason: v.reason })),
           },
         })
@@ -226,7 +237,10 @@ export async function POST(request: Request) {
           })
         }
 
-        // Send alerts to mod channels (fire-and-forget)
+        // Send alerts to mod channels (fire-and-forget).
+        // NOTE: author_id must reference a real users row (NOT NULL FK), so
+        // alert messages are currently attributed to the violating user.
+        // A proper fix requires a dedicated system/bot user in the database.
         const alertChannels = getAlertChannels(violations)
         for (const alertChannelId of alertChannels) {
           Promise.resolve(
@@ -253,7 +267,7 @@ export async function POST(request: Request) {
         }
 
         // Block the message if any rule says to
-        if (shouldBlockMessage(violations)) {
+        if (blocked) {
           return NextResponse.json(
             {
               error: "Your message was blocked by AutoMod.",

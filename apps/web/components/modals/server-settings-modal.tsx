@@ -554,7 +554,10 @@ function ModerationTab({ serverId, open }: { serverId: string; open: boolean }) 
     if (!open) return
     setLoading(true)
     fetch(`/api/servers/${serverId}/moderation`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((d) => { setSettings(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [open, serverId])
@@ -679,7 +682,10 @@ function ScreeningTab({ serverId, open }: { serverId: string; open: boolean }) {
     if (!open) return
     setLoading(true)
     fetch(`/api/servers/${serverId}/screening`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((d) => {
         const cfg = d.config as ScreeningConfigRow | null
         setConfig(cfg)
@@ -713,12 +719,21 @@ function ScreeningTab({ serverId, open }: { serverId: string; open: boolean }) {
   }
 
   async function handleDelete() {
-    await fetch(`/api/servers/${serverId}/screening`, { method: "DELETE" })
-    setConfig(null)
-    setTitle("Server Rules")
-    setDescription("")
-    setRulesText("")
-    toast({ title: "Screening config removed" })
+    try {
+      const res = await fetch(`/api/servers/${serverId}/screening`, { method: "DELETE" })
+      if (res.ok) {
+        setConfig(null)
+        setTitle("Server Rules")
+        setDescription("")
+        setRulesText("")
+        toast({ title: "Screening config removed" })
+      } else {
+        const d = await res.json().catch(() => ({}))
+        toast({ variant: "destructive", title: "Failed to remove", description: d.error ?? "Unknown error" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to remove", description: "Network error" })
+    }
   }
 
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: '#949ba4' }} /></div>
@@ -885,7 +900,10 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
     if (!open) return
     setLoading(true)
     fetch(`/api/servers/${serverId}/automod`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((d) => { setRules(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [open, serverId])
@@ -955,7 +973,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
     }
   }
 
-  function f(key: keyof AutoModRuleForm, value: unknown) {
+  function updateForm(key: keyof AutoModRuleForm, value: unknown) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -1027,7 +1045,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
             <label className="text-xs" style={{ color: '#b5bac1' }}>Rule name</label>
             <input
               value={form.name}
-              onChange={(e) => f("name", e.target.value)}
+              onChange={(e) => updateForm("name", e.target.value)}
               placeholder="My Rule"
               className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
               style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
@@ -1038,7 +1056,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
             <label className="text-xs" style={{ color: '#b5bac1' }}>Trigger type</label>
             <select
               value={form.trigger_type}
-              onChange={(e) => f("trigger_type", e.target.value)}
+              onChange={(e) => updateForm("trigger_type", e.target.value)}
               className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
               style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
             >
@@ -1054,7 +1072,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                 <label className="text-xs" style={{ color: '#b5bac1' }}>Blocked keywords (comma-separated)</label>
                 <input
                   value={form.keywords}
-                  onChange={(e) => f("keywords", e.target.value)}
+                  onChange={(e) => updateForm("keywords", e.target.value)}
                   placeholder="spam, badword, ..."
                   className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
                   style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
@@ -1064,7 +1082,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                 <label className="text-xs" style={{ color: '#b5bac1' }}>Regex patterns (comma-separated, optional)</label>
                 <input
                   value={form.regex_patterns}
-                  onChange={(e) => f("regex_patterns", e.target.value)}
+                  onChange={(e) => updateForm("regex_patterns", e.target.value)}
                   placeholder="\\bspam\\b, ..."
                   className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
                   style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
@@ -1080,7 +1098,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                 type="number"
                 min={1}
                 value={form.mention_threshold}
-                onChange={(e) => f("mention_threshold", Number(e.target.value))}
+                onChange={(e) => updateForm("mention_threshold", Number(e.target.value))}
                 className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
                 style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
               />
@@ -1094,7 +1112,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                 type="number"
                 min={1}
                 value={form.link_threshold}
-                onChange={(e) => f("link_threshold", Number(e.target.value))}
+                onChange={(e) => updateForm("link_threshold", Number(e.target.value))}
                 className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
                 style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
               />
@@ -1106,12 +1124,12 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
             <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#b5bac1' }}>Actions</p>
             <div className="space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.block_message} onChange={(e) => f("block_message", e.target.checked)} className="rounded" />
+                <input type="checkbox" checked={form.block_message} onChange={(e) => updateForm("block_message", e.target.checked)} className="rounded" />
                 <span className="text-sm text-white">Block message</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.timeout_member} onChange={(e) => f("timeout_member", e.target.checked)} className="rounded" />
+                <input type="checkbox" checked={form.timeout_member} onChange={(e) => updateForm("timeout_member", e.target.checked)} className="rounded" />
                 <span className="text-sm text-white">Timeout member</span>
               </label>
               {form.timeout_member && (
@@ -1119,24 +1137,28 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                   <input
                     type="number"
                     min={1}
+                    max={2_419_200}
                     value={form.timeout_duration}
-                    onChange={(e) => f("timeout_duration", Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      updateForm("timeout_duration", Math.min(Math.max(1, v), 2_419_200))
+                    }}
                     className="w-20 px-2 py-1 rounded text-sm focus:outline-none"
                     style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
                   />
-                  <span className="text-xs" style={{ color: '#949ba4' }}>seconds</span>
+                  <span className="text-xs" style={{ color: '#949ba4' }}>seconds (max 28 days)</span>
                 </div>
               )}
 
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.alert_channel} onChange={(e) => f("alert_channel", e.target.checked)} className="rounded" />
+                <input type="checkbox" checked={form.alert_channel} onChange={(e) => updateForm("alert_channel", e.target.checked)} className="rounded" />
                 <span className="text-sm text-white">Alert mod channel</span>
               </label>
               {form.alert_channel && (
                 <div className="ml-6">
                   <select
                     value={form.alert_channel_id}
-                    onChange={(e) => f("alert_channel_id", e.target.value)}
+                    onChange={(e) => updateForm("alert_channel_id", e.target.value)}
                     className="w-full px-2 py-1 rounded text-sm focus:outline-none"
                     style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
                   >

@@ -33,6 +33,18 @@ ALTER TABLE public.servers
 -- ============================================================
 -- Membership Screening
 -- ============================================================
+-- Trigger function that refreshes updated_at on any row update.
+-- Attached to screening_configs and automod_rules after their definitions.
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS public.screening_configs (
   server_id        UUID PRIMARY KEY REFERENCES public.servers(id) ON DELETE CASCADE,
   title            TEXT NOT NULL DEFAULT 'Server Rules',
@@ -42,6 +54,10 @@ CREATE TABLE IF NOT EXISTS public.screening_configs (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE OR REPLACE TRIGGER trg_screening_configs_updated_at
+  BEFORE UPDATE ON public.screening_configs
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 ALTER TABLE public.screening_configs ENABLE ROW LEVEL SECURITY;
 
@@ -94,9 +110,19 @@ CREATE POLICY "server members can view timeouts"
   ON public.member_timeouts FOR SELECT
   USING (public.is_server_member(server_id));
 
+-- Only the service role (API server) or the server owner may mutate timeouts.
+-- The previous USING(TRUE) was overly permissive: any authenticated user could
+-- insert, update, or delete any timeout record.
 CREATE POLICY "system manages timeouts"
   ON public.member_timeouts FOR ALL
-  USING (TRUE);
+  USING (
+    auth.role() = 'service_role'
+    OR EXISTS (
+      SELECT 1 FROM public.servers
+      WHERE id = member_timeouts.server_id
+        AND owner_id = auth.uid()
+    )
+  );
 
 CREATE INDEX IF NOT EXISTS idx_member_timeouts_expiry
   ON public.member_timeouts(server_id, timed_out_until);
@@ -123,6 +149,10 @@ CREATE TABLE IF NOT EXISTS public.automod_rules (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE OR REPLACE TRIGGER trg_automod_rules_updated_at
+  BEFORE UPDATE ON public.automod_rules
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 ALTER TABLE public.automod_rules ENABLE ROW LEVEL SECURITY;
 
@@ -162,6 +192,7 @@ RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
+SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1
@@ -181,6 +212,7 @@ RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
+SET search_path = public
 AS $$
   SELECT
     CASE

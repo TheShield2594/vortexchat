@@ -34,14 +34,16 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Audit
-  await supabase.from("audit_logs").insert({
+  // Audit — fire-and-forget; failure should not block the member's acceptance.
+  void supabase.from("audit_logs").insert({
     server_id: serverId,
     actor_id: user.id,
     action: "screening_accepted",
     target_id: user.id,
     target_type: "user",
     changes: null,
+  }).then(({ error }) => {
+    if (error) console.error("[audit] screening_accepted insert failed:", error.message)
   })
 
   return NextResponse.json({ message: "Screening accepted" })

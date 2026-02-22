@@ -15,8 +15,11 @@ import type {
 
 // ── Regex helpers ────────────────────────────────────────────────────────────
 
+// Third alternative uses an explicit TLD whitelist to avoid matching benign
+// word pairs like "hello.world" that the previous bare /\b[a-z0-9-]+\.[a-z]{2,}/
+// pattern would incorrectly flag as links.
 const URL_RE =
-  /https?:\/\/[^\s]+|www\.[^\s]+|\b[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s]*)?/gi
+  /https?:\/\/[^\s]+|www\.[^\s]+|(?:[a-z0-9-]+\.)+(?:com|org|net|io|edu|gov|co|uk|de|fr|jp|au|ca|us|app|dev|ai|tech|info|biz)(?:\/[^\s]*)?/gi
 
 function countLinks(text: string): number {
   return (text.match(URL_RE) ?? []).length
@@ -68,9 +71,12 @@ export function evaluateRule(
           reason: `Blocked keyword: "${hitKeyword}"`,
         }
       }
-      // Optional regex patterns
+      // Optional regex patterns — enforce a max length at eval time to reduce
+      // ReDoS risk from overly complex user-supplied patterns.
+      const MAX_PATTERN_LENGTH = 200
       if (cfg.regex_patterns?.length) {
         for (const pattern of cfg.regex_patterns) {
+          if (typeof pattern !== "string" || pattern.length > MAX_PATTERN_LENGTH) continue
           try {
             const re = new RegExp(pattern, "i")
             if (re.test(content)) {
