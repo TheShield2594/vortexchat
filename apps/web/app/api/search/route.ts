@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       .from("channels")
       .select("id")
       .eq("server_id", serverId)
-      .in("type", ["text"])
+      .in("type", ["text", "announcement", "forum", "media"])
     const channelIds = channels?.map((c) => c.id) ?? []
     if (channelIds.length === 0) return NextResponse.json({ results: [], total: 0 })
     queryBuilder = queryBuilder.in("channel_id", channelIds)

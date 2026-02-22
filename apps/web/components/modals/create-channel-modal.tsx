@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Hash, Volume2, FolderOpen } from "lucide-react"
+import { Loader2, Hash, Volume2, FolderOpen, MessageSquare, Mic2, Megaphone, Image } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import type { ChannelType } from "@vortex/shared"
 
 interface Props {
   open: boolean
@@ -17,8 +18,6 @@ interface Props {
   serverId: string
   categoryId?: string
 }
-
-type ChannelType = "text" | "voice" | "category"
 
 export function CreateChannelModal({ open, onClose, serverId, categoryId }: Props) {
   const router = useRouter()
@@ -67,7 +66,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
       toast({ title: `Channel #${channel.name} created!` })
       onClose()
 
-      if (type === "text") {
+      if (type !== "voice" && type !== "category") {
         router.push(`/channels/${serverId}/${channel.id}`)
       }
     } catch (error: any) {
@@ -87,10 +86,34 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
       icon: <Hash className="w-5 h-5" />,
     },
     {
+      type: "announcement",
+      label: "Announcement",
+      description: "Post important updates; members can follow to other servers",
+      icon: <Megaphone className="w-5 h-5" />,
+    },
+    {
+      type: "forum",
+      label: "Forum",
+      description: "Create organized threads for focused discussions",
+      icon: <MessageSquare className="w-5 h-5" />,
+    },
+    {
+      type: "media",
+      label: "Media",
+      description: "Share and browse images, videos, and files",
+      icon: <Image className="w-5 h-5" />,
+    },
+    {
       type: "voice",
       label: "Voice",
       description: "Hang out together with voice and video",
       icon: <Volume2 className="w-5 h-5" />,
+    },
+    {
+      type: "stage",
+      label: "Stage",
+      description: "Broadcast to an audience with speaker controls",
+      icon: <Mic2 className="w-5 h-5" />,
     },
     {
       type: "category",
@@ -99,6 +122,17 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
       icon: <FolderOpen className="w-5 h-5" />,
     },
   ]
+
+  function getInputIcon() {
+    switch (type) {
+      case "voice": return <Volume2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+      case "forum": return <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+      case "announcement": return <Megaphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+      case "media": return <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+      case "stage": return <Mic2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+      default: return <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={() => { setName(""); setType("text"); onClose() }}>
@@ -143,16 +177,19 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
               Channel Name <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
-              {type === "text" && (
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
-              )}
-              {type === "voice" && (
-                <Volume2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
-              )}
+              {type !== "category" && getInputIcon()}
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={type === "category" ? "New Category" : type === "voice" ? "General" : "new-channel"}
+                placeholder={
+                  type === "category" ? "New Category" :
+                  type === "voice" ? "General" :
+                  type === "stage" ? "town-hall" :
+                  type === "forum" ? "help-forum" :
+                  type === "announcement" ? "announcements" :
+                  type === "media" ? "media-gallery" :
+                  "new-channel"
+                }
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                 className={type !== "category" ? "pl-8" : ""}
                 style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}

@@ -33,7 +33,7 @@ export function removePermission(permissions: number, permission: Permission): n
 
 export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
 
-export type ChannelType = 'text' | 'voice' | 'category'
+export type ChannelType = 'text' | 'voice' | 'category' | 'forum' | 'stage' | 'announcement' | 'media'
 
 export interface SignalingEvents {
   'join-room': { channelId: string; userId: string; displayName: string; avatarUrl?: string }
