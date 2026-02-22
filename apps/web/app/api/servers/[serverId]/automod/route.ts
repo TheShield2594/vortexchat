@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .insert({
       server_id: serverId,
       name: name.trim(),
-      trigger_type,
+      trigger_type: trigger_type as typeof VALID_TRIGGER_TYPES[number],
       config: config as any,
       actions: actions as any,
       enabled: enabled ?? true,
