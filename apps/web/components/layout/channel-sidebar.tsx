@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2
+  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import type { ChannelRow, RoleRow, ServerRow } from "@/types/database"
@@ -30,6 +30,12 @@ type GroupedChannels = {
   category: ChannelRow | null
   channels: ChannelRow[]
 }[]
+
+/** Channel types that support messaging (messages table) */
+const MESSAGE_CHANNEL_TYPES = ["text", "announcement", "forum", "media"] as const
+
+/** Channel types that use voice infrastructure */
+const VOICE_CHANNEL_TYPES = ["voice", "stage"] as const
 
 function groupChannels(channels: ChannelRow[]): GroupedChannels {
   const categories = channels.filter((c) => c.type === "category")
@@ -131,6 +137,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     })
   }
 
+  // Channels eligible for webhooks are all message-based channel types
+  const webhookEligibleChannels = channels
+    .filter((c) => (MESSAGE_CHANNEL_TYPES as readonly string[]).includes(c.type))
+    .map((c) => ({ id: c.id, name: c.name }))
+
   return (
     <TooltipProvider delayDuration={200}>
       <div
@@ -200,12 +211,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                       isVoiceActive={voiceChannelId === channel.id}
                       canManageChannels={canManageChannels}
                       onClick={() => {
-                        if (channel.type === "text") {
-                          router.push(`/channels/${server.id}/${channel.id}`)
-                        } else if (channel.type === "voice") {
+                        if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
                           setVoiceChannel(channel.id, server.id)
-                          router.push(`/channels/${server.id}/${channel.id}`)
                         }
+                        router.push(`/channels/${server.id}/${channel.id}`)
                       }}
                       onDelete={() => handleDeleteChannel(channel.id, channel.name)}
                     />
@@ -248,11 +257,23 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           onClose={() => setShowServerSettings(false)}
           server={server}
           isOwner={isOwner}
-          channels={channels.filter((c) => c.type === "text").map((c) => ({ id: c.id, name: c.name }))}
+          channels={webhookEligibleChannels}
         />
       </div>
     </TooltipProvider>
   )
+}
+
+function ChannelIcon({ channel, isVoiceActive }: { channel: ChannelRow; isVoiceActive: boolean }) {
+  const iconStyle = { color: isVoiceActive ? '#23a55a' : undefined }
+  switch (channel.type) {
+    case "voice":   return <Volume2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
+    case "forum":   return <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
+    case "stage":   return <Mic2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
+    case "announcement": return <Megaphone className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
+    case "media":   return <Image className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
+    default:        return <Hash className="w-4 h-4 flex-shrink-0" />
+  }
 }
 
 function ChannelItem({
@@ -284,11 +305,7 @@ function ChannelItem({
               : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
           )}
         >
-          {channel.type === "text" ? (
-            <Hash className="w-4 h-4 flex-shrink-0" />
-          ) : (
-            <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: isVoiceActive ? '#23a55a' : undefined }} />
-          )}
+          <ChannelIcon channel={channel} isVoiceActive={isVoiceActive} />
           <span className="truncate">{channel.name}</span>
           {isVoiceActive && (
             <span className="ml-auto">

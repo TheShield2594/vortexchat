@@ -203,36 +203,42 @@ export type Database = {
           id: string
           server_id: string
           name: string
-          type: 'text' | 'voice' | 'category'
+          type: 'text' | 'voice' | 'category' | 'forum' | 'stage' | 'announcement' | 'media'
           position: number
           topic: string | null
           parent_id: string | null
           slowmode_delay: number
           nsfw: boolean
+          forum_guidelines: string | null
+          last_post_at: string | null
           created_at: string
         }
         Insert: {
           id?: string
           server_id: string
           name: string
-          type?: 'text' | 'voice' | 'category'
+          type?: 'text' | 'voice' | 'category' | 'forum' | 'stage' | 'announcement' | 'media'
           position?: number
           topic?: string | null
           parent_id?: string | null
           slowmode_delay?: number
           nsfw?: boolean
+          forum_guidelines?: string | null
+          last_post_at?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           server_id?: string
           name?: string
-          type?: 'text' | 'voice' | 'category'
+          type?: 'text' | 'voice' | 'category' | 'forum' | 'stage' | 'announcement' | 'media'
           position?: number
           topic?: string | null
           parent_id?: string | null
           slowmode_delay?: number
           nsfw?: boolean
+          forum_guidelines?: string | null
+          last_post_at?: string | null
           created_at?: string
         }
         Relationships: []
