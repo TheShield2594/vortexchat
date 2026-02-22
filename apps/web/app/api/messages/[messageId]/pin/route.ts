@@ -6,8 +6,9 @@ const MANAGE_MESSAGES = 2048
 // PUT /api/messages/[messageId]/pin — pin a message
 export async function PUT(
   _req: NextRequest,
-  { params }: { params: { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
+  const { messageId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -16,7 +17,7 @@ export async function PUT(
   const { data: message } = await supabase
     .from("messages")
     .select("id, channel_id, channels(server_id)")
-    .eq("id", params.messageId)
+    .eq("id", messageId)
     .is("deleted_at", null)
     .single()
 
@@ -53,7 +54,7 @@ export async function PUT(
   const { error } = await supabase
     .from("messages")
     .update({ pinned: true, pinned_at: new Date().toISOString(), pinned_by: user.id })
-    .eq("id", params.messageId)
+    .eq("id", messageId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -63,7 +64,7 @@ export async function PUT(
       server_id: serverId,
       actor_id: user.id,
       action: "message_pin",
-      target_id: params.messageId,
+      target_id: messageId,
       target_type: "message",
     })
   }
@@ -74,8 +75,9 @@ export async function PUT(
 // DELETE /api/messages/[messageId]/pin — unpin
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
+  const { messageId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -83,7 +85,7 @@ export async function DELETE(
   const { data: message } = await supabase
     .from("messages")
     .select("id, channels(server_id)")
-    .eq("id", params.messageId)
+    .eq("id", messageId)
     .single()
 
   if (!message) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -116,7 +118,7 @@ export async function DELETE(
   const { error } = await supabase
     .from("messages")
     .update({ pinned: false, pinned_at: null, pinned_by: null })
-    .eq("id", params.messageId)
+    .eq("id", messageId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ message: "Unpinned" })

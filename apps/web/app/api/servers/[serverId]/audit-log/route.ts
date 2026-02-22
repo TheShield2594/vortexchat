@@ -4,8 +4,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // GET /api/servers/[serverId]/audit-log?limit=50&before=timestamp
 export async function GET(
   req: NextRequest,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -14,7 +15,7 @@ export async function GET(
   const { data: server } = await supabase
     .from("servers")
     .select("owner_id")
-    .eq("id", params.serverId)
+    .eq("id", serverId)
     .single()
 
   if (server?.owner_id !== user.id) {
@@ -28,7 +29,7 @@ export async function GET(
   let query = supabase
     .from("audit_logs")
     .select("id, action, actor_id, target_id, target_type, changes, created_at")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .order("created_at", { ascending: false })
     .limit(limit)
 

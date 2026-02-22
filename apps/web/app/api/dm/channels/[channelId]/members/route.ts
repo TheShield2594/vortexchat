@@ -4,8 +4,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // POST /api/dm/channels/[channelId]/members — add a member to a group DM
 export async function POST(
   req: NextRequest,
-  { params }: { params: { channelId: string } }
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -14,7 +15,7 @@ export async function POST(
   const { data: membership } = await supabase
     .from("dm_channel_members")
     .select("user_id")
-    .eq("dm_channel_id", params.channelId)
+    .eq("dm_channel_id", channelId)
     .eq("user_id", user.id)
     .single()
 
@@ -24,7 +25,7 @@ export async function POST(
   const { data: channel } = await supabase
     .from("dm_channels")
     .select("is_group")
-    .eq("id", params.channelId)
+    .eq("id", channelId)
     .single()
 
   if (!channel?.is_group) {
@@ -36,7 +37,7 @@ export async function POST(
 
   const { error } = await supabase
     .from("dm_channel_members")
-    .insert({ dm_channel_id: params.channelId, user_id: userId, added_by: user.id })
+    .insert({ dm_channel_id: channelId, user_id: userId, added_by: user.id })
 
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "Already a member" }, { status: 409 })
@@ -49,8 +50,9 @@ export async function POST(
 // DELETE /api/dm/channels/[channelId]/members?userId=... — remove a member (or leave)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { channelId: string } }
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -63,7 +65,7 @@ export async function DELETE(
     const { data: channel } = await supabase
       .from("dm_channels")
       .select("owner_id")
-      .eq("id", params.channelId)
+      .eq("id", channelId)
       .single()
 
     if (channel?.owner_id !== user.id) {
@@ -74,7 +76,7 @@ export async function DELETE(
   const { error } = await supabase
     .from("dm_channel_members")
     .delete()
-    .eq("dm_channel_id", params.channelId)
+    .eq("dm_channel_id", channelId)
     .eq("user_id", targetUserId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

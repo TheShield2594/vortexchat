@@ -4,8 +4,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // POST /api/servers/[serverId]/members/[userId]/roles — assign a role to a member
 export async function POST(
   req: NextRequest,
-  { params }: { params: { serverId: string; userId: string } }
+  { params }: { params: Promise<{ serverId: string; userId: string }> }
 ) {
+  const { serverId, userId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -14,7 +15,7 @@ export async function POST(
   const { data: server } = await supabase
     .from("servers")
     .select("owner_id")
-    .eq("id", params.serverId)
+    .eq("id", serverId)
     .single()
 
   if (server?.owner_id !== user.id) {
@@ -26,7 +27,7 @@ export async function POST(
 
   const { error } = await supabase
     .from("member_roles")
-    .insert({ server_id: params.serverId, user_id: params.userId, role_id: roleId })
+    .insert({ server_id: serverId, user_id: userId, role_id: roleId })
 
   if (error) {
     if (error.code === "23505") return NextResponse.json({ ok: true }) // already assigned
@@ -39,8 +40,9 @@ export async function POST(
 // DELETE /api/servers/[serverId]/members/[userId]/roles?roleId=... — remove a role
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { serverId: string; userId: string } }
+  { params }: { params: Promise<{ serverId: string; userId: string }> }
 ) {
+  const { serverId, userId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -48,7 +50,7 @@ export async function DELETE(
   const { data: server } = await supabase
     .from("servers")
     .select("owner_id")
-    .eq("id", params.serverId)
+    .eq("id", serverId)
     .single()
 
   if (server?.owner_id !== user.id) {
@@ -62,8 +64,8 @@ export async function DELETE(
   const { error } = await supabase
     .from("member_roles")
     .delete()
-    .eq("server_id", params.serverId)
-    .eq("user_id", params.userId)
+    .eq("server_id", serverId)
+    .eq("user_id", userId)
     .eq("role_id", roleId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

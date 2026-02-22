@@ -13,8 +13,9 @@ function generateCode(length = 8): string {
 // GET /api/servers/[serverId]/invites — list all invites
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -22,7 +23,7 @@ export async function GET(
   const { data: invites, error } = await supabase
     .from("invites")
     .select("*, creator:users!invites_created_by_fkey(id, username, display_name, avatar_url)")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .order("created_at", { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -32,8 +33,9 @@ export async function GET(
 // POST /api/servers/[serverId]/invites — create invite
 export async function POST(
   req: NextRequest,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -42,7 +44,7 @@ export async function POST(
   const { data: member } = await supabase
     .from("server_members")
     .select("user_id")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("user_id", user.id)
     .single()
 
@@ -68,7 +70,7 @@ export async function POST(
     .from("invites")
     .insert({
       code,
-      server_id: params.serverId,
+      server_id: serverId,
       created_by: user.id,
       max_uses: maxUses ?? null,
       expires_at: expiresAt,
@@ -84,8 +86,9 @@ export async function POST(
 // DELETE /api/servers/[serverId]/invites?code= — revoke invite
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -97,7 +100,7 @@ export async function DELETE(
   const { data: server } = await supabase
     .from("servers")
     .select("owner_id")
-    .eq("id", params.serverId)
+    .eq("id", serverId)
     .single()
 
   const { data: invite } = await supabase

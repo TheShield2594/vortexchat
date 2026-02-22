@@ -5,8 +5,9 @@ import { sendPushToChannel } from "@/lib/push"
 // POST /api/dm/channels/[channelId]/messages — send a message
 export async function POST(
   req: NextRequest,
-  { params }: { params: { channelId: string } }
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -15,7 +16,7 @@ export async function POST(
   const { data: membership } = await supabase
     .from("dm_channel_members")
     .select("user_id")
-    .eq("dm_channel_id", params.channelId)
+    .eq("dm_channel_id", channelId)
     .eq("user_id", user.id)
     .single()
 
@@ -28,7 +29,7 @@ export async function POST(
   const { data: message, error } = await supabase
     .from("direct_messages")
     .insert({
-      dm_channel_id: params.channelId,
+      dm_channel_id: channelId,
       sender_id: user.id,
       content,
     })
@@ -40,7 +41,7 @@ export async function POST(
   // Send push notifications (fire-and-forget)
   const senderName = (message as any)?.sender?.display_name || (message as any)?.sender?.username || "Someone"
   sendPushToChannel({
-    dmChannelId: params.channelId,
+    dmChannelId: channelId,
     senderName,
     content,
     excludeUserId: user.id,

@@ -4,8 +4,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // GET /api/channels/[channelId]/permissions — fetch all role overrides for a channel
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { channelId: string } }
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -13,7 +14,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("channel_permissions")
     .select("*, role:roles(id, name, color)")
-    .eq("channel_id", params.channelId)
+    .eq("channel_id", channelId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data ?? [])
@@ -23,8 +24,9 @@ export async function GET(
 // Body: { roleId, allowPermissions, denyPermissions }
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { channelId: string } }
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -36,7 +38,7 @@ export async function PUT(
     .from("channel_permissions")
     .upsert(
       {
-        channel_id: params.channelId,
+        channel_id: channelId,
         role_id: roleId,
         allow_permissions: allowPermissions,
         deny_permissions: denyPermissions,
@@ -51,8 +53,9 @@ export async function PUT(
 // DELETE /api/channels/[channelId]/permissions?roleId=... — remove a role override
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { channelId: string } }
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -64,7 +67,7 @@ export async function DELETE(
   const { error } = await supabase
     .from("channel_permissions")
     .delete()
-    .eq("channel_id", params.channelId)
+    .eq("channel_id", channelId)
     .eq("role_id", roleId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

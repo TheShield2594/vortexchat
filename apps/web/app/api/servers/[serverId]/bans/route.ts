@@ -11,8 +11,9 @@ function hasPermission(permissions: number, flag: number) {
 // GET /api/servers/[serverId]/bans — list bans
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -21,14 +22,14 @@ export async function GET(
   const { data: member } = await supabase
     .from("server_members")
     .select("server_id, member_roles(roles(permissions))")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("user_id", user.id)
     .single()
 
   const { data: server } = await supabase
     .from("servers")
     .select("owner_id")
-    .eq("id", params.serverId)
+    .eq("id", serverId)
     .single()
 
   const isOwner = server?.owner_id === user.id
@@ -43,7 +44,7 @@ export async function GET(
   const { data: bans, error } = await supabase
     .from("server_bans")
     .select("*, user:users!server_bans_user_id_fkey(id, username, display_name, avatar_url), banned_by_user:users!server_bans_banned_by_fkey(id, username, display_name)")
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .order("banned_at", { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -53,8 +54,9 @@ export async function GET(
 // POST /api/servers/[serverId]/bans — ban a user
 export async function POST(
   req: NextRequest,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -65,7 +67,7 @@ export async function POST(
   const { data: server } = await supabase
     .from("servers")
     .select("owner_id")
-    .eq("id", params.serverId)
+    .eq("id", serverId)
     .single()
 
   if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
@@ -76,7 +78,7 @@ export async function POST(
     const { data: member } = await supabase
       .from("server_members")
       .select("member_roles(roles(permissions))")
-      .eq("server_id", params.serverId)
+      .eq("server_id", serverId)
       .eq("user_id", user.id)
       .single()
 
@@ -93,14 +95,14 @@ export async function POST(
   await supabase
     .from("server_members")
     .delete()
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("user_id", userId)
 
   // Insert ban
   const { error } = await supabase
     .from("server_bans")
     .upsert({
-      server_id: params.serverId,
+      server_id: serverId,
       user_id: userId,
       banned_by: user.id,
       reason: reason ?? null,
@@ -110,7 +112,7 @@ export async function POST(
 
   // Audit log
   await supabase.from("audit_logs").insert({
-    server_id: params.serverId,
+    server_id: serverId,
     actor_id: user.id,
     action: "member_ban",
     target_id: userId,
@@ -124,8 +126,9 @@ export async function POST(
 // DELETE /api/servers/[serverId]/bans?userId= — unban
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -137,7 +140,7 @@ export async function DELETE(
   const { data: server } = await supabase
     .from("servers")
     .select("owner_id")
-    .eq("id", params.serverId)
+    .eq("id", serverId)
     .single()
 
   const isOwner = server?.owner_id === user.id
@@ -145,7 +148,7 @@ export async function DELETE(
     const { data: member } = await supabase
       .from("server_members")
       .select("member_roles(roles(permissions))")
-      .eq("server_id", params.serverId)
+      .eq("server_id", serverId)
       .eq("user_id", user.id)
       .single()
 
@@ -161,7 +164,7 @@ export async function DELETE(
   const { error } = await supabase
     .from("server_bans")
     .delete()
-    .eq("server_id", params.serverId)
+    .eq("server_id", serverId)
     .eq("user_id", userId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

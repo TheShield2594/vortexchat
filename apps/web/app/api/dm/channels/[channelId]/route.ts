@@ -4,8 +4,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // GET /api/dm/channels/[channelId] — get channel info + messages
 export async function GET(
   req: NextRequest,
-  { params }: { params: { channelId: string } }
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -14,7 +15,7 @@ export async function GET(
   const { data: membership } = await supabase
     .from("dm_channel_members")
     .select("user_id")
-    .eq("dm_channel_id", params.channelId)
+    .eq("dm_channel_id", channelId)
     .eq("user_id", user.id)
     .single()
 
@@ -24,14 +25,14 @@ export async function GET(
   const { data: channel } = await supabase
     .from("dm_channels")
     .select("id, name, icon_url, is_group, owner_id, updated_at")
-    .eq("id", params.channelId)
+    .eq("id", channelId)
     .single()
 
   // Fetch member user_ids
   const { data: memberRows } = await supabase
     .from("dm_channel_members")
     .select("user_id")
-    .eq("dm_channel_id", params.channelId)
+    .eq("dm_channel_id", channelId)
 
   const memberIds = memberRows?.map((r) => r.user_id) ?? []
 
@@ -56,7 +57,7 @@ export async function GET(
   let query = supabase
     .from("direct_messages")
     .select("id, dm_channel_id, sender_id, content, edited_at, deleted_at, created_at, sender:users!sender_id(id, username, display_name, avatar_url, status)")
-    .eq("dm_channel_id", params.channelId)
+    .eq("dm_channel_id", channelId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(limit)
@@ -68,7 +69,7 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Mark as read
-  await supabase.rpc("mark_dm_read", { p_dm_channel_id: params.channelId })
+  await supabase.rpc("mark_dm_read", { p_dm_channel_id: channelId })
 
   return NextResponse.json({
     channel: { ...channel, members, partner },

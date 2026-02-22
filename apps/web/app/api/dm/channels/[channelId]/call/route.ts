@@ -5,8 +5,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // Body: { type: "offer"|"answer"|"ice-candidate"|"hangup", payload: any, targetUserId?: string }
 export async function POST(
   req: NextRequest,
-  { params }: { params: { channelId: string } }
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -15,7 +16,7 @@ export async function POST(
   const { data: membership } = await supabase
     .from("dm_channel_members")
     .select("user_id")
-    .eq("dm_channel_id", params.channelId)
+    .eq("dm_channel_id", channelId)
     .eq("user_id", user.id)
     .single()
 
@@ -25,7 +26,7 @@ export async function POST(
   const { type, payload, targetUserId } = body
 
   // Use Supabase Realtime Broadcast for WebRTC signaling
-  const channel = supabase.channel(`dm-call:${params.channelId}`)
+  const channel = supabase.channel(`dm-call:${channelId}`)
   await channel.send({
     type: "broadcast",
     event: "call-signal",
@@ -34,7 +35,7 @@ export async function POST(
       payload,
       fromUserId: user.id,
       targetUserId,
-      channelId: params.channelId,
+      channelId: channelId,
     },
   })
 
