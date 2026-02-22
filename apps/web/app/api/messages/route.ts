@@ -107,7 +107,9 @@ export async function POST(request: Request) {
 
   if (serverId) {
     // --- Permission checks ---
-    const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+    // screeningEnabled comes from the same servers row getMemberPermissions already fetches,
+    // so no separate servers query is needed below.
+    const { isAdmin, permissions, screeningEnabled } = await getMemberPermissions(supabase, serverId, user.id)
 
     if (!isAdmin && !hasPermission(permissions, "SEND_MESSAGES")) {
       return NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 })
@@ -118,9 +120,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing MENTION_EVERYONE permission" }, { status: 403 })
     }
 
-    // --- Run server lookup, member screening, and timeout queries concurrently ---
-    const [serverResult, screeningResult, timeoutResult] = await Promise.all([
-      supabase.from("servers").select("screening_enabled").eq("id", serverId).single(),
+    // --- Member screening and timeout queries concurrently ---
+    const [screeningResult, timeoutResult] = await Promise.all([
       supabase
         .from("member_screening")
         .select("accepted_at")
@@ -135,11 +136,10 @@ export async function POST(request: Request) {
         .maybeSingle(),
     ])
 
-    const server = serverResult.data
     const screeningPassed = screeningResult.data
     const timeout = timeoutResult.data
 
-    if (server?.screening_enabled && !screeningPassed) {
+    if (screeningEnabled && !screeningPassed) {
       return NextResponse.json(
         { error: "You must accept the server rules before sending messages.", code: "SCREENING_REQUIRED" },
         { status: 403 }

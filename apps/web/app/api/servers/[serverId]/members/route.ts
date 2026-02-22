@@ -57,20 +57,14 @@ export async function DELETE(
 
   // Allow self-removal (leaving) or require KICK_MEMBERS permission
   if (targetUserId !== user.id) {
-    const { isOwner, permissions, isAdmin } = await getMemberPermissions(supabase, params.serverId, user.id)
+    const { isOwner, isAdmin, permissions, ownerId } = await getMemberPermissions(supabase, params.serverId, user.id)
 
     if (!isAdmin && !hasPermission(permissions, "KICK_MEMBERS")) {
       return NextResponse.json({ error: "Missing KICK_MEMBERS permission" }, { status: 403 })
     }
 
     // Prevent kicking the server owner
-    const { data: server } = await supabase
-      .from("servers")
-      .select("owner_id")
-      .eq("id", params.serverId)
-      .single()
-
-    if (targetUserId === server?.owner_id) {
+    if (targetUserId === ownerId) {
       return NextResponse.json({ error: "Cannot remove the server owner" }, { status: 400 })
     }
 
@@ -138,23 +132,18 @@ export async function PATCH(
     }
   }
 
-  // Check MODERATE_MEMBERS permission
-  const { isOwner, isAdmin, permissions } = await getMemberPermissions(supabase, params.serverId, user.id)
+  // Check MODERATE_MEMBERS permission; also get ownerId to avoid an extra servers query
+  const { isOwner, isAdmin, permissions, ownerId } = await getMemberPermissions(supabase, params.serverId, user.id)
   if (!isAdmin && !hasPermission(permissions, "MODERATE_MEMBERS")) {
     return NextResponse.json({ error: "Missing MODERATE_MEMBERS permission" }, { status: 403 })
   }
 
-  // Prevent timing out the server owner or other admins (non-owners)
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", params.serverId)
-    .single()
-
-  if (targetUserId === server?.owner_id) {
+  // Prevent timing out the server owner
+  if (targetUserId === ownerId) {
     return NextResponse.json({ error: "Cannot time out the server owner" }, { status: 400 })
   }
 
+  // Non-owners cannot time out admins
   if (!isOwner) {
     const { permissions: targetPerms } = await getMemberPermissions(supabase, params.serverId, targetUserId)
     if (targetPerms & PERMISSIONS.ADMINISTRATOR) {
@@ -162,11 +151,16 @@ export async function PATCH(
     }
   }
 
-  const { error } = await supabase
-    .from("server_members")
-    .update({ timeout_until: timeoutUntil ?? null })
-    .eq("server_id", params.serverId)
-    .eq("user_id", targetUserId)
+  // Persist to member_timeouts (the table messages/route.ts checks) via the
+  // set_member_timeout SECURITY DEFINER function so no broad UPDATE policy is
+  // required on server_members.
+  const { error } = await supabase.rpc("set_member_timeout", {
+    p_server_id: params.serverId,
+    p_member_id: targetUserId,
+    p_timeout_until: timeoutUntil ?? null,
+    p_moderator_id: user.id,
+    p_reason: null,
+  })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

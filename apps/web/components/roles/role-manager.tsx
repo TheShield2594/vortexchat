@@ -66,8 +66,8 @@ const PERMISSION_CATEGORIES: PermissionCategory[] = [
   },
 ]
 
-// Flat list kept for backwards compatibility with the switch toggle loop
-const PERMISSION_LIST: PermissionEntry[] = PERMISSION_CATEGORIES.flatMap((c) => c.perms)
+/** Permissions that cannot be removed from the default (@everyone) role. */
+const DEFAULT_ROLE_LOCKED: Set<Permission> = new Set(["VIEW_CHANNELS", "SEND_MESSAGES"])
 
 interface Props {
   serverId: string
@@ -346,7 +346,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
                         <Switch
                           checked={!!(editPermissions & PERMISSIONS[key])}
                           onCheckedChange={() => togglePermission(key)}
-                          disabled={selectedRole.is_default && key === "VIEW_CHANNELS"}
+                          disabled={selectedRole.is_default && DEFAULT_ROLE_LOCKED.has(key)}
                         />
                       </div>
                     ))}

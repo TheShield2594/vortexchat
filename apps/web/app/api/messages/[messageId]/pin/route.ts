@@ -23,7 +23,11 @@ export async function PUT(
   if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const serverId = (message as any).channels?.server_id
+  const serverId: string | undefined = (message as any).channels?.server_id
+
+  if (!serverId) {
+    return NextResponse.json({ error: "Cannot pin messages outside of a server channel" }, { status: 400 })
+  }
 
   // Check permission: admin or MANAGE_MESSAGES
   const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
@@ -39,15 +43,13 @@ export async function PUT(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Audit log
-  if (serverId) {
-    await supabase.from("audit_logs").insert({
-      server_id: serverId,
-      actor_id: user.id,
-      action: "message_pin",
-      target_id: messageId,
-      target_type: "message",
-    })
-  }
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user.id,
+    action: "message_pin",
+    target_id: messageId,
+    target_type: "message",
+  })
 
   return NextResponse.json({ message: "Pinned" })
 }
@@ -71,7 +73,11 @@ export async function DELETE(
   if (!message) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const serverId = (message as any).channels?.server_id
+  const serverId: string | undefined = (message as any).channels?.server_id
+
+  if (!serverId) {
+    return NextResponse.json({ error: "Cannot unpin messages outside of a server channel" }, { status: 400 })
+  }
 
   const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
   if (!isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
