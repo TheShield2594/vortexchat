@@ -183,7 +183,7 @@ export async function POST(request: Request) {
       .eq("enabled", true)
 
     if (rawRules?.length) {
-      const rules = rawRules as AutoModRuleWithParsed[]
+      const rules = rawRules as unknown as AutoModRuleWithParsed[]
       const violations = evaluateAllRules(rules, content.trim(), mentions)
 
       if (violations.length > 0) {
