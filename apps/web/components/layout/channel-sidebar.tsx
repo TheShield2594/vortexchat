@@ -248,6 +248,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           onClose={() => setShowServerSettings(false)}
           server={server}
           isOwner={isOwner}
+          channels={channels.filter((c) => c.type === "text").map((c) => ({ id: c.id, name: c.name }))}
         />
       </div>
     </TooltipProvider>

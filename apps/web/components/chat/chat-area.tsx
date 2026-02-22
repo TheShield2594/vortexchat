@@ -42,18 +42,40 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
     bottomRef.current?.scrollIntoView()
   }, [])
 
-  // Realtime subscription
-  useRealtimeMessages(channel.id, (newMessage) => {
-    setMessages((prev) => {
-      // Avoid duplicates
-      if (prev.some((m) => m.id === newMessage.id)) return prev
-      return [...prev, newMessage]
-    })
-  }, (updatedMessage) => {
-    setMessages((prev) =>
-      prev.map((m) => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m)
-    )
-  })
+  // Realtime subscription (messages + reactions from other users)
+  useRealtimeMessages(
+    channel.id,
+    (newMessage) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMessage.id)) return prev
+        return [...prev, newMessage]
+      })
+    },
+    (updatedMessage) => {
+      setMessages((prev) =>
+        prev.map((m) => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m)
+      )
+    },
+    // Reaction added by another user — skip if already present (own optimistic update)
+    (reaction) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== reaction.message_id) return m
+          if (m.reactions.some((r) => r.emoji === reaction.emoji && r.user_id === reaction.user_id)) return m
+          return { ...m, reactions: [...m.reactions, reaction] }
+        })
+      )
+    },
+    // Reaction removed by another user
+    (reaction) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== reaction.message_id) return m
+          return { ...m, reactions: m.reactions.filter((r) => !(r.emoji === reaction.emoji && r.user_id === reaction.user_id)) }
+        })
+      )
+    }
+  )
 
   async function handleSendMessage(content: string, attachmentFiles?: File[]) {
     if (!content.trim() && (!attachmentFiles || attachmentFiles.length === 0)) return

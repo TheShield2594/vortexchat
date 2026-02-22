@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 import { ProfileSettingsModal } from "@/components/modals/profile-settings-modal"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { UserRow } from "@/types/database"
 
@@ -115,6 +116,9 @@ export function UserPanel() {
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+
+      {/* Notification bell */}
+      <NotificationBell userId={currentUser.id} />
 
       {/* Controls */}
       <div className="flex items-center gap-0.5">

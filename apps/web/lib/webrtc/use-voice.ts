@@ -26,6 +26,13 @@ interface UseVoiceReturn {
   toggleScreenShare: () => Promise<void>
   toggleVideo: () => Promise<void>
   leaveChannel: () => void
+  // Device selection
+  audioInputDevices: MediaDeviceInfo[]
+  audioOutputDevices: MediaDeviceInfo[]
+  selectedInputId: string | null
+  selectedOutputId: string | null
+  setSelectedInputId: (id: string | null) => void
+  setSelectedOutputId: (id: string | null) => void
 }
 
 export function useVoice(channelId: string, userId: string): UseVoiceReturn {
@@ -46,6 +53,29 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
   const clientIdRef = useRef<string>(crypto.randomUUID())
   const supabaseRef = useRef(createClientSupabaseClient())
 
+  // Device selection state
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([])
+  const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedInputId, setSelectedInputId] = useState<string | null>(null)
+  const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null)
+
+  // Enumerate devices on mount and when permissions change
+  useEffect(() => {
+    if (!navigator.mediaDevices) return
+    async function enumerateDevices() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        setAudioInputDevices(devices.filter((d) => d.kind === "audioinput"))
+        setAudioOutputDevices(devices.filter((d) => d.kind === "audiooutput"))
+      } catch {
+        // Ignore enumeration errors (e.g. permissions denied before any getUserMedia)
+      }
+    }
+    enumerateDevices()
+    navigator.mediaDevices.addEventListener("devicechange", enumerateDevices)
+    return () => navigator.mediaDevices.removeEventListener("devicechange", enumerateDevices)
+  }, [])
+
   useEffect(() => {
     let mounted = true
     const supabase = supabaseRef.current
@@ -59,12 +89,22 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       rtChannel: RealtimeChannel,
       stream: MediaStream
     ): RTCPeerConnection {
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" },
-        ],
-      })
+      // Build ICE servers: always include STUN, add TURN when env vars are configured
+      const iceServers: RTCIceServer[] = [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+      ]
+      const turnUrl = process.env.NEXT_PUBLIC_TURN_URL
+      const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL
+      const turnUsername = process.env.NEXT_PUBLIC_TURN_USERNAME
+      const turnCredential = process.env.NEXT_PUBLIC_TURN_CREDENTIAL
+      if (turnUrl && turnUsername && turnCredential) {
+        const urls: string[] = [turnUrl]
+        if (turnsUrl) urls.push(turnsUrl)
+        iceServers.push({ urls, username: turnUsername, credential: turnCredential })
+      }
+
+      const pc = new RTCPeerConnection({ iceServers })
 
       peerConnections.current.set(peerId, pc)
 
@@ -146,15 +186,14 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
 
     async function init() {
       try {
-        // Acquire microphone
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: false,
-        })
+        // Acquire microphone — use selected device if available
+        const audioConstraints: MediaTrackConstraints = {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+        if (selectedInputId) audioConstraints.deviceId = { ideal: selectedInputId }
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false })
         localStream.current = stream
 
         if (!mounted) {
@@ -313,6 +352,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       harkRef.current?.stop()
       localStream.current?.getTracks().forEach((t) => t.stop())
       screenStream.current?.getTracks().forEach((t) => t.stop())
+      cameraStream.current?.getTracks().forEach((t) => t.stop())
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null
@@ -436,5 +476,11 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     toggleScreenShare,
     toggleVideo,
     leaveChannel,
+    audioInputDevices,
+    audioOutputDevices,
+    selectedInputId,
+    selectedOutputId,
+    setSelectedInputId,
+    setSelectedOutputId,
   }
 }

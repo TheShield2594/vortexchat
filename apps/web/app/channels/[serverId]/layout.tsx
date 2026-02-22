@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { ChannelSidebar } from "@/components/layout/channel-sidebar"
+import { ServerEmojiProvider } from "@/components/chat/server-emoji-context"
 import type { RoleRow } from "@/types/database"
 
 interface Props {
@@ -53,15 +54,17 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
     .filter((r): r is RoleRow => r !== null)
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <ChannelSidebar
-        server={server}
-        channels={channels ?? []}
-        currentUserId={user.id}
-        isOwner={server.owner_id === user.id}
-        userRoles={userRoles}
-      />
-      {children}
-    </div>
+    <ServerEmojiProvider serverId={params.serverId}>
+      <div className="flex flex-1 overflow-hidden">
+        <ChannelSidebar
+          server={server}
+          channels={channels ?? []}
+          currentUserId={user.id}
+          isOwner={server.owner_id === user.id}
+          userRoles={userRoles}
+        />
+        {children}
+      </div>
+    </ServerEmojiProvider>
   )
 }

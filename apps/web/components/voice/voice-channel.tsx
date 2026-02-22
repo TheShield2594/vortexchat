@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
-  Monitor, MonitorOff, Video, VideoOff, Radio,
+  Monitor, MonitorOff, Video, VideoOff, Radio, Settings,
 } from "lucide-react"
 import { useVoice } from "@/lib/webrtc/use-voice"
 import { usePushToTalk } from "@/hooks/use-push-to-talk"
@@ -27,6 +27,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const [pttEnabled, setPttEnabled] = useState(false)
   const supabase = createClientSupabaseClient()
 
+  const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
   const {
     peers,
     muted,
@@ -42,6 +43,12 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     localStream,
     screenStream,
     cameraStream,
+    audioInputDevices,
+    audioOutputDevices,
+    selectedInputId,
+    selectedOutputId,
+    setSelectedInputId,
+    setSelectedOutputId,
   } = useVoice(channelId, currentUserId)
 
   // Push-to-talk: temporarily unmutes while key is held (default: Space)
@@ -261,6 +268,64 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
             </TooltipTrigger>
             <TooltipContent>{screenSharing ? "Stop Sharing" : "Share Screen"}</TooltipContent>
           </Tooltip>
+
+          {/* Device settings */}
+          <div className="relative">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setDeviceMenuOpen((v) => !v)}
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+                  style={{ background: deviceMenuOpen ? "#5865f2" : "#4e5058" }}
+                >
+                  <Settings className="w-5 h-5 text-white" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Audio Settings</TooltipContent>
+            </Tooltip>
+            {deviceMenuOpen && (
+              <div
+                className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 rounded-xl shadow-2xl p-4 space-y-4 z-50"
+                style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
+              >
+                <div>
+                  <label className="block text-xs font-semibold uppercase mb-1" style={{ color: "#b5bac1" }}>
+                    Microphone
+                  </label>
+                  <select
+                    value={selectedInputId ?? ""}
+                    onChange={(e) => setSelectedInputId(e.target.value || null)}
+                    className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
+                    style={{ background: "#1e1f22", color: "#f2f3f5", border: "1px solid #3f4147" }}
+                  >
+                    <option value="">Default</option>
+                    {audioInputDevices.map((d) => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${d.deviceId.slice(0, 6)}`}</option>
+                    ))}
+                  </select>
+                </div>
+                {audioOutputDevices.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-semibold uppercase mb-1" style={{ color: "#b5bac1" }}>
+                      Speaker
+                    </label>
+                    <select
+                      value={selectedOutputId ?? ""}
+                      onChange={(e) => setSelectedOutputId(e.target.value || null)}
+                      className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
+                      style={{ background: "#1e1f22", color: "#f2f3f5", border: "1px solid #3f4147" }}
+                    >
+                      <option value="">Default</option>
+                      {audioOutputDevices.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>{d.label || `Speaker ${d.deviceId.slice(0, 6)}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <p className="text-xs" style={{ color: "#4e5058" }}>Rejoin the channel to apply input changes.</p>
+              </div>
+            )}
+          </div>
 
           <Tooltip>
             <TooltipTrigger asChild>

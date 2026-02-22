@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, X, Paperclip, Pencil, Trash2 } from "lucide-react"
+import { Send, Phone, Video, Users, X, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
@@ -235,23 +235,29 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         )}
         <span className="font-semibold text-white flex-1">{displayName}</span>
 
-        {/* Call buttons */}
-        <button
-          onClick={() => setInCall(true)}
-          className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-          style={{ color: "#b5bac1" }}
-          title="Start voice call"
-        >
-          <Phone className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => setInCall(true)}
-          className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-          style={{ color: "#b5bac1" }}
-          title="Start video call"
-        >
-          <Video className="w-4 h-4" />
-        </button>
+        {/* Call buttons (1:1 DMs only) */}
+        {!channel.is_group && (
+          <>
+            <button
+              onClick={() => setInCall(true)}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+              style={{ color: inCall ? "#23a55a" : "#b5bac1" }}
+              title="Start voice call"
+              disabled={inCall}
+            >
+              <Phone className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setInCall(true)}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+              style={{ color: inCall ? "#23a55a" : "#b5bac1" }}
+              title="Start video call"
+              disabled={inCall}
+            >
+              <Video className="w-4 h-4" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Call overlay */}
@@ -460,114 +466,143 @@ interface CallProps {
 function DMCallView({ channelId, currentUserId, partner, displayName, onHangup }: CallProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
+  const remoteAudioRef = useRef<HTMLAudioElement>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+  const clientId = useRef(crypto.randomUUID())
   const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting")
+  const [muted, setMuted] = useState(false)
+  const [videoOff, setVideoOff] = useState(false)
+  const [incomingCall, setIncomingCall] = useState(false)
   const supabase = createClientSupabaseClient()
 
+  // Build ICE servers with optional TURN
+  function buildIceServers(): RTCIceServer[] {
+    const servers: RTCIceServer[] = [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+    ]
+    const turnUrl = process.env.NEXT_PUBLIC_TURN_URL
+    const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL
+    const turnUser = process.env.NEXT_PUBLIC_TURN_USERNAME
+    const turnCred = process.env.NEXT_PUBLIC_TURN_CREDENTIAL
+    if (turnUrl && turnUser && turnCred) {
+      servers.push({ urls: [turnUrl, ...(turnsUrl ? [turnsUrl] : [])], username: turnUser, credential: turnCred })
+    }
+    return servers
+  }
+
   useEffect(() => {
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-      ],
-    })
+    const pc = new RTCPeerConnection({ iceServers: buildIceServers() })
     pcRef.current = pc
 
     pc.ontrack = (e) => {
-      if (remoteVideoRef.current && e.streams[0]) {
-        remoteVideoRef.current.srcObject = e.streams[0]
-        setStatus("connected")
-      }
+      const [remoteStream] = e.streams
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
+      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
+      setStatus("connected")
     }
 
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        fetch(`/api/dm/channels/${channelId}/call`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "ice-candidate", payload: e.candidate }),
-        })
-      }
-    }
-
-    // Subscribe to signaling
     const sigChannel = supabase.channel(`dm-call:${channelId}`)
+
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "ice-candidate", candidate, from: clientId.current } })
+      }
+    }
+
     sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: any) => {
-      if (payload.fromUserId === currentUserId) return
+      if (payload.from === clientId.current) return
       if (payload.type === "offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.payload))
+        await pc.setRemoteDescription(new RTCSessionDescription(payload.offer ?? payload.payload))
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
-        fetch(`/api/dm/channels/${channelId}/call`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "answer", payload: answer }),
-        })
+        sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
       } else if (payload.type === "answer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.payload))
+        await pc.setRemoteDescription(new RTCSessionDescription(payload.answer ?? payload.payload))
       } else if (payload.type === "ice-candidate") {
-        await pc.addIceCandidate(new RTCIceCandidate(payload.payload))
+        await pc.addIceCandidate(new RTCIceCandidate(payload.candidate ?? payload.payload))
       } else if (payload.type === "hangup") {
         onHangup()
       }
-    }).subscribe()
+    })
 
-    // Get local media and create offer
-    navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(async (stream) => {
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream))
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-      fetch(`/api/dm/channels/${channelId}/call`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "offer", payload: offer }),
-      })
-    }).catch(() => setStatus("failed"))
+    sigChannel.on("broadcast", { event: "call-invite" }, ({ payload }: any) => {
+      if (payload.callerId !== currentUserId) setIncomingCall(true)
+    })
+
+    sigChannel.subscribe(async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+        localStreamRef.current = stream
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream))
+        // Initiator: broadcast call-invite and create offer
+        sigChannel.send({ type: "broadcast", event: "call-invite", payload: { callerId: currentUserId } })
+        pc.onnegotiationneeded = async () => {
+          const offer = await pc.createOffer()
+          await pc.setLocalDescription(offer)
+          sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "offer", offer, from: clientId.current } })
+        }
+      } catch {
+        setStatus("failed")
+      }
+    })
 
     return () => {
+      localStreamRef.current?.getTracks().forEach((t) => t.stop())
       pc.close()
       supabase.removeChannel(sigChannel)
     }
   }, [channelId, currentUserId, onHangup, supabase])
 
+  function toggleMute() {
+    localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = muted })
+    setMuted((m) => !m)
+  }
+
+  function toggleVideo() {
+    localStreamRef.current?.getVideoTracks().forEach((t) => { t.enabled = videoOff })
+    setVideoOff((v) => !v)
+  }
+
   async function hangup() {
-    await fetch(`/api/dm/channels/${channelId}/call`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "hangup" }),
-    })
+    const sigChannel = supabase.channel(`dm-call:${channelId}`)
+    await sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "hangup", from: clientId.current } })
+    supabase.removeChannel(sigChannel)
     pcRef.current?.close()
     onHangup()
   }
 
   return (
     <div className="absolute inset-0 z-40 flex flex-col items-center justify-center" style={{ background: "#1e1f22" }}>
+      <audio ref={remoteAudioRef} autoPlay playsInline />
       <div className="relative w-full max-w-2xl aspect-video rounded-xl overflow-hidden bg-black">
         <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-        <video
-          ref={localVideoRef}
-          autoPlay
-          playsInline
-          muted
-          className="absolute bottom-3 right-3 w-32 rounded-lg border-2 object-cover"
-          style={{ borderColor: "#5865f2" }}
-        />
+        <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-3 right-3 w-32 rounded-lg border-2 object-cover" style={{ borderColor: "#5865f2", transform: "scaleX(-1)" }} />
         {status === "connecting" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(0,0,0,0.6)" }}>
             <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
             <p className="text-white text-sm">Calling {displayName}…</p>
           </div>
         )}
+        {status === "failed" && (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)" }}>
+            <p className="text-white">Could not access camera/microphone.</p>
+          </div>
+        )}
       </div>
-      <button
-        onClick={hangup}
-        className="mt-6 w-14 h-14 rounded-full flex items-center justify-center transition-colors"
-        style={{ background: "#f23f43" }}
-        title="Hang up"
-      >
-        <X className="w-6 h-6 text-white" />
-      </button>
+      <div className="flex items-center gap-4 mt-6">
+        <button onClick={toggleMute} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: muted ? "#f23f43" : "#4e5058" }} title={muted ? "Unmute" : "Mute"}>
+          {muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
+        </button>
+        <button onClick={toggleVideo} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: videoOff ? "#f23f43" : "#4e5058" }} title={videoOff ? "Turn on camera" : "Turn off camera"}>
+          {videoOff ? <VideoOff className="w-5 h-5 text-white" /> : <Video className="w-5 h-5 text-white" />}
+        </button>
+        <button onClick={hangup} className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#f23f43" }} title="Hang up">
+          <PhoneOff className="w-5 h-5 text-white" />
+        </button>
+      </div>
     </div>
   )
 }

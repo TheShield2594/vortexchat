@@ -772,6 +772,108 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: 'mention' | 'reply' | 'friend_request' | 'server_invite' | 'system'
+          title: string
+          body: string | null
+          icon_url: string | null
+          server_id: string | null
+          channel_id: string | null
+          message_id: string | null
+          read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: 'mention' | 'reply' | 'friend_request' | 'server_invite' | 'system'
+          title: string
+          body?: string | null
+          icon_url?: string | null
+          server_id?: string | null
+          channel_id?: string | null
+          message_id?: string | null
+          read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: 'mention' | 'reply' | 'friend_request' | 'server_invite' | 'system'
+          title?: string
+          body?: string | null
+          icon_url?: string | null
+          server_id?: string | null
+          channel_id?: string | null
+          message_id?: string | null
+          read?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      server_emojis: {
+        Row: {
+          id: string
+          server_id: string
+          name: string
+          image_url: string
+          uploader_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          name: string
+          image_url: string
+          uploader_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          name?: string
+          image_url?: string
+          uploader_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      webhooks: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string
+          name: string
+          avatar_url: string | null
+          token: string
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id: string
+          name?: string
+          avatar_url?: string | null
+          token?: string
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string
+          name?: string
+          avatar_url?: string | null
+          token?: string
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -829,6 +931,9 @@ export type VoiceStateRow = Database['public']['Tables']['voice_states']['Row']
 export type FriendshipRow = Database['public']['Tables']['friendships']['Row']
 export type ServerBanRow = Database['public']['Tables']['server_bans']['Row']
 export type InviteRow = Database['public']['Tables']['invites']['Row']
+export type NotificationRow = Database['public']['Tables']['notifications']['Row']
+export type ServerEmojiRow = Database['public']['Tables']['server_emojis']['Row']
+export type WebhookRow = Database['public']['Tables']['webhooks']['Row']
 
 // Extended types with relations
 export interface MessageWithAuthor extends MessageRow {

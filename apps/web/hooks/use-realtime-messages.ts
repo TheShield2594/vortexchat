@@ -2,12 +2,14 @@
 
 import { useEffect } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import type { MessageWithAuthor, MessageRow } from "@/types/database"
+import type { MessageWithAuthor, MessageRow, ReactionRow } from "@/types/database"
 
 export function useRealtimeMessages(
   channelId: string,
   onInsert: (message: MessageWithAuthor) => void,
-  onUpdate: (message: MessageRow) => void
+  onUpdate: (message: MessageRow) => void,
+  onReactionInsert?: (reaction: ReactionRow) => void,
+  onReactionDelete?: (reaction: ReactionRow) => void
 ) {
   const supabase = createClientSupabaseClient()
 
@@ -42,6 +44,20 @@ export function useRealtimeMessages(
         },
         (payload) => {
           onUpdate(payload.new as MessageRow)
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "reactions" },
+        (payload) => {
+          if (onReactionInsert) onReactionInsert(payload.new as ReactionRow)
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "reactions" },
+        (payload) => {
+          if (onReactionDelete) onReactionDelete(payload.old as ReactionRow)
         }
       )
       .subscribe()
