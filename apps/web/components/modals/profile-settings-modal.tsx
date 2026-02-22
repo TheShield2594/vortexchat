@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Loader2, Upload, LogOut } from "lucide-react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -163,6 +163,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
             <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
               <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
                 My Account
+              </TabsTrigger>
+                <TabsTrigger value="security" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
+                Security
               </TabsTrigger>
               <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
                 Appearance
@@ -377,6 +380,10 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   </div>
                 </TabsContent>
 
+                <TabsContent value="security" className="mt-0">
+                  <TwoFactorSection supabase={supabase} toast={toast} />
+                </TabsContent>
+
                 <TabsContent value="appearance" className="mt-0">
                   <div className="text-white">Appearance settings coming soon.</div>
                 </TabsContent>
@@ -384,5 +391,157 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         </Tabs>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ─── 2FA / MFA Section ────────────────────────────────────────────────────────
+
+function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof import("@/lib/supabase/client").createClientSupabaseClient>; toast: ReturnType<typeof import("@/components/ui/use-toast").useToast>["toast"] }) {
+  const [factors, setFactors] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [enrolling, setEnrolling] = useState(false)
+  const [qrCode, setQrCode] = useState<string | null>(null)
+  const [secret, setSecret] = useState<string | null>(null)
+  const [factorId, setFactorId] = useState<string | null>(null)
+  const [verifyCode, setVerifyCode] = useState("")
+  const [verifying, setVerifying] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const loadFactors = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase.auth.mfa.listFactors()
+    setFactors(data?.totp ?? [])
+    setLoading(false)
+  }, [supabase])
+
+  useEffect(() => { loadFactors() }, [loadFactors])
+
+  async function handleEnroll() {
+    setEnrolling(true)
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", issuer: "VortexChat" })
+    if (error || !data) {
+      toast({ variant: "destructive", title: "Failed to start 2FA setup", description: error?.message })
+      setEnrolling(false)
+      return
+    }
+    setQrCode(data.totp.qr_code)
+    setSecret(data.totp.secret)
+    setFactorId(data.id)
+    setEnrolling(false)
+  }
+
+  async function handleVerify() {
+    if (!factorId || verifyCode.length !== 6) return
+    setVerifying(true)
+    const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId })
+    if (challengeError) {
+      toast({ variant: "destructive", title: "Challenge failed", description: challengeError.message })
+      setVerifying(false)
+      return
+    }
+    const { error: verifyError } = await supabase.auth.mfa.verify({ factorId, challengeId: challengeData.id, code: verifyCode })
+    if (verifyError) {
+      toast({ variant: "destructive", title: "Invalid code", description: "The code you entered is incorrect." })
+    } else {
+      toast({ title: "2FA enabled!", description: "Your account is now protected with two-factor authentication." })
+      setQrCode(null); setSecret(null); setFactorId(null); setVerifyCode("")
+      loadFactors()
+    }
+    setVerifying(false)
+  }
+
+  async function handleUnenroll(id: string) {
+    const { error } = await supabase.auth.mfa.unenroll({ factorId: id })
+    if (error) {
+      toast({ variant: "destructive", title: "Failed to disable 2FA", description: error.message })
+    } else {
+      toast({ title: "2FA disabled" })
+      loadFactors()
+    }
+  }
+
+  function copySecret() {
+    if (!secret) return
+    navigator.clipboard.writeText(secret)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const verified = factors.filter((f) => f.status === "verified")
+  const has2FA = verified.length > 0
+
+  if (loading) {
+    return <div className="flex justify-center py-8"><Loader2 className="animate-spin" style={{ color: "#949ba4" }} /></div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-base font-semibold text-white mb-1">Two-Factor Authentication</h3>
+        <p className="text-sm" style={{ color: "#949ba4" }}>
+          Add an extra layer of security to your account using an authenticator app (Google Authenticator, Authy, etc.).
+        </p>
+      </div>
+
+      {/* Current 2FA status */}
+      <div className="rounded-lg p-4 flex items-center gap-3" style={{ background: has2FA ? "rgba(35,165,90,0.1)" : "#2b2d31", border: `1px solid ${has2FA ? "#23a55a" : "#1e1f22"}` }}>
+        {has2FA
+          ? <ShieldCheck className="w-6 h-6 flex-shrink-0" style={{ color: "#23a55a" }} />
+          : <ShieldOff className="w-6 h-6 flex-shrink-0" style={{ color: "#4e5058" }} />}
+        <div className="flex-1">
+          <p className="text-sm font-medium text-white">{has2FA ? "2FA is enabled" : "2FA is not enabled"}</p>
+          <p className="text-xs" style={{ color: "#949ba4" }}>
+            {has2FA ? `${verified.length} authenticator app${verified.length > 1 ? "s" : ""} registered.` : "Your account is protected by password only."}
+          </p>
+        </div>
+        {has2FA
+          ? (
+            <button onClick={() => handleUnenroll(verified[0].id)} className="px-3 py-1.5 rounded text-sm transition-colors" style={{ background: "rgba(242,63,67,0.15)", color: "#f23f43", border: "1px solid rgba(242,63,67,0.3)" }}>
+              Remove
+            </button>
+          )
+          : !qrCode && (
+            <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 rounded text-sm font-semibold transition-colors" style={{ background: "#5865f2", color: "white" }}>
+              {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enable 2FA"}
+            </button>
+          )}
+      </div>
+
+      {/* QR code enrollment flow */}
+      {qrCode && (
+        <div className="rounded-lg p-4 space-y-4" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
+          <p className="text-sm font-medium text-white">Scan with your authenticator app</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qrCode} alt="2FA QR Code" className="w-40 h-40 rounded bg-white p-2 mx-auto" />
+          {secret && (
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs px-2 py-1.5 rounded break-all" style={{ background: "#1e1f22", color: "#949ba4", fontFamily: "monospace" }}>{secret}</code>
+              <button onClick={copySecret} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded" style={{ background: "#383a40", color: "#b5bac1" }} title="Copy secret">
+                {copied ? <Check className="w-4 h-4" style={{ color: "#23a55a" }} /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+          )}
+          <div className="space-y-2">
+            <p className="text-sm" style={{ color: "#b5bac1" }}>Enter the 6-digit code from your app to confirm:</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={verifyCode}
+                onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                className="w-32 px-3 py-2 rounded text-center text-lg tracking-widest focus:outline-none"
+                style={{ background: "#1e1f22", color: "#f2f3f5", border: "1px solid #3f4147", fontFamily: "monospace" }}
+              />
+              <button onClick={handleVerify} disabled={verifyCode.length !== 6 || verifying} className="px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50" style={{ background: "#5865f2", color: "white" }}>
+                {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify"}
+              </button>
+              <button onClick={() => { setQrCode(null); setSecret(null); setFactorId(null) }} className="px-3 py-2 rounded text-sm" style={{ color: "#949ba4" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

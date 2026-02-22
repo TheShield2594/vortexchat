@@ -9,6 +9,8 @@ import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, C
 import { useToast } from "@/components/ui/use-toast"
 import type { MessageWithAuthor, AttachmentRow } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
+import { LinkEmbed, extractFirstUrl } from "@/components/chat/link-embed"
+import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 
@@ -68,64 +70,101 @@ export function MessageItem({
     setIsEditing(false)
   }
 
-  function renderContent(content: string): React.ReactNode {
-    const pattern = /(https?:\/\/[^\s]+|\*\*(.*?)\*\*|\*(.*?)\*|~~(.*?)~~|`(.*?)`|<@(\w+)>)/g
+  function renderInline(text: string, keyOffset: number): React.ReactNode[] {
+    // bold, italic, underline, strikethrough, inline-code, URL, mention, spoiler, :server_emoji:
+    const pattern = /(https?:\/\/[^\s>]+|\*\*([\s\S]*?)\*\*|\*([\s\S]*?)\*|__([\s\S]*?)__|~~([\s\S]*?)~~|`([^`\n]+)`|<@(\w+)>|\|\|([\s\S]*?)\|\||:([a-z0-9_]+):)/g
     const parts: React.ReactNode[] = []
     let lastIndex = 0
-    let match
-    let key = 0
+    let match: RegExpExecArray | null
+    let key = keyOffset
 
-    while ((match = pattern.exec(content)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(content.slice(lastIndex, match.index))
-      }
-
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index))
       const full = match[0]
       if (/^https?:\/\//.test(full)) {
-        parts.push(
-          <a
-            key={key++}
-            href={full}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline"
-            style={{ color: "#00a8fc" }}
-          >
-            {full}
-          </a>
-        )
+        parts.push(<a key={key++} href={full} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "#00a8fc" }}>{full}</a>)
       } else if (match[2] !== undefined) {
         parts.push(<strong key={key++}>{match[2]}</strong>)
       } else if (match[3] !== undefined) {
         parts.push(<em key={key++}>{match[3]}</em>)
       } else if (match[4] !== undefined) {
-        parts.push(<s key={key++}>{match[4]}</s>)
+        parts.push(<u key={key++}>{match[4]}</u>)
       } else if (match[5] !== undefined) {
-        parts.push(
-          <code key={key++} className="px-1 py-0.5 rounded text-sm" style={{ background: "rgba(0,0,0,0.3)" }}>
-            {match[5]}
-          </code>
-        )
+        parts.push(<s key={key++}>{match[5]}</s>)
       } else if (match[6] !== undefined) {
-        parts.push(
-          <span
-            key={key++}
-            className="px-0.5 rounded"
-            style={{ color: "#5865f2", background: "rgba(88,101,242,0.1)" }}
-          >
-            @{match[6]}
-          </span>
-        )
+        parts.push(<code key={key++} className="px-1 py-0.5 rounded text-sm" style={{ background: "rgba(0,0,0,0.3)", fontFamily: "monospace" }}>{match[6]}</code>)
+      } else if (match[7] !== undefined) {
+        parts.push(<span key={key++} className="px-0.5 rounded" style={{ color: "#5865f2", background: "rgba(88,101,242,0.1)" }}>@{match[7]}</span>)
+      } else if (match[8] !== undefined) {
+        parts.push(<SpoilerSpan key={key++}>{match[8]}</SpoilerSpan>)
+      } else if (match[9] !== undefined) {
+        parts.push(<ServerEmojiImage key={key++} name={match[9]} />)
       }
-
       lastIndex = match.index + full.length
     }
-
-    if (lastIndex < content.length) {
-      parts.push(content.slice(lastIndex))
-    }
-
+    if (lastIndex < text.length) parts.push(text.slice(lastIndex))
     return parts
+  }
+
+  function renderTextBlock(text: string, keyOffset: number): React.ReactNode[] {
+    const lines = text.split("\n")
+    const result: React.ReactNode[] = []
+    let key = keyOffset
+    let i = 0
+    while (i < lines.length) {
+      const line = lines[i]
+      if (/^>\s?/.test(line)) {
+        const quoteLines: string[] = []
+        while (i < lines.length && /^>\s?/.test(lines[i])) {
+          quoteLines.push(lines[i].replace(/^>\s?/, ""))
+          i++
+        }
+        result.push(
+          <blockquote key={`bq-${key++}`} className="pl-3 my-1" style={{ borderLeft: "4px solid #4e5058", color: "#b5bac1" }}>
+            {quoteLines.map((ql, qi) => <div key={qi}>{renderInline(ql, key + qi * 100)}</div>)}
+          </blockquote>
+        )
+      } else {
+        const inlined = renderInline(line, key)
+        key += 100
+        if (i < lines.length - 1) {
+          result.push(<span key={`ln-${key++}`}>{inlined}<br /></span>)
+        } else {
+          result.push(<span key={`ln-${key++}`}>{inlined}</span>)
+        }
+        i++
+      }
+    }
+    return result
+  }
+
+  function renderContent(content: string): React.ReactNode {
+    const segments: React.ReactNode[] = []
+    let keyCounter = 0
+    let lastEnd = 0
+    // Split out fenced code blocks first
+    const codeBlockRe = /```(\w*)\n?([\s\S]*?)```/g
+    let cbMatch: RegExpExecArray | null
+    while ((cbMatch = codeBlockRe.exec(content)) !== null) {
+      const before = content.slice(lastEnd, cbMatch.index)
+      if (before) {
+        for (const node of renderTextBlock(before, keyCounter)) { segments.push(node); keyCounter++ }
+      }
+      const lang = cbMatch[1] || ""
+      const code = cbMatch[2].trimEnd()
+      segments.push(
+        <pre key={`cb-${keyCounter++}`} className="my-1 p-3 rounded overflow-x-auto text-sm" style={{ background: "#1e1f22", fontFamily: "monospace", color: "#dcddde", border: "1px solid #232428" }}>
+          {lang && <div className="text-xs mb-1" style={{ color: "#5865f2", fontFamily: "sans-serif" }}>{lang}</div>}
+          <code>{code}</code>
+        </pre>
+      )
+      lastEnd = cbMatch.index + cbMatch[0].length
+    }
+    const remaining = content.slice(lastEnd)
+    if (remaining) {
+      for (const node of renderTextBlock(remaining, keyCounter)) { segments.push(node); keyCounter++ }
+    }
+    return segments
   }
 
   return (
@@ -255,6 +294,12 @@ export function MessageItem({
                       {renderContent(message.content)}
                     </p>
                   )}
+
+                  {/* Link embed — shown for messages with a URL and no image attachments */}
+                  {message.content && message.attachments?.length === 0 && (() => {
+                    const url = extractFirstUrl(message.content)
+                    return url ? <LinkEmbed url={url} /> : null
+                  })()}
 
                   {/* Attachments */}
                   {message.attachments?.length > 0 && (
@@ -434,5 +479,23 @@ function AttachmentDisplay({ attachment }: { attachment: AttachmentRow }) {
         </div>
       </div>
     </a>
+  )
+}
+
+function SpoilerSpan({ children }: { children: React.ReactNode }) {
+  const [revealed, setRevealed] = useState(false)
+  return (
+    <span
+      onClick={() => setRevealed(true)}
+      className="rounded px-0.5 cursor-pointer select-none"
+      style={{
+        background: revealed ? "rgba(255,255,255,0.1)" : "#2b2d31",
+        color: revealed ? "#dcddde" : "transparent",
+        transition: "color 0.1s",
+      }}
+      title={revealed ? undefined : "Click to reveal spoiler"}
+    >
+      {children}
+    </span>
   )
 }
