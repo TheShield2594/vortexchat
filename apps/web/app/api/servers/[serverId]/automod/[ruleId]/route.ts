@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string; ruleId: string }> }
 
@@ -67,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     action: "automod_rule_updated",
     target_id: ruleId,
     target_type: "automod_rule",
-    changes: updates,
+    changes: updates as unknown as Json,
   })
 
   return NextResponse.json(updated)

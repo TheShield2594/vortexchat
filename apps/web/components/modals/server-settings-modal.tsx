@@ -856,7 +856,7 @@ function formToPayload(f: AutoModRuleForm) {
 
 function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
   const cfg = rule.config as any
-  const actions = rule.actions as AutoModAction[]
+  const actions = rule.actions as unknown as AutoModAction[]
   return {
     name: rule.name,
     trigger_type: rule.trigger_type,

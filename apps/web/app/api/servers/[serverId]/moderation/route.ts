@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -69,7 +70,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     action: "moderation_settings_updated",
     target_id: serverId,
     target_type: "server",
-    changes: updates,
+    changes: updates as unknown as Json,
   })
 
   return NextResponse.json({ message: "Moderation settings updated" })
