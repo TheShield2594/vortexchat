@@ -246,6 +246,7 @@ export type Database = {
           edited_at: string | null
           deleted_at: string | null
           reply_to_id: string | null
+          thread_id: string | null
           mentions: string[]
           mention_everyone: boolean
           pinned: boolean
@@ -261,6 +262,7 @@ export type Database = {
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
+          thread_id?: string | null
           mentions?: string[]
           mention_everyone?: boolean
           pinned?: boolean
@@ -276,6 +278,7 @@ export type Database = {
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
+          thread_id?: string | null
           mentions?: string[]
           mention_everyone?: boolean
           pinned?: boolean
@@ -874,6 +877,105 @@ export type Database = {
         }
         Relationships: []
       }
+      threads: {
+        Row: {
+          id: string
+          parent_channel_id: string
+          starter_message_id: string | null
+          owner_id: string
+          name: string
+          archived: boolean
+          locked: boolean
+          auto_archive_duration: number
+          archived_at: string | null
+          message_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          parent_channel_id: string
+          starter_message_id?: string | null
+          owner_id: string
+          name: string
+          archived?: boolean
+          locked?: boolean
+          auto_archive_duration?: number
+          archived_at?: string | null
+          message_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          parent_channel_id?: string
+          starter_message_id?: string | null
+          owner_id?: string
+          name?: string
+          archived?: boolean
+          locked?: boolean
+          auto_archive_duration?: number
+          archived_at?: string | null
+          message_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threads_parent_channel_id_fkey"
+            columns: ["parent_channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "threads_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      thread_members: {
+        Row: {
+          thread_id: string
+          user_id: string
+          joined_at: string
+        }
+        Insert: {
+          thread_id: string
+          user_id: string
+          joined_at?: string
+        }
+        Update: {
+          thread_id?: string
+          user_id?: string
+          joined_at?: string
+        }
+        Relationships: []
+      }
+      thread_read_states: {
+        Row: {
+          user_id: string
+          thread_id: string
+          last_read_at: string
+          mention_count: number
+        }
+        Insert: {
+          user_id: string
+          thread_id: string
+          last_read_at?: string
+          mention_count?: number
+        }
+        Update: {
+          user_id?: string
+          thread_id?: string
+          last_read_at?: string
+          mention_count?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -903,9 +1005,17 @@ export type Database = {
         Args: { p_dm_channel_id: string }
         Returns: void
       }
+      mark_thread_read: {
+        Args: { p_thread_id: string }
+        Returns: void
+      }
       join_server_by_invite: {
         Args: { p_invite_code: string }
         Returns: Database['public']['Tables']['servers']['Row']
+      }
+      create_thread_from_message: {
+        Args: { p_message_id: string; p_name: string }
+        Returns: Database['public']['Tables']['threads']['Row']
       }
     }
     Enums: {
@@ -934,6 +1044,9 @@ export type InviteRow = Database['public']['Tables']['invites']['Row']
 export type NotificationRow = Database['public']['Tables']['notifications']['Row']
 export type ServerEmojiRow = Database['public']['Tables']['server_emojis']['Row']
 export type WebhookRow = Database['public']['Tables']['webhooks']['Row']
+export type ThreadRow = Database['public']['Tables']['threads']['Row']
+export type ThreadMemberRow = Database['public']['Tables']['thread_members']['Row']
+export type ThreadReadStateRow = Database['public']['Tables']['thread_read_states']['Row']
 
 // Extended types with relations
 export interface MessageWithAuthor extends MessageRow {
@@ -955,4 +1068,14 @@ export interface MemberWithRoles extends ServerMemberRow {
 
 export interface FriendWithUser extends FriendshipRow {
   friend: UserRow
+}
+
+export interface ThreadWithDetails extends ThreadRow {
+  owner: UserRow
+  starter_message: MessageWithAuthor | null
+  members: ThreadMemberRow[]
+}
+
+export interface MessageWithThread extends MessageWithAuthor {
+  thread: ThreadRow | null
 }
