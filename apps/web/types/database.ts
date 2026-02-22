@@ -219,18 +219,21 @@ export type Database = {
           user_id: string
           nickname: string | null
           joined_at: string
+          timeout_until: string | null
         }
         Insert: {
           server_id: string
           user_id: string
           nickname?: string | null
           joined_at?: string
+          timeout_until?: string | null
         }
         Update: {
           server_id?: string
           user_id?: string
           nickname?: string | null
           joined_at?: string
+          timeout_until?: string | null
         }
         Relationships: [
           {
@@ -1153,6 +1156,16 @@ export type Database = {
       create_thread_from_message: {
         Args: { p_message_id: string; p_name: string }
         Returns: Database['public']['Tables']['threads']['Row']
+      }
+      set_member_timeout: {
+        Args: {
+          p_server_id: string
+          p_member_id: string
+          p_timeout_until: string | null
+          p_moderator_id?: string | null
+          p_reason?: string | null
+        }
+        Returns: void
       }
     }
     Enums: {
