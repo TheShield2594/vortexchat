@@ -549,6 +549,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   const remoteAudioRef = useRef<HTMLAudioElement>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
+  const sigChannelRef = useRef<any>(null)
   const clientId = useRef(crypto.randomUUID())
   const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting")
   const [failReason, setFailReason] = useState("")
@@ -583,6 +584,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
     }
 
     const sigChannel = supabase.channel(`dm-call:${channelId}`)
+    sigChannelRef.current = sigChannel
 
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
@@ -592,17 +594,22 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
 
     sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: any) => {
       if (payload.from === clientId.current) return
-      if (payload.type === "offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.offer ?? payload.payload))
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-        sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
-      } else if (payload.type === "answer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.answer ?? payload.payload))
-      } else if (payload.type === "ice-candidate") {
-        await pc.addIceCandidate(new RTCIceCandidate(payload.candidate ?? payload.payload))
-      } else if (payload.type === "hangup") {
-        onHangup()
+      try {
+        if (payload.type === "offer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.offer ?? payload.payload))
+          const answer = await pc.createAnswer()
+          await pc.setLocalDescription(answer)
+          sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
+        } else if (payload.type === "answer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.answer ?? payload.payload))
+        } else if (payload.type === "ice-candidate") {
+          await pc.addIceCandidate(new RTCIceCandidate(payload.candidate ?? payload.payload))
+        } else if (payload.type === "hangup") {
+          onHangup()
+        }
+      } catch (err) {
+        console.error("WebRTC signal handling failed:", err)
+        setStatus("failed")
       }
     })
 
@@ -640,6 +647,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
       localStreamRef.current?.getTracks().forEach((t) => t.stop())
       pc.close()
       supabase.removeChannel(sigChannel)
+      sigChannelRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, currentUserId, withVideo])
@@ -655,9 +663,11 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   }
 
   async function hangup() {
-    const sigChannel = supabase.channel(`dm-call:${channelId}`)
-    await sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "hangup", from: clientId.current } })
-    supabase.removeChannel(sigChannel)
+    if (sigChannelRef.current) {
+      await sigChannelRef.current.send({ type: "broadcast", event: "call-signal", payload: { type: "hangup", from: clientId.current } })
+      supabase.removeChannel(sigChannelRef.current)
+      sigChannelRef.current = null
+    }
     pcRef.current?.close()
     onHangup()
   }

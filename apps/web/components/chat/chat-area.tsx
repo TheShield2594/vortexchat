@@ -24,7 +24,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
-
   const { toast } = useToast()
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
@@ -98,18 +97,24 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
         const { error } = await supabase.storage
           .from("attachments")
           .upload(path, file)
-        if (!error) {
-          const { data: signed } = await supabase.storage
-            .from("attachments")
-            .createSignedUrl(path, 3600 * 24 * 7)
-          if (signed) {
-            attachments.push({
-              url: signed.signedUrl,
-              filename: file.name,
-              size: file.size,
-              content_type: file.type,
-            })
-          }
+        if (error) {
+          toast({
+            variant: "destructive",
+            title: "Upload failed",
+            description: `Failed to upload ${file.name}: ${error.message}`,
+          })
+          continue
+        }
+        const { data: signed } = await supabase.storage
+          .from("attachments")
+          .createSignedUrl(path, 3600 * 24 * 7)
+        if (signed) {
+          attachments.push({
+            url: signed.signedUrl,
+            filename: file.name,
+            size: file.size,
+            content_type: file.type,
+          })
         }
       }
     }
@@ -126,6 +131,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
       .single()
 
     if (error) {
+      console.error("Failed to send message:", error)
       toast({
         variant: "destructive",
         title: "Failed to send message",
