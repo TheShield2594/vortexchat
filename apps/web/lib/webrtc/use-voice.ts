@@ -17,11 +17,14 @@ interface UseVoiceReturn {
   deafened: boolean
   speaking: boolean
   screenSharing: boolean
+  videoEnabled: boolean
   localStream: React.RefObject<MediaStream | null>
   screenStream: React.RefObject<MediaStream | null>
+  cameraStream: React.RefObject<MediaStream | null>
   toggleMute: () => void
   toggleDeafen: () => void
   toggleScreenShare: () => Promise<void>
+  toggleVideo: () => Promise<void>
   leaveChannel: () => void
 }
 
@@ -31,9 +34,11 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
   const [deafened, setDeafened] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [screenSharing, setScreenSharing] = useState(false)
+  const [videoEnabled, setVideoEnabled] = useState(false)
 
   const localStream = useRef<MediaStream | null>(null)
   const screenStream = useRef<MediaStream | null>(null)
+  const cameraStream = useRef<MediaStream | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
   const harkRef = useRef<{ stop: () => void } | null>(null)
@@ -369,10 +374,44 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     }
   }, [screenSharing])
 
+  const toggleVideo = useCallback(async () => {
+    if (videoEnabled) {
+      cameraStream.current?.getTracks().forEach((t) => t.stop())
+      cameraStream.current = null
+      setVideoEnabled(false)
+      peerConnections.current.forEach((pc) => {
+        pc.getSenders().filter((s) => s.track?.kind === "video" && !screenSharing)
+          .forEach((s) => { try { pc.removeTrack(s) } catch {} })
+      })
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        })
+        cameraStream.current = stream
+        setVideoEnabled(true)
+        peerConnections.current.forEach((pc) => {
+          const [videoTrack] = stream.getVideoTracks()
+          const sender = pc.getSenders().find((s) => s.track?.kind === "video")
+          if (sender) sender.replaceTrack(videoTrack)
+          else pc.addTrack(videoTrack, stream)
+        })
+        stream.getVideoTracks()[0].onended = () => {
+          cameraStream.current = null
+          setVideoEnabled(false)
+        }
+      } catch (e) {
+        console.log("Camera access failed:", e)
+      }
+    }
+  }, [videoEnabled, screenSharing])
+
   const leaveChannel = useCallback(() => {
     harkRef.current?.stop()
     localStream.current?.getTracks().forEach((t) => t.stop())
     screenStream.current?.getTracks().forEach((t) => t.stop())
+    cameraStream.current?.getTracks().forEach((t) => t.stop())
     if (channelRef.current) {
       supabaseRef.current.removeChannel(channelRef.current)
       channelRef.current = null
@@ -388,11 +427,14 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     deafened,
     speaking,
     screenSharing,
+    videoEnabled,
     localStream,
     screenStream,
+    cameraStream,
     toggleMute,
     toggleDeafen,
     toggleScreenShare,
+    toggleVideo,
     leaveChannel,
   }
 }

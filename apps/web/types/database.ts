@@ -62,6 +62,8 @@ export type Database = {
           owner_id: string
           invite_code: string
           description: string | null
+          is_public: boolean
+          member_count: number
           created_at: string
         }
         Insert: {
@@ -71,6 +73,8 @@ export type Database = {
           owner_id: string
           invite_code?: string
           description?: string | null
+          is_public?: boolean
+          member_count?: number
           created_at?: string
         }
         Update: {
@@ -80,6 +84,8 @@ export type Database = {
           owner_id?: string
           invite_code?: string
           description?: string | null
+          is_public?: boolean
+          member_count?: number
           created_at?: string
         }
         Relationships: []
@@ -103,7 +109,22 @@ export type Database = {
           nickname?: string | null
           joined_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "server_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "server_members_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       roles: {
         Row: {
@@ -160,7 +181,22 @@ export type Database = {
           user_id?: string
           role_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "member_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_roles_server_id_user_id_fkey"
+            columns: ["server_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "server_members"
+            referencedColumns: ["server_id", "user_id"]
+          }
+        ]
       }
       channels: {
         Row: {
@@ -210,6 +246,11 @@ export type Database = {
           edited_at: string | null
           deleted_at: string | null
           reply_to_id: string | null
+          mentions: string[]
+          mention_everyone: boolean
+          pinned: boolean
+          pinned_at: string | null
+          pinned_by: string | null
           created_at: string
         }
         Insert: {
@@ -220,6 +261,11 @@ export type Database = {
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
+          mentions?: string[]
+          mention_everyone?: boolean
+          pinned?: boolean
+          pinned_at?: string | null
+          pinned_by?: string | null
           created_at?: string
         }
         Update: {
@@ -230,9 +276,22 @@ export type Database = {
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
+          mentions?: string[]
+          mention_everyone?: boolean
+          pinned?: boolean
+          pinned_at?: string | null
+          pinned_by?: string | null
           created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       attachments: {
         Row: {
@@ -268,7 +327,15 @@ export type Database = {
           height?: number | null
           created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       reactions: {
         Row: {
@@ -289,13 +356,22 @@ export type Database = {
           emoji?: string
           created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       direct_messages: {
         Row: {
           id: string
           sender_id: string
-          receiver_id: string
+          receiver_id: string | null
+          dm_channel_id: string | null
           content: string | null
           created_at: string
           read_at: string | null
@@ -305,7 +381,8 @@ export type Database = {
         Insert: {
           id?: string
           sender_id: string
-          receiver_id: string
+          receiver_id?: string | null
+          dm_channel_id?: string | null
           content?: string | null
           created_at?: string
           read_at?: string | null
@@ -315,12 +392,138 @@ export type Database = {
         Update: {
           id?: string
           sender_id?: string
-          receiver_id?: string
+          receiver_id?: string | null
+          dm_channel_id?: string | null
           content?: string | null
           created_at?: string
           read_at?: string | null
           edited_at?: string | null
           deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      server_bans: {
+        Row: {
+          server_id: string
+          user_id: string
+          banned_by: string | null
+          reason: string | null
+          banned_at: string
+        }
+        Insert: {
+          server_id: string
+          user_id: string
+          banned_by?: string | null
+          reason?: string | null
+          banned_at?: string
+        }
+        Update: {
+          server_id?: string
+          user_id?: string
+          banned_by?: string | null
+          reason?: string | null
+          banned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "server_bans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "server_bans_banned_by_fkey"
+            columns: ["banned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      invites: {
+        Row: {
+          code: string
+          server_id: string
+          channel_id: string | null
+          created_by: string | null
+          max_uses: number | null
+          uses: number
+          expires_at: string | null
+          temporary: boolean
+          created_at: string
+        }
+        Insert: {
+          code: string
+          server_id: string
+          channel_id?: string | null
+          created_by?: string | null
+          max_uses?: number | null
+          uses?: number
+          expires_at?: string | null
+          temporary?: boolean
+          created_at?: string
+        }
+        Update: {
+          code?: string
+          server_id?: string
+          channel_id?: string | null
+          created_by?: string | null
+          max_uses?: number | null
+          uses?: number
+          expires_at?: string | null
+          temporary?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invites_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      friendships: {
+        Row: {
+          id: string
+          requester_id: string
+          addressee_id: string
+          status: 'pending' | 'accepted' | 'blocked'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          requester_id: string
+          addressee_id: string
+          status?: 'pending' | 'accepted' | 'blocked'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          requester_id?: string
+          addressee_id?: string
+          status?: 'pending' | 'accepted' | 'blocked'
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -357,6 +560,218 @@ export type Database = {
         }
         Relationships: []
       }
+      read_states: {
+        Row: {
+          user_id: string
+          channel_id: string
+          last_read_at: string
+          mention_count: number
+        }
+        Insert: {
+          user_id: string
+          channel_id: string
+          last_read_at?: string
+          mention_count?: number
+        }
+        Update: {
+          user_id?: string
+          channel_id?: string
+          last_read_at?: string
+          mention_count?: number
+        }
+        Relationships: []
+      }
+      channel_permissions: {
+        Row: {
+          channel_id: string
+          role_id: string
+          allow_permissions: number
+          deny_permissions: number
+        }
+        Insert: {
+          channel_id: string
+          role_id: string
+          allow_permissions?: number
+          deny_permissions?: number
+        }
+        Update: {
+          channel_id?: string
+          role_id?: string
+          allow_permissions?: number
+          deny_permissions?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      dm_channels: {
+        Row: {
+          id: string
+          name: string | null
+          icon_url: string | null
+          owner_id: string | null
+          is_group: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name?: string | null
+          icon_url?: string | null
+          owner_id?: string | null
+          is_group?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string | null
+          icon_url?: string | null
+          owner_id?: string | null
+          is_group?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dm_channel_members: {
+        Row: {
+          dm_channel_id: string
+          user_id: string
+          added_by: string | null
+          added_at: string
+        }
+        Insert: {
+          dm_channel_id: string
+          user_id: string
+          added_by?: string | null
+          added_at?: string
+        }
+        Update: {
+          dm_channel_id?: string
+          user_id?: string
+          added_by?: string | null
+          added_at?: string
+        }
+        Relationships: []
+      }
+      dm_read_states: {
+        Row: {
+          user_id: string
+          dm_channel_id: string
+          last_read_at: string
+        }
+        Insert: {
+          user_id: string
+          dm_channel_id: string
+          last_read_at?: string
+        }
+        Update: {
+          user_id?: string
+          dm_channel_id?: string
+          last_read_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          user_agent: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          user_agent?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          endpoint?: string
+          p256dh?: string
+          auth?: string
+          user_agent?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      notification_settings: {
+        Row: {
+          id: string
+          user_id: string
+          server_id: string | null
+          channel_id: string | null
+          mode: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          server_id?: string | null
+          channel_id?: string | null
+          mode?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          server_id?: string | null
+          channel_id?: string | null
+          mode?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          server_id: string
+          actor_id: string | null
+          action: string
+          target_id: string | null
+          target_type: string | null
+          changes: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          actor_id?: string | null
+          action: string
+          target_id?: string | null
+          target_type?: string | null
+          changes?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          actor_id?: string | null
+          action?: string
+          target_id?: string | null
+          target_type?: string | null
+          changes?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -377,6 +792,14 @@ export type Database = {
       has_permission: {
         Args: { p_server_id: string; p_permission: number; p_user_id?: string }
         Returns: boolean
+      }
+      mark_channel_read: {
+        Args: { p_channel_id: string }
+        Returns: void
+      }
+      mark_dm_read: {
+        Args: { p_dm_channel_id: string }
+        Returns: void
       }
       join_server_by_invite: {
         Args: { p_invite_code: string }
@@ -403,6 +826,9 @@ export type AttachmentRow = Database['public']['Tables']['attachments']['Row']
 export type ReactionRow = Database['public']['Tables']['reactions']['Row']
 export type DirectMessageRow = Database['public']['Tables']['direct_messages']['Row']
 export type VoiceStateRow = Database['public']['Tables']['voice_states']['Row']
+export type FriendshipRow = Database['public']['Tables']['friendships']['Row']
+export type ServerBanRow = Database['public']['Tables']['server_bans']['Row']
+export type InviteRow = Database['public']['Tables']['invites']['Row']
 
 // Extended types with relations
 export interface MessageWithAuthor extends MessageRow {
@@ -420,4 +846,8 @@ export interface ServerWithChannels extends ServerRow {
 export interface MemberWithRoles extends ServerMemberRow {
   user: UserRow
   roles: RoleRow[]
+}
+
+export interface FriendWithUser extends FriendshipRow {
+  friend: UserRow
 }

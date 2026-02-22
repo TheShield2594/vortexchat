@@ -13,11 +13,13 @@ interface Props {
   replyTo: MessageWithAuthor | null
   onCancelReply: () => void
   onSend: (content: string, files?: File[]) => Promise<void>
+  onTyping?: () => void
+  onSent?: () => void
 }
 
 const COMMON_EMOJIS = ["😀", "😂", "❤️", "👍", "👎", "🔥", "✅", "🎉", "🤔", "👀", "😭", "💯"]
 
-export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Props) {
+export function MessageInput({ channelName, replyTo, onCancelReply, onSend, onTyping, onSent }: Props) {
   const [content, setContent] = useState("")
   const [cursorPosition, setCursorPosition] = useState(0)
   const [files, setFiles] = useState<File[]>([])
@@ -50,6 +52,7 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
     setSending(true)
+    onSent?.()
     try {
       await onSend(content, files)
       setContent("")
@@ -124,6 +127,7 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend }: Pr
     const el = e.target
     el.style.height = "auto"
     el.style.height = Math.min(el.scrollHeight, 200) + "px"
+    if (e.target.value) onTyping?.()
   }
 
   function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>) {

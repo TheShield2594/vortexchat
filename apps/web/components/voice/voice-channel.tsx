@@ -1,8 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Volume2, Mic, MicOff, Headphones, PhoneOff, Monitor, MonitorOff } from "lucide-react"
+import {
+  Volume2, Mic, MicOff, Headphones, PhoneOff,
+  Monitor, MonitorOff, Video, VideoOff, Radio,
+} from "lucide-react"
 import { useVoice } from "@/lib/webrtc/use-voice"
+import { usePushToTalk } from "@/hooks/use-push-to-talk"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -20,6 +24,7 @@ interface Props {
 export function VoiceChannel({ channelId, channelName, serverId, currentUserId }: Props) {
   const { currentUser, setVoiceChannel } = useAppStore()
   const [voiceParticipants, setVoiceParticipants] = useState<UserRow[]>([])
+  const [pttEnabled, setPttEnabled] = useState(false)
   const supabase = createClientSupabaseClient()
 
   const {
@@ -28,16 +33,25 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     deafened,
     speaking,
     screenSharing,
+    videoEnabled,
     toggleMute,
     toggleDeafen,
     toggleScreenShare,
+    toggleVideo,
     leaveChannel,
     localStream,
     screenStream,
+    cameraStream,
   } = useVoice(channelId, currentUserId)
 
+  // Push-to-talk: temporarily unmutes while key is held (default: Space)
+  usePushToTalk(
+    pttEnabled,
+    () => { if (muted) toggleMute() },
+    () => { if (!muted) toggleMute() }
+  )
+
   useEffect(() => {
-    // Track voice state in Supabase
     async function joinVoiceState() {
       await supabase
         .from("voice_states")
@@ -63,7 +77,6 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     }
   }, [channelId, currentUserId, serverId])
 
-  // Sync mute/deafen state to DB
   useEffect(() => {
     supabase
       .from("voice_states")
@@ -73,7 +86,6 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
       .then()
   }, [muted, deafened, speaking, screenSharing])
 
-  // Fetch participants from voice_states
   useEffect(() => {
     async function fetchParticipants() {
       const { data } = await supabase
@@ -84,10 +96,12 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     }
     fetchParticipants()
 
-    // Subscribe to voice state changes
     const channel = supabase
       .channel(`voice:${channelId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "voice_states", filter: `channel_id=eq.${channelId}` }, fetchParticipants)
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "voice_states",
+        filter: `channel_id=eq.${channelId}`,
+      }, fetchParticipants)
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -99,6 +113,9 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   }
 
   const peerArray = peers ? Array.from(peers.entries()) : []
+  const hasVideo = videoEnabled || screenSharing || peerArray.some(
+    ([, { stream }]) => stream.getVideoTracks().length > 0
+  )
 
   return (
     <TooltipProvider>
@@ -116,19 +133,24 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         </div>
 
         {/* Participant grid */}
-        <div className="flex-1 flex items-center justify-center p-8">
+        <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
           {peerArray.length === 0 && !currentUser ? (
             <div className="text-center">
               <Volume2 className="w-16 h-16 mx-auto mb-4" style={{ color: "#4e5058" }} />
-              <p className="text-white text-lg font-semibold mb-1">
-                You're the only one here
-              </p>
+              <p className="text-white text-lg font-semibold mb-1">You&apos;re the only one here</p>
               <p style={{ color: "#949ba4" }} className="text-sm">
                 Invite others to join this voice channel
               </p>
             </div>
           ) : (
-            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", width: "100%" }}>
+            <div
+              className="grid gap-4 w-full"
+              style={{
+                gridTemplateColumns: hasVideo
+                  ? "repeat(auto-fill, minmax(320px, 1fr))"
+                  : "repeat(auto-fill, minmax(200px, 1fr))",
+              }}
+            >
               {/* Local user tile */}
               {currentUser && (
                 <ParticipantTile
@@ -136,9 +158,10 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                   speaking={speaking}
                   muted={muted}
                   deafened={deafened}
-                  stream={localStream.current ?? null}
-                  isLocal
+                  audioStream={localStream.current}
+                  cameraStream={videoEnabled ? cameraStream.current : null}
                   screenStream={screenSharing ? screenStream.current : null}
+                  isLocal
                 />
               )}
 
@@ -152,8 +175,11 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                     speaking={pSpeaking}
                     muted={pMuted}
                     deafened={false}
-                    stream={stream}
+                    audioStream={stream}
+                    cameraStream={null}
+                    screenStream={null}
                     isLocal={false}
+                    remoteStream={stream}
                   />
                 )
               })}
@@ -173,11 +199,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                 className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
                 style={{ background: muted ? "#f23f43" : "#4e5058" }}
               >
-                {muted ? (
-                  <MicOff className="w-5 h-5 text-white" />
-                ) : (
-                  <Mic className="w-5 h-5 text-white" />
-                )}
+                {muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
               </button>
             </TooltipTrigger>
             <TooltipContent>{muted ? "Unmute" : "Mute"}</TooltipContent>
@@ -199,15 +221,42 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
           <Tooltip>
             <TooltipTrigger asChild>
               <button
+                onClick={() => setPttEnabled((v) => !v)}
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+                style={{ background: pttEnabled ? "#5865f2" : "#4e5058" }}
+                title="Push-to-Talk (Space)"
+              >
+                <Radio className="w-5 h-5 text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{pttEnabled ? "Disable PTT" : "Enable Push-to-Talk (Space)"}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleVideo}
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+                style={{ background: videoEnabled ? "#23a55a" : "#4e5058" }}
+              >
+                {videoEnabled
+                  ? <Video className="w-5 h-5 text-white" />
+                  : <VideoOff className="w-5 h-5 text-white" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{videoEnabled ? "Turn Off Camera" : "Turn On Camera"}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
                 onClick={toggleScreenShare}
                 className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
                 style={{ background: screenSharing ? "#23a55a" : "#4e5058" }}
               >
-                {screenSharing ? (
-                  <MonitorOff className="w-5 h-5 text-white" />
-                ) : (
-                  <Monitor className="w-5 h-5 text-white" />
-                )}
+                {screenSharing
+                  ? <MonitorOff className="w-5 h-5 text-white" />
+                  : <Monitor className="w-5 h-5 text-white" />}
               </button>
             </TooltipTrigger>
             <TooltipContent>{screenSharing ? "Stop Sharing" : "Share Screen"}</TooltipContent>
@@ -227,9 +276,9 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
           </Tooltip>
         </div>
 
-        {/* Remote audio elements (hidden) */}
+        {/* Remote audio elements — always render so deafen works */}
         {peerArray.map(([peerId, { stream }]) => (
-          <RemoteAudio key={peerId} stream={stream} />
+          <RemoteAudio key={peerId} stream={stream} deafened={deafened} />
         ))}
       </div>
     </TooltipProvider>
@@ -241,89 +290,131 @@ function ParticipantTile({
   speaking,
   muted,
   deafened,
-  stream,
-  isLocal,
+  audioStream,
+  cameraStream,
   screenStream,
+  isLocal,
+  remoteStream,
 }: {
-  user?: any
+  user?: UserRow | null
   speaking: boolean
   muted: boolean
   deafened: boolean
-  stream: MediaStream | null
+  audioStream: MediaStream | null
+  cameraStream: MediaStream | null
+  screenStream: MediaStream | null
   isLocal: boolean
-  screenStream?: MediaStream | null
+  remoteStream?: MediaStream
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const cameraRef = useRef<HTMLVideoElement>(null)
   const screenRef = useRef<HTMLVideoElement>(null)
+  const remoteVideoRef = useRef<HTMLVideoElement>(null)
 
+  // Local camera
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream
+    if (cameraRef.current && cameraStream) {
+      cameraRef.current.srcObject = cameraStream
     }
-  }, [stream])
+  }, [cameraStream])
 
+  // Local screen share
   useEffect(() => {
     if (screenRef.current && screenStream) {
       screenRef.current.srcObject = screenStream
     }
   }, [screenStream])
 
+  // Remote video (camera or screen, whichever track is in stream)
+  const remoteHasVideo = remoteStream && remoteStream.getVideoTracks().length > 0
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream && remoteHasVideo) {
+      remoteVideoRef.current.srcObject = remoteStream
+    }
+  }, [remoteStream, remoteHasVideo])
+
   const displayName = user?.display_name || user?.username || (isLocal ? "You" : "Unknown")
   const initials = displayName.slice(0, 2).toUpperCase()
+
+  // Determine what to show: priority = screen > camera > remote video > avatar
+  const showScreen = isLocal && !!screenStream
+  const showCamera = isLocal && !!cameraStream && !showScreen
+  const showRemoteVideo = !isLocal && remoteHasVideo
 
   return (
     <div
       className={cn(
-        "rounded-lg p-4 flex flex-col items-center gap-3 relative",
-        speaking && !muted && "ring-2 ring-green-500"
+        "rounded-lg overflow-hidden flex flex-col relative",
+        speaking && !muted ? "ring-2 ring-green-500" : ""
       )}
-      style={{ background: "#1e1f22", minHeight: "160px" }}
+      style={{ background: "#1e1f22", minHeight: showScreen || showCamera || showRemoteVideo ? "240px" : "160px" }}
     >
-      {screenStream ? (
+      {/* Video area */}
+      {showScreen && (
         <video
           ref={screenRef}
           autoPlay
           playsInline
-          className="w-full rounded object-contain"
-          style={{ maxHeight: "200px" }}
+          muted
+          className="w-full flex-1 object-contain bg-black"
         />
-      ) : (
-        <>
-          <div className={cn("relative", speaking && !muted && "speaking-ring rounded-full")}>
-            <Avatar className="w-20 h-20">
-              {user?.avatar_url && <AvatarImage src={user.avatar_url} />}
-              <AvatarFallback
-                style={{ background: "#5865f2", color: "white", fontSize: "24px" }}
-              >
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </>
+      )}
+      {showCamera && (
+        <video
+          ref={cameraRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full flex-1 object-cover bg-black"
+          style={{ transform: "scaleX(-1)" /* mirror local camera */ }}
+        />
+      )}
+      {showRemoteVideo && (
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          muted /* audio comes from RemoteAudio element */
+          className="w-full flex-1 object-cover bg-black"
+        />
       )}
 
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-white">{displayName}</span>
-        {muted && <MicOff className="w-3 h-3" style={{ color: "#f23f43" }} />}
-        {deafened && <Headphones className="w-3 h-3" style={{ color: "#f23f43" }} />}
+      {/* Avatar (shown when no video) */}
+      {!showScreen && !showCamera && !showRemoteVideo && (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Avatar className="w-20 h-20">
+            {user?.avatar_url && <AvatarImage src={user.avatar_url} />}
+            <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "24px" }}>
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+      )}
+
+      {/* Name bar — always at bottom */}
+      <div
+        className="flex items-center gap-2 px-3 py-2"
+        style={{ background: "rgba(0,0,0,0.5)" }}
+      >
+        <span className="text-sm font-medium text-white flex-1 truncate">{displayName}</span>
         {isLocal && (
-          <span className="text-xs px-1 rounded" style={{ background: "#5865f2", color: "white" }}>
-            You
-          </span>
+          <span className="text-xs px-1 rounded" style={{ background: "#5865f2", color: "white" }}>You</span>
         )}
+        {muted && <MicOff className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />}
+        {deafened && <Headphones className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />}
       </div>
     </div>
   )
 }
 
-function RemoteAudio({ stream }: { stream: MediaStream }) {
+function RemoteAudio({ stream, deafened }: { stream: MediaStream; deafened: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
-    if (audioRef.current && stream) {
+    if (audioRef.current) {
       audioRef.current.srcObject = stream
+      audioRef.current.muted = deafened
     }
-  }, [stream])
+  }, [stream, deafened])
 
   return <audio ref={audioRef} autoPlay playsInline />
 }

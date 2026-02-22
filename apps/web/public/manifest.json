@@ -1,0 +1,33 @@
+{
+  "name": "VortexChat",
+  "short_name": "Vortex",
+  "description": "A Discord-style chat platform — chat, hang out, belong.",
+  "start_url": "/channels/@me",
+  "display": "standalone",
+  "background_color": "#313338",
+  "theme_color": "#5865f2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication"],
+  "shortcuts": [
+    {
+      "name": "Friends",
+      "short_name": "Friends",
+      "url": "/channels/@me",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

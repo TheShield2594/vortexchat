@@ -2,6 +2,8 @@
 
 import { useEffect } from "react"
 import { useAppStore } from "@/lib/stores/app-store"
+import { usePresenceSync } from "@/hooks/use-presence-sync"
+import { usePushNotifications } from "@/hooks/use-push-notifications"
 import type { UserRow, ServerRow } from "@/types/database"
 
 interface AppProviderProps {
@@ -17,6 +19,12 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     setCurrentUser(user)
     setServers(servers)
   }, [user, servers, setCurrentUser, setServers])
+
+  // Auto-sync presence: marks user online on mount, offline on tab close
+  usePresenceSync(user?.id ?? null, user?.status ?? "online")
+
+  // Register service worker + push notifications if previously granted
+  usePushNotifications()
 
   return <>{children}</>
 }
