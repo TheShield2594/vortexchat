@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
 import { sendPushToChannel } from "@/lib/push"
+import {
+  evaluateAllRules,
+  shouldBlockMessage,
+  getTimeoutDuration,
+  getAlertChannels,
+} from "@/lib/automod"
+import { SYSTEM_BOT_ID } from "@/lib/server-auth"
+import type { AutoModRuleWithParsed } from "@/types/database"
 
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -85,7 +93,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
   }
 
-  // --- Fetch channel for slowmode check ---
+  // --- Fetch channel for slowmode check and server context ---
   const { data: channel } = await supabase
     .from("channels")
     .select("slowmode_delay, server_id")
@@ -93,6 +101,49 @@ export async function POST(request: Request) {
     .single()
 
   if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  const serverId: string | null = channel.server_id ?? null
+
+  // --- Run server lookup, member screening, and timeout queries concurrently ---
+  if (serverId) {
+    const [serverResult, screeningResult, timeoutResult] = await Promise.all([
+      supabase.from("servers").select("screening_enabled").eq("id", serverId).single(),
+      supabase
+        .from("member_screening")
+        .select("accepted_at")
+        .eq("server_id", serverId)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("member_timeouts")
+        .select("timed_out_until")
+        .eq("server_id", serverId)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ])
+
+    const server = serverResult.data
+    const screeningPassed = screeningResult.data
+    const timeout = timeoutResult.data
+
+    if (server?.screening_enabled && !screeningPassed) {
+      return NextResponse.json(
+        { error: "You must accept the server rules before sending messages.", code: "SCREENING_REQUIRED" },
+        { status: 403 }
+      )
+    }
+
+    if (timeout && new Date(timeout.timed_out_until) > new Date()) {
+      return NextResponse.json(
+        {
+          error: `You are timed out until ${new Date(timeout.timed_out_until).toISOString()}.`,
+          code: "TIMED_OUT",
+          until: timeout.timed_out_until,
+        },
+        { status: 403 }
+      )
+    }
+  }
 
   // --- Slowmode: check time since last message from this user in this channel ---
   if (channel.slowmode_delay > 0) {
@@ -115,6 +166,125 @@ export async function POST(request: Request) {
           { error: `Slowmode: wait ${retryAfter}s before sending again.` },
           { status: 429, headers: { "Retry-After": String(retryAfter) } }
         )
+      }
+    }
+  }
+
+  // --- AutoMod evaluation (only for server channels) ---
+  if (serverId && content?.trim()) {
+    const { data: rawRules } = await supabase
+      .from("automod_rules")
+      .select("id, name, trigger_type, config, actions, enabled")
+      .eq("server_id", serverId)
+      .eq("enabled", true)
+
+    if (rawRules?.length) {
+      // Validate and normalize each rule before evaluation to avoid crashes on
+      // malformed JSONB config/actions stored in the database.
+      const rules: AutoModRuleWithParsed[] = rawRules.reduce<AutoModRuleWithParsed[]>((acc, r) => {
+        if (!r || typeof r !== "object") return acc
+        const config =
+          r.config && typeof r.config === "object" && !Array.isArray(r.config) ? r.config : {}
+        const actions = Array.isArray(r.actions)
+          ? r.actions.filter((a: any) => a && typeof a === "object" && typeof a.type === "string")
+          : []
+        acc.push({ ...r, config, actions } as unknown as AutoModRuleWithParsed)
+        return acc
+      }, [])
+
+      const violations = evaluateAllRules(rules, content.trim(), mentions)
+
+      if (violations.length > 0) {
+        // Determine whether the message will be blocked before writing the audit
+        // log so the action name accurately reflects what happened.
+        const blocked = shouldBlockMessage(violations)
+
+        await supabase.from("audit_logs").insert({
+          server_id: serverId,
+          actor_id: user.id,
+          action: blocked ? "automod_block" : "automod_action",
+          target_id: user.id,
+          target_type: "user",
+          changes: {
+            channel_id: channelId,
+            blocked,
+            violations: violations.map((v) => ({ rule_id: v.rule_id, rule_name: v.rule_name, reason: v.reason })),
+          },
+        })
+
+        // Apply timeout if any rule demands it
+        const timeoutDuration = getTimeoutDuration(violations)
+        if (timeoutDuration) {
+          const until = new Date(Date.now() + timeoutDuration * 1000).toISOString()
+          await supabase.from("member_timeouts").upsert(
+            {
+              server_id: serverId,
+              user_id: user.id,
+              timed_out_until: until,
+              moderator_id: null,
+              reason: `AutoMod: ${violations[0].reason}`,
+              created_at: new Date().toISOString(),
+            },
+            { onConflict: "server_id,user_id" }
+          )
+
+          await supabase.from("audit_logs").insert({
+            server_id: serverId,
+            actor_id: null,
+            action: "automod_timeout",
+            target_id: user.id,
+            target_type: "user",
+            changes: { duration_seconds: timeoutDuration, reason: violations[0].reason },
+          })
+        }
+
+        // Send alerts to mod channels (fire-and-forget).
+        // Uses the service role client so the message is attributed to the
+        // system bot (SYSTEM_BOT_ID) rather than the violating user, bypassing
+        // the messages RLS policy that would otherwise reject author_id ≠ uid().
+        const alertChannels = getAlertChannels(violations)
+        if (alertChannels.length > 0) {
+          // createServiceRoleClient is async; resolve once, then iterate.
+          createServiceRoleClient()
+            .then((serviceSupabase) => {
+              for (const alertChannelId of alertChannels) {
+                Promise.resolve(
+                  serviceSupabase
+                    .from("messages")
+                    .insert({
+                      channel_id: alertChannelId,
+                      author_id: SYSTEM_BOT_ID,
+                      content: `⚠️ AutoMod flagged a message from <@${user.id}>: ${violations[0].reason}`,
+                      mentions: [],
+                      mention_everyone: false,
+                    })
+                    .then(() =>
+                      supabase.from("audit_logs").insert({
+                        server_id: serverId,
+                        actor_id: null,
+                        action: "automod_alert",
+                        target_id: user.id,
+                        target_type: "user",
+                        changes: { channel_id: alertChannelId, reason: violations[0].reason },
+                      })
+                    )
+                ).catch(() => {})
+              }
+            })
+            .catch(() => {})
+        }
+
+        // Block the message if any rule says to
+        if (blocked) {
+          return NextResponse.json(
+            {
+              error: "Your message was blocked by AutoMod.",
+              code: "AUTOMOD_BLOCKED",
+              reason: violations[0].reason,
+            },
+            { status: 403 }
+          )
+        }
       }
     }
   }
