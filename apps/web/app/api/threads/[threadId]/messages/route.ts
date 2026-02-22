@@ -33,7 +33,7 @@ export async function GET(request: Request, { params: paramsPromise }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Mark thread as read for this user
-  await supabase.rpc("mark_thread_read", { p_thread_id: threadId }).catch(() => {})
+  try { await supabase.rpc("mark_thread_read", { p_thread_id: threadId }) } catch {}
 
   return NextResponse.json((messages ?? []).reverse())
 }
@@ -117,10 +117,9 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
   }
 
   // Auto-join the author as thread member if not already a member (ignore duplicate key)
-  await supabase
-    .from("thread_members")
-    .insert({ thread_id: threadId, user_id: user.id })
-    .catch(() => {})
+  try {
+    await supabase.from("thread_members").insert({ thread_id: threadId, user_id: user.id })
+  } catch {}
 
   return NextResponse.json(message, { status: 201 })
 }
