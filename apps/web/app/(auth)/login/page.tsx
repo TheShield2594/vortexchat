@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,8 @@ import { Loader2, Zap } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isNewUser = searchParams.get("registered") === "true"
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [magicLinkLoading, setMagicLinkLoading] = useState(false)
@@ -76,9 +78,13 @@ export default function LoginPage() {
             <Zap className="w-7 h-7 text-white" />
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-white">Welcome back!</h1>
+        <h1 className="text-2xl font-bold text-white">
+          {isNewUser ? "Verify your email" : "Welcome back!"}
+        </h1>
         <p style={{ color: '#b5bac1' }} className="text-sm mt-1">
-          We&apos;re so excited to see you again!
+          {isNewUser
+            ? "Check your inbox for a verification link, then log in below."
+            : "We\u2019re so excited to see you again!"}
         </p>
       </div>
 

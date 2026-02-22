@@ -65,7 +65,7 @@ export default function RegisterPage() {
         title: "Account created!",
         description: "Check your email to verify your account, then log in.",
       })
-      router.push("/login")
+      router.push("/login?registered=true")
     } catch (error: any) {
       toast({
         variant: "destructive",
