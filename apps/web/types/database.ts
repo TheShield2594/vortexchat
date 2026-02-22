@@ -1157,6 +1157,16 @@ export type Database = {
         Args: { p_message_id: string; p_name: string }
         Returns: Database['public']['Tables']['threads']['Row']
       }
+      set_member_timeout: {
+        Args: {
+          p_server_id: string
+          p_member_id: string
+          p_timeout_until: string | null
+          p_moderator_id?: string | null
+          p_reason?: string | null
+        }
+        Returns: void
+      }
     }
     Enums: {
       [_ in never]: never
