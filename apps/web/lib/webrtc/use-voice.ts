@@ -31,8 +31,8 @@ interface UseVoiceReturn {
   audioOutputDevices: MediaDeviceInfo[]
   selectedInputId: string | null
   selectedOutputId: string | null
-  setSelectedInputId: (id: string) => void
-  setSelectedOutputId: (id: string) => void
+  setSelectedInputId: (id: string | null) => void
+  setSelectedOutputId: (id: string | null) => void
 }
 
 export function useVoice(channelId: string, userId: string): UseVoiceReturn {
