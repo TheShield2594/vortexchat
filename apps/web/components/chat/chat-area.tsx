@@ -8,6 +8,8 @@ import type { ChannelRow, MessageWithAuthor } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
+import { useTyping } from "@/hooks/use-typing"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Props {
   channel: ChannelRow
@@ -17,11 +19,15 @@ interface Props {
 }
 
 export function ChatArea({ channel, initialMessages, currentUserId, serverId }: Props) {
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore()
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser } = useAppStore()
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
+
+  const { toast } = useToast()
+  const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
+  const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
 
   useEffect(() => {
     setActiveServer(serverId)
@@ -120,7 +126,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
       .single()
 
     if (error) {
-      console.error("Failed to send message:", error)
+      toast({
+        variant: "destructive",
+        title: "Failed to send message",
+        description: error.message || "Your message could not be sent. Please try again.",
+      })
       return
     }
 
@@ -260,12 +270,32 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
         </div>
       </div>
 
+      {/* Typing indicator */}
+      {typingUsers.length > 0 && (
+        <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0" style={{ minHeight: "24px" }}>
+          <span className="flex gap-0.5 items-end">
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+          </span>
+          <span className="text-xs" style={{ color: "#949ba4" }}>
+            {typingUsers.length === 1
+              ? `${typingUsers[0].displayName} is typing…`
+              : typingUsers.length === 2
+              ? `${typingUsers[0].displayName} and ${typingUsers[1].displayName} are typing…`
+              : "Several people are typing…"}
+          </span>
+        </div>
+      )}
+
       {/* Message input */}
       <MessageInput
         channelName={channel.name}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         onSend={handleSendMessage}
+        onTyping={onKeystroke}
+        onSent={onSent}
       />
     </div>
   )

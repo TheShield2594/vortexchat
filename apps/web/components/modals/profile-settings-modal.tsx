@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useAppearanceStore } from "@/lib/stores/appearance-store"
+import type { MessageDisplay, FontScale, Saturation } from "@/lib/stores/appearance-store"
 import type { UserRow } from "@/types/database"
 
 interface Props {
@@ -385,12 +387,147 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                 </TabsContent>
 
                 <TabsContent value="appearance" className="mt-0">
-                  <div className="text-white">Appearance settings coming soon.</div>
+                  <AppearanceTab />
                 </TabsContent>
           </div>
         </Tabs>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ─── Appearance Tab ────────────────────────────────────────────────────────────
+
+function AppearanceTab() {
+  const { messageDisplay, fontScale, saturation, setMessageDisplay, setFontScale, setSaturation } = useAppearanceStore()
+
+  return (
+    <div className="space-y-8">
+      {/* Message Display */}
+      <div>
+        <h3 className="text-base font-semibold text-white mb-1">Message Display</h3>
+        <p className="text-sm mb-4" style={{ color: "#949ba4" }}>
+          Choose how messages look in the chat.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {(["cozy", "compact"] as MessageDisplay[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setMessageDisplay(mode)}
+              className="flex flex-col items-start gap-2 p-3 rounded-lg text-left transition-colors border"
+              style={{
+                background: messageDisplay === mode ? "rgba(88,101,242,0.15)" : "#2b2d31",
+                borderColor: messageDisplay === mode ? "#5865f2" : "#1e1f22",
+              }}
+            >
+              {/* Mini preview */}
+              <div className="w-full space-y-1.5 pointer-events-none">
+                {mode === "cozy" ? (
+                  <>
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: "#5865f2" }} />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-2 rounded w-16" style={{ background: "#f2f3f5" }} />
+                        <div className="h-2 rounded w-24" style={{ background: "#949ba4" }} />
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: "#23a55a" }} />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-2 rounded w-12" style={{ background: "#f2f3f5" }} />
+                        <div className="h-2 rounded w-20" style={{ background: "#949ba4" }} />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {[28, 20, 24, 16].map((w, i) => (
+                      <div key={i} className="flex items-center gap-1.5 h-2.5">
+                        <div className="w-5 h-1.5 rounded flex-shrink-0" style={{ background: "#4e5058" }} />
+                        <div className="h-1.5 rounded" style={{ background: "#949ba4", width: `${w}px` }} />
+                        <div className="h-1.5 rounded flex-1" style={{ background: "#72767d" }} />
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+              <span className="text-sm font-medium capitalize" style={{ color: messageDisplay === mode ? "#f2f3f5" : "#b5bac1" }}>
+                {mode}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Font Size */}
+      <div>
+        <h3 className="text-base font-semibold text-white mb-1">Chat Font Scaling</h3>
+        <p className="text-sm mb-4" style={{ color: "#949ba4" }}>
+          Choose a comfortable size for reading messages.
+        </p>
+        <div className="flex items-center gap-3">
+          {(["small", "normal", "large"] as FontScale[]).map((scale) => (
+            <button
+              key={scale}
+              onClick={() => setFontScale(scale)}
+              className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors border capitalize"
+              style={{
+                background: fontScale === scale ? "rgba(88,101,242,0.15)" : "#2b2d31",
+                borderColor: fontScale === scale ? "#5865f2" : "#1e1f22",
+                color: fontScale === scale ? "#f2f3f5" : "#b5bac1",
+                fontSize: scale === "small" ? "13px" : scale === "large" ? "15px" : "14px",
+              }}
+            >
+              {scale === "small" ? "Aa" : scale === "large" ? "Aa" : "Aa"}
+              <span className="block text-xs mt-0.5">{scale}</span>
+            </button>
+          ))}
+        </div>
+        {/* Preview */}
+        <div className="mt-3 p-3 rounded-lg" style={{ background: "#1e1f22" }}>
+          <p className="text-xs mb-1" style={{ color: "#4e5058" }}>Preview</p>
+          <p style={{
+            color: "#dcddde",
+            fontSize: fontScale === "small" ? "14px" : fontScale === "large" ? "17px" : "16px",
+            lineHeight: 1.5,
+          }}>
+            The quick brown fox jumps over the lazy dog.
+          </p>
+        </div>
+      </div>
+
+      {/* Accessibility */}
+      <div>
+        <h3 className="text-base font-semibold text-white mb-1">Accessibility</h3>
+        <div
+          className="flex items-center justify-between p-3 rounded-lg"
+          style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
+        >
+          <div>
+            <p className="text-sm font-medium text-white">Reduced Saturation</p>
+            <p className="text-xs mt-0.5" style={{ color: "#949ba4" }}>
+              Desaturates interface colors for color-sensitivity.
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={saturation === "reduced"}
+            onClick={() => setSaturation(saturation === "reduced" ? "normal" : "reduced")}
+            className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200"
+            style={{ background: saturation === "reduced" ? "#5865f2" : "#4e5058" }}
+          >
+            <span
+              className="pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out mt-0.5"
+              style={{
+                background: "white",
+                marginLeft: saturation === "reduced" ? "22px" : "2px",
+                transition: "margin-left 0.2s",
+              }}
+            />
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
