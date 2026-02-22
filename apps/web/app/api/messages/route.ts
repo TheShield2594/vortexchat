@@ -10,6 +10,7 @@ import {
 } from "@/lib/automod"
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import type { AutoModRuleWithParsed } from "@/types/database"
+import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
   }
 
-  // --- Fetch channel for slowmode check and server context ---
+  // --- Fetch channel for server context and slowmode check ---
   const { data: channel } = await supabase
     .from("channels")
     .select("slowmode_delay, server_id")
@@ -104,8 +105,20 @@ export async function POST(request: Request) {
 
   const serverId: string | null = channel.server_id ?? null
 
-  // --- Run server lookup, member screening, and timeout queries concurrently ---
   if (serverId) {
+    // --- Permission checks ---
+    const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+
+    if (!isAdmin && !hasPermission(permissions, "SEND_MESSAGES")) {
+      return NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 })
+    }
+
+    // @everyone / @here mentions require the MENTION_EVERYONE permission
+    if (mentionEveryone && !isAdmin && !hasPermission(permissions, "MENTION_EVERYONE")) {
+      return NextResponse.json({ error: "Missing MENTION_EVERYONE permission" }, { status: 403 })
+    }
+
+    // --- Run server lookup, member screening, and timeout queries concurrently ---
     const [serverResult, screeningResult, timeoutResult] = await Promise.all([
       supabase.from("servers").select("screening_enabled").eq("id", serverId).single(),
       supabase
@@ -313,6 +326,7 @@ export async function POST(request: Request) {
   }
 
   // --- Send push notifications (fire-and-forget) ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const senderName = (message as any)?.author?.display_name || (message as any)?.author?.username || "Someone"
   sendPushToChannel({
     serverId: channel.server_id,

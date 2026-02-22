@@ -219,18 +219,21 @@ export type Database = {
           user_id: string
           nickname: string | null
           joined_at: string
+          timeout_until: string | null
         }
         Insert: {
           server_id: string
           user_id: string
           nickname?: string | null
           joined_at?: string
+          timeout_until?: string | null
         }
         Update: {
           server_id?: string
           user_id?: string
           nickname?: string | null
           joined_at?: string
+          timeout_until?: string | null
         }
         Relationships: [
           {

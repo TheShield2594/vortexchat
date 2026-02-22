@@ -12,20 +12,62 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { RoleRow, UserRow } from "@/types/database"
 import { PERMISSIONS, type Permission } from "@vortex/shared"
 
-const PERMISSION_LIST: { key: Permission; label: string; description: string }[] = [
-  { key: "ADMINISTRATOR", label: "Administrator", description: "All permissions — use with care" },
-  { key: "MANAGE_CHANNELS", label: "Manage Channels", description: "Create, edit, delete channels" },
-  { key: "MANAGE_ROLES", label: "Manage Roles", description: "Create and assign roles below this one" },
-  { key: "KICK_MEMBERS", label: "Kick Members", description: "Remove members from the server" },
-  { key: "BAN_MEMBERS", label: "Ban Members", description: "Permanently ban members" },
-  { key: "MANAGE_MESSAGES", label: "Manage Messages", description: "Delete others' messages" },
-  { key: "VIEW_CHANNELS", label: "View Channels", description: "See channels and receive messages" },
-  { key: "SEND_MESSAGES", label: "Send Messages", description: "Post in text channels" },
-  { key: "CONNECT_VOICE", label: "Connect to Voice", description: "Join voice channels" },
-  { key: "SPEAK", label: "Speak", description: "Transmit audio in voice channels" },
-  { key: "MUTE_MEMBERS", label: "Mute Members", description: "Mute others in voice channels" },
-  { key: "STREAM", label: "Stream / Share Screen", description: "Share video or screen" },
+interface PermissionEntry {
+  key: Permission
+  label: string
+  description: string
+}
+
+interface PermissionCategory {
+  label: string
+  perms: PermissionEntry[]
+}
+
+const PERMISSION_CATEGORIES: PermissionCategory[] = [
+  {
+    label: "General Server",
+    perms: [
+      { key: "ADMINISTRATOR",           label: "Administrator",            description: "All permissions — bypasses every other check" },
+      { key: "MANAGE_CHANNELS",         label: "Manage Channels",          description: "Create, edit, and delete channels" },
+      { key: "MANAGE_ROLES",            label: "Manage Roles",             description: "Create, edit, and assign roles below this one" },
+      { key: "MANAGE_WEBHOOKS",         label: "Manage Webhooks",          description: "Create and delete webhooks" },
+      { key: "MANAGE_EVENTS",           label: "Manage Events",            description: "Create, edit, and cancel server events" },
+      { key: "VIEW_CHANNELS",           label: "View Channels",            description: "See channels and receive messages" },
+    ],
+  },
+  {
+    label: "Membership",
+    perms: [
+      { key: "KICK_MEMBERS",            label: "Kick Members",             description: "Remove members from the server" },
+      { key: "BAN_MEMBERS",             label: "Ban Members",              description: "Permanently ban members and revoke their invite links" },
+      { key: "MODERATE_MEMBERS",        label: "Moderate Members (Timeout)", description: "Temporarily prevent members from interacting" },
+    ],
+  },
+  {
+    label: "Text Channels",
+    perms: [
+      { key: "SEND_MESSAGES",           label: "Send Messages",            description: "Post in text channels" },
+      { key: "MENTION_EVERYONE",        label: "Mention @everyone / @here", description: "Ping all server members at once" },
+      { key: "MANAGE_MESSAGES",         label: "Manage Messages",          description: "Delete or pin others' messages" },
+      { key: "CREATE_PUBLIC_THREADS",   label: "Create Public Threads",    description: "Start new public thread conversations" },
+      { key: "CREATE_PRIVATE_THREADS",  label: "Create Private Threads",   description: "Start new invite-only thread conversations" },
+      { key: "SEND_MESSAGES_IN_THREADS", label: "Send Messages in Threads", description: "Participate in thread conversations" },
+      { key: "USE_APPLICATION_COMMANDS", label: "Use Application Commands", description: "Use slash commands and bots" },
+    ],
+  },
+  {
+    label: "Voice Channels",
+    perms: [
+      { key: "CONNECT_VOICE",           label: "Connect to Voice",         description: "Join voice channels" },
+      { key: "SPEAK",                   label: "Speak",                    description: "Transmit audio in voice channels" },
+      { key: "MUTE_MEMBERS",            label: "Mute Members",             description: "Server-mute others in voice channels" },
+      { key: "STREAM",                  label: "Stream / Share Screen",    description: "Share video or screen in voice channels" },
+    ],
+  },
 ]
+
+// Flat list kept for backwards compatibility with the switch toggle loop
+const PERMISSION_LIST: PermissionEntry[] = PERMISSION_CATEGORIES.flatMap((c) => c.perms)
 
 interface Props {
   serverId: string
@@ -288,18 +330,27 @@ export function RoleManager({ serverId, isOwner }: Props) {
             <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: '#b5bac1' }}>
               Permissions
             </Label>
-            <div className="space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100% - 2rem)' }}>
-              {PERMISSION_LIST.map(({ key, label, description }) => (
-                <div key={key} className="flex items-center justify-between py-1">
-                  <div>
-                    <div className="text-sm font-medium text-white">{label}</div>
-                    <div className="text-xs" style={{ color: '#949ba4' }}>{description}</div>
+            <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100% - 2rem)' }}>
+              {PERMISSION_CATEGORIES.map(({ label: catLabel, perms }) => (
+                <div key={catLabel}>
+                  <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#5865f2' }}>
+                    {catLabel}
                   </div>
-                  <Switch
-                    checked={!!(editPermissions & PERMISSIONS[key])}
-                    onCheckedChange={() => togglePermission(key)}
-                    disabled={selectedRole.is_default && key === "VIEW_CHANNELS"}
-                  />
+                  <div className="space-y-1">
+                    {perms.map(({ key, label, description }) => (
+                      <div key={key} className="flex items-center justify-between py-1">
+                        <div>
+                          <div className="text-sm font-medium text-white">{label}</div>
+                          <div className="text-xs" style={{ color: '#949ba4' }}>{description}</div>
+                        </div>
+                        <Switch
+                          checked={!!(editPermissions & PERMISSIONS[key])}
+                          onCheckedChange={() => togglePermission(key)}
+                          disabled={selectedRole.is_default && key === "VIEW_CHANNELS"}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
