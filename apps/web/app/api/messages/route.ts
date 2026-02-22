@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
 import { sendPushToChannel } from "@/lib/push"
 import {
@@ -8,6 +8,7 @@ import {
   getTimeoutDuration,
   getAlertChannels,
 } from "@/lib/automod"
+import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import type { AutoModRuleWithParsed } from "@/types/database"
 
 export async function GET(request: Request) {
@@ -238,32 +239,37 @@ export async function POST(request: Request) {
         }
 
         // Send alerts to mod channels (fire-and-forget).
-        // NOTE: author_id must reference a real users row (NOT NULL FK), so
-        // alert messages are currently attributed to the violating user.
-        // A proper fix requires a dedicated system/bot user in the database.
+        // Uses the service role client so the message is attributed to the
+        // system bot (SYSTEM_BOT_ID) rather than the violating user, bypassing
+        // the messages RLS policy that would otherwise reject author_id ≠ uid().
         const alertChannels = getAlertChannels(violations)
-        for (const alertChannelId of alertChannels) {
-          Promise.resolve(
-            supabase
-              .from("messages")
-              .insert({
-                channel_id: alertChannelId,
-                author_id: user.id,
-                content: `⚠️ AutoMod flagged a message from <@${user.id}>: ${violations[0].reason}`,
-                mentions: [],
-                mention_everyone: false,
-              })
-              .then(() => {
-                void supabase.from("audit_logs").insert({
-                  server_id: serverId,
-                  actor_id: null,
-                  action: "automod_alert",
-                  target_id: user.id,
-                  target_type: "user",
-                  changes: { channel_id: alertChannelId, reason: violations[0].reason },
-                })
-              })
-          ).catch(() => {})
+        if (alertChannels.length > 0) {
+          // createServiceRoleClient is async; resolve once, then iterate.
+          void createServiceRoleClient().then((serviceSupabase) => {
+            for (const alertChannelId of alertChannels) {
+              Promise.resolve(
+                serviceSupabase
+                  .from("messages")
+                  .insert({
+                    channel_id: alertChannelId,
+                    author_id: SYSTEM_BOT_ID,
+                    content: `⚠️ AutoMod flagged a message from <@${user.id}>: ${violations[0].reason}`,
+                    mentions: [],
+                    mention_everyone: false,
+                  })
+                  .then(() => {
+                    void supabase.from("audit_logs").insert({
+                      server_id: serverId,
+                      actor_id: null,
+                      action: "automod_alert",
+                      target_id: user.id,
+                      target_type: "user",
+                      changes: { channel_id: alertChannelId, reason: violations[0].reason },
+                    })
+                  })
+              ).catch(() => {})
+            }
+          })
         }
 
         // Block the message if any rule says to

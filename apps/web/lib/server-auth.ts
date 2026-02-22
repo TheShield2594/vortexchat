@@ -4,6 +4,13 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
+/**
+ * Fixed UUID of the system/AutoMod bot user (seeded in 00015_system_bot.sql).
+ * Used as author_id for system-generated messages such as AutoMod channel alerts
+ * so they are not attributed to the violating member.
+ */
+export const SYSTEM_BOT_ID = "00000000-0000-0000-0000-000000000001"
+
 export type SupabaseServerClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 /**
