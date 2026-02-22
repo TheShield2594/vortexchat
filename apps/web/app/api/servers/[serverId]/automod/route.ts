@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   if (!name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 })
-  if (!VALID_TRIGGER_TYPES.includes(trigger_type))
+  if (!(VALID_TRIGGER_TYPES as readonly string[]).includes(trigger_type))
     return NextResponse.json({ error: `trigger_type must be one of: ${VALID_TRIGGER_TYPES.join(", ")}` }, { status: 400 })
 
   const validationError = validateConfigAndActions(trigger_type, config, actions)
