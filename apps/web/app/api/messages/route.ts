@@ -174,7 +174,7 @@ export async function POST(request: Request) {
   if (serverId && content?.trim()) {
     const { data: rawRules } = await supabase
       .from("automod_rules")
-      .select("*")
+      .select("id, name, trigger_type, config, actions, enabled")
       .eq("server_id", serverId)
       .eq("enabled", true)
 
@@ -245,9 +245,9 @@ export async function POST(request: Request) {
         const alertChannels = getAlertChannels(violations)
         if (alertChannels.length > 0) {
           // createServiceRoleClient is async; resolve once, then iterate.
-          void createServiceRoleClient().then((serviceSupabase) => {
-            for (const alertChannelId of alertChannels) {
-              Promise.resolve(
+          createServiceRoleClient()
+            .then((serviceSupabase) => {
+              for (const alertChannelId of alertChannels) {
                 serviceSupabase
                   .from("messages")
                   .insert({
@@ -257,8 +257,8 @@ export async function POST(request: Request) {
                     mentions: [],
                     mention_everyone: false,
                   })
-                  .then(() => {
-                    void supabase.from("audit_logs").insert({
+                  .then(() =>
+                    supabase.from("audit_logs").insert({
                       server_id: serverId,
                       actor_id: null,
                       action: "automod_alert",
@@ -266,10 +266,11 @@ export async function POST(request: Request) {
                       target_type: "user",
                       changes: { channel_id: alertChannelId, reason: violations[0].reason },
                     })
-                  })
-              ).catch(() => {})
-            }
-          })
+                  )
+                  .catch(() => {})
+              }
+            })
+            .catch(() => {})
         }
 
         // Block the message if any rule says to

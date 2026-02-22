@@ -18,10 +18,10 @@ export type SupabaseServerClient = Awaited<ReturnType<typeof createServerSupabas
  * bitwise OR number.  Accepts the `member_roles` array as returned by
  * Supabase when selecting `member_roles(roles(permissions))`.
  */
-export function aggregateMemberPermissions(memberRoles: unknown[]): number {
+export function aggregateMemberPermissions(memberRoles: unknown): number {
   if (!Array.isArray(memberRoles)) return 0
   return memberRoles
-    .flatMap((mr: any) => mr.roles?.permissions ?? 0)
+    .map((mr: any) => mr.roles?.permissions ?? 0)
     .reduce((acc: number, p: number) => acc | p, 0)
 }
 

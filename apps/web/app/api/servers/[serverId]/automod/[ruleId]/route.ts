@@ -72,7 +72,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const allowed = ["name", "config", "actions", "enabled"]
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
-    if (key in body) updates[key] = body[key]
+    if (!(key in body)) continue
+    if (key === "enabled") {
+      if (typeof body.enabled !== "boolean") {
+        return NextResponse.json({ error: "enabled must be a boolean" }, { status: 400 })
+      }
+      updates.enabled = body.enabled
+    } else {
+      updates[key] = body[key]
+    }
   }
 
   // Validate config and actions when either is being updated
@@ -98,6 +106,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .from("automod_rules")
     .update(updates)
     .eq("id", ruleId)
+    .eq("server_id", serverId)
     .select()
     .single()
 
@@ -120,7 +129,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { supabase, user, rule, error } = await requireOwnerWithRule(serverId, ruleId)
   if (error) return error
 
-  const { error: dbErr } = await supabase.from("automod_rules").delete().eq("id", ruleId)
+  const { error: dbErr } = await supabase.from("automod_rules").delete().eq("id", ruleId).eq("server_id", serverId)
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
 
   await supabase.from("audit_logs").insert({

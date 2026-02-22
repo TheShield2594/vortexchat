@@ -28,7 +28,8 @@ BEGIN
       updated_at,
       raw_app_meta_data,
       raw_user_meta_data,
-      is_super_admin
+      is_super_admin,
+      banned_until
     ) VALUES (
       '00000000-0000-0000-0000-000000000001',
       '00000000-0000-0000-0000-000000000000',
@@ -41,7 +42,8 @@ BEGIN
       NOW(),
       '{"provider":"system","providers":["system"]}',
       '{}',
-      FALSE
+      FALSE,
+      'infinity'::timestamptz  -- permanently blocked from GoTrue auth flows
     );
   END IF;
 END;

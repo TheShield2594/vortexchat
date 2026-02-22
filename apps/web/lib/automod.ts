@@ -71,11 +71,14 @@ export function evaluateRule(
           reason: `Blocked keyword: "${hitKeyword}"`,
         }
       }
-      // Optional regex patterns — enforce a max length at eval time to reduce
-      // ReDoS risk from overly complex user-supplied patterns.
+      // Optional regex patterns — enforce a max length and a wall-clock budget
+      // to limit ReDoS risk from complex user-supplied patterns.
       const MAX_PATTERN_LENGTH = 200
+      const REGEX_BUDGET_MS = 50
       if (cfg.regex_patterns?.length) {
+        const deadline = Date.now() + REGEX_BUDGET_MS
         for (const pattern of cfg.regex_patterns) {
+          if (Date.now() > deadline) break // time budget exhausted; skip remaining
           if (typeof pattern !== "string" || pattern.length > MAX_PATTERN_LENGTH) continue
           try {
             const re = new RegExp(pattern, "i")
@@ -200,6 +203,10 @@ export const VALID_ACTION_TYPES = ["block_message", "timeout_member", "alert_cha
  * Validates the config and actions for an automod rule.
  * Returns an error string if invalid, or null if valid.
  */
+// Detects ReDoS-prone nested quantifiers such as (a+)+, (.*)*, ([a-z]+\s)+.
+// Heuristic: a group whose body contains a quantifier is itself quantified.
+const UNSAFE_REGEX_RE = /\([^)]*[+*?][^)]*\)[+*?{]/
+
 export function validateConfigAndActions(
   trigger_type: string,
   config: unknown,
@@ -214,18 +221,32 @@ export function validateConfigAndActions(
     if (!Array.isArray(cfg.keywords) || cfg.keywords.some((k) => typeof k !== "string")) {
       return "keyword_filter config must have keywords: string[]"
     }
+    if (cfg.keywords.length === 0) {
+      return "keyword_filter config.keywords must not be empty"
+    }
     if (cfg.regex_patterns !== undefined) {
       if (!Array.isArray(cfg.regex_patterns) || cfg.regex_patterns.some((p) => typeof p !== "string")) {
         return "keyword_filter config.regex_patterns must be string[] if provided"
+      }
+      for (const pattern of cfg.regex_patterns as string[]) {
+        if (UNSAFE_REGEX_RE.test(pattern)) {
+          return `regex pattern contains unsafe nested quantifiers and was rejected: ${pattern}`
+        }
       }
     }
   } else if (trigger_type === "mention_spam") {
     if (typeof cfg.mention_threshold !== "number") {
       return "mention_spam config must have mention_threshold: number"
     }
+    if (cfg.mention_threshold <= 0) {
+      return "mention_spam config.mention_threshold must be greater than 0"
+    }
   } else if (trigger_type === "link_spam") {
     if (typeof cfg.link_threshold !== "number") {
       return "link_spam config must have link_threshold: number"
+    }
+    if (cfg.link_threshold <= 0) {
+      return "link_spam config.link_threshold must be greater than 0"
     }
   }
 
@@ -239,6 +260,9 @@ export function validateConfigAndActions(
     const a = action as Record<string, unknown>
     if (!(VALID_ACTION_TYPES as readonly string[]).includes(a.type as string)) {
       return `action.type must be one of: ${VALID_ACTION_TYPES.join(", ")}`
+    }
+    if (a.type === "alert_channel" && (typeof a.channel_id !== "string" || a.channel_id === "")) {
+      return "alert_channel action must include a non-empty channel_id"
     }
   }
 
