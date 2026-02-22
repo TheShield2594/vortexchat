@@ -229,26 +229,27 @@ export async function POST(request: Request) {
         // Send alerts to mod channels (fire-and-forget)
         const alertChannels = getAlertChannels(violations)
         for (const alertChannelId of alertChannels) {
-          supabase
-            .from("messages")
-            .insert({
-              channel_id: alertChannelId,
-              author_id: user.id,
-              content: `⚠️ AutoMod flagged a message from <@${user.id}>: ${violations[0].reason}`,
-              mentions: [],
-              mention_everyone: false,
-            })
-            .then(() => {
-              supabase.from("audit_logs").insert({
-                server_id: serverId,
-                actor_id: null,
-                action: "automod_alert",
-                target_id: user.id,
-                target_type: "user",
-                changes: { channel_id: alertChannelId, reason: violations[0].reason },
+          Promise.resolve(
+            supabase
+              .from("messages")
+              .insert({
+                channel_id: alertChannelId,
+                author_id: user.id,
+                content: `⚠️ AutoMod flagged a message from <@${user.id}>: ${violations[0].reason}`,
+                mentions: [],
+                mention_everyone: false,
               })
-            })
-            .catch(() => {})
+              .then(() => {
+                void supabase.from("audit_logs").insert({
+                  server_id: serverId,
+                  actor_id: null,
+                  action: "automod_alert",
+                  target_id: user.id,
+                  target_type: "user",
+                  changes: { channel_id: alertChannelId, reason: violations[0].reason },
+                })
+              })
+          ).catch(() => {})
         }
 
         // Block the message if any rule says to
