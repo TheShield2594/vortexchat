@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react"
 import { Hash, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
-import type { ChannelRow, MessageWithAuthor } from "@/types/database"
+import type { ChannelRow, MessageWithAuthor, ThreadRow } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
 import { useTyping } from "@/hooks/use-typing"
 import { useToast } from "@/components/ui/use-toast"
+import { ThreadPanel } from "@/components/chat/thread-panel"
+import { ThreadList } from "@/components/chat/thread-list"
 
 interface Props {
   channel: ChannelRow
@@ -22,6 +24,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser } = useAppStore()
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
+  const [activeThread, setActiveThread] = useState<ThreadRow | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
   const { toast } = useToast()
@@ -148,161 +151,183 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
     }
 
     setReplyTo(null)
+    onSent()
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
-      {/* Channel header */}
-      <div
-        className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: '#1e1f22' }}
-      >
-        <Hash className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
-        <span className="font-semibold text-white">{channel.name}</span>
-        {channel.topic && (
-          <>
-            <span style={{ color: '#4e5058' }}>|</span>
-            <span className="text-sm truncate" style={{ color: '#949ba4' }}>
-              {channel.topic}
-            </span>
-          </>
-        )}
-        <div className="ml-auto flex items-center">
-          <button
-            onClick={toggleMemberList}
-            className="p-1.5 rounded hover:bg-white/10 transition-colors"
-            title={memberListOpen ? "Hide Member List" : "Show Member List"}
-          >
-            <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
-          </button>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Channel welcome message */}
-        {messages.length === 0 && (
-          <div className="px-4 py-8">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ background: '#4e5058' }}
+    <div className="flex flex-1 overflow-hidden">
+      {/* Main channel area */}
+      <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
+        {/* Channel header */}
+        <div
+          className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
+          style={{ borderColor: '#1e1f22' }}
+        >
+          <Hash className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
+          <span className="font-semibold text-white">{channel.name}</span>
+          {channel.topic && (
+            <>
+              <span style={{ color: '#4e5058' }}>|</span>
+              <span className="text-sm truncate" style={{ color: '#949ba4' }}>
+                {channel.topic}
+              </span>
+            </>
+          )}
+          <div className="ml-auto flex items-center">
+            <button
+              onClick={toggleMemberList}
+              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              title={memberListOpen ? "Hide Member List" : "Show Member List"}
             >
-              <Hash className="w-8 h-8 text-white" />
+              <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
+            </button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Channel welcome message */}
+          {messages.length === 0 && (
+            <div className="px-4 py-8">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                style={{ background: '#4e5058' }}
+              >
+                <Hash className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Welcome to #{channel.name}!
+              </h2>
+              <p style={{ color: '#b5bac1' }}>
+                This is the start of the #{channel.name} channel.
+                {channel.topic && ` ${channel.topic}`}
+              </p>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Welcome to #{channel.name}!
-            </h2>
-            <p style={{ color: '#b5bac1' }}>
-              This is the start of the #{channel.name} channel.
-              {channel.topic && ` ${channel.topic}`}
-            </p>
+          )}
+
+          {/* Message list */}
+          <div className="pb-4">
+            {messages.map((message, i) => {
+              const prevMessage = messages[i - 1]
+              const isGrouped =
+                prevMessage &&
+                prevMessage.author_id === message.author_id &&
+                new Date(message.created_at).getTime() -
+                  new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000
+
+              return (
+                <MessageItem
+                  key={message.id}
+                  message={message}
+                  isGrouped={!!isGrouped}
+                  currentUserId={currentUserId}
+                  onReply={() => setReplyTo(message)}
+                  onThreadCreated={(thread) => setActiveThread(thread)}
+                  onEdit={async (content) => {
+                    const { error } = await supabase
+                      .from("messages")
+                      .update({ content, edited_at: new Date().toISOString() })
+                      .eq("id", message.id)
+                    if (!error) {
+                      setMessages((prev) =>
+                        prev.map((m) => m.id === message.id ? { ...m, content, edited_at: new Date().toISOString() } : m)
+                      )
+                    }
+                  }}
+                  onDelete={async () => {
+                    const { error } = await supabase
+                      .from("messages")
+                      .update({ deleted_at: new Date().toISOString() })
+                      .eq("id", message.id)
+                    if (!error) {
+                      setMessages((prev) => prev.filter((m) => m.id !== message.id))
+                    }
+                  }}
+                  onReaction={async (emoji) => {
+                    const existing = message.reactions.find(
+                      (r) => r.emoji === emoji && r.user_id === currentUserId
+                    )
+                    if (existing) {
+                      await supabase
+                        .from("reactions")
+                        .delete()
+                        .eq("message_id", message.id)
+                        .eq("user_id", currentUserId)
+                        .eq("emoji", emoji)
+                      setMessages((prev) =>
+                        prev.map((m) =>
+                          m.id === message.id
+                            ? { ...m, reactions: m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) }
+                            : m
+                        )
+                      )
+                    } else {
+                      await supabase.from("reactions").insert({
+                        message_id: message.id,
+                        user_id: currentUserId,
+                        emoji,
+                      })
+                      setMessages((prev) =>
+                        prev.map((m) =>
+                          m.id === message.id
+                            ? { ...m, reactions: [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] }
+                            : m
+                        )
+                      )
+                    }
+                  }}
+                />
+              )
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Thread list (shown below messages when there are threads) */}
+          <ThreadList
+            channelId={channel.id}
+            activeThreadId={activeThread?.id ?? null}
+            onSelectThread={(thread) => setActiveThread(thread)}
+          />
+        </div>
+
+        {/* Typing indicator */}
+        {typingUsers.length > 0 && (
+          <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0" style={{ minHeight: "24px" }}>
+            <span className="flex gap-0.5 items-end">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </span>
+            <span className="text-xs" style={{ color: "#949ba4" }}>
+              {typingUsers.length === 1
+                ? `${typingUsers[0].displayName} is typing…`
+                : typingUsers.length === 2
+                ? `${typingUsers[0].displayName} and ${typingUsers[1].displayName} are typing…`
+                : "Several people are typing…"}
+            </span>
           </div>
         )}
 
-        {/* Message list */}
-        <div className="pb-4">
-          {messages.map((message, i) => {
-            const prevMessage = messages[i - 1]
-            const isGrouped =
-              prevMessage &&
-              prevMessage.author_id === message.author_id &&
-              new Date(message.created_at).getTime() -
-                new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000
-
-            return (
-              <MessageItem
-                key={message.id}
-                message={message}
-                isGrouped={!!isGrouped}
-                currentUserId={currentUserId}
-                onReply={() => setReplyTo(message)}
-                onEdit={async (content) => {
-                  const { error } = await supabase
-                    .from("messages")
-                    .update({ content, edited_at: new Date().toISOString() })
-                    .eq("id", message.id)
-                  if (!error) {
-                    setMessages((prev) =>
-                      prev.map((m) => m.id === message.id ? { ...m, content, edited_at: new Date().toISOString() } : m)
-                    )
-                  }
-                }}
-                onDelete={async () => {
-                  const { error } = await supabase
-                    .from("messages")
-                    .update({ deleted_at: new Date().toISOString() })
-                    .eq("id", message.id)
-                  if (!error) {
-                    setMessages((prev) => prev.filter((m) => m.id !== message.id))
-                  }
-                }}
-                onReaction={async (emoji) => {
-                  const existing = message.reactions.find(
-                    (r) => r.emoji === emoji && r.user_id === currentUserId
-                  )
-                  if (existing) {
-                    await supabase
-                      .from("reactions")
-                      .delete()
-                      .eq("message_id", message.id)
-                      .eq("user_id", currentUserId)
-                      .eq("emoji", emoji)
-                    setMessages((prev) =>
-                      prev.map((m) =>
-                        m.id === message.id
-                          ? { ...m, reactions: m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) }
-                          : m
-                      )
-                    )
-                  } else {
-                    await supabase.from("reactions").insert({
-                      message_id: message.id,
-                      user_id: currentUserId,
-                      emoji,
-                    })
-                    setMessages((prev) =>
-                      prev.map((m) =>
-                        m.id === message.id
-                          ? { ...m, reactions: [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] }
-                          : m
-                      )
-                    )
-                  }
-                }}
-              />
-            )
-          })}
-          <div ref={bottomRef} />
-        </div>
+        {/* Message input */}
+        <MessageInput
+          channelName={channel.name}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          onSend={handleSendMessage}
+          onTyping={onKeystroke}
+          onSent={onSent}
+        />
       </div>
 
-      {/* Typing indicator */}
-      {typingUsers.length > 0 && (
-        <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0" style={{ minHeight: "24px" }}>
-          <span className="flex gap-0.5 items-end">
-            <span className="typing-dot" />
-            <span className="typing-dot" />
-            <span className="typing-dot" />
-          </span>
-          <span className="text-xs" style={{ color: "#949ba4" }}>
-            {typingUsers.length === 1
-              ? `${typingUsers[0].displayName} is typing…`
-              : typingUsers.length === 2
-              ? `${typingUsers[0].displayName} and ${typingUsers[1].displayName} are typing…`
-              : "Several people are typing…"}
-          </span>
-        </div>
+      {/* Thread panel (slides in alongside the main channel) */}
+      {activeThread && (
+        <ThreadPanel
+          thread={activeThread}
+          currentUserId={currentUserId}
+          onClose={() => setActiveThread(null)}
+          onThreadUpdate={(updated) => setActiveThread(updated)}
+        />
       )}
-
-      {/* Message input */}
-      <MessageInput
-        channelName={channel.name}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-        onSend={handleSendMessage}
-        onTyping={onKeystroke}
-        onSent={onSent}
-      />
     </div>
   )
 }
