@@ -24,16 +24,19 @@ export function QuickSwitcherModal({ onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
-  const supabase = createClientSupabaseClient()
+  const [supabase] = useState(() => createClientSupabaseClient())
+  const onCloseRef = useRef(onClose)
+  const navigateRef = useRef<(r: Result) => void>(null!)
+  onCloseRef.current = onClose
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { onClose(); return }
+      if (e.key === "Escape") { onCloseRef.current(); return }
       if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, results.length - 1)) }
       if (e.key === "ArrowUp") { e.preventDefault(); setSelected((s) => Math.max(s - 1, 0)) }
-      if (e.key === "Enter" && results[selected]) { navigate(results[selected]) }
+      if (e.key === "Enter" && results[selected]) { navigateRef.current(results[selected]) }
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
@@ -87,8 +90,9 @@ export function QuickSwitcherModal({ onClose }: Props) {
     } else if (result.type === "server") {
       router.push(`/channels/${result.id}`)
     }
-    onClose()
+    onCloseRef.current()
   }
+  navigateRef.current = navigate
 
   return (
     <div
@@ -119,7 +123,7 @@ export function QuickSwitcherModal({ onClose }: Props) {
         {results.length > 0 && (
           <ul className="py-1 max-h-72 overflow-y-auto">
             {results.map((r, i) => (
-              <li key={r.id}>
+              <li key={`${r.type}-${r.id}`}>
                 <button
                   onClick={() => navigate(r)}
                   onMouseEnter={() => setSelected(i)}

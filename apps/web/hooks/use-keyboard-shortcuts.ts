@@ -21,16 +21,16 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       const meta = e.metaKey || e.ctrlKey
 
       // Ctrl/Cmd+K → quickswitcher
-      if (meta && e.key === "k") {
+      if (meta && e.key === "k" && handlers.onQuickSwitcher) {
         e.preventDefault()
-        handlers.onQuickSwitcher?.()
+        handlers.onQuickSwitcher()
         return
       }
 
       // Ctrl/Cmd+F → search
-      if (meta && e.key === "f") {
+      if (meta && e.key === "f" && handlers.onSearch) {
         e.preventDefault()
-        handlers.onSearch?.()
+        handlers.onSearch()
         return
       }
 

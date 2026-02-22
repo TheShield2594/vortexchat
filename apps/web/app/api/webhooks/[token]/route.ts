@@ -94,7 +94,10 @@ export async function POST(
     .select("id")
     .single()
 
-  if (msgError) return NextResponse.json({ error: msgError.message }, { status: 500 })
+  if (msgError) {
+    console.error("Webhook message insert failed:", msgError.message)
+    return NextResponse.json({ error: "internal server error" }, { status: 500 })
+  }
 
   return NextResponse.json({ id: message.id }, { status: 200 })
 }

@@ -13,16 +13,13 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("webhooks")
-    .select("id, name, avatar_url, channel_id, token, created_at")
+    .select("id, name, avatar_url, channel_id, created_at")
     .eq("server_id", serverId)
     .order("created_at")
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  // Return the webhook URL alongside each record
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
-  return NextResponse.json(
-    (data ?? []).map((w) => ({ ...w, url: `${appUrl}/api/webhooks/${w.token}` }))
-  )
+  // Token is omitted from list responses — it is only returned at creation time
+  return NextResponse.json(data ?? [])
 }
 
 // POST /api/servers/[serverId]/webhooks — create webhook
@@ -35,7 +32,15 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { channelId, name } = await req.json()
+  let channelId: string | undefined
+  let name: string | undefined
+  try {
+    const body = await req.json()
+    channelId = body.channelId
+    name = body.name
+  } catch {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 })
+  }
   if (!channelId) return NextResponse.json({ error: "channelId required" }, { status: 400 })
 
   const { data, error } = await supabase

@@ -28,9 +28,10 @@ CREATE POLICY "Users update own notifications"
   ON notifications FOR UPDATE
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Service role inserts notifications"
-  ON notifications FOR INSERT
-  WITH CHECK (TRUE);
+-- INSERT is intentionally omitted: the service role bypasses RLS and is the
+-- only principal that should insert notifications.  No policy is needed here;
+-- a permissive WITH CHECK (TRUE) policy would allow any authenticated user to
+-- insert notifications for arbitrary user_ids.
 
 -- ─── Custom server emoji ───────────────────────────────────────────────────────
 
@@ -61,11 +62,7 @@ CREATE POLICY "Server members can view emojis"
 CREATE POLICY "Admins can manage emojis"
   ON server_emojis FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM server_members sm
-      WHERE sm.server_id = server_emojis.server_id
-        AND sm.user_id = auth.uid()
-    )
+    public.has_permission(server_emojis.server_id, 128 /* ADMINISTRATOR */)
   );
 
 -- ─── Webhooks ──────────────────────────────────────────────────────────────────
@@ -100,9 +97,5 @@ CREATE POLICY "Server members can view webhooks"
 CREATE POLICY "Admins can manage webhooks"
   ON webhooks FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM server_members sm
-      WHERE sm.server_id = webhooks.server_id
-        AND sm.user_id = auth.uid()
-    )
+    public.has_permission(webhooks.server_id, 128 /* ADMINISTRATOR */)
   );

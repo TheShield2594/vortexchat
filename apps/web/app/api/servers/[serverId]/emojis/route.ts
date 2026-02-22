@@ -11,6 +11,15 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  // Verify membership before exposing emoji list
+  const { data: member } = await supabase
+    .from("server_members")
+    .select("user_id")
+    .eq("server_id", serverId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (!member) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const { data, error } = await supabase
     .from("server_emojis")
     .select("id, name, image_url, created_at")
@@ -51,7 +60,8 @@ export async function POST(
   }
   if (file.size > 256 * 1024) return NextResponse.json({ error: "Emoji must be under 256 KB" }, { status: 413 })
 
-  const ext = file.name.split(".").pop() ?? "png"
+  const mimeToExt: Record<string, string> = { "image/png": "png", "image/webp": "webp", "image/gif": "gif" }
+  const ext = mimeToExt[file.type] ?? "png"
   const path = `${serverId}/${name}.${ext}`
   const arrayBuffer = await file.arrayBuffer()
 
@@ -85,6 +95,40 @@ export async function DELETE(
 
   const emojiId = req.nextUrl.searchParams.get("emojiId")
   if (!emojiId) return NextResponse.json({ error: "emojiId required" }, { status: 400 })
+
+  // Verify membership
+  const { data: memberRow } = await supabase
+    .from("server_members")
+    .select("user_id")
+    .eq("server_id", serverId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (!memberRow) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  // Fetch the emoji to check ownership and get storage path
+  const { data: emoji } = await supabase
+    .from("server_emojis")
+    .select("id, name, image_url, uploader_id")
+    .eq("id", emojiId)
+    .eq("server_id", serverId)
+    .maybeSingle()
+  if (!emoji) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+  // Check server ownership via servers table or allow uploader to delete their own
+  const { data: server } = await supabase
+    .from("servers")
+    .select("owner_id")
+    .eq("id", serverId)
+    .maybeSingle()
+  const isOwner = server?.owner_id === user.id
+  const isUploader = emoji.uploader_id === user.id
+  if (!isOwner && !isUploader) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  // Derive storage path from image_url (last two segments: serverId/name.ext)
+  const urlParts = emoji.image_url.split("/")
+  const storagePath = urlParts.slice(-2).join("/")
+  const { error: storageError } = await supabase.storage.from("server-emojis").remove([storagePath])
+  if (storageError) console.error("Failed to remove emoji from storage:", storageError.message)
 
   const { error } = await supabase
     .from("server_emojis")

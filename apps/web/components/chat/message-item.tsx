@@ -296,7 +296,7 @@ export function MessageItem({
                   )}
 
                   {/* Link embed — shown for messages with a URL and no image attachments */}
-                  {message.content && message.attachments?.length === 0 && (() => {
+                  {message.content && (!message.attachments?.length) && (() => {
                     const url = extractFirstUrl(message.content)
                     return url ? <LinkEmbed url={url} /> : null
                   })()}

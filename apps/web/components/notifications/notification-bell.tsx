@@ -32,7 +32,7 @@ interface Props {
 }
 
 export function NotificationBell({ userId }: Props) {
-  const supabase = createClientSupabaseClient()
+  const [supabase] = useState(() => createClientSupabaseClient())
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])

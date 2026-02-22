@@ -61,10 +61,15 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
 
   // Enumerate devices on mount and when permissions change
   useEffect(() => {
+    if (!navigator.mediaDevices) return
     async function enumerateDevices() {
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      setAudioInputDevices(devices.filter((d) => d.kind === "audioinput"))
-      setAudioOutputDevices(devices.filter((d) => d.kind === "audiooutput"))
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        setAudioInputDevices(devices.filter((d) => d.kind === "audioinput"))
+        setAudioOutputDevices(devices.filter((d) => d.kind === "audiooutput"))
+      } catch {
+        // Ignore enumeration errors (e.g. permissions denied before any getUserMedia)
+      }
     }
     enumerateDevices()
     navigator.mediaDevices.addEventListener("devicechange", enumerateDevices)
@@ -187,7 +192,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           noiseSuppression: true,
           autoGainControl: true,
         }
-        if (selectedInputId) audioConstraints.deviceId = { exact: selectedInputId }
+        if (selectedInputId) audioConstraints.deviceId = { ideal: selectedInputId }
         const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false })
         localStream.current = stream
 
@@ -347,6 +352,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       harkRef.current?.stop()
       localStream.current?.getTracks().forEach((t) => t.stop())
       screenStream.current?.getTracks().forEach((t) => t.stop())
+      cameraStream.current?.getTracks().forEach((t) => t.stop())
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null

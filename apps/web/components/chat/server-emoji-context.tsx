@@ -1,7 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
-import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 
 interface ServerEmoji {
   id: string
@@ -26,7 +25,6 @@ export function useServerEmojis() {
 }
 
 export function ServerEmojiProvider({ serverId, children }: { serverId: string; children: React.ReactNode }) {
-  const supabase = createClientSupabaseClient()
   const [emojis, setEmojis] = useState<ServerEmoji[]>([])
 
   const reload = useCallback(async () => {
@@ -36,12 +34,14 @@ export function ServerEmojiProvider({ serverId, children }: { serverId: string; 
 
   useEffect(() => { reload() }, [reload])
 
-  function getEmoji(name: string): ServerEmoji | null {
+  const getEmoji = useCallback((name: string): ServerEmoji | null => {
     return emojis.find((e) => e.name === name) ?? null
-  }
+  }, [emojis])
+
+  const value = useMemo(() => ({ emojis, getEmoji, reload }), [emojis, getEmoji, reload])
 
   return (
-    <ServerEmojiContext.Provider value={{ emojis, getEmoji, reload }}>
+    <ServerEmojiContext.Provider value={value}>
       {children}
     </ServerEmojiContext.Provider>
   )

@@ -15,10 +15,11 @@ interface Props {
   url: string
 }
 
-// Extract first http(s) URL from message content
+// Extract first http(s) URL from message content, stripping trailing punctuation
 export function extractFirstUrl(content: string): string | null {
   const match = content.match(/https?:\/\/[^\s>]+/)
-  return match ? match[0] : null
+  if (!match) return null
+  return match[0].replace(/[.,)\]};:!?"']+$/, "")
 }
 
 export function LinkEmbed({ url }: Props) {
