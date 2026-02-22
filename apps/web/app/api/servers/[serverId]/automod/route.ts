@@ -63,8 +63,6 @@ function validateConfigAndActions(
   return null
 }
 
-export { validateConfigAndActions }
-
 export async function GET(_req: NextRequest, { params }: Params) {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
