@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, X, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff } from "lucide-react"
+import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
+import { useToast } from "@/components/ui/use-toast"
+import { useTyping } from "@/hooks/use-typing"
+import { useAppStore } from "@/lib/stores/app-store"
 
 interface User {
   id: string
@@ -44,9 +47,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [content, setContent] = useState("")
   const [sending, setSending] = useState(false)
   const [inCall, setInCall] = useState(false)
+  const [callWithVideo, setCallWithVideo] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
   const [uploadingFile, setUploadingFile] = useState(false)
@@ -54,19 +59,32 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
+  const { toast } = useToast()
+  const { currentUser } = useAppStore()
+
+  const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
+  const { typingUsers, onKeystroke, onSent } = useTyping(channelId, currentUserId, currentDisplayName)
 
   const loadMessages = useCallback(async (before?: string) => {
+    if (!before) setLoadError(false)
     const url = `/api/dm/channels/${channelId}` + (before ? `?before=${encodeURIComponent(before)}` : "")
-    const res = await fetch(url)
-    if (!res.ok) return
-    const data = await res.json()
-    setChannel(data.channel)
-    if (before) {
-      setMessages((prev) => [...(data.messages ?? []), ...prev])
-    } else {
-      setMessages(data.messages ?? [])
+    try {
+      const res = await fetch(url)
+      if (!res.ok) {
+        if (!before) setLoadError(true)
+        return
+      }
+      const data = await res.json()
+      setChannel(data.channel)
+      if (before) {
+        setMessages((prev) => [...(data.messages ?? []), ...prev])
+      } else {
+        setMessages(data.messages ?? [])
+      }
+      setHasMore(data.has_more)
+    } catch {
+      if (!before) setLoadError(true)
     }
-    setHasMore(data.has_more)
   }, [channelId])
 
   useEffect(() => {
@@ -102,7 +120,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const msg = payload.new as any
           // Only add if it's from someone else (we already added our own optimistically)
           if (msg.sender_id !== currentUserId) {
-            // Fetch with sender info
             supabase
               .from("direct_messages")
               .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
@@ -124,6 +141,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     setSending(true)
     const text = content.trim()
     setContent("")
+    onSent()
 
     try {
       const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
@@ -134,9 +152,22 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       if (res.ok) {
         const msg = await res.json()
         setMessages((prev) => [...prev, msg])
+      } else {
+        // Restore so user can retry
+        setContent(text)
+        toast({
+          variant: "destructive",
+          title: "Failed to send message",
+          description: "Your message could not be delivered. Please try again.",
+        })
       }
-    } catch (e) {
-      console.error("Failed to send:", e)
+    } catch {
+      setContent(text)
+      toast({
+        variant: "destructive",
+        title: "Connection error",
+        description: "Check your internet connection and try again.",
+      })
     } finally {
       setSending(false)
     }
@@ -160,6 +191,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       setMessages((prev) =>
         prev.map((m) => m.id === messageId ? { ...m, content: editContent.trim(), edited_at: new Date().toISOString() } : m)
       )
+    } else {
+      toast({ variant: "destructive", title: "Failed to edit message" })
     }
     setEditingId(null)
   }
@@ -168,6 +201,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     const res = await fetch(`/api/dm/channels/${channelId}/messages/${messageId}`, { method: "DELETE" })
     if (res.ok) {
       setMessages((prev) => prev.filter((m) => m.id !== messageId))
+    } else {
+      toast({ variant: "destructive", title: "Failed to delete message" })
     }
   }
 
@@ -184,8 +219,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       if (uploadError) throw uploadError
 
       const { data: { publicUrl } } = supabase.storage.from("attachments").getPublicUrl(path)
-
-      // Send as a message with file URL
       const fileContent = `[${file.name}](${publicUrl})`
       const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
         method: "POST",
@@ -195,12 +228,39 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       if (res.ok) {
         const msg = await res.json()
         setMessages((prev) => [...prev, msg])
+      } else {
+        toast({ variant: "destructive", title: "Failed to send file" })
       }
-    } catch (e) {
-      console.error("File upload failed:", e)
+    } catch {
+      toast({ variant: "destructive", title: "File upload failed", description: "The file could not be uploaded." })
     } finally {
       setUploadingFile(false)
     }
+  }
+
+  function startVoiceCall() {
+    setCallWithVideo(false)
+    setInCall(true)
+  }
+
+  function startVideoCall() {
+    setCallWithVideo(true)
+    setInCall(true)
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: "#313338" }}>
+        <p className="text-sm" style={{ color: "#949ba4" }}>Failed to load conversation.</p>
+        <button
+          onClick={() => loadMessages()}
+          className="px-4 py-2 rounded text-sm font-medium"
+          style={{ background: "#5865f2", color: "white" }}
+        >
+          Retry
+        </button>
+      </div>
+    )
   }
 
   if (!channel) {
@@ -235,22 +295,22 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         )}
         <span className="font-semibold text-white flex-1">{displayName}</span>
 
-        {/* Call buttons (1:1 DMs only) */}
+        {/* Call buttons — voice-only vs video differentiated */}
         {!channel.is_group && (
           <>
             <button
-              onClick={() => setInCall(true)}
+              onClick={startVoiceCall}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-              style={{ color: inCall ? "#23a55a" : "#b5bac1" }}
+              style={{ color: (inCall && !callWithVideo) ? "#23a55a" : "#b5bac1" }}
               title="Start voice call"
               disabled={inCall}
             >
               <Phone className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setInCall(true)}
+              onClick={startVideoCall}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-              style={{ color: inCall ? "#23a55a" : "#b5bac1" }}
+              style={{ color: (inCall && callWithVideo) ? "#23a55a" : "#b5bac1" }}
               title="Start video call"
               disabled={inCall}
             >
@@ -267,6 +327,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           currentUserId={currentUserId}
           partner={channel.partner}
           displayName={displayName}
+          withVideo={callWithVideo}
           onHangup={() => setInCall(false)}
         />
       )}
@@ -410,6 +471,24 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         <div ref={bottomRef} />
       </div>
 
+      {/* Typing indicator */}
+      {typingUsers.length > 0 && (
+        <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0" style={{ minHeight: "24px" }}>
+          <span className="flex gap-0.5 items-end">
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+          </span>
+          <span className="text-xs" style={{ color: "#949ba4" }}>
+            {typingUsers.length === 1
+              ? `${typingUsers[0].displayName} is typing…`
+              : typingUsers.length === 2
+              ? `${typingUsers[0].displayName} and ${typingUsers[1].displayName} are typing…`
+              : "Several people are typing…"}
+          </span>
+        </div>
+      )}
+
       {/* Input */}
       <div className="px-4 pb-4 flex-shrink-0">
         <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#383a40" }}>
@@ -436,7 +515,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           <input
             type="text"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => { setContent(e.target.value); if (e.target.value) onKeystroke() }}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             placeholder={`Message ${channel.is_group ? displayName : `@${displayName}`}`}
             className="flex-1 bg-transparent text-sm focus:outline-none"
@@ -460,23 +539,24 @@ interface CallProps {
   currentUserId: string
   partner: User | null
   displayName: string
+  withVideo: boolean
   onHangup: () => void
 }
 
-function DMCallView({ channelId, currentUserId, partner, displayName, onHangup }: CallProps) {
+function DMCallView({ channelId, currentUserId, partner, displayName, withVideo, onHangup }: CallProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const remoteAudioRef = useRef<HTMLAudioElement>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
+  const sigChannelRef = useRef<any>(null)
   const clientId = useRef(crypto.randomUUID())
   const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting")
+  const [failReason, setFailReason] = useState("")
   const [muted, setMuted] = useState(false)
   const [videoOff, setVideoOff] = useState(false)
-  const [incomingCall, setIncomingCall] = useState(false)
   const supabase = createClientSupabaseClient()
 
-  // Build ICE servers with optional TURN
   function buildIceServers(): RTCIceServer[] {
     const servers: RTCIceServer[] = [
       { urls: "stun:stun.l.google.com:19302" },
@@ -504,6 +584,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, onHangup }
     }
 
     const sigChannel = supabase.channel(`dm-call:${channelId}`)
+    sigChannelRef.current = sigChannel
 
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
@@ -513,39 +594,52 @@ function DMCallView({ channelId, currentUserId, partner, displayName, onHangup }
 
     sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: any) => {
       if (payload.from === clientId.current) return
-      if (payload.type === "offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.offer ?? payload.payload))
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-        sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
-      } else if (payload.type === "answer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.answer ?? payload.payload))
-      } else if (payload.type === "ice-candidate") {
-        await pc.addIceCandidate(new RTCIceCandidate(payload.candidate ?? payload.payload))
-      } else if (payload.type === "hangup") {
-        onHangup()
+      try {
+        if (payload.type === "offer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.offer ?? payload.payload))
+          const answer = await pc.createAnswer()
+          await pc.setLocalDescription(answer)
+          sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
+        } else if (payload.type === "answer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.answer ?? payload.payload))
+        } else if (payload.type === "ice-candidate") {
+          await pc.addIceCandidate(new RTCIceCandidate(payload.candidate ?? payload.payload))
+        } else if (payload.type === "hangup") {
+          onHangup()
+        }
+      } catch (err) {
+        console.error("WebRTC signal handling failed:", err)
+        setStatus("failed")
       }
-    })
-
-    sigChannel.on("broadcast", { event: "call-invite" }, ({ payload }: any) => {
-      if (payload.callerId !== currentUserId) setIncomingCall(true)
     })
 
     sigChannel.subscribe(async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+        // Request audio always; video only for video calls
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+          video: withVideo,
+        })
         localStreamRef.current = stream
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream
+        if (withVideo && localVideoRef.current) localVideoRef.current.srcObject = stream
         stream.getTracks().forEach((t) => pc.addTrack(t, stream))
-        // Initiator: broadcast call-invite and create offer
-        sigChannel.send({ type: "broadcast", event: "call-invite", payload: { callerId: currentUserId } })
+
+        sigChannel.send({ type: "broadcast", event: "call-invite", payload: { callerId: currentUserId, withVideo } })
+
         pc.onnegotiationneeded = async () => {
           const offer = await pc.createOffer()
           await pc.setLocalDescription(offer)
           sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "offer", offer, from: clientId.current } })
         }
-      } catch {
+      } catch (err: any) {
         setStatus("failed")
+        if (err?.name === "NotAllowedError") {
+          setFailReason("Permission denied. Allow microphone" + (withVideo ? " and camera" : "") + " access and retry.")
+        } else if (err?.name === "NotFoundError") {
+          setFailReason("No " + (withVideo ? "camera or " : "") + "microphone found.")
+        } else {
+          setFailReason("Could not access media devices.")
+        }
       }
     })
 
@@ -553,8 +647,10 @@ function DMCallView({ channelId, currentUserId, partner, displayName, onHangup }
       localStreamRef.current?.getTracks().forEach((t) => t.stop())
       pc.close()
       supabase.removeChannel(sigChannel)
+      sigChannelRef.current = null
     }
-  }, [channelId, currentUserId, onHangup, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId, currentUserId, withVideo])
 
   function toggleMute() {
     localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = muted })
@@ -567,9 +663,11 @@ function DMCallView({ channelId, currentUserId, partner, displayName, onHangup }
   }
 
   async function hangup() {
-    const sigChannel = supabase.channel(`dm-call:${channelId}`)
-    await sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "hangup", from: clientId.current } })
-    supabase.removeChannel(sigChannel)
+    if (sigChannelRef.current) {
+      await sigChannelRef.current.send({ type: "broadcast", event: "call-signal", payload: { type: "hangup", from: clientId.current } })
+      supabase.removeChannel(sigChannelRef.current)
+      sigChannelRef.current = null
+    }
     pcRef.current?.close()
     onHangup()
   }
@@ -577,29 +675,90 @@ function DMCallView({ channelId, currentUserId, partner, displayName, onHangup }
   return (
     <div className="absolute inset-0 z-40 flex flex-col items-center justify-center" style={{ background: "#1e1f22" }}>
       <audio ref={remoteAudioRef} autoPlay playsInline />
-      <div className="relative w-full max-w-2xl aspect-video rounded-xl overflow-hidden bg-black">
-        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-        <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-3 right-3 w-32 rounded-lg border-2 object-cover" style={{ borderColor: "#5865f2", transform: "scaleX(-1)" }} />
-        {status === "connecting" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(0,0,0,0.6)" }}>
-            <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
-            <p className="text-white text-sm">Calling {displayName}…</p>
+
+      {/* Video area (video calls only) */}
+      {withVideo ? (
+        <div className="relative w-full max-w-2xl aspect-video rounded-xl overflow-hidden bg-black">
+          <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="absolute bottom-3 right-3 w-32 rounded-lg border-2 object-cover"
+            style={{ borderColor: "#5865f2", transform: "scaleX(-1)" }}
+          />
+          {status === "connecting" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(0,0,0,0.6)" }}>
+              <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+              <p className="text-white text-sm">Video calling {displayName}…</p>
+            </div>
+          )}
+          {status === "failed" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+              <p className="text-white font-medium">Call failed</p>
+              <p className="text-sm text-center" style={{ color: "#949ba4" }}>{failReason}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Voice-only UI: show avatar */
+        <div className="flex flex-col items-center gap-4 pb-8">
+          <div
+            className={cn(
+              "w-32 h-32 rounded-full flex items-center justify-center overflow-hidden",
+              status === "connected" ? "ring-4 ring-green-500" : ""
+            )}
+            style={{ background: "#5865f2" }}
+          >
+            {partner?.avatar_url ? (
+              <img src={partner.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-white font-bold text-4xl">{displayName.slice(0, 2).toUpperCase()}</span>
+            )}
           </div>
-        )}
-        {status === "failed" && (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)" }}>
-            <p className="text-white">Could not access camera/microphone.</p>
-          </div>
-        )}
-      </div>
+          <p className="text-white font-semibold text-lg">{displayName}</p>
+          {status === "connecting" && (
+            <div className="flex items-center gap-2 text-sm" style={{ color: "#b5bac1" }}>
+              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+              Calling…
+            </div>
+          )}
+          {status === "connected" && (
+            <p className="text-sm font-medium" style={{ color: "#23a55a" }}>Connected</p>
+          )}
+          {status === "failed" && (
+            <p className="text-sm text-center max-w-xs" style={{ color: "#f23f43" }}>{failReason}</p>
+          )}
+        </div>
+      )}
+
+      {/* Controls */}
       <div className="flex items-center gap-4 mt-6">
-        <button onClick={toggleMute} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: muted ? "#f23f43" : "#4e5058" }} title={muted ? "Unmute" : "Mute"}>
+        <button
+          onClick={toggleMute}
+          className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+          style={{ background: muted ? "#f23f43" : "#4e5058" }}
+          title={muted ? "Unmute" : "Mute"}
+        >
           {muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
         </button>
-        <button onClick={toggleVideo} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: videoOff ? "#f23f43" : "#4e5058" }} title={videoOff ? "Turn on camera" : "Turn off camera"}>
-          {videoOff ? <VideoOff className="w-5 h-5 text-white" /> : <Video className="w-5 h-5 text-white" />}
-        </button>
-        <button onClick={hangup} className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#f23f43" }} title="Hang up">
+        {withVideo && (
+          <button
+            onClick={toggleVideo}
+            className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+            style={{ background: videoOff ? "#f23f43" : "#4e5058" }}
+            title={videoOff ? "Turn on camera" : "Turn off camera"}
+          >
+            {videoOff ? <VideoOff className="w-5 h-5 text-white" /> : <Video className="w-5 h-5 text-white" />}
+          </button>
+        )}
+        <button
+          onClick={hangup}
+          className="w-12 h-12 rounded-full flex items-center justify-center"
+          style={{ background: "#f23f43" }}
+          title="Hang up"
+        >
           <PhoneOff className="w-5 h-5 text-white" />
         </button>
       </div>

@@ -64,6 +64,10 @@ export type Database = {
           description: string | null
           is_public: boolean
           member_count: number
+          verification_level: number
+          explicit_content_filter: number
+          default_message_notifications: number
+          screening_enabled: boolean
           created_at: string
         }
         Insert: {
@@ -75,6 +79,10 @@ export type Database = {
           description?: string | null
           is_public?: boolean
           member_count?: number
+          verification_level?: number
+          explicit_content_filter?: number
+          default_message_notifications?: number
+          screening_enabled?: boolean
           created_at?: string
         }
         Update: {
@@ -86,7 +94,122 @@ export type Database = {
           description?: string | null
           is_public?: boolean
           member_count?: number
+          verification_level?: number
+          explicit_content_filter?: number
+          default_message_notifications?: number
+          screening_enabled?: boolean
           created_at?: string
+        }
+        Relationships: []
+      }
+      screening_configs: {
+        Row: {
+          server_id: string
+          title: string
+          description: string | null
+          rules_text: string
+          require_acceptance: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          server_id: string
+          title?: string
+          description?: string | null
+          rules_text?: string
+          require_acceptance?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          server_id?: string
+          title?: string
+          description?: string | null
+          rules_text?: string
+          require_acceptance?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      member_screening: {
+        Row: {
+          server_id: string
+          user_id: string
+          accepted_at: string
+        }
+        Insert: {
+          server_id: string
+          user_id: string
+          accepted_at?: string
+        }
+        Update: {
+          server_id?: string
+          user_id?: string
+          accepted_at?: string
+        }
+        Relationships: []
+      }
+      member_timeouts: {
+        Row: {
+          server_id: string
+          user_id: string
+          timed_out_until: string
+          moderator_id: string | null
+          reason: string | null
+          created_at: string
+        }
+        Insert: {
+          server_id: string
+          user_id: string
+          timed_out_until: string
+          moderator_id?: string | null
+          reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          server_id?: string
+          user_id?: string
+          timed_out_until?: string
+          moderator_id?: string | null
+          reason?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      automod_rules: {
+        Row: {
+          id: string
+          server_id: string
+          name: string
+          trigger_type: 'keyword_filter' | 'mention_spam' | 'link_spam'
+          config: Json
+          actions: Json
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          name: string
+          trigger_type: 'keyword_filter' | 'mention_spam' | 'link_spam'
+          config?: Json
+          actions?: Json
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          name?: string
+          trigger_type?: 'keyword_filter' | 'mention_spam' | 'link_spam'
+          config?: Json
+          actions?: Json
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -252,6 +375,7 @@ export type Database = {
           edited_at: string | null
           deleted_at: string | null
           reply_to_id: string | null
+          thread_id: string | null
           mentions: string[]
           mention_everyone: boolean
           pinned: boolean
@@ -267,6 +391,7 @@ export type Database = {
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
+          thread_id?: string | null
           mentions?: string[]
           mention_everyone?: boolean
           pinned?: boolean
@@ -282,6 +407,7 @@ export type Database = {
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
+          thread_id?: string | null
           mentions?: string[]
           mention_everyone?: boolean
           pinned?: boolean
@@ -880,6 +1006,105 @@ export type Database = {
         }
         Relationships: []
       }
+      threads: {
+        Row: {
+          id: string
+          parent_channel_id: string
+          starter_message_id: string | null
+          owner_id: string
+          name: string
+          archived: boolean
+          locked: boolean
+          auto_archive_duration: number
+          archived_at: string | null
+          message_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          parent_channel_id: string
+          starter_message_id?: string | null
+          owner_id: string
+          name: string
+          archived?: boolean
+          locked?: boolean
+          auto_archive_duration?: number
+          archived_at?: string | null
+          message_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          parent_channel_id?: string
+          starter_message_id?: string | null
+          owner_id?: string
+          name?: string
+          archived?: boolean
+          locked?: boolean
+          auto_archive_duration?: number
+          archived_at?: string | null
+          message_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threads_parent_channel_id_fkey"
+            columns: ["parent_channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "threads_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      thread_members: {
+        Row: {
+          thread_id: string
+          user_id: string
+          joined_at: string
+        }
+        Insert: {
+          thread_id: string
+          user_id: string
+          joined_at?: string
+        }
+        Update: {
+          thread_id?: string
+          user_id?: string
+          joined_at?: string
+        }
+        Relationships: []
+      }
+      thread_read_states: {
+        Row: {
+          user_id: string
+          thread_id: string
+          last_read_at: string
+          mention_count: number
+        }
+        Insert: {
+          user_id: string
+          thread_id: string
+          last_read_at?: string
+          mention_count?: number
+        }
+        Update: {
+          user_id?: string
+          thread_id?: string
+          last_read_at?: string
+          mention_count?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -909,9 +1134,25 @@ export type Database = {
         Args: { p_dm_channel_id: string }
         Returns: void
       }
+      mark_thread_read: {
+        Args: { p_thread_id: string }
+        Returns: void
+      }
       join_server_by_invite: {
         Args: { p_invite_code: string }
         Returns: Database['public']['Tables']['servers']['Row']
+      }
+      is_member_timed_out: {
+        Args: { p_server_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      has_passed_screening: {
+        Args: { p_server_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      create_thread_from_message: {
+        Args: { p_message_id: string; p_name: string }
+        Returns: Database['public']['Tables']['threads']['Row']
       }
     }
     Enums: {
@@ -940,6 +1181,44 @@ export type InviteRow = Database['public']['Tables']['invites']['Row']
 export type NotificationRow = Database['public']['Tables']['notifications']['Row']
 export type ServerEmojiRow = Database['public']['Tables']['server_emojis']['Row']
 export type WebhookRow = Database['public']['Tables']['webhooks']['Row']
+export type ScreeningConfigRow = Database['public']['Tables']['screening_configs']['Row']
+export type MemberScreeningRow = Database['public']['Tables']['member_screening']['Row']
+export type MemberTimeoutRow = Database['public']['Tables']['member_timeouts']['Row']
+export type AutoModRuleRow = Database['public']['Tables']['automod_rules']['Row']
+export type ThreadRow = Database['public']['Tables']['threads']['Row']
+export type ThreadMemberRow = Database['public']['Tables']['thread_members']['Row']
+export type ThreadReadStateRow = Database['public']['Tables']['thread_read_states']['Row']
+
+// AutoMod types
+export type AutoModTriggerType = 'keyword_filter' | 'mention_spam' | 'link_spam'
+
+export type AutoModActionType = 'block_message' | 'timeout_member' | 'alert_channel'
+
+export interface AutoModAction {
+  type: AutoModActionType
+  duration_seconds?: number  // for timeout_member
+  channel_id?: string        // for alert_channel
+}
+
+export interface KeywordFilterConfig {
+  keywords: string[]
+  regex_patterns?: string[]
+}
+
+export interface MentionSpamConfig {
+  mention_threshold: number
+}
+
+export interface LinkSpamConfig {
+  link_threshold: number
+}
+
+export type AutoModConfig = KeywordFilterConfig | MentionSpamConfig | LinkSpamConfig
+
+export interface AutoModRuleWithParsed extends Omit<AutoModRuleRow, 'config' | 'actions'> {
+  config: AutoModConfig
+  actions: AutoModAction[]
+}
 
 // Extended types with relations
 export interface MessageWithAuthor extends MessageRow {
@@ -961,4 +1240,14 @@ export interface MemberWithRoles extends ServerMemberRow {
 
 export interface FriendWithUser extends FriendshipRow {
   friend: UserRow
+}
+
+export interface ThreadWithDetails extends ThreadRow {
+  owner: UserRow
+  starter_message: MessageWithAuthor | null
+  members: ThreadMemberRow[]
+}
+
+export interface MessageWithThread extends MessageWithAuthor {
+  thread: ThreadRow | null
 }

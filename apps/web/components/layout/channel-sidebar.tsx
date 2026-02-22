@@ -17,6 +17,7 @@ import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { UserPanel } from "@/components/layout/user-panel"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
+import { useUnreadChannels } from "@/hooks/use-unread-channels"
 
 interface Props {
   server: ServerRow
@@ -128,6 +129,15 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
   const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
 
+  // Track unread state for all text channels in this server
+  const textChannelIds = channels.filter((c) => c.type === "text").map((c) => c.id)
+  const { unreadChannelIds, mentionCounts } = useUnreadChannels(
+    server.id,
+    textChannelIds,
+    currentUserId,
+    activeChannelId
+  )
+
   function toggleCategory(id: string) {
     setCollapsedCategories((prev) => {
       const next = new Set(prev)
@@ -210,6 +220,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                       isActive={activeChannelId === channel.id}
                       isVoiceActive={voiceChannelId === channel.id}
                       canManageChannels={canManageChannels}
+                      isUnread={unreadChannelIds.has(channel.id)}
+                      mentionCount={mentionCounts[channel.id] ?? 0}
                       onClick={() => {
                         if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
                           setVoiceChannel(channel.id, server.id)
@@ -281,6 +293,8 @@ function ChannelItem({
   isActive,
   isVoiceActive,
   canManageChannels,
+  isUnread,
+  mentionCount,
   onClick,
   onDelete,
 }: {
@@ -288,10 +302,13 @@ function ChannelItem({
   isActive: boolean
   isVoiceActive: boolean
   canManageChannels: boolean
+  isUnread?: boolean
+  mentionCount?: number
   onClick: () => void
   onDelete: () => void
 }) {
   const { toast } = useToast()
+  const showBadge = !isActive && (isUnread || (mentionCount ?? 0) > 0)
 
   return (
     <ContextMenu>
@@ -302,16 +319,28 @@ function ChannelItem({
             "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm",
             isActive || isVoiceActive
               ? "bg-white/10 text-white"
+              : isUnread
+              ? "text-white hover:bg-white/5"
               : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
           )}
         >
           <ChannelIcon channel={channel} isVoiceActive={isVoiceActive} />
-          <span className="truncate">{channel.name}</span>
-          {isVoiceActive && (
-            <span className="ml-auto">
+          <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>{channel.name}</span>
+          <span className="ml-auto flex items-center gap-1 flex-shrink-0">
+            {isVoiceActive && (
               <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
-            </span>
-          )}
+            )}
+            {showBadge && (mentionCount ?? 0) > 0 ? (
+              <span
+                className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold text-white px-1"
+                style={{ background: "#f23f43" }}
+              >
+                {(mentionCount ?? 0) > 99 ? "99+" : mentionCount}
+              </span>
+            ) : showBadge ? (
+              <span className="w-2 h-2 rounded-full" style={{ background: "#f2f3f5" }} />
+            ) : null}
+          </span>
         </button>
       </ContextMenuTrigger>
 
