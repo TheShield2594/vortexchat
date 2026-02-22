@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { requireServerOwner } from "@/lib/server-auth"
-import { validateConfigAndActions } from "../route"
+import { validateConfigAndActions } from "@/lib/automod"
 import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string; ruleId: string }> }

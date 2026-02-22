@@ -188,7 +188,7 @@ export async function POST(request: Request) {
         const actions = Array.isArray(r.actions)
           ? r.actions.filter((a: any) => a && typeof a === "object" && typeof a.type === "string")
           : []
-        acc.push({ ...r, config, actions } as AutoModRuleWithParsed)
+        acc.push({ ...r, config, actions } as unknown as AutoModRuleWithParsed)
         return acc
       }, [])
 
