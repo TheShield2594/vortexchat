@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type KeyboardEvent } from "react"
 import { format } from "date-fns"
 import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils/cn"
 import { LinkEmbed, extractFirstUrl } from "@/components/chat/link-embed"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
 import { CreateThreadModal } from "@/components/modals/create-thread-modal"
+import { ConfirmActionDialog } from "@/components/modals/confirm-action-dialog"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 
@@ -41,12 +42,25 @@ export function MessageItem({
   const [showActions, setShowActions] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showCreateThread, setShowCreateThread] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
   const isOwn = message.author_id === currentUserId
 
-  function confirmDelete() {
-    if (window.confirm("Are you sure you want to delete this message? This cannot be undone.")) {
-      onDelete()
+  async function confirmDelete() {
+    setIsDeleting(true)
+    try {
+      await onDelete()
+      toast({ title: "Message deleted", description: "The message was removed for everyone in this channel." })
+      setShowDeleteDialog(false)
+    } catch {
+      toast({
+        title: "Could not delete message",
+        description: "Please try again. If this keeps happening, refresh and retry.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -72,6 +86,29 @@ export function MessageItem({
       await onEdit(editContent.trim())
     }
     setIsEditing(false)
+  }
+
+  function handleMessageKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest("button, textarea, input, a")) {
+      return
+    }
+
+    if (event.key.toLowerCase() === "r") {
+      event.preventDefault()
+      onReply()
+      return
+    }
+
+    if (isOwn && event.key.toLowerCase() === "e") {
+      event.preventDefault()
+      setIsEditing(true)
+      return
+    }
+
+    if (isOwn && event.key === "Delete") {
+      event.preventDefault()
+      setShowDeleteDialog(true)
+    }
   }
 
   function renderInline(text: string, keyOffset: number): React.ReactNode[] {
@@ -177,11 +214,22 @@ export function MessageItem({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "relative group px-4 message-hover",
+            "relative group px-4 message-hover outline-none focus-visible:ring-2 focus-visible:ring-[#5865f2] focus-visible:ring-offset-0",
             isGrouped ? "py-0.5" : "pt-4 pb-0.5"
           )}
           onMouseEnter={() => setShowActions(true)}
           onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false) }}
+          onFocus={() => setShowActions(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setShowActions(false)
+              setShowEmojiPicker(false)
+            }
+          }}
+          onKeyDown={handleMessageKeyDown}
+          tabIndex={0}
+          role="group"
+          aria-label={`Message from ${displayName}. Press R to reply${isOwn ? ", E to edit, and Delete to delete" : ""}.`}
         >
           {/* Reply reference */}
           {message.reply_to_id && message.reply_to && (
@@ -344,7 +392,7 @@ export function MessageItem({
           {/* Action buttons */}
           {showActions && !isEditing && (
             <div
-              className="absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden"
+              className="absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden transition-all duration-200 ease-out animate-in fade-in-50 slide-in-from-top-1"
               style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
             >
               {/* Quick reactions */}
@@ -355,6 +403,7 @@ export function MessageItem({
                       key={emoji}
                       onClick={() => { onReaction(emoji); setShowEmojiPicker(false) }}
                       className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm transition-colors"
+                      aria-label={`React with ${emoji}`}
                     >
                       {emoji}
                     </button>
@@ -367,6 +416,7 @@ export function MessageItem({
                 className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
                 style={{ color: "#b5bac1" }}
                 title="Add Reaction"
+                aria-label="Add reaction"
               >
                 <Smile className="w-4 h-4" />
               </button>
@@ -376,6 +426,7 @@ export function MessageItem({
                 className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
                 style={{ color: "#b5bac1" }}
                 title="Reply"
+                aria-label="Reply"
               >
                 <Reply className="w-4 h-4" />
               </button>
@@ -386,6 +437,7 @@ export function MessageItem({
                   className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
                   style={{ color: "#b5bac1" }}
                   title="Create Thread"
+                  aria-label="Create thread"
                 >
                   <MessageSquare className="w-4 h-4" />
                 </button>
@@ -397,6 +449,7 @@ export function MessageItem({
                   className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
                   style={{ color: "#b5bac1" }}
                   title="Edit"
+                  aria-label="Edit message"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -404,10 +457,11 @@ export function MessageItem({
 
               {isOwn && (
                 <button
-                  onClick={confirmDelete}
+                  onClick={() => setShowDeleteDialog(true)}
                   className="w-8 h-8 flex items-center justify-center hover:bg-red-500/20 transition-colors"
                   style={{ color: "#f23f43" }}
                   title="Delete"
+                  aria-label="Delete message"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -449,7 +503,7 @@ export function MessageItem({
         {isOwn && (
           <>
             <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={confirmDelete}>
+            <ContextMenuItem variant="destructive" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="w-4 h-4 mr-2" /> Delete Message
             </ContextMenuItem>
           </>
@@ -468,6 +522,19 @@ export function MessageItem({
         }}
       />
     )}
+
+    <ConfirmActionDialog
+      open={showDeleteDialog}
+      onOpenChange={setShowDeleteDialog}
+      title="Delete this message?"
+      description="This removes the message from the channel for everyone. Attachments and replies linked to it may become harder to follow."
+      confirmLabel="Delete message"
+      acknowledgeRiskLabel="I understand this action cannot be undone."
+      entitySummary={message.content ?? "(No text content)"}
+      isLoading={isDeleting}
+      loadingLabel="Deleting message…"
+      onConfirm={confirmDelete}
+    />
     </>
   )
 }
