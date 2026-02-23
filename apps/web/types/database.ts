@@ -1157,6 +1157,10 @@ export type Database = {
         Args: { p_message_id: string; p_name: string }
         Returns: Database['public']['Tables']['threads']['Row']
       }
+      delete_expired_channels: {
+        Args: Record<string, never>
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
