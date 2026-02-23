@@ -10,9 +10,9 @@ import {
   type VoiceAudioSettings,
 } from "@/lib/voice/audio-settings"
 
-type ParticipantAudio = {
+export type ParticipantAudio = {
   volume: number
-  pan: number
+  pan: number | null
 }
 
 interface VoiceAudioState {
@@ -32,13 +32,14 @@ interface VoiceAudioState {
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+const defaultAudioSettings = createDefaultAudioSettings()
 
 function resolveSettings(
   state: Pick<VoiceAudioState, "profilesByUser" | "serverOverridesByUser">,
   userId: string,
   serverId?: string | null
 ): VoiceAudioSettings {
-  const profile = state.profilesByUser[userId] ?? createDefaultAudioSettings()
+  const profile = state.profilesByUser[userId] ?? defaultAudioSettings
   if (!serverId) return profile
   return state.serverOverridesByUser[userId]?.[serverId] ?? profile
 }
@@ -102,7 +103,7 @@ export const useVoiceAudioStore = create<VoiceAudioState>()(
             [serverId]: {
               ...(state.participantMixByServer[serverId] ?? {}),
               [participantUserId]: {
-                ...(state.participantMixByServer[serverId]?.[participantUserId] ?? { volume: 1, pan: 0 }),
+                ...(state.participantMixByServer[serverId]?.[participantUserId] ?? { volume: 1, pan: null }),
                 volume: clamp(volume, 0, 2),
               },
             },
@@ -116,7 +117,7 @@ export const useVoiceAudioStore = create<VoiceAudioState>()(
             [serverId]: {
               ...(state.participantMixByServer[serverId] ?? {}),
               [participantUserId]: {
-                ...(state.participantMixByServer[serverId]?.[participantUserId] ?? { volume: 1, pan: 0 }),
+                ...(state.participantMixByServer[serverId]?.[participantUserId] ?? { volume: 1, pan: null }),
                 pan: clamp(pan, -1, 1),
               },
             },
@@ -124,7 +125,7 @@ export const useVoiceAudioStore = create<VoiceAudioState>()(
         }))
       },
       getParticipantMix: (serverId, participantUserId) =>
-        get().participantMixByServer[serverId]?.[participantUserId] ?? { volume: 1, pan: 0 },
+        get().participantMixByServer[serverId]?.[participantUserId] ?? { volume: 1, pan: null },
     }),
     { name: "vortex:voice-audio" }
   )

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { createInputAudioPipeline } from "@/lib/voice/audio-pipeline"
@@ -50,7 +50,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
   const [videoEnabled, setVideoEnabled] = useState(false)
   const [cpuBypassActive, setCpuBypassActive] = useState(false)
   const [audioInitError, setAudioInitError] = useState<string | null>(null)
-  const [rawStreamVersion, setRawStreamVersion] = useState(0)
+  const [rawLocalStream, setRawLocalStream] = useState<MediaStream | null>(null)
 
   const localStream = useRef<MediaStream | null>(null)
   const rawLocalStreamRef = useRef<MediaStream | null>(null)
@@ -77,7 +77,11 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
   const setProfileSettings = useVoiceAudioStore((state) => state.setProfileSettings)
   const setServerOverride = useVoiceAudioStore((state) => state.setServerOverride)
 
-  const audioSettings = serverOverrideSettings ?? profileSettings ?? useVoiceAudioStore.getState().getEffectiveSettings(userId, serverId)
+  const audioSettings = useMemo(() => {
+    if (serverOverrideSettings) return serverOverrideSettings
+    if (profileSettings) return profileSettings
+    return useVoiceAudioStore.getState().getEffectiveSettings(userId, serverId)
+  }, [profileSettings, serverOverrideSettings, userId, serverId])
 
   const setAudioSettings = useCallback((settings: VoiceAudioSettings) => {
     if (serverId) setServerOverride(userId, serverId, settings)
@@ -101,13 +105,12 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
   }, [])
 
   useEffect(() => {
-    const rawStream = rawLocalStreamRef.current
-    if (!rawStream) return
+    if (!rawLocalStream) return
 
     pipelineCleanupRef.current?.()
     pipelineCleanupRef.current = null
 
-    const pipeline = createInputAudioPipeline(rawStream, audioSettings, audioContextRef)
+    const pipeline = createInputAudioPipeline(rawLocalStream, audioSettings, audioContextRef)
     pipelineCleanupRef.current = pipeline.cleanup
     localStream.current = pipeline.processedStream
     setCpuBypassActive(pipeline.constrainedCpu)
@@ -124,7 +127,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       pipelineCleanupRef.current?.()
       pipelineCleanupRef.current = null
     }
-  }, [audioSettings, rawStreamVersion])
+  }, [audioSettings, rawLocalStream])
 
   useEffect(() => {
     let mounted = true
@@ -227,8 +230,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         if (selectedInputId) audioConstraints.deviceId = { ideal: selectedInputId }
         const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false })
         rawLocalStreamRef.current = rawStream
-        localStream.current = rawStream
-        setRawStreamVersion((v) => v + 1)
+        setRawLocalStream(rawStream)
 
         if (!mounted) {
           rawStream.getTracks().forEach((t) => t.stop())
@@ -370,7 +372,13 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       harkRef.current?.stop()
       pipelineCleanupRef.current?.()
       pipelineCleanupRef.current = null
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => undefined)
+        audioContextRef.current = null
+      }
       rawLocalStreamRef.current?.getTracks().forEach((t) => t.stop())
+      rawLocalStreamRef.current = null
+      setRawLocalStream(null)
       screenStream.current?.getTracks().forEach((t) => t.stop())
       cameraStream.current?.getTracks().forEach((t) => t.stop())
       if (channelRef.current) {
@@ -467,7 +475,13 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     harkRef.current?.stop()
     pipelineCleanupRef.current?.()
     pipelineCleanupRef.current = null
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => undefined)
+      audioContextRef.current = null
+    }
     rawLocalStreamRef.current?.getTracks().forEach((t) => t.stop())
+    rawLocalStreamRef.current = null
+    setRawLocalStream(null)
     screenStream.current?.getTracks().forEach((t) => t.stop())
     cameraStream.current?.getTracks().forEach((t) => t.stop())
     if (channelRef.current) {

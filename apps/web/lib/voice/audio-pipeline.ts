@@ -8,6 +8,16 @@ export interface InputAudioPipeline {
   bypassed: boolean
 }
 
+function closeAudioContext(audioContextRef: MutableRefObject<AudioContext | null>) {
+  const activeContext = audioContextRef.current
+  if (activeContext) {
+    activeContext.close().catch(() => {
+      // no-op
+    })
+    audioContextRef.current = null
+  }
+}
+
 export function createInputAudioPipeline(
   rawStream: MediaStream,
   settings: VoiceAudioSettings,
@@ -25,7 +35,12 @@ export function createInputAudioPipeline(
   const shouldBypass = settings.bypassProcessing || constrainedCpu
 
   if (shouldBypass) {
-    return { processedStream: rawStream, cleanup: () => {}, constrainedCpu, bypassed: true }
+    return {
+      processedStream: rawStream,
+      cleanup: () => closeAudioContext(audioContextRef),
+      constrainedCpu,
+      bypassed: true,
+    }
   }
 
   const source = audioContext.createMediaStreamSource(rawStream)
@@ -72,8 +87,7 @@ export function createInputAudioPipeline(
   node.connect(outputGain)
   outputGain.connect(destination)
 
-  let rafId = 0
-  const updateGate = () => {
+  const intervalId = window.setInterval(() => {
     analyser.getFloatTimeDomainData(data)
     let sum = 0
     for (const sample of data) sum += sample * sample
@@ -84,12 +98,10 @@ export function createInputAudioPipeline(
       audioContext.currentTime,
       0.01
     )
-    rafId = requestAnimationFrame(updateGate)
-  }
-  rafId = requestAnimationFrame(updateGate)
+  }, 50)
 
   const cleanup = () => {
-    cancelAnimationFrame(rafId)
+    clearInterval(intervalId)
     ;[source, inputGain, compressor, gateGain, analyser, ...eqFilters, outputGain, destination].forEach((n) => {
       try {
         n.disconnect()
@@ -98,13 +110,7 @@ export function createInputAudioPipeline(
       }
     })
 
-    const activeContext = audioContextRef.current
-    if (activeContext) {
-      activeContext.close().catch(() => {
-        // no-op
-      })
-      audioContextRef.current = null
-    }
+    closeAudioContext(audioContextRef)
   }
 
   return { processedStream: destination.stream, cleanup, constrainedCpu, bypassed: false }

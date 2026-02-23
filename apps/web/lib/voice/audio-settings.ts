@@ -97,17 +97,18 @@ export const AUDIO_PRESETS: Record<AudioPreset, Partial<VoiceAudioSettings>> = {
 }
 
 export function createDefaultAudioSettings(): VoiceAudioSettings {
+  const flatPreset = AUDIO_PRESETS.flat
   const defaultSettings: VoiceAudioSettings = {
     preset: "voice-clarity",
-    inputGain: 1,
-    outputGain: 1,
-    compressorThreshold: -28,
-    compressorRatio: 4,
-    compressorAttack: 0.01,
-    compressorRelease: 0.22,
-    noiseGateThreshold: -56,
-    noiseGateFloor: 0.12,
-    eqBands: baseBands(),
+    inputGain: flatPreset.inputGain ?? 1,
+    outputGain: flatPreset.outputGain ?? 1,
+    compressorThreshold: flatPreset.compressorThreshold ?? -30,
+    compressorRatio: flatPreset.compressorRatio ?? 2,
+    compressorAttack: flatPreset.compressorAttack ?? 0.03,
+    compressorRelease: flatPreset.compressorRelease ?? 0.3,
+    noiseGateThreshold: flatPreset.noiseGateThreshold ?? -60,
+    noiseGateFloor: flatPreset.noiseGateFloor ?? 0.15,
+    eqBands: (flatPreset.eqBands ?? baseBands()).map((band) => ({ ...band })),
     bypassProcessing: false,
     bypassOnCpuConstraint: true,
     spatialAudioEnabled: false,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type MutableRefObject } from "react"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
   Monitor, MonitorOff, Video, VideoOff, Radio, Settings,
@@ -48,6 +48,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const supabase = createClientSupabaseClient()
 
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
+  const outputAudioContextRef = useRef<AudioContext | null>(null)
   const {
     peers,
     muted,
@@ -82,6 +83,15 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     () => { if (muted) toggleMute() },
     () => { if (!muted) toggleMute() }
   )
+
+  useEffect(() => {
+    return () => {
+      if (outputAudioContextRef.current) {
+        outputAudioContextRef.current.close().catch(() => undefined)
+        outputAudioContextRef.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     async function joinVoiceState() {
@@ -219,6 +229,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                 setSelectedOutputId={setSelectedOutputId}
                 settings={audioSettings}
                 setSettings={setAudioSettings}
+                onClose={() => setDeviceMenuOpen(false)}
               />
             )}
           </div>
@@ -235,7 +246,8 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
               deafened={deafened}
               outputDeviceId={selectedOutputId}
               volume={mix.volume * audioSettings.outputGain}
-              pan={audioSettings.spatialAudioEnabled ? mix.pan || (idx % 2 === 0 ? -0.2 : 0.2) : 0}
+              pan={audioSettings.spatialAudioEnabled ? (mix.pan != null ? mix.pan : (idx % 2 === 0 ? -0.2 : 0.2)) : 0}
+              sharedAudioContextRef={outputAudioContextRef}
             />
           )
         })}
@@ -253,6 +265,7 @@ function VoiceSettingsPanel({
   setSelectedOutputId,
   settings,
   setSettings,
+  onClose,
 }: {
   audioInputDevices: MediaDeviceInfo[]
   audioOutputDevices: MediaDeviceInfo[]
@@ -262,9 +275,34 @@ function VoiceSettingsPanel({
   setSelectedOutputId: (id: string | null) => void
   settings: VoiceAudioSettings
   setSettings: (settings: VoiceAudioSettings) => void
+  onClose: () => void
 }) {
+  const panelRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null
+      if (!panelRef.current || !target) return
+      if (!panelRef.current.contains(target)) onClose()
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    document.addEventListener("touchstart", handlePointerDown)
+    document.addEventListener("keydown", handleKeyDown)
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown)
+      document.removeEventListener("touchstart", handlePointerDown)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [onClose])
+
   return (
-    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-[360px] rounded-xl shadow-2xl p-4 space-y-4 z-50" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
+    <div ref={panelRef} className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-[360px] rounded-xl shadow-2xl p-4 space-y-4 z-50" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-white">Voice Settings</p>
         <button
@@ -296,7 +334,7 @@ function VoiceSettingsPanel({
         <label className="block text-xs" style={{ color: "#b5bac1" }}>EQ (6 bands)</label>
         <div className="grid grid-cols-3 gap-2">
           {settings.eqBands.map((band, idx) => (
-            <div key={band.frequency}>
+            <div key={idx}>
               <p className="text-[10px]" style={{ color: "#949ba4" }}>{band.frequency}Hz</p>
               <input type="range" min={-12} max={12} step={0.5} value={band.gain} onChange={(e) => setSettings(withEqBandGain(settings, idx, Number(e.target.value)))} className="w-full" />
             </div>
@@ -368,7 +406,7 @@ function ParticipantTile({
   onVolumeChange?: (volume: number) => void
   onPanChange?: (pan: number) => void
   volume?: number
-  pan?: number
+  pan?: number | null
   spatialEnabled?: boolean
 }) {
   const cameraRef = useRef<HTMLVideoElement>(null)
@@ -438,15 +476,16 @@ function RemoteAudio({
   outputDeviceId,
   volume,
   pan,
+  sharedAudioContextRef,
 }: {
   stream: MediaStream
   deafened: boolean
   outputDeviceId: string | null
   volume: number
   pan: number
+  sharedAudioContextRef: MutableRefObject<AudioContext | null>
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
-  const contextRef = useRef<AudioContext | null>(null)
   const gainRef = useRef<GainNode | null>(null)
   const panRef = useRef<StereoPannerNode | null>(null)
   const hasWebAudioRef = useRef(false)
@@ -461,8 +500,8 @@ function RemoteAudio({
     }
 
     hasWebAudioRef.current = true
-    const context = contextRef.current ?? new AudioCtx()
-    contextRef.current = context
+    const context = sharedAudioContextRef.current ?? new AudioCtx()
+    sharedAudioContextRef.current = context
 
     const source = context.createMediaStreamSource(stream)
     const gainNode = context.createGain()
@@ -494,13 +533,14 @@ function RemoteAudio({
   useEffect(() => {
     if (!outputDeviceId) return
 
-    if (contextRef.current) {
-      const maybeContextWithSink = contextRef.current as AudioContext & { setSinkId?: (id: string) => Promise<void> }
+    if (hasWebAudioRef.current && sharedAudioContextRef.current) {
+      const maybeContextWithSink = sharedAudioContextRef.current as AudioContext & { setSinkId?: (id: string) => Promise<void> }
       if (maybeContextWithSink.setSinkId) {
         maybeContextWithSink.setSinkId(outputDeviceId).catch(() => {
           // graceful fallback to default sink
         })
       }
+      return
     }
 
     if (!hasWebAudioRef.current && audioRef.current) {
@@ -509,7 +549,7 @@ function RemoteAudio({
         // graceful fallback to default sink
       })
     }
-  }, [outputDeviceId])
+  }, [outputDeviceId, sharedAudioContextRef])
 
   return <audio ref={audioRef} autoPlay playsInline className="hidden" />
 }

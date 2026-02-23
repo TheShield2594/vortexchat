@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   applyPresetToSettings,
   createDefaultAudioSettings,
@@ -7,6 +7,26 @@ import {
 } from "@/lib/voice/audio-settings"
 
 describe("voice audio settings", () => {
+  let originalNavigator: Navigator
+
+  function setNavigatorStub(hardwareConcurrency: number) {
+    Object.defineProperty(globalThis, "navigator", {
+      value: { hardwareConcurrency },
+      configurable: true,
+    })
+  }
+
+  beforeEach(() => {
+    originalNavigator = globalThis.navigator
+  })
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: originalNavigator,
+      configurable: true,
+    })
+  })
+
   it("applies preset EQ values", () => {
     const defaults = createDefaultAudioSettings()
     const updated = applyPresetToSettings("broadcast", defaults)
@@ -22,68 +42,46 @@ describe("voice audio settings", () => {
   })
 
   it("flags constrained cpu on low core count", () => {
-    const originalNavigator = globalThis.navigator
-    try {
-      Object.defineProperty(globalThis, "navigator", {
-        value: { hardwareConcurrency: 2 },
-        configurable: true,
-      })
+    setNavigatorStub(2)
 
-      const constrained = estimateAudioCpuConstraint({
-        sampleRate: 48000,
-        baseLatency: 0.01,
-      } as AudioContext)
+    const constrained = estimateAudioCpuConstraint({
+      sampleRate: 48000,
+      baseLatency: 0.01,
+    } as AudioContext)
 
-      expect(constrained).toBe(true)
-    } finally {
-      Object.defineProperty(globalThis, "navigator", {
-        value: originalNavigator,
-        configurable: true,
-      })
-    }
+    expect(constrained).toBe(true)
   })
 
   it("flags constrained cpu on high sampleRate", () => {
-    const originalNavigator = globalThis.navigator
-    try {
-      Object.defineProperty(globalThis, "navigator", {
-        value: { hardwareConcurrency: 8 },
-        configurable: true,
-      })
+    setNavigatorStub(8)
 
-      const constrained = estimateAudioCpuConstraint({
-        sampleRate: 96000,
-        baseLatency: 0.01,
-      } as AudioContext)
+    const constrained = estimateAudioCpuConstraint({
+      sampleRate: 96000,
+      baseLatency: 0.01,
+    } as AudioContext)
 
-      expect(constrained).toBe(true)
-    } finally {
-      Object.defineProperty(globalThis, "navigator", {
-        value: originalNavigator,
-        configurable: true,
-      })
-    }
+    expect(constrained).toBe(true)
   })
 
   it("flags constrained cpu on high baseLatency", () => {
-    const originalNavigator = globalThis.navigator
-    try {
-      Object.defineProperty(globalThis, "navigator", {
-        value: { hardwareConcurrency: 8 },
-        configurable: true,
-      })
+    setNavigatorStub(8)
 
-      const constrained = estimateAudioCpuConstraint({
-        sampleRate: 48000,
-        baseLatency: 0.06,
-      } as AudioContext)
+    const constrained = estimateAudioCpuConstraint({
+      sampleRate: 48000,
+      baseLatency: 0.06,
+    } as AudioContext)
 
-      expect(constrained).toBe(true)
-    } finally {
-      Object.defineProperty(globalThis, "navigator", {
-        value: originalNavigator,
-        configurable: true,
-      })
-    }
+    expect(constrained).toBe(true)
+  })
+
+  it("does not flag constrained cpu for unconstrained environment", () => {
+    setNavigatorStub(8)
+
+    const constrained = estimateAudioCpuConstraint({
+      sampleRate: 48000,
+      baseLatency: 0.01,
+    } as AudioContext)
+
+    expect(constrained).toBe(false)
   })
 })
