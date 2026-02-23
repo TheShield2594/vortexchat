@@ -7,6 +7,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Plus } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { format, isToday } from "date-fns"
+import { Skeleton } from "@/components/ui/skeleton"
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 
 interface DMChannel {
   id: string
@@ -101,8 +103,19 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+      <div className="flex h-full flex-col px-2 pt-3">
+        <Skeleton className="mb-3 h-3 w-28" />
+        <div className="space-y-2">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-3 rounded-md px-2 py-1.5">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <div className="flex-1 space-y-1">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-2.5 w-32" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -126,8 +139,13 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
       {/* Channel list */}
       <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
         {channels.length === 0 && (
-          <div className="text-center py-6 px-3">
-            <p className="text-xs" style={{ color: "#4e5058" }}>No conversations yet</p>
+          <div className="px-2 py-4">
+            <BrandedEmptyState
+              icon={Users}
+              title="Your DMs are quiet"
+              description="Start a new conversation to see your messages, status updates, and call history here."
+              hint="Tip: Right-click a member and choose Message to open a DM."
+            />
           </div>
         )}
         {channels.map((ch) => {

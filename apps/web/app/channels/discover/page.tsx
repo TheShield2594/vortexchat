@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { Search, Users, Compass, BadgeCheck, Star } from "lucide-react"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 
 interface PublicServer {
   id: string
@@ -139,8 +141,30 @@ export default function DiscoverPage() {
 
       <div className="flex-1 overflow-y-auto px-8 py-6">
         {loading ? (
-          <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} /></div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div key={index} className="rounded-lg p-4" style={{ background: "#2b2d31" }}>
+                  <Skeleton className="mb-3 h-20 w-full" />
+                  <Skeleton className="mb-2 h-4 w-2/3" />
+                  <Skeleton className="mb-3 h-3 w-full" />
+                  <div className="flex justify-between">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-6 w-14" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : mode === "servers" ? (
+          servers.length === 0 ? (
+            <BrandedEmptyState
+              icon={Compass}
+              title="No servers found"
+              description="We couldn’t find public communities matching your filters yet."
+              hint="Try a broader term or switch to Apps to explore integrations."
+            />
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {servers.map((server) => (
               <div key={server.id} className="rounded-lg overflow-hidden flex flex-col transition-transform hover:scale-[1.02]" style={{ background: "#2b2d31" }}>
@@ -158,7 +182,16 @@ export default function DiscoverPage() {
               </div>
             ))}
           </div>
+          )
         ) : (
+          apps.length === 0 ? (
+            <BrandedEmptyState
+              icon={BadgeCheck}
+              title="No apps in this lane"
+              description="No marketplace apps match your current search and category filters."
+              hint="Reset filters to all categories to discover more tools."
+            />
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {apps.map((app) => (
               <div key={app.id} className="rounded-lg p-4" style={{ background: "#2b2d31" }}>
@@ -173,6 +206,7 @@ export default function DiscoverPage() {
               </div>
             ))}
           </div>
+          )
         )}
       </div>
     </div>

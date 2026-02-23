@@ -6,6 +6,8 @@ import { format, formatDistanceToNow } from "date-fns"
 import type { ThreadRow } from "@/types/database"
 import { useRealtimeThreads } from "@/hooks/use-realtime-threads"
 import { cn } from "@/lib/utils/cn"
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Props {
   channelId: string
@@ -81,7 +83,18 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
   const visibleArchivedThreads = filter === "active" ? [] : archivedThreads
   const shouldAllowArchivedToggle = filter !== "active"
 
-  if (visibleThreads.length === 0 && !shouldShowArchived) return null
+  if (visibleThreads.length === 0 && !shouldShowArchived) {
+    return (
+      <div className="mx-2 mt-2 mb-3 border-t pt-3" style={{ borderColor: "#1e1f22" }}>
+        <BrandedEmptyState
+          icon={MessageSquare}
+          title="No threads yet"
+          description="When someone starts a thread, it will appear here for focused side conversations."
+          hint="Use the + button on any message to kick one off."
+        />
+      </div>
+    )
+  }
 
   return (
     <div
@@ -135,8 +148,9 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
           {shouldShowArchived && (
             <>
               {loadingArchived ? (
-                <div className="px-4 py-2 text-xs" style={{ color: "#6d6f78" }}>
-                  Loading…
+                <div className="space-y-2 px-4 py-2">
+                  <Skeleton className="h-7 w-full" />
+                  <Skeleton className="h-7 w-11/12" />
                 </div>
               ) : (
                 visibleArchivedThreads.map((thread) => (

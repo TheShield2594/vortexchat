@@ -5,6 +5,8 @@ import { Search, X, Loader2, Hash, Calendar } from "lucide-react"
 import { format } from "date-fns"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import type { MessageWithAuthor } from "@/types/database"
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Props {
   serverId: string
@@ -101,21 +103,38 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
         {/* Results */}
         <div className="flex-1 overflow-y-auto">
           {!query.trim() ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-2">
-              <Search className="w-10 h-10" style={{ color: "#4e5058" }} />
-              <p className="text-sm" style={{ color: "#949ba4" }}>
-                Search messages across this server
-              </p>
-              <p className="text-xs" style={{ color: "#4e5058" }}>
-                Use quotes for exact phrases, e.g. &quot;hello world&quot;
-              </p>
+            <div className="px-4 py-10">
+              <BrandedEmptyState
+                icon={Search}
+                title="Search this server"
+                description="Find messages, links, and snippets across every channel you can access."
+                hint="Use quotes for exact phrases, e.g. “hello world”."
+              />
             </div>
           ) : results.length === 0 && !loading ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-2">
-              <p className="text-sm" style={{ color: "#949ba4" }}>No results for &ldquo;{query}&rdquo;</p>
+            <div className="px-4 py-10">
+              <BrandedEmptyState
+                icon={Calendar}
+                title="No results yet"
+                description={`No results for “${query}”.`}
+                hint="Try fewer words, another channel keyword, or a different timeframe."
+              />
             </div>
           ) : (
             <>
+              {loading && results.length === 0 && (
+                <div className="space-y-3 px-4 py-4">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <div key={index} className="flex gap-3">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-3 w-40" />
+                        <Skeleton className="h-3 w-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {total > 0 && (
                 <div className="px-4 py-2 text-xs" style={{ color: "#949ba4" }}>
                   {total} result{total !== 1 ? "s" : ""}

@@ -11,6 +11,7 @@ import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } 
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 import type { RealtimeChannel } from "@supabase/supabase-js"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Props {
   serverId: string
@@ -50,11 +51,13 @@ export function MemberList({ serverId }: Props) {
   const { memberListOpen, currentUser } = useAppStore()
   const [members, setMembers] = useState<MemberData[]>([])
   const [presence, setPresence] = useState<PresenceState>({})
+  const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const supabase = createClientSupabaseClient()
 
   useEffect(() => {
     async function fetchMembers() {
+      setLoadingMembers(true)
       // Fetch members and roles separately — no FK between server_members and member_roles
       const [membersRes, rolesRes] = await Promise.all([
         supabase
@@ -85,6 +88,7 @@ export function MemberList({ serverId }: Props) {
       }))
 
       setMembers(merged)
+      setLoadingMembers(false)
 
       // Push lightweight member data to store for mention autocomplete
       useAppStore.getState().setMembers(serverId, merged.map((m) => ({
@@ -166,8 +170,22 @@ export function MemberList({ serverId }: Props) {
       style={{ background: "#2b2d31" }}
     >
       <ScrollArea className="flex-1 py-4">
+        {loadingMembers && (
+          <div className="space-y-3 px-3">
+            {Array.from({ length: 9 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="flex-1 space-y-1">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-2.5 w-28" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Online */}
-        {onlineMembers.length > 0 && (
+        {!loadingMembers && onlineMembers.length > 0 && (
           <div className="mb-2">
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"
@@ -186,7 +204,7 @@ export function MemberList({ serverId }: Props) {
         )}
 
         {/* Offline */}
-        {offlineMembers.length > 0 && (
+        {!loadingMembers && offlineMembers.length > 0 && (
           <div>
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"
