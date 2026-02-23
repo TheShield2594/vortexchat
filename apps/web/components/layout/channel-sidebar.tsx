@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical
+  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays
 } from "lucide-react"
 import {
   DndContext,
@@ -368,6 +368,14 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         >
           <span className="font-semibold text-white truncate text-sm">{server.name}</span>
           <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white transition-colors" />
+        </button>
+
+        <button
+          onClick={() => router.push(`/channels/${server.id}/events`)}
+          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10"
+        >
+          <CalendarDays className="h-4 w-4" />
+          Events
         </button>
 
         {/* Channel list */}
