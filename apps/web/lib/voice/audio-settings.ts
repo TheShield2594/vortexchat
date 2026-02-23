@@ -152,5 +152,5 @@ export function estimateAudioCpuConstraint(audioContext: AudioContext): boolean 
   const sampleRate = audioContext.sampleRate
   const baseLatency = audioContext.baseLatency ?? 0
 
-  return hardwareThreads <= 2 || sampleRate >= 96000 || baseLatency > 0.05
+  return hardwareThreads <= 2 || sampleRate > 96000 || baseLatency > 0.05
 }

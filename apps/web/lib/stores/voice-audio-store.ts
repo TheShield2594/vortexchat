@@ -92,9 +92,11 @@ export const useVoiceAudioStore = create<VoiceAudioState>()(
         else get().setProfileSettings(userId, updated)
       },
       resetSettings: (userId, serverId) => {
-        const defaults = createDefaultAudioSettings()
         if (serverId) get().clearServerOverride(userId, serverId)
-        else get().setProfileSettings(userId, defaults)
+        else {
+          const defaults = createDefaultAudioSettings()
+          get().setProfileSettings(userId, defaults)
+        }
       },
       setParticipantVolume: (serverId, participantUserId, volume) => {
         set((state) => ({
@@ -127,6 +129,16 @@ export const useVoiceAudioStore = create<VoiceAudioState>()(
       getParticipantMix: (serverId, participantUserId) =>
         get().participantMixByServer[serverId]?.[participantUserId] ?? { volume: 1, pan: null },
     }),
-    { name: "vortex:voice-audio" }
+    {
+      name: "vortex:voice-audio",
+      version: 1,
+      migrate: (state, version) => {
+        if (!state) return state
+        if (version < 1) {
+          return state
+        }
+        return state
+      },
+    }
   )
 )

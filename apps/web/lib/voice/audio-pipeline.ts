@@ -93,11 +93,10 @@ export function createInputAudioPipeline(
     for (const sample of data) sum += sample * sample
     const rms = Math.sqrt(sum / data.length)
     const db = 20 * Math.log10(Math.max(rms, 0.00001))
-    gateGain.gain.setTargetAtTime(
-      db < settings.noiseGateThreshold ? settings.noiseGateFloor : 1,
-      audioContext.currentTime,
-      0.01
-    )
+    const gateIsClosing = db < settings.noiseGateThreshold
+    const targetGain = gateIsClosing ? settings.noiseGateFloor : 1
+    const timeConstant = gateIsClosing ? 0.1 : 0.005
+    gateGain.gain.setTargetAtTime(targetGain, audioContext.currentTime, timeConstant)
   }, 50)
 
   const cleanup = () => {

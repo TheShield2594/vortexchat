@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type MutableRefObject } from "react"
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
   Monitor, MonitorOff, Video, VideoOff, Radio, Settings,
@@ -30,6 +30,8 @@ interface Props {
   currentUserId: string
 }
 
+const MAX_REMOTE_GAIN = 2
+
 const PRESET_OPTIONS: Array<{ label: string; value: AudioPreset }> = [
   { label: "Voice Clarity", value: "voice-clarity" },
   { label: "Bass Boost", value: "bass-boost" },
@@ -49,6 +51,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
 
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
   const outputAudioContextRef = useRef<AudioContext | null>(null)
+  const closeDeviceMenu = useCallback(() => setDeviceMenuOpen(false), [])
   const {
     peers,
     muted,
@@ -229,7 +232,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                 setSelectedOutputId={setSelectedOutputId}
                 settings={audioSettings}
                 setSettings={setAudioSettings}
-                onClose={() => setDeviceMenuOpen(false)}
+                onClose={closeDeviceMenu}
               />
             )}
           </div>
@@ -245,7 +248,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
               stream={stream}
               deafened={deafened}
               outputDeviceId={selectedOutputId}
-              volume={mix.volume * audioSettings.outputGain}
+              volume={Math.min(mix.volume * audioSettings.outputGain, MAX_REMOTE_GAIN)}
               pan={audioSettings.spatialAudioEnabled ? (mix.pan != null ? mix.pan : (idx % 2 === 0 ? -0.2 : 0.2)) : 0}
               sharedAudioContextRef={outputAudioContextRef}
             />
@@ -549,7 +552,9 @@ function RemoteAudio({
         // graceful fallback to default sink
       })
     }
-  }, [outputDeviceId, sharedAudioContextRef])
+  // sharedAudioContextRef is a stable ref object; only outputDeviceId should trigger rerouting.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outputDeviceId])
 
   return <audio ref={audioRef} autoPlay playsInline className="hidden" />
 }

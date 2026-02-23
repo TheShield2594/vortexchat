@@ -88,6 +88,32 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     else setProfileSettings(userId, settings)
   }, [serverId, userId, setProfileSettings, setServerOverride])
 
+  const cleanupVoiceSession = useCallback((supabaseClient = supabaseRef.current) => {
+    harkRef.current?.stop()
+    pipelineCleanupRef.current?.()
+    pipelineCleanupRef.current = null
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => undefined)
+      audioContextRef.current = null
+    }
+
+    rawLocalStreamRef.current?.getTracks().forEach((t) => t.stop())
+    rawLocalStreamRef.current = null
+    setRawLocalStream(null)
+
+    screenStream.current?.getTracks().forEach((t) => t.stop())
+    cameraStream.current?.getTracks().forEach((t) => t.stop())
+
+    if (channelRef.current) {
+      supabaseClient.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+
+    peerConnections.current.forEach((pc) => pc.close())
+    peerConnections.current.clear()
+  }, [])
+
   useEffect(() => {
     if (!navigator.mediaDevices) return
     async function enumerateDevices() {
@@ -229,6 +255,9 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         }
         if (selectedInputId) audioConstraints.deviceId = { ideal: selectedInputId }
         const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false })
+        // Keep both in sync intentionally:
+        // - rawLocalStreamRef is for synchronous access in callbacks/event handlers
+        // - rawLocalStream state triggers the pipeline effect reactively
         rawLocalStreamRef.current = rawStream
         setRawLocalStream(rawStream)
 
@@ -369,26 +398,9 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
 
     return () => {
       mounted = false
-      harkRef.current?.stop()
-      pipelineCleanupRef.current?.()
-      pipelineCleanupRef.current = null
-      if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => undefined)
-        audioContextRef.current = null
-      }
-      rawLocalStreamRef.current?.getTracks().forEach((t) => t.stop())
-      rawLocalStreamRef.current = null
-      setRawLocalStream(null)
-      screenStream.current?.getTracks().forEach((t) => t.stop())
-      cameraStream.current?.getTracks().forEach((t) => t.stop())
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
-        channelRef.current = null
-      }
-      peerConnections.current.forEach((pc) => pc.close())
-      peerConnections.current.clear()
+      cleanupVoiceSession(supabase)
     }
-  }, [channelId, userId, selectedInputId])
+  }, [channelId, userId, selectedInputId, cleanupVoiceSession])
 
   const toggleMute = useCallback(() => {
     const tracks = rawLocalStreamRef.current?.getAudioTracks() ?? []
@@ -472,26 +484,9 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
   }, [videoEnabled, screenSharing])
 
   const leaveChannel = useCallback(() => {
-    harkRef.current?.stop()
-    pipelineCleanupRef.current?.()
-    pipelineCleanupRef.current = null
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => undefined)
-      audioContextRef.current = null
-    }
-    rawLocalStreamRef.current?.getTracks().forEach((t) => t.stop())
-    rawLocalStreamRef.current = null
-    setRawLocalStream(null)
-    screenStream.current?.getTracks().forEach((t) => t.stop())
-    cameraStream.current?.getTracks().forEach((t) => t.stop())
-    if (channelRef.current) {
-      supabaseRef.current.removeChannel(channelRef.current)
-      channelRef.current = null
-    }
-    peerConnections.current.forEach((pc) => pc.close())
-    peerConnections.current.clear()
+    cleanupVoiceSession()
     setPeers(new Map())
-  }, [])
+  }, [cleanupVoiceSession])
 
   return {
     peers,

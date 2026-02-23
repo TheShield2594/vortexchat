@@ -31,7 +31,7 @@ describe("voice audio settings", () => {
     const defaults = createDefaultAudioSettings()
     const updated = applyPresetToSettings("broadcast", defaults)
     expect(updated.preset).toBe("broadcast")
-    expect(updated.eqBands.some((b) => b.gain !== 0)).toBe(true)
+    expect(updated.eqBands.map((band) => band.gain)).toEqual([-2, -1, 2, 2.5, 4, 2.5])
   })
 
   it("switches to flat when custom EQ is edited", () => {
@@ -56,7 +56,7 @@ describe("voice audio settings", () => {
     setNavigatorStub(8)
 
     const constrained = estimateAudioCpuConstraint({
-      sampleRate: 96000,
+      sampleRate: 96001,
       baseLatency: 0.01,
     } as AudioContext)
 
