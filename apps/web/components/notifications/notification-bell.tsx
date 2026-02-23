@@ -230,6 +230,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
         <div
           ref={panelRef}
           role="dialog"
+          aria-modal="true"
           aria-label="Notifications inbox"
           tabIndex={-1}
           className="absolute right-0 top-full mt-2 w-80 rounded-xl shadow-2xl overflow-hidden z-50"
@@ -266,6 +267,14 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                   className="flex items-start gap-3 px-4 py-3 border-b transition-colors cursor-pointer hover:bg-white/5"
                   style={{ borderColor: "#1e1f22", background: n.read ? "transparent" : "rgba(88,101,242,0.05)" }}
                   onClick={() => handleClick(n)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      handleClick(n)
+                    }
+                  }}
                 >
                   {/* Type icon */}
                   <div
@@ -284,8 +293,8 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                             onClick={(e) => { e.stopPropagation(); markRead(n.id) }}
                             className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring"
                             style={{ color: "#949ba4" }}
-                            title="Mark as read"
-                            aria-label="Mark notification as read"
+                            title={`Mark \"${n.title}\" as read`}
+                            aria-label={`Mark \"${n.title}\" as read`}
                           >
                             <Check className="w-3 h-3" />
                           </button>
@@ -293,8 +302,8 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                         <button
                           onClick={(e) => { e.stopPropagation(); dismiss(n.id) }}
                           className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring tertiary-metadata"
-                          title="Dismiss"
-                          aria-label="Dismiss notification"
+                          title={`Dismiss \"${n.title}\" notification`}
+                          aria-label={`Dismiss \"${n.title}\" notification`}
                         >
                           <X className="w-3 h-3" />
                         </button>
