@@ -738,7 +738,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           <div className="ml-auto flex items-center gap-1">
             <button
               onClick={() => setShowSearchModal(true)}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title="Search messages"
               aria-label="Search messages"
             >
@@ -747,7 +747,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={() => toast({ title: "Pinned view", description: "Pinned message view is queued for a follow-up pass." })}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title="Pinned messages"
               aria-label="Pinned messages"
             >
@@ -759,7 +759,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                  className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
                   title="Thread filters"
                   aria-label="Thread filters"
                 >
@@ -776,7 +776,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={() => toast({ title: "Help", description: "Shortcuts: Ctrl/Cmd+K (Quick Switcher), Ctrl/Cmd+F (Search)." })}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title="Help"
               aria-label="Help"
             >
@@ -786,7 +786,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                  className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
                   title="More options"
                   aria-label="More options"
                 >
@@ -805,7 +805,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={toggleMemberList}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title={memberListOpen ? "Hide Member List" : "Show Member List"}
             >
               <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
@@ -813,7 +813,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={() => setThreadPanelOpen((open) => !open)}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
             >
               <MessageSquareText className="w-5 h-5" style={{ color: threadPanelOpen ? '#f2f3f5' : '#949ba4' }} />
@@ -943,7 +943,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div className="sticky bottom-3 px-4 flex justify-end">
               <button
                 onClick={jumpToLatest}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg"
+                className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg"
                 style={{ background: "#5865f2", color: "white" }}
               >
                 Jump to latest {pendingNewMessageCount > 1 ? `(${pendingNewMessageCount})` : ""}
@@ -955,7 +955,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div className="sticky bottom-14 px-4 flex justify-end">
               <button
                 onClick={returnToContext}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold"
                 style={{ background: "#2b2d31", color: "#f2f3f5", border: "1px solid #1e1f22" }}
               >
                 Back to where you were
@@ -1004,12 +1004,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       </div>
 
       {activeThread && threadPanelOpen && (
-        <ThreadPanel
-          thread={activeThread}
-          currentUserId={currentUserId}
-          onClose={() => setThreadPanelOpen(false)}
-          onThreadUpdate={(updated) => setActiveThread(updated)}
-        />
+        <div data-state="open" className="panel-surface-motion">
+          <ThreadPanel
+            thread={activeThread}
+            currentUserId={currentUserId}
+            onClose={() => setThreadPanelOpen(false)}
+            onThreadUpdate={(updated) => setActiveThread(updated)}
+          />
+        </div>
       )}
     </div>
   )

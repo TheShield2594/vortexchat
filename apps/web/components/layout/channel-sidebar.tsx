@@ -374,16 +374,16 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         {/* Server header */}
         <button
           onClick={() => setShowServerSettings(true)}
-          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-white/5 transition-colors group focus-ring" aria-label="Open server settings"
+          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-white/5 motion-interactive motion-press group focus-ring" aria-label="Open server settings"
           style={{ borderColor: '#1e1f22' }}
         >
           <span className="font-semibold text-white truncate text-sm">{server.name}</span>
-          <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white transition-colors" />
+          <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white motion-interactive motion-press" />
         </button>
 
         <button
           onClick={() => router.push(`/channels/${server.id}/events`)}
-          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10 focus-ring" aria-label="Open server events"
+          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-200 motion-interactive motion-press hover:bg-white/10 focus-ring" aria-label="Open server events"
         >
           <CalendarDays className="h-4 w-4" />
           Events
@@ -392,7 +392,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         <div className="mx-2 mt-2 space-y-1">
           <button
             onClick={() => setQuickSwitcherOpen(true)}
-            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10 focus-ring"
+            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 motion-interactive motion-press hover:bg-white/10 focus-ring"
             aria-label="Open quick switcher"
           >
             <span className="flex items-center gap-2">
@@ -404,7 +404,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10 focus-ring"
+            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 motion-interactive motion-press hover:bg-white/10 focus-ring"
             aria-label="Open channel search"
           >
             <span className="flex items-center gap-2">
@@ -507,7 +507,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                   setCreateChannelCategoryId(undefined)
                   setShowCreateChannel(true)
                 }}
-                className="flex items-center gap-1 px-2 py-1 rounded w-full hover:bg-white/5 transition-colors focus-ring tertiary-metadata" aria-label="Add channel"
+                className="flex items-center gap-1 px-2 py-1 rounded w-full hover:bg-white/5 motion-interactive motion-press focus-ring tertiary-metadata" aria-label="Add channel"
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-sm">Add Channel</span>
@@ -559,14 +559,14 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             <DialogFooter>
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 rounded text-sm font-medium transition-colors hover:bg-white/10 focus-ring"
+                className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press hover:bg-white/10 focus-ring"
                 style={{ color: '#b5bac1' }}
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDeleteChannel}
-                className="px-4 py-2 rounded text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors focus-ring"
+                className="px-4 py-2 rounded text-sm font-medium bg-red-600 hover:bg-red-500 text-white motion-interactive motion-press focus-ring"
               >
                 Delete Channel
               </button>
@@ -622,7 +622,7 @@ function CategoryHeader({
   return (
     <div
       className={cn(
-        "flex items-center justify-between px-2 py-1 group rounded mx-1 transition-colors",
+        "flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive motion-press",
         isDragOver && "bg-white/5"
       )}
     >
@@ -647,7 +647,7 @@ function CategoryHeader({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onAddChannel() }}
-              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-white transition-opacity focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-white motion-interactive focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -726,7 +726,7 @@ function SortableChannelItem({
             }}
             aria-label={`${channel.type} channel ${channel.name}`}
             className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel cursor-pointer select-none focus-ring",
+              "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring",
               isActive || isVoiceActive
                 ? "bg-white/10 text-white"
                 : isUnread

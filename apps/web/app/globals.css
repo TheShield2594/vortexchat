@@ -25,6 +25,11 @@
     --ring: 235 86% 65%;
     --color-tertiary-metadata: #a3aab5;
     --radius: 0.5rem;
+    --motion-duration-fast: 120ms;
+    --motion-duration-standard: 180ms;
+    --motion-duration-panel: 220ms;
+    --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
@@ -58,6 +63,43 @@
 }
 
 @layer utilities {
+  .motion-interactive {
+    transition-property: background-color, color, border-color, opacity, transform, box-shadow;
+    transition-duration: var(--motion-duration-standard);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .motion-press {
+    transition-property: transform;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .motion-press:active {
+    transform: scale(0.98);
+  }
+
+  .panel-surface-motion {
+    transform-origin: var(--radix-context-menu-content-transform-origin, top right);
+    animation-duration: var(--motion-duration-panel);
+    animation-timing-function: var(--motion-ease-emphasized);
+    will-change: opacity, transform;
+  }
+
+  .panel-surface-motion[data-state="open"] {
+    animation-name: panel-enter;
+  }
+
+  .panel-surface-motion[data-state="closed"] {
+    animation-name: panel-exit;
+  }
+
+  .action-rail-motion {
+    transition: opacity var(--motion-duration-standard) var(--motion-ease-standard),
+      transform var(--motion-duration-standard) var(--motion-ease-emphasized);
+    will-change: opacity, transform;
+  }
+
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865f2] focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
@@ -102,6 +144,28 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+@keyframes panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes panel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
   }
 }
 
