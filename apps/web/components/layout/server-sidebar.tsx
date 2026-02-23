@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Plus, Compass, MessageSquare, Clipboard, LogOut, UserPlus } from "lucide-react"
+import { Plus, Compass, MessageSquare, Clipboard, LogOut, UserPlus, Search, Command } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
@@ -13,9 +13,15 @@ import { CreateServerModal } from "@/components/modals/create-server-modal"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { cn } from "@/lib/utils/cn"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 import type { ServerRow } from "@/types/database"
 
-export function ServerSidebar() {
+interface Props {
+  onOpenQuickSwitcher?: () => void
+  onOpenSearch?: () => void
+}
+
+export function ServerSidebar({ onOpenQuickSwitcher, onOpenSearch }: Props) {
   const { servers, activeServerId, setActiveServer, removeServer, currentUser } = useAppStore()
   const [showCreateServer, setShowCreateServer] = useState(false)
   const { toast } = useToast()
@@ -69,6 +75,52 @@ export function ServerSidebar() {
           </TooltipTrigger>
           <TooltipContent side="right">Direct Messages</TooltipContent>
         </Tooltip>
+
+        <Separator className="w-8 my-1" style={{ background: '#3f4147' }} />
+
+        {/* Productivity utilities */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onOpenQuickSwitcher}
+              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200"
+              style={{ background: '#313338' }}
+            >
+              <Command className="w-6 h-6" style={{ color: '#949ba4' }} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Quick Switcher (Ctrl/Cmd+K)</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onOpenSearch}
+              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200"
+              style={{ background: '#313338' }}
+              disabled={!activeServerId || !onOpenSearch}
+            >
+              <Search className="w-6 h-6" style={{ color: activeServerId && onOpenSearch ? '#949ba4' : '#4e5058' }} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {activeServerId ? "Global Search (Ctrl/Cmd+F)" : "Open a server to search"}
+          </TooltipContent>
+        </Tooltip>
+
+        {currentUser && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200"
+                style={{ background: '#313338' }}
+              >
+                <NotificationBell userId={currentUser.id} />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">Inbox</TooltipContent>
+          </Tooltip>
+        )}
 
         <Separator className="w-8 my-1" style={{ background: '#3f4147' }} />
 
