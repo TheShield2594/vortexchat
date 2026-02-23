@@ -53,12 +53,13 @@ export function MessageItem({
       await onDelete()
       toast({ title: "Message deleted", description: "The message was removed for everyone in this channel." })
       setShowDeleteDialog(false)
-    } catch {
+    } catch (error) {
       toast({
         title: "Could not delete message",
         description: "Please try again. If this keeps happening, refresh and retry.",
         variant: "destructive",
       })
+      throw error
     } finally {
       setIsDeleting(false)
     }

@@ -47,8 +47,12 @@ export function ConfirmActionDialog({
 
   async function handleConfirm() {
     if (!canConfirm) return
-    await onConfirm()
-    onOpenChange(false)
+    try {
+      await onConfirm()
+      onOpenChange(false)
+    } catch {
+      // Keep dialog open so users can retry when the action fails.
+    }
   }
 
   return (
@@ -70,8 +74,12 @@ export function ConfirmActionDialog({
           </div>
 
           {acknowledgeRiskLabel && (
-            <label className="mt-4 flex items-start gap-2 rounded-md border border-white/10 bg-black/20 p-3 text-sm text-[#dcddde]">
+            <label
+              htmlFor="confirm-action-risk-ack"
+              className="mt-4 flex items-start gap-2 rounded-md border border-white/10 bg-black/20 p-3 text-sm text-[#dcddde]"
+            >
               <input
+                id="confirm-action-risk-ack"
                 type="checkbox"
                 className="mt-1 h-4 w-4 accent-red-500"
                 checked={riskAcknowledged}
