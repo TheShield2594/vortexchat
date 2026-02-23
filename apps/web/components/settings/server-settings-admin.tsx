@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleManager } from "@/components/roles/role-manager"
 import { TemplateManager } from "@/components/modals/template-manager"
 import { AutoModTab, EmojisTab, ModerationTab, ScreeningTab, WebhooksTab } from "@/components/modals/server-settings-modal"
+import { AppsTab } from "@/components/settings/apps-tab"
 
 interface Channel {
   id: string
@@ -30,7 +31,8 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
             <TabsList className="flex h-auto w-full flex-col gap-1 bg-transparent p-0">
               <TabsTrigger value="roles" className="w-full justify-start">Roles</TabsTrigger>
               <TabsTrigger value="emojis" className="w-full justify-start">Emoji</TabsTrigger>
-              <TabsTrigger value="webhooks" className="w-full justify-start">Integrations</TabsTrigger>
+              <TabsTrigger value="webhooks" className="w-full justify-start">Webhooks</TabsTrigger>
+              <TabsTrigger value="apps" className="w-full justify-start">Apps</TabsTrigger>
               <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "#949ba4" }}>
                 Moderation
               </div>
@@ -59,6 +61,9 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
             </TabsContent>
             <TabsContent value="webhooks" className="mt-0">
               <WebhooksTab serverId={serverId} channels={channels} open />
+            </TabsContent>
+            <TabsContent value="apps" className="mt-0">
+              <AppsTab serverId={serverId} />
             </TabsContent>
             <TabsContent value="moderation" className="mt-0">
               <ModerationTab serverId={serverId} open />
