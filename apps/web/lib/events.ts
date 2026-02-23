@@ -59,6 +59,8 @@ export function expandEventOccurrences(
     let cursor = new Date(baseStart)
     let guard = 0
     while (cursor <= rangeEnd && guard < 500) {
+      if (until && cursor > until) break
+
       if (cursor >= rangeStart) {
         occurrences.push({
           eventId: event.id,
@@ -68,7 +70,7 @@ export function expandEventOccurrences(
           timezone: event.timezone,
         })
       }
-      if (until && cursor > until) break
+
       cursor = stepDate(cursor, event.recurrence)
       guard += 1
     }
