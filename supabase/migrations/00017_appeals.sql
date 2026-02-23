@@ -1,11 +1,19 @@
 -- Appeal workflow for moderation bans.
 
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS public.moderation_appeals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  ban_server_id UUID NOT NULL,
-  ban_user_id UUID NOT NULL,
+  server_id UUID NOT NULL,
+  user_id UUID NOT NULL,
   linked_action TEXT NOT NULL DEFAULT 'member_ban',
   appellant_statement TEXT NOT NULL CHECK (char_length(appellant_statement) BETWEEN 20 AND 4000),
   evidence_attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -18,11 +26,16 @@ CREATE TABLE IF NOT EXISTS public.moderation_appeals (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   closed_at TIMESTAMPTZ,
   CONSTRAINT moderation_appeals_ban_fk
-    FOREIGN KEY (ban_server_id, ban_user_id)
+    FOREIGN KEY (server_id, user_id)
     REFERENCES public.server_bans(server_id, user_id)
-    ON DELETE CASCADE,
-  CONSTRAINT moderation_appeals_same_subject CHECK (server_id = ban_server_id AND user_id = ban_user_id)
+    ON DELETE CASCADE
 );
+
+DROP TRIGGER IF EXISTS moderation_appeals_set_updated_at ON public.moderation_appeals;
+CREATE TRIGGER moderation_appeals_set_updated_at
+  BEFORE UPDATE ON public.moderation_appeals
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_updated_at();
 
 CREATE UNIQUE INDEX IF NOT EXISTS moderation_appeals_open_unique_idx
   ON public.moderation_appeals(server_id, user_id)
@@ -94,16 +107,8 @@ CREATE POLICY "Server moderators can view appeals"
 
 -- Inserts/updates are expected via API + service-role.
 
-CREATE POLICY "Moderators can view decision templates"
-  ON public.moderation_decision_templates FOR SELECT
-  USING (public.has_permission(server_id, 16) OR public.has_permission(server_id, 128));
-
 CREATE POLICY "Moderators can manage decision templates"
   ON public.moderation_decision_templates FOR ALL
-  USING (public.has_permission(server_id, 16) OR public.has_permission(server_id, 128));
-
-CREATE POLICY "Moderators can view internal notes"
-  ON public.moderation_appeal_internal_notes FOR SELECT
   USING (public.has_permission(server_id, 16) OR public.has_permission(server_id, 128));
 
 CREATE POLICY "Moderators can manage internal notes"

@@ -1,36 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
-import { aggregateMemberPermissions } from "@/lib/server-auth"
-
-const BAN_MEMBERS = 16
-const ADMINISTRATOR = 128
-
-function canModerate(permissions: number) {
-  return (permissions & BAN_MEMBERS) !== 0 || (permissions & ADMINISTRATOR) !== 0
-}
-
-async function requireModerator(serverId: string) {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), user: null, supabase }
-
-  const { data: member } = await supabase
-    .from("server_members")
-    .select("member_roles(roles(permissions))")
-    .eq("server_id", serverId)
-    .eq("user_id", user.id)
-    .maybeSingle()
-
-  const permissions = aggregateMemberPermissions((member as any)?.member_roles)
-  if (!canModerate(permissions)) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), user: null, supabase }
-  }
-
-  return { error: null, user, supabase }
-}
+import { createServiceRoleClient } from "@/lib/supabase/server"
+import { requireModerator } from "@/lib/moderation-auth"
 
 export async function GET(
   _req: NextRequest,
@@ -58,8 +28,28 @@ export async function POST(
   const auth = await requireModerator(serverId)
   if (auth.error || !auth.user) return auth.error!
 
-  const { title, body, decision } = await req.json()
-  if (!["approved", "denied", "closed"].includes(decision)) {
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Malformed JSON" }, { status: 400 })
+  }
+
+  const { title, body: templateBody, decision } = body as {
+    title?: unknown
+    body?: unknown
+    decision?: unknown
+  }
+
+  if (typeof title !== "string" || title.trim().length < 3 || title.trim().length > 80) {
+    return NextResponse.json({ error: "Invalid title" }, { status: 400 })
+  }
+
+  if (typeof templateBody !== "string" || templateBody.trim().length < 10 || templateBody.trim().length > 3000) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 })
+  }
+
+  if (typeof decision !== "string" || !["approved", "denied", "closed"].includes(decision)) {
     return NextResponse.json({ error: "Invalid decision" }, { status: 400 })
   }
 
@@ -68,8 +58,8 @@ export async function POST(
     .from("moderation_decision_templates")
     .insert({
       server_id: serverId,
-      title,
-      body,
+      title: title.trim(),
+      body: templateBody.trim(),
       decision,
       created_by: auth.user.id,
     })

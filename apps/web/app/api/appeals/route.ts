@@ -30,32 +30,41 @@ export async function POST(req: NextRequest) {
 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await req.json()
+  let payload: unknown
+  try {
+    payload = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Malformed JSON" }, { status: 400 })
+  }
+
+  const body = payload as { serverId?: unknown; statement?: unknown; evidenceAttachments?: unknown }
   const serverId = typeof body.serverId === "string" ? body.serverId : ""
   const statement = typeof body.statement === "string" ? body.statement.trim() : ""
-  const evidenceAttachments = sanitizeEvidenceAttachments(body.evidenceAttachments)
 
-  if (!serverId || statement.length < 20) {
+  if (!serverId || statement.length < 20 || statement.length > 4000) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
   }
+
+  const evidenceAttachments = sanitizeEvidenceAttachments(body.evidenceAttachments)
 
   const rate = rateLimiter.check(`appeals:${user.id}:${serverId}`, { limit: 3, windowMs: 60 * 60 * 1000 })
   if (!rate.allowed) {
     return NextResponse.json({ error: "Too many submissions, please try later" }, { status: 429 })
   }
 
-  const { data: ban } = await supabase
+  const { data: ban, error: banError } = await serviceSupabase
     .from("server_bans")
     .select("server_id, user_id")
     .eq("server_id", serverId)
     .eq("user_id", user.id)
     .maybeSingle()
 
+  if (banError) return NextResponse.json({ error: banError.message }, { status: 500 })
   if (!ban) {
     return NextResponse.json({ error: "Appeal cannot be created" }, { status: 403 })
   }
 
-  const { data: duplicate } = await (serviceSupabase as any)
+  const { data: duplicate, error: duplicateError } = await (serviceSupabase as any)
     .from("moderation_appeals")
     .select("id")
     .eq("server_id", serverId)
@@ -63,15 +72,20 @@ export async function POST(req: NextRequest) {
     .in("status", ["submitted", "reviewing"])
     .maybeSingle()
 
+  if (duplicateError) return NextResponse.json({ error: duplicateError.message }, { status: 500 })
   if (duplicate) {
     return NextResponse.json({ error: "An active appeal already exists" }, { status: 409 })
   }
 
-  const { count } = await (serviceSupabase as any)
+  const thirtyDaysAgoIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const { count, error: countError } = await (serviceSupabase as any)
     .from("moderation_appeals")
     .select("id", { count: "exact", head: true })
     .eq("server_id", serverId)
     .eq("user_id", user.id)
+    .gte("submitted_at", thirtyDaysAgoIso)
+
+  if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
 
   const antiAbuseScore = computeAntiAbuseScore({
     statement,
@@ -84,8 +98,6 @@ export async function POST(req: NextRequest) {
     .insert({
       server_id: serverId,
       user_id: user.id,
-      ban_server_id: serverId,
-      ban_user_id: user.id,
       appellant_statement: statement,
       evidence_attachments: evidenceAttachments,
       anti_abuse_score: antiAbuseScore,
@@ -96,7 +108,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  await (serviceSupabase as any).from("moderation_appeal_status_events").insert({
+  const { error: eventError } = await (serviceSupabase as any).from("moderation_appeal_status_events").insert({
     appeal_id: appeal.id,
     server_id: serverId,
     actor_id: user.id,
@@ -105,7 +117,13 @@ export async function POST(req: NextRequest) {
     metadata: { antiAbuseScore },
   })
 
-  await serviceSupabase.from("audit_logs").insert({
+  if (eventError) {
+    console.warn("Failed appeal status event insert", { appealId: appeal.id, moderatorId: user.id, action: "create", error: eventError })
+    await (serviceSupabase as any).from("moderation_appeals").delete().eq("id", appeal.id)
+    return NextResponse.json({ error: "Failed to create appeal status event" }, { status: 500 })
+  }
+
+  const { error: auditError } = await serviceSupabase.from("audit_logs").insert({
     server_id: serverId,
     actor_id: user.id,
     action: "appeal_status_changed",
@@ -114,7 +132,14 @@ export async function POST(req: NextRequest) {
     changes: { from: null, to: "submitted" },
   })
 
-  await (serviceSupabase as any).from("notifications").insert([
+  if (auditError) {
+    console.warn("Failed appeal audit log insert", { appealId: appeal.id, moderatorId: user.id, action: "create", error: auditError })
+    await (serviceSupabase as any).from("moderation_appeal_status_events").delete().eq("appeal_id", appeal.id)
+    await (serviceSupabase as any).from("moderation_appeals").delete().eq("id", appeal.id)
+    return NextResponse.json({ error: "Failed to write appeal audit log" }, { status: 500 })
+  }
+
+  const { error: notificationError } = await (serviceSupabase as any).from("notifications").insert([
     {
       user_id: user.id,
       type: "system",
@@ -123,6 +148,11 @@ export async function POST(req: NextRequest) {
       server_id: serverId,
     },
   ])
+
+  if (notificationError) {
+    console.warn("Failed appeal notification insert", { appealId: appeal.id, moderatorId: user.id, action: "create", error: notificationError })
+    return NextResponse.json({ error: "Failed to create appeal notification" }, { status: 500 })
+  }
 
   return NextResponse.json({
     message: "Appeal submitted",

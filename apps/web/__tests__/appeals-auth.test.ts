@@ -5,6 +5,8 @@ describe("appeal anti-abuse and payload boundaries", () => {
   it("caps attachment list to 10 and removes non-strings", () => {
     const attachments = sanitizeEvidenceAttachments([
       "https://a.test",
+      "javascript:alert(1)",
+      "not-a-url",
       "",
       3,
       ...new Array(20).fill("https://evidence.test"),
@@ -12,6 +14,7 @@ describe("appeal anti-abuse and payload boundaries", () => {
 
     expect(attachments.length).toBe(10)
     expect(attachments.every((item) => typeof item === "string")).toBe(true)
+    expect(attachments.some((item) => item.startsWith("javascript:"))).toBe(false)
   })
 
   it("produces higher anti-abuse scores for suspicious appeals", () => {

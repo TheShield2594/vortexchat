@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
-import { isValidAppealStatus, isValidAppealTransition } from "@/lib/appeals"
-
-const BAN_MEMBERS = 16
-const ADMINISTRATOR = 128
-
-function canModerate(permissions: number) {
-  return (permissions & BAN_MEMBERS) !== 0 || (permissions & ADMINISTRATOR) !== 0
-}
+import { isTerminalAppealStatus, isValidAppealStatus, isValidAppealTransition } from "@/lib/appeals"
+import { canModerate } from "@/lib/moderation-auth"
 
 async function getRequester() {
   const supabase = await createServerSupabaseClient()
@@ -35,20 +29,18 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!appeal) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  let isModerator = false
-  if (appeal.user_id !== user.id) {
-    const { data: member } = await supabase
-      .from("server_members")
-      .select("member_roles(roles(permissions))")
-      .eq("server_id", appeal.server_id)
-      .eq("user_id", user.id)
-      .maybeSingle()
+  const { data: member } = await supabase
+    .from("server_members")
+    .select("member_roles(roles(permissions))")
+    .eq("server_id", appeal.server_id)
+    .eq("user_id", user.id)
+    .maybeSingle()
 
-    const permissions = aggregateMemberPermissions((member as any)?.member_roles)
-    isModerator = canModerate(permissions)
+  const permissions = aggregateMemberPermissions((member as any)?.member_roles)
+  const isModerator = canModerate(permissions)
+  const isOwner = appeal.user_id === user.id
 
-    if (!isModerator) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  if (!isOwner && !isModerator) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const serviceSupabase = await createServiceRoleClient()
   const notesPromise = isModerator
@@ -102,12 +94,26 @@ export async function PATCH(
   const permissions = aggregateMemberPermissions((member as any)?.member_roles)
   if (!canModerate(permissions)) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const body = await req.json()
-  const nextStatus = body.status as string | undefined
-  const assignReviewerId = body.assignReviewerId as string | undefined
-  const internalNote = typeof body.internalNote === "string" ? body.internalNote.trim() : ""
-  const decisionTemplateId = typeof body.decisionTemplateId === "string" ? body.decisionTemplateId : null
-  const decisionReason = typeof body.decisionReason === "string" ? body.decisionReason : null
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Malformed JSON" }, { status: 400 })
+  }
+
+  const parsed = body as {
+    status?: unknown
+    assignReviewerId?: unknown
+    internalNote?: unknown
+    decisionTemplateId?: unknown
+    decisionReason?: unknown
+  }
+
+  const nextStatus = typeof parsed.status === "string" ? parsed.status : undefined
+  const assignReviewerId = typeof parsed.assignReviewerId === "string" ? parsed.assignReviewerId : undefined
+  const internalNote = typeof parsed.internalNote === "string" ? parsed.internalNote.trim() : ""
+  const decisionTemplateId = typeof parsed.decisionTemplateId === "string" ? parsed.decisionTemplateId : null
+  const decisionReason = typeof parsed.decisionReason === "string" ? parsed.decisionReason : null
 
   const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
@@ -117,12 +123,15 @@ export async function PATCH(
     if (!isValidAppealStatus(nextStatus)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 })
     }
+    if (!isValidAppealStatus(appeal.status)) {
+      return NextResponse.json({ error: "Invalid current status" }, { status: 500 })
+    }
     if (!isValidAppealTransition(appeal.status, nextStatus)) {
       return NextResponse.json({ error: "Invalid state transition" }, { status: 409 })
     }
 
     updatePayload.status = nextStatus
-    if (nextStatus === "closed") updatePayload.closed_at = new Date().toISOString()
+    if (isTerminalAppealStatus(nextStatus)) updatePayload.closed_at = new Date().toISOString()
     if (decisionTemplateId) updatePayload.decision_template_id = decisionTemplateId
     if (decisionReason) updatePayload.decision_reason = decisionReason
   }
@@ -135,16 +144,21 @@ export async function PATCH(
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
   if (internalNote) {
-    await (serviceSupabase as any).from("moderation_appeal_internal_notes").insert({
+    const { error: noteError } = await (serviceSupabase as any).from("moderation_appeal_internal_notes").insert({
       appeal_id: appealId,
       server_id: appeal.server_id,
       author_id: user.id,
       note: internalNote,
     })
+
+    if (noteError) {
+      console.warn("Failed appeal internal note insert", { appealId, moderatorId: user.id, action: "internal_note", error: noteError })
+      return NextResponse.json({ error: "Failed to save internal note" }, { status: 500 })
+    }
   }
 
   if (nextStatus) {
-    await (serviceSupabase as any).from("moderation_appeal_status_events").insert({
+    const { error: statusEventError } = await (serviceSupabase as any).from("moderation_appeal_status_events").insert({
       appeal_id: appealId,
       server_id: appeal.server_id,
       actor_id: user.id,
@@ -155,7 +169,12 @@ export async function PATCH(
       },
     })
 
-    await serviceSupabase.from("audit_logs").insert({
+    if (statusEventError) {
+      console.warn("Failed appeal status event insert", { appealId, moderatorId: user.id, action: "status_update", error: statusEventError })
+      return NextResponse.json({ error: "Failed to write status event" }, { status: 500 })
+    }
+
+    const { error: auditError } = await serviceSupabase.from("audit_logs").insert({
       server_id: appeal.server_id,
       actor_id: user.id,
       action: "appeal_status_changed",
@@ -164,7 +183,12 @@ export async function PATCH(
       changes: { from: appeal.status, to: nextStatus },
     })
 
-    await (serviceSupabase as any).from("notifications").insert([
+    if (auditError) {
+      console.warn("Failed appeal audit log insert", { appealId, moderatorId: user.id, action: "status_update", error: auditError })
+      return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
+    }
+
+    const { error: notificationError } = await (serviceSupabase as any).from("notifications").insert([
       {
         user_id: appeal.user_id,
         type: "system",
@@ -180,6 +204,11 @@ export async function PATCH(
         server_id: appeal.server_id,
       },
     ])
+
+    if (notificationError) {
+      console.warn("Failed appeal notification insert", { appealId, moderatorId: user.id, action: "status_update", error: notificationError })
+      return NextResponse.json({ error: "Failed to send notifications" }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ message: "Appeal updated" })

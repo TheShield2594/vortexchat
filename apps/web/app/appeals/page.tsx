@@ -58,14 +58,14 @@ export default function AppealsPage() {
       <p className="mt-2 text-sm text-zinc-300">Submit one active appeal per server and track review status.</p>
 
       <section className="mt-6 rounded-lg border border-zinc-700 bg-zinc-900 p-4">
-        <label className="block text-sm mb-2">Server ID</label>
-        <input className="w-full rounded bg-zinc-800 p-2 mb-3" value={serverId} onChange={(e) => setServerId(e.target.value)} />
+        <label htmlFor="serverId" className="block text-sm mb-2">Server ID</label>
+        <input id="serverId" className="w-full rounded bg-zinc-800 p-2 mb-3" value={serverId} onChange={(e) => setServerId(e.target.value)} />
 
-        <label className="block text-sm mb-2">Statement (min 20 chars)</label>
-        <textarea className="w-full rounded bg-zinc-800 p-2 mb-3 min-h-32" value={statement} onChange={(e) => setStatement(e.target.value)} />
+        <label htmlFor="statement" className="block text-sm mb-2">Statement (min 20 chars)</label>
+        <textarea id="statement" className="w-full rounded bg-zinc-800 p-2 mb-3 min-h-32" value={statement} onChange={(e) => setStatement(e.target.value)} />
 
-        <label className="block text-sm mb-2">Evidence attachments (one URL per line)</label>
-        <textarea className="w-full rounded bg-zinc-800 p-2 mb-4 min-h-24" value={evidence} onChange={(e) => setEvidence(e.target.value)} />
+        <label htmlFor="evidence" className="block text-sm mb-2">Evidence attachments (one URL per line)</label>
+        <textarea id="evidence" className="w-full rounded bg-zinc-800 p-2 mb-4 min-h-24" value={evidence} onChange={(e) => setEvidence(e.target.value)} />
 
         <button className="rounded bg-indigo-600 px-4 py-2 text-sm" onClick={submitAppeal}>Submit appeal</button>
 

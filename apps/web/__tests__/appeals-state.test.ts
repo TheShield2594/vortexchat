@@ -16,8 +16,13 @@ describe("appeal state transitions", () => {
     expect(isValidAppealTransition("reviewing", "closed")).toBe(true)
   })
 
-  it("blocks closed -> any", () => {
+  it("allows only finalization from approved/denied and blocks transitions from closed", () => {
+    expect(isValidAppealTransition("approved", "closed")).toBe(true)
+    expect(isValidAppealTransition("denied", "closed")).toBe(true)
+    expect(isValidAppealTransition("approved", "reviewing")).toBe(false)
+    expect(isValidAppealTransition("denied", "reviewing")).toBe(false)
     expect(isValidAppealTransition("closed", "reviewing")).toBe(false)
+    expect(isValidAppealTransition("closed", "closed")).toBe(false)
   })
 
   it("validates status enum", () => {
