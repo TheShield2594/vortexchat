@@ -47,6 +47,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   const outboxRef = useRef<OutboxEntry[]>([])
   const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const draftRef = useRef("")
+  const prevChannelIdRef = useRef(channel.id)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const { toast } = useToast()
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
@@ -70,12 +71,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   }, [currentUser, currentUserId])
 
   const setAndPersistOutbox = useCallback((next: OutboxEntry[] | ((current: OutboxEntry[]) => OutboxEntry[])) => {
-    setOutbox((current) => {
-      const resolved = typeof next === "function" ? next(current) : next
-      outboxRef.current = resolved
-      saveOutbox(resolved)
-      return resolved
-    })
+    const resolved = typeof next === "function" ? next(outboxRef.current) : next
+    setOutbox(resolved)
+    outboxRef.current = resolved
+    saveOutbox(resolved)
   }, [])
 
   const upsertMessage = useCallback((incoming: MessageWithAuthor) => {
@@ -266,14 +265,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   }, [])
 
   useEffect(() => {
-    if (draftPersistTimerRef.current) {
-      flushDraftNow(channel.id)
-      clearTimeout(draftPersistTimerRef.current)
-      draftPersistTimerRef.current = null
-    }
+    const channelIdAtEffect = channel.id
+    prevChannelIdRef.current = channelIdAtEffect
+
     return () => {
       if (draftPersistTimerRef.current) {
-        flushDraftNow(channel.id)
+        flushDraftNow(channelIdAtEffect)
         clearTimeout(draftPersistTimerRef.current)
         draftPersistTimerRef.current = null
       }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Megaphone, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -8,7 +8,6 @@ import type { ChannelRow, MessageWithAuthor } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
-import { useEffect, useRef } from "react"
 import { getDraft, setDraft } from "@/lib/chat-outbox"
 
 interface Props {
@@ -24,6 +23,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [draft, setDraftState] = useState(() => getDraft(channel.id))
   const bottomRef = useRef<HTMLDivElement>(null)
+  const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const supabase = createClientSupabaseClient()
 
   useEffect(() => {
@@ -46,6 +46,15 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
   useEffect(() => {
     setDraftState(getDraft(channel.id))
   }, [channel.id])
+
+  useEffect(() => {
+    return () => {
+      if (draftPersistTimerRef.current) {
+        clearTimeout(draftPersistTimerRef.current)
+        draftPersistTimerRef.current = null
+      }
+    }
+  }, [])
 
   useRealtimeMessages(
     channel.id,
@@ -225,7 +234,13 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
         onSend={handleSendMessage}
         onDraftChange={(newDraft) => {
           setDraftState(newDraft)
-          setDraft(channel.id, newDraft)
+          if (draftPersistTimerRef.current) {
+            clearTimeout(draftPersistTimerRef.current)
+          }
+          draftPersistTimerRef.current = setTimeout(() => {
+            setDraft(channel.id, newDraft)
+            draftPersistTimerRef.current = null
+          }, 300)
         }}
       />
     </div>

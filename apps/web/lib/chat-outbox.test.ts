@@ -107,6 +107,27 @@ describe("chat outbox persistence", () => {
     expect(loadOutbox(storage)).toEqual(entries)
   })
 
+  it("saveOutbox + loadOutbox round-trip with attachments", () => {
+    const storage = createMockStorage()
+    const entries = [
+      buildEntry({
+        id: "with-attachment",
+        attachments: [
+          {
+            url: "https://cdn.example.com/file.png",
+            filename: "file.png",
+            size: 42,
+            content_type: "image/png",
+            storage_path: "channel/file.png",
+          },
+        ],
+      }),
+    ]
+
+    saveOutbox(entries, storage)
+    expect(loadOutbox(storage)).toEqual(entries)
+  })
+
   it("setDraft stores non-empty values and clears whitespace-only values", () => {
     const storage = createMockStorage()
 

@@ -44,6 +44,10 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
     if (view === "thread") bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages.length, view])
 
+  useEffect(() => {
+    setThreadReplyDraft("")
+  }, [activeThread?.id])
+
   useRealtimeMessages(
     channel.id,
     (newMessage) => {
