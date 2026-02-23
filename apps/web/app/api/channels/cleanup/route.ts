@@ -11,13 +11,15 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
  * Returns: { deleted: number }
  */
 export async function POST(request: Request) {
-  // Validate cron secret when configured
+  // Fail closed: reject all requests when CRON_SECRET is not configured
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    const authHeader = request.headers.get("authorization")
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  if (!cronSecret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
+  }
+
+  const authHeader = request.headers.get("authorization")
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
@@ -27,15 +29,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ deleted: data ?? 0 })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error("[channels/cleanup] Error deleting expired channels:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 /**
  * GET /api/channels/cleanup
  *
- * Same as POST — allows easy testing from a browser or simple cron ping.
+ * This endpoint only supports POST. Returns 405 Method Not Allowed.
  */
-export async function GET(request: Request) {
-  return POST(request)
+export async function GET() {
+  return NextResponse.json({ error: "Method Not Allowed. Use POST." }, { status: 405, headers: { Allow: "POST" } })
 }

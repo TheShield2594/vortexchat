@@ -34,7 +34,8 @@ BEGIN
 END;
 $$;
 
--- Grant execute to the service role (used by the cleanup API route)
+-- Restrict execute to service_role only (function is SECURITY DEFINER)
+REVOKE EXECUTE ON FUNCTION public.delete_expired_channels() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.delete_expired_channels() TO service_role;
 
 -- Notes:

@@ -629,9 +629,12 @@ function SortableChannelItem({
   )
   useEffect(() => {
     if (!channel.expires_at) return
+    setTimeRemaining(formatTimeRemaining(channel.expires_at))
+    const msRemaining = new Date(channel.expires_at).getTime() - Date.now()
+    const delay = msRemaining <= 60_000 ? 1_000 : 30_000
     const interval = setInterval(() => {
       setTimeRemaining(formatTimeRemaining(channel.expires_at!))
-    }, 30_000)
+    }, delay)
     return () => clearInterval(interval)
   }, [channel.expires_at])
 

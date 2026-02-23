@@ -41,6 +41,14 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
   const [expirySeconds, setExpirySeconds] = useState(EXPIRY_OPTIONS[3].seconds) // default 1 day
   const supabase = createClientSupabaseClient()
 
+  function resetForm() {
+    setName("")
+    setType("text")
+    setIsTemporary(false)
+    setExpirySeconds(EXPIRY_OPTIONS[3].seconds)
+    onClose()
+  }
+
   async function handleCreate() {
     if (!name.trim()) return
     setLoading(true)
@@ -82,7 +90,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
 
       addChannel(channel)
       toast({ title: `Channel #${channel.name} created!` })
-      onClose()
+      resetForm()
 
       if (type !== "voice" && type !== "category") {
         router.push(`/channels/${serverId}/${channel.id}`)
@@ -91,10 +99,6 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
       toast({ variant: "destructive", title: "Failed to create channel", description: error.message })
     } finally {
       setLoading(false)
-      setName("")
-      setType("text")
-      setIsTemporary(false)
-      setExpirySeconds(EXPIRY_OPTIONS[3].seconds)
     }
   }
 
@@ -155,7 +159,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
   }
 
   return (
-    <Dialog open={open} onOpenChange={() => { setName(""); setType("text"); setIsTemporary(false); setExpirySeconds(EXPIRY_OPTIONS[3].seconds); onClose() }}>
+    <Dialog open={open} onOpenChange={resetForm}>
       <DialogContent style={{ background: '#313338', borderColor: '#1e1f22', maxWidth: '460px' }}>
         <DialogHeader>
           <DialogTitle className="text-white">Create Channel</DialogTitle>
@@ -268,7 +272,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
           <div className="flex gap-2 pt-2">
             <Button
               variant="ghost"
-              onClick={() => { setName(""); setType("text"); setIsTemporary(false); setExpirySeconds(EXPIRY_OPTIONS[3].seconds); onClose() }}
+              onClick={resetForm}
               className="flex-1"
               style={{ color: '#b5bac1' }}
             >
