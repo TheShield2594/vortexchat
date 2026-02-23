@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
 import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -12,8 +13,6 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { evaluateRule } from "@/lib/automod"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ServerRow, AutoModRuleRow, AutoModAction, ScreeningConfigRow } from "@/types/database"
-import { RoleManager } from "@/components/roles/role-manager"
-import { TemplateManager } from "@/components/modals/template-manager"
 
 interface Channel {
   id: string
@@ -101,41 +100,18 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
               <TabsTrigger value="overview" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="roles" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
-                Roles
-              </TabsTrigger>
               <TabsTrigger value="invites" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
                 Invites
               </TabsTrigger>
-              {isOwner && (
-                <>
-                  <TabsTrigger value="emojis" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
-                    Emoji
-                  </TabsTrigger>
-                  <TabsTrigger value="webhooks" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
-                    Integrations
-                  </TabsTrigger>
-                  <div className="mt-2 mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: '#949ba4' }}>
-                    Moderation
-                  </div>
-                  <TabsTrigger value="moderation" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
-                    <Shield className="w-3.5 h-3.5 mr-1.5" />
-                    Settings
-                  </TabsTrigger>
-                  <TabsTrigger value="screening" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
-                    <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
-                    Screening
-                  </TabsTrigger>
-                  <TabsTrigger value="automod" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
-                    <Zap className="w-3.5 h-3.5 mr-1.5" />
-                    AutoMod
-                  </TabsTrigger>
-                  <TabsTrigger value="templates" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
-                    Templates
-                  </TabsTrigger>
-                </>
-              )}
             </TabsList>
+            <p className="mt-3 px-2 text-xs leading-relaxed" style={{ color: '#949ba4' }}>
+              Need roles, moderation, integrations, or templates?
+            </p>
+            <Button asChild variant="ghost" className="mt-2 justify-start px-2 text-sm" style={{ color: '#b5bac1' }}>
+              <Link href={`/channels/${server.id}/settings`} onClick={onClose}>
+                Open Server Settings
+              </Link>
+            </Button>
           </div>
 
           {/* Main content */}
@@ -176,10 +152,6 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
               )}
             </TabsContent>
 
-            <TabsContent value="roles" className="mt-0">
-              <RoleManager serverId={server.id} isOwner={isOwner} />
-            </TabsContent>
-
             <TabsContent value="invites" className="mt-0 space-y-4">
               <div>
                 <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: '#b5bac1' }}>
@@ -216,29 +188,6 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
               </p>
             </TabsContent>
 
-            <TabsContent value="emojis" className="mt-0">
-              <EmojisTab serverId={server.id} />
-            </TabsContent>
-
-            <TabsContent value="webhooks" className="mt-0">
-              <WebhooksTab serverId={server.id} channels={channels} open={open} />
-            </TabsContent>
-
-            <TabsContent value="moderation" className="mt-0">
-              <ModerationTab serverId={server.id} open={open} />
-            </TabsContent>
-
-            <TabsContent value="screening" className="mt-0">
-              <ScreeningTab serverId={server.id} open={open} />
-            </TabsContent>
-
-            <TabsContent value="automod" className="mt-0">
-              <AutoModTab serverId={server.id} channels={channels} open={open} />
-            </TabsContent>
-
-            <TabsContent value="templates" className="mt-0">
-              {isOwner ? <TemplateManager serverId={server.id} /> : <p style={{ color: "#b5bac1" }}>Only the owner can import/export templates.</p>}
-            </TabsContent>
           </div>
         </Tabs>
       </DialogContent>
@@ -254,7 +203,7 @@ interface EmojiEntry {
   image_url: string
 }
 
-function EmojisTab({ serverId }: { serverId: string }) {
+export function EmojisTab({ serverId }: { serverId: string }) {
   const { toast } = useToast()
   const [emojis, setEmojis] = useState<EmojiEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -378,7 +327,7 @@ interface WebhookEntry {
   created_at: string
 }
 
-function WebhooksTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
+export function WebhooksTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
   const { toast } = useToast()
   const [webhooks, setWebhooks] = useState<WebhookEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -553,7 +502,7 @@ interface ModerationSettings {
   screening_enabled: boolean
 }
 
-function ModerationTab({ serverId, open }: { serverId: string; open: boolean }) {
+export function ModerationTab({ serverId, open }: { serverId: string; open: boolean }) {
   const { toast } = useToast()
   const [settings, setSettings] = useState<ModerationSettings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -677,7 +626,7 @@ function ModerationTab({ serverId, open }: { serverId: string; open: boolean }) 
 
 // ── Screening Tab ────────────────────────────────────────────────────────────
 
-function ScreeningTab({ serverId, open }: { serverId: string; open: boolean }) {
+export function ScreeningTab({ serverId, open }: { serverId: string; open: boolean }) {
   const { toast } = useToast()
   const [config, setConfig] = useState<ScreeningConfigRow | null>(null)
   const [loading, setLoading] = useState(true)
@@ -939,7 +888,7 @@ function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
   }
 }
 
-function AutoModTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
+export function AutoModTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
   const { toast } = useToast()
   const [rules, setRules] = useState<AutoModRuleRow[]>([])
   const [loading, setLoading] = useState(true)
