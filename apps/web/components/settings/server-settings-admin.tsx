@@ -63,7 +63,7 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               <WebhooksTab serverId={serverId} channels={channels} open />
             </TabsContent>
             <TabsContent value="apps" className="mt-0">
-              <AppsTab serverId={serverId} />
+              <AppsTab serverId={serverId} canManageApps={isOwner} />
             </TabsContent>
             <TabsContent value="moderation" className="mt-0">
               <ModerationTab serverId={serverId} open />

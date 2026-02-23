@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Users, Compass, BadgeCheck, Star } from "lucide-react"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
@@ -51,22 +51,35 @@ export default function DiscoverPage() {
     if (res.ok) setApps(await res.json())
   }, [])
 
-  useEffect(() => {
-    const run = async () => {
-      setLoading(true)
-      await Promise.all([fetchServers(), fetchApps(undefined, category)])
-      setLoading(false)
-    }
-    run()
-  }, [fetchServers, fetchApps, category])
+  const previousCategoryRef = useRef(category)
 
   useEffect(() => {
-    const t = setTimeout(async () => {
-      setLoading(true)
-      await Promise.all([fetchServers(query), fetchApps(query, category)])
-      setLoading(false)
-    }, 300)
-    return () => clearTimeout(t)
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const categoryChanged = previousCategoryRef.current !== category
+
+    const runFetch = async (debounceMs: number) => {
+      if (timer) clearTimeout(timer)
+      const execute = async () => {
+        setLoading(true)
+        await Promise.all([fetchServers(query || undefined), fetchApps(query || undefined, category)])
+        if (!cancelled) setLoading(false)
+      }
+
+      if (debounceMs > 0) {
+        timer = setTimeout(execute, debounceMs)
+      } else {
+        await execute()
+      }
+    }
+
+    runFetch(query && !categoryChanged ? 300 : 0)
+    previousCategoryRef.current = category
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
   }, [query, fetchServers, fetchApps, category])
 
   async function joinServer(inviteCode: string) {
@@ -111,6 +124,7 @@ export default function DiscoverPage() {
           <div className="flex gap-2 mt-3">
             {APP_CATEGORIES.map((item) => (
               <button
+                type="button"
                 key={item}
                 onClick={() => setCategory(item)}
                 className="px-2.5 py-1 rounded text-xs capitalize"
@@ -138,7 +152,7 @@ export default function DiscoverPage() {
                   {server.description && <p className="text-xs line-clamp-2 flex-1 mb-3" style={{ color: "#949ba4" }}>{server.description}</p>}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs" style={{ color: "#949ba4" }}><Users className="w-3 h-3" /><span>{server.member_count.toLocaleString()}</span></div>
-                    <button onClick={() => joinServer(server.invite_code)} className="px-3 py-1 rounded text-xs font-semibold" style={{ background: "#5865f2", color: "white" }}>Join</button>
+                    <button type="button" onClick={() => joinServer(server.invite_code)} className="px-3 py-1 rounded text-xs font-semibold" style={{ background: "#5865f2", color: "white" }}>Join</button>
                   </div>
                 </div>
               </div>

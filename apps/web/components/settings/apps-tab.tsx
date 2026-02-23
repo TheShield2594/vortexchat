@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { BadgeCheck, Shield, Star, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
 
 interface InstalledApp {
   id: string
@@ -26,37 +27,103 @@ interface DiscoverApp {
   review_count: number
 }
 
-export function AppsTab({ serverId }: { serverId: string }) {
+interface AppsTabProps {
+  serverId: string
+  canManageApps: boolean
+}
+
+async function readErrorMessage(res: Response) {
+  try {
+    const payload = await res.json()
+    if (payload?.error) return String(payload.error)
+  } catch {
+    // fallback to text
+  }
+
+  try {
+    const text = await res.text()
+    if (text) return text
+  } catch {
+    // ignore
+  }
+
+  return `Request failed (${res.status})`
+}
+
+export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
+  const { toast } = useToast()
   const [installed, setInstalled] = useState<InstalledApp[]>([])
   const [market, setMarket] = useState<DiscoverApp[]>([])
   const [loading, setLoading] = useState(true)
+  const [busyAppId, setBusyAppId] = useState<string | null>(null)
 
   async function refresh() {
     setLoading(true)
-    const [installedRes, marketRes] = await Promise.all([
-      fetch(`/api/servers/${serverId}/apps`),
-      fetch(`/api/apps/discover`),
-    ])
+    try {
+      const [installedRes, marketRes] = await Promise.all([
+        fetch(`/api/servers/${serverId}/apps`),
+        fetch(`/api/apps/discover`),
+      ])
 
-    if (installedRes.ok) setInstalled(await installedRes.json())
-    if (marketRes.ok) setMarket(await marketRes.json())
-    setLoading(false)
+      if (!installedRes.ok) throw new Error(await readErrorMessage(installedRes))
+      if (!marketRes.ok) throw new Error(await readErrorMessage(marketRes))
+
+      setInstalled(await installedRes.json())
+      setMarket(await marketRes.json())
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to load apps",
+        description: error instanceof Error ? error.message : "Unknown error",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { refresh() }, [serverId])
 
   async function install(appId: string) {
-    await fetch(`/api/servers/${serverId}/apps`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appId }),
-    })
-    refresh()
+    setBusyAppId(appId)
+    try {
+      const res = await fetch(`/api/servers/${serverId}/apps`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId }),
+      })
+      if (!res.ok) throw new Error(await readErrorMessage(res))
+      await refresh()
+      toast({ title: "App installed" })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Install failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      })
+    } finally {
+      setBusyAppId(null)
+    }
   }
 
   async function uninstall(appId: string) {
-    await fetch(`/api/servers/${serverId}/apps?appId=${appId}`, { method: "DELETE" })
-    refresh()
+    const confirmed = window.confirm("Uninstall this app from the server?")
+    if (!confirmed) return
+
+    setBusyAppId(appId)
+    try {
+      const res = await fetch(`/api/servers/${serverId}/apps?appId=${appId}`, { method: "DELETE" })
+      if (!res.ok) throw new Error(await readErrorMessage(res))
+      await refresh()
+      toast({ title: "App uninstalled" })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Uninstall failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      })
+    } finally {
+      setBusyAppId(null)
+    }
   }
 
   const installedIds = new Set(installed.map((app) => app.app_id))
@@ -80,7 +147,12 @@ export function AppsTab({ serverId }: { serverId: string }) {
                     Scopes: {entry.install_scopes.join(", ")} · Permissions: {entry.granted_permissions.join(", ")}
                   </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => uninstall(entry.app_id)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!canManageApps || busyAppId === entry.app_id}
+                  onClick={() => uninstall(entry.app_id)}
+                >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -103,7 +175,11 @@ export function AppsTab({ serverId }: { serverId: string }) {
                   <Shield className="w-3 h-3 inline mr-1" />{app.category} · <Star className="w-3 h-3 inline mr-1" />{app.average_rating.toFixed(1)} ({app.review_count})
                 </p>
               </div>
-              <Button size="sm" disabled={installedIds.has(app.id)} onClick={() => install(app.id)}>
+              <Button
+                size="sm"
+                disabled={!canManageApps || installedIds.has(app.id) || busyAppId === app.id}
+                onClick={() => install(app.id)}
+              >
                 {installedIds.has(app.id) ? "Installed" : "Install"}
               </Button>
             </div>

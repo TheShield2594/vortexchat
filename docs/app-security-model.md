@@ -14,7 +14,7 @@ This document defines the Vortex app platform security posture for app identity,
 
 - Install entries are in `server_app_installs` and scoped to a server.
 - `install_scopes` and `granted_permissions` are stored with the install snapshot.
-- Credentials are stored as JSON and must be redacted for UI/log rendering.
+- Credentials are stored in dedicated credential tables (`app_catalog_credentials`, `server_app_install_credentials`) with restrictive RLS and are not exposed in public catalog/install reads.
 - Permissions are deny-by-default: requested permissions must exist in granted permissions.
 
 ## 3) Command + event interaction runtime
@@ -34,7 +34,7 @@ This document defines the Vortex app platform security posture for app identity,
 
 - Existing webhook routes remain unchanged (`/api/servers/[serverId]/webhooks`, `/api/webhooks/[token]`).
 - App installs do not mutate webhook token format or webhook delivery contract.
-- Apps may carry webhook credentials, but credential rendering is redacted.
+- Any app-stored webhook-like credentials are isolated in credential tables and only redacted values should be rendered in application logs/UI.
 
 ## 6) Test coverage
 

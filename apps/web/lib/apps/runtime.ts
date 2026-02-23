@@ -18,6 +18,9 @@ export interface RuntimeContext {
   serverId: string
   actorId: string
   payload?: Record<string, unknown>
+  logger?: {
+    error: (...args: unknown[]) => void
+  }
 }
 
 export interface RuntimeResponse {
@@ -45,9 +48,13 @@ export class AppInteractionRuntime {
   private subscriptions: EventSubscription[] = []
   private usage = new Map<string, InteractionRecord[]>()
 
+  private commandKey(appId: string, name: string) {
+    return `${appId}:${name.trim().toLowerCase()}`
+  }
+
   registerCommand(command: CommandDefinition) {
     const normalized = command.name.trim().toLowerCase()
-    this.commands.set(normalized, { ...command, name: normalized })
+    this.commands.set(this.commandKey(command.appId, normalized), { ...command, name: normalized })
   }
 
   subscribeToEvent(subscription: EventSubscription) {
@@ -82,7 +89,7 @@ export class AppInteractionRuntime {
   }
 
   async executeCommand(name: string, context: RuntimeContext, rule?: RateLimitRule) {
-    const command = this.commands.get(name.trim().toLowerCase())
+    const command = this.commands.get(this.commandKey(context.appId, name))
     if (!command) {
       return { ok: false, message: `Command ${name} is not registered.` }
     }
@@ -98,7 +105,19 @@ export class AppInteractionRuntime {
       }
     }
 
-    return command.execute(context)
+    try {
+      return await command.execute(context)
+    } catch (error) {
+      if (context.logger) {
+        context.logger.error("app command failed", { appId: context.appId, error })
+      } else {
+        console.error("app command failed", { appId: context.appId, error })
+      }
+      return {
+        ok: false,
+        message: error instanceof Error ? `App command failed. ${error.message}` : "App command failed.",
+      }
+    }
   }
 }
 

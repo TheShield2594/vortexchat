@@ -1,4 +1,4 @@
--- Apps platform: identity, install scopes/permissions, credentials, commands/events, analytics and rate limits.
+-- Apps platform: identity, install scopes/permissions, commands/events, analytics and rate limits.
 
 DO $$
 BEGIN
@@ -18,12 +18,17 @@ CREATE TABLE IF NOT EXISTS public.app_catalog (
   identity JSONB NOT NULL DEFAULT '{}'::jsonb,
   install_scopes TEXT[] NOT NULL DEFAULT ARRAY['server']::TEXT[],
   permissions TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  credentials JSONB NOT NULL DEFAULT '{}'::jsonb,
   trust_badge public.app_trust_badge,
   average_rating NUMERIC(3,2) NOT NULL DEFAULT 0,
   review_count INTEGER NOT NULL DEFAULT 0,
   is_published BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.app_catalog_credentials (
+  app_id UUID PRIMARY KEY REFERENCES public.app_catalog(id) ON DELETE CASCADE,
+  credentials JSONB NOT NULL DEFAULT '{}'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -44,9 +49,14 @@ CREATE TABLE IF NOT EXISTS public.server_app_installs (
   installed_by UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   install_scopes TEXT[] NOT NULL DEFAULT ARRAY['server']::TEXT[],
   granted_permissions TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  credentials JSONB NOT NULL DEFAULT '{}'::jsonb,
   installed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (app_id, server_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.server_app_install_credentials (
+  app_install_id UUID PRIMARY KEY REFERENCES public.server_app_installs(id) ON DELETE CASCADE,
+  credentials JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.app_commands (
@@ -85,17 +95,75 @@ CREATE TABLE IF NOT EXISTS public.app_usage_metrics (
   occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_app_reviews_app_id ON public.app_reviews(app_id);
+CREATE INDEX IF NOT EXISTS idx_app_usage_metrics_app_id ON public.app_usage_metrics(app_id);
+CREATE INDEX IF NOT EXISTS idx_app_usage_metrics_server_id ON public.app_usage_metrics(server_id);
+CREATE INDEX IF NOT EXISTS idx_app_usage_metrics_occurred_at ON public.app_usage_metrics(occurred_at);
+CREATE INDEX IF NOT EXISTS idx_app_usage_metrics_app_id_occurred_at ON public.app_usage_metrics(app_id, occurred_at DESC);
+
+CREATE OR REPLACE FUNCTION public.app_catalog_set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS app_catalog_update_ts_tr ON public.app_catalog;
+CREATE TRIGGER app_catalog_update_ts_tr
+BEFORE UPDATE ON public.app_catalog
+FOR EACH ROW
+EXECUTE FUNCTION public.app_catalog_set_updated_at();
+
 ALTER TABLE public.app_catalog ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_catalog_credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.server_app_installs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.server_app_install_credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_commands ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_event_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_rate_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_usage_metrics ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "apps are discoverable"
+-- Do not expose base app_catalog rows to anon/authenticated directly.
+REVOKE ALL ON TABLE public.app_catalog FROM anon, authenticated;
+GRANT SELECT ON TABLE public.app_catalog TO authenticated;
+REVOKE ALL ON TABLE public.app_catalog_credentials FROM anon, authenticated;
+REVOKE ALL ON TABLE public.server_app_install_credentials FROM anon, authenticated;
+
+CREATE OR REPLACE VIEW public.app_catalog_public AS
+SELECT
+  id,
+  slug,
+  name,
+  description,
+  category,
+  icon_url,
+  homepage_url,
+  identity,
+  install_scopes,
+  permissions,
+  trust_badge,
+  average_rating,
+  review_count,
+  is_published,
+  created_at,
+  updated_at
+FROM public.app_catalog
+WHERE is_published = TRUE;
+
+GRANT SELECT ON public.app_catalog_public TO anon, authenticated;
+
+CREATE POLICY "authenticated read app catalog"
   ON public.app_catalog FOR SELECT
-  USING (is_published = TRUE);
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "service-role manage app credentials"
+  ON public.app_catalog_credentials FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
 CREATE POLICY "members read installs"
   ON public.server_app_installs FOR SELECT
@@ -105,9 +173,27 @@ CREATE POLICY "owners manage installs"
   ON public.server_app_installs FOR ALL
   USING (public.is_server_owner(server_id));
 
+CREATE POLICY "owners manage install credentials"
+  ON public.server_app_install_credentials FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM public.server_app_installs sai
+    WHERE sai.id = app_install_id
+      AND public.is_server_owner(sai.server_id)
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM public.server_app_installs sai
+    WHERE sai.id = app_install_id
+      AND public.is_server_owner(sai.server_id)
+  ));
+
 CREATE POLICY "members read commands"
   ON public.app_commands FOR SELECT
-  USING (EXISTS (SELECT 1 FROM public.server_app_installs sai WHERE sai.app_id = app_commands.app_id AND public.is_server_member(sai.server_id)));
+  USING (EXISTS (
+    SELECT 1
+    FROM public.server_app_installs sai
+    WHERE sai.app_id = app_commands.app_id
+      AND public.is_server_member(sai.server_id)
+  ));
 
 CREATE POLICY "members read subscriptions"
   ON public.app_event_subscriptions FOR SELECT
@@ -147,7 +233,7 @@ CREATE POLICY "members read usage"
 CREATE OR REPLACE FUNCTION public.recompute_app_rating(p_app_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public
 AS $$
 BEGIN
@@ -163,12 +249,17 @@ $$;
 CREATE OR REPLACE FUNCTION public.bump_app_usage(p_app_id UUID, p_server_id UUID, p_metric_key TEXT, p_metric_value INTEGER DEFAULT 1)
 RETURNS VOID
 LANGUAGE sql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public
 AS $$
   INSERT INTO public.app_usage_metrics(app_id, server_id, metric_key, metric_value)
   VALUES (p_app_id, p_server_id, p_metric_key, COALESCE(p_metric_value, 1));
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.recompute_app_rating(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.bump_app_usage(UUID, UUID, TEXT, INTEGER) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.recompute_app_rating(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.bump_app_usage(UUID, UUID, TEXT, INTEGER) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.on_app_review_change()
 RETURNS TRIGGER
