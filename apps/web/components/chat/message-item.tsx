@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, AlertCircle, Clock3, Loader2, RefreshCcw } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
@@ -24,6 +24,8 @@ interface Props {
   onDelete: () => Promise<void>
   onReaction: (emoji: string) => Promise<void>
   onThreadCreated?: (thread: ThreadRow) => void
+  sendState?: "queued" | "sending" | "failed"
+  onRetry?: () => void
 }
 
 export function MessageItem({
@@ -35,6 +37,8 @@ export function MessageItem({
   onDelete,
   onReaction,
   onThreadCreated,
+  sendState,
+  onRetry,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
@@ -246,6 +250,21 @@ export function MessageItem({
                   <span className="text-xs" style={{ color: "#4e5058" }}>
                     {format(timestamp, "MM/dd/yyyy h:mm a")}
                   </span>
+                  {sendState === "queued" && (
+                    <span className="text-xs flex items-center gap-1" style={{ color: "#f0b232" }}>
+                      <Clock3 className="w-3 h-3" /> queued
+                    </span>
+                  )}
+                  {sendState === "sending" && (
+                    <span className="text-xs flex items-center gap-1" style={{ color: "#949ba4" }}>
+                      <Loader2 className="w-3 h-3 animate-spin" /> sending
+                    </span>
+                  )}
+                  {sendState === "failed" && (
+                    <span className="text-xs flex items-center gap-1" style={{ color: "#f23f43" }}>
+                      <AlertCircle className="w-3 h-3" /> failed
+                    </span>
+                  )}
                   {message.edited_at && (
                     <span className="text-xs" style={{ color: "#4e5058" }}>
                       (edited)
@@ -399,6 +418,17 @@ export function MessageItem({
                   title="Edit"
                 >
                   <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+
+              {sendState === "failed" && onRetry && (
+                <button
+                  onClick={onRetry}
+                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  style={{ color: "#f0b232" }}
+                  title="Retry send"
+                >
+                  <RefreshCcw className="w-4 h-4" />
                 </button>
               )}
 

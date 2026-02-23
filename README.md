@@ -138,6 +138,10 @@ Vortex supports reusable **server templates** for import/export:
 API entrypoint: `POST /api/server-templates` with modes:
 `validate`, `preview`, `apply`, `create-server`, and `export`.
 
+## Messaging consistency
+
+Offline/outbox semantics, reconnect replay rules, and conflict handling are documented in [`docs/message-consistency-model.md`](./docs/message-consistency-model.md).
+
 ## License
 
 MIT

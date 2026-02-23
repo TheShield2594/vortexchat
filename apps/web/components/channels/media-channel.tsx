@@ -202,9 +202,11 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
       {/* Message input */}
       <MessageInput
         channelName={channel.name}
+        draft=""
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         onSend={handleSendMessage}
+        onDraftChange={() => {}}
       />
     </div>
   )

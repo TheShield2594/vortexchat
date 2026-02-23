@@ -272,9 +272,11 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
         {/* Reply input */}
         <MessageInput
           channelName={`Reply in thread`}
+          draft=""
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
           onSend={handleThreadReply}
+          onDraftChange={() => {}}
         />
       </div>
     )
@@ -336,9 +338,11 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           />
           <MessageInput
             channelName="new post content"
+            draft=""
             replyTo={null}
             onCancelReply={() => {}}
             onSend={handleCreatePost}
+            onDraftChange={() => {}}
           />
           <button
             onClick={() => { setShowNewPost(false); setNewPostTitle("") }}

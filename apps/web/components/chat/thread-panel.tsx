@@ -378,9 +378,11 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
       {canSend ? (
         <MessageInput
           channelName={thread.name}
+          draft=""
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
           onSend={handleSendMessage}
+          onDraftChange={() => {}}
         />
       ) : (
         <div
