@@ -29,9 +29,10 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 
 interface Props {
   userId: string
+  variant?: "icon" | "sidebar"
 }
 
-export function NotificationBell({ userId }: Props) {
+export function NotificationBell({ userId, variant = "icon" }: Props) {
   const [supabase] = useState(() => createClientSupabaseClient())
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -118,22 +119,43 @@ export function NotificationBell({ userId }: Props) {
   return (
     <div className="relative" ref={panelRef}>
       {/* Bell button */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="relative w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
-        style={{ color: open ? "#f2f3f5" : "#949ba4" }}
-        title="Notifications"
-      >
-        <Bell className="w-5 h-5" />
-        {unreadCount > 0 && (
-          <span
-            className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center text-xs font-bold px-0.5"
-            style={{ background: "#f23f43", color: "white", fontSize: "10px" }}
-          >
-            {unreadCount > 99 ? "99+" : unreadCount}
+      {variant === "sidebar" ? (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="relative flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10"
+          title="Inbox"
+        >
+          <span className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Inbox
           </span>
-        )}
-      </button>
+          {unreadCount > 0 && (
+            <span
+              className="min-w-[18px] h-[18px] rounded-full px-1 text-[10px] font-bold flex items-center justify-center"
+              style={{ background: "#f23f43", color: "white" }}
+            >
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
+      ) : (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="relative w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
+          style={{ color: open ? "#f2f3f5" : "#949ba4" }}
+          title="Notifications"
+        >
+          <Bell className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span
+              className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center text-xs font-bold px-0.5"
+              style={{ background: "#f23f43", color: "white", fontSize: "10px" }}
+            >
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Panel */}
       {open && (

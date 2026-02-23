@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays
+  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, Command, Search
 } from "lucide-react"
 import {
   DndContext,
@@ -35,8 +35,12 @@ import { useToast } from "@/components/ui/use-toast"
 import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { UserPanel } from "@/components/layout/user-panel"
+import { QuickSwitcherModal } from "@/components/modals/quickswitcher-modal"
+import { SearchModal } from "@/components/modals/search-modal"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
 import { useUnreadChannels } from "@/hooks/use-unread-channels"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 
 const NO_CATEGORY = "__no_category__"
 
@@ -123,8 +127,15 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [items, setItems] = useState<Record<string, string[]>>({})
   const [overContainerId, setOverContainerId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
+
+  useKeyboardShortcuts({
+    onQuickSwitcher: useCallback(() => setQuickSwitcherOpen(true), []),
+    onSearch: useCallback(() => setSearchOpen(true), []),
+  })
 
   // Always reflects the latest committed items — used in drag handlers to avoid stale closures
   const itemsRef = useRef<Record<string, string[]>>({})
@@ -378,6 +389,32 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           Events
         </button>
 
+        <div className="mx-2 mt-2 space-y-1">
+          <button
+            onClick={() => setQuickSwitcherOpen(true)}
+            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10"
+          >
+            <span className="flex items-center gap-2">
+              <Command className="h-4 w-4" />
+              Quick Switcher
+            </span>
+            <span className="text-[10px] uppercase tracking-wide text-zinc-400">⌘K</span>
+          </button>
+
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10"
+          >
+            <span className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              Search
+            </span>
+            <span className="text-[10px] uppercase tracking-wide text-zinc-400">⌘F</span>
+          </button>
+
+          <NotificationBell userId={currentUserId} variant="sidebar" />
+        </div>
+
         {/* Channel list */}
         <div className="flex-1 overflow-y-auto py-2">
           <DndContext
@@ -495,6 +532,17 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           isOwner={isOwner}
           channels={webhookEligibleChannels}
         />
+
+        {quickSwitcherOpen && <QuickSwitcherModal onClose={() => setQuickSwitcherOpen(false)} />}
+        {searchOpen && (
+          <SearchModal
+            serverId={server.id}
+            onClose={() => setSearchOpen(false)}
+            onJumpToMessage={(channelId, messageId) => {
+              router.push(`/channels/${server.id}/${channelId}?message=${encodeURIComponent(messageId)}`)
+            }}
+          />
+        )}
 
         {/* Delete channel confirmation dialog */}
         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
