@@ -53,6 +53,13 @@ export async function POST(
     }
   }
 
+  const { data: roleData } = await supabase
+    .from("roles")
+    .select("id, name")
+    .eq("id", roleId)
+    .eq("server_id", serverId)
+    .single()
+
   const { error } = await supabase
     .from("member_roles")
     .insert({ server_id: serverId, user_id: userId, role_id: roleId })
@@ -61,6 +68,20 @@ export async function POST(
     if (error.code === "23505") return NextResponse.json({ ok: true }) // already assigned
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user.id,
+    action: "role_assigned",
+    target_id: userId,
+    target_type: "user",
+    changes: {
+      role_id: roleId,
+      role_name: roleData?.name ?? null,
+      before: { has_role: false },
+      after: { has_role: true },
+    },
+  })
 
   return NextResponse.json({ ok: true })
 }
@@ -109,5 +130,27 @@ export async function DELETE(
     .eq("role_id", roleId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const { data: roleData } = await supabase
+    .from("roles")
+    .select("id, name")
+    .eq("id", roleId)
+    .eq("server_id", serverId)
+    .single()
+
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user.id,
+    action: "role_removed",
+    target_id: userId,
+    target_type: "user",
+    changes: {
+      role_id: roleId,
+      role_name: roleData?.name ?? null,
+      before: { has_role: true },
+      after: { has_role: false },
+    },
+  })
+
   return NextResponse.json({ ok: true })
 }
