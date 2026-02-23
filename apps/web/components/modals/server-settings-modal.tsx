@@ -159,6 +159,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                 </Label>
                 <div className="flex gap-2">
                   <Input
+                    id="invite-code"
                     value={liveServer.invite_code}
                     readOnly
                     style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
@@ -168,6 +169,8 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                     size="icon"
                     onClick={copyInvite}
                     style={{ color: '#949ba4' }}
+                    aria-label="Copy invite code"
+                    aria-describedby="invite-code"
                   >
                     <Copy className="w-4 h-4" />
                   </Button>

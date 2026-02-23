@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { format } from "date-fns"
 import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, AlertCircle, Clock3, Loader2, RefreshCcw } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -64,6 +64,7 @@ export function MessageItem({
     message.author?.display_name || message.author?.username || "Unknown"
   const initials = displayName.slice(0, 2).toUpperCase()
   const timestamp = new Date(message.created_at)
+  const messageMetaId = useId()
 
   // Group reactions by emoji
   const reactionGroups = message.reactions.reduce(
@@ -194,10 +195,17 @@ export function MessageItem({
           )}
           onMouseEnter={() => setShowActions(true)}
           onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false) }}
+          onFocus={() => setShowActions(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+              setShowActions(false)
+              setShowEmojiPicker(false)
+            }
+          }}
         >
           {/* Reply reference */}
           {message.reply_to_id && message.reply_to && (
-            <div className="flex items-center gap-2 mb-1 ml-10 text-xs" style={{ color: '#949ba4' }}>
+            <div className="flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata">
               <Reply className="w-3 h-3 -scale-x-100" />
               <span className="font-medium" style={{ color: '#b5bac1' }}>
                 {message.reply_to.author?.display_name || message.reply_to.author?.username}
@@ -233,8 +241,9 @@ export function MessageItem({
               ) : (
                 <div className="pt-1 pr-1 flex items-center justify-end gap-1">
                   <span
-                    className="text-xs opacity-0 group-hover:opacity-100 transition-opacity block text-right"
-                    style={{ color: "#4e5058", fontSize: "10px" }}
+                    id={messageMetaId}
+                    className="text-xs opacity-0 group-hover:opacity-100 transition-opacity block text-right tertiary-metadata"
+                    style={{ fontSize: "10px" }}
                   >
                     {format(timestamp, "HH:mm")}
                   </span>
@@ -266,7 +275,7 @@ export function MessageItem({
                       {displayName}
                     </span>
                   </UserProfilePopover>
-                  <span className="text-xs" style={{ color: "#4e5058" }}>
+                  <span id={messageMetaId} className="text-xs tertiary-metadata">
                     {format(timestamp, "MM/dd/yyyy h:mm a")}
                   </span>
                   {sendState === "queued" && (
@@ -285,7 +294,7 @@ export function MessageItem({
                     </span>
                   )}
                   {message.edited_at && (
-                    <span className="text-xs" style={{ color: "#4e5058" }}>
+                    <span className="text-xs tertiary-metadata">
                       (edited)
                     </span>
                   )}
@@ -316,11 +325,12 @@ export function MessageItem({
                     rows={3}
                     autoFocus
                   />
-                  <div className="flex gap-2 mt-1 text-xs" style={{ color: "#949ba4" }}>
+                  <div className="flex gap-2 mt-1 text-xs tertiary-metadata">
                     <span>ESC to cancel</span>
                     <span>·</span>
                     <button
                       onClick={handleEditSubmit}
+                      className="focus-ring rounded"
                       style={{ color: "#00a8fc" }}
                     >
                       Enter to save
@@ -361,6 +371,7 @@ export function MessageItem({
                           key={emoji}
                           onClick={() => onReaction(emoji)}
                           className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-colors"
+                          aria-label={`Toggle ${emoji} reaction`}
                           style={{
                             background: hasOwn
                               ? "rgba(88,101,242,0.3)"
@@ -392,7 +403,8 @@ export function MessageItem({
                     <button
                       key={emoji}
                       onClick={() => { onReaction(emoji); setShowEmojiPicker(false) }}
-                      className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm transition-colors"
+                      className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm transition-colors focus-ring"
+                      aria-label={`Add ${emoji} reaction`}
                     >
                       {emoji}
                     </button>
@@ -402,18 +414,22 @@ export function MessageItem({
 
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
                 style={{ color: "#b5bac1" }}
                 title="Add Reaction"
+                aria-label="Add reaction"
+                aria-describedby={messageMetaId}
               >
                 <Smile className="w-4 h-4" />
               </button>
 
               <button
                 onClick={onReply}
-                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
                 style={{ color: "#b5bac1" }}
                 title="Reply"
+                aria-label="Reply to message"
+                aria-describedby={messageMetaId}
               >
                 <Reply className="w-4 h-4" />
               </button>
@@ -421,9 +437,11 @@ export function MessageItem({
               {onThreadCreated && (
                 <button
                   onClick={() => setShowCreateThread(true)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
                   style={{ color: "#b5bac1" }}
                   title="Create Thread"
+                  aria-label="Create thread from message"
+                  aria-describedby={messageMetaId}
                 >
                   <MessageSquare className="w-4 h-4" />
                 </button>
@@ -432,9 +450,11 @@ export function MessageItem({
               {isOwn && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
                   style={{ color: "#b5bac1" }}
                   title="Edit"
+                  aria-label="Edit message"
+                  aria-describedby={messageMetaId}
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -443,9 +463,11 @@ export function MessageItem({
               {sendState === "failed" && onRetry && (
                 <button
                   onClick={onRetry}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
                   style={{ color: "#f0b232" }}
                   title="Retry send"
+                  aria-label="Retry sending message"
+                  aria-describedby={messageMetaId}
                 >
                   <RefreshCcw className="w-4 h-4" />
                 </button>
@@ -454,9 +476,11 @@ export function MessageItem({
               {isOwn && (
                 <button
                   onClick={() => setShowDeleteDialog(true)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center hover:bg-red-500/20 transition-colors focus-ring"
                   style={{ color: "#f23f43" }}
                   title="Delete"
+                  aria-label="Delete message"
+                  aria-describedby={messageMetaId}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -466,7 +490,7 @@ export function MessageItem({
         </div>
       </ContextMenuTrigger>
 
-      <ContextMenuContent className="w-52">
+      <ContextMenuContent className="w-52" aria-label={`Message actions for ${displayName}`}>
         <ContextMenuItem onClick={onReply}>
           <Reply className="w-4 h-4 mr-2" /> Reply
         </ContextMenuItem>
