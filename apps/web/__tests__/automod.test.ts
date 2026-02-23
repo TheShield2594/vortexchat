@@ -35,6 +35,8 @@ function makeRule(
     id: "rule-1",
     server_id: "server-1",
     name: "Test Rule",
+    conditions: {},
+    priority: 100,
     enabled: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -179,6 +181,57 @@ describe("evaluateAllRules", () => {
 
   it("returns empty array for empty content", () => {
     expect(evaluateAllRules([keywordRule], "", [])).toHaveLength(0)
+  })
+
+  it("evaluates rules by ascending priority", () => {
+    const lowPriority = makeRule({
+      id: "r-low",
+      trigger_type: "keyword_filter",
+      config: { keywords: ["alpha"] },
+      actions: [{ type: "warn_member" }],
+      priority: 200,
+    } as any)
+    const highPriority = makeRule({
+      id: "r-high",
+      trigger_type: "keyword_filter",
+      config: { keywords: ["alpha"] },
+      actions: [{ type: "block_message" }],
+      priority: 10,
+    } as any)
+    const violations = evaluateAllRules([lowPriority, highPriority], "alpha", [])
+    expect(violations[0]?.rule_id).toBe("r-high")
+  })
+})
+
+describe("rapid_message", () => {
+  it("triggers when recent message count exceeds threshold", () => {
+    const rule = makeRule({
+      trigger_type: "rapid_message",
+      config: { message_threshold: 5, window_seconds: 10 },
+      actions: [{ type: "quarantine_message" }],
+      priority: 50,
+    } as any)
+    const violation = evaluateRule(rule, "hello", [], { recentMessageCount: 6 })
+    expect(violation).not.toBeNull()
+  })
+})
+
+describe("performance ceiling", () => {
+  it("keeps burst evaluation under 200ms for 1k rules", () => {
+    const rules = Array.from({ length: 1000 }).map((_, i) =>
+      makeRule({
+        id: `r-${i}`,
+        trigger_type: "keyword_filter",
+        config: { keywords: ["needle"] },
+        actions: [{ type: "warn_member" }],
+        priority: i,
+      } as any)
+    )
+
+    const start = performance.now()
+    evaluateAllRules(rules, "clean message", [])
+    const elapsed = performance.now() - start
+    expect(elapsed).toBeLessThan(200)
   })
 })
 

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { evaluateRule } from "@/lib/automod"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ServerRow, AutoModRuleRow, AutoModAction, ScreeningConfigRow } from "@/types/database"
 import { RoleManager } from "@/components/roles/role-manager"
@@ -818,8 +819,10 @@ function ScreeningTab({ serverId, open }: { serverId: string; open: boolean }) {
 
 const TRIGGER_LABELS: Record<string, string> = {
   keyword_filter: "Keyword Filter",
+  regex_filter: "Regex Filter",
   mention_spam: "Mention Spam",
   link_spam: "Link Spam",
+  rapid_message: "Rapid Message",
 }
 
 interface AutoModRuleForm {
@@ -832,10 +835,21 @@ interface AutoModRuleForm {
   mention_threshold: number
   // link_spam
   link_threshold: number
+  // rapid_message
+  message_threshold: number
+  window_seconds: number
+  // conditions
+  channel_scope: string
+  role_scope: string
+  min_account_age_minutes: number
+  min_trust_level: number
+  priority: number
   // actions
   block_message: boolean
+  quarantine_message: boolean
   timeout_member: boolean
   timeout_duration: number
+  warn_member: boolean
   alert_channel: boolean
   alert_channel_id: string
   enabled: boolean
@@ -848,9 +862,18 @@ const DEFAULT_FORM: AutoModRuleForm = {
   regex_patterns: "",
   mention_threshold: 5,
   link_threshold: 3,
+  message_threshold: 6,
+  window_seconds: 10,
+  channel_scope: "",
+  role_scope: "",
+  min_account_age_minutes: 0,
+  min_trust_level: 0,
+  priority: 100,
   block_message: true,
+  quarantine_message: false,
   timeout_member: false,
   timeout_duration: 60,
+  warn_member: false,
   alert_channel: false,
   alert_channel_id: "",
   enabled: true,
@@ -859,26 +882,37 @@ const DEFAULT_FORM: AutoModRuleForm = {
 function formToPayload(f: AutoModRuleForm) {
   let config: Record<string, unknown> = {}
   if (f.trigger_type === "keyword_filter") {
-    config = {
-      keywords: f.keywords.split(",").map((k) => k.trim()).filter(Boolean),
-      regex_patterns: f.regex_patterns.split(",").map((p) => p.trim()).filter(Boolean),
-    }
+    config = { keywords: f.keywords.split(",").map((k) => k.trim()).filter(Boolean) }
+  } else if (f.trigger_type === "regex_filter") {
+    config = { regex_patterns: f.regex_patterns.split(",").map((p) => p.trim()).filter(Boolean) }
   } else if (f.trigger_type === "mention_spam") {
     config = { mention_threshold: f.mention_threshold }
   } else if (f.trigger_type === "link_spam") {
     config = { link_threshold: f.link_threshold }
+  } else if (f.trigger_type === "rapid_message") {
+    config = { message_threshold: f.message_threshold, window_seconds: f.window_seconds }
+  }
+
+  const conditions = {
+    channel_ids: f.channel_scope ? [f.channel_scope] : [],
+    role_ids: f.role_scope ? [f.role_scope] : [],
+    min_account_age_minutes: f.min_account_age_minutes,
+    min_trust_level: f.min_trust_level,
   }
 
   const actions: AutoModAction[] = []
   if (f.block_message) actions.push({ type: "block_message" })
+  if (f.quarantine_message) actions.push({ type: "quarantine_message" })
   if (f.timeout_member) actions.push({ type: "timeout_member", duration_seconds: f.timeout_duration })
+  if (f.warn_member) actions.push({ type: "warn_member" })
   if (f.alert_channel && f.alert_channel_id) actions.push({ type: "alert_channel", channel_id: f.alert_channel_id })
 
-  return { name: f.name, trigger_type: f.trigger_type, config, actions, enabled: f.enabled }
+  return { name: f.name, trigger_type: f.trigger_type, config, conditions, priority: f.priority, actions, enabled: f.enabled }
 }
 
 function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
   const cfg = rule.config as any
+  const conditions = (rule as any).conditions ?? {}
   const actions = rule.actions as unknown as AutoModAction[]
   return {
     name: rule.name,
@@ -887,9 +921,18 @@ function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
     regex_patterns: (cfg.regex_patterns ?? []).join(", "),
     mention_threshold: cfg.mention_threshold ?? 5,
     link_threshold: cfg.link_threshold ?? 3,
+    message_threshold: cfg.message_threshold ?? 6,
+    window_seconds: cfg.window_seconds ?? 10,
+    channel_scope: conditions.channel_ids?.[0] ?? "",
+    role_scope: conditions.role_ids?.[0] ?? "",
+    min_account_age_minutes: conditions.min_account_age_minutes ?? 0,
+    min_trust_level: conditions.min_trust_level ?? 0,
+    priority: (rule as any).priority ?? 100,
     block_message: actions.some((a) => a.type === "block_message"),
+    quarantine_message: actions.some((a) => a.type === "quarantine_message"),
     timeout_member: actions.some((a) => a.type === "timeout_member"),
     timeout_duration: actions.find((a) => a.type === "timeout_member")?.duration_seconds ?? 60,
+    warn_member: actions.some((a) => a.type === "warn_member"),
     alert_channel: actions.some((a) => a.type === "alert_channel"),
     alert_channel_id: actions.find((a) => a.type === "alert_channel")?.channel_id ?? "",
     enabled: rule.enabled,
@@ -902,6 +945,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | "new" | null>(null)
   const [form, setForm] = useState<AutoModRuleForm>(DEFAULT_FORM)
+  const [sampleMessage, setSampleMessage] = useState("")
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -981,9 +1025,44 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
     }
   }
 
+  async function movePriority(rule: AutoModRuleRow, direction: -1 | 1) {
+    const ordered = [...rules].sort((a: any, b: any) => (a.priority ?? 100) - (b.priority ?? 100))
+    const index = ordered.findIndex((r) => r.id === rule.id)
+    const swapIndex = index + direction
+    if (index < 0 || swapIndex < 0 || swapIndex >= ordered.length) return
+    const current = ordered[index] as any
+    const other = ordered[swapIndex] as any
+    await Promise.all([
+      fetch(`/api/servers/${serverId}/automod/${current.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: other.priority ?? 100 }) }),
+      fetch(`/api/servers/${serverId}/automod/${other.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: current.priority ?? 100 }) }),
+    ])
+    const refreshed = await fetch(`/api/servers/${serverId}/automod`).then((r) => r.json())
+    setRules(Array.isArray(refreshed) ? refreshed : [])
+  }
+
   function updateForm(key: keyof AutoModRuleForm, value: unknown) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
+
+  const sampleViolation = sampleMessage.trim()
+    ? evaluateRule(
+        {
+          id: "preview",
+          server_id: serverId,
+          name: form.name || "Preview Rule",
+          trigger_type: form.trigger_type as any,
+          config: formToPayload(form).config as any,
+          conditions: formToPayload(form).conditions as any,
+          actions: formToPayload(form).actions,
+          priority: form.priority,
+          enabled: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        sampleMessage,
+        []
+      )
+    : null
 
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: '#949ba4' }} /></div>
 
@@ -1025,6 +1104,16 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
               <p className="text-xs" style={{ color: '#949ba4' }}>{TRIGGER_LABELS[rule.trigger_type] ?? rule.trigger_type}</p>
             </div>
             <div className="flex gap-1.5">
+              <button
+                onClick={() => movePriority(rule, -1)}
+                className="text-xs px-2 py-1 rounded transition-colors hover:bg-white/10"
+                style={{ color: '#b5bac1' }}
+              >↑</button>
+              <button
+                onClick={() => movePriority(rule, 1)}
+                className="text-xs px-2 py-1 rounded transition-colors hover:bg-white/10"
+                style={{ color: '#b5bac1' }}
+              >↓</button>
               <button
                 onClick={() => startEdit(rule)}
                 className="text-xs px-2 py-1 rounded transition-colors hover:bg-white/10"
@@ -1069,8 +1158,10 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
               style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
             >
               <option value="keyword_filter">Keyword Filter</option>
+              <option value="regex_filter">Regex Filter</option>
               <option value="mention_spam">Mention Spam</option>
               <option value="link_spam">Link Spam</option>
+              <option value="rapid_message">Rapid Message</option>
             </select>
           </div>
 
@@ -1087,6 +1178,17 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                 />
               </div>
               <div className="space-y-1">
+                <label className="text-xs" style={{ color: '#b5bac1' }}>Priority (lower runs first)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.priority}
+                  onChange={(e) => updateForm("priority", Number(e.target.value))}
+                  className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
+                  style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="text-xs" style={{ color: '#b5bac1' }}>Regex patterns (comma-separated, optional)</label>
                 <input
                   value={form.regex_patterns}
@@ -1097,6 +1199,19 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                 />
               </div>
             </>
+          )}
+
+          {form.trigger_type === "regex_filter" && (
+            <div className="space-y-1">
+              <label className="text-xs" style={{ color: '#b5bac1' }}>Regex patterns (comma-separated)</label>
+              <input
+                value={form.regex_patterns}
+                onChange={(e) => updateForm("regex_patterns", e.target.value)}
+                placeholder="\\bspam\\b, ..."
+                className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
+                style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+              />
+            </div>
           )}
 
           {form.trigger_type === "mention_spam" && (
@@ -1127,6 +1242,33 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
             </div>
           )}
 
+          {form.trigger_type === "rapid_message" && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs" style={{ color: '#b5bac1' }}>Messages in window</label>
+                <input type="number" min={1} value={form.message_threshold} onChange={(e) => updateForm("message_threshold", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs" style={{ color: '#b5bac1' }}>Window (seconds)</label>
+                <input type="number" min={1} value={form.window_seconds} onChange={(e) => updateForm("window_seconds", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }} />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-xs" style={{ color: '#b5bac1' }}>Channel scope (optional)</label>
+              <select value={form.channel_scope} onChange={(e) => updateForm("channel_scope", e.target.value)} className="w-full px-2 py-1 rounded text-sm focus:outline-none" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}>
+                <option value="">All channels</option>
+                {channels.map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs" style={{ color: '#b5bac1' }}>Minimum account age (minutes)</label>
+              <input type="number" min={0} value={form.min_account_age_minutes} onChange={(e) => updateForm("min_account_age_minutes", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }} />
+            </div>
+          </div>
+
           {/* Actions */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#b5bac1' }}>Actions</p>
@@ -1134,6 +1276,11 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.block_message} onChange={(e) => updateForm("block_message", e.target.checked)} className="rounded" />
                 <span className="text-sm text-white">Block message</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.quarantine_message} onChange={(e) => updateForm("quarantine_message", e.target.checked)} className="rounded" />
+                <span className="text-sm text-white">Quarantine message</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
@@ -1159,6 +1306,11 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
               )}
 
               <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.warn_member} onChange={(e) => updateForm("warn_member", e.target.checked)} className="rounded" />
+                <span className="text-sm text-white">Warn member</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.alert_channel} onChange={(e) => updateForm("alert_channel", e.target.checked)} className="rounded" />
                 <span className="text-sm text-white">Alert mod channel</span>
               </label>
@@ -1177,6 +1329,27 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2 rounded p-3" style={{ background: '#1e1f22', border: '1px solid #3f4147' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>Sample message evaluator</p>
+            <input
+              value={sampleMessage}
+              onChange={(e) => setSampleMessage(e.target.value)}
+              placeholder="Type a sample message to test this rule"
+              className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
+              style={{ background: '#111214', color: '#f2f3f5', border: '1px solid #3f4147' }}
+            />
+            <p className="text-xs" style={{ color: sampleMessage ? (sampleViolation ? '#f0b232' : '#57f287') : '#949ba4' }}>
+              {sampleMessage
+                ? sampleViolation
+                  ? `Triggered: ${sampleViolation.reason}`
+                  : 'No trigger match.'
+                : 'Enter a sample message for live evaluation.'}
+            </p>
+            <p className="text-xs" style={{ color: '#949ba4' }}>
+              Conflict resolution: lower priority value executes first; block/quarantine overrides warn-only outcomes.
+            </p>
           </div>
 
           <div className="flex gap-2 pt-1">
