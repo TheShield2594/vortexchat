@@ -223,12 +223,23 @@ export function MessageItem({
                   </div>
                 </UserProfilePopover>
               ) : (
-                <span
-                  className="text-xs opacity-0 group-hover:opacity-100 transition-opacity pt-1 block text-right pr-1"
-                  style={{ color: "#4e5058", fontSize: "10px" }}
-                >
-                  {format(timestamp, "HH:mm")}
-                </span>
+                <div className="pt-1 pr-1 flex items-center justify-end gap-1">
+                  <span
+                    className="text-xs opacity-0 group-hover:opacity-100 transition-opacity block text-right"
+                    style={{ color: "#4e5058", fontSize: "10px" }}
+                  >
+                    {format(timestamp, "HH:mm")}
+                  </span>
+                  {sendState === "queued" && (
+                    <Clock3 className="w-3 h-3" style={{ color: "#f0b232" }} />
+                  )}
+                  {sendState === "sending" && (
+                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#949ba4" }} />
+                  )}
+                  {sendState === "failed" && (
+                    <AlertCircle className="w-3 h-3" style={{ color: "#f23f43" }} />
+                  )}
+                </div>
               )}
             </div>
 

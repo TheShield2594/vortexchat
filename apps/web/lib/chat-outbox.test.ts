@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
+  getDraft,
+  loadOutbox,
   removeOutboxEntry,
   resolveReplayOrder,
+  saveOutbox,
+  setDraft,
   updateOutboxStatus,
   upsertOutboxEntry,
   type OutboxEntry,
@@ -18,6 +22,24 @@ function buildEntry(partial: Partial<OutboxEntry>): OutboxEntry {
     status: partial.status ?? "queued",
     retryCount: partial.retryCount ?? 0,
     lastError: partial.lastError ?? null,
+  }
+}
+
+function createMockStorage(initial: Record<string, string> = {}) {
+  const map = new Map(Object.entries(initial))
+  return {
+    getItem(key: string) {
+      return map.has(key) ? map.get(key)! : null
+    },
+    setItem(key: string, value: string) {
+      map.set(key, value)
+    },
+    removeItem(key: string) {
+      map.delete(key)
+    },
+    dump() {
+      return Object.fromEntries(map.entries())
+    },
   }
 }
 
@@ -59,5 +81,38 @@ describe("chat outbox dedupe/idempotency helpers", () => {
     const failed = updateOutboxStatus(entries, "msg-1", { status: "failed", retryCount: 1, lastError: "500" })
 
     expect(failed[0]).toMatchObject({ status: "failed", retryCount: 1, lastError: "500" })
+  })
+})
+
+describe("chat outbox persistence", () => {
+  it("loadOutbox returns [] for null and invalid JSON", () => {
+    const emptyStorage = createMockStorage()
+    expect(loadOutbox(emptyStorage)).toEqual([])
+
+    const invalidStorage = createMockStorage({ "vortexchat:chat:outbox:v1": "{bad-json" })
+    expect(loadOutbox(invalidStorage)).toEqual([])
+  })
+
+  it("saveOutbox + loadOutbox round-trip", () => {
+    const storage = createMockStorage()
+    const entries = [buildEntry({ id: "persisted" })]
+    saveOutbox(entries, storage)
+
+    expect(loadOutbox(storage)).toEqual(entries)
+  })
+
+  it("setDraft stores non-empty values and clears whitespace-only values", () => {
+    const storage = createMockStorage()
+
+    setDraft("channel-1", "hello", storage)
+    expect(getDraft("channel-1", storage)).toBe("hello")
+
+    setDraft("channel-1", "   ", storage)
+    expect(getDraft("channel-1", storage)).toBe("")
+  })
+
+  it("getDraft returns empty string for unknown channels", () => {
+    const storage = createMockStorage()
+    expect(getDraft("missing-channel", storage)).toBe("")
   })
 })

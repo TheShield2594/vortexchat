@@ -26,6 +26,8 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
   const [newPostTitle, setNewPostTitle] = useState("")
   const [showNewPost, setShowNewPost] = useState(false)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
+  const [threadReplyDraft, setThreadReplyDraft] = useState("")
+  const [newPostDraft, setNewPostDraft] = useState("")
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
 
@@ -118,6 +120,8 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
     setNewPostTitle("")
     setShowNewPost(false)
     setReplyTo(null)
+    setThreadReplyDraft("")
+    setNewPostDraft("")
 
     // Update last_post_at for the forum channel
     await supabase.from("channels").update({ last_post_at: new Date().toISOString() }).eq("id", channel.id)
@@ -272,11 +276,14 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
         {/* Reply input */}
         <MessageInput
           channelName={`Reply in thread`}
-          draft=""
+          draft={threadReplyDraft}
           replyTo={replyTo}
-          onCancelReply={() => setReplyTo(null)}
+          onCancelReply={() => {
+            setReplyTo(null)
+            setThreadReplyDraft("")
+          }}
           onSend={handleThreadReply}
-          onDraftChange={() => {}}
+          onDraftChange={setThreadReplyDraft}
         />
       </div>
     )
@@ -338,14 +345,16 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           />
           <MessageInput
             channelName="new post content"
-            draft=""
+            draft={newPostDraft}
             replyTo={null}
-            onCancelReply={() => {}}
+            onCancelReply={() => {
+              setNewPostDraft("")
+            }}
             onSend={handleCreatePost}
-            onDraftChange={() => {}}
+            onDraftChange={setNewPostDraft}
           />
           <button
-            onClick={() => { setShowNewPost(false); setNewPostTitle("") }}
+            onClick={() => { setShowNewPost(false); setNewPostTitle(""); setNewPostDraft("") }}
             className="mt-1 text-xs"
             style={{ color: '#949ba4' }}
           >

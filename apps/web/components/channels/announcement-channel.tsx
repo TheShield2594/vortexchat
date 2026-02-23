@@ -9,6 +9,7 @@ import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
 import { useEffect, useRef } from "react"
+import { getDraft, setDraft } from "@/lib/chat-outbox"
 
 interface Props {
   channel: ChannelRow
@@ -21,6 +22,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore()
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
+  const [draft, setDraftState] = useState(() => getDraft(channel.name))
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
 
@@ -40,6 +42,10 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
   useEffect(() => {
     bottomRef.current?.scrollIntoView()
   }, [])
+
+  useEffect(() => {
+    setDraftState(getDraft(channel.name))
+  }, [channel.name])
 
   useRealtimeMessages(
     channel.id,
@@ -111,6 +117,8 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
     }
 
     setReplyTo(null)
+    setDraftState("")
+    setDraft(channel.name, "")
   }
 
   return (
@@ -209,11 +217,18 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
       {/* Message input */}
       <MessageInput
         channelName={channel.name}
-        draft=""
+        draft={draft}
         replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
+        onCancelReply={() => {
+          setReplyTo(null)
+          setDraftState("")
+          setDraft(channel.name, "")
+        }}
         onSend={handleSendMessage}
-        onDraftChange={() => {}}
+        onDraftChange={(newDraft) => {
+          setDraftState(newDraft)
+          setDraft(channel.name, newDraft)
+        }}
       />
     </div>
   )

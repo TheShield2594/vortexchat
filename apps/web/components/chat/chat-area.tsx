@@ -44,7 +44,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   const [draft, setDraftState] = useState("")
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const supabase = createClientSupabaseClient()
+  const outboxRef = useRef<OutboxEntry[]>([])
+  const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const { toast } = useToast()
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
@@ -69,6 +71,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   const setAndPersistOutbox = useCallback((next: OutboxEntry[] | ((current: OutboxEntry[]) => OutboxEntry[])) => {
     setOutbox((current) => {
       const resolved = typeof next === "function" ? next(current) : next
+      outboxRef.current = resolved
       saveOutbox(resolved)
       return resolved
     })
@@ -139,11 +142,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
 
   const flushOutbox = useCallback(async () => {
     if (!navigator.onLine) return
-    const toReplay = resolveReplayOrder(outbox).filter((entry) => entry.channelId === channel.id)
+    const toReplay = resolveReplayOrder(outboxRef.current).filter((entry) => entry.channelId === channel.id)
     for (const entry of toReplay) {
       await sendOutboxEntry(entry)
     }
-  }, [channel.id, outbox, sendOutboxEntry])
+  }, [channel.id, sendOutboxEntry])
 
   useEffect(() => {
     setActiveServer(serverId)
@@ -160,6 +163,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
 
   useEffect(() => {
     const persisted = loadOutbox()
+    outboxRef.current = persisted
     setOutbox(persisted)
     setDraftState(getDraft(channel.id))
 
@@ -186,10 +190,28 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
     }
   }, [])
 
+
+  useEffect(() => {
+    outboxRef.current = outbox
+  }, [outbox])
+
+  useEffect(() => {
+    if (draftPersistTimerRef.current) {
+      clearTimeout(draftPersistTimerRef.current)
+      draftPersistTimerRef.current = null
+    }
+    return () => {
+      if (draftPersistTimerRef.current) {
+        clearTimeout(draftPersistTimerRef.current)
+        draftPersistTimerRef.current = null
+      }
+    }
+  }, [channel.id])
+
   useEffect(() => {
     if (!isOnline) return
     flushOutbox()
-  }, [flushOutbox, isOnline])
+  }, [isOnline, channel.id, flushOutbox])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -264,6 +286,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
 
     if (!navigator.onLine) {
       setReplyTo(null)
+      setDraftState("")
+      if (draftPersistTimerRef.current) { clearTimeout(draftPersistTimerRef.current); draftPersistTimerRef.current = null }
+      setDraft(channel.id, "")
       onSent()
       toast({ title: "Queued for send", description: "Message will send when your connection returns." })
       return
@@ -330,6 +355,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
     }
 
     setReplyTo(null)
+    setDraftState("")
+    if (draftPersistTimerRef.current) { clearTimeout(draftPersistTimerRef.current); draftPersistTimerRef.current = null }
+    setDraft(channel.id, "")
     onSent()
   }
 
@@ -341,7 +369,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
 
   function handleDraftChange(value: string) {
     setDraftState(value)
-    setDraft(channel.id, value)
+    if (draftPersistTimerRef.current) {
+      clearTimeout(draftPersistTimerRef.current)
+    }
+    const activeChannelId = channel.id
+    draftPersistTimerRef.current = setTimeout(() => {
+      setDraft(activeChannelId, value)
+      draftPersistTimerRef.current = null
+    }, 300)
   }
 
   const outboxStateByMessageId = useMemo(() => {

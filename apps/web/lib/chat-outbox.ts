@@ -15,21 +15,55 @@ export interface OutboxEntry {
 const OUTBOX_KEY = "vortexchat:chat:outbox:v1"
 const DRAFTS_KEY = "vortexchat:chat:drafts:v1"
 
-function safeParse<T>(value: string | null, fallback: T): T {
+function safeParse<T>(value: string | null, fallback: T, isValid?: (candidate: unknown) => candidate is T): T {
   if (!value) return fallback
   try {
-    return JSON.parse(value) as T
+    const parsed = JSON.parse(value) as unknown
+    if (isValid && !isValid(parsed)) {
+      console.warn("[chat-outbox] Ignoring persisted data with invalid shape")
+      return fallback
+    }
+    return parsed as T
   } catch {
     return fallback
   }
 }
 
+function isOutboxEntry(candidate: unknown): candidate is OutboxEntry {
+  if (!candidate || typeof candidate !== "object") return false
+  const value = candidate as Partial<OutboxEntry>
+  return (
+    typeof value.id === "string" &&
+    typeof value.channelId === "string" &&
+    typeof value.authorId === "string" &&
+    typeof value.content === "string" &&
+    (typeof value.replyToId === "string" || value.replyToId === null) &&
+    typeof value.createdAt === "string" &&
+    (value.status === "queued" || value.status === "sending" || value.status === "failed") &&
+    typeof value.retryCount === "number" &&
+    (typeof value.lastError === "string" || value.lastError === null)
+  )
+}
+
+function isOutboxEntryArray(candidate: unknown): candidate is OutboxEntry[] {
+  return Array.isArray(candidate) && candidate.every(isOutboxEntry)
+}
+
+function isDraftMap(candidate: unknown): candidate is Record<string, string> {
+  return !!candidate && typeof candidate === "object" && !Array.isArray(candidate) &&
+    Object.values(candidate as Record<string, unknown>).every((value) => typeof value === "string")
+}
+
 export function loadOutbox(storage: Pick<Storage, "getItem"> = window.localStorage): OutboxEntry[] {
-  return safeParse<OutboxEntry[]>(storage.getItem(OUTBOX_KEY), [])
+  return safeParse<OutboxEntry[]>(storage.getItem(OUTBOX_KEY), [], isOutboxEntryArray)
 }
 
 export function saveOutbox(entries: OutboxEntry[], storage: Pick<Storage, "setItem"> = window.localStorage) {
-  storage.setItem(OUTBOX_KEY, JSON.stringify(entries))
+  try {
+    storage.setItem(OUTBOX_KEY, JSON.stringify(entries))
+  } catch (error) {
+    console.warn("[chat-outbox] Failed to persist outbox", error)
+  }
 }
 
 export function upsertOutboxEntry(entries: OutboxEntry[], entry: OutboxEntry): OutboxEntry[] {
@@ -70,14 +104,22 @@ export function resolveReplayOrder(entries: OutboxEntry[]): OutboxEntry[] {
 }
 
 export function loadDraftMap(storage: Pick<Storage, "getItem"> = window.localStorage): Record<string, string> {
-  return safeParse<Record<string, string>>(storage.getItem(DRAFTS_KEY), {})
+  return safeParse<Record<string, string>>(storage.getItem(DRAFTS_KEY), {}, isDraftMap)
 }
 
 export function saveDraftMap(drafts: Record<string, string>, storage: Pick<Storage, "setItem"> = window.localStorage) {
-  storage.setItem(DRAFTS_KEY, JSON.stringify(drafts))
+  try {
+    storage.setItem(DRAFTS_KEY, JSON.stringify(drafts))
+  } catch (error) {
+    console.warn("[chat-outbox] Failed to persist drafts", error)
+  }
 }
 
-export function setDraft(channelId: string, value: string, storage: Storage = window.localStorage): Record<string, string> {
+export function setDraft(
+  channelId: string,
+  value: string,
+  storage: Pick<Storage, "getItem" | "setItem"> = window.localStorage
+): Record<string, string> {
   const drafts = loadDraftMap(storage)
   if (value.trim().length === 0) {
     delete drafts[channelId]
@@ -88,7 +130,7 @@ export function setDraft(channelId: string, value: string, storage: Storage = wi
   return drafts
 }
 
-export function getDraft(channelId: string, storage: Storage = window.localStorage): string {
+export function getDraft(channelId: string, storage: Pick<Storage, "getItem"> = window.localStorage): string {
   const drafts = loadDraftMap(storage)
   return drafts[channelId] ?? ""
 }

@@ -8,6 +8,7 @@ import type { ChannelRow, MessageWithAuthor } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
+import { getDraft, setDraft } from "@/lib/chat-outbox"
 
 interface Props {
   channel: ChannelRow
@@ -20,6 +21,7 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore()
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
+  const [draft, setDraftState] = useState(() => getDraft(channel.id))
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
 
@@ -39,6 +41,10 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
   useEffect(() => {
     bottomRef.current?.scrollIntoView()
   }, [])
+
+  useEffect(() => {
+    setDraftState(getDraft(channel.id))
+  }, [channel.id])
 
   useRealtimeMessages(
     channel.id,
@@ -110,6 +116,8 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
     }
 
     setReplyTo(null)
+    setDraftState("")
+    setDraft(channel.id, "")
   }
 
   // Separate media messages from text-only messages for a grid-first display
@@ -202,11 +210,14 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
       {/* Message input */}
       <MessageInput
         channelName={channel.name}
-        draft=""
+        draft={draft}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         onSend={handleSendMessage}
-        onDraftChange={() => {}}
+        onDraftChange={(newDraft) => {
+          setDraftState(newDraft)
+          setDraft(channel.id, newDraft)
+        }}
       />
     </div>
   )

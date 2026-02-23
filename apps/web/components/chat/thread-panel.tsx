@@ -20,6 +20,7 @@ interface Props {
 export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: Props) {
   const [messages, setMessages] = useState<MessageWithAuthor[]>([])
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
+  const [draft, setDraft] = useState("")
   const [loading, setLoading] = useState(true)
   const [isMember, setIsMember] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -58,6 +59,10 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
   useEffect(() => {
     bottomRef.current?.scrollIntoView()
   }, [loading])
+
+  useEffect(() => {
+    setDraft("")
+  }, [thread.id])
 
   // Realtime
   useRealtimeThreadMessages(
@@ -181,6 +186,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
       return [...prev, message]
     })
     setReplyTo(null)
+    setDraft("")
 
     if (!isMember) setIsMember(true)
   }
@@ -378,11 +384,14 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
       {canSend ? (
         <MessageInput
           channelName={thread.name}
-          draft=""
+          draft={draft}
           replyTo={replyTo}
-          onCancelReply={() => setReplyTo(null)}
+          onCancelReply={() => {
+            setReplyTo(null)
+            setDraft("")
+          }}
           onSend={handleSendMessage}
-          onDraftChange={() => {}}
+          onDraftChange={setDraft}
         />
       ) : (
         <div

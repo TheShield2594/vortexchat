@@ -53,6 +53,12 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   useEffect(() => {
     setContent(draft)
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.style.height = "auto"
+      el.style.height = Math.min(el.scrollHeight, 200) + "px"
+    })
   }, [draft])
 
   async function handleSend() {
@@ -95,6 +101,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   function insertMention(member: typeof members[number]) {
     const { newContent, newCursorPosition } = mention.selectMember(member)
     setContent(newContent)
+    onDraftChange(newContent)
     setCursorPosition(newCursorPosition)
     requestAnimationFrame(() => {
       if (textareaRef.current) {
@@ -280,6 +287,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     setContent((prev) => {
                       const next = prev + emoji
                       setCursorPosition(next.length)
+                      onDraftChange(next)
                       return next
                     })
                     setShowEmojiPicker(false)
