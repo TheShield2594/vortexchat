@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
   Monitor, MonitorOff, Video, VideoOff, Radio, Settings,
@@ -14,7 +14,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { UserRow } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
-import { applyPresetToSettings, createDefaultAudioSettings, type AudioPreset } from "@/lib/voice/audio-settings"
+import {
+  applyPresetToSettings,
+  createDefaultAudioSettings,
+  withEqBandGain,
+  type AudioPreset,
+  type VoiceAudioSettings,
+} from "@/lib/voice/audio-settings"
 import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
 
 interface Props {
@@ -22,6 +28,17 @@ interface Props {
   channelName: string
   serverId: string
   currentUserId: string
+}
+
+const PRESET_OPTIONS: Array<{ label: string; value: AudioPreset }> = [
+  { label: "Voice Clarity", value: "voice-clarity" },
+  { label: "Bass Boost", value: "bass-boost" },
+  { label: "Broadcast", value: "broadcast" },
+  { label: "Flat", value: "flat" },
+]
+
+function markCustomSettings(settings: VoiceAudioSettings, partial: Partial<VoiceAudioSettings>): VoiceAudioSettings {
+  return { ...settings, ...partial, preset: "flat" }
 }
 
 export function VoiceChannel({ channelId, channelName, serverId, currentUserId }: Props) {
@@ -121,13 +138,6 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const peerArray = peers ? Array.from(peers.entries()) : []
   const hasVideo = videoEnabled || screenSharing || peerArray.some(([, { stream }]) => stream.getVideoTracks().length > 0)
 
-  const presetOptions: Array<{ label: string; value: AudioPreset }> = useMemo(() => ([
-    { label: "Voice Clarity", value: "voice-clarity" },
-    { label: "Bass Boost", value: "bass-boost" },
-    { label: "Broadcast", value: "broadcast" },
-    { label: "Flat", value: "flat" },
-  ]), [])
-
   return (
     <TooltipProvider>
       <div className="flex flex-col flex-1" style={{ background: "#313338" }}>
@@ -135,8 +145,10 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
           <Volume2 className="w-5 h-5" style={{ color: "#23a55a" }} />
           <span className="font-semibold text-white">{channelName}</span>
           <span className="text-sm ml-1" style={{ color: "#949ba4" }}>— Voice Connected</span>
-          {cpuBypassActive && <span className="text-xs ml-auto" style={{ color: "#f0b132" }}>CPU bypass enabled</span>}
-          {audioInitError && <span className="text-xs ml-auto" style={{ color: "#f23f43" }}>{audioInitError}</span>}
+          <div className="ml-auto flex items-center gap-2">
+            {cpuBypassActive && <span className="text-xs" style={{ color: "#f0b132" }}>CPU bypass enabled</span>}
+            {audioInitError && <span className="text-xs" style={{ color: "#f23f43" }}>{audioInitError}</span>}
+          </div>
         </div>
 
         <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
@@ -161,7 +173,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                 />
               )}
 
-              {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }], index) => {
+              {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }]) => {
                 const peerUser = voiceParticipants.find((u) => u.id === userId)
                 const mix = getParticipantMix(serverId, userId)
                 return (
@@ -181,7 +193,6 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                     volume={mix.volume}
                     pan={mix.pan}
                     spatialEnabled={audioSettings.spatialAudioEnabled}
-                    spatialHint={index}
                   />
                 )
               })}
@@ -208,7 +219,6 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                 setSelectedOutputId={setSelectedOutputId}
                 settings={audioSettings}
                 setSettings={setAudioSettings}
-                presetOptions={presetOptions}
               />
             )}
           </div>
@@ -243,7 +253,6 @@ function VoiceSettingsPanel({
   setSelectedOutputId,
   settings,
   setSettings,
-  presetOptions,
 }: {
   audioInputDevices: MediaDeviceInfo[]
   audioOutputDevices: MediaDeviceInfo[]
@@ -251,9 +260,8 @@ function VoiceSettingsPanel({
   selectedOutputId: string | null
   setSelectedInputId: (id: string | null) => void
   setSelectedOutputId: (id: string | null) => void
-  settings: ReturnType<typeof createDefaultAudioSettings>
-  setSettings: (settings: ReturnType<typeof createDefaultAudioSettings>) => void
-  presetOptions: Array<{ label: string; value: AudioPreset }>
+  settings: VoiceAudioSettings
+  setSettings: (settings: VoiceAudioSettings) => void
 }) {
   return (
     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-[360px] rounded-xl shadow-2xl p-4 space-y-4 z-50" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
@@ -271,17 +279,17 @@ function VoiceSettingsPanel({
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs" style={{ color: "#b5bac1" }}>Profile</label>
         <select value={settings.preset} onChange={(e) => setSettings(applyPresetToSettings(e.target.value as AudioPreset, settings))} className="w-full px-2 py-1.5 rounded text-sm" style={{ background: "#1e1f22", color: "#f2f3f5", border: "1px solid #3f4147" }}>
-          {presetOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          {PRESET_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
       </div>
 
       <div>
         <label className="block text-xs mb-1" style={{ color: "#b5bac1" }}>Microphone (live preview)</label>
-        <input type="range" min={0.2} max={2} step={0.01} value={settings.inputGain} onChange={(e) => setSettings({ ...settings, inputGain: Number(e.target.value), preset: "flat" })} className="w-full" />
+        <input type="range" min={0.2} max={2} step={0.01} value={settings.inputGain} onChange={(e) => setSettings(markCustomSettings(settings, { inputGain: Number(e.target.value) }))} className="w-full" />
       </div>
       <div>
         <label className="block text-xs mb-1" style={{ color: "#b5bac1" }}>Output gain</label>
-        <input type="range" min={0.2} max={2} step={0.01} value={settings.outputGain} onChange={(e) => setSettings({ ...settings, outputGain: Number(e.target.value), preset: "flat" })} className="w-full" />
+        <input type="range" min={0.2} max={2} step={0.01} value={settings.outputGain} onChange={(e) => setSettings(markCustomSettings(settings, { outputGain: Number(e.target.value) }))} className="w-full" />
       </div>
 
       <div className="space-y-2">
@@ -290,7 +298,7 @@ function VoiceSettingsPanel({
           {settings.eqBands.map((band, idx) => (
             <div key={band.frequency}>
               <p className="text-[10px]" style={{ color: "#949ba4" }}>{band.frequency}Hz</p>
-              <input type="range" min={-12} max={12} step={0.5} value={band.gain} onChange={(e) => setSettings({ ...settings, preset: "flat", eqBands: settings.eqBands.map((b, i) => i === idx ? { ...b, gain: Number(e.target.value) } : b) })} className="w-full" />
+              <input type="range" min={-12} max={12} step={0.5} value={band.gain} onChange={(e) => setSettings(withEqBandGain(settings, idx, Number(e.target.value)))} className="w-full" />
             </div>
           ))}
         </div>
@@ -362,7 +370,6 @@ function ParticipantTile({
   volume?: number
   pan?: number
   spatialEnabled?: boolean
-  spatialHint?: number
 }) {
   const cameraRef = useRef<HTMLVideoElement>(null)
   const screenRef = useRef<HTMLVideoElement>(null)
@@ -442,18 +449,18 @@ function RemoteAudio({
   const contextRef = useRef<AudioContext | null>(null)
   const gainRef = useRef<GainNode | null>(null)
   const panRef = useRef<StereoPannerNode | null>(null)
+  const hasWebAudioRef = useRef(false)
 
   useEffect(() => {
     if (!audioRef.current) return
-    const element = audioRef.current
 
     const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!AudioCtx) {
-      element.srcObject = stream
-      element.muted = deafened
+      hasWebAudioRef.current = false
       return
     }
 
+    hasWebAudioRef.current = true
     const context = contextRef.current ?? new AudioCtx()
     contextRef.current = context
 
@@ -471,6 +478,12 @@ function RemoteAudio({
       gainNode.disconnect()
       panNode.disconnect()
     }
+  }, [stream])
+
+  useEffect(() => {
+    if (!audioRef.current || hasWebAudioRef.current) return
+    audioRef.current.srcObject = stream
+    audioRef.current.muted = deafened
   }, [stream, deafened])
 
   useEffect(() => {
@@ -479,11 +492,23 @@ function RemoteAudio({
   }, [deafened, volume, pan])
 
   useEffect(() => {
-    if (!audioRef.current || !outputDeviceId) return
-    const maybeSetSink = audioRef.current as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }
-    maybeSetSink.setSinkId?.(outputDeviceId).catch(() => {
-      // graceful fallback to system default
-    })
+    if (!outputDeviceId) return
+
+    if (contextRef.current) {
+      const maybeContextWithSink = contextRef.current as AudioContext & { setSinkId?: (id: string) => Promise<void> }
+      if (maybeContextWithSink.setSinkId) {
+        maybeContextWithSink.setSinkId(outputDeviceId).catch(() => {
+          // graceful fallback to default sink
+        })
+      }
+    }
+
+    if (!hasWebAudioRef.current && audioRef.current) {
+      const maybeSetSink = audioRef.current as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }
+      maybeSetSink.setSinkId?.(outputDeviceId).catch(() => {
+        // graceful fallback to default sink
+      })
+    }
   }, [outputDeviceId])
 
   return <audio ref={audioRef} autoPlay playsInline className="hidden" />

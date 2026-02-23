@@ -97,7 +97,7 @@ export const AUDIO_PRESETS: Record<AudioPreset, Partial<VoiceAudioSettings>> = {
 }
 
 export function createDefaultAudioSettings(): VoiceAudioSettings {
-  return {
+  const defaultSettings: VoiceAudioSettings = {
     preset: "voice-clarity",
     inputGain: 1,
     outputGain: 1,
@@ -112,6 +112,8 @@ export function createDefaultAudioSettings(): VoiceAudioSettings {
     bypassOnCpuConstraint: true,
     spatialAudioEnabled: false,
   }
+
+  return applyPresetToSettings("voice-clarity", defaultSettings)
 }
 
 export function applyPresetToSettings(
@@ -132,6 +134,10 @@ export function withEqBandGain(
   index: number,
   gain: number
 ): VoiceAudioSettings {
+  if (index < 0 || index >= settings.eqBands.length) {
+    throw new RangeError(`EQ band index out of range: index=${index}, length=${settings.eqBands.length}`)
+  }
+
   const nextBands = settings.eqBands.map((band, bandIndex) =>
     bandIndex === index ? { ...band, gain } : band
   )

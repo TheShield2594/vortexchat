@@ -23,21 +23,67 @@ describe("voice audio settings", () => {
 
   it("flags constrained cpu on low core count", () => {
     const originalNavigator = globalThis.navigator
-    Object.defineProperty(globalThis, "navigator", {
-      value: { hardwareConcurrency: 2 },
-      configurable: true,
-    })
+    try {
+      Object.defineProperty(globalThis, "navigator", {
+        value: { hardwareConcurrency: 2 },
+        configurable: true,
+      })
 
-    const constrained = estimateAudioCpuConstraint({
-      sampleRate: 48000,
-      baseLatency: 0.01,
-    } as AudioContext)
+      const constrained = estimateAudioCpuConstraint({
+        sampleRate: 48000,
+        baseLatency: 0.01,
+      } as AudioContext)
 
-    expect(constrained).toBe(true)
+      expect(constrained).toBe(true)
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        value: originalNavigator,
+        configurable: true,
+      })
+    }
+  })
 
-    Object.defineProperty(globalThis, "navigator", {
-      value: originalNavigator,
-      configurable: true,
-    })
+  it("flags constrained cpu on high sampleRate", () => {
+    const originalNavigator = globalThis.navigator
+    try {
+      Object.defineProperty(globalThis, "navigator", {
+        value: { hardwareConcurrency: 8 },
+        configurable: true,
+      })
+
+      const constrained = estimateAudioCpuConstraint({
+        sampleRate: 96000,
+        baseLatency: 0.01,
+      } as AudioContext)
+
+      expect(constrained).toBe(true)
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        value: originalNavigator,
+        configurable: true,
+      })
+    }
+  })
+
+  it("flags constrained cpu on high baseLatency", () => {
+    const originalNavigator = globalThis.navigator
+    try {
+      Object.defineProperty(globalThis, "navigator", {
+        value: { hardwareConcurrency: 8 },
+        configurable: true,
+      })
+
+      const constrained = estimateAudioCpuConstraint({
+        sampleRate: 48000,
+        baseLatency: 0.06,
+      } as AudioContext)
+
+      expect(constrained).toBe(true)
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        value: originalNavigator,
+        configurable: true,
+      })
+    }
   })
 })

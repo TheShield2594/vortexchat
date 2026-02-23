@@ -60,8 +60,8 @@ export function createInputAudioPipeline(
 
   source.connect(inputGain)
   inputGain.connect(compressor)
-  compressor.connect(gateGain)
-  gateGain.connect(analyser)
+  compressor.connect(analyser)
+  analyser.connect(gateGain)
 
   let node: AudioNode = gateGain
   for (const filter of eqFilters) {
@@ -97,6 +97,14 @@ export function createInputAudioPipeline(
         // no-op
       }
     })
+
+    const activeContext = audioContextRef.current
+    if (activeContext) {
+      activeContext.close().catch(() => {
+        // no-op
+      })
+      audioContextRef.current = null
+    }
   }
 
   return { processedStream: destination.stream, cleanup, constrainedCpu, bypassed: false }

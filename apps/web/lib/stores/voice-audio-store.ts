@@ -92,7 +92,7 @@ export const useVoiceAudioStore = create<VoiceAudioState>()(
       },
       resetSettings: (userId, serverId) => {
         const defaults = createDefaultAudioSettings()
-        if (serverId) get().setServerOverride(userId, serverId, defaults)
+        if (serverId) get().clearServerOverride(userId, serverId)
         else get().setProfileSettings(userId, defaults)
       },
       setParticipantVolume: (serverId, participantUserId, volume) => {
