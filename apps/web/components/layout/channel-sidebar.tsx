@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2, GripVertical
+  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, GripVertical
 } from "lucide-react"
 import {
   DndContext,
@@ -35,8 +35,15 @@ import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { UserPanel } from "@/components/layout/user-panel"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
+import { useUnreadChannels } from "@/hooks/use-unread-channels"
 
 const NO_CATEGORY = "__no_category__"
+
+/** Channel types that support messaging (messages table) */
+const MESSAGE_CHANNEL_TYPES = ["text", "announcement", "forum", "media"] as const
+
+/** Channel types that use voice infrastructure */
+const VOICE_CHANNEL_TYPES = ["voice", "stage"] as const
 
 interface Props {
   server: ServerRow
@@ -97,6 +104,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   )
 
+  // Seed store with server-fetched channels once per server
   const seededServerRef = useRef<string | null>(null)
   useEffect(() => {
     if (seededServerRef.current !== server.id) {
@@ -117,6 +125,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channels, activeId])
 
+  // Subscribe to realtime channel changes
   useEffect(() => {
     const supabase = createClientSupabaseClient()
     const subscription = supabase
@@ -135,8 +144,18 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     return () => { supabase.removeChannel(subscription) }
   }, [server.id, addChannel, removeChannel])
 
+  // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
   const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
+
+  // Track unread state for all text channels in this server
+  const textChannelIds = channels.filter((c) => c.type === "text").map((c) => c.id)
+  const { unreadChannelIds, mentionCounts } = useUnreadChannels(
+    server.id,
+    textChannelIds,
+    currentUserId,
+    activeChannelId
+  )
 
   function toggleCategory(id: string) {
     setCollapsedCategories((prev) => {
@@ -182,7 +201,6 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const draggedId = active.id as string
     const overId = over.id as string
 
-    // Determine which container the over target belongs to
     const targetContainer = items[overId] !== undefined ? overId : findContainer(overId)
     setOverContainerId(targetContainer)
 
@@ -236,7 +254,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         return { ...prev, [sourceContainer]: reordered }
       })
     } else if (sourceContainer !== targetContainer) {
-      // Cross-container move already applied in handleDragOver; persist both containers
+      // Cross-container move already applied in handleDragOver; persist both
       persistChannelOrder(sourceContainer, items[sourceContainer] ?? [])
       persistChannelOrder(targetContainer, items[targetContainer] ?? [])
     }
@@ -274,6 +292,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       .filter((c): c is ChannelRow => !!c)
     return { category, channels: categoryChannels }
   })
+
+  // Channels eligible for webhooks are all message-based channel types
+  const webhookEligibleChannels = channels
+    .filter((c) => (MESSAGE_CHANNEL_TYPES as readonly string[]).includes(c.type))
+    .map((c) => ({ id: c.id, name: c.name }))
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -335,13 +358,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                             isVoiceActive={voiceChannelId === channel.id}
                             canManageChannels={canManageChannels}
                             isDragging={activeId === channel.id}
+                            isUnread={unreadChannelIds.has(channel.id)}
+                            mentionCount={mentionCounts[channel.id] ?? 0}
                             onClick={() => {
-                              if (channel.type === "text") {
-                                router.push(`/channels/${server.id}/${channel.id}`)
-                              } else if (channel.type === "voice") {
+                              if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
                                 setVoiceChannel(channel.id, server.id)
-                                router.push(`/channels/${server.id}/${channel.id}`)
                               }
+                              router.push(`/channels/${server.id}/${channel.id}`)
                             }}
                             onDelete={() => handleDeleteChannel(channel.id, channel.name)}
                           />
@@ -366,11 +389,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                   className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-white shadow-lg opacity-90"
                   style={{ background: '#313338', width: '208px' }}
                 >
-                  {activeChannel.type === "text" ? (
-                    <Hash className="w-4 h-4 flex-shrink-0 text-gray-400" />
-                  ) : (
-                    <Volume2 className="w-4 h-4 flex-shrink-0 text-gray-400" />
-                  )}
+                  <ChannelIcon channel={activeChannel} isVoiceActive={false} />
                   <span className="truncate">{activeChannel.name}</span>
                 </div>
               ) : null}
@@ -410,11 +429,23 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           onClose={() => setShowServerSettings(false)}
           server={server}
           isOwner={isOwner}
-          channels={channels.filter((c) => c.type === "text").map((c) => ({ id: c.id, name: c.name }))}
+          channels={webhookEligibleChannels}
         />
       </div>
     </TooltipProvider>
   )
+}
+
+function ChannelIcon({ channel, isVoiceActive }: { channel: ChannelRow; isVoiceActive: boolean }) {
+  const iconStyle = { color: isVoiceActive ? '#23a55a' : undefined }
+  switch (channel.type) {
+    case "voice":        return <Volume2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
+    case "forum":        return <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
+    case "stage":        return <Mic2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
+    case "announcement": return <Megaphone className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
+    case "media":        return <Image className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
+    default:             return <Hash className="w-4 h-4 flex-shrink-0" />
+  }
 }
 
 function CategoryHeader({
@@ -474,6 +505,8 @@ function SortableChannelItem({
   isVoiceActive,
   canManageChannels,
   isDragging,
+  isUnread,
+  mentionCount,
   onClick,
   onDelete,
 }: {
@@ -482,11 +515,14 @@ function SortableChannelItem({
   isVoiceActive: boolean
   canManageChannels: boolean
   isDragging: boolean
+  isUnread?: boolean
+  mentionCount?: number
   onClick: () => void
   onDelete: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: channel.id })
   const { toast } = useToast()
+  const showBadge = !isActive && (isUnread || (mentionCount ?? 0) > 0)
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -504,6 +540,8 @@ function SortableChannelItem({
               "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel",
               isActive || isVoiceActive
                 ? "bg-white/10 text-white"
+                : isUnread
+                ? "text-white hover:bg-white/5"
                 : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
             )}
           >
@@ -517,20 +555,25 @@ function SortableChannelItem({
                 <GripVertical className="w-3 h-3" style={{ color: '#949ba4' }} />
               </span>
             )}
-            {channel.type === "text" ? (
-              <Hash className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <Volume2
-                className="w-4 h-4 flex-shrink-0"
-                style={{ color: isVoiceActive ? '#23a55a' : undefined }}
-              />
-            )}
-            <span className="truncate">{channel.name}</span>
-            {isVoiceActive && (
-              <span className="ml-auto">
+            <ChannelIcon channel={channel} isVoiceActive={isVoiceActive} />
+            <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>
+              {channel.name}
+            </span>
+            <span className="ml-auto flex items-center gap-1 flex-shrink-0">
+              {isVoiceActive && (
                 <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
-              </span>
-            )}
+              )}
+              {showBadge && (mentionCount ?? 0) > 0 ? (
+                <span
+                  className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold text-white px-1"
+                  style={{ background: "#f23f43" }}
+                >
+                  {(mentionCount ?? 0) > 99 ? "99+" : mentionCount}
+                </span>
+              ) : showBadge ? (
+                <span className="w-2 h-2 rounded-full" style={{ background: "#f2f3f5" }} />
+              ) : null}
+            </span>
           </button>
         </ContextMenuTrigger>
 

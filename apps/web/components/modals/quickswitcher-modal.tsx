@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Hash, Volume2, Loader2 } from "lucide-react"
+import { Search, Hash, Volume2, MessageSquare, Mic2, Megaphone, Image, Loader2 } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 interface Result {
@@ -54,7 +54,7 @@ export function QuickSwitcherModal({ onClose }: Props) {
           .from("channels")
           .select("id, name, type, server_id")
           .ilike("name", q)
-          .in("type", ["text", "voice"])
+          .in("type", ["text", "voice", "forum", "stage", "announcement", "media"])
           .limit(5),
         supabase
           .from("servers")
@@ -130,9 +130,14 @@ export function QuickSwitcherModal({ onClose }: Props) {
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
                   style={{ background: selected === i ? "rgba(88,101,242,0.2)" : "transparent" }}
                 >
-                  {r.type === "channel" && r.channelType === "voice"
-                    ? <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} />
-                    : <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} />}
+                  {r.type === "channel" ? (
+                    r.channelType === "voice" ? <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
+                    r.channelType === "stage" ? <Mic2 className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
+                    r.channelType === "forum" ? <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
+                    r.channelType === "announcement" ? <Megaphone className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
+                    r.channelType === "media" ? <Image className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
+                    <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} />
+                  ) : <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} />}
                   <span className="text-sm text-white">{r.name}</span>
                   <span className="text-xs ml-auto" style={{ color: "#4e5058" }}>
                     {r.type === "channel" ? "Channel" : "Server"}

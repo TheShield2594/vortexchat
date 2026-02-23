@@ -2,15 +2,16 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
-import type { MessageWithAuthor, AttachmentRow } from "@/types/database"
+import type { MessageWithAuthor, AttachmentRow, ThreadRow } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { LinkEmbed, extractFirstUrl } from "@/components/chat/link-embed"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
+import { CreateThreadModal } from "@/components/modals/create-thread-modal"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 
@@ -22,6 +23,7 @@ interface Props {
   onEdit: (content: string) => Promise<void>
   onDelete: () => Promise<void>
   onReaction: (emoji: string) => Promise<void>
+  onThreadCreated?: (thread: ThreadRow) => void
 }
 
 export function MessageItem({
@@ -32,11 +34,13 @@ export function MessageItem({
   onEdit,
   onDelete,
   onReaction,
+  onThreadCreated,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
   const [showActions, setShowActions] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showCreateThread, setShowCreateThread] = useState(false)
   const { toast } = useToast()
   const isOwn = message.author_id === currentUserId
 
@@ -168,6 +172,7 @@ export function MessageItem({
   }
 
   return (
+    <>
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
@@ -375,6 +380,17 @@ export function MessageItem({
                 <Reply className="w-4 h-4" />
               </button>
 
+              {onThreadCreated && (
+                <button
+                  onClick={() => setShowCreateThread(true)}
+                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  style={{ color: "#b5bac1" }}
+                  title="Create Thread"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
+              )}
+
               {isOwn && (
                 <button
                   onClick={() => setIsEditing(true)}
@@ -405,6 +421,11 @@ export function MessageItem({
         <ContextMenuItem onClick={onReply}>
           <Reply className="w-4 h-4 mr-2" /> Reply
         </ContextMenuItem>
+        {onThreadCreated && (
+          <ContextMenuItem onClick={() => setShowCreateThread(true)}>
+            <MessageSquare className="w-4 h-4 mr-2" /> Create Thread
+          </ContextMenuItem>
+        )}
         {isOwn && (
           <ContextMenuItem onClick={() => setIsEditing(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit Message
@@ -435,6 +456,19 @@ export function MessageItem({
         )}
       </ContextMenuContent>
     </ContextMenu>
+
+    {onThreadCreated && (
+      <CreateThreadModal
+        open={showCreateThread}
+        onClose={() => setShowCreateThread(false)}
+        messageId={message.id}
+        onCreated={(thread) => {
+          setShowCreateThread(false)
+          onThreadCreated(thread)
+        }}
+      />
+    )}
+    </>
   )
 }
 

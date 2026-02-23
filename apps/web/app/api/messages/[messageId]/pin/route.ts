@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-
-const MANAGE_MESSAGES = 2048
+import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 
 // PUT /api/messages/[messageId]/pin — pin a message
 export async function PUT(
@@ -23,32 +22,17 @@ export async function PUT(
 
   if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
-  const serverId = (message as any).channels?.server_id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serverId: string | undefined = (message as any).channels?.server_id
 
-  // Check permission: owner, or MANAGE_MESSAGES permission
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", serverId)
-    .single()
+  if (!serverId) {
+    return NextResponse.json({ error: "Cannot pin messages outside of a server channel" }, { status: 400 })
+  }
 
-  const isOwner = server?.owner_id === user.id
-
-  if (!isOwner) {
-    const { data: member } = await supabase
-      .from("server_members")
-      .select("member_roles(roles(permissions))")
-      .eq("server_id", serverId)
-      .eq("user_id", user.id)
-      .single()
-
-    const permissions = (member as any)?.member_roles
-      ?.flatMap((mr: any) => mr.roles?.permissions ?? 0)
-      .reduce((acc: number, p: number) => acc | p, 0) ?? 0
-
-    if ((permissions & MANAGE_MESSAGES) === 0) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+  // Check permission: admin or MANAGE_MESSAGES
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
+    return NextResponse.json({ error: "Missing MANAGE_MESSAGES permission" }, { status: 403 })
   }
 
   const { error } = await supabase
@@ -59,15 +43,13 @@ export async function PUT(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Audit log
-  if (serverId) {
-    await supabase.from("audit_logs").insert({
-      server_id: serverId,
-      actor_id: user.id,
-      action: "message_pin",
-      target_id: messageId,
-      target_type: "message",
-    })
-  }
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user.id,
+    action: "message_pin",
+    target_id: messageId,
+    target_type: "message",
+  })
 
   return NextResponse.json({ message: "Pinned" })
 }
@@ -90,29 +72,16 @@ export async function DELETE(
 
   if (!message) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const serverId = (message as any).channels?.server_id
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", serverId)
-    .single()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serverId: string | undefined = (message as any).channels?.server_id
 
-  const isOwner = server?.owner_id === user.id
-  if (!isOwner) {
-    const { data: member } = await supabase
-      .from("server_members")
-      .select("member_roles(roles(permissions))")
-      .eq("server_id", serverId)
-      .eq("user_id", user.id)
-      .single()
+  if (!serverId) {
+    return NextResponse.json({ error: "Cannot unpin messages outside of a server channel" }, { status: 400 })
+  }
 
-    const permissions = (member as any)?.member_roles
-      ?.flatMap((mr: any) => mr.roles?.permissions ?? 0)
-      .reduce((acc: number, p: number) => acc | p, 0) ?? 0
-
-    if ((permissions & MANAGE_MESSAGES) === 0) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
+    return NextResponse.json({ error: "Missing MANAGE_MESSAGES permission" }, { status: 403 })
   }
 
   const { error } = await supabase

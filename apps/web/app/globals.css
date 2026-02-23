@@ -145,3 +145,36 @@
   margin: 4px 0;
   color: #b5bac1;
 }
+
+/* ─── Appearance settings ─────────────────────────────────────────────────── */
+
+/* Font scale */
+[data-font-scale="small"] { font-size: 14px; }
+[data-font-scale="normal"] { font-size: 16px; }
+[data-font-scale="large"] { font-size: 17px; }
+
+/* Compact message display: tighter gaps, hide cozy-only avatars */
+[data-message-display="compact"] .message-group-spacer { margin-top: 0.125rem; }
+[data-message-display="compact"] .message-cozy-avatar { display: none; }
+[data-message-display="compact"] .message-compact-timestamp { display: inline; }
+
+/* Reduced saturation (accessibility) */
+[data-saturation="reduced"] { filter: saturate(0.6); }
+[data-saturation="reduced"] video,
+[data-saturation="reduced"] img { filter: saturate(1.67); }
+
+/* Typing indicator animation */
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+.typing-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b5bac1;
+  animation: typing-dot 1.2s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
