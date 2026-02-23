@@ -10,17 +10,19 @@ import { MentionSuggestions } from "@/components/chat/mention-suggestions"
 
 interface Props {
   channelName: string
+  draft: string
   replyTo: MessageWithAuthor | null
   onCancelReply: () => void
   onSend: (content: string, files?: File[]) => Promise<void>
+  onDraftChange: (value: string) => void
   onTyping?: () => void
   onSent?: () => void
 }
 
 const COMMON_EMOJIS = ["😀", "😂", "❤️", "👍", "👎", "🔥", "✅", "🎉", "🤔", "👀", "😭", "💯"]
 
-export function MessageInput({ channelName, replyTo, onCancelReply, onSend, onTyping, onSent }: Props) {
-  const [content, setContent] = useState("")
+export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent }: Props) {
+  const [content, setContent] = useState(draft)
   const [cursorPosition, setCursorPosition] = useState(0)
   const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
@@ -49,6 +51,16 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend, onTy
     }
   }, [])
 
+  useEffect(() => {
+    setContent(draft)
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.style.height = "auto"
+      el.style.height = Math.min(el.scrollHeight, 200) + "px"
+    })
+  }, [draft])
+
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
     setSending(true)
@@ -56,6 +68,7 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend, onTy
     try {
       await onSend(content, files)
       setContent("")
+      onDraftChange("")
       fileUrlCache.current.forEach((url) => URL.revokeObjectURL(url))
       fileUrlCache.current.clear()
       setFiles([])
@@ -88,6 +101,7 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend, onTy
   function insertMention(member: typeof members[number]) {
     const { newContent, newCursorPosition } = mention.selectMember(member)
     setContent(newContent)
+    onDraftChange(newContent)
     setCursorPosition(newCursorPosition)
     requestAnimationFrame(() => {
       if (textareaRef.current) {
@@ -123,6 +137,7 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend, onTy
   // Auto-resize textarea
   function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setContent(e.target.value)
+    onDraftChange(e.target.value)
     setCursorPosition(e.target.selectionStart)
     const el = e.target
     el.style.height = "auto"
@@ -269,11 +284,10 @@ export function MessageInput({ channelName, replyTo, onCancelReply, onSend, onTy
                 <button
                   key={emoji}
                   onClick={() => {
-                    setContent((prev) => {
-                      const next = prev + emoji
-                      setCursorPosition(next.length)
-                      return next
-                    })
+                    const next = content + emoji
+                    setContent(next)
+                    setCursorPosition(next.length)
+                    onDraftChange(next)
                     setShowEmojiPicker(false)
                     textareaRef.current?.focus()
                   }}
