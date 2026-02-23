@@ -334,6 +334,7 @@ export type Database = {
           nsfw: boolean
           forum_guidelines: string | null
           last_post_at: string | null
+          expires_at: string | null
           created_at: string
         }
         Insert: {
@@ -348,6 +349,7 @@ export type Database = {
           nsfw?: boolean
           forum_guidelines?: string | null
           last_post_at?: string | null
+          expires_at?: string | null
           created_at?: string
         }
         Update: {
@@ -362,6 +364,7 @@ export type Database = {
           nsfw?: boolean
           forum_guidelines?: string | null
           last_post_at?: string | null
+          expires_at?: string | null
           created_at?: string
         }
         Relationships: []
