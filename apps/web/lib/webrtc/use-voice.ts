@@ -1,8 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { RealtimeChannel } from "@supabase/supabase-js"
+import { createInputAudioPipeline } from "@/lib/voice/audio-pipeline"
+import { createDefaultAudioSettings, type VoiceAudioSettings } from "@/lib/voice/audio-settings"
+import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
 
 interface PeerState {
   stream: MediaStream
@@ -33,33 +36,52 @@ interface UseVoiceReturn {
   selectedOutputId: string | null
   setSelectedInputId: (id: string | null) => void
   setSelectedOutputId: (id: string | null) => void
+  // Voice audio settings
+  audioSettings: VoiceAudioSettings
+  setAudioSettings: (settings: VoiceAudioSettings) => void
+  cpuBypassActive: boolean
+  audioInitError: string | null
 }
 
-export function useVoice(channelId: string, userId: string): UseVoiceReturn {
+export function useVoice(channelId: string, userId: string, serverId?: string | null): UseVoiceReturn {
   const [peers, setPeers] = useState<Map<string, PeerState>>(new Map())
   const [muted, setMuted] = useState(false)
   const [deafened, setDeafened] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [screenSharing, setScreenSharing] = useState(false)
   const [videoEnabled, setVideoEnabled] = useState(false)
+  const [cpuBypassActive, setCpuBypassActive] = useState(false)
+  const [audioInitError, setAudioInitError] = useState<string | null>(null)
 
   const localStream = useRef<MediaStream | null>(null)
+  const rawLocalStreamRef = useRef<MediaStream | null>(null)
   const screenStream = useRef<MediaStream | null>(null)
   const cameraStream = useRef<MediaStream | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
   const harkRef = useRef<{ stop: () => void } | null>(null)
-  // Stable unique ID for this client session — replaces socket.id
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const pipelineCleanupRef = useRef<(() => void) | null>(null)
+
   const clientIdRef = useRef<string>(crypto.randomUUID())
   const supabaseRef = useRef(createClientSupabaseClient())
 
-  // Device selection state
   const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([])
   const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedInputId, setSelectedInputId] = useState<string | null>(null)
   const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null)
 
-  // Enumerate devices on mount and when permissions change
+  const { getEffectiveSettings, setProfileSettings, setServerOverride } = useVoiceAudioStore()
+  const audioSettings = useMemo(
+    () => getEffectiveSettings(userId, serverId),
+    [getEffectiveSettings, userId, serverId]
+  )
+
+  const setAudioSettings = useCallback((settings: VoiceAudioSettings) => {
+    if (serverId) setServerOverride(userId, serverId, settings)
+    else setProfileSettings(userId, settings)
+  }, [serverId, userId, setProfileSettings, setServerOverride])
+
   useEffect(() => {
     if (!navigator.mediaDevices) return
     async function enumerateDevices() {
@@ -68,7 +90,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
         setAudioInputDevices(devices.filter((d) => d.kind === "audioinput"))
         setAudioOutputDevices(devices.filter((d) => d.kind === "audiooutput"))
       } catch {
-        // Ignore enumeration errors (e.g. permissions denied before any getUserMedia)
+        // ignore
       }
     }
     enumerateDevices()
@@ -81,7 +103,6 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     const supabase = supabaseRef.current
     const myClientId = clientIdRef.current
 
-    // ─── Create a peer connection ─────────────────────────────────────────────
     function createPeerConnection(
       peerId: string,
       peerUserId: string,
@@ -89,7 +110,6 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       rtChannel: RealtimeChannel,
       stream: MediaStream
     ): RTCPeerConnection {
-      // Build ICE servers: always include STUN, add TURN when env vars are configured
       const iceServers: RTCIceServer[] = [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
@@ -105,13 +125,9 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       }
 
       const pc = new RTCPeerConnection({ iceServers })
-
       peerConnections.current.set(peerId, pc)
-
-      // Add local audio tracks
       stream.getTracks().forEach((track) => pc.addTrack(track, stream))
 
-      // Trickle ICE via Broadcast
       pc.onicecandidate = ({ candidate }) => {
         if (candidate) {
           rtChannel.send({
@@ -122,7 +138,6 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
         }
       }
 
-      // Receive remote audio stream
       pc.ontrack = (event) => {
         const [remoteStream] = event.streams
         setPeers((prev) => {
@@ -138,7 +153,6 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
         })
       }
 
-      // Initiator creates and sends offer
       if (initiator) {
         pc.onnegotiationneeded = async () => {
           const offer = await pc.createOffer()
@@ -151,7 +165,6 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
         }
       }
 
-      // Add placeholder entry immediately so the tile appears
       setPeers((prev) => {
         const next = new Map(prev)
         if (!next.has(peerId)) {
@@ -168,58 +181,47 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       return pc
     }
 
-    // ─── Handle a peer (either existing at join time or newly arrived) ─────────
-    // We use a deterministic initiator rule to avoid offer glare:
-    // the client with the lexicographically greater clientId always initiates.
-    function handlePeer(
-      peerClientId: string,
-      peerUserId: string,
-      rtChannel: RealtimeChannel,
-      stream: MediaStream
-    ) {
+    function handlePeer(peerClientId: string, peerUserId: string, rtChannel: RealtimeChannel, stream: MediaStream) {
       if (peerClientId === myClientId) return
       if (peerConnections.current.has(peerClientId)) return
-
       const initiator = myClientId > peerClientId
       createPeerConnection(peerClientId, peerUserId, initiator, rtChannel, stream)
     }
 
     async function init() {
       try {
-        // Acquire microphone — use selected device if available
+        setAudioInitError(null)
         const audioConstraints: MediaTrackConstraints = {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
         }
         if (selectedInputId) audioConstraints.deviceId = { ideal: selectedInputId }
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false })
-        localStream.current = stream
+        const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false })
+        rawLocalStreamRef.current = rawStream
+
+        const pipeline = createInputAudioPipeline(rawStream, audioSettings ?? createDefaultAudioSettings(), audioContextRef)
+        pipelineCleanupRef.current = pipeline.cleanup
+        localStream.current = pipeline.processedStream
+        setCpuBypassActive(pipeline.constrainedCpu)
 
         if (!mounted) {
-          stream.getTracks().forEach((t) => t.stop())
+          rawStream.getTracks().forEach((t) => t.stop())
           return
         }
 
-        // Create Supabase Realtime channel for this voice room
         const rtChannel = supabase.channel(`voice-room:${channelId}`, {
-          config: {
-            // self: false → we don't receive our own broadcast messages
-            broadcast: { self: false },
-            presence: { key: myClientId },
-          },
+          config: { broadcast: { self: false }, presence: { key: myClientId } },
         })
         channelRef.current = rtChannel
 
-        // ─── Broadcast: WebRTC offer ────────────────────────────────────────────
         rtChannel.on("broadcast", { event: "offer" }, async ({ payload }) => {
           if (payload.to !== myClientId || !mounted) return
           const from = payload.from as string
 
           let pc = peerConnections.current.get(from)
           if (!pc) {
-            // Peer initiated, we are the non-initiator
-            pc = createPeerConnection(from, payload.userId as string, false, rtChannel, stream)
+            pc = createPeerConnection(from, payload.userId as string, false, rtChannel, localStream.current ?? rawStream)
           }
 
           await pc.setRemoteDescription(payload.offer as RTCSessionDescriptionInit)
@@ -233,21 +235,18 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           })
         })
 
-        // ─── Broadcast: WebRTC answer ───────────────────────────────────────────
         rtChannel.on("broadcast", { event: "answer" }, async ({ payload }) => {
           if (payload.to !== myClientId) return
           const pc = peerConnections.current.get(payload.from as string)
           if (pc) await pc.setRemoteDescription(payload.answer as RTCSessionDescriptionInit)
         })
 
-        // ─── Broadcast: ICE candidates ──────────────────────────────────────────
         rtChannel.on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
           if (payload.to !== myClientId) return
           const pc = peerConnections.current.get(payload.from as string)
           if (pc) await pc.addIceCandidate(payload.candidate as RTCIceCandidateInit)
         })
 
-        // ─── Broadcast: peer voice state ────────────────────────────────────────
         rtChannel.on("broadcast", { event: "peer-speaking" }, ({ payload }) => {
           setPeers((prev) => {
             const next = new Map(prev)
@@ -266,15 +265,13 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           })
         })
 
-        // ─── Presence: new peer joined after us ────────────────────────────────
         rtChannel.on("presence", { event: "join" }, ({ newPresences }) => {
           if (!mounted) return
           for (const p of (newPresences as unknown) as Array<{ client_id: string; user_id: string }>) {
-            handlePeer(p.client_id, p.user_id, rtChannel, stream)
+            handlePeer(p.client_id, p.user_id, rtChannel, localStream.current ?? rawStream)
           }
         })
 
-        // ─── Presence: peer left ───────────────────────────────────────────────
         rtChannel.on("presence", { event: "leave" }, ({ leftPresences }) => {
           for (const p of (leftPresences as unknown) as Array<{ client_id: string }>) {
             const pc = peerConnections.current.get(p.client_id)
@@ -288,20 +285,16 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           }
         })
 
-        // Subscribe and announce our presence
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => reject(new Error("Realtime subscription timeout")), 10000)
           rtChannel.subscribe(async (status) => {
             if (status === "SUBSCRIBED") {
               clearTimeout(timeout)
-              // Announce ourselves to the room
               await rtChannel.track({ client_id: myClientId, user_id: userId })
-
-              // Connect to any peers already in the room
               const state = rtChannel.presenceState<{ client_id: string; user_id: string }>()
               for (const presences of Object.values(state)) {
                 for (const p of presences) {
-                  handlePeer(p.client_id, p.user_id, rtChannel, stream)
+                  handlePeer(p.client_id, p.user_id, rtChannel, localStream.current ?? rawStream)
                 }
               }
               resolve()
@@ -312,10 +305,9 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           })
         })
 
-        // ─── Voice Activity Detection ──────────────────────────────────────────
         try {
           const { default: hark } = await import("hark")
-          const speechEvents = hark(stream, { interval: 50, threshold: -65 })
+          const speechEvents = hark(rawStream, { interval: 50, threshold: -65 })
           harkRef.current = speechEvents
 
           speechEvents.on("speaking", () => {
@@ -341,6 +333,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           console.warn("hark VAD failed to load:", e)
         }
       } catch (error) {
+        setAudioInitError("Audio device or context unavailable. Voice processing was disabled.")
         console.error("Voice init failed:", error)
       }
     }
@@ -350,7 +343,8 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     return () => {
       mounted = false
       harkRef.current?.stop()
-      localStream.current?.getTracks().forEach((t) => t.stop())
+      pipelineCleanupRef.current?.()
+      rawLocalStreamRef.current?.getTracks().forEach((t) => t.stop())
       screenStream.current?.getTracks().forEach((t) => t.stop())
       cameraStream.current?.getTracks().forEach((t) => t.stop())
       if (channelRef.current) {
@@ -360,10 +354,10 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       peerConnections.current.forEach((pc) => pc.close())
       peerConnections.current.clear()
     }
-  }, [channelId, userId])
+  }, [channelId, userId, selectedInputId, audioSettings])
 
   const toggleMute = useCallback(() => {
-    const tracks = localStream.current?.getAudioTracks() ?? []
+    const tracks = rawLocalStreamRef.current?.getAudioTracks() ?? []
     const newMuted = !muted
     tracks.forEach((t) => { t.enabled = !newMuted })
     setMuted(newMuted)
@@ -392,7 +386,6 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
         screenStream.current = stream
         setScreenSharing(true)
 
-        // Replace/add video track in all peer connections
         peerConnections.current.forEach((pc) => {
           const [videoTrack] = stream.getVideoTracks()
           const sender = pc.getSenders().find((s) => s.track?.kind === "video")
@@ -405,10 +398,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
           setScreenSharing(false)
         }
       } catch (err) {
-        // AbortError = user dismissed picker, NotAllowedError = permission denied
-        if (err instanceof DOMException && (err.name === "AbortError" || err.name === "NotAllowedError")) {
-          return
-        }
+        if (err instanceof DOMException && (err.name === "AbortError" || err.name === "NotAllowedError")) return
         console.error("Screen share failed:", err)
       }
     }
@@ -421,7 +411,7 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
       setVideoEnabled(false)
       peerConnections.current.forEach((pc) => {
         pc.getSenders().filter((s) => s.track?.kind === "video" && !screenSharing)
-          .forEach((s) => { try { pc.removeTrack(s) } catch {} })
+          .forEach((s) => { try { pc.removeTrack(s) } catch { /* noop */ } })
       })
     } else {
       try {
@@ -449,7 +439,8 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
 
   const leaveChannel = useCallback(() => {
     harkRef.current?.stop()
-    localStream.current?.getTracks().forEach((t) => t.stop())
+    pipelineCleanupRef.current?.()
+    rawLocalStreamRef.current?.getTracks().forEach((t) => t.stop())
     screenStream.current?.getTracks().forEach((t) => t.stop())
     cameraStream.current?.getTracks().forEach((t) => t.stop())
     if (channelRef.current) {
@@ -482,5 +473,9 @@ export function useVoice(channelId: string, userId: string): UseVoiceReturn {
     selectedOutputId,
     setSelectedInputId,
     setSelectedOutputId,
+    audioSettings,
+    setAudioSettings,
+    cpuBypassActive,
+    audioInitError,
   }
 }
