@@ -25,6 +25,12 @@ import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
 
 type VoiceSessionTone = "stable" | "listening" | "attention"
 
+const TONE_STYLES: Record<VoiceSessionTone, { dot: string; badgeBg: string; badgeText: string }> = {
+  stable: { dot: "#80848e", badgeBg: "rgba(128,132,142,0.18)", badgeText: "#c9ccd1" },
+  listening: { dot: "#23a55a", badgeBg: "rgba(35,165,90,0.2)", badgeText: "#9ae6b4" },
+  attention: { dot: "#f0b132", badgeBg: "rgba(240,177,50,0.2)", badgeText: "#ffd58a" },
+}
+
 function getVoiceSessionState(peerCount: number, speaking: boolean, hasError: boolean): {
   label: string
   detail: string
@@ -187,12 +193,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const peerArray = peers ? Array.from(peers.entries()) : []
   const hasVideo = videoEnabled || screenSharing || peerArray.some(([, { stream }]) => stream.getVideoTracks().length > 0)
   const sessionState = getVoiceSessionState(peerArray.length, speaking && !muted, Boolean(audioInitError))
-  const toneStyles: Record<VoiceSessionTone, { dot: string; badgeBg: string; badgeText: string }> = {
-    stable: { dot: "#80848e", badgeBg: "rgba(128,132,142,0.18)", badgeText: "#c9ccd1" },
-    listening: { dot: "#23a55a", badgeBg: "rgba(35,165,90,0.2)", badgeText: "#9ae6b4" },
-    attention: { dot: "#f0b132", badgeBg: "rgba(240,177,50,0.2)", badgeText: "#ffd58a" },
-  }
-  const activeTone = toneStyles[sessionState.tone]
+  const activeTone = TONE_STYLES[sessionState.tone]
 
   return (
     <TooltipProvider>
