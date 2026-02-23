@@ -275,7 +275,7 @@ export function MessageItem({
                       {displayName}
                     </span>
                   </UserProfilePopover>
-                  <span className="text-xs tertiary-metadata">
+                  <span id={messageMetaId} className="text-xs tertiary-metadata">
                     {format(timestamp, "MM/dd/yyyy h:mm a")}
                   </span>
                   {sendState === "queued" && (

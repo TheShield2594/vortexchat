@@ -38,7 +38,9 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   const loadNotifications = useCallback(async () => {
     const { data } = await supabase
@@ -76,7 +78,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   useEffect(() => {
     if (!open) return
     function handler(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false)
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
@@ -84,11 +86,60 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
 
   useEffect(() => {
     if (!open) return
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false)
+
+    const panel = panelRef.current
+    const focusableSelector = [
+      "button:not([disabled])",
+      "a[href]",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "[tabindex]:not([tabindex='-1'])",
+    ].join(",")
+
+    const getFocusable = () =>
+      panel
+        ? (Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+            (el) => !el.hasAttribute("disabled") && el.getAttribute("aria-hidden") !== "true"
+          ))
+        : []
+
+    const firstFocusable = getFocusable()[0]
+    ;(firstFocusable ?? panel)?.focus()
+
+    function handlePanelKeys(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false)
+        return
+      }
+
+      if (event.key !== "Tab") return
+      const focusable = getFocusable()
+      if (focusable.length === 0) {
+        event.preventDefault()
+        panel?.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement as HTMLElement | null
+
+      if (event.shiftKey) {
+        if (active === first || active === panel) {
+          event.preventDefault()
+          last.focus()
+        }
+      } else if (active === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
-    document.addEventListener("keydown", handleEscape)
-    return () => document.removeEventListener("keydown", handleEscape)
+
+    document.addEventListener("keydown", handlePanelKeys)
+    return () => {
+      document.removeEventListener("keydown", handlePanelKeys)
+      triggerRef.current?.focus()
+    }
   }, [open])
 
   async function markAllRead() {
@@ -126,10 +177,11 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   }
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative" ref={wrapperRef}>
       {/* Bell button */}
       {variant === "sidebar" ? (
         <button
+          ref={triggerRef}
           onClick={() => setOpen((v) => !v)}
           className="relative flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10 focus-ring"
           title="Inbox"
@@ -152,6 +204,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
         </button>
       ) : (
         <button
+          ref={triggerRef}
           onClick={() => setOpen((v) => !v)}
           className="relative w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 focus-ring"
           style={{ color: open ? "#f2f3f5" : "#949ba4" }}
@@ -175,8 +228,10 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
       {/* Panel */}
       {open && (
         <div
+          ref={panelRef}
           role="dialog"
           aria-label="Notifications inbox"
+          tabIndex={-1}
           className="absolute right-0 top-full mt-2 w-80 rounded-xl shadow-2xl overflow-hidden z-50"
           style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
         >

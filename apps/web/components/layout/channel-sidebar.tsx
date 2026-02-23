@@ -647,7 +647,7 @@ function CategoryHeader({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onAddChannel() }}
-              className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-white transition-opacity focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
             >
               <Plus className="w-4 h-4" />
             </button>
