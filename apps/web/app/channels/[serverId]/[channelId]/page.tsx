@@ -34,6 +34,15 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
 
   if (!channel) notFound()
 
+  let initialLastReadAt: string | null = null
+  const { data: readState } = await supabase
+    .from("read_states")
+    .select("last_read_at")
+    .eq("user_id", user.id)
+    .eq("channel_id", params.channelId)
+    .maybeSingle()
+  initialLastReadAt = readState?.last_read_at ?? null
+
   // Fetch initial messages for all text-based channel types
   let messages: any[] = []
   if ((MESSAGE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
@@ -120,6 +129,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
         initialMessages={messages}
         currentUserId={user.id}
         serverId={params.serverId}
+        initialLastReadAt={initialLastReadAt}
       />
       <MemberList serverId={params.serverId} />
     </div>
