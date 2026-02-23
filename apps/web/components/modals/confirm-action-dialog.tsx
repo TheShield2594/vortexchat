@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import {
   Dialog,
@@ -22,6 +22,7 @@ interface ConfirmActionDialogProps {
   emphasizeRiskLabel?: string
   entitySummary?: string
   isLoading?: boolean
+  loadingLabel?: string
   onConfirm: () => Promise<void> | void
 }
 
@@ -35,6 +36,7 @@ export function ConfirmActionDialog({
   emphasizeRiskLabel,
   entitySummary,
   isLoading = false,
+  loadingLabel = "Deleting…",
   onConfirm,
 }: ConfirmActionDialogProps) {
   const [riskConfirmed, setRiskConfirmed] = useState(false)
@@ -45,20 +47,29 @@ export function ConfirmActionDialog({
     }
   }, [open])
 
-  const canConfirm = useMemo(
-    () => !isLoading && (emphasizeRiskLabel ? riskConfirmed : true),
-    [emphasizeRiskLabel, isLoading, riskConfirmed]
-  )
+  const canConfirm = !isLoading && (emphasizeRiskLabel ? riskConfirmed : true)
+  const cancelRef = useRef<HTMLButtonElement | null>(null)
 
   async function handleConfirm() {
     if (!canConfirm) return
     await onConfirm()
-    onOpenChange(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border border-red-500/20 bg-[#1e1f22] text-[#f2f3f5] shadow-2xl shadow-black/40 data-[state=open]:duration-300 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-top-[46%]">
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!isLoading) onOpenChange(nextOpen) }}>
+      <DialogContent
+        className="max-w-md border border-red-500/20 bg-[#1e1f22] text-[#f2f3f5] shadow-2xl shadow-black/40 data-[state=open]:duration-300 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-top-[46%]"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          cancelRef.current?.focus()
+        }}
+        onEscapeKeyDown={(event) => {
+          if (isLoading) event.preventDefault()
+        }}
+        onPointerDownOutside={(event) => {
+          if (isLoading) event.preventDefault()
+        }}
+      >
         <DialogHeader className="gap-2">
           <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-500/15 text-red-300">
             <AlertTriangle className="h-5 w-5" />
@@ -91,6 +102,7 @@ export function ConfirmActionDialog({
             className="text-[#b5bac1] hover:bg-white/10 hover:text-white"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
+            ref={cancelRef}
           >
             {cancelLabel}
           </Button>
@@ -100,7 +112,7 @@ export function ConfirmActionDialog({
             onClick={handleConfirm}
             disabled={!canConfirm}
           >
-            {isLoading ? "Deleting…" : confirmLabel}
+            {isLoading ? loadingLabel : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

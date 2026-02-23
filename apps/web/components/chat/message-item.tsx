@@ -53,6 +53,12 @@ export function MessageItem({
       await onDelete()
       toast({ title: "Message deleted", description: "The message was removed for everyone in this channel." })
       setShowDeleteDialog(false)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Could not delete message",
+        description: error?.message ?? "Please try again.",
+      })
     } finally {
       setIsDeleting(false)
     }
@@ -83,6 +89,8 @@ export function MessageItem({
   }
 
   function handleMessageKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+
     if ((event.target as HTMLElement).closest("button, textarea, input, a")) {
       return
     }
@@ -224,6 +232,7 @@ export function MessageItem({
           tabIndex={0}
           role="group"
           aria-label={`Message from ${displayName}. Press R to reply${isOwn ? ", E to edit, and Delete to delete" : ""}.`}
+          aria-keyshortcuts={isOwn ? "R, E, Delete" : "R"}
         >
           {/* Reply reference */}
           {message.reply_to_id && message.reply_to && (
@@ -522,10 +531,12 @@ export function MessageItem({
       onOpenChange={setShowDeleteDialog}
       title="Delete this message?"
       description="This removes the message from the channel for everyone. Attachments and replies linked to it may become harder to follow."
-      confirmLabel="Delete message"
-      emphasizeRiskLabel="I understand this action cannot be undone."
+      confirmLabel="Delete for everyone"
+      cancelLabel="Keep message"
+      emphasizeRiskLabel="I understand this can’t be undone."
       entitySummary={message.content ?? "(No text content)"}
       isLoading={isDeleting}
+      loadingLabel="Deleting message…"
       onConfirm={confirmDelete}
     />
     </>
