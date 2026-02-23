@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check } from "lucide-react"
+import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -382,7 +382,10 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="security" className="mt-0">
+                <TabsContent value="security" className="mt-0 space-y-8">
+                  <PasskeysSection />
+                  <SecurityPolicySection />
+                  <SessionManagementSection onForcedLogout={handleLogout} />
                   <TwoFactorSection supabase={supabase} toast={toast} />
                 </TabsContent>
 
@@ -393,6 +396,136 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         </Tabs>
       </DialogContent>
     </Dialog>
+  )
+}
+
+
+
+function PasskeysSection() {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [credentials, setCredentials] = useState<Array<{ id: string; name: string; created_at: string; last_used_at: string | null; revoked_at: string | null }>>([])
+
+  const loadCredentials = useCallback(async () => {
+    const res = await fetch("/api/auth/passkeys/credentials")
+    const payload = await res.json()
+    if (res.ok) setCredentials(payload.credentials || [])
+  }, [])
+
+  useEffect(() => {
+    loadCredentials()
+  }, [loadCredentials])
+
+  async function handleRegisterPasskey() {
+    setLoading(true)
+    try {
+      const { startPasskeyRegistration } = await import("@/lib/auth/passkeys-client")
+      await startPasskeyRegistration("Primary passkey")
+      toast({ title: "Passkey added", description: "Your account can now use passkey-first login." })
+      await loadCredentials()
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Could not register passkey", description: error.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function rename(id: string) {
+    const name = window.prompt("Rename this device")
+    if (!name) return
+    const res = await fetch("/api/auth/passkeys/credentials", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, name }) })
+    if (res.ok) loadCredentials()
+  }
+
+  async function revoke(id: string) {
+    const res = await fetch("/api/auth/passkeys/credentials", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) })
+    if (res.ok) loadCredentials()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-semibold text-white mb-1">Passkeys</h3>
+        <p className="text-sm" style={{ color: "#949ba4" }}>Passkeys are phishing-resistant and work across biometrics, device PIN, or hardware keys. Keep at least one backup passkey on a second device.</p>
+      </div>
+      <Button onClick={handleRegisterPasskey} disabled={loading} style={{ background: "#3ba55c" }}>
+        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <KeyRound className="w-4 h-4 mr-2" />} Register Passkey
+      </Button>
+      <div className="space-y-2">
+        {credentials.map((cred) => (
+          <div key={cred.id} className="rounded p-3 flex items-center gap-2" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
+            <div className="flex-1">
+              <p className="text-sm text-white">{cred.name}</p>
+              <p className="text-xs" style={{ color: "#949ba4" }}>Last used: {cred.last_used_at ? new Date(cred.last_used_at).toLocaleString() : "Never"}</p>
+            </div>
+            <button onClick={() => rename(cred.id)} className="p-2 rounded" style={{ background: "#383a40" }}><Pencil className="w-4 h-4" /></button>
+            <button onClick={() => revoke(cred.id)} className="p-2 rounded" style={{ background: "rgba(242,63,67,0.15)", color: "#f23f43" }}><Trash2 className="w-4 h-4" /></button>
+          </div>
+        ))}
+        {credentials.length === 0 && <p className="text-xs" style={{ color: "#949ba4" }}>No passkeys yet. Add one now and keep password/magic-link recovery enabled until you register a backup device.</p>}
+      </div>
+    </div>
+  )
+}
+
+
+function SecurityPolicySection() {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [policy, setPolicy] = useState({ passkey_first: false, enforce_passkey: false, fallback_password: true, fallback_magic_link: true })
+
+  useEffect(() => {
+    fetch("/api/auth/security/policy").then((res) => res.json()).then((data) => data.policy && setPolicy(data.policy)).catch(() => {})
+  }, [])
+
+  async function save(next: typeof policy) {
+    setPolicy(next)
+    setLoading(true)
+    const res = await fetch("/api/auth/security/policy", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(next) })
+    if (!res.ok) {
+      toast({ variant: "destructive", title: "Failed to update security policy" })
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-base font-semibold text-white">Account Security Policy</h3>
+      <p className="text-sm" style={{ color: "#949ba4" }}>Choose passkey-first login. Owners/admins can optionally enforce passkeys and disable fallback methods.</p>
+      <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Passkey-first sign in</span><input type="checkbox" checked={policy.passkey_first} onChange={(e) => save({ ...policy, passkey_first: e.target.checked })} /></label>
+      <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Enforce passkey (admins/owners optional)</span><input type="checkbox" checked={policy.enforce_passkey} onChange={(e) => save({ ...policy, enforce_passkey: e.target.checked })} /></label>
+      <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Allow password fallback</span><input type="checkbox" checked={policy.fallback_password} onChange={(e) => save({ ...policy, fallback_password: e.target.checked })} disabled={policy.enforce_passkey} /></label>
+      <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Allow magic-link fallback</span><input type="checkbox" checked={policy.fallback_magic_link} onChange={(e) => save({ ...policy, fallback_magic_link: e.target.checked })} disabled={policy.enforce_passkey} /></label>
+      {loading && <p className="text-xs" style={{ color: "#949ba4" }}>Saving policy…</p>}
+    </div>
+  )
+}
+
+function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Promise<void> | void }) {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+
+  async function revokeAll() {
+    setLoading(true)
+    const res = await fetch("/api/auth/sessions", { method: "DELETE" })
+    if (res.ok) {
+      toast({ title: "All sessions revoked", description: "Trusted devices and active sessions have been removed." })
+      await onForcedLogout()
+    } else {
+      const payload = await res.json().catch(() => ({}))
+      toast({ variant: "destructive", title: "Failed to revoke sessions", description: payload.error || "Please try again" })
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-base font-semibold text-white">Session Management</h3>
+      <p className="text-sm" style={{ color: "#949ba4" }}>Mark devices as trusted to reduce repeated prompts. If a device is lost, revoke all sessions immediately.</p>
+      <Button variant="outline" onClick={revokeAll} disabled={loading} style={{ borderColor: "#f23f43", color: "#f23f43", background: "transparent" }}>
+        {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Revoke All Sessions
+      </Button>
+    </div>
   )
 }
 

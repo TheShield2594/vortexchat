@@ -87,7 +87,7 @@ export default function RegisterPage() {
         </div>
         <h1 className="text-2xl font-bold text-white">Create an account</h1>
         <p style={{ color: '#b5bac1' }} className="text-sm mt-1">
-          Join Vortex — it&apos;s free, no strings attached.
+          Join Vortex — then add a passkey in Security settings for passkey-first login.
         </p>
       </div>
 
@@ -182,8 +182,7 @@ export default function RegisterPage() {
       </p>
 
       <p className="text-center text-xs mt-4" style={{ color: '#4e5058' }}>
-        By registering, you agree to Vortex&apos;s terms of service.
-        No data is sold. This is self-hosted.
+        By registering, you agree to Vortex&apos;s terms of service. Keep password/magic link recovery enabled until you add a backup passkey on another device.
       </p>
     </div>
   )

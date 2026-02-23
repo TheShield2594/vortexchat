@@ -1,0 +1,43 @@
+import { NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+
+export async function GET() {
+  const supabase = await createServerSupabaseClient()
+  const db = supabase as any
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data } = await db
+    .from("auth_security_policies")
+    .select("passkey_first,enforce_passkey,fallback_password,fallback_magic_link")
+    .eq("user_id", auth.user.id)
+    .maybeSingle()
+
+  return NextResponse.json({
+    policy: data || {
+      passkey_first: false,
+      enforce_passkey: false,
+      fallback_password: true,
+      fallback_magic_link: true,
+    },
+  })
+}
+
+export async function PATCH(request: Request) {
+  const supabase = await createServerSupabaseClient()
+  const db = supabase as any
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const patch = await request.json()
+  const { error } = await db.from("auth_security_policies").upsert({
+    user_id: auth.user.id,
+    passkey_first: !!patch.passkey_first,
+    enforce_passkey: !!patch.enforce_passkey,
+    fallback_password: patch.fallback_password !== false,
+    fallback_magic_link: patch.fallback_magic_link !== false,
+  })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json({ ok: true })
+}
