@@ -68,6 +68,8 @@ export type Database = {
           explicit_content_filter: number
           default_message_notifications: number
           screening_enabled: boolean
+          automod_dry_run: boolean
+          automod_emergency_disable: boolean
           created_at: string
         }
         Insert: {
@@ -83,6 +85,8 @@ export type Database = {
           explicit_content_filter?: number
           default_message_notifications?: number
           screening_enabled?: boolean
+          automod_dry_run?: boolean
+          automod_emergency_disable?: boolean
           created_at?: string
         }
         Update: {
@@ -98,6 +102,8 @@ export type Database = {
           explicit_content_filter?: number
           default_message_notifications?: number
           screening_enabled?: boolean
+          automod_dry_run?: boolean
+          automod_emergency_disable?: boolean
           created_at?: string
         }
         Relationships: []
@@ -182,9 +188,11 @@ export type Database = {
           id: string
           server_id: string
           name: string
-          trigger_type: 'keyword_filter' | 'mention_spam' | 'link_spam'
+          trigger_type: 'keyword_filter' | 'regex_filter' | 'mention_spam' | 'link_spam' | 'rapid_message'
           config: Json
+          conditions: Json
           actions: Json
+          priority: number
           enabled: boolean
           created_at: string
           updated_at: string
@@ -193,9 +201,11 @@ export type Database = {
           id?: string
           server_id: string
           name: string
-          trigger_type: 'keyword_filter' | 'mention_spam' | 'link_spam'
+          trigger_type: 'keyword_filter' | 'regex_filter' | 'mention_spam' | 'link_spam' | 'rapid_message'
           config?: Json
+          conditions?: Json
           actions?: Json
+          priority?: number
           enabled?: boolean
           created_at?: string
           updated_at?: string
@@ -204,9 +214,11 @@ export type Database = {
           id?: string
           server_id?: string
           name?: string
-          trigger_type?: 'keyword_filter' | 'mention_spam' | 'link_spam'
+          trigger_type?: 'keyword_filter' | 'regex_filter' | 'mention_spam' | 'link_spam' | 'rapid_message'
           config?: Json
+          conditions?: Json
           actions?: Json
+          priority?: number
           enabled?: boolean
           created_at?: string
           updated_at?: string
@@ -1222,14 +1234,20 @@ export type ThreadMemberRow = Database['public']['Tables']['thread_members']['Ro
 export type ThreadReadStateRow = Database['public']['Tables']['thread_read_states']['Row']
 
 // AutoMod types
-export type AutoModTriggerType = 'keyword_filter' | 'mention_spam' | 'link_spam'
+export type AutoModTriggerType = 'keyword_filter' | 'regex_filter' | 'mention_spam' | 'link_spam' | 'rapid_message'
 
-export type AutoModActionType = 'block_message' | 'timeout_member' | 'alert_channel'
+export type AutoModActionType =
+  | 'block_message'
+  | 'quarantine_message'
+  | 'timeout_member'
+  | 'warn_member'
+  | 'alert_channel'
 
 export interface AutoModAction {
   type: AutoModActionType
   duration_seconds?: number  // for timeout_member
   channel_id?: string        // for alert_channel
+  warning_message?: string   // for warn_member
 }
 
 export interface KeywordFilterConfig {
@@ -1245,10 +1263,32 @@ export interface LinkSpamConfig {
   link_threshold: number
 }
 
-export type AutoModConfig = KeywordFilterConfig | MentionSpamConfig | LinkSpamConfig
+export interface RegexFilterConfig {
+  regex_patterns: string[]
+}
 
-export interface AutoModRuleWithParsed extends Omit<AutoModRuleRow, 'config' | 'actions'> {
+export interface RapidMessageConfig {
+  message_threshold: number
+  window_seconds: number
+}
+
+export interface AutoModConditions {
+  channel_ids?: string[]
+  role_ids?: string[]
+  min_account_age_minutes?: number
+  min_trust_level?: number
+}
+
+export type AutoModConfig =
+  | KeywordFilterConfig
+  | RegexFilterConfig
+  | MentionSpamConfig
+  | LinkSpamConfig
+  | RapidMessageConfig
+
+export interface AutoModRuleWithParsed extends Omit<AutoModRuleRow, 'config' | 'actions' | 'conditions'> {
   config: AutoModConfig
+  conditions: AutoModConditions
   actions: AutoModAction[]
 }
 

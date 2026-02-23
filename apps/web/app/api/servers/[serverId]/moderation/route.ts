@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data, error: dbErr } = await supabase
     .from("servers")
-    .select("verification_level, explicit_content_filter, default_message_notifications, screening_enabled")
+    .select("verification_level, explicit_content_filter, default_message_notifications, screening_enabled, automod_dry_run, automod_emergency_disable")
     .eq("id", serverId)
     .single()
 
@@ -67,6 +67,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "screening_enabled must be a boolean" }, { status: 400 })
     }
     updates.screening_enabled = v
+  }
+  if ("automod_dry_run" in body) {
+    const v = body.automod_dry_run
+    if (typeof v !== "boolean") {
+      return NextResponse.json({ error: "automod_dry_run must be a boolean" }, { status: 400 })
+    }
+    updates.automod_dry_run = v
+  }
+  if ("automod_emergency_disable" in body) {
+    const v = body.automod_emergency_disable
+    if (typeof v !== "boolean") {
+      return NextResponse.json({ error: "automod_emergency_disable must be a boolean" }, { status: 400 })
+    }
+    updates.automod_emergency_disable = v
   }
 
   if (Object.keys(updates).length === 0)

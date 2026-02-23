@@ -31,10 +31,27 @@ export async function GET(_req: NextRequest, { params }: Params) {
     .from("automod_rules")
     .select("*")
     .eq("server_id", serverId)
+    .order("priority", { ascending: true })
     .order("created_at", { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [])
+  const ruleIds = (data ?? []).map((rule) => rule.id)
+  const { data: analytics } = ruleIds.length
+    ? await (supabase as any).from("automod_rule_analytics").select("rule_id, hit_count, false_positive_count, last_triggered_at").in("rule_id", ruleIds)
+    : { data: [] as any[] }
+  const analyticsByRuleId = new Map((analytics ?? []).map((a: any) => [a.rule_id, a]))
+
+  return NextResponse.json(
+    (data ?? []).map((rule) => ({
+      ...rule,
+      analytics: analyticsByRuleId.get(rule.id) ?? {
+        rule_id: rule.id,
+        hit_count: 0,
+        false_positive_count: 0,
+        last_triggered_at: null,
+      },
+    }))
+  )
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -49,9 +66,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
   if (server.owner_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  let name: string, trigger_type: string, config: unknown, actions: unknown, enabled: unknown
+  let name: string, trigger_type: string, config: unknown, actions: unknown, conditions: unknown, priority: unknown, enabled: unknown
   try {
-    ;({ name, trigger_type, config, actions, enabled } = await req.json())
+    ;({ name, trigger_type, config, actions, conditions, priority, enabled } = await req.json())
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
@@ -60,7 +77,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!(VALID_TRIGGER_TYPES as readonly string[]).includes(trigger_type))
     return NextResponse.json({ error: `trigger_type must be one of: ${VALID_TRIGGER_TYPES.join(", ")}` }, { status: 400 })
 
-  const validationError = validateConfigAndActions(trigger_type, config, actions)
+  const validationError = validateConfigAndActions(trigger_type, config, actions, conditions)
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
 
   const { data: rule, error } = await supabase
@@ -70,7 +87,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       name: name.trim(),
       trigger_type: trigger_type as typeof VALID_TRIGGER_TYPES[number],
       config: config as any,
+      conditions: (conditions && typeof conditions === "object" && !Array.isArray(conditions) ? conditions : {}) as any,
       actions: actions as any,
+      priority: typeof priority === "number" ? priority : 100,
       enabled: typeof enabled === "boolean" ? enabled : true,
     })
     .select()

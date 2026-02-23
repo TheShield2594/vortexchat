@@ -5,6 +5,7 @@ import { sendPushToChannel } from "@/lib/push"
 import {
   evaluateAllRules,
   shouldBlockMessage,
+  shouldQuarantineMessage,
   getTimeoutDuration,
   getAlertChannels,
 } from "@/lib/automod"
@@ -185,49 +186,108 @@ export async function POST(request: Request) {
 
   // --- AutoMod evaluation (only for server channels) ---
   if (serverId && content?.trim()) {
+    const [{ data: automodSettingsRaw }, { data: memberRoles }] = await Promise.all([
+      supabase
+        .from("servers")
+        .select("automod_dry_run, automod_emergency_disable")
+        .eq("id", serverId)
+        .maybeSingle(),
+      supabase
+        .from("member_roles")
+        .select("role_id")
+        .eq("server_id", serverId)
+        .eq("user_id", user.id),
+    ])
+
+    const automodSettings = (automodSettingsRaw ?? {}) as { automod_dry_run?: boolean; automod_emergency_disable?: boolean }
+
+    if (automodSettings.automod_emergency_disable) {
+      // Emergency kill switch: bypass all runtime checks.
+    } else {
     const { data: rawRules } = await supabase
       .from("automod_rules")
-      .select("id, name, trigger_type, config, actions, enabled")
+      .select("id, name, trigger_type, config, conditions, actions, enabled, priority")
       .eq("server_id", serverId)
       .eq("enabled", true)
+      .order("priority", { ascending: true })
+      .order("created_at", { ascending: true })
 
     if (rawRules?.length) {
+      const earliestWindowSeconds = rawRules.reduce((acc, rule) => {
+        const cfg = rule.config as Record<string, unknown>
+        const windowSeconds = typeof cfg.window_seconds === "number" ? cfg.window_seconds : null
+        if (!windowSeconds) return acc
+        if (acc === null) return windowSeconds
+        return Math.max(acc, windowSeconds)
+      }, null as number | null)
+
+      let recentMessageCount = 0
+      if (earliestWindowSeconds) {
+        const since = new Date(Date.now() - earliestWindowSeconds * 1000).toISOString()
+        const { count } = await supabase
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .eq("channel_id", channelId)
+          .eq("author_id", user.id)
+          .gte("created_at", since)
+        recentMessageCount = count ?? 0
+      }
+
+      const accountAgeMinutes = Math.floor((Date.now() - new Date(user.created_at).getTime()) / 60_000)
+
       // Validate and normalize each rule before evaluation to avoid crashes on
       // malformed JSONB config/actions stored in the database.
       const rules: AutoModRuleWithParsed[] = rawRules.reduce<AutoModRuleWithParsed[]>((acc, r) => {
         if (!r || typeof r !== "object") return acc
         const config =
           r.config && typeof r.config === "object" && !Array.isArray(r.config) ? r.config : {}
+        const conditions =
+          r.conditions && typeof r.conditions === "object" && !Array.isArray(r.conditions)
+            ? r.conditions
+            : {}
         const actions = Array.isArray(r.actions)
           ? r.actions.filter((a: any) => a && typeof a === "object" && typeof a.type === "string")
           : []
-        acc.push({ ...r, config, actions } as unknown as AutoModRuleWithParsed)
+        acc.push({ ...r, config, conditions, actions } as unknown as AutoModRuleWithParsed)
         return acc
       }, [])
 
-      const violations = evaluateAllRules(rules, content.trim(), mentions)
+      const violations = evaluateAllRules(rules, content.trim(), mentions, {
+        channelId,
+        memberRoleIds: (memberRoles ?? []).map((r) => r.role_id),
+        accountAgeMinutes,
+        recentMessageCount,
+      })
 
       if (violations.length > 0) {
         // Determine whether the message will be blocked before writing the audit
         // log so the action name accurately reflects what happened.
         const blocked = shouldBlockMessage(violations)
+        const quarantined = shouldQuarantineMessage(violations)
+        const dryRun = Boolean(automodSettings?.automod_dry_run)
 
         await supabase.from("audit_logs").insert({
           server_id: serverId,
           actor_id: user.id,
-          action: blocked ? "automod_block" : "automod_action",
+          action: dryRun ? "automod_dry_run" : blocked ? "automod_block" : "automod_action",
           target_id: user.id,
           target_type: "user",
           changes: {
             channel_id: channelId,
             blocked,
+            quarantined,
+            dry_run: dryRun,
             violations: violations.map((v) => ({ rule_id: v.rule_id, rule_name: v.rule_name, reason: v.reason })),
           },
         })
 
+        for (const violation of violations) {
+          await (supabase as any).rpc("increment_automod_rule_hit", { p_rule_id: violation.rule_id })
+        }
+
         // Apply timeout if any rule demands it
         const timeoutDuration = getTimeoutDuration(violations)
-        if (timeoutDuration) {
+        if (timeoutDuration && !dryRun) {
           const until = new Date(Date.now() + timeoutDuration * 1000).toISOString()
           await supabase.from("member_timeouts").upsert(
             {
@@ -256,7 +316,7 @@ export async function POST(request: Request) {
         // system bot (SYSTEM_BOT_ID) rather than the violating user, bypassing
         // the messages RLS policy that would otherwise reject author_id ≠ uid().
         const alertChannels = getAlertChannels(violations)
-        if (alertChannels.length > 0) {
+        if (alertChannels.length > 0 && !dryRun) {
           // createServiceRoleClient is async; resolve once, then iterate.
           createServiceRoleClient()
             .then((serviceSupabase) => {
@@ -288,17 +348,18 @@ export async function POST(request: Request) {
         }
 
         // Block the message if any rule says to
-        if (blocked) {
+        if (!dryRun && (blocked || quarantined)) {
           return NextResponse.json(
             {
-              error: "Your message was blocked by AutoMod.",
-              code: "AUTOMOD_BLOCKED",
+              error: blocked ? "Your message was blocked by AutoMod." : "Your message was quarantined for moderator review.",
+              code: blocked ? "AUTOMOD_BLOCKED" : "AUTOMOD_QUARANTINED",
               reason: violations[0].reason,
             },
             { status: 403 }
           )
         }
       }
+    }
     }
   }
 

@@ -69,7 +69,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const allowed = ["name", "config", "actions", "enabled"]
+  const allowed = ["name", "config", "conditions", "actions", "enabled", "priority"]
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
     if (!(key in body)) continue
@@ -78,16 +78,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: "enabled must be a boolean" }, { status: 400 })
       }
       updates.enabled = body.enabled
+    } else if (key === "priority") {
+      if (typeof body.priority !== "number") {
+        return NextResponse.json({ error: "priority must be a number" }, { status: 400 })
+      }
+      updates.priority = body.priority
     } else {
       updates[key] = body[key]
     }
   }
 
   // Validate config and actions when either is being updated
-  if ("config" in updates || "actions" in updates) {
+  if ("config" in updates || "actions" in updates || "conditions" in updates) {
     const newTriggerType = rule!.trigger_type as string
     const newConfig = "config" in updates ? updates.config : rule!.config
     const newActions = "actions" in updates ? updates.actions : rule!.actions
+    const newConditions = "conditions" in updates ? updates.conditions : rule!.conditions
 
     if (newConfig === null || typeof newConfig !== "object" || Array.isArray(newConfig)) {
       return NextResponse.json({ error: "config must be a non-null object" }, { status: 400 })
@@ -96,7 +102,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "actions must be an array" }, { status: 400 })
     }
 
-    const validationError = validateConfigAndActions(newTriggerType, newConfig, newActions)
+    const validationError = validateConfigAndActions(newTriggerType, newConfig, newActions, newConditions)
     if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
   }
 
