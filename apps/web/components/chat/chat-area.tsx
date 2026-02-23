@@ -892,12 +892,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   onDelete={async () => {
                     const { error } = await supabase
                       .from("messages")
-                      .update({ deleted_at: new Date().toISOString() })
+                      .delete()
                       .eq("id", message.id)
-                    if (!error) {
-                      setMessages((prev) => prev.filter((m) => m.id !== message.id))
-                      setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
-                    }
+                    if (error) throw error
+                    setMessages((prev) => prev.filter((m) => m.id !== message.id))
+                    setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
                   }}
                   onReaction={async (emoji) => {
                     const existing = message.reactions.find(

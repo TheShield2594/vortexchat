@@ -56,8 +56,13 @@ export function MessageItem({
   const isOwn = message.author_id === currentUserId
 
   async function confirmDelete() {
-    await onDelete()
-    setShowDeleteDialog(false)
+    try {
+      await onDelete()
+      setShowDeleteDialog(false)
+      toast({ title: "Message deleted" })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to delete message", description: error?.message ?? "Please try again." })
+    }
   }
 
   const displayName =

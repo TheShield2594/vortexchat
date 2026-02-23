@@ -326,7 +326,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
                   onDelete={async () => {
                     const { error } = await supabase
                       .from("messages")
-                      .update({ deleted_at: new Date().toISOString() })
+                      .delete()
                       .eq("id", message.id)
                     if (!error) {
                       setMessages((prev) => prev.filter((m) => m.id !== message.id))
