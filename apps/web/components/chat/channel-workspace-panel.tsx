@@ -2,48 +2,69 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { CheckSquare, FileText, Plus } from "lucide-react"
-import type { ChannelRow } from "@/types/database"
+import type { ChannelDocRow, ChannelRow, ChannelTaskRow } from "@/types/database"
 import { taskStatusLabel, type TaskStatus } from "@/lib/workspace"
 
 interface Props {
   channel: ChannelRow
 }
 
+type ChannelTaskWithAssignee = ChannelTaskRow & {
+  assignee?: {
+    id: string
+    username: string
+    display_name: string | null
+    avatar_url: string | null
+  } | null
+}
+
 export function ChannelWorkspacePanel({ channel }: Props) {
   const [tab, setTab] = useState<"tasks" | "docs">("tasks")
-  const [tasks, setTasks] = useState<any[]>([])
-  const [docs, setDocs] = useState<any[]>([])
+  const [tasks, setTasks] = useState<ChannelTaskWithAssignee[]>([])
+  const [docs, setDocs] = useState<ChannelDocRow[]>([])
   const [taskTitle, setTaskTitle] = useState("")
   const [docTitle, setDocTitle] = useState("")
 
   useEffect(() => {
-    fetch(`/api/channels/${channel.id}/tasks`).then((r) => r.json()).then((d) => setTasks(d.tasks ?? []))
-    fetch(`/api/channels/${channel.id}/docs`).then((r) => r.json()).then((d) => setDocs(d.docs ?? []))
+    fetch(`/api/channels/${channel.id}/tasks`)
+      .then((r) => r.json())
+      .then((d: { tasks?: ChannelTaskWithAssignee[] }) => setTasks(d.tasks ?? []))
+
+    fetch(`/api/channels/${channel.id}/docs`)
+      .then((r) => r.json())
+      .then((d: { docs?: ChannelDocRow[] }) => setDocs(d.docs ?? []))
   }, [channel.id])
 
-  const openTasks = useMemo(() => tasks.filter((t) => t.status !== "done"), [tasks])
+  const sortedTasks = useMemo(
+    () => tasks.slice().sort((a, b) => Number(a.status === "done") - Number(b.status === "done")),
+    [tasks]
+  )
 
   async function createTask() {
-    if (!taskTitle.trim()) return
+    const trimmed = taskTitle.trim()
+    if (!trimmed) return
+
     const res = await fetch(`/api/channels/${channel.id}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: taskTitle.trim() }),
+      body: JSON.stringify({ title: trimmed }),
     })
-    const data = await res.json()
-    if (data.task) setTasks((prev) => [data.task, ...prev])
+    const data: { task?: ChannelTaskWithAssignee } = await res.json()
+    if (data.task) setTasks((prev) => [data.task!, ...prev])
     setTaskTitle("")
   }
 
   async function createDoc() {
-    if (!docTitle.trim()) return
+    const trimmed = docTitle.trim()
+    if (!trimmed) return
+
     const res = await fetch(`/api/channels/${channel.id}/docs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: docTitle.trim(), content: "" }),
+      body: JSON.stringify({ title: trimmed, content: "" }),
     })
-    const data = await res.json()
-    if (data.doc) setDocs((prev) => [data.doc, ...prev])
+    const data: { doc?: ChannelDocRow } = await res.json()
+    if (data.doc) setDocs((prev) => [data.doc!, ...prev])
     setDocTitle("")
   }
 
@@ -53,8 +74,8 @@ export function ChannelWorkspacePanel({ channel }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     })
-    const data = await res.json()
-    if (data.task) setTasks((prev) => prev.map((task) => (task.id === data.task.id ? data.task : task)))
+    const data: { task?: ChannelTaskWithAssignee } = await res.json()
+    if (data.task) setTasks((prev) => prev.map((task) => (task.id === data.task!.id ? data.task! : task)))
   }
 
   return (
@@ -74,10 +95,10 @@ export function ChannelWorkspacePanel({ channel }: Props) {
             <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="New task" className="flex-1 px-2 py-1 text-xs rounded" style={{ background: "#1e1f22", color: "#f2f3f5" }} />
             <button onClick={createTask} className="px-2 py-1 rounded" style={{ background: "#5865f2", color: "white" }}><Plus className="w-3 h-3" /></button>
           </div>
-          {openTasks.concat(tasks.filter((t) => t.status === "done")).map((task) => (
+          {sortedTasks.map((task) => (
             <div key={task.id} className="p-2 rounded border text-xs" style={{ borderColor: "#1e1f22", color: "#b5bac1" }}>
               <div className="font-medium text-white">{task.title}</div>
-              <div className="mt-1">{taskStatusLabel(task.status as TaskStatus)}</div>
+              <div className="mt-1">{taskStatusLabel(task.status)}</div>
               <select
                 value={task.status}
                 onChange={(e) => updateTaskStatus(task.id, e.target.value as TaskStatus)}

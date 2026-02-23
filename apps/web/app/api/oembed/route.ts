@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // Simple Open Graph scraper — fetches a URL and returns title, description, image, siteName
 // Runs server-side to avoid CORS issues and to not expose the target URL to analytics.
 
-async function getInternalWorkspacePreview(req: NextRequest, parsedUrl: URL) {
+async function getInternalWorkspacePreview(parsedUrl: URL) {
   const taskId = parsedUrl.searchParams.get("task")
   const docId = parsedUrl.searchParams.get("doc")
   if (!taskId && !docId) return null
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "invalid url" }, { status: 400 })
   }
 
-  const internalPreview = await getInternalWorkspacePreview(req, parsedUrl)
+  const internalPreview = await getInternalWorkspacePreview(parsedUrl)
   if (internalPreview) return NextResponse.json(internalPreview)
 
   // SSRF guard: resolve hostname and block private/reserved IPs
