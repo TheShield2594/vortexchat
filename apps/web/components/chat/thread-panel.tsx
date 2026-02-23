@@ -26,6 +26,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
   const [loading, setLoading] = useState(true)
   const [isMember, setIsMember] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const handledFocusRef = useRef<string | null>(null)
   const supabase = createClientSupabaseClient()
   const { toast } = useToast()
 
@@ -63,19 +64,28 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
   }, [loading])
 
   useEffect(() => {
-    if (!focusMessageId || loading) return
+    if (!focusMessageId) {
+      handledFocusRef.current = null
+      return
+    }
+    if (handledFocusRef.current === focusMessageId || loading) return
+
     const target = document.getElementById(`message-${focusMessageId}`)
     if (!target) return
+
     target.scrollIntoView({ block: "center", behavior: "smooth" })
     target.classList.add("ring-2", "ring-indigo-400/70", "rounded-md")
+    handledFocusRef.current = focusMessageId
+
     const timer = window.setTimeout(() => {
       target.classList.remove("ring-2", "ring-indigo-400/70", "rounded-md")
     }, 2200)
     return () => window.clearTimeout(timer)
-  }, [focusMessageId, loading, messages])
+  }, [focusMessageId, loading])
 
   useEffect(() => {
     setDraftContent("")
+    handledFocusRef.current = null
   }, [thread.id])
 
   // Realtime

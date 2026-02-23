@@ -1452,6 +1452,13 @@ export type Database = {
         Args: { p_message_id: string; p_name: string }
         Returns: Database['public']['Tables']['threads']['Row']
       }
+      get_thread_counts_by_channel: {
+        Args: { p_server_id: string }
+        Returns: {
+          parent_channel_id: string
+          count: number
+        }[]
+      }
       set_member_timeout: {
         Args: {
           p_server_id: string

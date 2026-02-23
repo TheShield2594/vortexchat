@@ -174,14 +174,18 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
 
       if (n.message_id) {
         params.set("message", n.message_id)
-        const { data: message } = await supabase
-          .from("messages")
-          .select("thread_id")
-          .eq("id", n.message_id)
-          .maybeSingle()
+        try {
+          const { data: message } = await supabase
+            .from("messages")
+            .select("thread_id")
+            .eq("id", n.message_id)
+            .maybeSingle()
 
-        const threadId = (message as { thread_id: string | null } | null)?.thread_id
-        if (threadId) params.set("thread", threadId)
+          const threadId = message?.thread_id
+          if (threadId) params.set("thread", threadId)
+        } catch (error) {
+          console.error("Failed to resolve thread context from notification", error)
+        }
       }
 
       const query = params.toString()

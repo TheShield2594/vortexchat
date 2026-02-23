@@ -173,16 +173,22 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     let cancelled = false
 
     async function loadThreadCounts() {
-      const response = await fetch(`/api/threads/counts?serverId=${server.id}`)
-      if (!response.ok) return
-      const data = await response.json()
-      if (!cancelled && data && typeof data === "object") {
-        setActiveThreadCounts(data as Record<string, number>)
+      try {
+        const response = await fetch(`/api/threads/counts?serverId=${server.id}`)
+        if (!response.ok) return
+        const data = await response.json()
+        if (!cancelled && data && typeof data === "object") {
+          setActiveThreadCounts(data as Record<string, number>)
+        }
+      } catch (error) {
+        console.error("Failed to load thread counts", error)
       }
     }
 
-    loadThreadCounts()
-    const interval = window.setInterval(loadThreadCounts, 30000)
+    void loadThreadCounts()
+    const interval = window.setInterval(() => {
+      void loadThreadCounts()
+    }, 30000)
     return () => {
       cancelled = true
       window.clearInterval(interval)

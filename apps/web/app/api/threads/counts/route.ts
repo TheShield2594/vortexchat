@@ -12,18 +12,25 @@ export async function GET(request: Request) {
   const serverId = searchParams.get("serverId")
   if (!serverId) return NextResponse.json({ error: "serverId required" }, { status: 400 })
 
-  const { data: threads, error } = await supabase
-    .from("threads")
-    .select("parent_channel_id, channels!inner(server_id)")
-    .eq("archived", false)
-    .eq("channels.server_id", serverId)
+  const { data: membership, error: membershipError } = await supabase
+    .from("server_members")
+    .select("user_id")
+    .eq("server_id", serverId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 })
+  if (!membership) return NextResponse.json({ error: "Not a member of this server" }, { status: 403 })
+
+  const { data, error } = await supabase.rpc("get_thread_counts_by_channel", {
+    p_server_id: serverId,
+  })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const counts: Record<string, number> = {}
-  for (const thread of threads ?? []) {
-    const channelId = (thread as { parent_channel_id: string }).parent_channel_id
-    counts[channelId] = (counts[channelId] ?? 0) + 1
+  for (const row of data ?? []) {
+    counts[row.parent_channel_id] = Number(row.count)
   }
 
   return NextResponse.json(counts)
