@@ -57,6 +57,14 @@
 }
 
 @layer utilities {
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865f2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#2b2d31];
+  }
+
+  .tertiary-metadata {
+    color: #a3aab5;
+  }
+
   /* Speaking animation */
   .speaking-ring {
     box-shadow: 0 0 0 3px #23a55a;

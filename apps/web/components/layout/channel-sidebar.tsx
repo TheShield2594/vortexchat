@@ -374,7 +374,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         {/* Server header */}
         <button
           onClick={() => setShowServerSettings(true)}
-          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-white/5 transition-colors group"
+          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-white/5 transition-colors group focus-ring" aria-label="Open server settings"
           style={{ borderColor: '#1e1f22' }}
         >
           <span className="font-semibold text-white truncate text-sm">{server.name}</span>
@@ -383,7 +383,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
         <button
           onClick={() => router.push(`/channels/${server.id}/events`)}
-          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10"
+          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10 focus-ring" aria-label="Open server events"
         >
           <CalendarDays className="h-4 w-4" />
           Events
@@ -392,24 +392,26 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         <div className="mx-2 mt-2 space-y-1">
           <button
             onClick={() => setQuickSwitcherOpen(true)}
-            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10"
+            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10 focus-ring"
+            aria-label="Open quick switcher"
           >
             <span className="flex items-center gap-2">
               <Command className="h-4 w-4" />
               Quick Switcher
             </span>
-            <span className="text-[10px] uppercase tracking-wide text-zinc-400">⌘K</span>
+            <span className="text-[10px] uppercase tracking-wide tertiary-metadata">⌘K</span>
           </button>
 
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10"
+            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10 focus-ring"
+            aria-label="Open channel search"
           >
             <span className="flex items-center gap-2">
               <Search className="h-4 w-4" />
               Search
             </span>
-            <span className="text-[10px] uppercase tracking-wide text-zinc-400">⌘F</span>
+            <span className="text-[10px] uppercase tracking-wide tertiary-metadata">⌘F</span>
           </button>
 
           <NotificationBell userId={currentUserId} variant="sidebar" />
@@ -474,7 +476,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                         {/* Drop hint for empty categories */}
                         {categoryChannels.length === 0 && activeId && (
                           <div className="h-8 rounded border border-dashed border-white/20 flex items-center justify-center">
-                            <span className="text-xs" style={{ color: '#949ba4' }}>Drop here</span>
+                            <span className="text-xs tertiary-metadata">Drop here</span>
                           </div>
                         )}
                       </div>
@@ -505,8 +507,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                   setCreateChannelCategoryId(undefined)
                   setShowCreateChannel(true)
                 }}
-                className="flex items-center gap-1 px-2 py-1 rounded w-full hover:bg-white/5 transition-colors"
-                style={{ color: '#949ba4' }}
+                className="flex items-center gap-1 px-2 py-1 rounded w-full hover:bg-white/5 transition-colors focus-ring tertiary-metadata" aria-label="Add channel"
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-sm">Add Channel</span>
@@ -558,14 +559,14 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             <DialogFooter>
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 rounded text-sm font-medium transition-colors hover:bg-white/10"
+                className="px-4 py-2 rounded text-sm font-medium transition-colors hover:bg-white/10 focus-ring"
                 style={{ color: '#b5bac1' }}
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDeleteChannel}
-                className="px-4 py-2 rounded text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
+                className="px-4 py-2 rounded text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors focus-ring"
               >
                 Delete Channel
               </button>
@@ -595,10 +596,10 @@ function ChannelIcon({ channel, isVoiceActive }: { channel: ChannelRow; isVoiceA
   const iconStyle = { color: isVoiceActive ? '#23a55a' : undefined }
   switch (channel.type) {
     case "voice":        return <Volume2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
-    case "forum":        return <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
+    case "forum":        return <MessageSquare className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
     case "stage":        return <Mic2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
-    case "announcement": return <Megaphone className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
-    case "media":        return <Image className="w-4 h-4 flex-shrink-0" style={{ color: '#949ba4' }} />
+    case "announcement": return <Megaphone className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
+    case "media":        return <Image className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
     default:             return <Hash className="w-4 h-4 flex-shrink-0" />
   }
 }
@@ -621,18 +622,27 @@ function CategoryHeader({
   return (
     <div
       className={cn(
-        "flex items-center justify-between px-2 py-1 cursor-pointer group rounded mx-1 transition-colors",
+        "flex items-center justify-between px-2 py-1 cursor-pointer group rounded mx-1 transition-colors focus-ring",
         isDragOver && "bg-white/5"
       )}
+      role="button"
+      tabIndex={0}
       onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onToggle()
+        }
+      }}
+      aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
     >
       <div className="flex items-center gap-1">
         {isCollapsed ? (
-          <ChevronRight className="w-3 h-3" style={{ color: '#949ba4' }} />
+          <ChevronRight className="w-3 h-3 tertiary-metadata" />
         ) : (
-          <ChevronDown className="w-3 h-3" style={{ color: '#949ba4' }} />
+          <ChevronDown className="w-3 h-3 tertiary-metadata" />
         )}
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#949ba4' }}>
+        <span className="text-xs font-semibold uppercase tracking-wider tertiary-metadata">
           {category.name}
         </span>
       </div>
@@ -641,8 +651,7 @@ function CategoryHeader({
           <TooltipTrigger asChild>
             <button
               onClick={(e) => { e.stopPropagation(); onAddChannel() }}
-              className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity"
-              style={{ color: '#949ba4' }}
+              className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -719,8 +728,9 @@ function SortableChannelItem({
                 onClick()
               }
             }}
+            aria-label={`${channel.type} channel ${channel.name}`}
             className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel cursor-pointer select-none",
+              "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel cursor-pointer select-none focus-ring",
               isActive || isVoiceActive
                 ? "bg-white/10 text-white"
                 : isUnread
@@ -735,14 +745,14 @@ function SortableChannelItem({
                 className="opacity-0 group-hover/channel:opacity-100 cursor-grab active:cursor-grabbing flex-shrink-0 -ml-1 touch-none"
                 onClick={(e) => e.stopPropagation()}
               >
-                <GripVertical className="w-3 h-3" style={{ color: '#949ba4' }} />
+                <GripVertical className="w-3 h-3 tertiary-metadata" />
               </span>
             )}
             <ChannelIcon channel={channel} isVoiceActive={isVoiceActive} />
             <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>
               {channel.name}
             </span>
-            <span className="ml-auto flex items-center gap-1 flex-shrink-0">
+            <span className="ml-auto flex items-center gap-1 flex-shrink-0 tertiary-metadata">
               {timeRemaining && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -776,7 +786,7 @@ function SortableChannelItem({
           </div>
         </ContextMenuTrigger>
 
-        <ContextMenuContent className="w-48">
+        <ContextMenuContent className="w-48" aria-label={`Channel actions for #${channel.name}`}>
           <ContextMenuItem onClick={() => {
             navigator.clipboard.writeText(channel.id)
             toast({ title: "Channel ID copied!" })

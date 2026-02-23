@@ -122,8 +122,11 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
       {variant === "sidebar" ? (
         <button
           onClick={() => setOpen((v) => !v)}
-          className="relative flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10"
+          className="relative flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 transition-colors hover:bg-white/10 focus-ring"
           title="Inbox"
+          aria-label="Open inbox"
+          aria-expanded={open}
+          aria-haspopup="dialog"
         >
           <span className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
@@ -141,9 +144,12 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
       ) : (
         <button
           onClick={() => setOpen((v) => !v)}
-          className="relative w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
+          className="relative w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 focus-ring"
           style={{ color: open ? "#f2f3f5" : "#949ba4" }}
           title="Notifications"
+          aria-label="Open notifications"
+          aria-expanded={open}
+          aria-haspopup="dialog"
         >
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
@@ -160,6 +166,8 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
       {/* Panel */}
       {open && (
         <div
+          role="dialog"
+          aria-label="Notifications inbox"
           className="absolute right-0 top-full mt-2 w-80 rounded-xl shadow-2xl overflow-hidden z-50"
           style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
         >
@@ -169,9 +177,10 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex items-center gap-1 text-xs transition-colors hover:text-white"
+                className="flex items-center gap-1 text-xs transition-colors hover:text-white focus-ring rounded px-1"
                 style={{ color: "#949ba4" }}
                 title="Mark all as read"
+                aria-label="Mark all notifications as read"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 Mark all read
@@ -183,8 +192,8 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
-                <Bell className="w-8 h-8" style={{ color: "#4e5058" }} />
-                <p className="text-sm" style={{ color: "#949ba4" }}>All caught up!</p>
+                <Bell className="w-8 h-8 tertiary-metadata" />
+                <p className="text-sm tertiary-metadata">All caught up!</p>
               </div>
             ) : (
               notifications.map((n) => (
@@ -209,27 +218,28 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                         {!n.read && (
                           <button
                             onClick={(e) => { e.stopPropagation(); markRead(n.id) }}
-                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10"
+                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring"
                             style={{ color: "#949ba4" }}
                             title="Mark as read"
+                            aria-label="Mark notification as read"
                           >
                             <Check className="w-3 h-3" />
                           </button>
                         )}
                         <button
                           onClick={(e) => { e.stopPropagation(); dismiss(n.id) }}
-                          className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10"
-                          style={{ color: "#4e5058" }}
+                          className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring tertiary-metadata"
                           title="Dismiss"
+                          aria-label="Dismiss notification"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
                     {n.body && (
-                      <p className="text-xs truncate mt-0.5" style={{ color: "#949ba4" }}>{n.body}</p>
+                      <p className="text-xs truncate mt-0.5 tertiary-metadata">{n.body}</p>
                     )}
-                    <p className="text-xs mt-0.5" style={{ color: "#4e5058" }}>
+                    <p className="text-xs mt-0.5 tertiary-metadata">
                       {format(new Date(n.created_at), "MMM d, h:mm a")}
                     </p>
                   </div>
