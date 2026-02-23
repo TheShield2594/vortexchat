@@ -30,6 +30,7 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { CreateChannelModal } from "@/components/modals/create-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
@@ -88,6 +89,30 @@ function buildItems(grouped: GroupedChannels): Record<string, string[]> {
   return items
 }
 
+/**
+ * Merge incoming channel data into the current drag-ordered items.
+ * - Preserves the existing display order within each container.
+ * - Appends channels that arrived while dragging to the end of their container.
+ * - Removes channels that were deleted while dragging.
+ */
+function mergeItemsPreservingOrder(
+  prev: Record<string, string[]>,
+  next: Record<string, string[]>
+): Record<string, string[]> {
+  const merged: Record<string, string[]> = {}
+  const allContainers = new Set([...Object.keys(prev), ...Object.keys(next)])
+  for (const containerId of allContainers) {
+    const prevIds = prev[containerId] ?? []
+    const nextIds = next[containerId] ?? []
+    const nextSet = new Set(nextIds)
+    const kept = prevIds.filter((id) => nextSet.has(id))
+    const keptSet = new Set(kept)
+    const added = nextIds.filter((id) => !keptSet.has(id))
+    merged[containerId] = [...kept, ...added]
+  }
+  return merged
+}
+
 export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
   const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel } = useAppStore()
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
@@ -97,8 +122,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [activeId, setActiveId] = useState<string | null>(null)
   const [items, setItems] = useState<Record<string, string[]>>({})
   const [overContainerId, setOverContainerId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const router = useRouter()
   const { toast } = useToast()
+
+  // Always reflects the latest committed items — used in drag handlers to avoid stale closures
+  const itemsRef = useRef<Record<string, string[]>>({})
+  itemsRef.current = items
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -117,15 +147,19 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const channels = storeChannels[server.id] ?? initialChannels
   const grouped = groupChannels(channels)
 
-  // Sync items whenever channels change but not during an active drag
+  // Sync items on channel changes.
+  // During an active drag, merge instead of replacing so realtime inserts/deletes
+  // are not dropped and the in-progress drag order is preserved.
   useEffect(() => {
-    if (!activeId) {
+    if (activeId) {
+      setItems((prev) => mergeItemsPreservingOrder(prev, buildItems(grouped)))
+    } else {
       setItems(buildItems(grouped))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channels, activeId])
 
-  // Subscribe to realtime channel changes
+  // Subscribe to realtime channel changes (INSERT / UPDATE / DELETE)
   useEffect(() => {
     const supabase = createClientSupabaseClient()
     const subscription = supabase
@@ -137,12 +171,17 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       )
       .on(
         "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "channels", filter: `server_id=eq.${server.id}` },
+        (payload) => { updateChannel((payload.new as ChannelRow).id, payload.new as ChannelRow) }
+      )
+      .on(
+        "postgres_changes",
         { event: "DELETE", schema: "public", table: "channels", filter: `server_id=eq.${server.id}` },
         (payload) => { removeChannel((payload.old as { id: string }).id) }
       )
       .subscribe()
     return () => { supabase.removeChannel(subscription) }
-  }, [server.id, addChannel, removeChannel])
+  }, [server.id, addChannel, updateChannel, removeChannel])
 
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
@@ -166,8 +205,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     })
   }
 
-  async function handleDeleteChannel(channelId: string, channelName: string) {
-    if (!window.confirm(`Are you sure you want to delete #${channelName}? This cannot be undone.`)) return
+  async function confirmDeleteChannel() {
+    if (!deleteTarget) return
+    const { id: channelId } = deleteTarget
+    setDeleteTarget(null)
     const supabase = createClientSupabaseClient()
     try {
       const { error } = await supabase.from("channels").delete().eq("id", channelId)
@@ -183,7 +224,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }
 
   function findContainer(channelId: string): string | null {
-    for (const [containerId, channelIds] of Object.entries(items)) {
+    for (const [containerId, channelIds] of Object.entries(itemsRef.current)) {
       if (channelIds.includes(channelId)) return containerId
     }
     return null
@@ -201,13 +242,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const draggedId = active.id as string
     const overId = over.id as string
 
-    const targetContainer = items[overId] !== undefined ? overId : findContainer(overId)
+    const targetContainer = itemsRef.current[overId] !== undefined ? overId : findContainer(overId)
     setOverContainerId(targetContainer)
 
     const sourceContainer = findContainer(draggedId)
     if (!sourceContainer || !targetContainer || sourceContainer === targetContainer) return
 
-    // Move optimistically between containers
+    // Move optimistically between containers; keep ref in sync immediately
     setItems((prev) => {
       const sourceItems = [...(prev[sourceContainer] ?? [])]
       const targetItems = [...(prev[targetContainer] ?? [])]
@@ -223,7 +264,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         targetItems.splice(overIndex, 0, draggedId)
       }
 
-      return { ...prev, [sourceContainer]: sourceItems, [targetContainer]: targetItems }
+      const next = { ...prev, [sourceContainer]: sourceItems, [targetContainer]: targetItems }
+      itemsRef.current = next
+      return next
     })
   }
 
@@ -237,46 +280,59 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const draggedId = active.id as string
     const overId = over.id as string
 
+    // Read from ref to get the latest state (avoids stale closure from batched updates)
+    const latestItems = itemsRef.current
     const sourceContainer = findContainer(draggedId)
-    const targetContainer = items[overId] !== undefined ? overId : findContainer(overId)
+    const targetContainer = latestItems[overId] !== undefined ? overId : findContainer(overId)
 
     if (!sourceContainer || !targetContainer) return
 
     if (sourceContainer === targetContainer && draggedId !== overId) {
-      // Reorder within same container
-      setItems((prev) => {
-        const containerItems = [...(prev[sourceContainer] ?? [])]
-        const oldIndex = containerItems.indexOf(draggedId)
-        const newIndex = containerItems.indexOf(overId)
-        if (oldIndex === -1 || newIndex === -1) return prev
-        const reordered = arrayMove(containerItems, oldIndex, newIndex)
-        persistChannelOrder(sourceContainer, reordered)
-        return { ...prev, [sourceContainer]: reordered }
-      })
+      // Compute the reordered array first, then update state and persist — no side
+      // effects inside the functional updater
+      const containerItems = [...(latestItems[sourceContainer] ?? [])]
+      const oldIndex = containerItems.indexOf(draggedId)
+      const newIndex = containerItems.indexOf(overId)
+      if (oldIndex === -1 || newIndex === -1) return
+      const reordered = arrayMove(containerItems, oldIndex, newIndex)
+      setItems((prev) => ({ ...prev, [sourceContainer]: reordered }))
+      persistChannelOrder(sourceContainer, reordered)
     } else if (sourceContainer !== targetContainer) {
-      // Cross-container move already applied in handleDragOver; persist both
-      persistChannelOrder(sourceContainer, items[sourceContainer] ?? [])
-      persistChannelOrder(targetContainer, items[targetContainer] ?? [])
+      // Cross-container move was already applied in handleDragOver; persist both
+      persistChannelOrder(sourceContainer, latestItems[sourceContainer] ?? [])
+      persistChannelOrder(targetContainer, latestItems[targetContainer] ?? [])
     }
   }
 
   async function persistChannelOrder(containerId: string, orderedIds: string[]) {
+    if (orderedIds.length === 0) return
     const supabase = createClientSupabaseClient()
     const newParentId = containerId === NO_CATEGORY ? null : containerId
 
-    // Optimistically update store
-    for (const id of orderedIds) {
-      updateChannel(id, { parent_id: newParentId })
-    }
+    // Capture current state for rollback
+    const previous = orderedIds.map((id) => {
+      const ch = channels.find((c) => c.id === id)
+      return { id, position: ch?.position ?? 0, parent_id: ch?.parent_id ?? null }
+    })
+
+    // Optimistic update — both parent_id and position
+    orderedIds.forEach((id, i) => {
+      updateChannel(id, { parent_id: newParentId, position: i })
+    })
 
     try {
-      for (let i = 0; i < orderedIds.length; i++) {
-        await supabase
-          .from("channels")
-          .update({ position: i, parent_id: newParentId })
-          .eq("id", orderedIds[i])
-      }
+      const results = await Promise.all(
+        orderedIds.map((id, i) =>
+          supabase.from("channels").update({ position: i, parent_id: newParentId }).eq("id", id)
+        )
+      )
+      const failed = results.find(({ error }) => error)
+      if (failed?.error) throw failed.error
     } catch (error: any) {
+      // Rollback optimistic update
+      for (const { id, position, parent_id } of previous) {
+        updateChannel(id, { position, parent_id })
+      }
       toast({ variant: "destructive", title: "Failed to save channel order", description: error.message })
     }
   }
@@ -366,7 +422,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                               }
                               router.push(`/channels/${server.id}/${channel.id}`)
                             }}
-                            onDelete={() => handleDeleteChannel(channel.id, channel.name)}
+                            onDelete={() => setDeleteTarget({ id: channel.id, name: channel.name })}
                           />
                         ))}
 
@@ -431,6 +487,35 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           isOwner={isOwner}
           channels={webhookEligibleChannels}
         />
+
+        {/* Delete channel confirmation dialog */}
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+          <DialogContent style={{ background: '#313338', borderColor: '#1e1f22' }}>
+            <DialogHeader>
+              <DialogTitle className="text-white">Delete Channel</DialogTitle>
+              <DialogDescription style={{ color: '#b5bac1' }}>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-white">#{deleteTarget?.name}</span>?
+                {" "}This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded text-sm font-medium transition-colors hover:bg-white/10"
+                style={{ color: '#b5bac1' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteChannel}
+                className="px-4 py-2 rounded text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
+              >
+                Delete Channel
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   )
@@ -534,10 +619,23 @@ function SortableChannelItem({
     <div ref={setNodeRef} style={style}>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <button
+          {/*
+            Use a div with role="button" instead of a native <button> so the
+            drag-handle span (which carries dnd-kit's event listeners) is not an
+            interactive element nested inside another interactive element.
+          */}
+          <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                onClick()
+              }
+            }}
             className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel",
+              "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left transition-colors text-sm group/channel cursor-pointer select-none",
               isActive || isVoiceActive
                 ? "bg-white/10 text-white"
                 : isUnread
@@ -574,7 +672,7 @@ function SortableChannelItem({
                 <span className="w-2 h-2 rounded-full" style={{ background: "#f2f3f5" }} />
               ) : null}
             </span>
-          </button>
+          </div>
         </ContextMenuTrigger>
 
         <ContextMenuContent className="w-48">
