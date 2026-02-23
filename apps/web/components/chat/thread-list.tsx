@@ -10,10 +10,11 @@ import { cn } from "@/lib/utils/cn"
 interface Props {
   channelId: string
   activeThreadId: string | null
+  filter: "all" | "active" | "archived"
   onSelectThread: (thread: ThreadRow) => void
 }
 
-export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props) {
+export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }: Props) {
   const [threads, setThreads] = useState<ThreadRow[]>([])
   const [showArchived, setShowArchived] = useState(false)
   const [archivedThreads, setArchivedThreads] = useState<ThreadRow[]>([])
@@ -75,7 +76,11 @@ export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props)
     }
   )
 
-  if (threads.length === 0 && !showArchived) return null
+  const visibleThreads = filter === "archived" ? [] : threads
+  const visibleArchivedThreads = filter === "active" ? [] : archivedThreads
+  const shouldAllowArchivedToggle = filter !== "active"
+
+  if (visibleThreads.length === 0 && !showArchived && filter !== "archived") return null
 
   return (
     <div
@@ -105,7 +110,7 @@ export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props)
 
       {expanded && (
         <>
-          {threads.map((thread) => (
+          {visibleThreads.map((thread) => (
             <ThreadListItem
               key={thread.id}
               thread={thread}
@@ -114,24 +119,25 @@ export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props)
             />
           ))}
 
-          {/* Archived toggle */}
-          <button
-            onClick={() => setShowArchived((s) => !s)}
-            className="flex items-center gap-2 w-full px-4 py-1.5 text-xs hover:bg-white/5 transition-colors"
-            style={{ color: "#6d6f78" }}
-          >
-            <Archive className="w-3 h-3" />
-            {showArchived ? "Hide archived" : "Show archived threads"}
-          </button>
+          {shouldAllowArchivedToggle && (
+            <button
+              onClick={() => setShowArchived((s) => !s)}
+              className="flex items-center gap-2 w-full px-4 py-1.5 text-xs hover:bg-white/5 transition-colors"
+              style={{ color: "#6d6f78" }}
+            >
+              <Archive className="w-3 h-3" />
+              {showArchived ? "Hide archived" : "Show archived threads"}
+            </button>
+          )}
 
-          {showArchived && (
+          {(showArchived || filter === "archived") && (
             <>
               {loadingArchived ? (
                 <div className="px-4 py-2 text-xs" style={{ color: "#6d6f78" }}>
                   Loading…
                 </div>
               ) : (
-                archivedThreads.map((thread) => (
+                visibleArchivedThreads.map((thread) => (
                   <ThreadListItem
                     key={thread.id}
                     thread={thread}
