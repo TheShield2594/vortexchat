@@ -189,7 +189,7 @@ export function MessageItem({
         <div
           id={containerId}
           className={cn(
-            "relative group px-4 message-hover transition-colors duration-300 ease-out",
+            "relative group px-4 message-hover motion-interactive",
             highlighted && "bg-[#5865f233]",
             isGrouped ? "py-0.5" : "pt-4 pb-0.5"
           )}
@@ -242,7 +242,7 @@ export function MessageItem({
                 <div className="pt-1 pr-1 flex items-center justify-end gap-1">
                   <span
                     id={messageMetaId}
-                    className="text-xs opacity-0 group-hover:opacity-100 transition-opacity block text-right tertiary-metadata"
+                    className="text-xs opacity-0 group-hover:opacity-100 motion-interactive block text-right tertiary-metadata"
                     style={{ fontSize: "10px" }}
                   >
                     {format(timestamp, "HH:mm")}
@@ -370,7 +370,7 @@ export function MessageItem({
                         <button
                           key={emoji}
                           onClick={() => onReaction(emoji)}
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-colors"
+                          className="motion-interactive motion-press flex items-center gap-1 px-2 py-0.5 rounded-full text-sm hover:-translate-y-px"
                           aria-label={`Toggle ${emoji} reaction`}
                           style={{
                             background: hasOwn
@@ -391,9 +391,14 @@ export function MessageItem({
           </div>
 
           {/* Action buttons */}
-          {showActions && !isEditing && (
+          {!isEditing && (
             <div
-              className="absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden"
+              aria-hidden={!showActions}
+              inert={!showActions}
+              className={cn(
+                "action-rail-motion absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden",
+                showActions ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-1"
+              )}
               style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
             >
               {/* Quick reactions */}
@@ -403,7 +408,8 @@ export function MessageItem({
                     <button
                       key={emoji}
                       onClick={() => { onReaction(emoji); setShowEmojiPicker(false) }}
-                      className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm transition-colors focus-ring"
+                      className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm focus-ring"
+                      tabIndex={showActions ? 0 : -1}
                       aria-label={`Add ${emoji} reaction`}
                     >
                       {emoji}
@@ -414,22 +420,24 @@ export function MessageItem({
 
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
+                className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
                 style={{ color: "#b5bac1" }}
                 title="Add Reaction"
                 aria-label="Add reaction"
                 aria-describedby={messageMetaId}
+                tabIndex={showActions ? 0 : -1}
               >
                 <Smile className="w-4 h-4" />
               </button>
 
               <button
                 onClick={onReply}
-                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
+                className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
                 style={{ color: "#b5bac1" }}
                 title="Reply"
                 aria-label="Reply to message"
                 aria-describedby={messageMetaId}
+                tabIndex={showActions ? 0 : -1}
               >
                 <Reply className="w-4 h-4" />
               </button>
@@ -437,11 +445,12 @@ export function MessageItem({
               {onThreadCreated && (
                 <button
                   onClick={() => setShowCreateThread(true)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
                   style={{ color: "#b5bac1" }}
                   title="Create Thread"
                   aria-label="Create thread from message"
                   aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
                 >
                   <MessageSquare className="w-4 h-4" />
                 </button>
@@ -450,11 +459,12 @@ export function MessageItem({
               {isOwn && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
                   style={{ color: "#b5bac1" }}
                   title="Edit"
                   aria-label="Edit message"
                   aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -463,11 +473,12 @@ export function MessageItem({
               {sendState === "failed" && onRetry && (
                 <button
                   onClick={onRetry}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
                   style={{ color: "#f0b232" }}
                   title="Retry send"
                   aria-label="Retry sending message"
                   aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
                 >
                   <RefreshCcw className="w-4 h-4" />
                 </button>
@@ -476,11 +487,12 @@ export function MessageItem({
               {isOwn && (
                 <button
                   onClick={() => setShowDeleteDialog(true)}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-red-500/20 transition-colors focus-ring"
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-red-500/20 focus-ring"
                   style={{ color: "#f23f43" }}
                   title="Delete"
                   aria-label="Delete message"
                   aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -585,7 +597,7 @@ function AttachmentDisplay({ attachment }: { attachment: AttachmentRow }) {
       href={attachment.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-3 p-3 rounded max-w-sm transition-colors hover:bg-white/5"
+      className="motion-interactive flex items-center gap-3 p-3 rounded max-w-sm hover:bg-white/5"
       style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
     >
       <div

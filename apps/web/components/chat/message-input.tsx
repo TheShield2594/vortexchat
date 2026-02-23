@@ -199,7 +199,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   if (url) { URL.revokeObjectURL(url); fileUrlCache.current.delete(files[i]) }
                   setFiles((prev) => prev.filter((_, j) => j !== i))
                 }}
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="motion-interactive absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
                 style={{ background: "#f23f43" }}
               >
                 <X className="w-2.5 h-2.5 text-white" />
@@ -220,7 +220,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         {/* Attach file */}
         <button
           onClick={() => fileRef.current?.click()}
-          className="flex-shrink-0 mb-1 hover:text-white transition-colors"
+          className="motion-interactive motion-press flex-shrink-0 mb-1 hover:text-white"
           style={{ color: "#b5bac1" }}
           title="Attach File"
         >
@@ -268,7 +268,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         <div className="relative flex-shrink-0 mb-1">
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="hover:text-white transition-colors"
+            className="motion-interactive motion-press hover:text-white"
             style={{ color: "#b5bac1" }}
             title="Emoji"
           >
@@ -277,7 +277,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
           {showEmojiPicker && (
             <div
-              className="absolute bottom-8 right-0 p-2 rounded-lg shadow-xl z-50 grid grid-cols-6 gap-1"
+              data-state="open"
+              className="panel-surface-motion absolute bottom-8 right-0 p-2 rounded-lg shadow-xl z-50 grid grid-cols-6 gap-1"
               style={{ background: "#2b2d31", border: "1px solid #1e1f22", width: "200px" }}
             >
               {COMMON_EMOJIS.map((emoji) => (
@@ -291,7 +292,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     setShowEmojiPicker(false)
                     textareaRef.current?.focus()
                   }}
-                  className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-lg"
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-lg"
                 >
                   {emoji}
                 </button>
@@ -305,7 +306,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <button
             onClick={handleSend}
             disabled={sending}
-            className="flex-shrink-0 mb-1 hover:text-white transition-colors"
+            className="motion-interactive motion-press flex-shrink-0 mb-1 hover:text-white"
             style={{ color: "#5865f2" }}
             title="Send Message"
           >
