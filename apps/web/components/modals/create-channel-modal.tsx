@@ -2,15 +2,26 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Hash, Volume2, FolderOpen, MessageSquare, Mic2, Megaphone, Image } from "lucide-react"
+import { Loader2, Hash, Volume2, FolderOpen, MessageSquare, Mic2, Megaphone, Image, Clock } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ChannelType } from "@vortex/shared"
+
+/** Available expiry durations in seconds → human label */
+const EXPIRY_OPTIONS: { label: string; seconds: number }[] = [
+  { label: "1 hour",   seconds: 60 * 60 },
+  { label: "6 hours",  seconds: 6 * 60 * 60 },
+  { label: "12 hours", seconds: 12 * 60 * 60 },
+  { label: "1 day",    seconds: 24 * 60 * 60 },
+  { label: "3 days",   seconds: 3 * 24 * 60 * 60 },
+  { label: "1 week",   seconds: 7 * 24 * 60 * 60 },
+]
 
 interface Props {
   open: boolean
@@ -26,7 +37,17 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [type, setType] = useState<ChannelType>("text")
+  const [isTemporary, setIsTemporary] = useState(false)
+  const [expirySeconds, setExpirySeconds] = useState(EXPIRY_OPTIONS[3].seconds) // default 1 day
   const supabase = createClientSupabaseClient()
+
+  function resetForm() {
+    setName("")
+    setType("text")
+    setIsTemporary(false)
+    setExpirySeconds(EXPIRY_OPTIONS[3].seconds)
+    onClose()
+  }
 
   async function handleCreate() {
     if (!name.trim()) return
@@ -49,6 +70,10 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
         throw new Error(`A ${type} channel named "${channelName}" already exists.`)
       }
 
+      const expiresAt = isTemporary && type !== "category"
+        ? new Date(Date.now() + expirySeconds * 1000).toISOString()
+        : null
+
       const { data: channel, error } = await supabase
         .from("channels")
         .insert({
@@ -56,6 +81,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
           name: channelName,
           type,
           parent_id: categoryId || null,
+          expires_at: expiresAt,
         })
         .select()
         .single()
@@ -64,7 +90,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
 
       addChannel(channel)
       toast({ title: `Channel #${channel.name} created!` })
-      onClose()
+      resetForm()
 
       if (type !== "voice" && type !== "category") {
         router.push(`/channels/${serverId}/${channel.id}`)
@@ -73,8 +99,6 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
       toast({ variant: "destructive", title: "Failed to create channel", description: error.message })
     } finally {
       setLoading(false)
-      setName("")
-      setType("text")
     }
   }
 
@@ -135,7 +159,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
   }
 
   return (
-    <Dialog open={open} onOpenChange={() => { setName(""); setType("text"); onClose() }}>
+    <Dialog open={open} onOpenChange={resetForm}>
       <DialogContent style={{ background: '#313338', borderColor: '#1e1f22', maxWidth: '460px' }}>
         <DialogHeader>
           <DialogTitle className="text-white">Create Channel</DialogTitle>
@@ -197,10 +221,58 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
             </div>
           </div>
 
+          {/* Temporary channel toggle (not available for categories) */}
+          {type !== "category" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" style={{ color: '#949ba4' }} />
+                  <div>
+                    <Label className="text-sm font-medium text-white cursor-pointer" htmlFor="temporary-toggle">
+                      Temporary Channel
+                    </Label>
+                    <p className="text-xs" style={{ color: '#949ba4' }}>
+                      Auto-delete this channel after a set time
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="temporary-toggle"
+                  checked={isTemporary}
+                  onCheckedChange={setIsTemporary}
+                />
+              </div>
+
+              {isTemporary && (
+                <div>
+                  <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: '#b5bac1' }}>
+                    Delete after
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {EXPIRY_OPTIONS.map(({ label, seconds }) => (
+                      <button
+                        key={seconds}
+                        onClick={() => setExpirySeconds(seconds)}
+                        className="py-1.5 px-2 rounded text-sm font-medium transition-colors"
+                        style={{
+                          background: expirySeconds === seconds ? '#5865f2' : '#2b2d31',
+                          color: expirySeconds === seconds ? 'white' : '#949ba4',
+                          border: `1px solid ${expirySeconds === seconds ? '#5865f2' : 'transparent'}`,
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2 pt-2">
             <Button
               variant="ghost"
-              onClick={() => { setName(""); setType("text"); onClose() }}
+              onClick={resetForm}
               className="flex-1"
               style={{ color: '#b5bac1' }}
             >

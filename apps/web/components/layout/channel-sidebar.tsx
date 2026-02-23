@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, GripVertical
+  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical
 } from "lucide-react"
 import {
   DndContext,
@@ -521,6 +521,20 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   )
 }
 
+/** Returns a short human-readable string for the time remaining until `expiresAt`. */
+function formatTimeRemaining(expiresAt: string): string {
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  if (ms <= 0) return "expired"
+  const totalSeconds = Math.floor(ms / 1000)
+  if (totalSeconds < 60) return `${totalSeconds}s`
+  const totalMinutes = Math.floor(totalSeconds / 60)
+  if (totalMinutes < 60) return `${totalMinutes}m`
+  const totalHours = Math.floor(totalMinutes / 60)
+  if (totalHours < 24) return `${totalHours}h`
+  const totalDays = Math.floor(totalHours / 24)
+  return `${totalDays}d`
+}
+
 function ChannelIcon({ channel, isVoiceActive }: { channel: ChannelRow; isVoiceActive: boolean }) {
   const iconStyle = { color: isVoiceActive ? '#23a55a' : undefined }
   switch (channel.type) {
@@ -609,6 +623,21 @@ function SortableChannelItem({
   const { toast } = useToast()
   const showBadge = !isActive && (isUnread || (mentionCount ?? 0) > 0)
 
+  // Live countdown for temporary channels
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(
+    channel.expires_at ? formatTimeRemaining(channel.expires_at) : null
+  )
+  useEffect(() => {
+    if (!channel.expires_at) return
+    setTimeRemaining(formatTimeRemaining(channel.expires_at))
+    const msRemaining = new Date(channel.expires_at).getTime() - Date.now()
+    const delay = msRemaining <= 60_000 ? 1_000 : 30_000
+    const interval = setInterval(() => {
+      setTimeRemaining(formatTimeRemaining(channel.expires_at!))
+    }, delay)
+    return () => clearInterval(interval)
+  }, [channel.expires_at])
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -658,6 +687,22 @@ function SortableChannelItem({
               {channel.name}
             </span>
             <span className="ml-auto flex items-center gap-1 flex-shrink-0">
+              {timeRemaining && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      className="flex items-center gap-0.5 text-[10px] font-medium px-1 py-0.5 rounded"
+                      style={{ background: 'rgba(250,166,26,0.15)', color: '#faa61a' }}
+                    >
+                      <Clock className="w-2.5 h-2.5" />
+                      {timeRemaining}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Temporary channel — deletes {timeRemaining === "expired" ? "soon" : `in ${timeRemaining}`}
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {isVoiceActive && (
                 <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
               )}

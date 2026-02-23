@@ -337,6 +337,7 @@ export type Database = {
           nsfw: boolean
           forum_guidelines: string | null
           last_post_at: string | null
+          expires_at: string | null
           created_at: string
         }
         Insert: {
@@ -351,6 +352,7 @@ export type Database = {
           nsfw?: boolean
           forum_guidelines?: string | null
           last_post_at?: string | null
+          expires_at?: string | null
           created_at?: string
         }
         Update: {
@@ -365,6 +367,7 @@ export type Database = {
           nsfw?: boolean
           forum_guidelines?: string | null
           last_post_at?: string | null
+          expires_at?: string | null
           created_at?: string
         }
         Relationships: []
@@ -1166,6 +1169,10 @@ export type Database = {
           p_reason?: string | null
         }
         Returns: void
+      }
+      delete_expired_channels: {
+        Args: Record<string, never>
+        Returns: number
       }
     }
     Enums: {
