@@ -1004,7 +1004,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       </div>
 
       {activeThread && threadPanelOpen && (
-        <div data-state="open" className="panel-surface-motion">
+        <div data-state="open" className="panel-surface-motion" style={{ ["--panel-transform-origin" as string]: "center right" }}>
           <ThreadPanel
             thread={activeThread}
             currentUserId={currentUserId}

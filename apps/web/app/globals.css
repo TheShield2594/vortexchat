@@ -80,7 +80,7 @@
   }
 
   .panel-surface-motion {
-    transform-origin: var(--radix-context-menu-content-transform-origin, top right);
+    transform-origin: var(--radix-context-menu-content-transform-origin, var(--panel-transform-origin, top right));
     animation-duration: var(--motion-duration-panel);
     animation-timing-function: var(--motion-ease-emphasized);
     will-change: opacity, transform;
@@ -166,6 +166,20 @@
   to {
     opacity: 0;
     transform: translateY(4px) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-interactive,
+  .motion-press,
+  .panel-surface-motion,
+  .action-rail-motion {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+
+  .motion-press:active {
+    transform: none;
   }
 }
 

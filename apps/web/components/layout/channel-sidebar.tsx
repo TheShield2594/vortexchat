@@ -378,7 +378,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           style={{ borderColor: '#1e1f22' }}
         >
           <span className="font-semibold text-white truncate text-sm">{server.name}</span>
-          <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white motion-interactive motion-press" />
+          <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white motion-interactive" />
         </button>
 
         <button
@@ -622,7 +622,7 @@ function CategoryHeader({
   return (
     <div
       className={cn(
-        "flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive motion-press",
+        "flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive",
         isDragOver && "bg-white/5"
       )}
     >
