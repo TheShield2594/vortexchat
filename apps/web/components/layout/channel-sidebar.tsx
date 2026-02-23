@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, Command, Search
+  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays
 } from "lucide-react"
 import {
   DndContext,
@@ -40,7 +40,6 @@ import { SearchModal } from "@/components/modals/search-modal"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
 import { useUnreadChannels } from "@/hooks/use-unread-channels"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
-import { NotificationBell } from "@/components/notifications/notification-bell"
 
 const NO_CATEGORY = "__no_category__"
 
@@ -388,34 +387,6 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           <CalendarDays className="h-4 w-4" />
           Events
         </button>
-
-        <div className="mx-2 mt-2 space-y-1">
-          <button
-            onClick={() => setQuickSwitcherOpen(true)}
-            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 motion-interactive motion-press hover:bg-white/10 focus-ring"
-            aria-label="Open quick switcher"
-          >
-            <span className="flex items-center gap-2">
-              <Command className="h-4 w-4" />
-              Quick Switcher
-            </span>
-            <span className="text-[10px] uppercase tracking-wide tertiary-metadata">⌘K</span>
-          </button>
-
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-zinc-200 motion-interactive motion-press hover:bg-white/10 focus-ring"
-            aria-label="Open channel search"
-          >
-            <span className="flex items-center gap-2">
-              <Search className="h-4 w-4" />
-              Search
-            </span>
-            <span className="text-[10px] uppercase tracking-wide tertiary-metadata">⌘F</span>
-          </button>
-
-          <NotificationBell userId={currentUserId} variant="sidebar" />
-        </div>
 
         {/* Channel list */}
         <div className="flex-1 overflow-y-auto py-2">
