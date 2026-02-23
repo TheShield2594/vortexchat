@@ -239,18 +239,28 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#1e1f22" }}>
             <span className="text-sm font-semibold text-white">Notifications</span>
-            {unreadCount > 0 && (
+            <div className="flex items-center gap-1">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="flex items-center gap-1 text-xs transition-colors hover:text-white focus-ring rounded px-1"
+                  style={{ color: "#949ba4" }}
+                  title="Mark all as read"
+                  aria-label="Mark all notifications as read"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  Mark all read
+                </button>
+              )}
               <button
-                onClick={markAllRead}
-                className="flex items-center gap-1 text-xs transition-colors hover:text-white focus-ring rounded px-1"
-                style={{ color: "#949ba4" }}
-                title="Mark all as read"
-                aria-label="Mark all notifications as read"
+                onClick={() => setOpen(false)}
+                className="h-6 w-6 inline-flex items-center justify-center rounded transition-colors hover:bg-white/10 focus-ring tertiary-metadata"
+                title="Close notifications"
+                aria-label="Close notifications"
               >
-                <CheckCheck className="w-3.5 h-3.5" />
-                Mark all read
+                <X className="w-3.5 h-3.5" />
               </button>
-            )}
+            </div>
           </div>
 
           {/* List */}
@@ -264,57 +274,56 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  className="flex items-start gap-3 px-4 py-3 border-b transition-colors cursor-pointer hover:bg-white/5"
+                  className="flex items-start justify-between gap-2 px-4 py-3 border-b transition-colors hover:bg-white/5"
                   style={{ borderColor: "#1e1f22", background: n.read ? "transparent" : "rgba(88,101,242,0.05)" }}
-                  onClick={() => handleClick(n)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault()
-                      handleClick(n)
-                    }
-                  }}
+                  role="group"
+                  aria-label={`Notification: ${n.title}`}
                 >
-                  {/* Type icon */}
-                  <div
-                    className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5"
-                    style={{ background: n.read ? "#383a40" : "#5865f2", color: "white" }}
+                  <button
+                    type="button"
+                    onClick={() => handleClick(n)}
+                    className="flex flex-1 min-w-0 items-start gap-3 text-left rounded-sm focus-ring"
+                    aria-label={`Open notification: ${n.title}`}
                   >
-                    {TYPE_ICONS[n.type]}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium truncate" style={{ color: n.read ? "#b5bac1" : "#f2f3f5" }}>{n.title}</p>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {!n.read && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); markRead(n.id) }}
-                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring"
-                            style={{ color: "#949ba4" }}
-                            title={`Mark \"${n.title}\" as read`}
-                            aria-label={`Mark \"${n.title}\" as read`}
-                          >
-                            <Check className="w-3 h-3" />
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); dismiss(n.id) }}
-                          className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring tertiary-metadata"
-                          title={`Dismiss \"${n.title}\" notification`}
-                          aria-label={`Dismiss \"${n.title}\" notification`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
+                    {/* Type icon */}
+                    <div
+                      className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5"
+                      style={{ background: n.read ? "#383a40" : "#5865f2", color: "white" }}
+                    >
+                      {TYPE_ICONS[n.type]}
                     </div>
-                    {n.body && (
-                      <p className="text-xs truncate mt-0.5 tertiary-metadata">{n.body}</p>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: n.read ? "#b5bac1" : "#f2f3f5" }}>{n.title}</p>
+                      {n.body && (
+                        <p className="text-xs truncate mt-0.5 tertiary-metadata">{n.body}</p>
+                      )}
+                      <p className="text-xs mt-0.5 tertiary-metadata">
+                        {format(new Date(n.created_at), "MMM d, h:mm a")}
+                      </p>
+                    </div>
+                  </button>
+
+                  <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                    {!n.read && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); markRead(n.id) }}
+                        className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring"
+                        style={{ color: "#949ba4" }}
+                        title={`Mark "${n.title}" as read`}
+                        aria-label={`Mark "${n.title}" as read`}
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
                     )}
-                    <p className="text-xs mt-0.5 tertiary-metadata">
-                      {format(new Date(n.created_at), "MMM d, h:mm a")}
-                    </p>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); dismiss(n.id) }}
+                      className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring tertiary-metadata"
+                      title={`Dismiss "${n.title}" notification`}
+                      aria-label={`Dismiss "${n.title}" notification`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               ))
