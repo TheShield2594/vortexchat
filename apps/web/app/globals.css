@@ -171,15 +171,25 @@
 
 @media (prefers-reduced-motion: reduce) {
   .motion-interactive,
-  .motion-press,
-  .panel-surface-motion,
-  .action-rail-motion {
-    transition-duration: 1ms !important;
-    animation-duration: 1ms !important;
+  .motion-press {
+    transition-duration: 0ms !important;
+    transform: none !important;
   }
 
   .motion-press:active {
-    transform: none;
+    transform: none !important;
+  }
+
+  .panel-surface-motion,
+  .action-rail-motion {
+    animation: none !important;
+    transition-duration: 0ms !important;
+    will-change: auto !important;
+  }
+
+  .panel-surface-motion[data-state="open"],
+  .panel-surface-motion[data-state="closed"] {
+    animation-name: none !important;
   }
 }
 

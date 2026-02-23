@@ -393,6 +393,8 @@ export function MessageItem({
           {/* Action buttons */}
           {!isEditing && (
             <div
+              aria-hidden={!showActions}
+              inert={!showActions}
               className={cn(
                 "action-rail-motion absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden",
                 showActions ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-1"
@@ -407,6 +409,7 @@ export function MessageItem({
                       key={emoji}
                       onClick={() => { onReaction(emoji); setShowEmojiPicker(false) }}
                       className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm focus-ring"
+                      tabIndex={showActions ? 0 : -1}
                       aria-label={`Add ${emoji} reaction`}
                     >
                       {emoji}
@@ -422,6 +425,7 @@ export function MessageItem({
                 title="Add Reaction"
                 aria-label="Add reaction"
                 aria-describedby={messageMetaId}
+                tabIndex={showActions ? 0 : -1}
               >
                 <Smile className="w-4 h-4" />
               </button>
@@ -433,6 +437,7 @@ export function MessageItem({
                 title="Reply"
                 aria-label="Reply to message"
                 aria-describedby={messageMetaId}
+                tabIndex={showActions ? 0 : -1}
               >
                 <Reply className="w-4 h-4" />
               </button>
@@ -445,6 +450,7 @@ export function MessageItem({
                   title="Create Thread"
                   aria-label="Create thread from message"
                   aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
                 >
                   <MessageSquare className="w-4 h-4" />
                 </button>
@@ -458,6 +464,7 @@ export function MessageItem({
                   title="Edit"
                   aria-label="Edit message"
                   aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -471,6 +478,7 @@ export function MessageItem({
                   title="Retry send"
                   aria-label="Retry sending message"
                   aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
                 >
                   <RefreshCcw className="w-4 h-4" />
                 </button>
@@ -484,6 +492,7 @@ export function MessageItem({
                   title="Delete"
                   aria-label="Delete message"
                   aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
