@@ -109,7 +109,8 @@ export function NotificationBell({ userId }: Props) {
   function handleClick(n: Notification) {
     markRead(n.id)
     if (n.server_id && n.channel_id) {
-      router.push(`/channels/${n.server_id}/${n.channel_id}`)
+      const messageQuery = n.message_id ? `?message=${encodeURIComponent(n.message_id)}` : ""
+      router.push(`/channels/${n.server_id}/${n.channel_id}${messageQuery}`)
       setOpen(false)
     }
   }

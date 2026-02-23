@@ -113,13 +113,22 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
   }
 
   // Default: text channel
+  const initialLastReadAt = (await supabase
+    .from("read_states")
+    .select("last_read_at")
+    .eq("user_id", user.id)
+    .eq("channel_id", params.channelId)
+    .maybeSingle()).data?.last_read_at ?? null
+
   return (
     <div className="flex flex-1 overflow-hidden">
       <ChatArea
+        key={channel.id}
         channel={channel}
         initialMessages={messages}
         currentUserId={user.id}
         serverId={params.serverId}
+        initialLastReadAt={initialLastReadAt}
       />
       <MemberList serverId={params.serverId} />
     </div>

@@ -19,6 +19,8 @@ const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 
 interface Props {
   message: MessageWithAuthor
+  containerId?: string
+  highlighted?: boolean
   isGrouped: boolean
   currentUserId: string
   onReply: () => void
@@ -32,6 +34,8 @@ interface Props {
 
 export function MessageItem({
   message,
+  containerId,
+  highlighted = false,
   isGrouped,
   currentUserId,
   onReply,
@@ -182,8 +186,10 @@ export function MessageItem({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          id={containerId}
           className={cn(
-            "relative group px-4 message-hover",
+            "relative group px-4 message-hover transition-colors duration-300 ease-out",
+            highlighted && "bg-[#5865f233]",
             isGrouped ? "py-0.5" : "pt-4 pb-0.5"
           )}
           onMouseEnter={() => setShowActions(true)}

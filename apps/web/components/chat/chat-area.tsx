@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Hash, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -29,13 +30,14 @@ interface Props {
   initialMessages: MessageWithAuthor[]
   currentUserId: string
   serverId: string
+  initialLastReadAt: string | null
 }
 
 function isDuplicateInsertError(error: { code?: string } | null): boolean {
   return error?.code === "23505"
 }
 
-export function ChatArea({ channel, initialMessages, currentUserId, serverId }: Props) {
+export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt }: Props) {
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser } = useAppStore()
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
@@ -43,15 +45,41 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   const [outbox, setOutbox] = useState<OutboxEntry[]>([])
   const [draft, setDraftState] = useState("")
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine)
+  const [isAtBottom, setIsAtBottom] = useState(true)
+  const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0)
+  const [unreadAnchorMessageId, setUnreadAnchorMessageId] = useState<string | null>(null)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const [showReturnToContext, setShowReturnToContext] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const messageScrollerRef = useRef<HTMLDivElement>(null)
+  const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
+  const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const jumpedRef = useRef(false)
+  const lastJumpMessageIdRef = useRef<string | null>(null)
   const outboxRef = useRef<OutboxEntry[]>([])
   const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const draftRef = useRef("")
   const prevChannelIdRef = useRef(channel.id)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
+  const jumpToMessageId = searchParams.get("message")
+
+  const unreadAnchorStorageKey = useMemo(
+    () => `vortexchat:unread-anchor:${currentUserId}:${channel.id}`,
+    [channel.id, currentUserId]
+  )
+  const scrollStorageKey = useMemo(
+    () => `vortexchat:scroll:${currentUserId}:${channel.id}`,
+    [channel.id, currentUserId]
+  )
+  const returnScrollStorageKey = useMemo(
+    () => `vortexchat:return-scroll:${currentUserId}:${channel.id}`,
+    [channel.id, currentUserId]
+  )
 
   const optimisticAuthor = useMemo(() => {
     return currentUser ?? {
@@ -220,7 +248,34 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
 
   useEffect(() => {
     setMessages(initialMessages)
+    previousLastMessageIdRef.current = initialMessages[initialMessages.length - 1]?.id ?? null
+    setPendingNewMessageCount(0)
   }, [initialMessages])
+
+  useEffect(() => {
+    const savedAnchor = typeof window === "undefined" ? null : window.sessionStorage.getItem(unreadAnchorStorageKey)
+    if (savedAnchor && initialMessages.some((message) => message.id === savedAnchor)) {
+      setUnreadAnchorMessageId(savedAnchor)
+      return
+    }
+
+    if (!initialLastReadAt) {
+      setUnreadAnchorMessageId(null)
+      return
+    }
+
+    const firstUnread = initialMessages.find(
+      (message) => message.author_id !== currentUserId && message.created_at > initialLastReadAt
+    )
+    if (firstUnread) {
+      setUnreadAnchorMessageId(firstUnread.id)
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(unreadAnchorStorageKey, firstUnread.id)
+      }
+      return
+    }
+    setUnreadAnchorMessageId(null)
+  }, [currentUserId, initialLastReadAt, initialMessages, unreadAnchorStorageKey])
 
   useEffect(() => {
     const persisted = loadOutbox()
@@ -283,12 +338,136 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   }, [isOnline, channel.id, flushOutbox])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages.length])
+    const container = messageScrollerRef.current
+    if (!container) return
+    const savedScrollTop = typeof window === "undefined" ? null : window.sessionStorage.getItem(scrollStorageKey)
+    if (savedScrollTop) {
+      container.scrollTop = Number(savedScrollTop)
+      return
+    }
+    bottomRef.current?.scrollIntoView()
+  }, [scrollStorageKey])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView()
-  }, [])
+    const container = messageScrollerRef.current
+    if (!container) return
+
+    const persistScroll = () => {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(scrollStorageKey, String(container.scrollTop))
+      }
+    }
+
+    const onScroll = () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+      const nextIsAtBottom = distanceFromBottom < 120
+      setIsAtBottom(nextIsAtBottom)
+
+      if (scrollSaveTimerRef.current) {
+        clearTimeout(scrollSaveTimerRef.current)
+      }
+      scrollSaveTimerRef.current = setTimeout(() => {
+        persistScroll()
+        scrollSaveTimerRef.current = null
+      }, 250)
+
+      if (nextIsAtBottom) {
+        setPendingNewMessageCount(0)
+        setUnreadAnchorMessageId(null)
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem(unreadAnchorStorageKey)
+        }
+      }
+    }
+
+    onScroll()
+    container.addEventListener("scroll", onScroll)
+    return () => {
+      if (scrollSaveTimerRef.current) {
+        clearTimeout(scrollSaveTimerRef.current)
+        scrollSaveTimerRef.current = null
+      }
+      persistScroll()
+      container.removeEventListener("scroll", onScroll)
+    }
+  }, [scrollStorageKey, unreadAnchorStorageKey])
+
+  useEffect(() => {
+    const newestMessage = messages[messages.length - 1]
+    const newestMessageId = newestMessage?.id ?? null
+    const hasNewMessages = !!newestMessageId && newestMessageId !== previousLastMessageIdRef.current
+    previousLastMessageIdRef.current = newestMessageId
+    if (!hasNewMessages || !newestMessage) return
+
+    if (isAtBottom || newestMessage.author_id === currentUserId) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+      return
+    }
+
+    setPendingNewMessageCount((count) => count + 1)
+    setUnreadAnchorMessageId((current) => {
+      if (current) return current
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(unreadAnchorStorageKey, newestMessage.id)
+      }
+      return newestMessage.id
+    })
+  }, [currentUserId, isAtBottom, messages, unreadAnchorStorageKey])
+
+  useEffect(() => {
+    if (!jumpToMessageId) {
+      setShowReturnToContext(false)
+      jumpedRef.current = false
+      lastJumpMessageIdRef.current = null
+      return
+    }
+
+    if (lastJumpMessageIdRef.current !== jumpToMessageId) {
+      jumpedRef.current = false
+      lastJumpMessageIdRef.current = jumpToMessageId
+    }
+
+    if (jumpedRef.current) return
+
+    const container = messageScrollerRef.current
+    if (!container) return
+
+    if (typeof window !== "undefined" && !window.sessionStorage.getItem(returnScrollStorageKey)) {
+      window.sessionStorage.setItem(returnScrollStorageKey, String(container.scrollTop))
+      setShowReturnToContext(true)
+    } else {
+      setShowReturnToContext(true)
+    }
+
+    const target = document.getElementById(`message-${jumpToMessageId}`)
+    if (!target) return
+    target.scrollIntoView({ block: "center", behavior: "smooth" })
+    setHighlightedMessageId(jumpToMessageId)
+    jumpedRef.current = true
+    const timer = window.setTimeout(() => setHighlightedMessageId(null), 2200)
+    return () => window.clearTimeout(timer)
+  }, [jumpToMessageId, messages, returnScrollStorageKey])
+
+  const jumpToLatest = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    setPendingNewMessageCount(0)
+    setUnreadAnchorMessageId(null)
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(unreadAnchorStorageKey)
+    }
+  }, [unreadAnchorStorageKey])
+
+  const returnToContext = useCallback(() => {
+    const container = messageScrollerRef.current
+    if (!container) return
+    const scrollValue = typeof window === "undefined" ? null : window.sessionStorage.getItem(returnScrollStorageKey)
+    if (scrollValue) {
+      container.scrollTop = Number(scrollValue)
+      window.sessionStorage.removeItem(returnScrollStorageKey)
+    }
+    router.replace(`/channels/${serverId}/${channel.id}`)
+    setShowReturnToContext(false)
+  }, [channel.id, returnScrollStorageKey, router, serverId])
 
   useRealtimeMessages(
     channel.id,
@@ -530,7 +709,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
           {messages.length === 0 && (
             <div className="px-4 py-8">
               <div
@@ -559,8 +738,19 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
                   new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000
 
               return (
+                <div key={message.id}>
+                {unreadAnchorMessageId === message.id && (
+                  <div className="px-4 py-2 flex items-center gap-2" role="separator" aria-label="New messages">
+                    <div className="h-px flex-1" style={{ background: "#f23f43" }} />
+                    <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#f23f43" }}>
+                      New messages
+                    </span>
+                    <div className="h-px flex-1" style={{ background: "#f23f43" }} />
+                  </div>
+                )}
                 <MessageItem
-                  key={message.id}
+                  containerId={`message-${message.id}`}
+                  highlighted={highlightedMessageId === message.id}
                   message={message}
                   isGrouped={!!isGrouped}
                   currentUserId={currentUserId}
@@ -623,10 +813,35 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
                     }
                   }}
                 />
+                </div>
               )
             })}
             <div ref={bottomRef} />
           </div>
+
+          {!isAtBottom && pendingNewMessageCount > 0 && (
+            <div className="sticky bottom-3 px-4 flex justify-end">
+              <button
+                onClick={jumpToLatest}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg"
+                style={{ background: "#5865f2", color: "white" }}
+              >
+                Jump to latest {pendingNewMessageCount > 1 ? `(${pendingNewMessageCount})` : ""}
+              </button>
+            </div>
+          )}
+
+          {showReturnToContext && jumpToMessageId && (
+            <div className="sticky bottom-14 px-4 flex justify-end">
+              <button
+                onClick={returnToContext}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{ background: "#2b2d31", color: "#f2f3f5", border: "1px solid #1e1f22" }}
+              >
+                Back to where you were
+              </button>
+            </div>
+          )}
 
           <ThreadList
             channelId={channel.id}
