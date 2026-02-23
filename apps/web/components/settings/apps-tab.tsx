@@ -1,0 +1,191 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { BadgeCheck, Shield, Star, Trash2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
+
+interface InstalledApp {
+  id: string
+  app_id: string
+  install_scopes: string[]
+  granted_permissions: string[]
+  installed_at: string
+  app_catalog?: {
+    name: string
+    slug: string
+    trust_badge: "verified" | "partner" | "internal" | null
+  }
+}
+
+interface DiscoverApp {
+  id: string
+  name: string
+  category: string
+  trust_badge: "verified" | "partner" | "internal" | null
+  average_rating: number
+  review_count: number
+}
+
+interface AppsTabProps {
+  serverId: string
+  canManageApps: boolean
+}
+
+async function readErrorMessage(res: Response) {
+  try {
+    const payload = await res.json()
+    if (payload?.error) return String(payload.error)
+  } catch {
+    // fallback to text
+  }
+
+  try {
+    const text = await res.text()
+    if (text) return text
+  } catch {
+    // ignore
+  }
+
+  return `Request failed (${res.status})`
+}
+
+export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
+  const { toast } = useToast()
+  const [installed, setInstalled] = useState<InstalledApp[]>([])
+  const [market, setMarket] = useState<DiscoverApp[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busyAppId, setBusyAppId] = useState<string | null>(null)
+
+  async function refresh() {
+    setLoading(true)
+    try {
+      const [installedRes, marketRes] = await Promise.all([
+        fetch(`/api/servers/${serverId}/apps`),
+        fetch(`/api/apps/discover`),
+      ])
+
+      if (!installedRes.ok) throw new Error(await readErrorMessage(installedRes))
+      if (!marketRes.ok) throw new Error(await readErrorMessage(marketRes))
+
+      setInstalled(await installedRes.json())
+      setMarket(await marketRes.json())
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to load apps",
+        description: error instanceof Error ? error.message : "Unknown error",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { refresh() }, [serverId])
+
+  async function install(appId: string) {
+    setBusyAppId(appId)
+    try {
+      const res = await fetch(`/api/servers/${serverId}/apps`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId }),
+      })
+      if (!res.ok) throw new Error(await readErrorMessage(res))
+      await refresh()
+      toast({ title: "App installed" })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Install failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      })
+    } finally {
+      setBusyAppId(null)
+    }
+  }
+
+  async function uninstall(appId: string) {
+    const confirmed = window.confirm("Uninstall this app from the server?")
+    if (!confirmed) return
+
+    setBusyAppId(appId)
+    try {
+      const res = await fetch(`/api/servers/${serverId}/apps?appId=${appId}`, { method: "DELETE" })
+      if (!res.ok) throw new Error(await readErrorMessage(res))
+      await refresh()
+      toast({ title: "App uninstalled" })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Uninstall failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      })
+    } finally {
+      setBusyAppId(null)
+    }
+  }
+
+  const installedIds = new Set(installed.map((app) => app.app_id))
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white">Installed Apps</h3>
+        <p className="text-sm" style={{ color: "#949ba4" }}>Install apps with scoped permissions. Webhooks continue to work unchanged.</p>
+      </div>
+
+      {loading ? <p style={{ color: "#949ba4" }}>Loading apps…</p> : (
+        <div className="grid gap-3">
+          {installed.length === 0 && <p style={{ color: "#949ba4" }}>No apps installed on this server.</p>}
+          {installed.map((entry) => (
+            <div key={entry.id} className="rounded border p-3" style={{ borderColor: "#3f4147" }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium">{entry.app_catalog?.name ?? entry.app_id}</p>
+                  <p className="text-xs" style={{ color: "#949ba4" }}>
+                    Scopes: {entry.install_scopes.join(", ")} · Permissions: {entry.granted_permissions.join(", ")}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!canManageApps || busyAppId === entry.app_id}
+                  onClick={() => uninstall(entry.app_id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div>
+        <h4 className="text-md font-semibold text-white mb-2">Marketplace quick install</h4>
+        <div className="grid gap-3">
+          {market.slice(0, 6).map((app) => (
+            <div key={app.id} className="rounded border p-3 flex items-center justify-between" style={{ borderColor: "#3f4147" }}>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-white">{app.name}</p>
+                  {app.trust_badge && <BadgeCheck className="w-4 h-4 text-emerald-400" />}
+                </div>
+                <p className="text-xs" style={{ color: "#949ba4" }}>
+                  <Shield className="w-3 h-3 inline mr-1" />{app.category} · <Star className="w-3 h-3 inline mr-1" />{app.average_rating.toFixed(1)} ({app.review_count})
+                </p>
+              </div>
+              <Button
+                size="sm"
+                disabled={!canManageApps || installedIds.has(app.id) || busyAppId === app.id}
+                onClick={() => install(app.id)}
+              >
+                {installedIds.has(app.id) ? "Installed" : "Install"}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}

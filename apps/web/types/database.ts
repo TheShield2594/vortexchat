@@ -1123,9 +1123,289 @@ export type Database = {
         }
         Relationships: []
       }
+      app_catalog: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          description: string | null
+          category: string
+          icon_url: string | null
+          homepage_url: string | null
+          identity: Json
+          install_scopes: string[]
+          permissions: string[]
+          trust_badge: Database['public']['Enums']['app_trust_badge'] | null
+          average_rating: number
+          review_count: number
+          is_published: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name: string
+          description?: string | null
+          category?: string
+          icon_url?: string | null
+          homepage_url?: string | null
+          identity?: Json
+          install_scopes?: string[]
+          permissions?: string[]
+          trust_badge?: Database['public']['Enums']['app_trust_badge'] | null
+          average_rating?: number
+          review_count?: number
+          is_published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          name?: string
+          description?: string | null
+          category?: string
+          icon_url?: string | null
+          homepage_url?: string | null
+          identity?: Json
+          install_scopes?: string[]
+          permissions?: string[]
+          trust_badge?: Database['public']['Enums']['app_trust_badge'] | null
+          average_rating?: number
+          review_count?: number
+          is_published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      app_catalog_credentials: {
+        Row: {
+          app_id: string
+          credentials: Json
+          updated_at: string
+        }
+        Insert: {
+          app_id: string
+          credentials?: Json
+          updated_at?: string
+        }
+        Update: {
+          app_id?: string
+          credentials?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_catalog_credentials_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: true
+            referencedRelation: "app_catalog"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      app_reviews: {
+        Row: {
+          id: string
+          app_id: string
+          user_id: string
+          rating: number
+          body: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          app_id: string
+          user_id: string
+          rating: number
+          body?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          app_id?: string
+          user_id?: string
+          rating?: number
+          body?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      server_app_installs: {
+        Row: {
+          id: string
+          app_id: string
+          server_id: string
+          installed_by: string
+          install_scopes: string[]
+          granted_permissions: string[]
+          installed_at: string
+        }
+        Insert: {
+          id?: string
+          app_id: string
+          server_id: string
+          installed_by: string
+          install_scopes?: string[]
+          granted_permissions?: string[]
+          installed_at?: string
+        }
+        Update: {
+          id?: string
+          app_id?: string
+          server_id?: string
+          installed_by?: string
+          install_scopes?: string[]
+          granted_permissions?: string[]
+          installed_at?: string
+        }
+        Relationships: []
+      }
+      server_app_install_credentials: {
+        Row: {
+          app_install_id: string
+          credentials: Json
+          updated_at: string
+        }
+        Insert: {
+          app_install_id: string
+          credentials?: Json
+          updated_at?: string
+        }
+        Update: {
+          app_install_id?: string
+          credentials?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      app_commands: {
+        Row: {
+          id: string
+          app_id: string
+          command_name: string
+          description: string | null
+          schema: Json
+          enabled: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          app_id: string
+          command_name: string
+          description?: string | null
+          schema?: Json
+          enabled?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          app_id?: string
+          command_name?: string
+          description?: string | null
+          schema?: Json
+          enabled?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      app_event_subscriptions: {
+        Row: {
+          id: string
+          app_install_id: string
+          event_key: string
+          enabled: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          app_install_id: string
+          event_key: string
+          enabled?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          app_install_id?: string
+          event_key?: string
+          enabled?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      app_rate_limits: {
+        Row: {
+          app_id: string
+          requests_per_minute: number
+          burst: number
+          updated_at: string
+        }
+        Insert: {
+          app_id: string
+          requests_per_minute?: number
+          burst?: number
+          updated_at?: string
+        }
+        Update: {
+          app_id?: string
+          requests_per_minute?: number
+          burst?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      app_usage_metrics: {
+        Row: {
+          id: number
+          app_id: string
+          server_id: string | null
+          metric_key: string
+          metric_value: number
+          occurred_at: string
+        }
+        Insert: {
+          id?: number
+          app_id: string
+          server_id?: string | null
+          metric_key: string
+          metric_value?: number
+          occurred_at?: string
+        }
+        Update: {
+          id?: number
+          app_id?: string
+          server_id?: string | null
+          metric_key?: string
+          metric_value?: number
+          occurred_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      app_catalog_public: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          description: string | null
+          category: string
+          icon_url: string | null
+          homepage_url: string | null
+          identity: Json
+          install_scopes: string[]
+          permissions: string[]
+          trust_badge: Database['public']['Enums']['app_trust_badge'] | null
+          average_rating: number
+          review_count: number
+          is_published: boolean
+          created_at: string
+          updated_at: string
+        }
+        Relationships: []
+      }
     }
     Functions: {
       is_server_member: {
@@ -1198,9 +1478,17 @@ export type Database = {
         Args: { p_name: string; p_description: string; p_icon_url: string; p_template: Json }
         Returns: Database['public']['Tables']['servers']['Row']
       }
+      recompute_app_rating: {
+        Args: { p_app_id: string }
+        Returns: void
+      }
+      bump_app_usage: {
+        Args: { p_app_id: string; p_server_id: string; p_metric_key: string; p_metric_value?: number }
+        Returns: void
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_trust_badge: 'verified' | 'partner' | 'internal'
     }
     CompositeTypes: {
       [_ in never]: never
