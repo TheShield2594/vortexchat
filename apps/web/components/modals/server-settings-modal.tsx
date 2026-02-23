@@ -12,6 +12,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ServerRow, AutoModRuleRow, AutoModAction, ScreeningConfigRow } from "@/types/database"
 import { RoleManager } from "@/components/roles/role-manager"
+import { TemplateManager } from "@/components/modals/template-manager"
 
 interface Channel {
   id: string
@@ -128,6 +129,9 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                     <Zap className="w-3.5 h-3.5 mr-1.5" />
                     AutoMod
                   </TabsTrigger>
+                  <TabsTrigger value="templates" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
+                    Templates
+                  </TabsTrigger>
                 </>
               )}
             </TabsList>
@@ -229,6 +233,10 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
 
             <TabsContent value="automod" className="mt-0">
               <AutoModTab serverId={server.id} channels={channels} open={open} />
+            </TabsContent>
+
+            <TabsContent value="templates" className="mt-0">
+              {isOwner ? <TemplateManager serverId={server.id} /> : <p style={{ color: "#b5bac1" }}>Only the owner can import/export templates.</p>}
             </TabsContent>
           </div>
         </Tabs>

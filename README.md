@@ -123,6 +123,21 @@ STREAM            = 1 << 11  // 2048
 
 Administrator overrides all other permissions. No paywall — all features free.
 
+
+## Server Templates
+
+Vortex supports reusable **server templates** for import/export:
+
+- Template schema includes `metadata`, `roles`, `categories`, `channels`, and channel-level permission overrides.
+- Metadata supports `source`, `version`, and `created_by`.
+- Built-in starter templates are available in the UI: **Gaming**, **Study**, **Startup**, and **Creator**.
+- Import flow validates JSON, shows a diff preview, and applies transactionally (via `create_server_from_template`/`apply_server_template`).
+- Unsupported permission names/fields are normalized or ignored with warnings so imports degrade gracefully.
+- Export flow serializes the current server into a reusable template JSON document.
+
+API entrypoint: `POST /api/server-templates` with modes:
+`validate`, `preview`, `apply`, `create-server`, and `export`.
+
 ## License
 
 MIT

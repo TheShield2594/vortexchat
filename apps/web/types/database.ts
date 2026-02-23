@@ -1174,6 +1174,18 @@ export type Database = {
         Args: Record<string, never>
         Returns: number
       }
+      apply_server_template: {
+        Args: { p_server_id: string; p_template: Json }
+        Returns: Json
+      }
+      export_server_template: {
+        Args: { p_server_id: string }
+        Returns: Json
+      }
+      create_server_from_template: {
+        Args: { p_name: string; p_description: string; p_icon_url: string; p_template: Json }
+        Returns: Database['public']['Tables']['servers']['Row']
+      }
     }
     Enums: {
       [_ in never]: never

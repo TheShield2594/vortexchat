@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { ServerRow } from "@/types/database"
+import { TemplateManager } from "@/components/modals/template-manager"
 
 interface Props {
   open: boolean
@@ -26,7 +27,7 @@ export function CreateServerModal({ open, onClose }: Props) {
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [iconPreview, setIconPreview] = useState<string | null>(null)
   const [joinCode, setJoinCode] = useState("")
-  const [mode, setMode] = useState<"create" | "join">("create")
+  const [mode, setMode] = useState<"create" | "join" | "template">("create")
   const fileRef = useRef<HTMLInputElement>(null)
   const supabase = createClientSupabaseClient()
 
@@ -171,6 +172,13 @@ export function CreateServerModal({ open, onClose }: Props) {
           >
             Join Existing
           </button>
+          <button
+            onClick={() => setMode("template")}
+            className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${mode === "template" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
+            style={{ background: mode === "template" ? '#5865f2' : '#2b2d31' }}
+          >
+            Import Template
+          </button>
         </div>
 
         {mode === "create" ? (
@@ -217,7 +225,7 @@ export function CreateServerModal({ open, onClose }: Props) {
               Create Server
             </Button>
           </div>
-        ) : (
+        ) : mode === "join" ? (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
@@ -241,6 +249,29 @@ export function CreateServerModal({ open, onClose }: Props) {
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Join Server
             </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+                Server Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Template Powered Server"
+                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+              />
+            </div>
+            <TemplateManager
+              createName={name}
+              createDescription={""}
+              onServerCreated={(server) => {
+                addServer(server)
+                onClose()
+                router.push(`/channels/${server.id}`)
+              }}
+            />
           </div>
         )}
       </DialogContent>
