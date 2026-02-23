@@ -51,6 +51,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [bannerColor, setBannerColor] = useState(user.banner_color ?? "#5865f2")
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance">("profile")
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = createClientSupabaseClient()
 
@@ -148,6 +149,20 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   }
 
   const displayNamePreview = displayName || user.username
+  const tabMeta = {
+    profile: {
+      title: "My Account",
+      subtitle: "Update your profile identity, status, and account details.",
+    },
+    security: {
+      title: "Security",
+      subtitle: "Manage login methods, recovery controls, and high-risk account actions.",
+    },
+    appearance: {
+      title: "Appearance",
+      subtitle: "Adjust chat readability and visual comfort settings.",
+    },
+  } as const
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -155,7 +170,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         className="max-w-2xl max-h-[90vh] overflow-hidden p-0"
         style={{ background: "#313338", borderColor: "#1e1f22" }}
       >
-        <Tabs defaultValue="profile" orientation="vertical" className="flex h-[80vh]">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "profile" | "security" | "appearance")} orientation="vertical" className="flex h-[80vh]">
           {/* Settings nav */}
           <div className="w-52 flex-shrink-0 p-4 flex flex-col" style={{ background: "#2b2d31" }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#949ba4" }}>
@@ -177,7 +192,12 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
 
           {/* Main content */}
           <div className="flex-1 overflow-y-auto p-6">
-                <TabsContent value="profile" className="mt-0 space-y-6">
+                <DialogHeader className="mb-6 space-y-1">
+                  <DialogTitle className="text-2xl font-semibold leading-tight text-white">{tabMeta[activeTab].title}</DialogTitle>
+                  <p className="text-sm" style={{ color: "#949ba4" }}>{tabMeta[activeTab].subtitle}</p>
+                </DialogHeader>
+
+                <TabsContent value="profile" className="mt-0 space-y-8">
                   {/* Profile preview card */}
                   <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #1e1f22" }}>
                     {/* Banner */}
@@ -222,7 +242,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   </div>
 
                   {/* Form fields */}
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     <div className="space-y-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
                         Display Name
@@ -361,19 +381,26 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-2 border-t" style={{ borderColor: "#1e1f22" }}>
+                  <div className="rounded-lg p-4 space-y-3" style={{ background: "rgba(242,63,67,0.08)", border: "1px solid rgba(242,63,67,0.35)" }}>
+                    <div>
+                      <h4 className="text-sm font-semibold" style={{ color: "#ffb3b6" }}>Danger Zone</h4>
+                      <p className="text-xs mt-1" style={{ color: "#b98f92" }}>Signing out will end your current session on this device.</p>
+                    </div>
                     <Button
                       variant="ghost"
                       onClick={handleLogout}
-                      style={{ color: "#f23f43" }}
+                      className="w-fit"
+                      style={{ color: "#f23f43", background: "rgba(242,63,67,0.12)" }}
                     >
                       <LogOut className="w-4 h-4 mr-2" />
                       Log Out
                     </Button>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: "#1e1f22" }}>
                     <Button
                       onClick={handleSave}
                       disabled={loading}
-                      className="ml-auto"
                       style={{ background: "#5865f2" }}
                     >
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -489,13 +516,17 @@ function SecurityPolicySection() {
   }
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-base font-semibold text-white">Account Security Policy</h3>
-      <p className="text-sm" style={{ color: "#949ba4" }}>Choose passkey-first login. Owners/admins can optionally enforce passkeys and disable fallback methods.</p>
-      <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Passkey-first sign in</span><input type="checkbox" checked={policy.passkey_first} onChange={(e) => save({ ...policy, passkey_first: e.target.checked })} /></label>
-      <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Enforce passkey (admins/owners optional)</span><input type="checkbox" checked={policy.enforce_passkey} onChange={(e) => save({ ...policy, enforce_passkey: e.target.checked })} /></label>
-      <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Allow password fallback</span><input type="checkbox" checked={policy.fallback_password} onChange={(e) => save({ ...policy, fallback_password: e.target.checked })} disabled={policy.enforce_passkey} /></label>
-      <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Allow magic-link fallback</span><input type="checkbox" checked={policy.fallback_magic_link} onChange={(e) => save({ ...policy, fallback_magic_link: e.target.checked })} disabled={policy.enforce_passkey} /></label>
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold text-white">Account Security Policy</h3>
+        <p className="text-sm" style={{ color: "#949ba4" }}>Choose passkey-first login. Owners/admins can optionally enforce passkeys and disable fallback methods.</p>
+      </div>
+      <div className="rounded-lg p-4 space-y-3" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
+        <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Passkey-first sign in</span><input type="checkbox" checked={policy.passkey_first} onChange={(e) => save({ ...policy, passkey_first: e.target.checked })} /></label>
+        <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Enforce passkey (admins/owners optional)</span><input type="checkbox" checked={policy.enforce_passkey} onChange={(e) => save({ ...policy, enforce_passkey: e.target.checked })} /></label>
+        <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Allow password fallback</span><input type="checkbox" checked={policy.fallback_password} onChange={(e) => save({ ...policy, fallback_password: e.target.checked })} disabled={policy.enforce_passkey} /></label>
+        <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Allow magic-link fallback</span><input type="checkbox" checked={policy.fallback_magic_link} onChange={(e) => save({ ...policy, fallback_magic_link: e.target.checked })} disabled={policy.enforce_passkey} /></label>
+      </div>
       {loading && <p className="text-xs" style={{ color: "#949ba4" }}>Saving policy…</p>}
     </div>
   )
@@ -519,12 +550,17 @@ function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Pr
   }
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-base font-semibold text-white">Session Management</h3>
-      <p className="text-sm" style={{ color: "#949ba4" }}>Mark devices as trusted to reduce repeated prompts. If a device is lost, revoke all sessions immediately.</p>
-      <Button variant="outline" onClick={revokeAll} disabled={loading} style={{ borderColor: "#f23f43", color: "#f23f43", background: "transparent" }}>
-        {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Revoke All Sessions
-      </Button>
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold text-white">Session Management</h3>
+        <p className="text-sm" style={{ color: "#949ba4" }}>Mark devices as trusted to reduce repeated prompts. If a device is lost, revoke all sessions immediately.</p>
+      </div>
+      <div className="rounded-lg p-4 space-y-3" style={{ background: "rgba(242,63,67,0.08)", border: "1px solid rgba(242,63,67,0.35)" }}>
+        <p className="text-xs" style={{ color: "#b98f92" }}>This action signs out all active sessions and removes trusted devices.</p>
+        <Button variant="outline" onClick={revokeAll} disabled={loading} style={{ borderColor: "#f23f43", color: "#f23f43", background: "rgba(242,63,67,0.1)" }}>
+          {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Revoke All Sessions
+        </Button>
+      </div>
     </div>
   )
 }
