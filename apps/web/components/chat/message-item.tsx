@@ -6,6 +6,8 @@ import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, AlertCircl
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import type { MessageWithAuthor, AttachmentRow, ThreadRow } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
@@ -45,13 +47,13 @@ export function MessageItem({
   const [showActions, setShowActions] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showCreateThread, setShowCreateThread] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const { toast } = useToast()
   const isOwn = message.author_id === currentUserId
 
-  function confirmDelete() {
-    if (window.confirm("Are you sure you want to delete this message? This cannot be undone.")) {
-      onDelete()
-    }
+  async function confirmDelete() {
+    await onDelete()
+    setShowDeleteDialog(false)
   }
 
   const displayName =
@@ -445,7 +447,7 @@ export function MessageItem({
 
               {isOwn && (
                 <button
-                  onClick={confirmDelete}
+                  onClick={() => setShowDeleteDialog(true)}
                   className="w-8 h-8 flex items-center justify-center hover:bg-red-500/20 transition-colors"
                   style={{ color: "#f23f43" }}
                   title="Delete"
@@ -490,7 +492,7 @@ export function MessageItem({
         {isOwn && (
           <>
             <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={confirmDelete}>
+            <ContextMenuItem variant="destructive" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="w-4 h-4 mr-2" /> Delete Message
             </ContextMenuItem>
           </>
@@ -509,6 +511,25 @@ export function MessageItem({
         }}
       />
     )}
+
+    <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <DialogContent style={{ background: "#313338", borderColor: "#1e1f22", color: "#f2f3f5" }}>
+        <DialogHeader>
+          <DialogTitle>Delete message?</DialogTitle>
+          <DialogDescription style={{ color: "#b5bac1" }}>
+            This action is irreversible. This message will be permanently removed for everyone in this channel.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => setShowDeleteDialog(false)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={confirmDelete}>
+            Delete message
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   )
 }

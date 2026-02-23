@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -947,6 +947,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
   const [form, setForm] = useState<AutoModRuleForm>(DEFAULT_FORM)
   const [sampleMessage, setSampleMessage] = useState("")
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<AutoModRuleRow | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -1010,6 +1011,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
       setRules((prev) => prev.filter((r) => r.id !== ruleId))
       if (editingId === ruleId) setEditingId(null)
       toast({ title: "Rule deleted" })
+      setDeleteTarget(null)
     }
   }
 
@@ -1122,7 +1124,7 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
                 Edit
               </button>
               <button
-                onClick={() => handleDelete(rule.id)}
+                onClick={() => setDeleteTarget(rule)}
                 className="text-xs px-2 py-1 rounded hover:bg-red-500/20 transition-colors"
                 style={{ color: '#ed4245' }}
               >
@@ -1363,6 +1365,31 @@ function AutoModTab({ serverId, channels, open }: { serverId: string; channels: 
           </div>
         </div>
       )}
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <DialogContent style={{ background: '#313338', borderColor: '#1e1f22' }}>
+          <DialogHeader>
+            <DialogTitle className="text-white">Delete AutoMod rule?</DialogTitle>
+            <DialogDescription style={{ color: '#b5bac1' }}>
+              This action can&apos;t be undone. The rule <span className="font-semibold text-white">{deleteTarget?.name}</span> will stop moderating messages immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!deleteTarget) return
+                handleDelete(deleteTarget.id)
+              }}
+            >
+              Delete rule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
