@@ -553,6 +553,27 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   const clientId = useRef(crypto.randomUUID())
   const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting")
   const [failReason, setFailReason] = useState("")
+
+  const statusMeta: Record<typeof status, { label: string; detail: string; tone: string; bg: string }> = {
+    connecting: {
+      label: "Connecting",
+      detail: withVideo ? `Setting up video with ${displayName}` : `Reaching ${displayName}`,
+      tone: "#b5bac1",
+      bg: "rgba(181,186,193,0.18)",
+    },
+    connected: {
+      label: "Live",
+      detail: withVideo ? "Video and audio are flowing" : "Voice is stable",
+      tone: "#9ae6b4",
+      bg: "rgba(35,165,90,0.2)",
+    },
+    failed: {
+      label: "Couldn’t connect",
+      detail: failReason || "Try again in a moment.",
+      tone: "#ffd58a",
+      bg: "rgba(240,177,50,0.2)",
+    },
+  }
   const [muted, setMuted] = useState(false)
   const [videoOff, setVideoOff] = useState(false)
   const supabase = createClientSupabaseClient()
@@ -691,13 +712,13 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           {status === "connecting" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(0,0,0,0.6)" }}>
               <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
-              <p className="text-white text-sm">Video calling {displayName}…</p>
+              <p className="text-white text-sm">{statusMeta.connecting.detail}…</p>
             </div>
           )}
           {status === "failed" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-              <p className="text-white font-medium">Call failed</p>
-              <p className="text-sm text-center" style={{ color: "#949ba4" }}>{failReason}</p>
+              <p className="text-white font-medium">{statusMeta.failed.label}</p>
+              <p className="text-sm text-center" style={{ color: "#b5bac1" }}>{statusMeta.failed.detail}</p>
             </div>
           )}
         </div>
@@ -707,9 +728,9 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           <div
             className={cn(
               "w-32 h-32 rounded-full flex items-center justify-center overflow-hidden",
-              status === "connected" ? "ring-4 ring-green-500" : ""
+              status === "connected" ? "ring-4 ring-green-500/80" : "ring-2 ring-[#4e5058]/60"
             )}
-            style={{ background: "#5865f2" }}
+            style={{ background: "#5865f2", transition: "box-shadow 240ms ease" }}
           >
             {partner?.avatar_url ? (
               <img src={partner.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -718,17 +739,15 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
             )}
           </div>
           <p className="text-white font-semibold text-lg">{displayName}</p>
+          <div className="text-sm px-3 py-1 rounded-full" style={{ color: statusMeta[status].tone, background: statusMeta[status].bg }}>
+            <span className="font-medium">{statusMeta[status].label}</span>
+            <span className="ml-2" style={{ color: "#c9ccd1" }}>{statusMeta[status].detail}</span>
+          </div>
           {status === "connecting" && (
-            <div className="flex items-center gap-2 text-sm" style={{ color: "#b5bac1" }}>
-              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
-              Calling…
+            <div className="flex items-center gap-2 text-xs" style={{ color: "#949ba4" }}>
+              <div className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+              Establishing secure media link…
             </div>
-          )}
-          {status === "connected" && (
-            <p className="text-sm font-medium" style={{ color: "#23a55a" }}>Connected</p>
-          )}
-          {status === "failed" && (
-            <p className="text-sm text-center max-w-xs" style={{ color: "#f23f43" }}>{failReason}</p>
           )}
         </div>
       )}

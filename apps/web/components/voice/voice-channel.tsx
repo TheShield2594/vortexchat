@@ -23,6 +23,42 @@ import {
 } from "@/lib/voice/audio-settings"
 import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
 
+type VoiceSessionTone = "stable" | "listening" | "attention"
+
+function getVoiceSessionState(peerCount: number, speaking: boolean, hasError: boolean): {
+  label: string
+  detail: string
+  tone: VoiceSessionTone
+} {
+  if (hasError) {
+    return {
+      label: "Needs attention",
+      detail: "Audio setup needs a quick fix",
+      tone: "attention",
+    }
+  }
+  if (speaking) {
+    return {
+      label: "Speaking",
+      detail: "Your voice is being sent clearly",
+      tone: "listening",
+    }
+  }
+  if (peerCount === 0) {
+    return {
+      label: "Ready",
+      detail: "Waiting for others to join",
+      tone: "stable",
+    }
+  }
+
+  return {
+    label: "Connected",
+    detail: `Listening with ${peerCount} ${peerCount === 1 ? "person" : "people"}`,
+    tone: "stable",
+  }
+}
+
 interface Props {
   channelId: string
   channelName: string
@@ -150,6 +186,13 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
 
   const peerArray = peers ? Array.from(peers.entries()) : []
   const hasVideo = videoEnabled || screenSharing || peerArray.some(([, { stream }]) => stream.getVideoTracks().length > 0)
+  const sessionState = getVoiceSessionState(peerArray.length, speaking && !muted, Boolean(audioInitError))
+  const toneStyles: Record<VoiceSessionTone, { dot: string; badgeBg: string; badgeText: string }> = {
+    stable: { dot: "#80848e", badgeBg: "rgba(128,132,142,0.18)", badgeText: "#c9ccd1" },
+    listening: { dot: "#23a55a", badgeBg: "rgba(35,165,90,0.2)", badgeText: "#9ae6b4" },
+    attention: { dot: "#f0b132", badgeBg: "rgba(240,177,50,0.2)", badgeText: "#ffd58a" },
+  }
+  const activeTone = toneStyles[sessionState.tone]
 
   return (
     <TooltipProvider>
@@ -157,10 +200,16 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         <div className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "#1e1f22" }}>
           <Volume2 className="w-5 h-5" style={{ color: "#23a55a" }} />
           <span className="font-semibold text-white">{channelName}</span>
-          <span className="text-sm ml-1" style={{ color: "#949ba4" }}>— Voice Connected</span>
+          <div className="ml-1 flex items-center gap-2">
+            <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: activeTone.badgeBg, color: activeTone.badgeText }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: activeTone.dot }} />
+              {sessionState.label}
+            </span>
+            <span className="text-xs" style={{ color: "#949ba4" }}>{sessionState.detail}</span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             {cpuBypassActive && <span className="text-xs" style={{ color: "#f0b132" }}>CPU bypass enabled</span>}
-            {audioInitError && <span className="text-xs" style={{ color: "#f23f43" }}>{audioInitError}</span>}
+            {audioInitError && <span className="text-xs" style={{ color: "#f0b132" }}>{audioInitError}</span>}
           </div>
         </div>
 
@@ -436,7 +485,16 @@ function ParticipantTile({
   const showRemoteVideo = !isLocal && remoteHasVideo
 
   return (
-    <div className={cn("rounded-lg overflow-hidden flex flex-col relative", speaking && !muted ? "ring-2 ring-green-500" : "")} style={{ background: "#1e1f22", minHeight: showScreen || showCamera || showRemoteVideo ? "240px" : "160px" }}>
+    <div
+      className={cn(
+        "rounded-lg overflow-hidden flex flex-col relative transition-all duration-300",
+        speaking && !muted ? "ring-2 ring-green-500/80" : "ring-1 ring-[#4e5058]/60"
+      )}
+      style={{
+        background: "#1e1f22",
+        minHeight: showScreen || showCamera || showRemoteVideo ? "240px" : "160px",
+      }}
+    >
       {showScreen && <video ref={screenRef} autoPlay playsInline muted className="w-full flex-1 object-contain bg-black" />}
       {showCamera && <video ref={cameraRef} autoPlay playsInline muted className="w-full flex-1 object-cover bg-black" style={{ transform: "scaleX(-1)" }} />}
       {showRemoteVideo && <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full flex-1 object-cover bg-black" />}
@@ -452,6 +510,11 @@ function ParticipantTile({
 
       <div className="flex items-center gap-2 px-3 py-2" style={{ background: "rgba(0,0,0,0.5)" }}>
         <span className="text-sm font-medium text-white flex-1 truncate">{displayName}</span>
+        {speaking && !muted && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(35,165,90,0.2)", color: "#9ae6b4" }}>
+            Speaking
+          </span>
+        )}
         {isLocal && <span className="text-xs px-1 rounded" style={{ background: "#5865f2", color: "white" }}>You</span>}
         {muted && <MicOff className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />}
         {deafened && <Headphones className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />}
