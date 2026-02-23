@@ -9,6 +9,7 @@ import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeThreadMessages } from "@/hooks/use-realtime-threads"
 import { cn } from "@/lib/utils/cn"
 import { useToast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Props {
   thread: ThreadRow
@@ -274,8 +275,16 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="px-4 py-6 text-sm text-center" style={{ color: "#949ba4" }}>
-            Loading messages…
+          <div className="space-y-4 px-3 py-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="flex gap-2">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : messages.length === 0 ? (
           <div className="px-4 py-6 text-sm text-center" style={{ color: "#949ba4" }}>
