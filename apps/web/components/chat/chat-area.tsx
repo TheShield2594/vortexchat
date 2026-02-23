@@ -52,7 +52,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showReturnToContext, setShowReturnToContext] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
-  const previousMessageCountRef = useRef(initialMessages.length)
+  const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
+  const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const jumpedRef = useRef(false)
+  const lastJumpMessageIdRef = useRef<string | null>(null)
   const outboxRef = useRef<OutboxEntry[]>([])
   const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const draftRef = useRef("")
@@ -245,7 +248,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   useEffect(() => {
     setMessages(initialMessages)
-    previousMessageCountRef.current = initialMessages.length
+    previousLastMessageIdRef.current = initialMessages[initialMessages.length - 1]?.id ?? null
     setPendingNewMessageCount(0)
   }, [initialMessages])
 
@@ -349,13 +352,25 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const container = messageScrollerRef.current
     if (!container) return
 
+    const persistScroll = () => {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(scrollStorageKey, String(container.scrollTop))
+      }
+    }
+
     const onScroll = () => {
       const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
       const nextIsAtBottom = distanceFromBottom < 120
       setIsAtBottom(nextIsAtBottom)
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem(scrollStorageKey, String(container.scrollTop))
+
+      if (scrollSaveTimerRef.current) {
+        clearTimeout(scrollSaveTimerRef.current)
       }
+      scrollSaveTimerRef.current = setTimeout(() => {
+        persistScroll()
+        scrollSaveTimerRef.current = null
+      }, 250)
+
       if (nextIsAtBottom) {
         setPendingNewMessageCount(0)
         setUnreadAnchorMessageId(null)
@@ -367,16 +382,23 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     onScroll()
     container.addEventListener("scroll", onScroll)
-    return () => container.removeEventListener("scroll", onScroll)
+    return () => {
+      if (scrollSaveTimerRef.current) {
+        clearTimeout(scrollSaveTimerRef.current)
+        scrollSaveTimerRef.current = null
+      }
+      persistScroll()
+      container.removeEventListener("scroll", onScroll)
+    }
   }, [scrollStorageKey, unreadAnchorStorageKey])
 
   useEffect(() => {
-    const previousCount = previousMessageCountRef.current
-    const hasNewMessages = messages.length > previousCount
-    previousMessageCountRef.current = messages.length
-    if (!hasNewMessages || messages.length === 0) return
-
     const newestMessage = messages[messages.length - 1]
+    const newestMessageId = newestMessage?.id ?? null
+    const hasNewMessages = !!newestMessageId && newestMessageId !== previousLastMessageIdRef.current
+    previousLastMessageIdRef.current = newestMessageId
+    if (!hasNewMessages || !newestMessage) return
+
     if (isAtBottom || newestMessage.author_id === currentUserId) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" })
       return
@@ -395,8 +417,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   useEffect(() => {
     if (!jumpToMessageId) {
       setShowReturnToContext(false)
+      jumpedRef.current = false
+      lastJumpMessageIdRef.current = null
       return
     }
+
+    if (lastJumpMessageIdRef.current !== jumpToMessageId) {
+      jumpedRef.current = false
+      lastJumpMessageIdRef.current = jumpToMessageId
+    }
+
+    if (jumpedRef.current) return
 
     const container = messageScrollerRef.current
     if (!container) return
@@ -412,6 +443,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!target) return
     target.scrollIntoView({ block: "center", behavior: "smooth" })
     setHighlightedMessageId(jumpToMessageId)
+    jumpedRef.current = true
     const timer = window.setTimeout(() => setHighlightedMessageId(null), 2200)
     return () => window.clearTimeout(timer)
   }, [jumpToMessageId, messages, returnScrollStorageKey])
@@ -788,23 +820,27 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           </div>
 
           {!isAtBottom && pendingNewMessageCount > 0 && (
-            <button
-              onClick={jumpToLatest}
-              className="sticky bottom-3 ml-auto mr-4 px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg"
-              style={{ background: "#5865f2", color: "white" }}
-            >
-              Jump to latest {pendingNewMessageCount > 1 ? `(${pendingNewMessageCount})` : ""}
-            </button>
+            <div className="sticky bottom-3 px-4 flex justify-end">
+              <button
+                onClick={jumpToLatest}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg"
+                style={{ background: "#5865f2", color: "white" }}
+              >
+                Jump to latest {pendingNewMessageCount > 1 ? `(${pendingNewMessageCount})` : ""}
+              </button>
+            </div>
           )}
 
           {showReturnToContext && jumpToMessageId && (
-            <button
-              onClick={returnToContext}
-              className="sticky bottom-14 ml-auto mr-4 px-3 py-1.5 rounded-full text-xs font-semibold"
-              style={{ background: "#2b2d31", color: "#f2f3f5", border: "1px solid #1e1f22" }}
-            >
-              Back to where you were
-            </button>
+            <div className="sticky bottom-14 px-4 flex justify-end">
+              <button
+                onClick={returnToContext}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{ background: "#2b2d31", color: "#f2f3f5", border: "1px solid #1e1f22" }}
+              >
+                Back to where you were
+              </button>
+            </div>
           )}
 
           <ThreadList
