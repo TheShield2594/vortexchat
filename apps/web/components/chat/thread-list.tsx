@@ -20,6 +20,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
   const [archivedThreads, setArchivedThreads] = useState<ThreadRow[]>([])
   const [expanded, setExpanded] = useState(true)
   const [loadingArchived, setLoadingArchived] = useState(false)
+  const shouldShowArchived = showArchived || filter === "archived"
 
   // Load active threads
   useEffect(() => {
@@ -30,7 +31,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
 
   // Load archived threads on demand
   useEffect(() => {
-    if (!showArchived) return
+    if (!shouldShowArchived) return
     setLoadingArchived(true)
     fetch(`/api/threads?channelId=${channelId}&archived=true`)
       .then((r) => r.json())
@@ -39,7 +40,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
         setLoadingArchived(false)
       })
       .catch(() => setLoadingArchived(false))
-  }, [showArchived, channelId])
+  }, [shouldShowArchived, channelId, filter])
 
   // Realtime updates
   useRealtimeThreads(
@@ -80,7 +81,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
   const visibleArchivedThreads = filter === "active" ? [] : archivedThreads
   const shouldAllowArchivedToggle = filter !== "active"
 
-  if (visibleThreads.length === 0 && !showArchived && filter !== "archived") return null
+  if (visibleThreads.length === 0 && !shouldShowArchived) return null
 
   return (
     <div
@@ -121,6 +122,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
 
           {shouldAllowArchivedToggle && (
             <button
+              type="button"
               onClick={() => setShowArchived((s) => !s)}
               className="flex items-center gap-2 w-full px-4 py-1.5 text-xs hover:bg-white/5 transition-colors"
               style={{ color: "#6d6f78" }}
@@ -130,7 +132,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
             </button>
           )}
 
-          {(showArchived || filter === "archived") && (
+          {shouldShowArchived && (
             <>
               {loadingArchived ? (
                 <div className="px-4 py-2 text-xs" style={{ color: "#6d6f78" }}>

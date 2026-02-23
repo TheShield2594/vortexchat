@@ -271,13 +271,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    const stored = window.localStorage.getItem(threadPanelStorageKey)
-    setThreadPanelOpen(stored == null ? true : stored === "true")
+    try {
+      const stored = window.localStorage.getItem(threadPanelStorageKey)
+      setThreadPanelOpen(stored == null ? true : stored === "true")
+    } catch {
+      setThreadPanelOpen(true)
+    }
   }, [threadPanelStorageKey])
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    window.localStorage.setItem(threadPanelStorageKey, String(threadPanelOpen))
+    try {
+      window.localStorage.setItem(threadPanelStorageKey, String(threadPanelOpen))
+    } catch {
+      // Best effort only. Ignore storage failures.
+    }
   }, [threadPanelOpen, threadPanelStorageKey])
 
   useEffect(() => {

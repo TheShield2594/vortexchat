@@ -5,13 +5,21 @@ const MEMBER_LIST_STORAGE_KEY = "vortexchat:ui:member-list-open"
 
 function loadMemberListOpen(): boolean {
   if (typeof window === "undefined") return true
-  const stored = window.localStorage.getItem(MEMBER_LIST_STORAGE_KEY)
-  return stored == null ? true : stored === "true"
+  try {
+    const stored = window.localStorage.getItem(MEMBER_LIST_STORAGE_KEY)
+    return stored == null ? true : stored === "true"
+  } catch {
+    return true
+  }
 }
 
 function persistMemberListOpen(open: boolean) {
   if (typeof window === "undefined") return
-  window.localStorage.setItem(MEMBER_LIST_STORAGE_KEY, String(open))
+  try {
+    window.localStorage.setItem(MEMBER_LIST_STORAGE_KEY, String(open))
+  } catch {
+    // Best effort only. Ignore storage failures (private mode / restricted environments).
+  }
 }
 
 export interface MemberForMention {
