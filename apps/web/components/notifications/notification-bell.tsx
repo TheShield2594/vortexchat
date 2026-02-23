@@ -167,11 +167,25 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     })
   }
 
-  function handleClick(n: Notification) {
+  async function handleClick(n: Notification) {
     markRead(n.id)
     if (n.server_id && n.channel_id) {
-      const messageQuery = n.message_id ? `?message=${encodeURIComponent(n.message_id)}` : ""
-      router.push(`/channels/${n.server_id}/${n.channel_id}${messageQuery}`)
+      const params = new URLSearchParams()
+
+      if (n.message_id) {
+        params.set("message", n.message_id)
+        const { data: message } = await supabase
+          .from("messages")
+          .select("thread_id")
+          .eq("id", n.message_id)
+          .maybeSingle()
+
+        const threadId = (message as { thread_id: string | null } | null)?.thread_id
+        if (threadId) params.set("thread", threadId)
+      }
+
+      const query = params.toString()
+      router.push(`/channels/${n.server_id}/${n.channel_id}${query ? `?${query}` : ""}`)
       setOpen(false)
     }
   }
