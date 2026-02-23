@@ -10,6 +10,13 @@ export interface OutboxEntry {
   status: OutboxStatus
   retryCount: number
   lastError: string | null
+  attachments?: Array<{
+    url: string
+    filename: string
+    size: number
+    content_type: string
+    storage_path?: string
+  }>
 }
 
 const OUTBOX_KEY = "vortexchat:chat:outbox:v1"
@@ -41,7 +48,18 @@ function isOutboxEntry(candidate: unknown): candidate is OutboxEntry {
     typeof value.createdAt === "string" &&
     (value.status === "queued" || value.status === "sending" || value.status === "failed") &&
     typeof value.retryCount === "number" &&
-    (typeof value.lastError === "string" || value.lastError === null)
+    (typeof value.lastError === "string" || value.lastError === null) &&
+    (
+      value.attachments === undefined ||
+      (Array.isArray(value.attachments) && value.attachments.every((attachment) =>
+        !!attachment &&
+        typeof attachment.url === "string" &&
+        typeof attachment.filename === "string" &&
+        typeof attachment.size === "number" &&
+        typeof attachment.content_type === "string" &&
+        (attachment.storage_path === undefined || typeof attachment.storage_path === "string")
+      ))
+    )
   )
 }
 

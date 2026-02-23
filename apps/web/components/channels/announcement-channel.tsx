@@ -22,7 +22,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore()
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
-  const [draft, setDraftState] = useState(() => getDraft(channel.name))
+  const [draft, setDraftState] = useState(() => getDraft(channel.id))
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClientSupabaseClient()
 
@@ -44,8 +44,8 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
   }, [])
 
   useEffect(() => {
-    setDraftState(getDraft(channel.name))
-  }, [channel.name])
+    setDraftState(getDraft(channel.id))
+  }, [channel.id])
 
   useRealtimeMessages(
     channel.id,
@@ -118,7 +118,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
 
     setReplyTo(null)
     setDraftState("")
-    setDraft(channel.name, "")
+    setDraft(channel.id, "")
   }
 
   return (
@@ -221,13 +221,11 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
         replyTo={replyTo}
         onCancelReply={() => {
           setReplyTo(null)
-          setDraftState("")
-          setDraft(channel.name, "")
         }}
         onSend={handleSendMessage}
         onDraftChange={(newDraft) => {
           setDraftState(newDraft)
-          setDraft(channel.name, newDraft)
+          setDraft(channel.id, newDraft)
         }}
       />
     </div>

@@ -89,7 +89,13 @@ describe("chat outbox persistence", () => {
     const emptyStorage = createMockStorage()
     expect(loadOutbox(emptyStorage)).toEqual([])
 
-    const invalidStorage = createMockStorage({ "vortexchat:chat:outbox:v1": "{bad-json" })
+    const invalidStorage = createMockStorage()
+    saveOutbox([buildEntry({ id: "seed" })], invalidStorage)
+    const [outboxKey] = Object.keys(invalidStorage.dump())
+    invalidStorage.setItem(outboxKey, "{bad-json")
+    expect(loadOutbox(invalidStorage)).toEqual([])
+
+    invalidStorage.setItem(outboxKey, "{}")
     expect(loadOutbox(invalidStorage)).toEqual([])
   })
 

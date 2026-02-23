@@ -284,12 +284,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 <button
                   key={emoji}
                   onClick={() => {
-                    setContent((prev) => {
-                      const next = prev + emoji
-                      setCursorPosition(next.length)
-                      onDraftChange(next)
-                      return next
-                    })
+                    const next = content + emoji
+                    setContent(next)
+                    setCursorPosition(next.length)
+                    onDraftChange(next)
                     setShowEmojiPicker(false)
                     textareaRef.current?.focus()
                   }}

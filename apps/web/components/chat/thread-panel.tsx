@@ -20,7 +20,7 @@ interface Props {
 export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: Props) {
   const [messages, setMessages] = useState<MessageWithAuthor[]>([])
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
-  const [draft, setDraft] = useState("")
+  const [draft, setDraftContent] = useState("")
   const [loading, setLoading] = useState(true)
   const [isMember, setIsMember] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -61,7 +61,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
   }, [loading])
 
   useEffect(() => {
-    setDraft("")
+    setDraftContent("")
   }, [thread.id])
 
   // Realtime
@@ -186,7 +186,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
       return [...prev, message]
     })
     setReplyTo(null)
-    setDraft("")
+    setDraftContent("")
 
     if (!isMember) setIsMember(true)
   }
@@ -386,12 +386,9 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate }: 
           channelName={thread.name}
           draft={draft}
           replyTo={replyTo}
-          onCancelReply={() => {
-            setReplyTo(null)
-            setDraft("")
-          }}
+          onCancelReply={() => setReplyTo(null)}
           onSend={handleSendMessage}
-          onDraftChange={setDraft}
+          onDraftChange={setDraftContent}
         />
       ) : (
         <div

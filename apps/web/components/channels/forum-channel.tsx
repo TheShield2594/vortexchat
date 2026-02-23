@@ -120,7 +120,6 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
     setNewPostTitle("")
     setShowNewPost(false)
     setReplyTo(null)
-    setThreadReplyDraft("")
     setNewPostDraft("")
 
     // Update last_post_at for the forum channel
@@ -278,10 +277,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           channelName={`Reply in thread`}
           draft={threadReplyDraft}
           replyTo={replyTo}
-          onCancelReply={() => {
-            setReplyTo(null)
-            setThreadReplyDraft("")
-          }}
+          onCancelReply={() => setReplyTo(null)}
           onSend={handleThreadReply}
           onDraftChange={setThreadReplyDraft}
         />

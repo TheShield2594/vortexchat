@@ -46,6 +46,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   const bottomRef = useRef<HTMLDivElement>(null)
   const outboxRef = useRef<OutboxEntry[]>([])
   const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const draftRef = useRef("")
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const { toast } = useToast()
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
@@ -103,32 +104,93 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
     pinned_by: null,
     created_at: entry.createdAt,
     author: optimisticAuthor,
-    attachments: [] as AttachmentRow[],
+    attachments: (entry.attachments ?? []).map((attachment) => ({
+      id: `local-${entry.id}-${attachment.filename}`,
+      message_id: entry.id,
+      url: attachment.url,
+      filename: attachment.filename,
+      size: attachment.size,
+      content_type: attachment.content_type,
+      width: null,
+      height: null,
+      created_at: entry.createdAt,
+    })) as AttachmentRow[],
     reactions: [],
     reply_to: null,
   }), [optimisticAuthor])
 
+  const persistOutboxAttachments = useCallback(async (messageId: string, entry: OutboxEntry) => {
+    if (!entry.attachments?.length) return
+
+    const { data: existingAttachments } = await supabase
+      .from("attachments")
+      .select("url, filename, size")
+      .eq("message_id", messageId)
+
+    const existing = new Set(
+      (existingAttachments ?? []).map((attachment) => `${attachment.url}::${attachment.filename}::${attachment.size}`)
+    )
+    const toInsert = entry.attachments.filter(
+      (attachment) => !existing.has(`${attachment.url}::${attachment.filename}::${attachment.size}`)
+    )
+    if (toInsert.length === 0) return
+
+    const { error: attachmentsError } = await supabase
+      .from("attachments")
+      .insert(toInsert.map((attachment) => ({
+        message_id: messageId,
+        url: attachment.url,
+        filename: attachment.filename,
+        size: attachment.size,
+        content_type: attachment.content_type,
+      })))
+
+    if (attachmentsError) {
+      const uploadedPaths = entry.attachments
+        .map((attachment) => attachment.storage_path)
+        .filter((path): path is string => typeof path === "string")
+
+      await supabase.from("messages").delete().eq("id", messageId)
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from("attachments").remove(uploadedPaths)
+      }
+      throw new Error(attachmentsError.message || "Failed to persist message attachments")
+    }
+  }, [supabase])
+
   const sendOutboxEntry = useCallback(async (entry: OutboxEntry) => {
     setAndPersistOutbox((current) => updateOutboxStatus(current, entry.id, { status: "sending", lastError: null }))
 
-    const { data, error } = await supabase
-      .from("messages")
-      .insert({
-        id: entry.id,
-        channel_id: entry.channelId,
-        author_id: entry.authorId,
-        content: entry.content.trim() || null,
-        reply_to_id: entry.replyToId,
-      })
-      .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
-      .single()
+    let data: unknown = null
+    let error: { code?: string; message?: string } | null = null
+    try {
+      const result = await supabase
+        .from("messages")
+        .insert({
+          id: entry.id,
+          channel_id: entry.channelId,
+          author_id: entry.authorId,
+          content: entry.content.trim() || null,
+          reply_to_id: entry.replyToId,
+        })
+        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+        .single()
+      data = result.data
+      error = result.error
+
+      if (!error || isDuplicateInsertError(error)) {
+        await persistOutboxAttachments(entry.id, entry)
+      }
+    } catch (caughtError) {
+      error = { message: caughtError instanceof Error ? caughtError.message : "Failed to replay outbox entry" }
+    }
 
     if (error && !isDuplicateInsertError(error)) {
       const nextStatus = navigator.onLine ? "failed" : "queued"
       setAndPersistOutbox((current) => updateOutboxStatus(current, entry.id, {
         status: nextStatus,
         retryCount: entry.retryCount + 1,
-        lastError: error.message,
+        lastError: error.message || "Failed to replay outbox entry",
       }))
       return
     }
@@ -138,7 +200,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
     if (data) {
       upsertMessage(data as unknown as MessageWithAuthor)
     }
-  }, [setAndPersistOutbox, supabase, upsertMessage])
+  }, [persistOutboxAttachments, setAndPersistOutbox, supabase, upsertMessage])
 
   const flushOutbox = useCallback(async () => {
     if (!navigator.onLine) return
@@ -196,17 +258,27 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   }, [outbox])
 
   useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
+
+  const flushDraftNow = useCallback((channelId: string) => {
+    setDraft(channelId, draftRef.current)
+  }, [])
+
+  useEffect(() => {
     if (draftPersistTimerRef.current) {
+      flushDraftNow(channel.id)
       clearTimeout(draftPersistTimerRef.current)
       draftPersistTimerRef.current = null
     }
     return () => {
       if (draftPersistTimerRef.current) {
+        flushDraftNow(channel.id)
         clearTimeout(draftPersistTimerRef.current)
         draftPersistTimerRef.current = null
       }
     }
-  }, [channel.id])
+  }, [channel.id, flushDraftNow])
 
   useEffect(() => {
     if (!isOnline) return
@@ -278,6 +350,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
       status: navigator.onLine ? "sending" : "queued",
       retryCount: 0,
       lastError: null,
+      attachments: [],
     }
 
     const optimisticMessage = makeOptimisticMessage(entry)
@@ -294,7 +367,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
       return
     }
 
-    const attachments: { url: string; filename: string; size: number; content_type: string }[] = []
+    const attachments: Array<{ url: string; filename: string; size: number; content_type: string; storage_path: string }> = []
     if (attachmentFiles?.length) {
       for (const file of attachmentFiles) {
         const path = `${channel.id}/${Date.now()}-${file.name}`
@@ -314,9 +387,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
             filename: file.name,
             size: file.size,
             content_type: file.type,
+            storage_path: path,
           })
         }
       }
+    }
+
+    if (attachments.length > 0) {
+      const nextEntry = { ...entry, attachments }
+      setAndPersistOutbox((current) => upsertOutboxEntry(current, nextEntry))
+      upsertMessage(makeOptimisticMessage(nextEntry))
     }
 
     const { data: message, error } = await supabase
@@ -332,6 +412,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
       .single()
 
     if (error && !isDuplicateInsertError(error)) {
+      if (attachments.length > 0) {
+        await supabase.storage.from("attachments").remove(attachments.map((attachment) => attachment.storage_path))
+      }
       setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
         status: "failed",
         retryCount: 1,
@@ -346,7 +429,31 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
     }
 
     if (attachments.length > 0) {
-      await supabase.from("attachments").insert(attachments.map((a) => ({ ...a, message_id: messageId })))
+      const { error: attachmentInsertError } = await supabase
+        .from("attachments")
+        .insert(attachments.map((attachment) => ({
+          message_id: messageId,
+          url: attachment.url,
+          filename: attachment.filename,
+          size: attachment.size,
+          content_type: attachment.content_type,
+        })))
+
+      if (attachmentInsertError) {
+        await supabase.from("messages").delete().eq("id", messageId)
+        await supabase.storage.from("attachments").remove(attachments.map((attachment) => attachment.storage_path))
+        setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
+          status: "failed",
+          retryCount: 1,
+          lastError: attachmentInsertError.message || "Failed to store attachments",
+        }))
+        toast({
+          variant: "destructive",
+          title: "Failed to attach files",
+          description: attachmentInsertError.message || "Message send was rolled back due to attachment failure.",
+        })
+        return
+      }
     }
 
     setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
@@ -364,11 +471,18 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
   function handleRetryMessage(messageId: string) {
     const entry = outbox.find((candidate) => candidate.id === messageId)
     if (!entry) return
-    void sendOutboxEntry({ ...entry, status: "queued" })
+    void sendOutboxEntry({ ...entry, status: "queued" }).catch((error) => {
+      console.error("Failed to retry message", error)
+      setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
+        status: "failed",
+        lastError: error instanceof Error ? error.message : "Retry failed",
+      }))
+    })
   }
 
   function handleDraftChange(value: string) {
     setDraftState(value)
+    draftRef.current = value
     if (draftPersistTimerRef.current) {
       clearTimeout(draftPersistTimerRef.current)
     }
