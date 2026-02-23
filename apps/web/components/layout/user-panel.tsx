@@ -126,7 +126,23 @@ export function UserPanel() {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => setVoiceChannel(null, null)}
+                onClick={async () => {
+                  try {
+                    const latestUser = useAppStore.getState().currentUser
+                    if (latestUser) {
+                      const { error } = await supabase
+                        .from("voice_states")
+                        .delete()
+                        .eq("user_id", latestUser.id)
+                        .eq("channel_id", voiceChannelId)
+                      if (error) throw error
+                    }
+                    setVoiceChannel(null, null)
+                    toast({ title: "Disconnected from voice" })
+                  } catch (error: any) {
+                    toast({ variant: "destructive", title: "Failed to disconnect", description: error.message })
+                  }
+                }}
                 className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors"
                 style={{ color: '#f23f43' }}
               >

@@ -203,7 +203,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
                   if (!error) setMessages((prev) => prev.map((m) => m.id === message.id ? { ...m, content, edited_at: new Date().toISOString() } : m))
                 }}
                 onDelete={async () => {
-                  const { error } = await supabase.from("messages").update({ deleted_at: new Date().toISOString() }).eq("id", message.id)
+                  const { error } = await supabase.from("messages").delete().eq("id", message.id)
                   if (!error) setMessages((prev) => prev.filter((m) => m.id !== message.id))
                 }}
                 onReaction={async (emoji) => {

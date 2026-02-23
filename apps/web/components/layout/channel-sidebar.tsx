@@ -10,6 +10,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  useDroppable,
   useSensor,
   useSensors,
   closestCenter,
@@ -61,6 +62,16 @@ type GroupedChannels = {
   category: ChannelRow | null
   channels: ChannelRow[]
 }[]
+
+const CATEGORY_DRAG_PREFIX = "category:"
+
+function getCategoryDragId(categoryId: string) {
+  return `${CATEGORY_DRAG_PREFIX}${categoryId}`
+}
+
+function getCategoryIdFromDragId(id: string) {
+  return id.startsWith(CATEGORY_DRAG_PREFIX) ? id.slice(CATEGORY_DRAG_PREFIX.length) : null
+}
 
 function groupChannels(channels: ChannelRow[]): GroupedChannels {
   const sorted = [...channels].sort((a, b) => a.position - b.position)
@@ -250,6 +261,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     if (!over) { setOverContainerId(null); return }
 
     const draggedId = active.id as string
+    if (getCategoryIdFromDragId(draggedId)) {
+      return
+    }
     const overId = over.id as string
 
     const targetContainer = itemsRef.current[overId] !== undefined ? overId : findContainer(overId)
@@ -290,6 +304,14 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const draggedId = active.id as string
     const overId = over.id as string
 
+    const draggedCategoryId = getCategoryIdFromDragId(draggedId)
+    const overCategoryId = getCategoryIdFromDragId(overId)
+
+    if (draggedCategoryId && overCategoryId && draggedCategoryId !== overCategoryId) {
+      persistCategoryOrder(draggedCategoryId, overCategoryId)
+      return
+    }
+
     // Read from ref to get the latest state (avoids stale closure from batched updates)
     const latestItems = itemsRef.current
     const sourceContainer = findContainer(draggedId)
@@ -311,6 +333,33 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       // Cross-container move was already applied in handleDragOver; persist both
       persistChannelOrder(sourceContainer, latestItems[sourceContainer] ?? [])
       persistChannelOrder(targetContainer, latestItems[targetContainer] ?? [])
+    }
+  }
+
+  async function persistCategoryOrder(draggedCategoryId: string, overCategoryId: string) {
+    const categories = channels
+      .filter((channel) => channel.type === "category")
+      .sort((a, b) => a.position - b.position)
+    const oldIndex = categories.findIndex((category) => category.id === draggedCategoryId)
+    const newIndex = categories.findIndex((category) => category.id === overCategoryId)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(categories, oldIndex, newIndex)
+    const updates = reordered.map((category, index) => ({ id: category.id, position: index }))
+    updates.forEach(({ id, position }) => updateChannel(id, { position }))
+
+    const supabase = createClientSupabaseClient()
+    try {
+      const results = await Promise.all(
+        updates.map(({ id, position }) =>
+          supabase.from("channels").update({ position }).eq("id", id)
+        )
+      )
+      const failed = results.find(({ error }) => error)
+      if (failed?.error) throw failed.error
+    } catch (error: any) {
+      categories.forEach((category) => updateChannel(category.id, { position: category.position }))
+      toast({ variant: "destructive", title: "Failed to save category order", description: error.message })
     }
   }
 
@@ -348,6 +397,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }
 
   const activeChannel = activeId ? channels.find((c) => c.id === activeId) : null
+  const activeCategoryId = activeId ? getCategoryIdFromDragId(activeId) : null
+  const activeCategory = activeCategoryId ? channels.find((c) => c.id === activeCategoryId) : null
 
   // Rebuild grouped view from live items map to reflect drag state
   const liveGrouped = grouped.map(({ category }) => {
@@ -397,6 +448,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
+            <SortableContext
+              items={grouped.filter((g) => g.category).map((g) => getCategoryDragId(g.category!.id))}
+              strategy={verticalListSortingStrategy}
+            >
             {liveGrouped.map(({ category, channels: categoryChannels }) => {
               const containerId = category?.id ?? NO_CATEGORY
               const isCollapsed = category ? collapsedCategories.has(category.id) : false
@@ -406,6 +461,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                   {category && (
                     <CategoryHeader
                       category={category}
+                      containerId={containerId}
                       isCollapsed={isCollapsed}
                       canManageChannels={canManageChannels}
                       isDragOver={overContainerId === containerId && !!activeId}
@@ -416,6 +472,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                       }}
                     />
                   )}
+
+                  {!category && <DropContainer id={containerId} />}
 
                   {!isCollapsed && (
                     <SortableContext
@@ -456,6 +514,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                 </div>
               )
             })}
+            </SortableContext>
 
             <DragOverlay dropAnimation={null}>
               {activeChannel ? (
@@ -465,6 +524,14 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                 >
                   <ChannelIcon channel={activeChannel} isVoiceActive={false} />
                   <span className="truncate">{activeChannel.name}</span>
+                </div>
+              ) : activeCategory ? (
+                <div
+                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-white shadow-lg opacity-90"
+                  style={{ background: '#313338', width: '208px' }}
+                >
+                  <ChevronDown className="w-3 h-3 tertiary-metadata" />
+                  <span className="truncate uppercase text-xs font-semibold tracking-wider">{activeCategory.name}</span>
                 </div>
               ) : null}
             </DragOverlay>
@@ -577,6 +644,7 @@ function ChannelIcon({ channel, isVoiceActive }: { channel: ChannelRow; isVoiceA
 
 function CategoryHeader({
   category,
+  containerId,
   isCollapsed,
   canManageChannels,
   isDragOver,
@@ -584,20 +652,32 @@ function CategoryHeader({
   onAddChannel,
 }: {
   category: ChannelRow
+  containerId: string
   isCollapsed: boolean
   canManageChannels: boolean
   isDragOver: boolean
   onToggle: () => void
   onAddChannel: () => void
 }) {
+  const { setNodeRef } = useDroppable({ id: containerId })
+  const sortable = useSortable({ id: getCategoryDragId(category.id), disabled: !canManageChannels })
+  const style = {
+    transform: CSS.Transform.toString(sortable.transform),
+    transition: sortable.transition,
+    opacity: sortable.isDragging ? 0.4 : 1,
+  }
+
   return (
     <div
+      ref={sortable.setNodeRef}
+      style={style}
       className={cn(
         "flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive",
         isDragOver && "bg-white/5"
       )}
     >
       <button
+        ref={setNodeRef}
         type="button"
         onClick={onToggle}
         className="flex items-center gap-1 flex-1 min-w-0 text-left focus-ring rounded-sm"
@@ -613,21 +693,36 @@ function CategoryHeader({
         </span>
       </button>
       {canManageChannels && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onAddChannel() }}
-              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-white motion-interactive focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Create Channel</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center">
+          <span
+            {...sortable.attributes}
+            {...sortable.listeners}
+            className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing tertiary-metadata"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <GripVertical className="w-3 h-3" />
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAddChannel() }}
+                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-white motion-interactive focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Create Channel</TooltipContent>
+          </Tooltip>
+        </div>
       )}
     </div>
   )
+}
+
+function DropContainer({ id }: { id: string }) {
+  const { setNodeRef } = useDroppable({ id })
+  return <div ref={setNodeRef} className="h-0" aria-hidden />
 }
 
 function SortableChannelItem({

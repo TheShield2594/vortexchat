@@ -29,9 +29,11 @@ interface Props {
 
 export function ServerSettingsModal({ open, onClose, server, isOwner, channels = [] }: Props) {
   const { toast } = useToast()
-  const { updateServer, servers } = useAppStore()
+  const { updateServer, removeServer, servers } = useAppStore()
   const liveServer = servers.find((s) => s.id === server.id) ?? server
   const [loading, setLoading] = useState(false)
+  const [deletingServer, setDeletingServer] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [name, setName] = useState(liveServer.name)
   const [description, setDescription] = useState(liveServer.description ?? "")
   const supabase = createClientSupabaseClient()
@@ -82,6 +84,25 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
   function copyInvite() {
     navigator.clipboard.writeText(liveServer.invite_code)
     toast({ title: "Invite code copied!" })
+  }
+
+  async function handleDeleteServer() {
+    setDeletingServer(true)
+    try {
+      const { error } = await supabase.from("servers").delete().eq("id", server.id)
+      if (error) throw error
+      removeServer(server.id)
+      toast({ title: "Server deleted" })
+      setShowDeleteConfirm(false)
+      onClose()
+      if (typeof window !== "undefined") {
+        window.location.assign("/channels/me")
+      }
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to delete server", description: error.message })
+    } finally {
+      setDeletingServer(false)
+    }
   }
 
   return (
@@ -150,6 +171,23 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                   Save Changes
                 </Button>
               )}
+
+              {isOwner && (
+                <div className="mt-6 rounded-md border p-4" style={{ borderColor: "rgba(242,63,67,0.45)", background: "rgba(242,63,67,0.08)" }}>
+                  <p className="text-sm font-semibold text-white">Danger Zone</p>
+                  <p className="mt-1 text-xs" style={{ color: "#fca5a5" }}>
+                    Deleting this server permanently removes all channels and messages.
+                  </p>
+                  <Button
+                    variant="destructive"
+                    className="mt-3"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Server
+                  </Button>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="invites" className="mt-0 space-y-4">
@@ -193,7 +231,28 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
 
           </div>
         </Tabs>
-      </DialogContent>
+    </DialogContent>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent style={{ background: '#313338', borderColor: '#1e1f22', color: '#f2f3f5' }}>
+          <DialogHeader>
+            <DialogTitle>Delete server?</DialogTitle>
+            <DialogDescription style={{ color: '#b5bac1' }}>
+              This action is irreversible and will permanently remove
+              <span className="font-semibold text-white"> {liveServer.name}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteServer} disabled={deletingServer}>
+              {deletingServer && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Server
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

@@ -219,7 +219,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                 if (!error) setMessages((prev) => prev.map((m) => m.id === activeThread.id ? { ...m, content, edited_at: new Date().toISOString() } : m))
               }}
               onDelete={async () => {
-                const { error } = await supabase.from("messages").update({ deleted_at: new Date().toISOString() }).eq("id", activeThread.id)
+                const { error } = await supabase.from("messages").delete().eq("id", activeThread.id)
                 if (!error) { setMessages((prev) => prev.filter((m) => m.id !== activeThread.id)); setView("list"); setActiveThread(null) }
               }}
               onReaction={async (emoji) => {
@@ -256,7 +256,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                     if (!error) setMessages((prev) => prev.map((m) => m.id === reply.id ? { ...m, content, edited_at: new Date().toISOString() } : m))
                   }}
                   onDelete={async () => {
-                    const { error } = await supabase.from("messages").update({ deleted_at: new Date().toISOString() }).eq("id", reply.id)
+                    const { error } = await supabase.from("messages").delete().eq("id", reply.id)
                     if (!error) setMessages((prev) => prev.filter((m) => m.id !== reply.id))
                   }}
                   onReaction={async (emoji) => {
