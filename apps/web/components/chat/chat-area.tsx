@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Hash, Users } from "lucide-react"
+import { AtSign, CircleHelp, Filter, Hash, MessageSquareText, MoreHorizontal, Pin, Search, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { AttachmentRow, ChannelRow, MessageWithAuthor, ThreadRow } from "@/types/database"
@@ -13,6 +13,16 @@ import { useTyping } from "@/hooks/use-typing"
 import { useToast } from "@/components/ui/use-toast"
 import { ThreadPanel } from "@/components/chat/thread-panel"
 import { ThreadList } from "@/components/chat/thread-list"
+import { NotificationBell } from "@/components/notifications/notification-bell"
+import { SearchModal } from "@/components/modals/search-modal"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   type OutboxEntry,
   getDraft,
@@ -50,6 +60,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [unreadAnchorMessageId, setUnreadAnchorMessageId] = useState<string | null>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showReturnToContext, setShowReturnToContext] = useState(false)
+  const [showSearchModal, setShowSearchModal] = useState(false)
+  const [threadPanelOpen, setThreadPanelOpen] = useState(true)
+  const [threadFilter, setThreadFilter] = useState<"all" | "active" | "archived">("all")
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -78,6 +91,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   )
   const returnScrollStorageKey = useMemo(
     () => `vortexchat:return-scroll:${currentUserId}:${channel.id}`,
+    [channel.id, currentUserId]
+  )
+  const threadPanelStorageKey = useMemo(
+    () => `vortexchat:thread-panel-open:${currentUserId}:${channel.id}`,
     [channel.id, currentUserId]
   )
 
@@ -251,6 +268,25 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     previousLastMessageIdRef.current = initialMessages[initialMessages.length - 1]?.id ?? null
     setPendingNewMessageCount(0)
   }, [initialMessages])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      const stored = window.localStorage.getItem(threadPanelStorageKey)
+      setThreadPanelOpen(stored == null ? true : stored === "true")
+    } catch {
+      setThreadPanelOpen(true)
+    }
+  }, [threadPanelStorageKey])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      window.localStorage.setItem(threadPanelStorageKey, String(threadPanelOpen))
+    } catch {
+      // Best effort only. Ignore storage failures.
+    }
+  }, [threadPanelOpen, threadPanelStorageKey])
 
   useEffect(() => {
     const savedAnchor = typeof window === "undefined" ? null : window.sessionStorage.getItem(unreadAnchorStorageKey)
@@ -680,7 +716,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     <div className="flex flex-1 overflow-hidden">
       <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
         <div
-          className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
+          className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
           style={{ borderColor: '#1e1f22' }}
         >
           <Hash className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
@@ -698,7 +734,75 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               </span>
             </>
           )}
-          <div className="ml-auto flex items-center">
+
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              title="Search messages"
+              aria-label="Search messages"
+            >
+              <Search className="w-4 h-4" style={{ color: "#b5bac1" }} />
+            </button>
+
+            <button
+              onClick={() => toast({ title: "Pinned view", description: "Pinned message view is queued for a follow-up pass." })}
+              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              title="Pinned messages"
+              aria-label="Pinned messages"
+            >
+              <Pin className="w-4 h-4" style={{ color: "#b5bac1" }} />
+            </button>
+
+            <NotificationBell userId={currentUserId} />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                  title="Thread filters"
+                  aria-label="Thread filters"
+                >
+                  <Filter className="w-4 h-4" style={{ color: "#b5bac1" }} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[180px]" style={{ background: "#232428", borderColor: "#1e1f22", color: "#dcddde" }}>
+                <DropdownMenuLabel>Thread filters</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setThreadFilter("all")}>All threads</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setThreadFilter("active")}>Active only</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setThreadFilter("archived")}>Archived only</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <button
+              onClick={() => toast({ title: "Help", description: "Shortcuts: Ctrl/Cmd+K (Quick Switcher), Ctrl/Cmd+F (Search)." })}
+              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              title="Help"
+              aria-label="Help"
+            >
+              <CircleHelp className="w-4 h-4" style={{ color: "#b5bac1" }} />
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                  title="More options"
+                  aria-label="More options"
+                >
+                  <MoreHorizontal className="w-4 h-4" style={{ color: "#b5bac1" }} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[200px]" style={{ background: "#232428", borderColor: "#1e1f22", color: "#dcddde" }}>
+                <DropdownMenuLabel>Channel utilities</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setShowSearchModal(true)}><Search className="w-3.5 h-3.5 mr-2" /> Search</DropdownMenuItem>
+                <DropdownMenuItem onClick={toggleMemberList}><Users className="w-3.5 h-3.5 mr-2" /> {memberListOpen ? "Hide" : "Show"} member list</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setThreadPanelOpen((open) => !open)}><MessageSquareText className="w-3.5 h-3.5 mr-2" /> {threadPanelOpen ? "Hide" : "Show"} thread panel</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => toast({ title: "Mentions inbox", description: "Your inbox highlights mentions and replies in real time." })}><AtSign className="w-3.5 h-3.5 mr-2" /> Mentions inbox</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <button
               onClick={toggleMemberList}
               className="p-1.5 rounded hover:bg-white/10 transition-colors"
@@ -706,8 +810,24 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             >
               <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
             </button>
+
+            <button
+              onClick={() => setThreadPanelOpen((open) => !open)}
+              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
+            >
+              <MessageSquareText className="w-5 h-5" style={{ color: threadPanelOpen ? '#f2f3f5' : '#949ba4' }} />
+            </button>
           </div>
         </div>
+
+        {showSearchModal && (
+          <SearchModal
+            serverId={serverId}
+            onClose={() => setShowSearchModal(false)}
+            onJumpToMessage={(channelId, messageId) => router.push(`/channels/${serverId}/${channelId}?message=${messageId}`)}
+          />
+        )}
 
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
           {messages.length === 0 && (
@@ -846,7 +966,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           <ThreadList
             channelId={channel.id}
             activeThreadId={activeThread?.id ?? null}
-            onSelectThread={(thread) => setActiveThread(thread)}
+            filter={threadFilter}
+            onSelectThread={(thread) => {
+              setActiveThread(thread)
+              setThreadPanelOpen(true)
+            }}
           />
         </div>
 
@@ -879,11 +1003,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         />
       </div>
 
-      {activeThread && (
+      {activeThread && threadPanelOpen && (
         <ThreadPanel
           thread={activeThread}
           currentUserId={currentUserId}
-          onClose={() => setActiveThread(null)}
+          onClose={() => setThreadPanelOpen(false)}
           onThreadUpdate={(updated) => setActiveThread(updated)}
         />
       )}

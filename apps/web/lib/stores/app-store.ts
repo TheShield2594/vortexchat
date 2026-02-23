@@ -1,6 +1,27 @@
 import { create } from "zustand"
 import type { ServerRow, ChannelRow, UserRow } from "@/types/database"
 
+const MEMBER_LIST_STORAGE_KEY = "vortexchat:ui:member-list-open"
+
+function loadMemberListOpen(): boolean {
+  if (typeof window === "undefined") return true
+  try {
+    const stored = window.localStorage.getItem(MEMBER_LIST_STORAGE_KEY)
+    return stored == null ? true : stored === "true"
+  } catch {
+    return true
+  }
+}
+
+function persistMemberListOpen(open: boolean) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(MEMBER_LIST_STORAGE_KEY, String(open))
+  } catch {
+    // Best effort only. Ignore storage failures (private mode / restricted environments).
+  }
+}
+
 export interface MemberForMention {
   user_id: string
   username: string
@@ -104,8 +125,12 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveServer: (serverId) => set({ activeServerId: serverId }),
   setActiveChannel: (channelId) => set({ activeChannelId: channelId }),
 
-  memberListOpen: true,
-  toggleMemberList: () => set((state) => ({ memberListOpen: !state.memberListOpen })),
+  memberListOpen: loadMemberListOpen(),
+  toggleMemberList: () => set((state) => {
+    const next = !state.memberListOpen
+    persistMemberListOpen(next)
+    return { memberListOpen: next }
+  }),
 
   voiceChannelId: null,
   voiceServerId: null,

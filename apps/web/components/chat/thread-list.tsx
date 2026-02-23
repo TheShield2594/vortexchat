@@ -10,15 +10,17 @@ import { cn } from "@/lib/utils/cn"
 interface Props {
   channelId: string
   activeThreadId: string | null
+  filter: "all" | "active" | "archived"
   onSelectThread: (thread: ThreadRow) => void
 }
 
-export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props) {
+export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }: Props) {
   const [threads, setThreads] = useState<ThreadRow[]>([])
   const [showArchived, setShowArchived] = useState(false)
   const [archivedThreads, setArchivedThreads] = useState<ThreadRow[]>([])
   const [expanded, setExpanded] = useState(true)
   const [loadingArchived, setLoadingArchived] = useState(false)
+  const shouldShowArchived = showArchived || filter === "archived"
 
   // Load active threads
   useEffect(() => {
@@ -29,7 +31,7 @@ export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props)
 
   // Load archived threads on demand
   useEffect(() => {
-    if (!showArchived) return
+    if (!shouldShowArchived) return
     setLoadingArchived(true)
     fetch(`/api/threads?channelId=${channelId}&archived=true`)
       .then((r) => r.json())
@@ -38,7 +40,7 @@ export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props)
         setLoadingArchived(false)
       })
       .catch(() => setLoadingArchived(false))
-  }, [showArchived, channelId])
+  }, [shouldShowArchived, channelId, filter])
 
   // Realtime updates
   useRealtimeThreads(
@@ -75,7 +77,11 @@ export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props)
     }
   )
 
-  if (threads.length === 0 && !showArchived) return null
+  const visibleThreads = filter === "archived" ? [] : threads
+  const visibleArchivedThreads = filter === "active" ? [] : archivedThreads
+  const shouldAllowArchivedToggle = filter !== "active"
+
+  if (visibleThreads.length === 0 && !shouldShowArchived) return null
 
   return (
     <div
@@ -105,7 +111,7 @@ export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props)
 
       {expanded && (
         <>
-          {threads.map((thread) => (
+          {visibleThreads.map((thread) => (
             <ThreadListItem
               key={thread.id}
               thread={thread}
@@ -114,24 +120,26 @@ export function ThreadList({ channelId, activeThreadId, onSelectThread }: Props)
             />
           ))}
 
-          {/* Archived toggle */}
-          <button
-            onClick={() => setShowArchived((s) => !s)}
-            className="flex items-center gap-2 w-full px-4 py-1.5 text-xs hover:bg-white/5 transition-colors"
-            style={{ color: "#6d6f78" }}
-          >
-            <Archive className="w-3 h-3" />
-            {showArchived ? "Hide archived" : "Show archived threads"}
-          </button>
+          {shouldAllowArchivedToggle && (
+            <button
+              type="button"
+              onClick={() => setShowArchived((s) => !s)}
+              className="flex items-center gap-2 w-full px-4 py-1.5 text-xs hover:bg-white/5 transition-colors"
+              style={{ color: "#6d6f78" }}
+            >
+              <Archive className="w-3 h-3" />
+              {showArchived ? "Hide archived" : "Show archived threads"}
+            </button>
+          )}
 
-          {showArchived && (
+          {shouldShowArchived && (
             <>
               {loadingArchived ? (
                 <div className="px-4 py-2 text-xs" style={{ color: "#6d6f78" }}>
                   Loading…
                 </div>
               ) : (
-                archivedThreads.map((thread) => (
+                visibleArchivedThreads.map((thread) => (
                   <ThreadListItem
                     key={thread.id}
                     thread={thread}
