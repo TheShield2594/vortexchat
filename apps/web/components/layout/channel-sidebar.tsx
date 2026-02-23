@@ -622,34 +622,30 @@ function CategoryHeader({
   return (
     <div
       className={cn(
-        "flex items-center justify-between px-2 py-1 cursor-pointer group rounded mx-1 transition-colors focus-ring",
+        "flex items-center justify-between px-2 py-1 group rounded mx-1 transition-colors",
         isDragOver && "bg-white/5"
       )}
-      role="button"
-      tabIndex={0}
-      onClick={onToggle}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          onToggle()
-        }
-      }}
-      aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
     >
-      <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex items-center gap-1 flex-1 min-w-0 text-left focus-ring rounded-sm"
+        aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
+      >
         {isCollapsed ? (
           <ChevronRight className="w-3 h-3 tertiary-metadata" />
         ) : (
           <ChevronDown className="w-3 h-3 tertiary-metadata" />
         )}
-        <span className="text-xs font-semibold uppercase tracking-wider tertiary-metadata">
+        <span className="text-xs font-semibold uppercase tracking-wider tertiary-metadata truncate">
           {category.name}
         </span>
-      </div>
+      </button>
       {canManageChannels && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); onAddChannel() }}
               className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
             >

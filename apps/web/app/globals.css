@@ -23,6 +23,7 @@
     --border: 220 6% 25%;
     --input: 220 6% 18%;
     --ring: 235 86% 65%;
+    --color-tertiary-metadata: #a3aab5;
     --radius: 0.5rem;
   }
 }
@@ -58,11 +59,11 @@
 
 @layer utilities {
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865f2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#2b2d31];
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865f2] focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
   .tertiary-metadata {
-    color: #a3aab5;
+    color: var(--color-tertiary-metadata);
   }
 
   /* Speaking animation */

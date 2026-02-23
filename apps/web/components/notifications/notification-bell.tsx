@@ -82,6 +82,15 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     return () => document.removeEventListener("mousedown", handler)
   }, [open])
 
+  useEffect(() => {
+    if (!open) return
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false)
+    }
+    document.addEventListener("keydown", handleEscape)
+    return () => document.removeEventListener("keydown", handleEscape)
+  }, [open])
+
   async function markAllRead() {
     await supabase
       .from("notifications")

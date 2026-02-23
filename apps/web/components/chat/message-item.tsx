@@ -195,6 +195,13 @@ export function MessageItem({
           )}
           onMouseEnter={() => setShowActions(true)}
           onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false) }}
+          onFocus={() => setShowActions(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+              setShowActions(false)
+              setShowEmojiPicker(false)
+            }
+          }}
         >
           {/* Reply reference */}
           {message.reply_to_id && message.reply_to && (
@@ -234,6 +241,7 @@ export function MessageItem({
               ) : (
                 <div className="pt-1 pr-1 flex items-center justify-end gap-1">
                   <span
+                    id={messageMetaId}
                     className="text-xs opacity-0 group-hover:opacity-100 transition-opacity block text-right tertiary-metadata"
                     style={{ fontSize: "10px" }}
                   >
@@ -267,7 +275,7 @@ export function MessageItem({
                       {displayName}
                     </span>
                   </UserProfilePopover>
-                  <span id={messageMetaId} className="text-xs tertiary-metadata">
+                  <span className="text-xs tertiary-metadata">
                     {format(timestamp, "MM/dd/yyyy h:mm a")}
                   </span>
                   {sendState === "queued" && (
