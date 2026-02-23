@@ -1,0 +1,32 @@
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { buildICal } from "@/lib/events"
+
+export async function GET(
+  _request: Request,
+  { params: paramsPromise }: { params: Promise<{ serverId: string }> }
+) {
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
+  const db = supabase as any
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return new Response("Unauthorized", { status: 401 })
+
+  const { data: events, error } = await db
+    .from("events")
+    .select("id,title,description,timezone,start_at,end_at,recurrence,recurrence_until,capacity,cancelled_at")
+    .eq("server_id", params.serverId)
+    .is("cancelled_at", null)
+    .order("start_at", { ascending: true })
+
+  if (error) return new Response(error.message, { status: 500 })
+
+  const body = buildICal((events ?? []) as any)
+
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/calendar; charset=utf-8",
+      "Content-Disposition": `attachment; filename=server-${params.serverId}-events.ics`,
+    },
+  })
+}

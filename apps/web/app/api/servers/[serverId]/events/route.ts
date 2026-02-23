@@ -1,0 +1,159 @@
+import { NextResponse } from "next/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+
+export async function GET(
+  request: Request,
+  { params: paramsPromise }: { params: Promise<{ serverId: string }> }
+) {
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
+  const db = supabase as any
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { searchParams } = new URL(request.url)
+  const from = searchParams.get("from")
+  const to = searchParams.get("to")
+
+  let query = db
+    .from("events")
+    .select("*, event_hosts(user_id), event_rsvps(user_id,status,waitlist_position)")
+    .eq("server_id", params.serverId)
+    .order("start_at", { ascending: true })
+
+  if (from) query = query.gte("start_at", from)
+  if (to) query = query.lte("start_at", to)
+
+  const { data, error } = await query
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const events = (data ?? []).map((event: any) => {
+    const rsvps = event.event_rsvps ?? []
+    return {
+      ...event,
+      stats: {
+        going: rsvps.filter((r: any) => r.status === "going").length,
+        maybe: rsvps.filter((r: any) => r.status === "maybe").length,
+        notGoing: rsvps.filter((r: any) => r.status === "not_going").length,
+        waitlist: rsvps.filter((r: any) => r.status === "waitlist").length,
+      },
+      myRsvp: rsvps.find((r: any) => r.user_id === user.id) ?? null,
+      hosts: (event.event_hosts ?? []).map((h: any) => h.user_id),
+    }
+  })
+
+  return NextResponse.json(events)
+}
+
+export async function POST(
+  request: Request,
+  { params: paramsPromise }: { params: Promise<{ serverId: string }> }
+) {
+  const params = await paramsPromise
+  const supabase = await createServerSupabaseClient()
+  const db = supabase as any
+  const service = (await createServiceRoleClient()) as any
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const perms = await getMemberPermissions(supabase, params.serverId, user.id)
+  if (!perms.isAdmin && !hasPermission(perms.permissions, "MANAGE_EVENTS")) {
+    return NextResponse.json({ error: "Missing MANAGE_EVENTS permission" }, { status: 403 })
+  }
+
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  const title = String(body.title ?? "").trim()
+  if (!title) return NextResponse.json({ error: "title required" }, { status: 400 })
+
+  const hosts = Array.isArray(body.hosts) ? (body.hosts as string[]) : []
+
+  const { data: created, error } = await db
+    .from("events")
+    .insert({
+      server_id: params.serverId,
+      title,
+      description: body.description ?? null,
+      linked_channel_id: body.linkedChannelId ?? null,
+      start_at: body.startAt,
+      end_at: body.endAt,
+      timezone: body.timezone ?? "UTC",
+      recurrence: body.recurrence ?? "none",
+      recurrence_until: body.recurrenceUntil ?? null,
+      capacity: body.capacity ?? null,
+      create_voice_channel: !!body.createVoiceChannel,
+      post_event_thread: !!body.postEventThread,
+      created_by: user.id,
+    })
+    .select("*")
+    .single()
+
+  if (error || !created) return NextResponse.json({ error: error?.message ?? "Failed to create event" }, { status: 500 })
+
+  if (hosts.length > 0) {
+    await db.from("event_hosts").insert(hosts.map((hostUserId) => ({ event_id: created.id, user_id: hostUserId })))
+  }
+
+  if (body.createVoiceChannel) {
+    const { data: voiceChannel } = await db
+      .from("channels")
+      .insert({
+        server_id: params.serverId,
+        type: "voice",
+        name: `${title} Voice`,
+        parent_id: body.linkedCategoryId ?? null,
+      })
+      .select("id")
+      .single()
+
+    if (voiceChannel?.id) {
+      await db.from("events").update({ voice_channel_id: voiceChannel.id }).eq("id", created.id)
+    }
+  }
+
+  if (body.postEventThread && body.linkedChannelId) {
+    const { data: message } = await db
+      .from("messages")
+      .insert({
+        channel_id: body.linkedChannelId,
+        author_id: user.id,
+        content: `📅 **${title}**\n${body.description ?? "Event created"}`,
+      })
+      .select("id")
+      .single()
+
+    if (message?.id) {
+      const { data: thread } = await db.rpc("create_thread_from_message", {
+        p_message_id: message.id,
+        p_name: `${title} discussion`,
+      })
+      if (thread?.id) {
+        await db.from("events").update({ thread_id: thread.id }).eq("id", created.id)
+      }
+    }
+  }
+
+  if (body.notifyMembers) {
+    const { data: members } = await db.from("server_members").select("user_id").eq("server_id", params.serverId)
+    if (members?.length) {
+      await service.from("notifications").insert(
+        members.map((member: any) => ({
+          user_id: member.user_id,
+          type: "system",
+          title: `New event: ${title}`,
+          body: "A new event has been scheduled.",
+          server_id: params.serverId,
+          channel_id: body.linkedChannelId ?? null,
+        }))
+      )
+    }
+  }
+
+  return NextResponse.json(created, { status: 201 })
+}
