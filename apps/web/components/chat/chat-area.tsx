@@ -12,6 +12,7 @@ import { useTyping } from "@/hooks/use-typing"
 import { useToast } from "@/components/ui/use-toast"
 import { ThreadPanel } from "@/components/chat/thread-panel"
 import { ThreadList } from "@/components/chat/thread-list"
+import { ChannelWorkspacePanel } from "@/components/chat/channel-workspace-panel"
 
 interface Props {
   channel: ChannelRow
@@ -222,6 +223,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
                   isGrouped={!!isGrouped}
                   currentUserId={currentUserId}
                   onReply={() => setReplyTo(message)}
+                  onConvertToTask={async (messageId) => {
+                    const res = await fetch(`/api/messages/${messageId}/task`, { method: "POST" })
+                    if (!res.ok) {
+                      const errorPayload = await res.json().catch(() => ({}))
+                      toast({ variant: "destructive", title: "Failed to convert message", description: errorPayload.error ?? "Please try again." })
+                      return
+                    }
+                    toast({ title: "Task created", description: "Message was converted to a channel task." })
+                  }}
                   onThreadCreated={(thread) => setActiveThread(thread)}
                   onEdit={async (content) => {
                     const { error } = await supabase
@@ -318,6 +328,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId }: 
           onSent={onSent}
         />
       </div>
+
+      <ChannelWorkspacePanel channel={channel} />
 
       {/* Thread panel (slides in alongside the main channel) */}
       {activeThread && (

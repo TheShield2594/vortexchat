@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, CheckSquare } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
@@ -24,6 +24,7 @@ interface Props {
   onDelete: () => Promise<void>
   onReaction: (emoji: string) => Promise<void>
   onThreadCreated?: (thread: ThreadRow) => void
+  onConvertToTask?: (messageId: string) => Promise<void>
 }
 
 export function MessageItem({
@@ -35,6 +36,7 @@ export function MessageItem({
   onDelete,
   onReaction,
   onThreadCreated,
+  onConvertToTask,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
@@ -432,6 +434,11 @@ export function MessageItem({
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
+        {onConvertToTask && (
+          <ContextMenuItem onClick={() => onConvertToTask(message.id)}>
+            <CheckSquare className="w-4 h-4 mr-2" /> Convert to Task
+          </ContextMenuItem>
+        )}
         {message.content && (
           <ContextMenuItem onClick={() => {
             navigator.clipboard.writeText(message.content!)

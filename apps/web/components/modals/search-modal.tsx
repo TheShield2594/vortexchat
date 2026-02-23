@@ -17,6 +17,8 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
   const [results, setResults] = useState<MessageWithAuthor[]>([])
   const [loading, setLoading] = useState(false)
   const [total, setTotal] = useState(0)
+  const [taskResults, setTaskResults] = useState<any[]>([])
+  const [docResults, setDocResults] = useState<any[]>([])
   const [offset, setOffset] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -49,6 +51,8 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
         const data = await res.json()
         if (off === 0) {
           setResults(data.results ?? [])
+          setTaskResults(data.tasks ?? [])
+          setDocResults(data.docs ?? [])
         } else {
           setResults((prev) => [...prev, ...(data.results ?? [])])
         }
@@ -116,11 +120,33 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
             </div>
           ) : (
             <>
-              {total > 0 && (
+              {(total > 0 || taskResults.length > 0 || docResults.length > 0) && (
                 <div className="px-4 py-2 text-xs" style={{ color: "#949ba4" }}>
-                  {total} result{total !== 1 ? "s" : ""}
+                  {total} messages · {taskResults.length} tasks · {docResults.length} docs
                 </div>
               )}
+              
+              {taskResults.length > 0 && (
+                <div className="px-4 pt-2">
+                  <p className="text-xs font-semibold" style={{ color: "#949ba4" }}>Tasks</p>
+                  {taskResults.map((task) => (
+                    <div key={task.id} className="px-1 py-2 text-sm" style={{ color: "#b5bac1" }}>
+                      <span className="text-white">{task.title}</span> · {task.status}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {docResults.length > 0 && (
+                <div className="px-4 pt-2">
+                  <p className="text-xs font-semibold" style={{ color: "#949ba4" }}>Docs</p>
+                  {docResults.map((doc) => (
+                    <div key={doc.id} className="px-1 py-2 text-sm" style={{ color: "#b5bac1" }}>
+                      <span className="text-white">{doc.title}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {results.map((msg) => {
                 const displayName = msg.author?.display_name || msg.author?.username || "Unknown"
                 const initials = displayName.slice(0, 2).toUpperCase()

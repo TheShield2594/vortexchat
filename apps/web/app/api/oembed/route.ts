@@ -1,8 +1,49 @@
 import { NextRequest, NextResponse } from "next/server"
 import { lookup } from "dns/promises"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 // Simple Open Graph scraper — fetches a URL and returns title, description, image, siteName
 // Runs server-side to avoid CORS issues and to not expose the target URL to analytics.
+
+async function getInternalWorkspacePreview(req: NextRequest, parsedUrl: URL) {
+  const taskId = parsedUrl.searchParams.get("task")
+  const docId = parsedUrl.searchParams.get("doc")
+  if (!taskId && !docId) return null
+
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  if (taskId) {
+    const { data } = await supabase.from("channel_tasks").select("title,description,status,due_at").eq("id", taskId).maybeSingle()
+    if (data) {
+      return {
+        title: `Task · ${data.title}`,
+        description: `${data.status}${data.due_at ? ` · due ${new Date(data.due_at).toLocaleDateString()}` : ""}${data.description ? ` · ${data.description}` : ""}`,
+        image: null,
+        siteName: "Vortex workspace",
+        url: parsedUrl.href,
+        favicon: `${parsedUrl.origin}/favicon.ico`,
+      }
+    }
+  }
+
+  if (docId) {
+    const { data } = await supabase.from("channel_docs").select("title,content,updated_at").eq("id", docId).maybeSingle()
+    if (data) {
+      return {
+        title: `Doc · ${data.title}`,
+        description: `${(data.content ?? "").slice(0, 180)}${(data.content ?? "").length > 180 ? "…" : ""}`,
+        image: null,
+        siteName: "Vortex workspace",
+        url: parsedUrl.href,
+        favicon: `${parsedUrl.origin}/favicon.ico`,
+      }
+    }
+  }
+
+  return null
+}
 
 const TIMEOUT_MS = 5000
 const MAX_BODY_BYTES = 256 * 1024 // 256 KB — enough to find <head> tags
@@ -45,6 +86,9 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "invalid url" }, { status: 400 })
   }
+
+  const internalPreview = await getInternalWorkspacePreview(req, parsedUrl)
+  if (internalPreview) return NextResponse.json(internalPreview)
 
   // SSRF guard: resolve hostname and block private/reserved IPs
   try {

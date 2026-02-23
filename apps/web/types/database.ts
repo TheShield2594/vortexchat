@@ -1090,6 +1090,87 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_tasks: {
+        Row: {
+          id: string
+          channel_id: string
+          server_id: string
+          message_id: string | null
+          title: string
+          description: string | null
+          status: 'todo' | 'in_progress' | 'blocked' | 'done'
+          assignee_id: string | null
+          due_at: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          channel_id: string
+          server_id: string
+          message_id?: string | null
+          title: string
+          description?: string | null
+          status?: 'todo' | 'in_progress' | 'blocked' | 'done'
+          assignee_id?: string | null
+          due_at?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          channel_id?: string
+          server_id?: string
+          message_id?: string | null
+          title?: string
+          description?: string | null
+          status?: 'todo' | 'in_progress' | 'blocked' | 'done'
+          assignee_id?: string | null
+          due_at?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      channel_docs: {
+        Row: {
+          id: string
+          channel_id: string
+          server_id: string
+          title: string
+          content: string
+          created_by: string
+          updated_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          channel_id: string
+          server_id: string
+          title: string
+          content?: string
+          created_by: string
+          updated_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          channel_id?: string
+          server_id?: string
+          title?: string
+          content?: string
+          created_by?: string
+          updated_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       thread_read_states: {
         Row: {
           user_id: string
@@ -1220,6 +1301,8 @@ export type AutoModRuleRow = Database['public']['Tables']['automod_rules']['Row'
 export type ThreadRow = Database['public']['Tables']['threads']['Row']
 export type ThreadMemberRow = Database['public']['Tables']['thread_members']['Row']
 export type ThreadReadStateRow = Database['public']['Tables']['thread_read_states']['Row']
+export type ChannelTaskRow = Database['public']['Tables']['channel_tasks']['Row']
+export type ChannelDocRow = Database['public']['Tables']['channel_docs']['Row']
 
 // AutoMod types
 export type AutoModTriggerType = 'keyword_filter' | 'mention_spam' | 'link_spam'
