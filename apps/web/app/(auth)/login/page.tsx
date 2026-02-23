@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Zap } from "lucide-react"
+import { Loader2, ShieldCheck, Zap } from "lucide-react"
+import { startPasskeyLogin, supportsPasskeys } from "@/lib/auth/passkeys-client"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -17,6 +18,8 @@ export default function LoginPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [magicLinkLoading, setMagicLinkLoading] = useState(false)
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const [policy, setPolicy] = useState<{ passkey_first?: boolean; enforce_passkey?: boolean; fallback_password?: boolean; fallback_magic_link?: boolean }>({})
   const [form, setForm] = useState({ email: "", password: "" })
   const supabase = createClientSupabaseClient()
 
@@ -33,11 +36,7 @@ export default function LoginPage() {
       router.push("/channels/me")
       router.refresh()
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: error.message || "Invalid email or password",
-      })
+      toast({ variant: "destructive", title: "Login failed", description: error.message || "Invalid email or password" })
     } finally {
       setLoading(false)
     }
@@ -55,110 +54,74 @@ export default function LoginPage() {
         options: { emailRedirectTo: `${window.location.origin}/channels/me` },
       })
       if (error) throw error
-      toast({
-        title: "Magic link sent!",
-        description: `Check ${form.email} for your login link.`,
-      })
+      toast({ title: "Magic link sent!", description: `Check ${form.email} for your login link.` })
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to send magic link",
-        description: error.message,
-      })
+      toast({ variant: "destructive", title: "Failed to send magic link", description: error.message })
     } finally {
       setMagicLinkLoading(false)
     }
   }
 
+  async function handlePasskeyLogin() {
+    if (!supportsPasskeys()) {
+      toast({ variant: "destructive", title: "Passkeys unavailable", description: "Your browser/device does not support WebAuthn passkeys." })
+      return
+    }
+    setPasskeyLoading(true)
+    try {
+      const resolvedPolicy = await startPasskeyLogin(form.email || undefined, "Trusted browser")
+      if (resolvedPolicy) setPolicy(resolvedPolicy)
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Passkey login failed", description: error.message })
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
+
+  const showFallbacks = !policy.enforce_passkey
+
   return (
-    <div className="rounded-lg p-8 shadow-2xl" style={{ background: '#313338' }}>
+    <div className="rounded-lg p-8 shadow-2xl" style={{ background: "#313338" }}>
       <div className="text-center mb-8">
-        <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#5865f2' }}>
-            <Zap className="w-7 h-7 text-white" />
-          </div>
-        </div>
-        <h1 className="text-2xl font-bold text-white">
-          {isNewUser ? "Verify your email" : "Welcome back!"}
-        </h1>
-        <p style={{ color: '#b5bac1' }} className="text-sm mt-1">
-          {isNewUser
-            ? "Check your inbox for a verification link, then log in below."
-            : "We\u2019re so excited to see you again!"}
-        </p>
+        <div className="flex justify-center mb-4"><div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#5865f2" }}><Zap className="w-7 h-7 text-white" /></div></div>
+        <h1 className="text-2xl font-bold text-white">{isNewUser ? "Verify your email" : "Welcome back!"}</h1>
+        <p style={{ color: "#b5bac1" }} className="text-sm mt-1">{isNewUser ? "Check your inbox for a verification link, then log in below." : "We’re so excited to see you again!"}</p>
       </div>
 
-      <form onSubmit={handleLogin} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
-            Email <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="email"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
-              Password <span className="text-red-500">*</span>
-            </Label>
-          </div>
-          <Input
-            id="password"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-            className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
-          />
-        </div>
-
-        <Button
-          type="submit"
-          disabled={loading}
-          className="w-full h-11 font-medium"
-          style={{ background: '#5865f2' }}
-        >
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Log In
-        </Button>
-      </form>
-
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" style={{ borderColor: '#4e5058' }} />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span style={{ background: '#313338', color: '#4e5058' }} className="px-2">or</span>
-        </div>
+      <div className="rounded-md p-3 mb-4 text-sm" style={{ background: "#2b2d31", border: "1px solid #1e1f22", color: "#b5bac1" }}>
+        <p className="font-medium text-white flex items-center gap-2 mb-1"><ShieldCheck className="w-4 h-4" />Passkey-first security</p>
+        <p>Use your device passkey for phishing-resistant sign in. If your policy allows it, password and magic link remain available as backups.</p>
       </div>
 
-      <Button
-        type="button"
-        variant="outline"
-        disabled={magicLinkLoading}
-        onClick={handleMagicLink}
-        className="w-full h-10"
-        style={{ borderColor: '#4e5058', color: '#b5bac1', background: 'transparent' }}
-      >
-        {magicLinkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Send Magic Link
+      <Button type="button" disabled={passkeyLoading} onClick={handlePasskeyLogin} className="w-full h-11 font-medium mb-4" style={{ background: "#3ba55c" }}>
+        {passkeyLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Continue with Passkey
       </Button>
 
-      <p className="text-center text-sm mt-6" style={{ color: '#b5bac1' }}>
-        Need an account?{" "}
-        <Link href="/register" className="hover:underline" style={{ color: '#00a8fc' }}>
-          Register
-        </Link>
-      </p>
+      {showFallbacks && (
+        <>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>Email <span className="text-red-500">*</span></Label>
+              <Input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required className="h-10" style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>Password <span className="text-red-500">*</span></Label>
+              <Input id="password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required className="h-10" style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }} />
+            </div>
+            <Button type="submit" disabled={loading} className="w-full h-11 font-medium" style={{ background: "#5865f2" }}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Log In with Password
+            </Button>
+          </form>
+
+          <Button type="button" variant="outline" disabled={magicLinkLoading} onClick={handleMagicLink} className="w-full h-10 mt-4" style={{ borderColor: "#4e5058", color: "#b5bac1", background: "transparent" }}>
+            {magicLinkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send Magic Link
+          </Button>
+        </>
+      )}
+
+      {!showFallbacks && <p className="text-xs mt-3" style={{ color: "#f0b132" }}>Your account policy requires passkey login. Contact an owner/admin if you need recovery help.</p>}
+
+      <p className="text-center text-sm mt-6" style={{ color: "#b5bac1" }}>Need an account? <Link href="/register" className="hover:underline" style={{ color: "#00a8fc" }}>Register</Link></p>
     </div>
   )
 }
