@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { AtSign, CircleHelp, Filter, Hash, MessageSquareText, MoreHorizontal, Pin, Search, Users, Briefcase } from "lucide-react"
+import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
@@ -14,17 +14,8 @@ import { useTyping } from "@/hooks/use-typing"
 import { useToast } from "@/components/ui/use-toast"
 import { ThreadPanel } from "@/components/chat/thread-panel"
 import { ThreadList } from "@/components/chat/thread-list"
-import { NotificationBell } from "@/components/notifications/notification-bell"
 import { SearchModal } from "@/components/modals/search-modal"
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   type OutboxEntry,
   getDraft,
@@ -68,7 +59,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [threadPanelOpen, setThreadPanelOpen] = useState(true)
-  const [threadFilter, setThreadFilter] = useState<"all" | "active" | "archived">("all")
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -797,26 +787,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               <Pin className="w-4 h-4" style={{ color: "#b5bac1" }} />
             </button>
 
-            <NotificationBell userId={currentUserId} />
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
-                  title="Thread filters"
-                  aria-label="Thread filters"
-                >
-                  <Filter className="w-4 h-4" style={{ color: "#b5bac1" }} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[180px]" style={{ background: "#232428", borderColor: "#1e1f22", color: "#dcddde" }}>
-                <DropdownMenuLabel>Thread filters</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setThreadFilter("all")}>All threads</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setThreadFilter("active")}>Active only</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setThreadFilter("archived")}>Archived only</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             <button
               onClick={() => toast({ title: "Help", description: "Shortcuts: Ctrl/Cmd+K (Quick Switcher), Ctrl/Cmd+F (Search)." })}
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
@@ -826,32 +796,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               <CircleHelp className="w-4 h-4" style={{ color: "#b5bac1" }} />
             </button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
-                  title="More options"
-                  aria-label="More options"
-                >
-                  <MoreHorizontal className="w-4 h-4" style={{ color: "#b5bac1" }} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[200px]" style={{ background: "#232428", borderColor: "#1e1f22", color: "#dcddde" }}>
-                <DropdownMenuLabel>Channel utilities</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setShowSearchModal(true)}><Search className="w-3.5 h-3.5 mr-2" /> Search</DropdownMenuItem>
-                <DropdownMenuItem onClick={toggleMemberList}><Users className="w-3.5 h-3.5 mr-2" /> {memberListOpen ? "Hide" : "Show"} member list</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setThreadPanelOpen((open) => !open)}><MessageSquareText className="w-3.5 h-3.5 mr-2" /> {threadPanelOpen ? "Hide" : "Show"} thread panel</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => toast({ title: "Mentions inbox", description: "Your inbox highlights mentions and replies in real time." })}><AtSign className="w-3.5 h-3.5 mr-2" /> Mentions inbox</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             <button
               onClick={toggleMemberList}
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title={memberListOpen ? "Hide Member List" : "Show Member List"}
             >
-              <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
+              <Users className="w-4 h-4" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
             </button>
 
             <button
@@ -859,7 +809,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
             >
-              <MessageSquareText className="w-5 h-5" style={{ color: threadPanelOpen ? '#f2f3f5' : '#949ba4' }} />
+              <MessageSquareText className="w-4 h-4" style={{ color: threadPanelOpen ? '#f2f3f5' : '#949ba4' }} />
             </button>
           </div>
         </div>
@@ -1008,7 +958,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           <ThreadList
             channelId={channel.id}
             activeThreadId={activeThread?.id ?? null}
-            filter={threadFilter}
+            filter="all"
             onSelectThread={(thread) => {
               setActiveThread(thread)
               setThreadPanelOpen(true)

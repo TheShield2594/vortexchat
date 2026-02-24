@@ -31,6 +31,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
+  const emojiButtonRef = useRef<HTMLButtonElement>(null)
   const fileUrlCache = useRef(new Map<File, string>())
 
   // Mention autocomplete
@@ -64,6 +66,22 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       el.style.height = Math.min(el.scrollHeight, 200) + "px"
     })
   }, [draft])
+
+  useEffect(() => {
+    if (!showEmojiPicker) return
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node
+      const clickedInsidePicker = emojiPickerRef.current?.contains(target)
+      const clickedToggleButton = emojiButtonRef.current?.contains(target)
+      if (!clickedInsidePicker && !clickedToggleButton) {
+        setShowEmojiPicker(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    return () => document.removeEventListener("mousedown", handlePointerDown)
+  }, [showEmojiPicker])
 
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
@@ -281,6 +299,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         {/* Emoji picker toggle */}
         <div className="relative flex-shrink-0 mb-1">
           <button
+            ref={emojiButtonRef}
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             className="motion-interactive motion-press hover:text-white"
             style={{ color: "#b5bac1" }}
@@ -291,6 +310,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
           {showEmojiPicker && (
             <div
+              ref={emojiPickerRef}
               data-state="open"
               className="panel-surface-motion absolute bottom-8 right-0 p-2 rounded-lg shadow-xl z-50 grid grid-cols-6 gap-1"
               style={{ background: "#2b2d31", border: "1px solid #1e1f22", width: "200px" }}
