@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-24T13:20:02.746Z",
+  "generatedAt": "2026-02-24T14:09:47.480Z",
   "rules": [
     {
       "id": "inline-style-color",
@@ -286,10 +286,10 @@
       "line": 21
     },
     {
-      "key": "inline-style-color:apps/web/app/global-error.tsx:34",
+      "key": "inline-style-color:apps/web/app/global-error.tsx:24",
       "ruleId": "inline-style-color",
       "file": "apps/web/app/global-error.tsx",
-      "line": 34
+      "line": 24
     },
     {
       "key": "inline-style-color:apps/web/app/global-error.tsx:40",
@@ -556,10 +556,10 @@
       "line": 167
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1015",
+      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1009",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1015
+      "line": 1009
     },
     {
       "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:749",
@@ -910,10 +910,10 @@
       "line": 242
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:259",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:254",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 259
+      "line": 254
     },
     {
       "key": "inline-style-color:apps/web/components/chat/message-item.tsx:262",
@@ -1084,10 +1084,10 @@
       "line": 148
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/thread-list.tsx:198",
+      "key": "inline-style-color:apps/web/components/chat/thread-list.tsx:196",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/thread-list.tsx",
-      "line": 198
+      "line": 196
     },
     {
       "key": "inline-style-color:apps/web/components/chat/thread-list.tsx:201",
@@ -1504,10 +1504,10 @@
       "line": 465
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-channel-area.tsx:486",
+      "key": "inline-style-color:apps/web/components/dm/dm-channel-area.tsx:480",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-channel-area.tsx",
-      "line": 486
+      "line": 480
     },
     {
       "key": "inline-style-color:apps/web/components/dm/dm-channel-area.tsx:498",
@@ -2020,10 +2020,10 @@
       "line": 104
     },
     {
-      "key": "inline-style-color:apps/web/components/layout/user-panel.tsx:111",
+      "key": "inline-style-color:apps/web/components/layout/user-panel.tsx:109",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/layout/user-panel.tsx",
-      "line": 111
+      "line": 109
     },
     {
       "key": "inline-style-color:apps/web/components/layout/user-panel.tsx:161",
@@ -2686,10 +2686,10 @@
       "line": 201
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:210",
+      "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:206",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/profile-settings-modal.tsx",
-      "line": 210
+      "line": 206
     },
     {
       "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:214",
@@ -2698,10 +2698,10 @@
       "line": 214
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:223",
+      "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:220",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/profile-settings-modal.tsx",
-      "line": 223
+      "line": 220
     },
     {
       "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:241",
@@ -2812,10 +2812,10 @@
       "line": 349
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:368",
+      "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:359",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/profile-settings-modal.tsx",
-      "line": 368
+      "line": 359
     },
     {
       "key": "inline-style-color:apps/web/components/modals/profile-settings-modal.tsx:374",
@@ -4336,10 +4336,10 @@
       "line": 331
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:337",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:334",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 337
+      "line": 334
     },
     {
       "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:345",
@@ -4522,10 +4522,10 @@
       "line": 127
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:136",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:133",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 136
+      "line": 133
     },
     {
       "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:143",
@@ -4708,10 +4708,10 @@
       "line": 342
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:381",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:345",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 381
+      "line": 345
     },
     {
       "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:382",
@@ -4858,10 +4858,10 @@
       "line": 701
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:714",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:707",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 714
+      "line": 707
     },
     {
       "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:720",
@@ -4918,70 +4918,16 @@
       "line": 752
     },
     {
-      "key": "inline-style-radius-shadow:apps/web/app/global-error.tsx:40",
+      "key": "inline-style-radius-shadow:apps/web/app/global-error.tsx:21",
       "ruleId": "inline-style-radius-shadow",
       "file": "apps/web/app/global-error.tsx",
-      "line": 40
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/app/channels/discover/page.tsx:208",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/app/channels/discover/page.tsx",
-      "line": 208
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/chat/mention-suggestions.tsx:87",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/chat/mention-suggestions.tsx",
-      "line": 87
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/chat/message-input.tsx:201",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/chat/message-input.tsx",
-      "line": 201
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/chat/message-input.tsx:332",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/chat/message-input.tsx",
-      "line": 332
+      "line": 21
     },
     {
       "key": "tailwind-arbitrary-surface-token:apps/web/components/chat/message-item.tsx:199",
       "ruleId": "tailwind-arbitrary-surface-token",
       "file": "apps/web/components/chat/message-item.tsx",
       "line": 199
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/chat/thread-list.tsx:131",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/chat/thread-list.tsx",
-      "line": 131
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/layout/channel-sidebar.tsx:932",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/layout/channel-sidebar.tsx",
-      "line": 932
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/layout/channel-sidebar.tsx:949",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/layout/channel-sidebar.tsx",
-      "line": 949
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/layout/channel-sidebar.tsx:959",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/layout/channel-sidebar.tsx",
-      "line": 959
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/notifications/notification-bell.tsx:216",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/notifications/notification-bell.tsx",
-      "line": 216
     },
     {
       "key": "tailwind-arbitrary-surface-token:apps/web/components/ui/branded-empty-state.tsx:12",
@@ -4996,24 +4942,6 @@
       "line": 13
     },
     {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/ui/branded-empty-state.tsx:13",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/ui/branded-empty-state.tsx",
-      "line": 13
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/ui/context-menu.tsx:68",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/ui/context-menu.tsx",
-      "line": 68
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/ui/context-menu.tsx:68",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/ui/context-menu.tsx",
-      "line": 68
-    },
-    {
       "key": "tailwind-arbitrary-surface-token:apps/web/components/ui/scroll-area.tsx:16",
       "ruleId": "tailwind-arbitrary-surface-token",
       "file": "apps/web/components/ui/scroll-area.tsx",
@@ -5024,30 +4952,6 @@
       "ruleId": "tailwind-arbitrary-surface-token",
       "file": "apps/web/components/user-profile-popover.tsx",
       "line": 142
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/voice/voice-channel.tsx:507",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 507
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/voice/voice-channel.tsx:737",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 737
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/voice/voice-channel.tsx:748",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 748
-    },
-    {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/voice/voice-channel.tsx:752",
-      "ruleId": "tailwind-arbitrary-surface-token",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 752
     }
   ]
 }

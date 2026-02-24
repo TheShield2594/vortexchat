@@ -32,6 +32,40 @@ interface DiscoverApp {
 
 const APP_CATEGORIES = ["all", "productivity", "ops", "community"]
 
+function trustBadgeClass(trustBadge: DiscoverApp["trust_badge"]) {
+  switch (trustBadge) {
+    case "verified":
+      return "text-primary"
+    case "partner":
+      return "text-accent"
+    case "internal":
+      return "text-muted-foreground"
+    default:
+      return "text-muted-foreground"
+  }
+}
+
+function ServerIcon({ iconUrl, serverName }: { iconUrl: string | null; serverName: string }) {
+  const [iconLoadFailed, setIconLoadFailed] = useState(false)
+
+  if (iconUrl && !iconLoadFailed) {
+    return (
+      <img
+        src={iconUrl}
+        alt={serverName}
+        className="h-full w-full object-cover"
+        onError={() => setIconLoadFailed(true)}
+      />
+    )
+  }
+
+  return (
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-primary-foreground">
+      {serverName.slice(0, 2).toUpperCase()}
+    </div>
+  )
+}
+
 export default function DiscoverPage() {
   const [servers, setServers] = useState<PublicServer[]>([])
   const [apps, setApps] = useState<DiscoverApp[]>([])
@@ -113,7 +147,7 @@ export default function DiscoverPage() {
             <TabsTrigger value="apps">Apps</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="relative max-w-xl mt-3">
+        <div className="relative mt-3 max-w-xl">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
@@ -124,7 +158,7 @@ export default function DiscoverPage() {
           />
         </div>
         {mode === "apps" && (
-          <div className="flex gap-2 mt-3">
+          <div className="mt-3 flex gap-2">
             {APP_CATEGORIES.map((item) => (
               <button
                 type="button"
@@ -168,11 +202,11 @@ export default function DiscoverPage() {
               hint="Try a broader term or switch to Apps to explore integrations."
             />
           ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {servers.map((server) => (
               <div key={server.id} className="flex flex-col overflow-hidden rounded-lg bg-card transition-transform hover:scale-[1.02]">
                 <div className="flex h-20 items-center justify-center bg-popover">
-                  {server.icon_url ? <img src={server.icon_url} alt={server.name} className="h-full w-full object-cover" /> : <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-primary-foreground">{server.name.slice(0, 2).toUpperCase()}</div>}
+                  <ServerIcon iconUrl={server.icon_url} serverName={server.name} />
                 </div>
                 <div className="flex flex-1 flex-col p-4">
                   <h3 className="mb-1 truncate font-semibold">{server.name}</h3>
@@ -195,17 +229,17 @@ export default function DiscoverPage() {
               hint="Reset filters to all categories to discover more tools."
             />
           ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {apps.map((app) => (
               <div key={app.id} className="rounded-lg bg-card p-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">{app.name}</h3>
-                  {app.trust_badge && <BadgeCheck className="w-4 h-4 text-emerald-400" />}
+                  {app.trust_badge && <BadgeCheck className={cn("h-4 w-4", trustBadgeClass(app.trust_badge))} />}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{app.description ?? "No description"}</p>
                 <p className="mt-2 text-xs text-muted-foreground">Category: {app.category}</p>
                 <p className="text-xs text-muted-foreground"><Star className="mr-1 inline h-3 w-3" />{app.average_rating.toFixed(1)} ({app.review_count} reviews)</p>
-                <p className="mt-2 text-[11px] text-muted-foreground">Permissions: {app.permissions.join(", ") || "None"}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Permissions: {app.permissions.join(", ") || "None"}</p>
               </div>
             ))}
           </div>

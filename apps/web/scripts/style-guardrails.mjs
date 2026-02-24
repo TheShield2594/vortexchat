@@ -1,7 +1,8 @@
 import { readFileSync, readdirSync, statSync, existsSync, writeFileSync } from "node:fs"
 import { resolve, relative, extname, join, dirname } from "node:path"
+import { fileURLToPath } from "node:url"
 
-const WEB_ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..")
+const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const ROOT = resolve(WEB_ROOT, "../..")
 const BASELINE_PATH = resolve(WEB_ROOT, "config/style-guardrails-baseline.json")
 const WRITE_BASELINE = process.argv.includes("--write-baseline")
@@ -12,17 +13,17 @@ const rules = [
   {
     id: "inline-style-color",
     description: "Inline style color tokens are not allowed on product surfaces.",
-    regex: /style\s*=\s*\{\{[^}]*\b(color|background|backgroundColor|borderColor)\s*:/g,
+    regex: /style\s*=\s*\{\{[\s\S]*?\b(color|background|backgroundColor|borderColor)\s*:/g,
   },
   {
     id: "inline-style-radius-shadow",
     description: "Inline style borderRadius/boxShadow are not allowed on product surfaces.",
-    regex: /style\s*=\s*\{\{[^}]*\b(borderRadius|boxShadow)\s*:/g,
+    regex: /style\s*=\s*\{\{[\s\S]*?\b(borderRadius|boxShadow)\s*:/g,
   },
   {
     id: "tailwind-arbitrary-surface-token",
     description: "Arbitrary Tailwind surface values are not allowed; use governed tokens/variants.",
-    regex: /\b(bg|text|border)-\[[^\]]+\]|\b(rounded|shadow)-\[[^\]]+\]/g,
+    regex: /\b(bg|border)-\[[^\]]+\]|\b(rounded|shadow)-\[[^\]]+\]/g,
   },
 ]
 
@@ -53,11 +54,12 @@ function collectViolations() {
       rule.regex.lastIndex = 0
       let match
       while ((match = rule.regex.exec(content)) !== null) {
+        const line = lineNumberFromIndex(content, match.index)
         violations.push({
-          key: `${rule.id}:${rel}:${lineNumberFromIndex(content, match.index)}`,
+          key: `${rule.id}:${rel}:${line}`,
           ruleId: rule.id,
           file: rel,
-          line: lineNumberFromIndex(content, match.index),
+          line,
           excerpt: match[0].slice(0, 120),
         })
       }
