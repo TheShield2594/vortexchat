@@ -1,5 +1,6 @@
 import webpush from "web-push"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { resolveNotification } from "@/lib/notification-resolver"
 
 // VAPID keys — set these env vars (generate once with: npx web-push generate-vapid-keys)
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""
@@ -73,6 +74,7 @@ export async function sendPushToChannel(opts: {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
 
   const { serverId, channelId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts
+  const mentionedSet = new Set(mentionedIds)
   const supabase = await createServerSupabaseClient()
 
   let memberIds: string[] = []
@@ -101,13 +103,6 @@ export async function sendPushToChannel(opts: {
     .select("user_id, mode, server_id, channel_id")
     .in("user_id", memberIds)
 
-  const settingsMap: Record<string, string> = {}
-  for (const s of settings ?? []) {
-    const key = s.user_id
-    // Channel-level overrides server-level
-    if (channelId && s.channel_id === channelId) settingsMap[key] = s.mode
-    else if (serverId && s.server_id === serverId && !settingsMap[key]) settingsMap[key] = s.mode
-  }
 
   const payload: PushPayload = {
     title: senderName,
@@ -122,9 +117,17 @@ export async function sendPushToChannel(opts: {
 
   await Promise.allSettled(
     memberIds.map((uid) => {
-      const mode = settingsMap[uid] ?? "all"
-      if (mode === "muted") return
-      if (mode === "mentions" && !mentionedIds.includes(uid)) return
+      const eventType = mentionedSet.has(uid) ? "mention" : "message"
+      const resolved = resolveNotification(
+        uid,
+        serverId ?? null,
+        channelId ?? null,
+        null,
+        eventType,
+        (settings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null }>
+      )
+
+      if (!resolved.shouldPush) return
       return sendPushToUser(uid, payload)
     })
   )
