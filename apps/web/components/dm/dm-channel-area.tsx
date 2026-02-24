@@ -254,7 +254,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   if (loadError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: "#313338" }}>
+      <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: "var(--app-bg-primary)" }}>
         <p className="text-sm" style={{ color: "#949ba4" }}>Failed to load conversation.</p>
         <button
           onClick={() => loadMessages()}
@@ -269,7 +269,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   if (!channel) {
     return (
-      <div className="flex-1 flex items-center justify-center" style={{ background: "#313338" }}>
+      <div className="flex-1 flex items-center justify-center" style={{ background: "var(--app-bg-primary)" }}>
         <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
       </div>
     )
@@ -281,7 +281,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const partnerInitials = displayName.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "#313338" }}>
+    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "var(--app-bg-primary)" }}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "#1e1f22" }}>
         <MobileMenuButton />

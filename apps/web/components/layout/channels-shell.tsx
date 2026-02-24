@@ -6,7 +6,7 @@ import { ServerSidebarWrapper } from "./server-sidebar-wrapper"
 export function ChannelsShell({ children }: { children: React.ReactNode }) {
   return (
     <MobileNavProvider>
-      <div className="flex h-screen overflow-hidden" style={{ background: "#313338" }}>
+      <div className="flex h-screen overflow-hidden" style={{ background: "var(--app-bg-primary)" }}>
         <ServerSidebarWrapper />
         <MobileOverlay />
         <div className="flex flex-1 overflow-hidden min-w-0">
