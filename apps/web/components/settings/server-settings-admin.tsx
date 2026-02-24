@@ -4,7 +4,7 @@ import { Shield, ShieldCheck, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleManager } from "@/components/roles/role-manager"
 import { TemplateManager } from "@/components/modals/template-manager"
-import { AutoModTab, EmojisTab, ModerationTab, ScreeningTab, WebhooksTab } from "@/components/modals/server-settings-modal"
+import { AutoModTab, EmojisTab, ModerationTab, ScreeningTab, SocialAlertsTab, WebhooksTab } from "@/components/modals/server-settings-modal"
 import { AppsTab } from "@/components/settings/apps-tab"
 
 interface Channel {
@@ -32,6 +32,7 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               <TabsTrigger value="roles" className="w-full justify-start">Roles</TabsTrigger>
               <TabsTrigger value="emojis" className="w-full justify-start">Emoji</TabsTrigger>
               <TabsTrigger value="webhooks" className="w-full justify-start">Webhooks</TabsTrigger>
+              <TabsTrigger value="social-alerts" className="w-full justify-start">Social Alerts</TabsTrigger>
               <TabsTrigger value="apps" className="w-full justify-start">Apps</TabsTrigger>
               <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "#949ba4" }}>
                 Moderation
@@ -61,6 +62,9 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
             </TabsContent>
             <TabsContent value="webhooks" className="mt-0">
               <WebhooksTab serverId={serverId} channels={channels} open />
+            </TabsContent>
+            <TabsContent value="social-alerts" className="mt-0">
+              <SocialAlertsTab serverId={serverId} channels={channels} open />
             </TabsContent>
             <TabsContent value="apps" className="mt-0">
               <AppsTab serverId={serverId} canManageApps={isOwner} />
