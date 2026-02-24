@@ -106,6 +106,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     () => `vortexchat:return-scroll:${currentUserId}:${channel.id}`,
     [channel.id, currentUserId]
   )
+  const unreadDividerMessageId = useMemo(() => {
+    if (!unreadAnchorMessageId) return null
+    return messages.some((message) => message.id === unreadAnchorMessageId) ? unreadAnchorMessageId : null
+  }, [messages, unreadAnchorMessageId])
 
   const optimisticAuthor = useMemo(() => {
     return currentUser ?? {
@@ -417,6 +421,24 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [channel.id, hasMoreHistory])
 
+  const loadMessageContextWindow = useCallback(async (messageId: string) => {
+    type ContextPayload = { messages?: MessageWithAuthor[]; hasMoreBefore?: boolean }
+
+    try {
+      const res = await fetch(`/api/messages?channelId=${channel.id}&around=${encodeURIComponent(messageId)}&limit=25`)
+      if (!res.ok) return false
+      const payload = await res.json() as ContextPayload
+      const contextMessages = Array.isArray(payload?.messages) ? payload.messages : []
+      if (contextMessages.length === 0 || !contextMessages.some((message) => message.id === messageId)) return false
+      setMessages(sortMessagesChronologically(contextMessages))
+      setHasMoreHistory(Boolean(payload.hasMoreBefore))
+      return true
+    } catch (error) {
+      console.error("Failed to load message context window", error)
+      return false
+    }
+  }, [channel.id])
+
   useEffect(() => {
     const savedAnchor = typeof window === "undefined" ? null : window.sessionStorage.getItem(unreadAnchorStorageKey)
     if (savedAnchor && initialMessages.some((message) => message.id === savedAnchor)) {
@@ -441,6 +463,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
     setUnreadAnchorMessageId(null)
   }, [currentUserId, initialLastReadAt, initialMessages, unreadAnchorStorageKey])
+
+  useEffect(() => {
+    if (!unreadAnchorMessageId || unreadDividerMessageId) return
+    setUnreadAnchorMessageId(null)
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(unreadAnchorStorageKey)
+    }
+  }, [unreadAnchorMessageId, unreadDividerMessageId, unreadAnchorStorageKey])
 
   useEffect(() => {
     const persisted = loadOutbox()
@@ -644,14 +674,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     let rafId: number | null = null
 
     void (async () => {
-      const loaded = await ensureMessageLoaded(jumpToMessageId)
+      const loadedFromContext = await loadMessageContextWindow(jumpToMessageId)
+      const loaded = loadedFromContext || await ensureMessageLoaded(jumpToMessageId)
       if (!loaded || cancelled) return
 
       rafId = window.requestAnimationFrame(() => {
         if (cancelled) return
         const target = document.getElementById(`message-${jumpToMessageId}`)
         if (!target) return
-        target.scrollIntoView({ block: "center", behavior: "smooth" })
+        target.scrollIntoView({ block: "center", behavior: "auto" })
         if (cancelled) return
         setHighlightedMessageId(jumpToMessageId)
         jumpedRef.current = true
@@ -668,7 +699,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       if (rafId !== null) window.cancelAnimationFrame(rafId)
       if (timerId) window.clearTimeout(timerId)
     }
-  }, [ensureMessageLoaded, jumpToMessageId, openThreadId, returnScrollStorageKey])
+  }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, openThreadId, returnScrollStorageKey])
 
   const jumpToLatest = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -1020,7 +1051,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
               return (
                 <div key={message.id}>
-                {unreadAnchorMessageId === message.id && (
+                {unreadDividerMessageId === message.id && (
                   <div className="px-4 py-2.5 flex items-center gap-2" role="separator" aria-label="New since last read">
                     <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, #f23f43 0%, #f87171 100%)" }} />
                     <span
@@ -1102,14 +1133,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div ref={bottomRef} />
           </div>
 
-          {!isAtBottom && pendingNewMessageCount > 0 && (
+          {!isAtBottom && (
             <div className="sticky bottom-3 px-4 flex justify-end">
               <button
                 onClick={jumpToLatest}
                 className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg"
                 style={{ background: "#5865f2", color: "white" }}
               >
-                Jump to latest {pendingNewMessageCount > 1 ? `(${pendingNewMessageCount})` : ""}
+                Jump to present {pendingNewMessageCount > 0 ? `(${pendingNewMessageCount})` : ""}
               </button>
             </div>
           )}
