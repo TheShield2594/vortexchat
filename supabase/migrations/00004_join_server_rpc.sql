@@ -18,6 +18,13 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
+  -- Reject empty, too-short, or non-alphanumeric codes to limit brute-force enumeration.
+  -- Default codes are 12 hex chars; accept 6+ alphanumeric to allow custom codes.
+  -- TODO: add rate-limiting at the API/edge layer for repeated lookups.
+  IF p_invite_code IS NULL OR length(p_invite_code) < 6 OR p_invite_code !~ '^[a-zA-Z0-9]+$' THEN
+    RAISE EXCEPTION 'Invalid invite code';
+  END IF;
+
   -- Look up server by invite code (bypasses RLS via SECURITY DEFINER)
   SELECT * INTO v_server FROM public.servers WHERE invite_code = p_invite_code;
 

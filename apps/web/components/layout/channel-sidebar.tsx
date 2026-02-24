@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
@@ -246,6 +246,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
   useEffect(() => {
     const supabase = createClientSupabaseClient()
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
     async function fetchVoiceParticipants() {
       const { data } = await supabase
@@ -263,6 +264,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       )
     }
 
+    function debouncedFetch() {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(fetchVoiceParticipants, 300)
+    }
+
     fetchVoiceParticipants()
 
     const subscription = supabase
@@ -270,12 +276,26 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "voice_states", filter: `server_id=eq.${server.id}` },
-        () => { fetchVoiceParticipants() }
+        debouncedFetch
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(subscription) }
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      supabase.removeChannel(subscription)
+    }
   }, [server.id])
+
+  // Pre-group voice participants by channel to avoid per-item filtering
+  const voiceParticipantsByChannel = useMemo(() => {
+    const map = new Map<string, VoiceParticipant[]>()
+    for (const p of voiceParticipants) {
+      const list = map.get(p.channel_id)
+      if (list) list.push(p)
+      else map.set(p.channel_id, [p])
+    }
+    return map
+  }, [voiceParticipants])
 
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
@@ -568,7 +588,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                             activeThreadCount={activeThreadCounts[channel.id] ?? 0}
                             voiceParticipants={
                               (VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)
-                                ? voiceParticipants.filter((p) => p.channel_id === channel.id)
+                                ? voiceParticipantsByChannel.get(channel.id)
                                 : undefined
                             }
                             onClick={() => {

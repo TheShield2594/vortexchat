@@ -191,10 +191,10 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     leaveChannel()
     setVoiceChannel(null, null)
     const serverChannels = channels[serverId] ?? []
-    const textChannel = serverChannels.find((c) => c.type === "text")
-    if (textChannel) {
-      router.push(`/channels/${serverId}/${textChannel.id}`)
-    }
+    const textChannel = serverChannels
+      .filter((c) => c.type === "text")
+      .sort((a, b) => a.position - b.position)[0]
+    router.push(textChannel ? `/channels/${serverId}/${textChannel.id}` : `/channels/${serverId}`)
   }
 
   const peerArray = peers ? Array.from(peers.entries()) : []
