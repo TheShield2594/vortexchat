@@ -41,6 +41,9 @@ interface UseVoiceReturn {
   audioInitError: string | null
 }
 
+const HEARTBEAT_INTERVAL_MS = 5000
+const STALE_PEER_TIMEOUT_MS = 15000
+
 /** Manages WebRTC peer connections, media streams, audio processing, and signaling for a voice channel. */
 export function useVoice(channelId: string, userId: string, serverId?: string | null): UseVoiceReturn {
   const [peers, setPeers] = useState<Map<string, PeerState>>(new Map())
@@ -62,6 +65,11 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
   const harkRef = useRef<{ stop: () => void } | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const pipelineCleanupRef = useRef<(() => void) | null>(null)
+  const heartbeatTimerRef = useRef<number | null>(null)
+  const staleGcTimerRef = useRef<number | null>(null)
+  const lastSeenByPeerRef = useRef<Map<string, number>>(new Map())
+  const mutedRef = useRef(false)
+  const speakingRef = useRef(false)
 
   const clientIdRef = useRef<string>(crypto.randomUUID())
   const supabaseRef = useRef(createClientSupabaseClient())
@@ -89,6 +97,14 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     else setProfileSettings(userId, settings)
   }, [serverId, userId, setProfileSettings, setServerOverride])
 
+  useEffect(() => {
+    mutedRef.current = muted
+  }, [muted])
+
+  useEffect(() => {
+    speakingRef.current = speaking
+  }, [speaking])
+
   const cleanupVoiceSession = useCallback((supabaseClient = supabaseRef.current) => {
     harkRef.current?.stop()
     pipelineCleanupRef.current?.()
@@ -110,6 +126,18 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       supabaseClient.removeChannel(channelRef.current)
       channelRef.current = null
     }
+
+    if (heartbeatTimerRef.current) {
+      window.clearInterval(heartbeatTimerRef.current)
+      heartbeatTimerRef.current = null
+    }
+
+    if (staleGcTimerRef.current) {
+      window.clearInterval(staleGcTimerRef.current)
+      staleGcTimerRef.current = null
+    }
+
+    lastSeenByPeerRef.current.clear()
 
     peerConnections.current.forEach((pc) => pc.close())
     peerConnections.current.clear()
@@ -242,6 +270,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     function handlePeer(peerClientId: string, peerUserId: string, rtChannel: RealtimeChannel, stream: MediaStream) {
       if (peerClientId === myClientId) return
       if (peerConnections.current.has(peerClientId)) return
+      lastSeenByPeerRef.current.set(peerClientId, Date.now())
       const initiator = myClientId > peerClientId
       createPeerConnection(peerClientId, peerUserId, initiator, rtChannel, stream)
     }
@@ -305,6 +334,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         })
 
         rtChannel.on("broadcast", { event: "peer-speaking" }, ({ payload }) => {
+          lastSeenByPeerRef.current.set(payload.from as string, Date.now())
           setPeers((prev) => {
             const next = new Map(prev)
             const peer = next.get(payload.from as string)
@@ -314,10 +344,64 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         })
 
         rtChannel.on("broadcast", { event: "peer-muted" }, ({ payload }) => {
+          lastSeenByPeerRef.current.set(payload.from as string, Date.now())
           setPeers((prev) => {
             const next = new Map(prev)
             const peer = next.get(payload.from as string)
             if (peer) next.set(payload.from as string, { ...peer, muted: payload.muted as boolean })
+            return next
+          })
+        })
+
+        rtChannel.on("broadcast", { event: "peer-heartbeat" }, ({ payload }) => {
+          const from = payload.from as string
+          if (from === myClientId) return
+          lastSeenByPeerRef.current.set(from, Date.now())
+          setPeers((prev) => {
+            const next = new Map(prev)
+            const peer = next.get(from)
+            if (peer) {
+              next.set(from, {
+                ...peer,
+                muted: Boolean(payload.muted),
+                speaking: Boolean(payload.speaking),
+              })
+            }
+            return next
+          })
+        })
+
+        rtChannel.on("broadcast", { event: "peer-rejoin-request" }, ({ payload }) => {
+          const requester = payload.from as string
+          if (requester === myClientId) return
+          channelRef.current?.send({
+            type: "broadcast",
+            event: "peer-rejoin-state",
+            payload: {
+              to: requester,
+              from: myClientId,
+              userId,
+              muted: mutedRef.current,
+              speaking: speakingRef.current,
+            },
+          })
+        })
+
+        rtChannel.on("broadcast", { event: "peer-rejoin-state" }, ({ payload }) => {
+          if ((payload.to as string) !== myClientId) return
+          const from = payload.from as string
+          lastSeenByPeerRef.current.set(from, Date.now())
+          handlePeer(from, payload.userId as string, rtChannel, localStream.current ?? rawStream)
+          setPeers((prev) => {
+            const next = new Map(prev)
+            const peer = next.get(from)
+            if (peer) {
+              next.set(from, {
+                ...peer,
+                muted: Boolean(payload.muted),
+                speaking: Boolean(payload.speaking),
+              })
+            }
             return next
           })
         })
@@ -334,6 +418,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
             const pc = peerConnections.current.get(p.client_id)
             pc?.close()
             peerConnections.current.delete(p.client_id)
+            lastSeenByPeerRef.current.delete(p.client_id)
             setPeers((prev) => {
               const next = new Map(prev)
               next.delete(p.client_id)
@@ -348,6 +433,45 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
             if (status === "SUBSCRIBED") {
               clearTimeout(timeout)
               await rtChannel.track({ client_id: myClientId, user_id: userId })
+
+              channelRef.current?.send({
+                type: "broadcast",
+                event: "peer-rejoin-request",
+                payload: { from: myClientId },
+              })
+
+              const sendHeartbeat = () => {
+                channelRef.current?.send({
+                  type: "broadcast",
+                  event: "peer-heartbeat",
+                  payload: {
+                    from: myClientId,
+                    userId,
+                    muted: mutedRef.current,
+                    speaking: speakingRef.current,
+                  },
+                })
+              }
+
+              sendHeartbeat()
+              heartbeatTimerRef.current = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS)
+
+              staleGcTimerRef.current = window.setInterval(() => {
+                const now = Date.now()
+                for (const [peerId, lastSeen] of lastSeenByPeerRef.current.entries()) {
+                  if (now - lastSeen <= STALE_PEER_TIMEOUT_MS) continue
+                  const pc = peerConnections.current.get(peerId)
+                  pc?.close()
+                  peerConnections.current.delete(peerId)
+                  lastSeenByPeerRef.current.delete(peerId)
+                  setPeers((prev) => {
+                    const next = new Map(prev)
+                    next.delete(peerId)
+                    return next
+                  })
+                }
+              }, HEARTBEAT_INTERVAL_MS)
+
               const state = rtChannel.presenceState<{ client_id: string; user_id: string }>()
               for (const presences of Object.values(state)) {
                 for (const p of presences) {
