@@ -42,7 +42,11 @@ interface UseVoiceReturn {
 }
 
 const HEARTBEAT_INTERVAL_MS = 5000
-const STALE_PEER_TIMEOUT_MS = 15000
+const DEFAULT_STALE_PEER_TIMEOUT_MS = 45000
+const envStalePeerTimeout = Number.parseInt(process.env.NEXT_PUBLIC_VOICE_STALE_PEER_TIMEOUT_MS ?? "", 10)
+const STALE_PEER_TIMEOUT_MS = Number.isFinite(envStalePeerTimeout) && envStalePeerTimeout >= HEARTBEAT_INTERVAL_MS * 3
+  ? envStalePeerTimeout
+  : DEFAULT_STALE_PEER_TIMEOUT_MS
 
 /** Manages WebRTC peer connections, media streams, audio processing, and signaling for a voice channel. */
 export function useVoice(channelId: string, userId: string, serverId?: string | null): UseVoiceReturn {
@@ -461,6 +465,23 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
                 for (const [peerId, lastSeen] of lastSeenByPeerRef.current.entries()) {
                   if (now - lastSeen <= STALE_PEER_TIMEOUT_MS) continue
                   const pc = peerConnections.current.get(peerId)
+                  const isConnected = pc?.connectionState === "connected"
+                  const isIceConnected = pc?.iceConnectionState === "connected" || pc?.iceConnectionState === "completed"
+                  const shouldKeepPeer = isConnected || isIceConnected
+                  if (shouldKeepPeer) {
+                    lastSeenByPeerRef.current.set(peerId, now)
+                    continue
+                  }
+
+                  const isEvictableState = !pc
+                    || pc.connectionState === "disconnected"
+                    || pc.connectionState === "failed"
+                    || pc.connectionState === "closed"
+                    || pc.iceConnectionState === "disconnected"
+                    || pc.iceConnectionState === "failed"
+                    || pc.iceConnectionState === "closed"
+                  if (!isEvictableState) continue
+
                   pc?.close()
                   peerConnections.current.delete(peerId)
                   lastSeenByPeerRef.current.delete(peerId)
