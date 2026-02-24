@@ -79,13 +79,15 @@ export async function getChannelPermissions(
   channelId: string,
   userId: string
 ): Promise<MemberPerms> {
-  const [memberPerms, memberRolesResult, overwritesResult] = await Promise.all([
+  const [memberPerms, memberRolesResult, defaultRoleResult, overwritesResult] = await Promise.all([
     getMemberPermissions(supabase, serverId, userId),
     supabase.from("member_roles").select("role_id").eq("server_id", serverId).eq("user_id", userId),
+    supabase.from("roles").select("id").eq("server_id", serverId).eq("is_default", true).maybeSingle(),
     supabase.from("channel_permissions").select("role_id, allow_permissions, deny_permissions").eq("channel_id", channelId),
   ])
 
   if (memberRolesResult.error) throw new Error(`Failed to fetch member roles: ${memberRolesResult.error.message}`)
+  if (defaultRoleResult.error) throw new Error(`Failed to fetch default role: ${defaultRoleResult.error.message}`)
   if (overwritesResult.error) throw new Error(`Failed to fetch channel overrides: ${overwritesResult.error.message}`)
 
   if (memberPerms.isOwner || memberPerms.isAdmin) {
@@ -93,6 +95,8 @@ export async function getChannelPermissions(
   }
 
   const roleIds = new Set((memberRolesResult.data ?? []).map((r) => r.role_id))
+  const defaultRoleId = defaultRoleResult.data?.id ?? null
+  if (defaultRoleId) roleIds.add(defaultRoleId)
   if (roleIds.size === 0) return memberPerms
 
   const relevantOverwrites = (overwritesResult.data ?? []).filter((row) => roleIds.has(row.role_id))
