@@ -48,6 +48,10 @@ function trustBadgeClass(trustBadge: DiscoverApp["trust_badge"]) {
 function ServerIcon({ iconUrl, serverName }: { iconUrl: string | null; serverName: string }) {
   const [iconLoadFailed, setIconLoadFailed] = useState(false)
 
+  useEffect(() => {
+    setIconLoadFailed(false)
+  }, [iconUrl])
+
   if (iconUrl && !iconLoadFailed) {
     return (
       <img

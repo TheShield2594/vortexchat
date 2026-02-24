@@ -13,12 +13,12 @@ const rules = [
   {
     id: "inline-style-color",
     description: "Inline style color tokens are not allowed on product surfaces.",
-    regex: /style\s*=\s*\{\{[\s\S]*?\b(color|background|backgroundColor|borderColor)\s*:/g,
+    regex: /style\s*=\s*\{\{(?:[^}]|}(?!}))*?\b(color|background|backgroundColor|borderColor)\s*:/g,
   },
   {
     id: "inline-style-radius-shadow",
     description: "Inline style borderRadius/boxShadow are not allowed on product surfaces.",
-    regex: /style\s*=\s*\{\{[\s\S]*?\b(borderRadius|boxShadow)\s*:/g,
+    regex: /style\s*=\s*\{\{(?:[^}]|}(?!}))*?\b(borderRadius|boxShadow)\s*:/g,
   },
   {
     id: "tailwind-arbitrary-surface-token",
