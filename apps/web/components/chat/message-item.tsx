@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import type { MessageWithAuthor, AttachmentRow, ThreadRow } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
+import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { LinkEmbed, extractFirstUrl } from "@/components/chat/link-embed"
 import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
@@ -56,6 +58,10 @@ export const MessageItem = memo(function MessageItem({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const { toast } = useToast()
   const isOwn = message.author_id === currentUserId
+  const { activeServerId, membersByServer } = useAppStore(
+    useShallow((s) => ({ activeServerId: s.activeServerId, membersByServer: s.members }))
+  )
+  const memberLookup = activeServerId ? membersByServer[activeServerId] ?? [] : []
 
   async function confirmDelete() {
     try {
@@ -382,10 +388,17 @@ export const MessageItem = memo(function MessageItem({
                   {/* Reactions */}
                   {Object.entries(reactionGroups).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {Object.entries(reactionGroups).map(([emoji, { count, hasOwn }]) => (
+                      {Object.entries(reactionGroups).map(([emoji, { count, hasOwn, users }]) => (
                         <button
                           key={emoji}
                           onClick={() => onReaction(emoji)}
+                          title={users
+                            .map((id) => {
+                              if (id === currentUserId) return "You"
+                              const member = memberLookup.find((m) => m.user_id === id)
+                              return member?.nickname || member?.display_name || member?.username || "Unknown user"
+                            })
+                            .join(", ")}
                           className="motion-interactive motion-press flex items-center gap-1 px-2 py-0.5 rounded-full text-sm hover:-translate-y-px"
                           aria-label={`Toggle ${emoji} reaction`}
                           style={{
