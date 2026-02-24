@@ -404,6 +404,57 @@ export async function POST(request: Request) {
   // --- Send push notifications (fire-and-forget) ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const senderName = (message as any)?.author?.display_name || (message as any)?.author?.username || "Someone"
+
+  // --- Insert in-app inbox notifications for mentions/replies (fire-and-forget) ---
+  Promise.resolve()
+    .then(async () => {
+      const MAX_NOTIFICATION_BODY_LENGTH = 512
+      const serviceSupabase = await createServiceRoleClient()
+      const recipientIds = new Set<string>()
+
+      for (const mentionedUserId of mentions) {
+        if (mentionedUserId && mentionedUserId !== user.id) {
+          recipientIds.add(mentionedUserId)
+        }
+      }
+
+      let replyAuthorId: string | null = null
+      if (replyToId) {
+        const { data: repliedMessage } = await serviceSupabase
+          .from("messages")
+          .select("author_id")
+          .eq("id", replyToId)
+          .maybeSingle()
+        replyAuthorId = repliedMessage?.author_id ?? null
+      }
+
+      if (replyAuthorId && replyAuthorId !== user.id) {
+        recipientIds.add(replyAuthorId)
+      }
+
+      if (recipientIds.size === 0) return
+
+      const bodyPreview = (content?.trim() || "Sent an attachment").slice(0, MAX_NOTIFICATION_BODY_LENGTH)
+      const rows = Array.from(recipientIds).map((recipientId) => {
+        const isMentionTarget = mentions.includes(recipientId)
+
+        return {
+          user_id: recipientId,
+          type: isMentionTarget ? "mention" as const : "reply" as const,
+          title: isMentionTarget
+            ? `${senderName} mentioned you`
+            : `${senderName} replied to your message`,
+          body: bodyPreview,
+          server_id: channel.server_id,
+          channel_id: channelId,
+          message_id: message.id,
+        }
+      })
+
+      await serviceSupabase.from("notifications").insert(rows)
+    })
+    .catch(() => {})
+
   sendPushToChannel({
     serverId: channel.server_id,
     channelId,
