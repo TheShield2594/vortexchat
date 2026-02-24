@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS social_alerts (
   last_checked_at TIMESTAMPTZ,
   created_by     UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (server_id, feed_url)
 );
 
 CREATE INDEX IF NOT EXISTS social_alerts_server_id_idx ON social_alerts(server_id);

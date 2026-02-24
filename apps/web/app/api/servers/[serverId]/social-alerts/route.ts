@@ -56,7 +56,10 @@ export async function POST(
   if (!feedUrl) return NextResponse.json({ error: "feedUrl required" }, { status: 400 })
 
   try {
-    new URL(feedUrl)
+    const parsedFeedUrl = new URL(feedUrl)
+    if (!["http:", "https:"].includes(parsedFeedUrl.protocol)) {
+      return NextResponse.json({ error: "feedUrl must be a valid URL" }, { status: 400 })
+    }
   } catch {
     return NextResponse.json({ error: "feedUrl must be a valid URL" }, { status: 400 })
   }

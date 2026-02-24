@@ -600,10 +600,25 @@ export function SocialAlertsTab({ serverId, channels, open }: { serverId: string
   }
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/servers/${serverId}/social-alerts?alertId=${id}`, { method: "DELETE" })
-    if (res.ok) {
-      setAlerts((prev) => prev.filter((alert) => alert.id !== id))
-      toast({ title: "Social alert deleted" })
+    try {
+      const res = await fetch(`/api/servers/${serverId}/social-alerts?alertId=${id}`, { method: "DELETE" })
+      if (res.ok) {
+        setAlerts((prev) => prev.filter((alert) => alert.id !== id))
+        toast({ title: "Social alert deleted" })
+        return
+      }
+
+      toast({
+        variant: "destructive",
+        title: "Failed to delete social alert",
+        description: res.statusText || "Please try again.",
+      })
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete social alert",
+        description: "Network error. Please try again.",
+      })
     }
   }
 
@@ -665,6 +680,7 @@ export function SocialAlertsTab({ serverId, channels, open }: { serverId: string
           </select>
         </div>
         <button
+          type="button"
           onClick={handleCreate}
           disabled={creating || !newChannelId || !newFeedUrl.trim()}
           className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
@@ -703,6 +719,7 @@ export function SocialAlertsTab({ serverId, channels, open }: { serverId: string
                     Enabled
                   </label>
                   <button
+                    type="button"
                     onClick={() => handleDelete(alert.id)}
                     className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors"
                     style={{ color: '#4e5058' }}
