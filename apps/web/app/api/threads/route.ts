@@ -15,16 +15,7 @@ export async function GET(request: Request) {
 
   const { data: threads, error } = await supabase
     .from("threads")
-    .select(`
-      *,
-      owner:users!threads_owner_id_fkey(*),
-      starter_message:messages!threads_starter_message_id_fkey(
-        *,
-        author:users!messages_author_id_fkey(*),
-        attachments(*),
-        reactions(*)
-      )
-    `)
+    .select("*")
     .eq("parent_channel_id", channelId)
     .eq("archived", archived)
     .order("updated_at", { ascending: false })

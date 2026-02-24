@@ -27,8 +27,8 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
 
   if (error || !user) redirect("/login")
 
-  // Fetch channel + messages in parallel (we know channelId upfront)
-  const [{ data: channel }, { data: messagesData }] = await Promise.all([
+  // Fetch channel, messages, and read-state in parallel (all inputs known upfront)
+  const [{ data: channel }, { data: messagesData }, { data: readState }] = await Promise.all([
     supabase
       .from("channels")
       .select("*")
@@ -47,6 +47,12 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("read_states")
+      .select("last_read_at")
+      .eq("user_id", user.id)
+      .eq("channel_id", params.channelId)
+      .maybeSingle(),
   ])
 
   if (!channel) notFound()
@@ -117,12 +123,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
   }
 
   // Default: text channel
-  const initialLastReadAt = (await supabase
-    .from("read_states")
-    .select("last_read_at")
-    .eq("user_id", user.id)
-    .eq("channel_id", params.channelId)
-    .maybeSingle()).data?.last_read_at ?? null
+  const initialLastReadAt = readState?.last_read_at ?? null
 
   return (
     <div className="flex flex-1 overflow-hidden">
