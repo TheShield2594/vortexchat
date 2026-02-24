@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
   Monitor, MonitorOff, Video, VideoOff, Radio, Settings,
-  RotateCcw,
+  RotateCcw, X,
 } from "lucide-react"
 import { useVoice } from "@/lib/webrtc/use-voice"
 import { usePushToTalk } from "@/hooks/use-push-to-talk"
@@ -23,6 +23,11 @@ import {
   type VoiceAudioSettings,
 } from "@/lib/voice/audio-settings"
 import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
+
+interface VoiceParticipantInfo {
+  user: UserRow
+  selfStream: boolean
+}
 
 type VoiceSessionTone = "stable" | "listening" | "attention"
 
@@ -89,7 +94,8 @@ function markCustomSettings(settings: VoiceAudioSettings, partial: Partial<Voice
 export function VoiceChannel({ channelId, channelName, serverId, currentUserId }: Props) {
   const { currentUser, setVoiceChannel, channels } = useAppStore()
   const router = useRouter()
-  const [voiceParticipants, setVoiceParticipants] = useState<UserRow[]>([])
+  const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantInfo[]>([])
+  const [spotlightUserId, setSpotlightUserId] = useState<string | null>(null)
   const [pttEnabled, setPttEnabled] = useState(false)
   const supabase = createClientSupabaseClient()
 
@@ -172,8 +178,12 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
 
   useEffect(() => {
     async function fetchParticipants() {
-      const { data } = await supabase.from("voice_states").select("user_id, users(*)").eq("channel_id", channelId)
-      setVoiceParticipants(data?.map((d: any) => d.users).filter(Boolean) ?? [])
+      const { data } = await supabase.from("voice_states").select("user_id, self_stream, users(*)").eq("channel_id", channelId)
+      setVoiceParticipants(
+        data?.flatMap((d: any) =>
+          d.users ? [{ user: d.users as UserRow, selfStream: Boolean(d.self_stream) }] : []
+        ) ?? []
+      )
     }
     fetchParticipants()
 
@@ -197,10 +207,47 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     router.push(textChannel ? `/channels/${serverId}/${textChannel.id}` : `/channels/${serverId}`)
   }
 
+  useEffect(() => {
+    if (!spotlightUserId) return
+    if (spotlightUserId === currentUserId && !screenSharing) {
+      setSpotlightUserId(null)
+      return
+    }
+    if (spotlightUserId !== currentUserId) {
+      const peerInfo = voiceParticipants.find((p) => p.user.id === spotlightUserId)
+      if (peerInfo && !peerInfo.selfStream) {
+        setSpotlightUserId(null)
+        return
+      }
+      const stillConnected = peers && Array.from(peers.values()).some((p) => p.userId === spotlightUserId)
+      if (!stillConnected) {
+        setSpotlightUserId(null)
+      }
+    }
+  }, [spotlightUserId, currentUserId, screenSharing, voiceParticipants, peers])
+
   const peerArray = peers ? Array.from(peers.entries()) : []
   const hasVideo = videoEnabled || screenSharing || peerArray.some(([, { stream }]) => stream.getVideoTracks().length > 0)
   const sessionState = getVoiceSessionState(peerArray.length, speaking && !muted, Boolean(audioInitError))
   const activeTone = TONE_STYLES[sessionState.tone]
+
+  const isLocalSpotlight = spotlightUserId === currentUserId
+  const spotlightPeer = spotlightUserId && !isLocalSpotlight
+    ? peerArray.find(([, { userId }]) => userId === spotlightUserId)
+    : null
+  const inSpotlight = spotlightUserId !== null
+
+  let spotlightStream: MediaStream | null = null
+  let spotlightDisplayName = ""
+  if (isLocalSpotlight) {
+    spotlightStream = screenStream.current
+    spotlightDisplayName = currentUser?.display_name || currentUser?.username || "You"
+  } else if (spotlightPeer) {
+    const [, { stream: peerStream, userId }] = spotlightPeer
+    spotlightStream = peerStream
+    const info = voiceParticipants.find((p) => p.user.id === userId)
+    spotlightDisplayName = info?.user.display_name || info?.user.username || "Unknown"
+  }
 
   return (
     <TooltipProvider>
@@ -221,54 +268,114 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
           </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
-          {peerArray.length === 0 && !currentUser ? (
-            <div className="text-center">
-              <Volume2 className="w-16 h-16 mx-auto mb-4" style={{ color: "#4e5058" }} />
-              <p className="text-white text-lg font-semibold mb-1">You&apos;re the only one here</p>
-              <p style={{ color: "#949ba4" }} className="text-sm">Invite others to join this voice channel</p>
+        {inSpotlight ? (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 relative flex items-center justify-center overflow-hidden" style={{ background: "#1e1f22" }}>
+              <button
+                onClick={() => setSpotlightUserId(null)}
+                className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+                style={{ background: "rgba(0,0,0,0.6)" }}
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+              <div className="absolute top-3 left-3 z-10 flex items-center gap-2 px-2.5 py-1 rounded-md" style={{ background: "rgba(0,0,0,0.6)" }}>
+                <Monitor className="w-3.5 h-3.5" style={{ color: "#23a55a" }} />
+                <span className="text-xs text-white">{spotlightDisplayName}&apos;s Screen</span>
+              </div>
+              <SpotlightVideo stream={spotlightStream} />
             </div>
-          ) : (
-            <div className="grid gap-4 w-full" style={{ gridTemplateColumns: hasVideo ? "repeat(auto-fill, minmax(320px, 1fr))" : "repeat(auto-fill, minmax(200px, 1fr))" }}>
+            <div className="flex gap-2 px-4 py-3 overflow-x-auto flex-shrink-0" style={{ background: "#2b2d31", borderTop: "1px solid #1e1f22" }}>
               {currentUser && (
-                <ParticipantTile
-                  user={currentUser}
-                  speaking={speaking}
-                  muted={muted}
-                  deafened={deafened}
-                  audioStream={localStream.current}
-                  cameraStream={videoEnabled ? cameraStream.current : null}
-                  screenStream={screenSharing ? screenStream.current : null}
-                  isLocal
-                />
-              )}
-
-              {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }]) => {
-                const peerUser = voiceParticipants.find((u) => u.id === userId)
-                const mix = getParticipantMix(serverId, userId)
-                return (
+                <div className="w-48 flex-shrink-0">
                   <ParticipantTile
-                    key={peerId}
-                    user={peerUser}
-                    speaking={pSpeaking}
-                    muted={pMuted}
-                    deafened={false}
-                    audioStream={stream}
-                    cameraStream={null}
-                    screenStream={null}
-                    isLocal={false}
-                    remoteStream={stream}
-                    onVolumeChange={(volume) => setParticipantVolume(serverId, userId, volume)}
-                    onPanChange={(pan) => setParticipantPan(serverId, userId, pan)}
-                    volume={mix.volume}
-                    pan={mix.pan}
-                    spatialEnabled={audioSettings.spatialAudioEnabled}
+                    user={currentUser}
+                    speaking={speaking}
+                    muted={muted}
+                    deafened={deafened}
+                    audioStream={localStream.current}
+                    cameraStream={videoEnabled ? cameraStream.current : null}
+                    screenStream={screenSharing ? screenStream.current : null}
+                    isLocal
+                    compact
+                    onViewStream={screenSharing && spotlightUserId !== currentUserId ? () => setSpotlightUserId(currentUserId) : undefined}
                   />
+                </div>
+              )}
+              {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }]) => {
+                const peerInfo = voiceParticipants.find((p) => p.user.id === userId)
+                const peerIsScreenSharing = peerInfo?.selfStream ?? false
+                return (
+                  <div key={peerId} className="w-48 flex-shrink-0">
+                    <ParticipantTile
+                      user={peerInfo?.user}
+                      speaking={pSpeaking}
+                      muted={pMuted}
+                      deafened={false}
+                      audioStream={stream}
+                      cameraStream={null}
+                      screenStream={null}
+                      isLocal={false}
+                      remoteStream={stream}
+                      compact
+                      onViewStream={peerIsScreenSharing && spotlightUserId !== userId ? () => setSpotlightUserId(userId) : undefined}
+                    />
+                  </div>
                 )
               })}
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+            {peerArray.length === 0 && !currentUser ? (
+              <div className="text-center">
+                <Volume2 className="w-16 h-16 mx-auto mb-4" style={{ color: "#4e5058" }} />
+                <p className="text-white text-lg font-semibold mb-1">You&apos;re the only one here</p>
+                <p style={{ color: "#949ba4" }} className="text-sm">Invite others to join this voice channel</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 w-full" style={{ gridTemplateColumns: hasVideo ? "repeat(auto-fill, minmax(320px, 1fr))" : "repeat(auto-fill, minmax(200px, 1fr))" }}>
+                {currentUser && (
+                  <ParticipantTile
+                    user={currentUser}
+                    speaking={speaking}
+                    muted={muted}
+                    deafened={deafened}
+                    audioStream={localStream.current}
+                    cameraStream={videoEnabled ? cameraStream.current : null}
+                    screenStream={screenSharing ? screenStream.current : null}
+                    isLocal
+                    onViewStream={screenSharing ? () => setSpotlightUserId(currentUserId) : undefined}
+                  />
+                )}
+                {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }]) => {
+                  const peerInfo = voiceParticipants.find((p) => p.user.id === userId)
+                  const peerIsScreenSharing = peerInfo?.selfStream ?? false
+                  const mix = getParticipantMix(serverId, userId)
+                  return (
+                    <ParticipantTile
+                      key={peerId}
+                      user={peerInfo?.user}
+                      speaking={pSpeaking}
+                      muted={pMuted}
+                      deafened={false}
+                      audioStream={stream}
+                      cameraStream={null}
+                      screenStream={null}
+                      isLocal={false}
+                      remoteStream={stream}
+                      onVolumeChange={(volume) => setParticipantVolume(serverId, userId, volume)}
+                      onPanChange={(pan) => setParticipantPan(serverId, userId, pan)}
+                      volume={mix.volume}
+                      pan={mix.pan}
+                      spatialEnabled={audioSettings.spatialAudioEnabled}
+                      onViewStream={peerIsScreenSharing ? () => setSpotlightUserId(userId) : undefined}
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="h-20 border-t px-6 flex items-center justify-center gap-3" style={{ borderColor: "#1e1f22", background: "#2b2d31" }}>
           <Tooltip><TooltipTrigger asChild><button onClick={toggleMute} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: muted ? "#f23f43" : "#4e5058" }}>{muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{muted ? "Unmute" : "Mute"}</TooltipContent></Tooltip>
@@ -453,6 +560,8 @@ function ParticipantTile({
   volume,
   pan,
   spatialEnabled,
+  onViewStream,
+  compact,
 }: {
   user?: UserRow | null
   speaking: boolean
@@ -468,6 +577,8 @@ function ParticipantTile({
   volume?: number
   pan?: number | null
   spatialEnabled?: boolean
+  onViewStream?: () => void
+  compact?: boolean
 }) {
   const cameraRef = useRef<HTMLVideoElement>(null)
   const screenRef = useRef<HTMLVideoElement>(null)
@@ -495,12 +606,12 @@ function ParticipantTile({
   return (
     <div
       className={cn(
-        "rounded-lg overflow-hidden flex flex-col relative transition-all duration-300",
+        "group rounded-lg overflow-hidden flex flex-col relative transition-all duration-300",
         speaking && !muted ? "ring-2 ring-green-500/80" : "ring-1 ring-[#4e5058]/60"
       )}
       style={{
         background: "#1e1f22",
-        minHeight: showScreen || showCamera || showRemoteVideo ? "240px" : "160px",
+        minHeight: compact ? "100px" : (showScreen || showCamera || showRemoteVideo ? "240px" : "160px"),
       }}
     >
       {showScreen && <video ref={screenRef} autoPlay playsInline muted className="w-full flex-1 object-contain bg-black" />}
@@ -509,16 +620,29 @@ function ParticipantTile({
 
       {!showScreen && !showCamera && !showRemoteVideo && (
         <div className="flex-1 flex items-center justify-center p-4">
-          <Avatar className="w-20 h-20">
+          <Avatar className={compact ? "w-12 h-12" : "w-20 h-20"}>
             {user?.avatar_url && <AvatarImage src={user.avatar_url} />}
-            <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "24px" }}>{initials}</AvatarFallback>
+            <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: compact ? "14px" : "24px" }}>{initials}</AvatarFallback>
           </Avatar>
         </div>
       )}
 
+      {onViewStream && (
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <button
+            onMouseDown={(e) => { e.preventDefault(); onViewStream() }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors hover:brightness-110"
+            style={{ background: "#5865f2" }}
+          >
+            <Monitor className="w-4 h-4" />
+            View Stream
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 px-3 py-2" style={{ background: "rgba(0,0,0,0.5)" }}>
-        <span className="text-sm font-medium text-white flex-1 truncate">{displayName}</span>
-        {speaking && !muted && (
+        <span className={cn("font-medium text-white flex-1 truncate", compact ? "text-xs" : "text-sm")}>{displayName}</span>
+        {speaking && !muted && !compact && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(35,165,90,0.2)", color: "#9ae6b4" }}>
             Speaking
           </span>
@@ -528,7 +652,7 @@ function ParticipantTile({
         {deafened && <Headphones className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />}
       </div>
 
-      {!isLocal && onVolumeChange && (
+      {!isLocal && !compact && onVolumeChange && (
         <div className="px-3 pb-3 space-y-1">
           <label className="text-[10px]" style={{ color: "#949ba4" }}>Volume {(volume ?? 1).toFixed(2)}x</label>
           <input type="range" min={0} max={2} step={0.05} value={volume ?? 1} onChange={(e) => onVolumeChange(Number(e.target.value))} className="w-full" />
@@ -628,4 +752,13 @@ function RemoteAudio({
   }, [outputDeviceId])
 
   return <audio ref={audioRef} autoPlay playsInline className="hidden" />
+}
+
+function SpotlightVideo({ stream }: { stream: MediaStream | null }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream
+  }, [stream])
+  if (!stream) return null
+  return <video ref={ref} autoPlay playsInline muted className="w-full h-full object-contain bg-black" />
 }
