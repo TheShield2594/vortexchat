@@ -85,7 +85,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const draftRef = useRef("")
   const prevChannelIdRef = useRef(channel.id)
-  const paginationRequestRef = useRef(false)
+  const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
@@ -293,20 +293,24 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setPendingNewMessageCount(0)
     setHasMoreHistory(initialMessages.length >= 50)
     setIsPaginating(false)
-    paginationRequestRef.current = false
+    paginationRequestRef.current = null
   }, [initialMessages])
 
   const loadOlderMessages = useCallback(async () => {
     const container = messageScrollerRef.current
     const currentMessages = messagesRef.current
-    if (!container || paginationRequestRef.current || !hasMoreHistory || currentMessages.length === 0) return
+    if (!container || !hasMoreHistory || currentMessages.length === 0) return
 
-    paginationRequestRef.current = true
+    if (paginationRequestRef.current) {
+      await paginationRequestRef.current.catch(() => undefined)
+      return
+    }
+
     setIsPaginating(true)
     const previousHeight = container.scrollHeight
     const previousTop = container.scrollTop
 
-    try {
+    const paginationPromise = (async () => {
       const oldest = currentMessages[0]
       const before = encodeURIComponent(oldest.created_at)
 
@@ -340,8 +344,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         const nextHeight = messageScrollerRef.current.scrollHeight
         messageScrollerRef.current.scrollTop = previousTop + (nextHeight - previousHeight)
       })
+    })()
+
+    paginationRequestRef.current = paginationPromise
+
+    try {
+      await paginationPromise
     } finally {
-      paginationRequestRef.current = false
+      if (paginationRequestRef.current === paginationPromise) {
+        paginationRequestRef.current = null
+      }
       setIsPaginating(false)
     }
   }, [channel.id, hasMoreHistory])
@@ -349,47 +361,66 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const ensureMessageLoaded = useCallback(async (messageId: string) => {
     if (messagesRef.current.some((message) => message.id === messageId)) return true
 
-    let attempts = 0
-    let localHasMore = hasMoreHistory
-    let cursor = messagesRef.current[0]?.created_at ?? null
-
-    while (attempts < 8 && localHasMore && cursor) {
-      attempts += 1
-
-      let older: MessageWithAuthor[] | null = null
-      try {
-        const res = await fetch(`/api/messages?channelId=${channel.id}&before=${encodeURIComponent(cursor)}&limit=50`)
-        if (!res.ok) return false
-        older = await res.json() as MessageWithAuthor[]
-      } catch (error) {
-        console.error("Failed to load message jump target", error)
-        return false
-      }
-
-      if (!Array.isArray(older) || older.length === 0) {
-        localHasMore = false
-        setHasMoreHistory(false)
-        return false
-      }
-
-      setMessages((prev) => {
-        const known = new Set(prev.map((message) => message.id))
-        const merged = [...older.filter((message) => !known.has(message.id)), ...prev]
-        return sortMessagesChronologically(merged)
-      })
-
-      if (older.some((message) => message.id === messageId)) {
-        return true
-      }
-
-      cursor = older[0]?.created_at ?? null
-      if (older.length < 50) {
-        localHasMore = false
-        setHasMoreHistory(false)
-      }
+    if (paginationRequestRef.current) {
+      await paginationRequestRef.current.catch(() => undefined)
+      if (messagesRef.current.some((message) => message.id === messageId)) return true
     }
 
-    return false
+    setIsPaginating(true)
+    const paginationPromise = (async () => {
+      let attempts = 0
+      let localHasMore = hasMoreHistory
+      let cursor = messagesRef.current[0]?.created_at ?? null
+
+      while (attempts < 8 && localHasMore && cursor) {
+        attempts += 1
+
+        let older: MessageWithAuthor[] | null = null
+        try {
+          const res = await fetch(`/api/messages?channelId=${channel.id}&before=${encodeURIComponent(cursor)}&limit=50`)
+          if (!res.ok) return false
+          older = await res.json() as MessageWithAuthor[]
+        } catch (error) {
+          console.error("Failed to load message jump target", error)
+          return false
+        }
+
+        if (!Array.isArray(older) || older.length === 0) {
+          localHasMore = false
+          setHasMoreHistory(false)
+          return false
+        }
+
+        setMessages((prev) => {
+          const known = new Set(prev.map((message) => message.id))
+          const merged = [...older.filter((message) => !known.has(message.id)), ...prev]
+          return sortMessagesChronologically(merged)
+        })
+
+        if (older.some((message) => message.id === messageId)) {
+          return true
+        }
+
+        cursor = older[0]?.created_at ?? null
+        if (older.length < 50) {
+          localHasMore = false
+          setHasMoreHistory(false)
+        }
+      }
+
+      return false
+    })()
+
+    paginationRequestRef.current = paginationPromise
+
+    try {
+      return await paginationPromise
+    } finally {
+      if (paginationRequestRef.current === paginationPromise) {
+        paginationRequestRef.current = null
+      }
+      setIsPaginating(false)
+    }
   }, [channel.id, hasMoreHistory])
 
   useEffect(() => {
@@ -603,7 +634,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [channel.id, openThreadId])
 
   useEffect(() => {
-    const navigationSignature = `${jumpToMessageId ?? ""}:${openThreadId ?? ""}`
+    const navigationSignature = `${channel.id}:${serverId}:${jumpToMessageId ?? ""}:${openThreadId ?? ""}`
 
     if (jumpSignatureRef.current !== navigationSignature) {
       jumpSignatureRef.current = navigationSignature
