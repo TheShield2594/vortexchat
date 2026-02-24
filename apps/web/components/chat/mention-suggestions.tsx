@@ -7,10 +7,24 @@ import type { MemberForMention } from "@/lib/stores/app-store"
 interface Props {
   members: MemberForMention[]
   selectedIndex: number
+  query: string
   onSelect: (member: MemberForMention) => void
 }
 
-export function MentionSuggestions({ members, selectedIndex, onSelect }: Props) {
+function getMatchConfidence(member: MemberForMention, query: string): "Exact" | "Strong" | "Weak" {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return "Strong"
+
+  const options = [member.nickname, member.display_name, member.username]
+    .filter(Boolean)
+    .map((value) => value!.toLowerCase())
+
+  if (options.some((value) => value === normalized)) return "Exact"
+  if (options.some((value) => value.startsWith(normalized))) return "Strong"
+  return "Weak"
+}
+
+export function MentionSuggestions({ members, selectedIndex, query, onSelect }: Props) {
   const listRef = useRef<HTMLDivElement>(null)
 
   if (members.length === 0) return null
@@ -36,6 +50,9 @@ export function MentionSuggestions({ members, selectedIndex, onSelect }: Props) 
         const displayName = member.nickname || member.display_name || member.username
         const initials = displayName.slice(0, 2).toUpperCase()
         const isSelected = i === selectedIndex
+        const confidence = getMatchConfidence(member, query)
+        const confidenceTone =
+          confidence === "Exact" ? "#3ba55d" : confidence === "Strong" ? "#5865f2" : "#faa81a"
 
         return (
           <button
@@ -66,6 +83,12 @@ export function MentionSuggestions({ members, selectedIndex, onSelect }: Props) 
                 {member.username}
               </span>
             )}
+            <span
+              className="ml-auto text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
+              style={{ color: confidenceTone, background: `${confidenceTone}26` }}
+            >
+              {confidence}
+            </span>
           </button>
         )
       })}

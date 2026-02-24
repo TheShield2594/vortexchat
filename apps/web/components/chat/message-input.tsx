@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Plus, Send, X, Smile, Reply } from "lucide-react"
+import { Plus, Send, X, Smile, Reply, Keyboard } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -178,31 +178,36 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           style={{ background: "#2b2d31", borderBottom: "1px solid #1e1f22" }}
         >
           {files.map((file, i) => (
-            <div key={i} className="relative group">
+            <div key={i} className="relative group w-24">
               {file.type.startsWith("image/") ? (
                 <img
                   src={getPreviewUrl(file)}
                   alt={file.name}
-                  className="w-20 h-20 object-cover rounded"
+                  className="w-24 h-24 object-cover rounded-md border"
+                  style={{ borderColor: "#1e1f22" }}
                 />
               ) : (
                 <div
-                  className="w-20 h-20 rounded flex items-center justify-center text-xs text-center p-1"
-                  style={{ background: "#1e1f22", color: "#b5bac1" }}
+                  className="w-24 h-24 rounded-md border flex items-center justify-center text-xs text-center p-2"
+                  style={{ background: "#1e1f22", color: "#b5bac1", borderColor: "#111214" }}
                 >
                   {file.name}
                 </div>
               )}
+              <div className="mt-1 text-[10px] truncate" style={{ color: "#949ba4" }} title={file.name}>
+                {file.name}
+              </div>
               <button
                 onClick={() => {
                   const url = fileUrlCache.current.get(files[i])
                   if (url) { URL.revokeObjectURL(url); fileUrlCache.current.delete(files[i]) }
                   setFiles((prev) => prev.filter((_, j) => j !== i))
                 }}
-                className="motion-interactive absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
+                className="motion-interactive absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
                 style={{ background: "#f23f43" }}
+                aria-label={`Remove ${file.name}`}
               >
-                <X className="w-2.5 h-2.5 text-white" />
+                <X className="w-3 h-3 text-white" />
               </button>
             </div>
           ))}
@@ -242,6 +247,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               <MentionSuggestions
                 members={mention.filteredMembers}
                 selectedIndex={mention.selectedIndex}
+                query={mention.query ?? ""}
                 onSelect={(member) => {
                   insertMention(member)
                   textareaRef.current?.focus()
@@ -257,7 +263,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             onSelect={handleSelect}
-            placeholder={`Message #${channelName}`}
+            placeholder={replyTo
+              ? `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`
+              : `Message #${channelName} — use @ to mention teammates`
+            }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none py-1"
             style={{ color: "#dcddde", maxHeight: "200px", lineHeight: "1.5" }}
@@ -313,6 +322,16 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             <Send className="w-5 h-5" />
           </button>
         )}
+      </div>
+      <div
+        className="mt-1 px-1 flex items-center justify-between text-[11px]"
+        style={{ color: "#949ba4" }}
+      >
+        <div className="flex items-center gap-1.5">
+          <Keyboard className="w-3 h-3" />
+          <span>Enter send · Shift+Enter newline</span>
+        </div>
+        {mention.isOpen && <span>↑↓ navigate · Tab/Enter accept · Esc dismiss</span>}
       </div>
     </div>
   )
