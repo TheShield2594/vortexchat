@@ -2,7 +2,7 @@
 
 import { memo, useId, useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, AlertCircle, Clock3, Loader2, RefreshCcw } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, AlertCircle, Clock3, Loader2, RefreshCcw, CheckSquare } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast"
 import type { MessageWithAuthor, AttachmentRow, ThreadRow } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { LinkEmbed, extractFirstUrl } from "@/components/chat/link-embed"
+import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
 import { CreateThreadModal } from "@/components/modals/create-thread-modal"
 
@@ -364,6 +365,11 @@ export const MessageItem = memo(function MessageItem({
                     return url ? <LinkEmbed url={url} /> : null
                   })()}
 
+                  {message.content && (() => {
+                    const reference = extractWorkspaceReference(message.content)
+                    return reference ? <WorkspaceReferenceEmbed type={reference.type} id={reference.id} /> : null
+                  })()}
+
                   {/* Attachments */}
                   {message.attachments?.length > 0 && (
                     <div className="mt-2 space-y-2">
@@ -527,6 +533,17 @@ export const MessageItem = memo(function MessageItem({
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
+        <ContextMenuItem onClick={async () => {
+          const res = await fetch(`/api/messages/${message.id}/task`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) })
+          if (res.ok) {
+            const data = await res.json()
+            toast({ title: "Task created", description: `Reference: ${data.reference}` })
+          } else {
+            toast({ variant: "destructive", title: "Unable to convert message to task" })
+          }
+        }}>
+          <CheckSquare className="w-4 h-4 mr-2" /> Convert to Task
+        </ContextMenuItem>
         {message.content && (
           <ContextMenuItem onClick={() => {
             navigator.clipboard.writeText(message.content!)
