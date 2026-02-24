@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, MessageCircle
+  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, MessageCircle,
+  MicOff, Headphones
 } from "lucide-react"
 import {
   DndContext,
@@ -26,9 +27,10 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils/cn"
-import type { ChannelRow, RoleRow, ServerRow } from "@/types/database"
+import type { ChannelRow, RoleRow, ServerRow, UserRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -43,6 +45,14 @@ import { useUnreadChannels } from "@/hooks/use-unread-channels"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 
 const NO_CATEGORY = "__no_category__"
+
+interface VoiceParticipant {
+  user_id: string
+  channel_id: string
+  muted: boolean
+  deafened: boolean
+  user: Pick<UserRow, "id" | "username" | "display_name" | "avatar_url"> | null
+}
 
 /** Channel types that support messaging (messages table) */
 const MESSAGE_CHANNEL_TYPES = ["text", "announcement", "forum", "media"] as const
@@ -230,6 +240,65 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       .subscribe()
     return () => { supabase.removeChannel(subscription) }
   }, [server.id, addChannel, updateChannel, removeChannel])
+
+  // Voice participants per channel
+  const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipant[]>([])
+
+  useEffect(() => {
+    const supabase = createClientSupabaseClient()
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    let cancelled = false
+
+    async function fetchVoiceParticipants() {
+      const { data } = await supabase
+        .from("voice_states")
+        .select("user_id, channel_id, muted, deafened, users(id, username, display_name, avatar_url)")
+        .eq("server_id", server.id)
+      if (cancelled) return
+      setVoiceParticipants(
+        (data ?? []).map((d: any) => ({
+          user_id: d.user_id,
+          channel_id: d.channel_id,
+          muted: d.muted,
+          deafened: d.deafened,
+          user: d.users ?? null,
+        }))
+      )
+    }
+
+    function debouncedFetch() {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(fetchVoiceParticipants, 300)
+    }
+
+    fetchVoiceParticipants()
+
+    const subscription = supabase
+      .channel(`voice-states:${server.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "voice_states", filter: `server_id=eq.${server.id}` },
+        debouncedFetch
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      if (debounceTimer) clearTimeout(debounceTimer)
+      supabase.removeChannel(subscription)
+    }
+  }, [server.id])
+
+  // Pre-group voice participants by channel to avoid per-item filtering
+  const voiceParticipantsByChannel = useMemo(() => {
+    const map = new Map<string, VoiceParticipant[]>()
+    for (const p of voiceParticipants) {
+      const list = map.get(p.channel_id)
+      if (list) list.push(p)
+      else map.set(p.channel_id, [p])
+    }
+    return map
+  }, [voiceParticipants])
 
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
@@ -520,6 +589,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                             isUnread={unreadChannelIds.has(channel.id)}
                             mentionCount={mentionCounts[channel.id] ?? 0}
                             activeThreadCount={activeThreadCounts[channel.id] ?? 0}
+                            voiceParticipants={
+                              (VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)
+                                ? voiceParticipantsByChannel.get(channel.id)
+                                : undefined
+                            }
                             onClick={() => {
                               if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
                                 setVoiceChannel(channel.id, server.id)
@@ -762,6 +836,7 @@ function SortableChannelItem({
   isUnread,
   mentionCount,
   activeThreadCount,
+  voiceParticipants,
   onClick,
   onDelete,
 }: {
@@ -773,6 +848,7 @@ function SortableChannelItem({
   isUnread?: boolean
   mentionCount?: number
   activeThreadCount?: number
+  voiceParticipants?: VoiceParticipant[]
   onClick: () => void
   onDelete: () => void
 }) {
@@ -905,6 +981,41 @@ function SortableChannelItem({
           )}
         </ContextMenuContent>
       </ContextMenu>
+
+      {/* Voice participants listed under voice channels */}
+      {voiceParticipants && voiceParticipants.length > 0 && (
+        <div className="ml-6 mt-0.5 space-y-0.5">
+          {voiceParticipants.map((participant) => {
+            const name = participant.user?.display_name || participant.user?.username || "Unknown"
+            const initials = name.slice(0, 2).toUpperCase()
+            return (
+              <div
+                key={participant.user_id}
+                className="flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-white/5"
+                style={{ color: "#b5bac1" }}
+              >
+                <Avatar className="w-5 h-5 flex-shrink-0">
+                  {participant.user?.avatar_url && (
+                    <AvatarImage src={participant.user.avatar_url} />
+                  )}
+                  <AvatarFallback
+                    style={{ background: "#5865f2", color: "white", fontSize: "8px" }}
+                  >
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="truncate">{name}</span>
+                {participant.muted && (
+                  <MicOff className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />
+                )}
+                {participant.deafened && (
+                  <Headphones className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

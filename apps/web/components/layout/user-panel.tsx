@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -25,6 +26,7 @@ function getStatusColor(status: string) {
 
 export function UserPanel() {
   const { currentUser, voiceChannelId, setVoiceChannel, setCurrentUser } = useAppStore()
+  const router = useRouter()
   const [muted, setMuted] = useState(false)
   const [deafened, setDeafened] = useState(false)
   const [showProfileSettings, setShowProfileSettings] = useState(false)
@@ -137,7 +139,15 @@ export function UserPanel() {
                         .eq("channel_id", voiceChannelId)
                       if (error) throw error
                     }
+                    const sid = useAppStore.getState().voiceServerId
                     setVoiceChannel(null, null)
+                    if (sid) {
+                      const serverChannels = useAppStore.getState().channels[sid] ?? []
+                      const textChannel = serverChannels
+                        .filter((c) => c.type === "text")
+                        .sort((a, b) => a.position - b.position)[0]
+                      router.push(textChannel ? `/channels/${sid}/${textChannel.id}` : `/channels/${sid}`)
+                    }
                     toast({ title: "Disconnected from voice" })
                   } catch (error: any) {
                     toast({ variant: "destructive", title: "Failed to disconnect", description: error.message })

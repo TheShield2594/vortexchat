@@ -19,6 +19,9 @@ build/
 # Supabase local state
 .supabase/
 
+# MCP config (contains project-specific refs)
+.mcp.json
+
 # OS
 .DS_Store
 Thumbs.db
