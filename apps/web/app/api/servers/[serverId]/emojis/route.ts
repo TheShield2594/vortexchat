@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
-// GET /api/servers/[serverId]/emojis — list server emojis
+/** GET /api/servers/[serverId]/emojis — Returns all custom emojis for a server (membership-gated). */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
@@ -33,8 +33,7 @@ export async function GET(
   })
 }
 
-// POST /api/servers/[serverId]/emojis — upload a new emoji
-// Body: FormData with "file" (image) and "name" (slug)
+/** POST /api/servers/[serverId]/emojis — Uploads a new custom emoji (PNG/WebP/GIF, max 256 KB). */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
@@ -86,7 +85,7 @@ export async function POST(
   return NextResponse.json(emoji, { status: 201 })
 }
 
-// DELETE /api/servers/[serverId]/emojis?emojiId=xxx
+/** DELETE /api/servers/[serverId]/emojis?emojiId=xxx — Removes an emoji (server owner or uploader only). */
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }

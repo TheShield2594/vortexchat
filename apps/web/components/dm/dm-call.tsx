@@ -239,6 +239,7 @@ interface IncomingCallToastProps {
   onDecline: () => void
 }
 
+/** Fixed-position toast showing an incoming voice/video call with accept (audio/video) and decline buttons. */
 export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToastProps) {
   return (
     <div

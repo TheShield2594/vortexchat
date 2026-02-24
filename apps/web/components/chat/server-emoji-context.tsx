@@ -20,6 +20,7 @@ const ServerEmojiContext = createContext<ServerEmojiContextValue>({
   reload: () => {},
 })
 
+/** Returns the current server's custom emoji list, a name-based lookup, and a reload function. */
 export function useServerEmojis() {
   return useContext(ServerEmojiContext)
 }

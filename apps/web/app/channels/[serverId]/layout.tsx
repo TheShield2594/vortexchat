@@ -9,6 +9,7 @@ interface Props {
   params: Promise<{ serverId: string }>
 }
 
+/** Server-rendered layout that verifies membership and renders the channel sidebar alongside the active channel. */
 export default async function ServerLayout({ children, params: paramsPromise }: Props) {
   const params = await paramsPromise
 

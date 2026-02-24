@@ -15,6 +15,7 @@ interface Props {
   onSelectThread: (thread: ThreadRow) => void
 }
 
+/** Sidebar list of threads for a channel with active/archived filtering and real-time insert/update via Supabase. */
 export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }: Props) {
   const [threads, setThreads] = useState<ThreadRow[]>([])
   const [showArchived, setShowArchived] = useState(false)

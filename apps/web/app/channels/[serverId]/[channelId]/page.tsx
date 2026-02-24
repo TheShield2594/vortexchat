@@ -17,6 +17,7 @@ const MESSAGE_CHANNEL_TYPES = ["text", "announcement", "forum", "media"] as cons
 /** Channel types that use voice/WebRTC infrastructure */
 const VOICE_CHANNEL_TYPES = ["voice", "stage"] as const
 
+/** Server-rendered channel page that fetches channel data, messages, and read-state, then delegates to the appropriate channel-type component. */
 export default async function ChannelPage({ params: paramsPromise }: Props) {
   const params = await paramsPromise
 

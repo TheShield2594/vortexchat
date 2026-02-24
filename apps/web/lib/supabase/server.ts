@@ -9,6 +9,7 @@ export const getAuthUser = cache(async () => {
   return supabase.auth.getUser()
 })
 
+/** Creates a Supabase client authenticated via the request's cookies (anon key). Safe for Server Components, Route Handlers, and Server Actions. */
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies()
 
@@ -34,6 +35,7 @@ export async function createServerSupabaseClient() {
   )
 }
 
+/** Creates a Supabase client with the service-role key, bypassing RLS. Use only for admin operations. */
 export async function createServiceRoleClient() {
   const cookieStore = await cookies()
 

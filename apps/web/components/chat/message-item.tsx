@@ -226,6 +226,8 @@ export const MessageItem = memo(function MessageItem({
               {!isGrouped ? (
                 <UserProfilePopover
                   user={message.author}
+                  userId={message.author?.id}
+                  currentUserId={currentUserId}
                   displayName={displayName}
                   status={message.author?.status}
                   side="right"
@@ -272,6 +274,8 @@ export const MessageItem = memo(function MessageItem({
                 <div className="flex items-baseline gap-2 mb-0.5">
                   <UserProfilePopover
                     user={message.author}
+                    userId={message.author?.id}
+                    currentUserId={currentUserId}
                     displayName={displayName}
                     status={message.author?.status}
                     side="right"

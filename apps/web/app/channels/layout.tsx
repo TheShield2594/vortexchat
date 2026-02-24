@@ -4,6 +4,7 @@ import { ServerSidebar } from "@/components/layout/server-sidebar"
 import { AppProvider } from "@/components/layout/app-provider"
 import type { ServerRow } from "@/types/database"
 
+/** Root layout for all /channels routes — authenticates the user, loads profile and server list, wraps children in AppProvider. */
 export default async function ChannelsLayout({
   children,
 }: {

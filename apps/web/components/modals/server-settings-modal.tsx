@@ -269,6 +269,7 @@ interface EmojiEntry {
   image_url: string
 }
 
+/** Emoji management tab — lists server custom emojis with upload, rename, and delete controls. */
 export function EmojisTab({ serverId }: { serverId: string }) {
   const { toast } = useToast()
   const [emojis, setEmojis] = useState<EmojiEntry[]>([])
@@ -393,6 +394,7 @@ interface WebhookEntry {
   created_at: string
 }
 
+/** Webhook management tab — lists webhooks with create, copy-URL, and delete controls. Lazy-loads data when the tab is opened. */
 export function WebhooksTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
   const { toast } = useToast()
   const [webhooks, setWebhooks] = useState<WebhookEntry[]>([])
@@ -568,6 +570,7 @@ interface ModerationSettings {
   screening_enabled: boolean
 }
 
+/** Moderation settings tab — verification level, explicit-content filter, and default notification preferences. */
 export function ModerationTab({ serverId, open }: { serverId: string; open: boolean }) {
   const { toast } = useToast()
   const [settings, setSettings] = useState<ModerationSettings | null>(null)
@@ -692,6 +695,7 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
 
 // ── Screening Tab ────────────────────────────────────────────────────────────
 
+/** Member screening tab — configures a rules/welcome gate that new members must accept before participating. */
 export function ScreeningTab({ serverId, open }: { serverId: string; open: boolean }) {
   const { toast } = useToast()
   const [config, setConfig] = useState<ScreeningConfigRow | null>(null)
@@ -954,6 +958,7 @@ function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
   }
 }
 
+/** AutoMod rules tab — create, edit, test, and toggle automated moderation rules with configurable triggers and actions. */
 export function AutoModTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
   const { toast } = useToast()
   const [rules, setRules] = useState<AutoModRuleRow[]>([])

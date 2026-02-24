@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
-// GET /api/threads?channelId=xxx&archived=false
+/** GET /api/threads?channelId=xxx&archived=false — Lists threads for a channel, ordered by most recently updated. */
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   })
 }
 
-// POST /api/threads  { messageId, name }
+/** POST /api/threads — Creates a new thread from an existing message via the `create_thread_from_message` RPC. */
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
