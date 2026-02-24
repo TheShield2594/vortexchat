@@ -53,6 +53,22 @@ function isInputLike(target: EventTarget | null): boolean {
   return element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable
 }
 
+function isWithinDialogLike(element: HTMLElement | null): boolean {
+  if (!element) return false
+  return Boolean(
+    element.closest('[role="dialog"]') ||
+    element.closest("dialog") ||
+    element.closest('[aria-modal="true"]') ||
+    element.hasAttribute("aria-modal")
+  )
+}
+
+function isFocusInDialog(target: EventTarget | null): boolean {
+  const targetElement = target as HTMLElement | null
+  const activeElement = typeof document === "undefined" ? null : (document.activeElement as HTMLElement | null)
+  return isWithinDialogLike(targetElement) || isWithinDialogLike(activeElement)
+}
+
 function normalizeCombo(event: KeyboardEvent) {
   const key = event.key.toLowerCase()
   const parts = [
@@ -127,7 +143,7 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       const combo = normalizeCombo(event)
       const shortcut = lookup.get(combo)
       if (!shortcut || !shortcut.run) return
-      if (shortcut.scope === "nonInput" && isInputLike(event.target)) return
+      if (shortcut.scope === "nonInput" && (isInputLike(event.target) || isFocusInDialog(event.target))) return
 
       event.preventDefault()
       if (IS_DEV) {
