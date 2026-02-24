@@ -22,7 +22,7 @@ import {
   type AudioPreset,
   type VoiceAudioSettings,
 } from "@/lib/voice/audio-settings"
-import { useVoiceAudioStore, type ParticipantAudio } from "@/lib/stores/voice-audio-store"
+import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
 import { useShallow } from "zustand/react/shallow"
 
 interface VoiceParticipantInfo {
@@ -101,7 +101,9 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantInfo[]>([])
   const [spotlightUserId, setSpotlightUserId] = useState<string | null>(null)
   const [pttEnabled, setPttEnabled] = useState(false)
-  const supabaseRef = useRef(createClientSupabaseClient())
+  const supabaseRef = useRef<ReturnType<typeof createClientSupabaseClient> | null>(null)
+  if (!supabaseRef.current) supabaseRef.current = createClientSupabaseClient()
+  const supabase = supabaseRef.current
 
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
   const outputAudioContextRef = useRef<AudioContext | null>(null)
@@ -133,8 +135,8 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     audioInitError,
   } = useVoice(channelId, currentUserId, serverId)
 
-  const { setParticipantVolume, setParticipantPan, getParticipantMix } = useVoiceAudioStore(
-    useShallow((s) => ({ setParticipantVolume: s.setParticipantVolume, setParticipantPan: s.setParticipantPan, getParticipantMix: s.getParticipantMix }))
+  const { setParticipantVolume, setParticipantPan } = useVoiceAudioStore(
+    useShallow((s) => ({ setParticipantVolume: s.setParticipantVolume, setParticipantPan: s.setParticipantPan }))
   )
 
   const pttActivate = useCallback(() => { if (muted) toggleMute() }, [muted, toggleMute])
@@ -152,7 +154,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
 
   useEffect(() => {
     async function joinVoiceState() {
-      await supabaseRef.current
+      await supabase
         .from("voice_states")
         .upsert({
           user_id: currentUserId,
@@ -167,22 +169,22 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     joinVoiceState()
 
     return () => {
-      supabaseRef.current.from("voice_states").delete().eq("user_id", currentUserId).eq("channel_id", channelId).then()
+      supabase.from("voice_states").delete().eq("user_id", currentUserId).eq("channel_id", channelId).then(undefined, () => {})
     }
   }, [channelId, currentUserId, serverId])
 
   useEffect(() => {
-    supabaseRef.current
+    supabase
       .from("voice_states")
       .update({ muted, deafened, speaking, self_stream: screenSharing })
       .eq("user_id", currentUserId)
       .eq("channel_id", channelId)
-      .then()
+      .then(undefined, () => {})
   }, [muted, deafened, speaking, screenSharing])
 
   useEffect(() => {
     async function fetchParticipants() {
-      const { data } = await supabaseRef.current.from("voice_states").select("user_id, self_stream, users(*)").eq("channel_id", channelId)
+      const { data } = await supabase.from("voice_states").select("user_id, self_stream, users(*)").eq("channel_id", channelId)
       setVoiceParticipants(
         data?.flatMap((d: any) =>
           d.users ? [{ user: d.users as UserRow, selfStream: Boolean(d.self_stream) }] : []
@@ -191,14 +193,14 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     }
     fetchParticipants()
 
-    const channel = supabaseRef.current
+    const channel = supabase
       .channel(`voice:${channelId}`)
       .on("postgres_changes", {
         event: "*", schema: "public", table: "voice_states", filter: `channel_id=eq.${channelId}`,
       }, fetchParticipants)
       .subscribe()
 
-    return () => { supabaseRef.current.removeChannel(channel) }
+    return () => { supabase.removeChannel(channel) }
   }, [channelId])
 
   function handleLeave() {
@@ -212,7 +214,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   }
 
   const peerArray = useMemo(() => peers ? Array.from(peers.entries()) : [], [peers])
-  const hasVideo = useMemo(() => videoEnabled || screenSharing || peerArray.some(([, { stream }]) => stream.getVideoTracks().length > 0), [videoEnabled, screenSharing, peerArray])
+  const hasVideo = videoEnabled || screenSharing || peerArray.some(([, { stream }]) => stream.getVideoTracks().length > 0)
   const participantsByUserId = useMemo(() => {
     const map = new Map<string, VoiceParticipantInfo>()
     for (const p of voiceParticipants) map.set(p.user.id, p)
@@ -366,7 +368,6 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                     setSpotlightUserId={setSpotlightUserId}
                     setParticipantVolume={setParticipantVolume}
                     setParticipantPan={setParticipantPan}
-                    getParticipantMix={getParticipantMix}
                     spatialEnabled={audioSettings.spatialAudioEnabled}
                   />
                 ))}
@@ -402,20 +403,20 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
           <Tooltip><TooltipTrigger asChild><button onClick={handleLeave} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: "#f23f43" }}><PhoneOff className="w-5 h-5 text-white" /></button></TooltipTrigger><TooltipContent>Disconnect</TooltipContent></Tooltip>
         </div>
 
-        {peerArray.map(([peerId, { stream, userId }], idx) => {
-          const mix = getParticipantMix(serverId, userId)
-          return (
-            <RemoteAudio
-              key={peerId}
-              stream={stream}
-              deafened={deafened}
-              outputDeviceId={selectedOutputId}
-              volume={Math.min(mix.volume * audioSettings.outputGain, MAX_REMOTE_GAIN)}
-              pan={audioSettings.spatialAudioEnabled ? (mix.pan != null ? mix.pan : (idx % 2 === 0 ? -0.2 : 0.2)) : 0}
-              sharedAudioContextRef={outputAudioContextRef}
-            />
-          )
-        })}
+        {peerArray.map(([peerId, { stream, userId }], idx) => (
+          <ReactiveRemoteAudio
+            key={peerId}
+            serverId={serverId}
+            userId={userId}
+            stream={stream}
+            deafened={deafened}
+            outputDeviceId={selectedOutputId}
+            outputGain={audioSettings.outputGain}
+            spatialEnabled={audioSettings.spatialAudioEnabled}
+            peerIndex={idx}
+            sharedAudioContextRef={outputAudioContextRef}
+          />
+        ))}
       </div>
     </TooltipProvider>
   )
@@ -557,7 +558,6 @@ const PeerTileWrapper = memo(function PeerTileWrapper({
   setSpotlightUserId,
   setParticipantVolume,
   setParticipantPan,
-  getParticipantMix,
   spatialEnabled,
   compact,
 }: {
@@ -572,13 +572,12 @@ const PeerTileWrapper = memo(function PeerTileWrapper({
   setSpotlightUserId: (id: string | null) => void
   setParticipantVolume?: (serverId: string, userId: string, volume: number) => void
   setParticipantPan?: (serverId: string, userId: string, pan: number) => void
-  getParticipantMix?: (serverId: string, userId: string) => ParticipantAudio
   spatialEnabled?: boolean
   compact?: boolean
 }) {
   const peerInfo = participantsByUserId.get(userId)
   const peerIsScreenSharing = peerInfo?.selfStream ?? false
-  const mix = getParticipantMix?.(serverId, userId)
+  const mix = useVoiceAudioStore((s) => s.participantMixByServer[serverId]?.[userId])
 
   const onVolumeChange = useCallback(
     (volume: number) => setParticipantVolume?.(serverId, userId, volume),
@@ -591,7 +590,6 @@ const PeerTileWrapper = memo(function PeerTileWrapper({
   const onViewStream = useMemo(() => {
     if (!peerIsScreenSharing) return undefined
     if (compact && spotlightUserId === userId) return undefined
-    if (!compact && !peerIsScreenSharing) return undefined
     return () => setSpotlightUserId(userId)
   }, [peerIsScreenSharing, compact, spotlightUserId, userId, setSpotlightUserId])
 
@@ -745,6 +743,44 @@ const ParticipantTile = memo(function ParticipantTile({
         </div>
       )}
     </div>
+  )
+})
+
+/** Reactive wrapper that subscribes to per-participant mix from the store and passes computed volume/pan to RemoteAudio. */
+const ReactiveRemoteAudio = memo(function ReactiveRemoteAudio({
+  serverId,
+  userId,
+  stream,
+  deafened,
+  outputDeviceId,
+  outputGain,
+  spatialEnabled,
+  peerIndex,
+  sharedAudioContextRef,
+}: {
+  serverId: string
+  userId: string
+  stream: MediaStream
+  deafened: boolean
+  outputDeviceId: string | null
+  outputGain: number
+  spatialEnabled: boolean
+  peerIndex: number
+  sharedAudioContextRef: MutableRefObject<AudioContext | null>
+}) {
+  const mix = useVoiceAudioStore((s) => s.participantMixByServer[serverId]?.[userId])
+  const volume = Math.min((mix?.volume ?? 1) * outputGain, MAX_REMOTE_GAIN)
+  const pan = spatialEnabled ? (mix?.pan != null ? mix.pan : (peerIndex % 2 === 0 ? -0.2 : 0.2)) : 0
+
+  return (
+    <RemoteAudio
+      stream={stream}
+      deafened={deafened}
+      outputDeviceId={outputDeviceId}
+      volume={volume}
+      pan={pan}
+      sharedAudioContextRef={sharedAudioContextRef}
+    />
   )
 })
 
