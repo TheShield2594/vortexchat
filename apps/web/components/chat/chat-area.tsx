@@ -55,8 +55,8 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 
 /** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt }: Props) {
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser } = useAppStore(
-    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser }))
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen }))
   )
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
@@ -70,8 +70,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showReturnToContext, setShowReturnToContext] = useState(false)
   const [showSearchModal, setShowSearchModal] = useState(false)
-  const [workspaceOpen, setWorkspaceOpen] = useState(false)
-  const [threadPanelOpen, setThreadPanelOpen] = useState(true)
   const [isPaginating, setIsPaginating] = useState(false)
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -108,28 +106,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     () => `vortexchat:return-scroll:${currentUserId}:${channel.id}`,
     [channel.id, currentUserId]
   )
-  const threadPanelStorageKey = useMemo(
-    () => `vortexchat:thread-panel-open:${currentUserId}:${channel.id}`,
-    [channel.id, currentUserId]
-  )
-
-
-  useEffect(() => {
-    function handleToggleThreadPanel() {
-      setThreadPanelOpen((prev) => !prev)
-    }
-
-    function handleToggleWorkspacePanel() {
-      setWorkspaceOpen((prev) => !prev)
-    }
-
-    window.addEventListener("vortexchat:toggle-thread-panel", handleToggleThreadPanel)
-    window.addEventListener("vortexchat:toggle-workspace-panel", handleToggleWorkspacePanel)
-    return () => {
-      window.removeEventListener("vortexchat:toggle-thread-panel", handleToggleThreadPanel)
-      window.removeEventListener("vortexchat:toggle-workspace-panel", handleToggleWorkspacePanel)
-    }
-  }, [])
 
   const optimisticAuthor = useMemo(() => {
     return currentUser ?? {
@@ -440,25 +416,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setIsPaginating(false)
     }
   }, [channel.id, hasMoreHistory])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    try {
-      const stored = window.localStorage.getItem(threadPanelStorageKey)
-      setThreadPanelOpen(stored == null ? true : stored === "true")
-    } catch {
-      setThreadPanelOpen(true)
-    }
-  }, [threadPanelStorageKey])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    try {
-      window.localStorage.setItem(threadPanelStorageKey, String(threadPanelOpen))
-    } catch {
-      // Best effort only. Ignore storage failures.
-    }
-  }, [threadPanelOpen, threadPanelStorageKey])
 
   useEffect(() => {
     const savedAnchor = typeof window === "undefined" ? null : window.sessionStorage.getItem(unreadAnchorStorageKey)
@@ -967,7 +924,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <NotificationBell userId={currentUserId} />
 
             <button
-              onClick={() => setWorkspaceOpen((open) => !open)}
+              onClick={toggleWorkspacePanel}
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title="Workspace"
               aria-label="Workspace"
@@ -1011,7 +968,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </button>
 
             <button
-              onClick={() => setThreadPanelOpen((open) => !open)}
+              onClick={toggleThreadPanel}
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
             >

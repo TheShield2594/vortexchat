@@ -141,8 +141,8 @@ function mergeItemsPreservingOrder(
 
 /** Server channel sidebar with drag-and-drop reordering, category grouping, voice state indicators, and unread tracking. */
 export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
-  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList } = useAppStore(
-    useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList }))
+  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel } = useAppStore(
+    useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList, toggleThreadPanel: s.toggleThreadPanel, toggleWorkspacePanel: s.toggleWorkspacePanel }))
   )
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -350,15 +350,15 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     onJumpUnreadPrev: () => jumpRelative(unreadNavigableChannelIds, "prev"),
     onJumpUnreadNext: () => jumpRelative(unreadNavigableChannelIds, "next"),
     onToggleMemberList: () => toggleMemberList(),
-    onToggleThreadPanel: () => window.dispatchEvent(new CustomEvent("vortexchat:toggle-thread-panel")),
-    onToggleWorkspacePanel: () => window.dispatchEvent(new CustomEvent("vortexchat:toggle-workspace-panel")),
+    onToggleThreadPanel: () => toggleThreadPanel(),
+    onToggleWorkspacePanel: () => toggleWorkspacePanel(),
     onOpenShortcutHelp: () => setShortcutHelpOpen(true),
     onAnalytics: (event) => {
       if (process.env.NODE_ENV !== "production") {
         console.debug("[shortcuts] analytics", event)
       }
     },
-  }), [activeChannelId, jumpRelative, markRead, navigableChannelIds, unreadNavigableChannelIds, toggleMemberList])
+  }), [activeChannelId, jumpRelative, markRead, navigableChannelIds, unreadNavigableChannelIds, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel])
 
   useKeyboardShortcuts(shortcutHandlers)
 

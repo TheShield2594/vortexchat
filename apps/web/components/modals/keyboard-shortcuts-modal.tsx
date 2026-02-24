@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { getDiscoverableShortcutMappings, type ShortcutHandlers } from "@/hooks/use-keyboard-shortcuts"
 
@@ -10,12 +11,12 @@ interface Props {
 }
 
 export function KeyboardShortcutsModal({ open, onOpenChange, handlers }: Props) {
-  const shortcuts = getDiscoverableShortcutMappings(handlers)
-  const grouped = shortcuts.reduce<Record<string, typeof shortcuts>>((acc, shortcut) => {
+  const shortcuts = useMemo(() => getDiscoverableShortcutMappings(handlers), [handlers])
+  const grouped = useMemo(() => shortcuts.reduce<Record<string, typeof shortcuts>>((acc, shortcut) => {
     if (!acc[shortcut.group]) acc[shortcut.group] = []
     acc[shortcut.group].push(shortcut)
     return acc
-  }, {})
+  }, {}), [shortcuts])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

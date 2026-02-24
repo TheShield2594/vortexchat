@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo } from "react"
 
 const IS_DEV = process.env.NODE_ENV !== "production"
 
@@ -9,6 +9,7 @@ type ShortcutScope = "global" | "nonInput"
 type ShortcutActionId =
   | "quickSwitcher"
   | "search"
+  | "searchSlash"
   | "searchInChannel"
   | "markRead"
   | "jumpChannelPrev"
@@ -53,7 +54,7 @@ function isInputLike(target: EventTarget | null): boolean {
 }
 
 function normalizeCombo(event: KeyboardEvent) {
-  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key.toLowerCase()
+  const key = event.key.toLowerCase()
   const parts = [
     event.metaKey ? "meta" : null,
     event.ctrlKey ? "ctrl" : null,
@@ -75,6 +76,7 @@ function humanizeCombo(combo: string) {
       if (part === "arrowup") return "↑"
       if (part === "arrowdown") return "↓"
       if (part === "/") return "/"
+      if (part === "?") return "?"
       return part.length === 1 ? part.toUpperCase() : part[0].toUpperCase() + part.slice(1)
     })
     .join(" + ")
@@ -83,7 +85,8 @@ function humanizeCombo(combo: string) {
 export function getShortcutRegistry(handlers: ShortcutHandlers): ShortcutDefinition[] {
   return [
     { id: "quickSwitcher", label: "Open Quick Switcher", group: "Search", scope: "global", combos: ["meta+k", "ctrl+k"], enabled: !!handlers.onQuickSwitcher, run: handlers.onQuickSwitcher },
-    { id: "search", label: "Search", group: "Search", scope: "global", combos: ["meta+f", "ctrl+f", "/"], enabled: !!handlers.onSearch, run: handlers.onSearch },
+    { id: "search", label: "Search", group: "Search", scope: "global", combos: ["meta+f", "ctrl+f"], enabled: !!handlers.onSearch, run: handlers.onSearch },
+    { id: "searchSlash", label: "Search", group: "Search", scope: "nonInput", combos: ["/"], enabled: !!handlers.onSearch, run: handlers.onSearch },
     { id: "searchInChannel", label: "Search in Current Channel", group: "Search", scope: "global", combos: ["meta+shift+f", "ctrl+shift+f"], enabled: !!handlers.onSearchInChannel, run: handlers.onSearchInChannel },
     { id: "markRead", label: "Mark Current Channel Read", group: "Navigation", scope: "nonInput", combos: ["escape"], enabled: !!handlers.onMarkRead, run: handlers.onMarkRead },
     { id: "jumpChannelPrev", label: "Jump to Previous Channel", group: "Navigation", scope: "nonInput", combos: ["alt+arrowup"], enabled: !!handlers.onJumpChannelPrev, run: handlers.onJumpChannelPrev },
@@ -93,7 +96,7 @@ export function getShortcutRegistry(handlers: ShortcutHandlers): ShortcutDefinit
     { id: "toggleMemberList", label: "Toggle Member List", group: "Panels", scope: "nonInput", combos: ["meta+u", "ctrl+u"], enabled: !!handlers.onToggleMemberList, run: handlers.onToggleMemberList },
     { id: "toggleThreadPanel", label: "Toggle Thread Panel", group: "Panels", scope: "nonInput", combos: ["meta+.", "ctrl+."], enabled: !!handlers.onToggleThreadPanel, run: handlers.onToggleThreadPanel },
     { id: "toggleWorkspacePanel", label: "Toggle Workspace Panel", group: "Panels", scope: "nonInput", combos: ["meta+,", "ctrl+,"], enabled: !!handlers.onToggleWorkspacePanel, run: handlers.onToggleWorkspacePanel },
-    { id: "openShortcutHelp", label: "Open Keyboard Shortcut Help", group: "System", scope: "global", combos: ["meta+/", "ctrl+/", "shift+/"], enabled: !!handlers.onOpenShortcutHelp, run: handlers.onOpenShortcutHelp },
+    { id: "openShortcutHelp", label: "Open Keyboard Shortcut Help", group: "System", scope: "nonInput", combos: ["meta+/", "ctrl+/", "shift+?", "?"], enabled: !!handlers.onOpenShortcutHelp, run: handlers.onOpenShortcutHelp },
   ]
 }
 
@@ -140,18 +143,21 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
 }
 
 export function useChannelNavShortcuts(channelIds: string[], activeId: string | null, onNavigate: (id: string) => void) {
-  useKeyboardShortcuts({
-    onJumpChannelPrev: () => {
-      if (channelIds.length === 0) return
-      const currentIndex = activeId ? channelIds.indexOf(activeId) : -1
-      const nextIndex = currentIndex <= 0 ? channelIds.length - 1 : currentIndex - 1
-      onNavigate(channelIds[nextIndex])
-    },
-    onJumpChannelNext: () => {
-      if (channelIds.length === 0) return
-      const currentIndex = activeId ? channelIds.indexOf(activeId) : -1
-      const nextIndex = currentIndex >= channelIds.length - 1 ? 0 : currentIndex + 1
-      onNavigate(channelIds[nextIndex])
-    },
-  })
+  const onJumpChannelPrev = useCallback(() => {
+    if (channelIds.length === 0) return
+    const currentIndex = activeId ? channelIds.indexOf(activeId) : -1
+    const nextIndex = currentIndex <= 0 ? channelIds.length - 1 : currentIndex - 1
+    onNavigate(channelIds[nextIndex])
+  }, [activeId, channelIds, onNavigate])
+
+  const onJumpChannelNext = useCallback(() => {
+    if (channelIds.length === 0) return
+    const currentIndex = activeId ? channelIds.indexOf(activeId) : -1
+    const nextIndex = currentIndex >= channelIds.length - 1 ? 0 : currentIndex + 1
+    onNavigate(channelIds[nextIndex])
+  }, [activeId, channelIds, onNavigate])
+
+  const handlers = useMemo(() => ({ onJumpChannelPrev, onJumpChannelNext }), [onJumpChannelPrev, onJumpChannelNext])
+
+  useKeyboardShortcuts(handlers)
 }
