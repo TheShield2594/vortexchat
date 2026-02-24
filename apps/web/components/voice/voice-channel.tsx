@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
+import { useRouter } from "next/navigation"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
   Monitor, MonitorOff, Video, VideoOff, Radio, Settings,
@@ -86,7 +87,8 @@ function markCustomSettings(settings: VoiceAudioSettings, partial: Partial<Voice
 }
 
 export function VoiceChannel({ channelId, channelName, serverId, currentUserId }: Props) {
-  const { currentUser, setVoiceChannel } = useAppStore()
+  const { currentUser, setVoiceChannel, channels } = useAppStore()
+  const router = useRouter()
   const [voiceParticipants, setVoiceParticipants] = useState<UserRow[]>([])
   const [pttEnabled, setPttEnabled] = useState(false)
   const supabase = createClientSupabaseClient()
@@ -188,6 +190,11 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   function handleLeave() {
     leaveChannel()
     setVoiceChannel(null, null)
+    const serverChannels = channels[serverId] ?? []
+    const textChannel = serverChannels.find((c) => c.type === "text")
+    if (textChannel) {
+      router.push(`/channels/${serverId}/${textChannel.id}`)
+    }
   }
 
   const peerArray = peers ? Array.from(peers.entries()) : []
