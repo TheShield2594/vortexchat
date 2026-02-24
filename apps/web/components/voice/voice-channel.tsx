@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
 import { useRouter } from "next/navigation"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
@@ -23,6 +23,7 @@ import {
   type VoiceAudioSettings,
 } from "@/lib/voice/audio-settings"
 import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
+import { useShallow } from "zustand/react/shallow"
 
 interface VoiceParticipantInfo {
   user: UserRow
@@ -100,7 +101,9 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantInfo[]>([])
   const [spotlightUserId, setSpotlightUserId] = useState<string | null>(null)
   const [pttEnabled, setPttEnabled] = useState(false)
-  const supabase = createClientSupabaseClient()
+  const supabaseRef = useRef<ReturnType<typeof createClientSupabaseClient> | null>(null)
+  if (!supabaseRef.current) supabaseRef.current = createClientSupabaseClient()
+  const supabase = supabaseRef.current
 
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
   const outputAudioContextRef = useRef<AudioContext | null>(null)
@@ -132,13 +135,13 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     audioInitError,
   } = useVoice(channelId, currentUserId, serverId)
 
-  const { setParticipantVolume, setParticipantPan, getParticipantMix } = useVoiceAudioStore()
-
-  usePushToTalk(
-    pttEnabled,
-    () => { if (muted) toggleMute() },
-    () => { if (!muted) toggleMute() }
+  const { setParticipantVolume, setParticipantPan } = useVoiceAudioStore(
+    useShallow((s) => ({ setParticipantVolume: s.setParticipantVolume, setParticipantPan: s.setParticipantPan }))
   )
+
+  const pttActivate = useCallback(() => { if (muted) toggleMute() }, [muted, toggleMute])
+  const pttDeactivate = useCallback(() => { if (!muted) toggleMute() }, [muted, toggleMute])
+  usePushToTalk(pttEnabled, pttActivate, pttDeactivate)
 
   useEffect(() => {
     return () => {
@@ -166,7 +169,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     joinVoiceState()
 
     return () => {
-      supabase.from("voice_states").delete().eq("user_id", currentUserId).eq("channel_id", channelId).then()
+      supabase.from("voice_states").delete().eq("user_id", currentUserId).eq("channel_id", channelId).then(undefined, () => {})
     }
   }, [channelId, currentUserId, serverId])
 
@@ -176,7 +179,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
       .update({ muted, deafened, speaking, self_stream: screenSharing })
       .eq("user_id", currentUserId)
       .eq("channel_id", channelId)
-      .then()
+      .then(undefined, () => {})
   }, [muted, deafened, speaking, screenSharing])
 
   useEffect(() => {
@@ -210,6 +213,14 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     router.push(textChannel ? `/channels/${serverId}/${textChannel.id}` : `/channels/${serverId}`)
   }
 
+  const peerArray = useMemo(() => peers ? Array.from(peers.entries()) : [], [peers])
+  const hasVideo = videoEnabled || screenSharing || peerArray.some(([, { stream }]) => stream.getVideoTracks().length > 0)
+  const participantsByUserId = useMemo(() => {
+    const map = new Map<string, VoiceParticipantInfo>()
+    for (const p of voiceParticipants) map.set(p.user.id, p)
+    return map
+  }, [voiceParticipants])
+
   useEffect(() => {
     if (!spotlightUserId) return
     if (spotlightUserId === currentUserId && !screenSharing) {
@@ -217,7 +228,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
       return
     }
     if (spotlightUserId !== currentUserId) {
-      const peerInfo = voiceParticipants.find((p) => p.user.id === spotlightUserId)
+      const peerInfo = participantsByUserId.get(spotlightUserId)
       if (peerInfo && !peerInfo.selfStream) {
         setSpotlightUserId(null)
         return
@@ -227,10 +238,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         setSpotlightUserId(null)
       }
     }
-  }, [spotlightUserId, currentUserId, screenSharing, voiceParticipants, peers])
-
-  const peerArray = peers ? Array.from(peers.entries()) : []
-  const hasVideo = videoEnabled || screenSharing || peerArray.some(([, { stream }]) => stream.getVideoTracks().length > 0)
+  }, [spotlightUserId, currentUserId, screenSharing, participantsByUserId, peers])
   const sessionState = getVoiceSessionState(peerArray.length, speaking && !muted, Boolean(audioInitError))
   const activeTone = TONE_STYLES[sessionState.tone]
 
@@ -248,7 +256,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   } else if (spotlightPeer) {
     const [, { stream: peerStream, userId }] = spotlightPeer
     spotlightStream = peerStream
-    const info = voiceParticipants.find((p) => p.user.id === userId)
+    const info = participantsByUserId.get(userId)
     spotlightDisplayName = info?.user.display_name || info?.user.username || "Unknown"
   }
 
@@ -306,27 +314,21 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                   />
                 </div>
               )}
-              {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }]) => {
-                const peerInfo = voiceParticipants.find((p) => p.user.id === userId)
-                const peerIsScreenSharing = peerInfo?.selfStream ?? false
-                return (
-                  <div key={peerId} className="w-48 flex-shrink-0 min-w-0">
-                    <ParticipantTile
-                      user={peerInfo?.user}
-                      speaking={pSpeaking}
-                      muted={pMuted}
-                      deafened={false}
-                      audioStream={stream}
-                      cameraStream={null}
-                      screenStream={null}
-                      isLocal={false}
-                      remoteStream={stream}
-                      compact
-                      onViewStream={peerIsScreenSharing && spotlightUserId !== userId ? () => setSpotlightUserId(userId) : undefined}
-                    />
-                  </div>
-                )
-              })}
+              {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }]) => (
+                <PeerTileWrapper
+                  key={peerId}
+                  peerId={peerId}
+                  stream={stream}
+                  speaking={pSpeaking}
+                  muted={pMuted}
+                  userId={userId}
+                  participantsByUserId={participantsByUserId}
+                  serverId={serverId}
+                  spotlightUserId={spotlightUserId}
+                  setSpotlightUserId={setSpotlightUserId}
+                  compact
+                />
+              ))}
             </div>
           </div>
         ) : (
@@ -352,31 +354,23 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                     onViewStream={screenSharing ? () => setSpotlightUserId(currentUserId) : undefined}
                   />
                 )}
-                {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }]) => {
-                  const peerInfo = voiceParticipants.find((p) => p.user.id === userId)
-                  const peerIsScreenSharing = peerInfo?.selfStream ?? false
-                  const mix = getParticipantMix(serverId, userId)
-                  return (
-                    <ParticipantTile
-                      key={peerId}
-                      user={peerInfo?.user}
-                      speaking={pSpeaking}
-                      muted={pMuted}
-                      deafened={false}
-                      audioStream={stream}
-                      cameraStream={null}
-                      screenStream={null}
-                      isLocal={false}
-                      remoteStream={stream}
-                      onVolumeChange={(volume) => setParticipantVolume(serverId, userId, volume)}
-                      onPanChange={(pan) => setParticipantPan(serverId, userId, pan)}
-                      volume={mix.volume}
-                      pan={mix.pan}
-                      spatialEnabled={audioSettings.spatialAudioEnabled}
-                      onViewStream={peerIsScreenSharing ? () => setSpotlightUserId(userId) : undefined}
-                    />
-                  )
-                })}
+                {peerArray.map(([peerId, { stream, speaking: pSpeaking, muted: pMuted, userId }]) => (
+                  <PeerTileWrapper
+                    key={peerId}
+                    peerId={peerId}
+                    stream={stream}
+                    speaking={pSpeaking}
+                    muted={pMuted}
+                    userId={userId}
+                    participantsByUserId={participantsByUserId}
+                    serverId={serverId}
+                    spotlightUserId={spotlightUserId}
+                    setSpotlightUserId={setSpotlightUserId}
+                    setParticipantVolume={setParticipantVolume}
+                    setParticipantPan={setParticipantPan}
+                    spatialEnabled={audioSettings.spatialAudioEnabled}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -409,20 +403,20 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
           <Tooltip><TooltipTrigger asChild><button onClick={handleLeave} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: "#f23f43" }}><PhoneOff className="w-5 h-5 text-white" /></button></TooltipTrigger><TooltipContent>Disconnect</TooltipContent></Tooltip>
         </div>
 
-        {peerArray.map(([peerId, { stream, userId }], idx) => {
-          const mix = getParticipantMix(serverId, userId)
-          return (
-            <RemoteAudio
-              key={peerId}
-              stream={stream}
-              deafened={deafened}
-              outputDeviceId={selectedOutputId}
-              volume={Math.min(mix.volume * audioSettings.outputGain, MAX_REMOTE_GAIN)}
-              pan={audioSettings.spatialAudioEnabled ? (mix.pan != null ? mix.pan : (idx % 2 === 0 ? -0.2 : 0.2)) : 0}
-              sharedAudioContextRef={outputAudioContextRef}
-            />
-          )
-        })}
+        {peerArray.map(([peerId, { stream, userId }], idx) => (
+          <ReactiveRemoteAudio
+            key={peerId}
+            serverId={serverId}
+            userId={userId}
+            stream={stream}
+            deafened={deafened}
+            outputDeviceId={selectedOutputId}
+            outputGain={audioSettings.outputGain}
+            spatialEnabled={audioSettings.spatialAudioEnabled}
+            peerIndex={idx}
+            sharedAudioContextRef={outputAudioContextRef}
+          />
+        ))}
       </div>
     </TooltipProvider>
   )
@@ -551,8 +545,83 @@ function VoiceSettingsPanel({
   )
 }
 
+/** Memo-wrapped wrapper that provides stable per-peer callbacks to ParticipantTile. */
+const PeerTileWrapper = memo(function PeerTileWrapper({
+  peerId,
+  stream,
+  speaking,
+  muted,
+  userId,
+  participantsByUserId,
+  serverId,
+  spotlightUserId,
+  setSpotlightUserId,
+  setParticipantVolume,
+  setParticipantPan,
+  spatialEnabled,
+  compact,
+}: {
+  peerId: string
+  stream: MediaStream
+  speaking: boolean
+  muted: boolean
+  userId: string
+  participantsByUserId: Map<string, VoiceParticipantInfo>
+  serverId: string
+  spotlightUserId: string | null
+  setSpotlightUserId: (id: string | null) => void
+  setParticipantVolume?: (serverId: string, userId: string, volume: number) => void
+  setParticipantPan?: (serverId: string, userId: string, pan: number) => void
+  spatialEnabled?: boolean
+  compact?: boolean
+}) {
+  const peerInfo = participantsByUserId.get(userId)
+  const peerIsScreenSharing = peerInfo?.selfStream ?? false
+  const mix = useVoiceAudioStore((s) => s.participantMixByServer[serverId]?.[userId])
+
+  const onVolumeChange = useCallback(
+    (volume: number) => setParticipantVolume?.(serverId, userId, volume),
+    [setParticipantVolume, serverId, userId]
+  )
+  const onPanChange = useCallback(
+    (pan: number) => setParticipantPan?.(serverId, userId, pan),
+    [setParticipantPan, serverId, userId]
+  )
+  const onViewStream = useMemo(() => {
+    if (!peerIsScreenSharing) return undefined
+    if (compact && spotlightUserId === userId) return undefined
+    return () => setSpotlightUserId(userId)
+  }, [peerIsScreenSharing, compact, spotlightUserId, userId, setSpotlightUserId])
+
+  const tile = (
+    <ParticipantTile
+      user={peerInfo?.user}
+      speaking={speaking}
+      muted={muted}
+      deafened={false}
+      audioStream={stream}
+      cameraStream={null}
+      screenStream={null}
+      isLocal={false}
+      remoteStream={stream}
+      compact={compact}
+      onVolumeChange={!compact ? onVolumeChange : undefined}
+      onPanChange={!compact ? onPanChange : undefined}
+      volume={mix?.volume}
+      pan={mix?.pan}
+      spatialEnabled={spatialEnabled}
+      onViewStream={onViewStream}
+    />
+  )
+
+  if (compact) {
+    return <div className="w-48 flex-shrink-0 min-w-0">{tile}</div>
+  }
+  return tile
+})
+
 /** Renders a single voice participant with avatar/video, status indicators, and optional volume controls. */
-function ParticipantTile({
+const ParticipantTile = memo(function ParticipantTile({
   user,
   speaking,
   muted,
@@ -599,7 +668,18 @@ function ParticipantTile({
     if (screenRef.current && screenStream) screenRef.current.srcObject = screenStream
   }, [screenStream])
 
-  const remoteHasVideo = remoteStream && remoteStream.getVideoTracks().length > 0
+  const [remoteHasVideo, setRemoteHasVideo] = useState(() => !!remoteStream && remoteStream.getVideoTracks().length > 0)
+  useEffect(() => {
+    if (!remoteStream) { setRemoteHasVideo(false); return }
+    const update = () => setRemoteHasVideo(remoteStream.getVideoTracks().length > 0)
+    update()
+    remoteStream.addEventListener("addtrack", update)
+    remoteStream.addEventListener("removetrack", update)
+    return () => {
+      remoteStream.removeEventListener("addtrack", update)
+      remoteStream.removeEventListener("removetrack", update)
+    }
+  }, [remoteStream])
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream && remoteHasVideo) remoteVideoRef.current.srcObject = remoteStream
   }, [remoteStream, remoteHasVideo])
@@ -675,10 +755,48 @@ function ParticipantTile({
       )}
     </div>
   )
-}
+})
+
+/** Reactive wrapper that subscribes to per-participant mix from the store and passes computed volume/pan to RemoteAudio. */
+const ReactiveRemoteAudio = memo(function ReactiveRemoteAudio({
+  serverId,
+  userId,
+  stream,
+  deafened,
+  outputDeviceId,
+  outputGain,
+  spatialEnabled,
+  peerIndex,
+  sharedAudioContextRef,
+}: {
+  serverId: string
+  userId: string
+  stream: MediaStream
+  deafened: boolean
+  outputDeviceId: string | null
+  outputGain: number
+  spatialEnabled: boolean
+  peerIndex: number
+  sharedAudioContextRef: MutableRefObject<AudioContext | null>
+}) {
+  const mix = useVoiceAudioStore((s) => s.participantMixByServer[serverId]?.[userId])
+  const volume = Math.min((mix?.volume ?? 1) * outputGain, MAX_REMOTE_GAIN)
+  const pan = spatialEnabled ? (mix?.pan != null ? mix.pan : (peerIndex % 2 === 0 ? -0.2 : 0.2)) : 0
+
+  return (
+    <RemoteAudio
+      stream={stream}
+      deafened={deafened}
+      outputDeviceId={outputDeviceId}
+      volume={volume}
+      pan={pan}
+      sharedAudioContextRef={sharedAudioContextRef}
+    />
+  )
+})
 
 /** Hidden audio element that routes a remote peer's stream through Web Audio for gain and pan control. */
-function RemoteAudio({
+const RemoteAudio = memo(function RemoteAudio({
   stream,
   deafened,
   outputDeviceId,
@@ -762,7 +880,7 @@ function RemoteAudio({
   }, [outputDeviceId])
 
   return <audio ref={audioRef} autoPlay playsInline className="hidden" />
-}
+})
 
 /** Full-size video element used in spotlight mode to display a screen share stream. */
 function SpotlightVideo({ stream }: { stream: MediaStream | null }) {

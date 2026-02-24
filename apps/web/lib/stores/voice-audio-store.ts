@@ -33,7 +33,9 @@ interface VoiceAudioState {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 const defaultAudioSettings = createDefaultAudioSettings()
+const DEFAULT_MIX: ParticipantAudio = { volume: 1, pan: null }
 
+/** Resolve the effective audio settings for a user, falling back from server override to profile to defaults. */
 function resolveSettings(
   state: Pick<VoiceAudioState, "profilesByUser" | "serverOverridesByUser">,
   userId: string,
@@ -44,6 +46,7 @@ function resolveSettings(
   return state.serverOverridesByUser[userId]?.[serverId] ?? profile
 }
 
+/** Persisted Zustand store for per-user audio processing settings and per-participant volume/pan mix. */
 export const useVoiceAudioStore = create<VoiceAudioState>()(
   persist(
     (set, get) => ({
@@ -127,7 +130,7 @@ export const useVoiceAudioStore = create<VoiceAudioState>()(
         }))
       },
       getParticipantMix: (serverId, participantUserId) =>
-        get().participantMixByServer[serverId]?.[participantUserId] ?? { volume: 1, pan: null },
+        get().participantMixByServer[serverId]?.[participantUserId] ?? DEFAULT_MIX,
     }),
     {
       name: "vortex:voice-audio",

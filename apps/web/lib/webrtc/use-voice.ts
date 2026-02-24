@@ -364,7 +364,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
 
         try {
           const { default: hark } = await import("hark")
-          const speechEvents = hark(rawStream, { interval: 50, threshold: -65 })
+          const speechEvents = hark(rawStream, { interval: 100, threshold: -65 })
           harkRef.current = speechEvents
 
           speechEvents.on("speaking", () => {
