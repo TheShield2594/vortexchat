@@ -46,11 +46,13 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
     fetch(`/api/threads?channelId=${channelId}&archived=true`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
-        if (!controller.signal.aborted && Array.isArray(data)) setArchivedThreads(data)
-        setLoadingArchived(false)
+        if (!controller.signal.aborted) {
+          if (Array.isArray(data)) setArchivedThreads(data)
+          setLoadingArchived(false)
+        }
       })
       .catch((err) => {
-        if (err.name !== "AbortError") setLoadingArchived(false)
+        if (!controller.signal.aborted) setLoadingArchived(false)
       })
     return () => controller.abort()
   }, [shouldShowArchived, channelId, filter])

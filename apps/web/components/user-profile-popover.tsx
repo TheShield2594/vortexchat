@@ -220,6 +220,7 @@ export function UserProfilePopover({
               <div className="my-2 border-t" style={{ borderColor: "#1e1f22" }} />
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={handleMessage}
                   disabled={actionLoading === "message"}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
@@ -229,6 +230,7 @@ export function UserProfilePopover({
                   Message
                 </button>
                 <button
+                  type="button"
                   onClick={handleAddFriend}
                   disabled={actionLoading === "friend"}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"

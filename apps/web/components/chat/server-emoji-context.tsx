@@ -48,8 +48,15 @@ export function ServerEmojiProvider({ serverId, children }: { serverId: string; 
   }, [serverId])
 
   const reload = useCallback(async () => {
-    const res = await fetch(`/api/servers/${serverId}/emojis`)
-    if (res.ok) setEmojis(await res.json())
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+    try {
+      const res = await fetch(`/api/servers/${serverId}/emojis`, { signal: controller.signal })
+      if (res.ok && !controller.signal.aborted) setEmojis(await res.json())
+    } catch (err: any) {
+      if (err.name !== "AbortError") console.error("Failed to reload emojis", err)
+    }
   }, [serverId])
 
   const getEmoji = useCallback((name: string): ServerEmoji | null => {
