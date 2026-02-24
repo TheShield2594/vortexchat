@@ -2,6 +2,8 @@ import { create } from "zustand"
 import type { ServerRow, ChannelRow, UserRow } from "@/types/database"
 
 const MEMBER_LIST_STORAGE_KEY = "vortexchat:ui:member-list-open"
+const THREAD_PANEL_STORAGE_KEY = "vortexchat:ui:thread-panel-open"
+const WORKSPACE_PANEL_STORAGE_KEY = "vortexchat:ui:workspace-panel-open"
 
 function loadMemberListOpen(): boolean {
   if (typeof window === "undefined") return true
@@ -17,6 +19,25 @@ function persistMemberListOpen(open: boolean) {
   if (typeof window === "undefined") return
   try {
     window.localStorage.setItem(MEMBER_LIST_STORAGE_KEY, String(open))
+  } catch {
+    // Best effort only. Ignore storage failures (private mode / restricted environments).
+  }
+}
+
+function loadBooleanStorage(key: string, fallback: boolean): boolean {
+  if (typeof window === "undefined") return fallback
+  try {
+    const stored = window.localStorage.getItem(key)
+    return stored == null ? fallback : stored === "true"
+  } catch {
+    return fallback
+  }
+}
+
+function persistBooleanStorage(key: string, value: boolean) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(key, String(value))
   } catch {
     // Best effort only. Ignore storage failures (private mode / restricted environments).
   }
@@ -62,6 +83,12 @@ interface AppState {
   // UI state
   memberListOpen: boolean
   toggleMemberList: () => void
+  threadPanelOpen: boolean
+  toggleThreadPanel: () => void
+  setThreadPanelOpen: (open: boolean) => void
+  workspaceOpen: boolean
+  toggleWorkspacePanel: () => void
+  setWorkspaceOpen: (open: boolean) => void
 
   // Voice state
   voiceChannelId: string | null
@@ -130,6 +157,26 @@ export const useAppStore = create<AppState>((set) => ({
     const next = !state.memberListOpen
     persistMemberListOpen(next)
     return { memberListOpen: next }
+  }),
+  threadPanelOpen: loadBooleanStorage(THREAD_PANEL_STORAGE_KEY, true),
+  toggleThreadPanel: () => set((state) => {
+    const next = !state.threadPanelOpen
+    persistBooleanStorage(THREAD_PANEL_STORAGE_KEY, next)
+    return { threadPanelOpen: next }
+  }),
+  setThreadPanelOpen: (open) => set(() => {
+    persistBooleanStorage(THREAD_PANEL_STORAGE_KEY, open)
+    return { threadPanelOpen: open }
+  }),
+  workspaceOpen: loadBooleanStorage(WORKSPACE_PANEL_STORAGE_KEY, false),
+  toggleWorkspacePanel: () => set((state) => {
+    const next = !state.workspaceOpen
+    persistBooleanStorage(WORKSPACE_PANEL_STORAGE_KEY, next)
+    return { workspaceOpen: next }
+  }),
+  setWorkspaceOpen: (open) => set(() => {
+    persistBooleanStorage(WORKSPACE_PANEL_STORAGE_KEY, open)
+    return { workspaceOpen: open }
   }),
 
   voiceChannelId: null,

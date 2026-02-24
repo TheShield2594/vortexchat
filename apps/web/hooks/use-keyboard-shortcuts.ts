@@ -1,84 +1,179 @@
 "use client"
 
-import { useEffect } from "react"
+import { useCallback, useEffect, useMemo } from "react"
 
-interface ShortcutHandlers {
-  onQuickSwitcher?: () => void      // Ctrl/Cmd+K
-  onMarkRead?: () => void            // Escape (when focused outside input)
-  onSearch?: () => void              // Ctrl/Cmd+F
+const IS_DEV = process.env.NODE_ENV !== "production"
+
+type ShortcutScope = "global" | "nonInput"
+
+type ShortcutActionId =
+  | "quickSwitcher"
+  | "search"
+  | "searchSlash"
+  | "searchInChannel"
+  | "markRead"
+  | "jumpChannelPrev"
+  | "jumpChannelNext"
+  | "jumpUnreadPrev"
+  | "jumpUnreadNext"
+  | "toggleMemberList"
+  | "toggleThreadPanel"
+  | "toggleWorkspacePanel"
+  | "openShortcutHelp"
+
+export interface ShortcutHandlers {
+  onQuickSwitcher?: () => void
+  onSearch?: () => void
+  onSearchInChannel?: () => void
+  onMarkRead?: () => void
+  onJumpChannelPrev?: () => void
+  onJumpChannelNext?: () => void
+  onJumpUnreadPrev?: () => void
+  onJumpUnreadNext?: () => void
+  onToggleMemberList?: () => void
+  onToggleThreadPanel?: () => void
+  onToggleWorkspacePanel?: () => void
+  onOpenShortcutHelp?: () => void
+  onAnalytics?: (event: { action: ShortcutActionId; combo: string }) => void
 }
 
-/**
- * Global keyboard shortcuts matching Discord's primary bindings.
- * Alt+Up / Alt+Down channel navigation is handled separately in ChannelSidebar.
- */
+interface ShortcutDefinition {
+  id: ShortcutActionId
+  label: string
+  group: "Navigation" | "Search" | "Panels" | "System"
+  scope: ShortcutScope
+  combos: string[]
+  enabled: boolean
+  run?: () => void
+}
+
+function isInputLike(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null
+  if (!element) return false
+  return element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable
+}
+
+function isWithinDialogLike(element: HTMLElement | null): boolean {
+  if (!element) return false
+  return Boolean(
+    element.closest('[role="dialog"]') ||
+    element.closest("dialog") ||
+    element.closest('[aria-modal="true"]') ||
+    element.hasAttribute("aria-modal")
+  )
+}
+
+function isFocusInDialog(target: EventTarget | null): boolean {
+  const targetElement = target as HTMLElement | null
+  const activeElement = typeof document === "undefined" ? null : (document.activeElement as HTMLElement | null)
+  return isWithinDialogLike(targetElement) || isWithinDialogLike(activeElement)
+}
+
+function normalizeCombo(event: KeyboardEvent) {
+  const key = event.key.toLowerCase()
+  const parts = [
+    event.metaKey ? "meta" : null,
+    event.ctrlKey ? "ctrl" : null,
+    event.altKey ? "alt" : null,
+    event.shiftKey ? "shift" : null,
+    key,
+  ].filter(Boolean)
+  return parts.join("+")
+}
+
+function humanizeCombo(combo: string) {
+  return combo
+    .split("+")
+    .map((part) => {
+      if (part === "meta") return "⌘"
+      if (part === "ctrl") return "Ctrl"
+      if (part === "alt") return "Alt"
+      if (part === "shift") return "Shift"
+      if (part === "arrowup") return "↑"
+      if (part === "arrowdown") return "↓"
+      if (part === "/") return "/"
+      if (part === "?") return "?"
+      return part.length === 1 ? part.toUpperCase() : part[0].toUpperCase() + part.slice(1)
+    })
+    .join(" + ")
+}
+
+export function getShortcutRegistry(handlers: ShortcutHandlers): ShortcutDefinition[] {
+  return [
+    { id: "quickSwitcher", label: "Open Quick Switcher", group: "Search", scope: "global", combos: ["meta+k", "ctrl+k"], enabled: !!handlers.onQuickSwitcher, run: handlers.onQuickSwitcher },
+    { id: "search", label: "Search", group: "Search", scope: "global", combos: ["meta+f", "ctrl+f"], enabled: !!handlers.onSearch, run: handlers.onSearch },
+    { id: "searchSlash", label: "Search", group: "Search", scope: "nonInput", combos: ["/"], enabled: !!handlers.onSearch, run: handlers.onSearch },
+    { id: "searchInChannel", label: "Search in Current Channel", group: "Search", scope: "global", combos: ["meta+shift+f", "ctrl+shift+f"], enabled: !!handlers.onSearchInChannel, run: handlers.onSearchInChannel },
+    { id: "markRead", label: "Mark Current Channel Read", group: "Navigation", scope: "nonInput", combos: ["escape"], enabled: !!handlers.onMarkRead, run: handlers.onMarkRead },
+    { id: "jumpChannelPrev", label: "Jump to Previous Channel", group: "Navigation", scope: "nonInput", combos: ["alt+arrowup"], enabled: !!handlers.onJumpChannelPrev, run: handlers.onJumpChannelPrev },
+    { id: "jumpChannelNext", label: "Jump to Next Channel", group: "Navigation", scope: "nonInput", combos: ["alt+arrowdown"], enabled: !!handlers.onJumpChannelNext, run: handlers.onJumpChannelNext },
+    { id: "jumpUnreadPrev", label: "Jump to Previous Unread", group: "Navigation", scope: "nonInput", combos: ["alt+shift+arrowup"], enabled: !!handlers.onJumpUnreadPrev, run: handlers.onJumpUnreadPrev },
+    { id: "jumpUnreadNext", label: "Jump to Next Unread", group: "Navigation", scope: "nonInput", combos: ["alt+shift+arrowdown"], enabled: !!handlers.onJumpUnreadNext, run: handlers.onJumpUnreadNext },
+    { id: "toggleMemberList", label: "Toggle Member List", group: "Panels", scope: "nonInput", combos: ["meta+u", "ctrl+u"], enabled: !!handlers.onToggleMemberList, run: handlers.onToggleMemberList },
+    { id: "toggleThreadPanel", label: "Toggle Thread Panel", group: "Panels", scope: "nonInput", combos: ["meta+.", "ctrl+."], enabled: !!handlers.onToggleThreadPanel, run: handlers.onToggleThreadPanel },
+    { id: "toggleWorkspacePanel", label: "Toggle Workspace Panel", group: "Panels", scope: "nonInput", combos: ["meta+,", "ctrl+,"], enabled: !!handlers.onToggleWorkspacePanel, run: handlers.onToggleWorkspacePanel },
+    { id: "openShortcutHelp", label: "Open Keyboard Shortcut Help", group: "System", scope: "nonInput", combos: ["meta+/", "ctrl+/", "shift+?", "?"], enabled: !!handlers.onOpenShortcutHelp, run: handlers.onOpenShortcutHelp },
+  ]
+}
+
+export function getDiscoverableShortcutMappings(handlers: ShortcutHandlers) {
+  return getShortcutRegistry(handlers).filter((shortcut) => shortcut.enabled).map((shortcut) => ({
+    ...shortcut,
+    combos: shortcut.combos.map(humanizeCombo),
+  }))
+}
+
 export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
+  const registry = useMemo(() => getShortcutRegistry(handlers), [handlers])
+
   useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement
-      const inInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
-
-      const meta = e.metaKey || e.ctrlKey
-
-      // Ctrl/Cmd+K → quickswitcher
-      if (meta && e.key === "k" && handlers.onQuickSwitcher) {
-        e.preventDefault()
-        handlers.onQuickSwitcher()
-        return
+    const lookup = new Map<string, ShortcutDefinition>()
+    for (const shortcut of registry) {
+      if (!shortcut.enabled || !shortcut.run) continue
+      for (const combo of shortcut.combos) {
+        if (lookup.has(combo) && IS_DEV) {
+          console.warn("[shortcuts] conflict", { combo, previous: lookup.get(combo)?.id, ignored: shortcut.id })
+          continue
+        }
+        lookup.set(combo, shortcut)
       }
+    }
 
-      // Ctrl/Cmd+F → search
-      if (meta && e.key === "f" && handlers.onSearch) {
-        e.preventDefault()
-        handlers.onSearch()
-        return
-      }
+    function handleKeyDown(event: KeyboardEvent) {
+      const combo = normalizeCombo(event)
+      const shortcut = lookup.get(combo)
+      if (!shortcut || !shortcut.run) return
+      if (shortcut.scope === "nonInput" && (isInputLike(event.target) || isFocusInDialog(event.target))) return
 
-      // Escape → mark channel read / close modals (only when not in an input)
-      if (e.key === "Escape" && !inInput) {
-        handlers.onMarkRead?.()
-        return
+      event.preventDefault()
+      if (IS_DEV) {
+        console.debug("[shortcuts] fired", { action: shortcut.id, combo })
       }
+      handlers.onAnalytics?.({ action: shortcut.id, combo })
+      shortcut.run()
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handlers.onQuickSwitcher, handlers.onMarkRead, handlers.onSearch])
+  }, [registry, handlers])
 }
 
-/**
- * Alt+Up / Alt+Down — navigate between channels in order.
- * channelIds: ordered list of visible channel IDs
- * activeId: currently active channel
- * onNavigate: called with the ID to navigate to
- */
-export function useChannelNavShortcuts(
-  channelIds: string[],
-  activeId: string | null,
-  onNavigate: (id: string) => void
-) {
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return
-      const target = e.target as HTMLElement
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
+export function useChannelNavShortcuts(channelIds: string[], activeId: string | null, onNavigate: (id: string) => void) {
+  const onJumpChannelPrev = useCallback(() => {
+    if (channelIds.length === 0) return
+    const currentIndex = activeId ? channelIds.indexOf(activeId) : -1
+    const nextIndex = currentIndex <= 0 ? channelIds.length - 1 : currentIndex - 1
+    onNavigate(channelIds[nextIndex])
+  }, [activeId, channelIds, onNavigate])
 
-      e.preventDefault()
-      if (channelIds.length === 0) return
+  const onJumpChannelNext = useCallback(() => {
+    if (channelIds.length === 0) return
+    const currentIndex = activeId ? channelIds.indexOf(activeId) : -1
+    const nextIndex = currentIndex >= channelIds.length - 1 ? 0 : currentIndex + 1
+    onNavigate(channelIds[nextIndex])
+  }, [activeId, channelIds, onNavigate])
 
-      const currentIndex = activeId ? channelIds.indexOf(activeId) : -1
-      let nextIndex: number
+  const handlers = useMemo(() => ({ onJumpChannelPrev, onJumpChannelNext }), [onJumpChannelPrev, onJumpChannelNext])
 
-      if (e.key === "ArrowUp") {
-        nextIndex = currentIndex <= 0 ? channelIds.length - 1 : currentIndex - 1
-      } else {
-        nextIndex = currentIndex >= channelIds.length - 1 ? 0 : currentIndex + 1
-      }
-
-      onNavigate(channelIds[nextIndex])
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [channelIds, activeId, onNavigate])
+  useKeyboardShortcuts(handlers)
 }
