@@ -19,10 +19,12 @@ export default async function ChannelsLayout({
   }
 
   // Fetch user profile and servers in parallel
-  const [{ data: profile }, { data: serverMembers }] = await Promise.all([
+  const [{ data: profile, error: profileError }, { data: serverMembers }] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
     supabase.from("server_members").select("server_id, servers(*)").eq("user_id", user.id).order("joined_at", { ascending: true }),
   ])
+
+  if (profileError || !profile) redirect("/login")
 
   type ServerMemberWithServer = { server_id: string; servers: ServerRow | null }
   const servers = ((serverMembers ?? []) as unknown as ServerMemberWithServer[])

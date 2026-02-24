@@ -49,6 +49,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
   const remoteAudioRef = useRef<HTMLAudioElement>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
+  const rtChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const [muted, setMuted] = useState(false)
   const [videoOff, setVideoOff] = useState(!withVideo)
   const [connected, setConnected] = useState(false)
@@ -93,6 +94,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
     }
 
     const rtChannel = supabase.channel(`dm-call:${channelId}`)
+    rtChannelRef.current = rtChannel
 
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
@@ -138,9 +140,8 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
   }, [channelId, currentUserId, partner.id, withVideo])
 
   function handleHangUp() {
-    // Broadcast hangup to partner before closing
-    const rtChannel = supabase.channel(`dm-call:${channelId}`)
-    rtChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "hangup", from: clientId.current } }).then(() => supabase.removeChannel(rtChannel))
+    // Broadcast hangup to partner on the live subscribed channel
+    rtChannelRef.current?.send({ type: "broadcast", event: "call-signal", payload: { type: "hangup", from: clientId.current } })
     onHangUp()
   }
 
@@ -298,6 +299,8 @@ export function useDMCall(channelId: string, currentUserId: string, currentUserN
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
   const [activeCall, setActiveCall] = useState<{ withVideo: boolean } | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const incomingCallRef = useRef(incomingCall)
+  incomingCallRef.current = incomingCall
 
   useEffect(() => {
     const ch = supabase.channel(`dm-call-notify:${channelId}`)
@@ -314,7 +317,7 @@ export function useDMCall(channelId: string, currentUserId: string, currentUserN
       })
     })
     .on("broadcast", { event: "call-cancelled" }, ({ payload }) => {
-      if (incomingCall?.callerId === payload.callerId) setIncomingCall(null)
+      if (incomingCallRef.current?.callerId === payload.callerId) setIncomingCall(null)
     })
     .subscribe()
 

@@ -95,9 +95,6 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
   async function handleSendMessage(content: string, attachmentFiles?: File[]) {
     if (!content.trim() && (!attachmentFiles || attachmentFiles.length === 0)) return
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
     const attachments: { url: string; filename: string; size: number; content_type: string }[] = []
     if (attachmentFiles?.length) {
       for (const file of attachmentFiles) {
@@ -116,7 +113,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
       .from("messages")
       .insert({
         channel_id: channel.id,
-        author_id: user.id,
+        author_id: currentUserId,
         content: content.trim() || null,
         reply_to_id: replyTo?.id || null,
       })

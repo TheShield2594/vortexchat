@@ -28,6 +28,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
   ])
 
   if (!server) notFound()
+  if (!member) notFound()
 
   type MemberRoleWithRole = { role_id: string; roles: RoleRow | null }
   const userRoles = ((memberRoles ?? []) as unknown as MemberRoleWithRole[])

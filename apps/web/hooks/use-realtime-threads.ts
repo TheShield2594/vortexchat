@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { ThreadRow, MessageWithAuthor, MessageRow, ReactionRow } from "@/types/database"
 
@@ -15,6 +15,10 @@ export function useRealtimeThreads(
   onThreadUpdate: (thread: ThreadRow) => void
 ) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const onInsertRef = useRef(onThreadInsert)
+  const onUpdateRef = useRef(onThreadUpdate)
+  onInsertRef.current = onThreadInsert
+  onUpdateRef.current = onThreadUpdate
 
   useEffect(() => {
     const subscription = supabase
@@ -28,7 +32,7 @@ export function useRealtimeThreads(
           filter: `parent_channel_id=eq.${channelId}`,
         },
         (payload) => {
-          onThreadInsert(payload.new as ThreadRow)
+          onInsertRef.current(payload.new as ThreadRow)
         }
       )
       .on(
@@ -40,7 +44,7 @@ export function useRealtimeThreads(
           filter: `parent_channel_id=eq.${channelId}`,
         },
         (payload) => {
-          onThreadUpdate(payload.new as ThreadRow)
+          onUpdateRef.current(payload.new as ThreadRow)
         }
       )
       .subscribe()
@@ -62,6 +66,14 @@ export function useRealtimeThreadMessages(
   onReactionDelete?: (reaction: ReactionRow) => void
 ) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const onInsertRef = useRef(onInsert)
+  const onUpdateRef = useRef(onUpdate)
+  const onReactionInsertRef = useRef(onReactionInsert)
+  const onReactionDeleteRef = useRef(onReactionDelete)
+  onInsertRef.current = onInsert
+  onUpdateRef.current = onUpdate
+  onReactionInsertRef.current = onReactionInsert
+  onReactionDeleteRef.current = onReactionDelete
 
   useEffect(() => {
     const subscription = supabase
@@ -80,7 +92,7 @@ export function useRealtimeThreadMessages(
             .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
             .eq("id", payload.new.id)
             .single()
-          if (data) onInsert(data as unknown as MessageWithAuthor)
+          if (data) onInsertRef.current(data as unknown as MessageWithAuthor)
         }
       )
       .on(
@@ -92,21 +104,21 @@ export function useRealtimeThreadMessages(
           filter: `thread_id=eq.${threadId}`,
         },
         (payload) => {
-          onUpdate(payload.new as MessageRow)
+          onUpdateRef.current(payload.new as MessageRow)
         }
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "reactions" },
         (payload) => {
-          if (onReactionInsert) onReactionInsert(payload.new as ReactionRow)
+          onReactionInsertRef.current?.(payload.new as ReactionRow)
         }
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "reactions" },
         (payload) => {
-          if (onReactionDelete) onReactionDelete(payload.old as ReactionRow)
+          onReactionDeleteRef.current?.(payload.old as ReactionRow)
         }
       )
       .subscribe()

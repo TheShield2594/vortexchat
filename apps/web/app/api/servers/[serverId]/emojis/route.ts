@@ -8,9 +8,9 @@ export async function GET(
 ) {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const userId = session.user.id
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = user.id
 
   // Verify membership before exposing emoji list
   const { data: member } = await supabase

@@ -33,14 +33,18 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
 
   // Load messages
   useEffect(() => {
+    const controller = new AbortController()
     setLoading(true)
-    fetch(`/api/threads/${thread.id}/messages`)
+    fetch(`/api/threads/${thread.id}/messages`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setMessages(data)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch((err) => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
   }, [thread.id])
 
   // Check membership
