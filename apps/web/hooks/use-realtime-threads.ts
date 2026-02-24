@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { ThreadRow, MessageWithAuthor, MessageRow, ReactionRow } from "@/types/database"
 
@@ -14,7 +14,7 @@ export function useRealtimeThreads(
   onThreadInsert: (thread: ThreadRow) => void,
   onThreadUpdate: (thread: ThreadRow) => void
 ) {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     const subscription = supabase
@@ -61,7 +61,7 @@ export function useRealtimeThreadMessages(
   onReactionInsert?: (reaction: ReactionRow) => void,
   onReactionDelete?: (reaction: ReactionRow) => void
 ) {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     const subscription = supabase

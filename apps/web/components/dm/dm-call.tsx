@@ -10,7 +10,7 @@
  * - Either party can hang up (broadcasts "call-hangup")
  */
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, Loader2, X } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -41,8 +41,9 @@ interface DMCallScreenProps {
 
 // ─── Call Screen (active call) ────────────────────────────────────────────────
 
+/** Full-screen WebRTC call UI with local/remote video, mute/camera toggles, and signaling via Supabase Realtime. */
 export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onHangUp }: DMCallScreenProps) {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const remoteAudioRef = useRef<HTMLAudioElement>(null)
@@ -291,8 +292,9 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
 // ─── useDMCall hook ─────────────────────────────────────────────────────────────
 // Manages incoming call state for a DM channel
 
+/** Manages incoming/outgoing DM call state and signaling via Supabase Realtime broadcast. */
 export function useDMCall(channelId: string, currentUserId: string, currentUserName: string) {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
   const [activeCall, setActiveCall] = useState<{ withVideo: boolean } | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)

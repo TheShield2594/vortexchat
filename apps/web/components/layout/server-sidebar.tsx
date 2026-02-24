@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Plus, Compass, MessageSquare, Clipboard, LogOut, UserPlus } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -11,16 +12,47 @@ import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, C
 import { useToast } from "@/components/ui/use-toast"
 import { CreateServerModal } from "@/components/modals/create-server-modal"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { cn } from "@/lib/utils/cn"
 import type { ServerRow } from "@/types/database"
 
+/** Vertical icon strip listing joined servers, DM shortcut, and create/discover actions. */
 export function ServerSidebar() {
-  const { servers, activeServerId, setActiveServer, removeServer, currentUser } = useAppStore()
+  const { servers, activeServerId, setActiveServer, removeServer, currentUser, channels } = useAppStore(
+    useShallow((s) => ({ servers: s.servers, activeServerId: s.activeServerId, setActiveServer: s.setActiveServer, removeServer: s.removeServer, currentUser: s.currentUser, channels: s.channels }))
+  )
   const [showCreateServer, setShowCreateServer] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
+
+  const navigateToServer = useCallback((serverId: string) => {
+    setActiveServer(serverId)
+
+    // Check Zustand store for cached channels (populated after any visit this session)
+    const cached = channels[serverId]
+    if (cached && cached.length > 0) {
+      const firstText = [...cached]
+        .filter((c) => c.type === "text")
+        .sort((a, b) => a.position - b.position)[0]
+      if (firstText) {
+        router.push(`/channels/${serverId}/${firstText.id}`)
+        return
+      }
+    }
+
+    // Check localStorage for last-visited channel (cross-session)
+    try {
+      const stored = localStorage.getItem(`vortexchat:last-channel:${serverId}`)
+      if (stored) {
+        router.push(`/channels/${serverId}/${stored}`)
+        return
+      }
+    } catch {}
+
+    // Fallback: redirect page handles first-ever visit
+    router.push(`/channels/${serverId}`)
+  }, [channels, router, setActiveServer])
 
   async function handleLeaveServer(server: ServerRow) {
     if (!currentUser) return
@@ -79,10 +111,7 @@ export function ServerSidebar() {
             server={server}
             isActive={activeServerId === server.id}
             isOwner={currentUser?.id === server.owner_id}
-            onClick={() => {
-              setActiveServer(server.id)
-              router.push(`/channels/${server.id}`)
-            }}
+            onClick={() => navigateToServer(server.id)}
             onLeave={() => handleLeaveServer(server)}
           />
         ))}

@@ -8,15 +8,16 @@ export async function GET(
 ) {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = session.user.id
 
   // Verify membership before exposing emoji list
   const { data: member } = await supabase
     .from("server_members")
     .select("user_id")
     .eq("server_id", serverId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle()
   if (!member) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -27,7 +28,9 @@ export async function GET(
     .order("name")
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [])
+  return NextResponse.json(data ?? [], {
+    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+  })
 }
 
 // POST /api/servers/[serverId]/emojis — upload a new emoji

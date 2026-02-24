@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { MessageSquare, Plus, ArrowLeft, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
@@ -18,8 +19,11 @@ interface Props {
 
 type ForumView = "list" | "thread"
 
+/** Forum-style channel with a post list view and per-thread conversation drill-down. */
 export function ForumChannel({ channel, initialMessages, currentUserId, serverId }: Props) {
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore()
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList }))
+  )
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [view, setView] = useState<ForumView>("list")
   const [activeThread, setActiveThread] = useState<MessageWithAuthor | null>(null)
@@ -29,7 +33,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
   const [threadReplyDraft, setThreadReplyDraft] = useState("")
   const [newPostDraft, setNewPostDraft] = useState("")
   const bottomRef = useRef<HTMLDivElement>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     setActiveServer(serverId)

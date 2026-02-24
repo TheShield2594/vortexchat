@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState } from "react"
+import { memo, useId, useState } from "react"
 import { format } from "date-fns"
 import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, AlertCircle, Clock3, Loader2, RefreshCcw } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -32,7 +32,8 @@ interface Props {
   onRetry?: () => void
 }
 
-export function MessageItem({
+/** Memoized message bubble with author info, attachments, reactions, inline editing, thread creation, and context menu actions. */
+export const MessageItem = memo(function MessageItem({
   message,
   containerId,
   highlighted = false,
@@ -579,7 +580,7 @@ export function MessageItem({
     </Dialog>
     </>
   )
-}
+})
 
 function AttachmentDisplay({ attachment }: { attachment: AttachmentRow }) {
   const isImage = attachment.content_type?.startsWith("image/")

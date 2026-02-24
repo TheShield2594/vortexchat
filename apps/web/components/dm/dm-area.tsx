@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { DirectMessageRow, UserRow } from "@/types/database"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -13,12 +13,13 @@ interface Props {
   initialMessages: DirectMessageRow[]
 }
 
+/** Legacy 1-on-1 DM view with real-time message subscription. Superseded by DMChannelArea for channel-based DMs. */
 export function DMArea({ partner, currentUserId, initialMessages }: Props) {
   const [messages, setMessages] = useState<DirectMessageRow[]>(initialMessages)
   const [content, setContent] = useState("")
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView()

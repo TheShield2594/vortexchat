@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Clipboard, AtSign } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserProfilePopover } from "@/components/user-profile-popover"
@@ -47,13 +48,16 @@ function getStatusColor(status?: string) {
   }
 }
 
+/** Collapsible member list panel showing server members grouped by role with real-time presence indicators. */
 export function MemberList({ serverId }: Props) {
-  const { memberListOpen, currentUser } = useAppStore()
+  const { memberListOpen, currentUser } = useAppStore(
+    useShallow((s) => ({ memberListOpen: s.memberListOpen, currentUser: s.currentUser }))
+  )
   const [members, setMembers] = useState<MemberData[]>([])
   const [presence, setPresence] = useState<PresenceState>({})
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     async function fetchMembers() {

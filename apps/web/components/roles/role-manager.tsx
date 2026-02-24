@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Plus, Trash2, Loader2, X } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -74,6 +74,7 @@ interface Props {
   isOwner: boolean
 }
 
+/** Server role management panel with CRUD for roles, granular permission toggles, and role-member assignment. */
 export function RoleManager({ serverId, isOwner }: Props) {
   const { toast } = useToast()
   const [roles, setRoles] = useState<RoleRow[]>([])
@@ -88,7 +89,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
   const [roleMembers, setRoleMembers] = useState<UserRow[]>([])
   const [allMembers, setAllMembers] = useState<(UserRow & { user_id: string })[]>([])
   const [showAddMember, setShowAddMember] = useState(false)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     fetchRoles()

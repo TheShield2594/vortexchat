@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import type { MessageDisplay, FontScale, Saturation } from "@/lib/stores/appearance-store"
 import type { UserRow } from "@/types/database"
@@ -37,10 +38,13 @@ const BANNER_PRESETS = [
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
 
+/** Tabbed user settings dialog covering profile editing, account security (2FA, passkeys, sessions), and appearance preferences. */
 export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const router = useRouter()
   const { toast } = useToast()
-  const { setCurrentUser } = useAppStore()
+  const { setCurrentUser } = useAppStore(
+    useShallow((s) => ({ setCurrentUser: s.setCurrentUser }))
+  )
   const [loading, setLoading] = useState(false)
   const [displayName, setDisplayName] = useState(user.display_name ?? "")
   const [username, setUsername] = useState(user.username)
@@ -53,7 +57,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance">("profile")
   const avatarRef = useRef<HTMLInputElement>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   // Revoke blob URL on unmount to prevent memory leak
   useEffect(() => {
@@ -568,7 +572,9 @@ function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Pr
 // ─── Appearance Tab ────────────────────────────────────────────────────────────
 
 function AppearanceTab() {
-  const { messageDisplay, fontScale, saturation, setMessageDisplay, setFontScale, setSaturation } = useAppearanceStore()
+  const { messageDisplay, fontScale, saturation, setMessageDisplay, setFontScale, setSaturation } = useAppearanceStore(
+    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, setMessageDisplay: s.setMessageDisplay, setFontScale: s.setFontScale, setSaturation: s.setSaturation }))
+  )
 
   return (
     <div className="space-y-8">

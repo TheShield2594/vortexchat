@@ -96,7 +96,9 @@ function markCustomSettings(settings: VoiceAudioSettings, partial: Partial<Voice
 
 /** Main voice channel view with participant grid, spotlight mode, and media controls. */
 export function VoiceChannel({ channelId, channelName, serverId, currentUserId }: Props) {
-  const { currentUser, setVoiceChannel, channels } = useAppStore()
+  const { currentUser, setVoiceChannel, channels } = useAppStore(
+    useShallow((s) => ({ currentUser: s.currentUser, setVoiceChannel: s.setVoiceChannel, channels: s.channels }))
+  )
   const router = useRouter()
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantInfo[]>([])
   const [spotlightUserId, setSpotlightUserId] = useState<string | null>(null)

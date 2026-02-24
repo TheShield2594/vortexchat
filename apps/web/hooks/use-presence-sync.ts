@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 /**
@@ -12,7 +12,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
  * so the DB field stays consistent with presence.
  */
 export function usePresenceSync(userId: string | null, status?: 'online' | 'idle' | 'dnd' | 'invisible' | 'offline') {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {

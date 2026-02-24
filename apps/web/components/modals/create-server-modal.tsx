@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Upload, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import type { ServerRow } from "@/types/database"
 import { TemplateManager } from "@/components/modals/template-manager"
 
@@ -18,10 +19,13 @@ interface Props {
   onClose: () => void
 }
 
+/** Dialog for creating a new server (with icon upload), joining via invite code, or applying a server template. */
 export function CreateServerModal({ open, onClose }: Props) {
   const router = useRouter()
   const { toast } = useToast()
-  const { addServer } = useAppStore()
+  const { addServer } = useAppStore(
+    useShallow((s) => ({ addServer: s.addServer }))
+  )
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [iconFile, setIconFile] = useState<File | null>(null)
@@ -29,7 +33,7 @@ export function CreateServerModal({ open, onClose }: Props) {
   const [joinCode, setJoinCode] = useState("")
   const [mode, setMode] = useState<"create" | "join" | "template">("create")
   const fileRef = useRef<HTMLInputElement>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   // Revoke blob URL on unmount to prevent memory leak
   useEffect(() => {

@@ -4,8 +4,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // GET /api/threads?channelId=xxx&archived=false
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const channelId = searchParams.get("channelId")
@@ -31,7 +31,9 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json(threads ?? [])
+  return NextResponse.json(threads ?? [], {
+    headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
+  })
 }
 
 // POST /api/threads  { messageId, name }

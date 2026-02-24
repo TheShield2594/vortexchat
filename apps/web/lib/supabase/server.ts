@@ -1,6 +1,13 @@
+import { cache } from "react"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import type { Database } from "@/types/database"
+
+/** Per-request cached auth check. Deduplicates getUser() across nested layouts and pages within a single render. */
+export const getAuthUser = cache(async () => {
+  const supabase = await createServerSupabaseClient()
+  return supabase.auth.getUser()
+})
 
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies()

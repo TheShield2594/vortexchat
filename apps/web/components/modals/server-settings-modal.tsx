@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
 import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { evaluateRule } from "@/lib/automod"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import type { ServerRow, AutoModRuleRow, AutoModAction, ScreeningConfigRow } from "@/types/database"
 
 interface Channel {
@@ -27,16 +28,19 @@ interface Props {
   channels?: Channel[]
 }
 
+/** Tabbed server settings dialog with overview, invites, emojis, webhooks, moderation, screening, and automod configuration. */
 export function ServerSettingsModal({ open, onClose, server, isOwner, channels = [] }: Props) {
   const { toast } = useToast()
-  const { updateServer, removeServer, servers } = useAppStore()
+  const { updateServer, removeServer, servers } = useAppStore(
+    useShallow((s) => ({ updateServer: s.updateServer, removeServer: s.removeServer, servers: s.servers }))
+  )
   const liveServer = servers.find((s) => s.id === server.id) ?? server
   const [loading, setLoading] = useState(false)
   const [deletingServer, setDeletingServer] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [name, setName] = useState(liveServer.name)
   const [description, setDescription] = useState(liveServer.description ?? "")
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     setName(liveServer.name)

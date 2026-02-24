@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { AtSign, CircleHelp, Filter, Hash, MessageSquareText, MoreHorizontal, Pin, Search, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import type { AttachmentRow, ChannelRow, MessageWithAuthor, ThreadRow } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
@@ -47,8 +48,11 @@ function isDuplicateInsertError(error: { code?: string } | null): boolean {
   return error?.code === "23505"
 }
 
+/** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt }: Props) {
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser } = useAppStore()
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser }))
+  )
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [activeThread, setActiveThread] = useState<ThreadRow | null>(null)
@@ -263,6 +267,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setActiveChannel(null)
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
+
+  // Persist last-visited channel per server for fast navigation on next session
+  useEffect(() => {
+    try {
+      localStorage.setItem(`vortexchat:last-channel:${serverId}`, channel.id)
+    } catch {}
+  }, [serverId, channel.id])
 
   useEffect(() => {
     setMessages(initialMessages)
@@ -560,8 +571,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   async function handleSendMessage(content: string, attachmentFiles?: File[]) {
     if (!content.trim() && (!attachmentFiles || attachmentFiles.length === 0)) return
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!currentUserId) return
 
     if (!navigator.onLine && attachmentFiles?.length) {
       toast({
@@ -577,7 +587,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const entry: OutboxEntry = {
       id: messageId,
       channelId: channel.id,
-      authorId: user.id,
+      authorId: currentUserId,
       content,
       replyToId: replyTo?.id ?? null,
       createdAt,
@@ -638,7 +648,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       .insert({
         id: messageId,
         channel_id: channel.id,
-        author_id: user.id,
+        author_id: currentUserId,
         content: content.trim() || null,
         reply_to_id: replyTo?.id || null,
       })

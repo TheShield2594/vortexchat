@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { ChatArea } from "@/components/chat/chat-area"
 import { VoiceChannel } from "@/components/voice/voice-channel"
 import { MemberList } from "@/components/layout/member-list"
@@ -19,25 +19,23 @@ const VOICE_CHANNEL_TYPES = ["voice", "stage"] as const
 
 export default async function ChannelPage({ params: paramsPromise }: Props) {
   const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+
+  const [supabase, { data: { user }, error }] = await Promise.all([
+    createServerSupabaseClient(),
+    getAuthUser(),
+  ])
 
   if (error || !user) redirect("/login")
 
-  // Fetch channel
-  const { data: channel } = await supabase
-    .from("channels")
-    .select("*")
-    .eq("id", params.channelId)
-    .eq("server_id", params.serverId)
-    .single()
-
-  if (!channel) notFound()
-
-  // Fetch initial messages for all text-based channel types
-  let messages: any[] = []
-  if ((MESSAGE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
-    const { data } = await supabase
+  // Fetch channel + messages in parallel (we know channelId upfront)
+  const [{ data: channel }, { data: messagesData }] = await Promise.all([
+    supabase
+      .from("channels")
+      .select("*")
+      .eq("id", params.channelId)
+      .eq("server_id", params.serverId)
+      .single(),
+    supabase
       .from("messages")
       .select(`
         *,
@@ -48,9 +46,15 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
       .eq("channel_id", params.channelId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
-      .limit(50)
+      .limit(50),
+  ])
 
-    messages = (data ?? []).reverse()
+  if (!channel) notFound()
+
+  // Filter messages to only text-based channel types
+  let messages: any[] = []
+  if ((MESSAGE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
+    messages = (messagesData ?? []).reverse()
   }
 
   // Voice and Stage channels use the WebRTC voice infrastructure

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff } from "lucide-react"
@@ -10,6 +10,7 @@ import { MobileMenuButton } from "@/components/layout/mobile-nav"
 import { useToast } from "@/components/ui/use-toast"
 import { useTyping } from "@/hooks/use-typing"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 
 interface User {
   id: string
@@ -42,6 +43,7 @@ interface Props {
   currentUserId: string
 }
 
+/** Channel-based DM view with message history, file uploads, voice/video calling, typing indicators, and real-time updates. */
 export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [channel, setChannel] = useState<Channel | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -58,9 +60,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const { toast } = useToast()
-  const { currentUser } = useAppStore()
+  const { currentUser } = useAppStore(
+    useShallow((s) => ({ currentUser: s.currentUser }))
+  )
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
   const { typingUsers, onKeystroke, onSent } = useTyping(channelId, currentUserId, currentDisplayName)
@@ -576,7 +580,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   }
   const [muted, setMuted] = useState(false)
   const [videoOff, setVideoOff] = useState(false)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   function buildIceServers(): RTCIceServer[] {
     const servers: RTCIceServer[] = [

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -28,13 +28,14 @@ const PERM_LIST: { key: Permission; label: string }[] = [
   { key: "STREAM", label: "Stream" },
 ]
 
+/** Per-channel role permission overrides editor with allow/deny toggles for each permission bit. */
 export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: string; serverId: string }) {
   const [perms, setPerms] = useState<ChannelPerm[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [selected, setSelected] = useState<ChannelPerm | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     async function load() {

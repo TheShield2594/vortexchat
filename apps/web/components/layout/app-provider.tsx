@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { usePresenceSync } from "@/hooks/use-presence-sync"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
@@ -13,9 +14,14 @@ interface AppProviderProps {
   children: React.ReactNode
 }
 
+/** Root client-side provider that seeds Zustand stores, syncs presence, applies appearance settings, and registers push notifications. */
 export function AppProvider({ user, servers, children }: AppProviderProps) {
-  const { setCurrentUser, setServers } = useAppStore()
-  const { messageDisplay, fontScale, saturation } = useAppearanceStore()
+  const { setCurrentUser, setServers } = useAppStore(
+    useShallow((s) => ({ setCurrentUser: s.setCurrentUser, setServers: s.setServers }))
+  )
+  const { messageDisplay, fontScale, saturation } = useAppearanceStore(
+    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation }))
+  )
 
   useEffect(() => {
     setCurrentUser(user)

@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent } from "@/components/ui/context-menu"
@@ -24,14 +25,17 @@ function getStatusColor(status: string) {
   return STATUS_OPTIONS.find((o) => o.value === status)?.color ?? "#80848e"
 }
 
+/** Bottom-bar user panel with avatar, status selector, mute/deafen/disconnect controls, and settings shortcut. */
 export function UserPanel() {
-  const { currentUser, voiceChannelId, setVoiceChannel, setCurrentUser } = useAppStore()
+  const { currentUser, voiceChannelId, setVoiceChannel, setCurrentUser } = useAppStore(
+    useShallow((s) => ({ currentUser: s.currentUser, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, setCurrentUser: s.setCurrentUser }))
+  )
   const router = useRouter()
   const [muted, setMuted] = useState(false)
   const [deafened, setDeafened] = useState(false)
   const [showProfileSettings, setShowProfileSettings] = useState(false)
   const { toast } = useToast()
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   if (!currentUser) return null
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 /**
@@ -19,7 +19,7 @@ export function useUnreadChannels(
   currentUserId: string,
   activeChannelId: string | null
 ) {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [unreadChannelIds, setUnreadChannelIds] = useState<Set<string>>(new Set())
   const [mentionCounts, setMentionCounts] = useState<Record<string, number>>({})
   const activeChannelRef = useRef(activeChannelId)

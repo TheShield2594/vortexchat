@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { ServerSidebar } from "@/components/layout/server-sidebar"
 import { AppProvider } from "@/components/layout/app-provider"
 import type { ServerRow } from "@/types/database"
@@ -9,26 +9,20 @@ export default async function ChannelsLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const [supabase, { data: { user }, error }] = await Promise.all([
+    createServerSupabaseClient(),
+    getAuthUser(),
+  ])
 
   if (error || !user) {
     redirect("/login")
   }
 
-  // Fetch user profile
-  const { data: profile } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", user.id)
-    .single()
-
-  // Fetch user's servers
-  const { data: serverMembers } = await supabase
-    .from("server_members")
-    .select("server_id, servers(*)")
-    .eq("user_id", user.id)
-    .order("joined_at", { ascending: true })
+  // Fetch user profile and servers in parallel
+  const [{ data: profile }, { data: serverMembers }] = await Promise.all([
+    supabase.from("users").select("*").eq("id", user.id).single(),
+    supabase.from("server_members").select("server_id, servers(*)").eq("user_id", user.id).order("joined_at", { ascending: true }),
+  ])
 
   type ServerMemberWithServer = { server_id: string; servers: ServerRow | null }
   const servers = ((serverMembers ?? []) as unknown as ServerMemberWithServer[])

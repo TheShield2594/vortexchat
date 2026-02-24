@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Megaphone, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
@@ -17,14 +18,17 @@ interface Props {
   serverId: string
 }
 
+/** Read-mostly announcement channel view where only privileged users can post. */
 export function AnnouncementChannel({ channel, initialMessages, currentUserId, serverId }: Props) {
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore()
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList }))
+  )
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [draft, setDraftState] = useState(() => getDraft(channel.id))
   const bottomRef = useRef<HTMLDivElement>(null)
   const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     setActiveServer(serverId)

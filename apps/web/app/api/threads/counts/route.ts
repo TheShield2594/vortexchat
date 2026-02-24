@@ -5,8 +5,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 // Returns active (non-archived) thread counts keyed by parent channel id.
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = session.user.id
 
   const { searchParams } = new URL(request.url)
   const serverId = searchParams.get("serverId")
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     .from("server_members")
     .select("user_id")
     .eq("server_id", serverId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle()
 
   if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 })
@@ -33,5 +34,7 @@ export async function GET(request: Request) {
     counts[row.parent_channel_id] = Number(row.count)
   }
 
-  return NextResponse.json(counts)
+  return NextResponse.json(counts, {
+    headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
+  })
 }
