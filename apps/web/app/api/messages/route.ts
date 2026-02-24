@@ -408,6 +408,8 @@ export async function POST(request: Request) {
   // --- Insert in-app inbox notifications for mentions/replies (fire-and-forget) ---
   Promise.resolve()
     .then(async () => {
+      const MAX_NOTIFICATION_BODY_LENGTH = 512
+      const serviceSupabase = await createServiceRoleClient()
       const recipientIds = new Set<string>()
 
       for (const mentionedUserId of mentions) {
@@ -418,7 +420,7 @@ export async function POST(request: Request) {
 
       let replyAuthorId: string | null = null
       if (replyToId) {
-        const { data: repliedMessage } = await supabase
+        const { data: repliedMessage } = await serviceSupabase
           .from("messages")
           .select("author_id")
           .eq("id", replyToId)
@@ -432,15 +434,13 @@ export async function POST(request: Request) {
 
       if (recipientIds.size === 0) return
 
-      const serviceSupabase = await createServiceRoleClient()
-      const bodyPreview = content?.trim() || "Sent an attachment"
+      const bodyPreview = (content?.trim() || "Sent an attachment").slice(0, MAX_NOTIFICATION_BODY_LENGTH)
       const rows = Array.from(recipientIds).map((recipientId) => {
-        const isReplyTarget = replyAuthorId === recipientId
         const isMentionTarget = mentions.includes(recipientId)
 
         return {
           user_id: recipientId,
-          type: isMentionTarget ? "mention" as const : isReplyTarget ? "reply" as const : "system" as const,
+          type: isMentionTarget ? "mention" as const : "reply" as const,
           title: isMentionTarget
             ? `${senderName} mentioned you`
             : `${senderName} replied to your message`,
