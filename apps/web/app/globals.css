@@ -245,6 +245,54 @@
 
 /* ─── Appearance settings ─────────────────────────────────────────────────── */
 
+
+/* Theme presets */
+[data-theme-preset="discord"] {
+  --background: 223 7% 20%;
+  --card: 220 7% 18%;
+  --accent: 235 86% 65%;
+  --ring: 235 86% 65%;
+}
+
+[data-theme-preset="midnight-neon"] {
+  --background: 236 30% 9%;
+  --foreground: 210 40% 98%;
+  --card: 236 27% 12%;
+  --popover: 236 30% 8%;
+  --muted: 234 19% 24%;
+  --muted-foreground: 217 24% 76%;
+  --border: 233 22% 46%;
+  --input: 234 19% 18%;
+  --destructive: 357 85% 62%;
+  --accent: 186 100% 57%;
+  --primary: 186 100% 57%;
+  --ring: 315 100% 67%;
+}
+
+[data-theme-preset="synthwave"] {
+  --background: 258 30% 11%;
+  --foreground: 286 33% 96%;
+  --card: 264 32% 14%;
+  --popover: 264 36% 10%;
+  --muted: 262 23% 27%;
+  --muted-foreground: 280 26% 79%;
+  --border: 266 24% 48%;
+  --input: 262 23% 20%;
+  --destructive: 353 80% 63%;
+  --accent: 323 89% 66%;
+  --primary: 271 89% 72%;
+  --ring: 188 98% 62%;
+}
+
+[data-theme-preset="carbon"] {
+  --background: 220 7% 12%;
+  --card: 220 7% 15%;
+  --popover: 220 10% 9%;
+  --accent: 160 84% 40%;
+  --primary: 217 100% 70%;
+  --ring: 160 84% 40%;
+}
+
 /* Font scale */
 [data-font-scale="small"] { font-size: 14px; }
 [data-font-scale="normal"] { font-size: 16px; }

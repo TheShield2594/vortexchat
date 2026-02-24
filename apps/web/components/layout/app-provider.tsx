@@ -19,14 +19,15 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
   const { setCurrentUser, setServers } = useAppStore(
     useShallow((s) => ({ setCurrentUser: s.setCurrentUser, setServers: s.setServers }))
   )
-  const { messageDisplay, fontScale, saturation } = useAppearanceStore(
-    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation }))
+  const { messageDisplay, fontScale, saturation, themePreset, customCss, hydrateFromSettings } = useAppearanceStore(
+    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, themePreset: s.themePreset, customCss: s.customCss, hydrateFromSettings: s.hydrateFromSettings }))
   )
 
   useEffect(() => {
     setCurrentUser(user)
     setServers(servers)
-  }, [user, servers, setCurrentUser, setServers])
+    hydrateFromSettings(user?.appearance_settings as Parameters<typeof hydrateFromSettings>[0], user?.id ?? null)
+  }, [user, servers, setCurrentUser, setServers, hydrateFromSettings])
 
   // Apply appearance data-attributes to <html> so CSS selectors can pick them up
   useEffect(() => {
@@ -34,7 +35,28 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     root.dataset.messageDisplay = messageDisplay
     root.dataset.fontScale = fontScale
     root.dataset.saturation = saturation
-  }, [messageDisplay, fontScale, saturation])
+    root.dataset.themePreset = themePreset
+
+    const customCssStyleId = "vortex-custom-theme-css"
+    let styleTag = document.getElementById(customCssStyleId) as HTMLStyleElement | null
+    const createdByThisEffect = !styleTag
+    if (!styleTag) {
+      styleTag = document.createElement("style")
+      styleTag.id = customCssStyleId
+      document.head.appendChild(styleTag)
+    }
+    styleTag.textContent = customCss.trim()
+
+    return () => {
+      if (createdByThisEffect && styleTag?.parentNode) {
+        styleTag.parentNode.removeChild(styleTag)
+      }
+      delete root.dataset.messageDisplay
+      delete root.dataset.fontScale
+      delete root.dataset.saturation
+      delete root.dataset.themePreset
+    }
+  }, [messageDisplay, fontScale, saturation, themePreset, customCss])
 
   // Auto-sync presence: marks user online on mount, offline on tab close
   usePresenceSync(user?.id ?? null, user?.status ?? "online")
