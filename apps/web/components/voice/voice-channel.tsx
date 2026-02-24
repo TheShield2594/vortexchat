@@ -291,7 +291,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
             </div>
             <div className="flex gap-2 px-4 py-3 overflow-x-auto flex-shrink-0" style={{ background: "#2b2d31", borderTop: "1px solid #1e1f22" }}>
               {currentUser && (
-                <div className="w-48 flex-shrink-0">
+                <div className="w-48 flex-shrink-0 min-w-0">
                   <ParticipantTile
                     user={currentUser}
                     speaking={speaking}
@@ -310,7 +310,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                 const peerInfo = voiceParticipants.find((p) => p.user.id === userId)
                 const peerIsScreenSharing = peerInfo?.selfStream ?? false
                 return (
-                  <div key={peerId} className="w-48 flex-shrink-0">
+                  <div key={peerId} className="w-48 flex-shrink-0 min-w-0">
                     <ParticipantTile
                       user={peerInfo?.user}
                       speaking={pSpeaking}

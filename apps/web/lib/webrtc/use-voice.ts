@@ -398,12 +398,14 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
           userMessage = "No microphone found. Connect a mic and try again."
         } else if (error?.name === "NotReadableError" || error?.name === "TrackStartError") {
           userMessage = "Microphone is in use by another app."
+        } else if (error?.name === "OverconstrainedError") {
+          userMessage = "Microphone doesn't support the requested settings. Try a different device."
         } else if (errMsg.includes("timeout") || errMsg.includes("TIMED_OUT")) {
           userMessage = "Realtime connection timed out. Check network."
         } else if (errMsg.includes("CHANNEL_ERROR")) {
           userMessage = "Realtime channel error. Check Supabase config."
         } else {
-          userMessage = `Voice init failed: ${errMsg}`
+          userMessage = "Voice initialization failed. Please try again."
         }
         setAudioInitError(userMessage)
         console.error("[useVoice] init failed:", { name: error?.name, message: errMsg, error })
