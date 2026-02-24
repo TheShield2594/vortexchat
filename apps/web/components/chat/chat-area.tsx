@@ -761,7 +761,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           )}
 
           <div className="ml-auto flex items-center gap-1">
-            {currentUser && <NotificationBell userId={currentUser.id} />}
+            <NotificationBell userId={currentUserId} />
 
             <button
               onClick={() => setWorkspaceOpen((open) => !open)}
