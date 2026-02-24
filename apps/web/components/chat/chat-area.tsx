@@ -60,16 +60,20 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [threadPanelOpen, setThreadPanelOpen] = useState(true)
+  const [isPaginating, setIsPaginating] = useState(false)
+  const [hasMoreHistory, setHasMoreHistory] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
   const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jumpedRef = useRef(false)
   const lastJumpMessageIdRef = useRef<string | null>(null)
+  const jumpSignatureRef = useRef<string | null>(null)
   const outboxRef = useRef<OutboxEntry[]>([])
   const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const draftRef = useRef("")
   const prevChannelIdRef = useRef(channel.id)
+  const paginationRequestRef = useRef(false)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -123,10 +127,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const upsertMessage = useCallback((incoming: MessageWithAuthor) => {
     setMessages((prev) => {
       const existingIndex = prev.findIndex((m) => m.id === incoming.id)
-      if (existingIndex === -1) return [...prev, incoming]
-      const next = [...prev]
-      next[existingIndex] = { ...prev[existingIndex], ...incoming }
-      return next
+      const next = existingIndex === -1
+        ? [...prev, incoming]
+        : prev.map((message, idx) => (idx === existingIndex ? { ...prev[existingIndex], ...incoming } : message))
+
+      return next.sort((a, b) => {
+        const ts = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        return ts !== 0 ? ts : a.id.localeCompare(b.id)
+      })
     })
   }, [])
 
@@ -272,7 +280,96 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setMessages(initialMessages)
     previousLastMessageIdRef.current = initialMessages[initialMessages.length - 1]?.id ?? null
     setPendingNewMessageCount(0)
+    setHasMoreHistory(initialMessages.length >= 50)
+    setIsPaginating(false)
+    paginationRequestRef.current = false
   }, [initialMessages])
+
+  const loadOlderMessages = useCallback(async () => {
+    const container = messageScrollerRef.current
+    if (!container || paginationRequestRef.current || !hasMoreHistory || messages.length === 0) return
+
+    paginationRequestRef.current = true
+    setIsPaginating(true)
+    const previousHeight = container.scrollHeight
+    const previousTop = container.scrollTop
+
+    try {
+      const oldest = messages[0]
+      const before = encodeURIComponent(oldest.created_at)
+      const res = await fetch(`/api/messages?channelId=${channel.id}&before=${before}&limit=50`)
+      if (!res.ok) return
+
+      const older = await res.json() as MessageWithAuthor[]
+      if (!Array.isArray(older) || older.length === 0) {
+        setHasMoreHistory(false)
+        return
+      }
+
+      setMessages((prev) => {
+        const known = new Set(prev.map((message) => message.id))
+        const merged = [...older.filter((message) => !known.has(message.id)), ...prev]
+        return merged.sort((a, b) => {
+          const ts = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          return ts !== 0 ? ts : a.id.localeCompare(b.id)
+        })
+      })
+
+      if (older.length < 50) {
+        setHasMoreHistory(false)
+      }
+
+      requestAnimationFrame(() => {
+        if (!messageScrollerRef.current) return
+        const nextHeight = messageScrollerRef.current.scrollHeight
+        messageScrollerRef.current.scrollTop = previousTop + (nextHeight - previousHeight)
+      })
+    } finally {
+      paginationRequestRef.current = false
+      setIsPaginating(false)
+    }
+  }, [channel.id, hasMoreHistory, messages])
+
+  const ensureMessageLoaded = useCallback(async (messageId: string) => {
+    if (messages.some((message) => message.id === messageId)) return true
+
+    let attempts = 0
+    let localHasMore = hasMoreHistory
+    let cursor = messages[0]?.created_at ?? null
+
+    while (attempts < 8 && localHasMore && cursor) {
+      attempts += 1
+      const res = await fetch(`/api/messages?channelId=${channel.id}&before=${encodeURIComponent(cursor)}&limit=50`)
+      if (!res.ok) return false
+      const older = await res.json() as MessageWithAuthor[]
+      if (!Array.isArray(older) || older.length === 0) {
+        localHasMore = false
+        setHasMoreHistory(false)
+        return false
+      }
+
+      setMessages((prev) => {
+        const known = new Set(prev.map((message) => message.id))
+        const merged = [...older.filter((message) => !known.has(message.id)), ...prev]
+        return merged.sort((a, b) => {
+          const ts = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          return ts !== 0 ? ts : a.id.localeCompare(b.id)
+        })
+      })
+
+      if (older.some((message) => message.id === messageId)) {
+        return true
+      }
+
+      cursor = older[0]?.created_at ?? null
+      if (older.length < 50) {
+        localHasMore = false
+        setHasMoreHistory(false)
+      }
+    }
+
+    return false
+  }, [channel.id, hasMoreHistory, messages])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -400,6 +497,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     const onScroll = () => {
+      if (container.scrollTop < 120 && hasMoreHistory && !paginationRequestRef.current) {
+        void loadOlderMessages()
+      }
+
       const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
       const nextIsAtBottom = distanceFromBottom < 120
       setIsAtBottom(nextIsAtBottom)
@@ -431,7 +532,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       persistScroll()
       container.removeEventListener("scroll", onScroll)
     }
-  }, [scrollStorageKey, unreadAnchorStorageKey])
+  }, [hasMoreHistory, loadOlderMessages, scrollStorageKey, unreadAnchorStorageKey])
 
   useEffect(() => {
     const newestMessage = messages[messages.length - 1]
@@ -477,10 +578,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [channel.id, openThreadId])
 
   useEffect(() => {
-    if (!jumpToMessageId || openThreadId) {
-      setShowReturnToContext(false)
+    const navigationSignature = `${jumpToMessageId ?? ""}:${openThreadId ?? ""}`
+
+    if (jumpSignatureRef.current !== navigationSignature) {
+      jumpSignatureRef.current = navigationSignature
       jumpedRef.current = false
       lastJumpMessageIdRef.current = null
+    }
+
+    if (!jumpToMessageId || openThreadId) {
+      setShowReturnToContext(false)
       return
     }
 
@@ -501,14 +608,25 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setShowReturnToContext(true)
     }
 
-    const target = document.getElementById(`message-${jumpToMessageId}`)
-    if (!target) return
-    target.scrollIntoView({ block: "center", behavior: "smooth" })
-    setHighlightedMessageId(jumpToMessageId)
-    jumpedRef.current = true
-    const timer = window.setTimeout(() => setHighlightedMessageId(null), 2200)
-    return () => window.clearTimeout(timer)
-  }, [jumpToMessageId, messages, openThreadId, returnScrollStorageKey])
+    let timer: number | undefined
+    void (async () => {
+      const loaded = await ensureMessageLoaded(jumpToMessageId)
+      if (!loaded) return
+
+      requestAnimationFrame(() => {
+        const target = document.getElementById(`message-${jumpToMessageId}`)
+        if (!target) return
+        target.scrollIntoView({ block: "center", behavior: "smooth" })
+        setHighlightedMessageId(jumpToMessageId)
+        jumpedRef.current = true
+        timer = window.setTimeout(() => setHighlightedMessageId(null), 2200)
+      })
+    })()
+
+    return () => {
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [ensureMessageLoaded, jumpToMessageId, openThreadId, returnScrollStorageKey])
 
   const jumpToLatest = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -856,12 +974,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               return (
                 <div key={message.id}>
                 {unreadAnchorMessageId === message.id && (
-                  <div className="px-4 py-2 flex items-center gap-2" role="separator" aria-label="New messages">
-                    <div className="h-px flex-1" style={{ background: "#f23f43" }} />
-                    <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#f23f43" }}>
-                      New messages
+                  <div className="px-4 py-2.5 flex items-center gap-2" role="separator" aria-label="New messages">
+                    <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, #f23f43 0%, #f87171 100%)" }} />
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-[0.08em] px-2 py-1 rounded-full"
+                      style={{ color: "#ffe3e3", background: "#f23f4333", border: "1px solid #f23f4399" }}
+                    >
+                      New since last read
                     </span>
-                    <div className="h-px flex-1" style={{ background: "#f23f43" }} />
+                    <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, #f87171 0%, #f23f43 100%)" }} />
                   </div>
                 )}
                 <MessageItem
@@ -931,6 +1052,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 </div>
               )
             })}
+            {isPaginating && (
+              <div className="px-4 py-2 text-[11px]" style={{ color: "#949ba4" }}>
+                Loading earlier messages…
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
 
