@@ -103,7 +103,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
           <ChevronRight className="w-3 h-3" />
         )}
         <MessageSquare className="w-3 h-3" />
-        Threads
+        Channel threads
         <span
           className="ml-auto rounded-full px-1.5 py-0.5 text-xs"
           style={{ background: "#4e5058", color: "#dcddde" }}
@@ -114,6 +114,9 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
 
       {expanded && (
         <>
+          <div className="px-4 pb-1 text-[11px]" style={{ color: "#6d6f78" }}>
+            Each thread belongs to this channel and re-opens in the thread panel.
+          </div>
           {visibleThreads.map((thread) => (
             <ThreadListItem
               key={thread.id}

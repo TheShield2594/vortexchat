@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays
+  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, MessageCircle
 } from "lucide-react"
 import {
   DndContext,
@@ -139,6 +139,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [activeThreadCounts, setActiveThreadCounts] = useState<Record<string, number>>({})
   const router = useRouter()
   const { toast } = useToast()
 
@@ -167,6 +168,32 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
   const channels = storeChannels[server.id] ?? initialChannels
   const grouped = groupChannels(channels)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadThreadCounts() {
+      try {
+        const response = await fetch(`/api/threads/counts?serverId=${server.id}`)
+        if (!response.ok) return
+        const data = await response.json()
+        if (!cancelled && data && typeof data === "object") {
+          setActiveThreadCounts(data as Record<string, number>)
+        }
+      } catch (error) {
+        console.error("Failed to load thread counts", error)
+      }
+    }
+
+    void loadThreadCounts()
+    const interval = window.setInterval(() => {
+      void loadThreadCounts()
+    }, 30000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [server.id])
 
   // Sync items on channel changes.
   // During an active drag, merge instead of replacing so realtime inserts/deletes
@@ -492,6 +519,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                             isDragging={activeId === channel.id}
                             isUnread={unreadChannelIds.has(channel.id)}
                             mentionCount={mentionCounts[channel.id] ?? 0}
+                            activeThreadCount={activeThreadCounts[channel.id] ?? 0}
                             onClick={() => {
                               if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
                                 setVoiceChannel(channel.id, server.id)
@@ -733,6 +761,7 @@ function SortableChannelItem({
   isDragging,
   isUnread,
   mentionCount,
+  activeThreadCount,
   onClick,
   onDelete,
 }: {
@@ -743,6 +772,7 @@ function SortableChannelItem({
   isDragging: boolean
   isUnread?: boolean
   mentionCount?: number
+  activeThreadCount?: number
   onClick: () => void
   onDelete: () => void
 }) {
@@ -844,6 +874,16 @@ function SortableChannelItem({
               ) : showBadge ? (
                 <span className="w-2 h-2 rounded-full" style={{ background: "#f2f3f5" }} />
               ) : null}
+              {(activeThreadCount ?? 0) > 0 && (
+                <span
+                  className="inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold"
+                  style={{ background: "rgba(88,101,242,0.22)", color: "#c7d2ff" }}
+                  title={`${activeThreadCount} active ${activeThreadCount === 1 ? "thread" : "threads"} in #${channel.name}`}
+                >
+                  <MessageCircle className="h-2.5 w-2.5" />
+                  {activeThreadCount}
+                </span>
+              )}
             </span>
           </div>
         </ContextMenuTrigger>

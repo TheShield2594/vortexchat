@@ -80,6 +80,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
   const jumpToMessageId = searchParams.get("message")
+  const openThreadId = searchParams.get("thread")
 
   const unreadAnchorStorageKey = useMemo(
     () => `vortexchat:unread-anchor:${currentUserId}:${channel.id}`,
@@ -451,7 +452,28 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [currentUserId, isAtBottom, messages, unreadAnchorStorageKey])
 
   useEffect(() => {
-    if (!jumpToMessageId) {
+    if (!openThreadId) return
+
+    let cancelled = false
+
+    async function openThreadFromQuery() {
+      const res = await fetch(`/api/threads/${openThreadId}`)
+      if (!res.ok) return
+      const thread = await res.json() as ThreadRow
+      if (cancelled || !thread || thread.parent_channel_id !== channel.id) return
+      setActiveThread(thread)
+      setThreadPanelOpen(true)
+    }
+
+    openThreadFromQuery().catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [channel.id, openThreadId])
+
+  useEffect(() => {
+    if (!jumpToMessageId || openThreadId) {
       setShowReturnToContext(false)
       jumpedRef.current = false
       lastJumpMessageIdRef.current = null
@@ -482,7 +504,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     jumpedRef.current = true
     const timer = window.setTimeout(() => setHighlightedMessageId(null), 2200)
     return () => window.clearTimeout(timer)
-  }, [jumpToMessageId, messages, returnScrollStorageKey])
+  }, [jumpToMessageId, messages, openThreadId, returnScrollStorageKey])
 
   const jumpToLatest = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -1009,6 +1031,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             currentUserId={currentUserId}
             onClose={() => setThreadPanelOpen(false)}
             onThreadUpdate={(updated) => setActiveThread(updated)}
+            focusMessageId={openThreadId ? jumpToMessageId : null}
           />
         </div>
       )}
