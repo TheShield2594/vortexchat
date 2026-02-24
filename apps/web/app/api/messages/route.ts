@@ -11,7 +11,7 @@ import {
 } from "@/lib/automod"
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import type { AutoModRuleWithParsed } from "@/types/database"
-import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -25,6 +25,21 @@ export async function GET(request: Request) {
 
   if (!channelId) {
     return NextResponse.json({ error: "channelId required" }, { status: 400 })
+  }
+
+  const { data: channel, error: channelError } = await supabase
+    .from("channels")
+    .select("id, server_id")
+    .eq("id", channelId)
+    .single()
+
+  if (channelError || !channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  if (channel.server_id) {
+    const { isAdmin, permissions } = await getChannelPermissions(supabase, channel.server_id, channel.id, user.id)
+    if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
+      return NextResponse.json({ error: "Missing VIEW_CHANNELS permission" }, { status: 403 })
+    }
   }
 
   let query = supabase
@@ -110,7 +125,7 @@ export async function POST(request: Request) {
     // --- Permission checks ---
     // screeningEnabled comes from the same servers row getMemberPermissions already fetches,
     // so no separate servers query is needed below.
-    const { isAdmin, permissions, screeningEnabled } = await getMemberPermissions(supabase, serverId, user.id)
+    const { isAdmin, permissions, screeningEnabled } = await getChannelPermissions(supabase, serverId, channelId, user.id)
 
     if (!isAdmin && !hasPermission(permissions, "SEND_MESSAGES")) {
       return NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 })

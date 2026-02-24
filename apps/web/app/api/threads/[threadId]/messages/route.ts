@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
+import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 
 interface Params {
   params: Promise<{ threadId: string }>
@@ -16,6 +17,22 @@ export async function GET(request: Request, { params: paramsPromise }: Params) {
   const { searchParams } = new URL(request.url)
   const before = searchParams.get("before")
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 100)
+
+  const { data: thread, error: threadError } = await supabase
+    .from("threads")
+    .select("id, parent_channel_id, channels(server_id)")
+    .eq("id", threadId)
+    .single()
+
+  if (threadError || !thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
+
+  const serverId = (thread.channels as { server_id?: string | null } | null)?.server_id ?? null
+  if (serverId) {
+    const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, thread.parent_channel_id, user.id)
+    if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
+      return NextResponse.json({ error: "Missing VIEW_CHANNELS permission" }, { status: 403 })
+    }
+  }
 
   let query = supabase
     .from("messages")
@@ -86,13 +103,21 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
   // Fetch thread to get the channel_id and check locked/archived
   const { data: thread } = await supabase
     .from("threads")
-    .select("id, parent_channel_id, locked, archived")
+    .select("id, parent_channel_id, locked, archived, channels(server_id)")
     .eq("id", threadId)
     .single()
 
   if (!thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
   if (thread.locked) return NextResponse.json({ error: "Thread is locked" }, { status: 403 })
   if (thread.archived) return NextResponse.json({ error: "Thread is archived" }, { status: 403 })
+
+  const serverId = (thread.channels as { server_id?: string | null } | null)?.server_id ?? null
+  if (serverId) {
+    const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, thread.parent_channel_id, user.id)
+    if (!isAdmin && !hasPermission(permissions, "SEND_MESSAGES")) {
+      return NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 })
+    }
+  }
 
   // Insert message linked to thread (channel_id = parent_channel_id for permissions)
   const { data: message, error: msgError } = await supabase
