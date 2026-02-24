@@ -20,7 +20,18 @@ interface Props {
   onSent?: () => void
 }
 
-const COMMON_EMOJIS = ["😀", "😂", "❤️", "👍", "👎", "🔥", "✅", "🎉", "🤔", "👀", "😭", "💯"]
+const EMOJI_CATEGORIES = {
+  People: ["😀", "😂", "😍", "🤔", "😭", "😎", "🥳", "😴", "🤯", "🫶", "👍", "👎"],
+  Nature: ["🌱", "🌸", "🌳", "🍀", "🌊", "🔥", "☀️", "🌙", "⚡", "❄️", "🐶", "🦊"],
+  Food: ["🍕", "🍔", "🌮", "🍣", "🍜", "🍩", "🍪", "🍎", "🍉", "☕", "🍺", "🍿"],
+  Activities: ["⚽", "🏀", "🎮", "🎯", "🎸", "🎤", "🎨", "🧩", "♟️", "🏓", "🏆", "🎉"],
+  Travel: ["🚗", "🚕", "✈️", "🚆", "🛳️", "🚀", "🗺️", "🏝️", "🏔️", "🏕️", "🏙️", "🧳"],
+  Objects: ["📱", "💻", "⌚", "🎧", "📷", "💡", "🔑", "🧠", "💎", "🛠️", "📌", "📦"],
+  Symbols: ["❤️", "✅", "❌", "⚠️", "🔔", "⭐", "💯", "♻️", "☮️", "☑️", "➕", "➖"],
+  Flags: ["🏳️", "🏴", "🏁", "🇺🇸", "🇬🇧", "🇨🇦", "🇫🇷", "🇩🇪", "🇯🇵", "🇰🇷", "🇮🇳", "🇧🇷"],
+} as const
+
+const GIPHY_API_BASE = "https://api.giphy.com/v1/gifs"
 
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
 export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent }: Props) {
@@ -29,6 +40,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [pickerTab, setPickerTab] = useState<"emoji" | "gif">("emoji")
+  const [gifQuery, setGifQuery] = useState("")
+  const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string }>>([])
+  const [gifLoading, setGifLoading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -82,6 +97,42 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     document.addEventListener("mousedown", handlePointerDown)
     return () => document.removeEventListener("mousedown", handlePointerDown)
   }, [showEmojiPicker])
+
+  useEffect(() => {
+    if (!showEmojiPicker || pickerTab !== "gif") return
+    const apiKey = process.env.NEXT_PUBLIC_GIPHY_API_KEY
+    if (!apiKey) {
+      setGifResults([])
+      return
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(async () => {
+      setGifLoading(true)
+      try {
+        const endpoint = gifQuery.trim()
+          ? `${GIPHY_API_BASE}/search?api_key=${apiKey}&q=${encodeURIComponent(gifQuery)}&limit=12&rating=pg-13`
+          : `${GIPHY_API_BASE}/trending?api_key=${apiKey}&limit=12&rating=pg-13`
+        const res = await fetch(endpoint, { signal: controller.signal })
+        const json = await res.json()
+        setGifResults((json.data ?? []).map((gif: any) => ({
+          id: gif.id,
+          title: gif.title || "GIF",
+          previewUrl: gif.images.fixed_width_small_still.url,
+          gifUrl: gif.images.original.url,
+        })))
+      } catch {
+        setGifResults([])
+      } finally {
+        setGifLoading(false)
+      }
+    }, 250)
+
+    return () => {
+      clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [showEmojiPicker, pickerTab, gifQuery])
 
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
@@ -312,25 +363,91 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             <div
               ref={emojiPickerRef}
               data-state="open"
-              className="panel-surface-motion absolute bottom-8 right-0 p-2 rounded-lg shadow-xl z-50 grid grid-cols-6 gap-1"
-              style={{ background: "#2b2d31", border: "1px solid #1e1f22", width: "200px" }}
+              className="panel-surface-motion absolute bottom-8 right-0 p-2 rounded-lg shadow-xl z-50"
+              style={{ background: "#2b2d31", border: "1px solid #1e1f22", width: "320px" }}
             >
-              {COMMON_EMOJIS.map((emoji) => (
+              <div className="mb-2 flex items-center gap-2">
                 <button
-                  key={emoji}
-                  onClick={() => {
-                    const next = content + emoji
-                    setContent(next)
-                    setCursorPosition(next.length)
-                    onDraftChange(next)
-                    setShowEmojiPicker(false)
-                    textareaRef.current?.focus()
-                  }}
-                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-lg"
+                  onClick={() => setPickerTab("emoji")}
+                  className="px-2 py-1 rounded text-xs font-medium"
+                  style={{ background: pickerTab === "emoji" ? "#5865f2" : "transparent", color: "#f2f3f5" }}
                 >
-                  {emoji}
+                  Emoji
                 </button>
-              ))}
+                <button
+                  onClick={() => setPickerTab("gif")}
+                  className="px-2 py-1 rounded text-xs font-medium"
+                  style={{ background: pickerTab === "gif" ? "#5865f2" : "transparent", color: "#f2f3f5" }}
+                >
+                  GIFs
+                </button>
+              </div>
+
+              {pickerTab === "emoji" ? (
+                <div className="max-h-72 overflow-y-auto pr-1 space-y-2">
+                  {Object.entries(EMOJI_CATEGORIES).map(([category, emojis]) => (
+                    <div key={category}>
+                      <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: "#949ba4" }}>{category}</p>
+                      <div className="grid grid-cols-8 gap-1">
+                        {emojis.map((emoji) => (
+                          <button
+                            key={`${category}-${emoji}`}
+                            onClick={() => {
+                              const next = content + emoji
+                              setContent(next)
+                              setCursorPosition(next.length)
+                              onDraftChange(next)
+                              setShowEmojiPicker(false)
+                              textareaRef.current?.focus()
+                            }}
+                            className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-lg"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    value={gifQuery}
+                    onChange={(e) => setGifQuery(e.target.value)}
+                    placeholder="Search GIFs"
+                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none"
+                    style={{ background: "#1e1f22", color: "#dcddde" }}
+                  />
+                  {!process.env.NEXT_PUBLIC_GIPHY_API_KEY ? (
+                    <p className="text-xs" style={{ color: "#949ba4" }}>
+                      Add NEXT_PUBLIC_GIPHY_API_KEY to enable GIF search.
+                    </p>
+                  ) : gifLoading ? (
+                    <p className="text-xs" style={{ color: "#949ba4" }}>Loading GIFs…</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                      {gifResults.map((gif) => (
+                        <button
+                          key={gif.id}
+                          onClick={() => {
+                            const spacer = content.trim() ? " " : ""
+                            const next = `${content}${spacer}${gif.gifUrl}`
+                            setContent(next)
+                            setCursorPosition(next.length)
+                            onDraftChange(next)
+                            setShowEmojiPicker(false)
+                            textareaRef.current?.focus()
+                          }}
+                          className="rounded overflow-hidden hover:opacity-90"
+                          title={gif.title}
+                        >
+                          <img src={gif.previewUrl} alt={gif.title} className="w-full h-16 object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

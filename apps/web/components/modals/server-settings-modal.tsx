@@ -269,6 +269,8 @@ interface EmojiEntry {
   image_url: string
 }
 
+const CUSTOM_EMOJI_LIMIT = 50
+
 /** Emoji management tab — lists server custom emojis with upload, rename, and delete controls. */
 export function EmojisTab({ serverId }: { serverId: string }) {
   const { toast } = useToast()
@@ -289,6 +291,10 @@ export function EmojisTab({ serverId }: { serverId: string }) {
   async function handleUpload() {
     const file = fileRef.current?.files?.[0]
     if (!file || !newName.trim()) return
+    if (emojis.length >= CUSTOM_EMOJI_LIMIT) {
+      toast({ variant: "destructive", title: `Emoji limit reached (${CUSTOM_EMOJI_LIMIT})` })
+      return
+    }
     setUploading(true)
     const form = new FormData()
     form.append("file", file)
@@ -296,12 +302,16 @@ export function EmojisTab({ serverId }: { serverId: string }) {
     const res = await fetch(`/api/servers/${serverId}/emojis`, { method: "POST", body: form })
     if (res.ok) {
       const emoji = await res.json()
-      setEmojis((prev) => [...prev, emoji])
+      setEmojis((prev) => {
+        const withoutSameName = prev.filter((entry) => entry.name !== emoji.name)
+        return [...withoutSameName, emoji].sort((a, b) => a.name.localeCompare(b.name))
+      })
       setNewName("")
       if (fileRef.current) fileRef.current.value = ""
       toast({ title: "Emoji uploaded" })
     } else {
-      toast({ variant: "destructive", title: "Failed to upload emoji" })
+      const error = await res.json().catch(() => null)
+      toast({ variant: "destructive", title: error?.error || "Failed to upload emoji" })
     }
     setUploading(false)
   }
@@ -320,6 +330,9 @@ export function EmojisTab({ serverId }: { serverId: string }) {
         <p className="text-white font-semibold mb-0.5">Custom Emoji</p>
         <p className="text-xs" style={{ color: '#949ba4' }}>
           Upload custom emoji to use in messages on this server. Max 256 KB, PNG/GIF/WEBP.
+        </p>
+        <p className="text-xs mt-1" style={{ color: '#b5bac1' }}>
+          {emojis.length} / {CUSTOM_EMOJI_LIMIT} custom emojis used.
         </p>
       </div>
 
@@ -344,7 +357,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
           </button>
           <button
             onClick={handleUpload}
-            disabled={uploading || !newName.trim()}
+            disabled={uploading || !newName.trim() || emojis.length >= CUSTOM_EMOJI_LIMIT}
             className="px-3 py-2 rounded text-sm font-semibold disabled:opacity-50"
             style={{ background: '#5865f2', color: 'white' }}
           >

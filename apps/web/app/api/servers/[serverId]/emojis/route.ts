@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
+const CUSTOM_EMOJI_LIMIT = 50
+
 /** GET /api/servers/[serverId]/emojis — Returns all custom emojis for a server (membership-gated). */
 export async function GET(
   _req: NextRequest,
@@ -61,6 +63,15 @@ export async function POST(
     return NextResponse.json({ error: "Only PNG, WebP, and GIF are allowed" }, { status: 415 })
   }
   if (file.size > 256 * 1024) return NextResponse.json({ error: "Emoji must be under 256 KB" }, { status: 413 })
+
+  const { count, error: countError } = await supabase
+    .from("server_emojis")
+    .select("id", { count: "exact", head: true })
+    .eq("server_id", serverId)
+  if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
+  if ((count ?? 0) >= CUSTOM_EMOJI_LIMIT) {
+    return NextResponse.json({ error: `Server has reached its ${CUSTOM_EMOJI_LIMIT} custom emoji limit` }, { status: 409 })
+  }
 
   const mimeToExt: Record<string, string> = { "image/png": "png", "image/webp": "webp", "image/gif": "gif" }
   const ext = mimeToExt[file.type] ?? "png"
