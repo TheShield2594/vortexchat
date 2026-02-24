@@ -21,6 +21,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const channelId = searchParams.get("channelId")
   const before = searchParams.get("before")
+  const around = searchParams.get("around")
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 100)
 
   if (!channelId) {
@@ -40,6 +41,59 @@ export async function GET(request: Request) {
     if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
       return NextResponse.json({ error: "Missing VIEW_CHANNELS permission" }, { status: 403 })
     }
+  }
+
+  if (around) {
+    const { data: target } = await supabase
+      .from("messages")
+      .select("id, channel_id, created_at")
+      .eq("id", around)
+      .eq("channel_id", channelId)
+      .is("deleted_at", null)
+      .maybeSingle()
+
+    if (!target) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 })
+    }
+
+    const sideLimit = Math.max(1, Math.min(limit, 60))
+    const [{ data: beforeRows, error: beforeError }, { data: afterRows, error: afterError }] = await Promise.all([
+      supabase
+        .from("messages")
+        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+        .eq("channel_id", channelId)
+        .is("deleted_at", null)
+        .lt("created_at", target.created_at)
+        .order("created_at", { ascending: false })
+        .limit(sideLimit + 1),
+      supabase
+        .from("messages")
+        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+        .eq("channel_id", channelId)
+        .is("deleted_at", null)
+        .gte("created_at", target.created_at)
+        .order("created_at", { ascending: true })
+        .limit(sideLimit + 1),
+    ])
+
+    if (beforeError || afterError) {
+      return NextResponse.json({ error: beforeError?.message ?? afterError?.message ?? "Failed to load message context" }, { status: 500 })
+    }
+
+    const hasMoreBefore = (beforeRows?.length ?? 0) > sideLimit
+    const hasMoreAfter = (afterRows?.length ?? 0) > sideLimit
+    const trimmedBefore = (beforeRows ?? []).slice(0, sideLimit).reverse()
+    const trimmedAfter = (afterRows ?? []).slice(0, sideLimit)
+
+    const deduped = [...trimmedBefore, ...trimmedAfter].filter((message, index, all) =>
+      all.findIndex((candidate) => candidate.id === message.id) === index
+    )
+
+    return NextResponse.json({
+      messages: deduped,
+      hasMoreBefore,
+      hasMoreAfter,
+    })
   }
 
   let query = supabase
