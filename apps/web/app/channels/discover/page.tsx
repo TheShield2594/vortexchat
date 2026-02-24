@@ -7,6 +7,8 @@ import { MobileMenuButton } from "@/components/layout/mobile-nav"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils/cn"
 
 interface PublicServer {
   id: string
@@ -93,16 +95,16 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "#313338" }}>
-      <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "#1e1f22" }}>
+    <div className="flex flex-1 flex-col overflow-hidden bg-background">
+      <div className="flex flex-shrink-0 items-center gap-3 border-b border-border px-4 py-3">
         <MobileMenuButton />
-        <Compass className="w-5 h-5" style={{ color: "#949ba4" }} />
-        <span className="font-semibold text-white">Discover</span>
+        <Compass className="h-5 w-5 text-muted-foreground" />
+        <span className="font-semibold">Discover</span>
       </div>
 
-      <div className="px-8 py-8" style={{ background: "#2b2d31" }}>
-        <h1 className="text-2xl font-bold text-white mb-1">Find communities and apps</h1>
-        <p className="text-sm mb-4" style={{ color: "#b5bac1" }}>
+      <div className="bg-card px-8 py-8">
+        <h1 className="mb-1 text-2xl font-bold">Find communities and apps</h1>
+        <p className="mb-4 text-sm text-muted-foreground">
           Search servers, browse the app marketplace, and check trust badges and reviews.
         </p>
         <Tabs value={mode} onValueChange={(v) => setMode(v as "servers" | "apps")}> 
@@ -112,14 +114,13 @@ export default function DiscoverPage() {
           </TabsList>
         </Tabs>
         <div className="relative max-w-xl mt-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#949ba4" }} />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={mode === "servers" ? "Search servers…" : "Search apps…"}
-            className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm focus:outline-none"
-            style={{ background: "#1e1f22", color: "#f2f3f5", border: "1px solid #3f4147" }}
+            className="w-full rounded-lg border border-input bg-popover py-2.5 pl-9 pr-4 text-sm focus:outline-none"
           />
         </div>
         {mode === "apps" && (
@@ -129,8 +130,10 @@ export default function DiscoverPage() {
                 type="button"
                 key={item}
                 onClick={() => setCategory(item)}
-                className="px-2.5 py-1 rounded text-xs capitalize"
-                style={{ background: category === item ? "#5865f2" : "#1e1f22", color: "white" }}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs capitalize",
+                  category === item ? "bg-primary text-primary-foreground" : "bg-popover text-foreground"
+                )}
               >
                 {item}
               </button>
@@ -144,7 +147,7 @@ export default function DiscoverPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, index) => (
-                <div key={index} className="rounded-lg p-4" style={{ background: "#2b2d31" }}>
+                <div key={index} className="rounded-lg bg-card p-4">
                   <Skeleton className="mb-3 h-20 w-full" />
                   <Skeleton className="mb-2 h-4 w-2/3" />
                   <Skeleton className="mb-3 h-3 w-full" />
@@ -167,16 +170,16 @@ export default function DiscoverPage() {
           ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {servers.map((server) => (
-              <div key={server.id} className="rounded-lg overflow-hidden flex flex-col transition-transform hover:scale-[1.02]" style={{ background: "#2b2d31" }}>
-                <div className="h-20 flex items-center justify-center" style={{ background: "#1e1f22" }}>
-                  {server.icon_url ? <img src={server.icon_url} alt={server.name} className="w-full h-full object-cover" /> : <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white" style={{ background: "#5865f2" }}>{server.name.slice(0, 2).toUpperCase()}</div>}
+              <div key={server.id} className="flex flex-col overflow-hidden rounded-lg bg-card transition-transform hover:scale-[1.02]">
+                <div className="flex h-20 items-center justify-center bg-popover">
+                  {server.icon_url ? <img src={server.icon_url} alt={server.name} className="h-full w-full object-cover" /> : <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-primary-foreground">{server.name.slice(0, 2).toUpperCase()}</div>}
                 </div>
-                <div className="p-4 flex flex-col flex-1">
-                  <h3 className="font-semibold text-white truncate mb-1">{server.name}</h3>
-                  {server.description && <p className="text-xs line-clamp-2 flex-1 mb-3" style={{ color: "#949ba4" }}>{server.description}</p>}
+                <div className="flex flex-1 flex-col p-4">
+                  <h3 className="mb-1 truncate font-semibold">{server.name}</h3>
+                  {server.description && <p className="mb-3 flex-1 line-clamp-2 text-xs text-muted-foreground">{server.description}</p>}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs" style={{ color: "#949ba4" }}><Users className="w-3 h-3" /><span>{server.member_count.toLocaleString()}</span></div>
-                    <button type="button" onClick={() => joinServer(server.invite_code)} className="px-3 py-1 rounded text-xs font-semibold" style={{ background: "#5865f2", color: "white" }}>Join</button>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Users className="h-3 w-3" /><span>{server.member_count.toLocaleString()}</span></div>
+                    <Button type="button" size="sm" className="h-7 rounded px-3 text-xs" onClick={() => joinServer(server.invite_code)}>Join</Button>
                   </div>
                 </div>
               </div>
@@ -194,15 +197,15 @@ export default function DiscoverPage() {
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {apps.map((app) => (
-              <div key={app.id} className="rounded-lg p-4" style={{ background: "#2b2d31" }}>
+              <div key={app.id} className="rounded-lg bg-card p-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-white font-semibold">{app.name}</h3>
+                  <h3 className="font-semibold">{app.name}</h3>
                   {app.trust_badge && <BadgeCheck className="w-4 h-4 text-emerald-400" />}
                 </div>
-                <p className="text-xs mt-1" style={{ color: "#949ba4" }}>{app.description ?? "No description"}</p>
-                <p className="text-xs mt-2" style={{ color: "#b5bac1" }}>Category: {app.category}</p>
-                <p className="text-xs" style={{ color: "#b5bac1" }}><Star className="w-3 h-3 inline mr-1" />{app.average_rating.toFixed(1)} ({app.review_count} reviews)</p>
-                <p className="text-[11px] mt-2" style={{ color: "#949ba4" }}>Permissions: {app.permissions.join(", ") || "None"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{app.description ?? "No description"}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Category: {app.category}</p>
+                <p className="text-xs text-muted-foreground"><Star className="mr-1 inline h-3 w-3" />{app.average_rating.toFixed(1)} ({app.review_count} reviews)</p>
+                <p className="mt-2 text-[11px] text-muted-foreground">Permissions: {app.permissions.join(", ") || "None"}</p>
               </div>
             ))}
           </div>
