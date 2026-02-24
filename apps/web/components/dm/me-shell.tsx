@@ -11,7 +11,7 @@ function DMListPanel() {
       {/* Desktop: always visible */}
       <div
         className="hidden md:flex w-60 flex-shrink-0 flex-col overflow-hidden"
-        style={{ background: "#2b2d31" }}
+        style={{ background: "var(--app-bg-secondary)" }}
       >
         <DMList />
       </div>
@@ -20,7 +20,7 @@ function DMListPanel() {
       {sidebarOpen && (
         <div
           className="md:hidden fixed inset-y-0 left-0 z-50 flex w-60 flex-col overflow-hidden"
-          style={{ background: "#2b2d31" }}
+          style={{ background: "var(--app-bg-secondary)" }}
         >
           <DMList onNavigate={() => setSidebarOpen(false)} />
         </div>

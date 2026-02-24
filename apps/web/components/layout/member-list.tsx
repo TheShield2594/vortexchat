@@ -172,7 +172,7 @@ export function MemberList({ serverId }: Props) {
   return (
     <div
       className="w-60 flex-shrink-0 flex flex-col"
-      style={{ background: "#2b2d31" }}
+      style={{ background: "var(--app-bg-secondary)" }}
     >
       <ScrollArea className="flex-1 py-4">
         {loadingMembers && (

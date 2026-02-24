@@ -86,7 +86,7 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
   const partnerInitials = partnerName.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "#313338" }}>
+    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "var(--app-bg-primary)" }}>
       {/* Header */}
       <div
         className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0"

@@ -215,7 +215,7 @@ export function FriendsSidebar() {
   const pendingSentList = tab === "pending" ? friends.pending_sent : []
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "#313338" }}>
+    <div className="flex flex-col h-full" style={{ background: "var(--app-bg-primary)" }}>
       {/* Header */}
       <div
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
