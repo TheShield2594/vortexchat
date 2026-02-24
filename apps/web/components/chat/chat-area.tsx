@@ -113,6 +113,24 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     [channel.id, currentUserId]
   )
 
+
+  useEffect(() => {
+    function handleToggleThreadPanel() {
+      setThreadPanelOpen((prev) => !prev)
+    }
+
+    function handleToggleWorkspacePanel() {
+      setWorkspaceOpen((prev) => !prev)
+    }
+
+    window.addEventListener("vortexchat:toggle-thread-panel", handleToggleThreadPanel)
+    window.addEventListener("vortexchat:toggle-workspace-panel", handleToggleWorkspacePanel)
+    return () => {
+      window.removeEventListener("vortexchat:toggle-thread-panel", handleToggleThreadPanel)
+      window.removeEventListener("vortexchat:toggle-workspace-panel", handleToggleWorkspacePanel)
+    }
+  }, [])
+
   const optimisticAuthor = useMemo(() => {
     return currentUser ?? {
       id: currentUserId,

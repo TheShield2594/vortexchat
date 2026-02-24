@@ -41,9 +41,10 @@ import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { UserPanel } from "@/components/layout/user-panel"
 import { QuickSwitcherModal } from "@/components/modals/quickswitcher-modal"
 import { SearchModal } from "@/components/modals/search-modal"
+import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
 import { useUnreadChannels } from "@/hooks/use-unread-channels"
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { useKeyboardShortcuts, type ShortcutHandlers } from "@/hooks/use-keyboard-shortcuts"
 
 const NO_CATEGORY = "__no_category__"
 
@@ -140,8 +141,8 @@ function mergeItemsPreservingOrder(
 
 /** Server channel sidebar with drag-and-drop reordering, category grouping, voice state indicators, and unread tracking. */
 export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
-  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel } = useAppStore(
-    useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel }))
+  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList } = useAppStore(
+    useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList }))
   )
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -153,14 +154,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
   const [activeThreadCounts, setActiveThreadCounts] = useState<Record<string, number>>({})
   const router = useRouter()
   const { toast } = useToast()
-
-  useKeyboardShortcuts({
-    onQuickSwitcher: useCallback(() => setQuickSwitcherOpen(true), []),
-    onSearch: useCallback(() => setSearchOpen(true), []),
-  })
 
   // Always reflects the latest committed items — used in drag handlers to avoid stale closures
   const itemsRef = useRef<Record<string, string[]>>({})
@@ -310,12 +307,60 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
   // Track unread state for all text channels in this server
   const textChannelIds = useMemo(() => channels.filter((c) => c.type === "text").map((c) => c.id), [channels])
-  const { unreadChannelIds, mentionCounts } = useUnreadChannels(
+  const { unreadChannelIds, mentionCounts, markRead } = useUnreadChannels(
     server.id,
     textChannelIds,
     currentUserId,
     activeChannelId
   )
+
+  const navigableChannelIds = useMemo(
+    () => channels.filter((channel) => channel.type !== "category").sort((a, b) => a.position - b.position).map((channel) => channel.id),
+    [channels]
+  )
+
+  const unreadNavigableChannelIds = useMemo(
+    () => navigableChannelIds.filter((id) => unreadChannelIds.has(id)),
+    [navigableChannelIds, unreadChannelIds]
+  )
+
+  const jumpToChannel = useCallback((channelId: string) => {
+    if (!channelId) return
+    router.push(`/channels/${server.id}/${channelId}`)
+  }, [router, server.id])
+
+  const jumpRelative = useCallback((ids: string[], direction: "next" | "prev") => {
+    if (ids.length === 0) return
+    const currentIndex = activeChannelId ? ids.indexOf(activeChannelId) : -1
+    const nextIndex = direction === "next"
+      ? (currentIndex >= ids.length - 1 ? 0 : currentIndex + 1)
+      : (currentIndex <= 0 ? ids.length - 1 : currentIndex - 1)
+    jumpToChannel(ids[nextIndex])
+  }, [activeChannelId, jumpToChannel])
+
+  const shortcutHandlers: ShortcutHandlers = useMemo(() => ({
+    onQuickSwitcher: () => setQuickSwitcherOpen(true),
+    onSearch: () => setSearchOpen(true),
+    onSearchInChannel: () => setSearchOpen(true),
+    onMarkRead: () => {
+      if (activeChannelId) void markRead(activeChannelId)
+    },
+    onJumpChannelPrev: () => jumpRelative(navigableChannelIds, "prev"),
+    onJumpChannelNext: () => jumpRelative(navigableChannelIds, "next"),
+    onJumpUnreadPrev: () => jumpRelative(unreadNavigableChannelIds, "prev"),
+    onJumpUnreadNext: () => jumpRelative(unreadNavigableChannelIds, "next"),
+    onToggleMemberList: () => toggleMemberList(),
+    onToggleThreadPanel: () => window.dispatchEvent(new CustomEvent("vortexchat:toggle-thread-panel")),
+    onToggleWorkspacePanel: () => window.dispatchEvent(new CustomEvent("vortexchat:toggle-workspace-panel")),
+    onOpenShortcutHelp: () => setShortcutHelpOpen(true),
+    onAnalytics: (event) => {
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[shortcuts] analytics", event)
+      }
+    },
+  }), [activeChannelId, jumpRelative, markRead, navigableChannelIds, unreadNavigableChannelIds, toggleMemberList])
+
+  useKeyboardShortcuts(shortcutHandlers)
 
   function toggleCategory(id: string) {
     setCollapsedCategories((prev) => {
@@ -688,6 +733,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             }}
           />
         )}
+        <KeyboardShortcutsModal
+          open={shortcutHelpOpen}
+          onOpenChange={setShortcutHelpOpen}
+          handlers={shortcutHandlers}
+        />
 
         {/* Delete channel confirmation dialog */}
         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
