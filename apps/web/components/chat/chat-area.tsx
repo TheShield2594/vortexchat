@@ -16,6 +16,7 @@ import { ThreadPanel } from "@/components/chat/thread-panel"
 import { ThreadList } from "@/components/chat/thread-list"
 import { SearchModal } from "@/components/modals/search-modal"
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 import {
   type OutboxEntry,
   getDraft,
@@ -760,6 +761,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           )}
 
           <div className="ml-auto flex items-center gap-1">
+            {currentUser && <NotificationBell userId={currentUser.id} />}
+
             <button
               onClick={() => setWorkspaceOpen((open) => !open)}
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
