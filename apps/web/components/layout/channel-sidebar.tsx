@@ -247,12 +247,14 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   useEffect(() => {
     const supabase = createClientSupabaseClient()
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    let cancelled = false
 
     async function fetchVoiceParticipants() {
       const { data } = await supabase
         .from("voice_states")
         .select("user_id, channel_id, muted, deafened, users(id, username, display_name, avatar_url)")
         .eq("server_id", server.id)
+      if (cancelled) return
       setVoiceParticipants(
         (data ?? []).map((d: any) => ({
           user_id: d.user_id,
@@ -281,6 +283,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       .subscribe()
 
     return () => {
+      cancelled = true
       if (debounceTimer) clearTimeout(debounceTimer)
       supabase.removeChannel(subscription)
     }
