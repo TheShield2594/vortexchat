@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { MessageWithAuthor, MessageRow, ReactionRow } from "@/types/database"
 
+/** Subscribes to real-time message inserts, updates, and reaction changes for a channel via Supabase Realtime postgres_changes. */
 export function useRealtimeMessages(
   channelId: string,
   onInsert: (message: MessageWithAuthor) => void,
@@ -11,7 +12,7 @@ export function useRealtimeMessages(
   onReactionInsert?: (reaction: ReactionRow) => void,
   onReactionDelete?: (reaction: ReactionRow) => void
 ) {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     const channel = supabase

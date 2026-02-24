@@ -5,6 +5,7 @@ import { Plus, Send, X, Smile, Reply, Keyboard } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { useMentionAutocomplete } from "@/hooks/use-mention-autocomplete"
 import { MentionSuggestions } from "@/components/chat/mention-suggestions"
 
@@ -21,6 +22,7 @@ interface Props {
 
 const COMMON_EMOJIS = ["😀", "😂", "❤️", "👍", "👎", "🔥", "✅", "🎉", "🤔", "👀", "😭", "💯"]
 
+/** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
 export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent }: Props) {
   const [content, setContent] = useState(draft)
   const [cursorPosition, setCursorPosition] = useState(0)
@@ -32,7 +34,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const fileUrlCache = useRef(new Map<File, string>())
 
   // Mention autocomplete
-  const { activeServerId, members: membersByServer } = useAppStore()
+  const { activeServerId, members: membersByServer } = useAppStore(
+    useShallow((s) => ({ activeServerId: s.activeServerId, members: s.members }))
+  )
   const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
   const mention = useMentionAutocomplete({ content, cursorPosition, members })
 

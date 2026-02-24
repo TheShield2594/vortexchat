@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react"
 
 interface ServerEmoji {
   id: string
@@ -20,19 +20,44 @@ const ServerEmojiContext = createContext<ServerEmojiContextValue>({
   reload: () => {},
 })
 
+/** Returns the current server's custom emoji list, a name-based lookup, and a reload function. */
 export function useServerEmojis() {
   return useContext(ServerEmojiContext)
 }
 
+/** Fetches and caches server custom emojis, providing a context for child components to resolve :emoji: tokens. */
 export function ServerEmojiProvider({ serverId, children }: { serverId: string; children: React.ReactNode }) {
   const [emojis, setEmojis] = useState<ServerEmoji[]>([])
+  const controllerRef = useRef<AbortController | null>(null)
 
-  const reload = useCallback(async () => {
-    const res = await fetch(`/api/servers/${serverId}/emojis`)
-    if (res.ok) setEmojis(await res.json())
+  useEffect(() => {
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+    fetch(`/api/servers/${serverId}/emojis`, { signal: controller.signal })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setEmojis(data)
+        }
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") console.error("Failed to load emojis", err)
+      })
+    return () => controller.abort()
   }, [serverId])
 
-  useEffect(() => { reload() }, [reload])
+  const reload = useCallback(async () => {
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+    try {
+      const res = await fetch(`/api/servers/${serverId}/emojis`, { signal: controller.signal })
+      if (res.ok && !controller.signal.aborted) setEmojis(await res.json())
+    } catch (err: any) {
+      if (err.name !== "AbortError") console.error("Failed to reload emojis", err)
+    }
+  }, [serverId])
 
   const getEmoji = useCallback((name: string): ServerEmoji | null => {
     return emojis.find((e) => e.name === name) ?? null
@@ -47,7 +72,7 @@ export function ServerEmojiProvider({ serverId, children }: { serverId: string; 
   )
 }
 
-// Inline component to render :emoji_name: tokens
+/** Inline component to render :emoji_name: tokens. */
 export function ServerEmojiImage({ name }: { name: string }) {
   const { getEmoji } = useServerEmojis()
   const emoji = getEmoji(name)

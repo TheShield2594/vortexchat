@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 const TYPING_TIMEOUT_MS = 3000
@@ -10,8 +10,9 @@ interface TypingUser {
   displayName: string
 }
 
+/** Broadcasts and listens for typing indicators on a channel via Supabase Realtime. Returns the list of currently-typing users plus `onKeystroke` / `onSent` callbacks for the input. */
 export function useTyping(channelId: string, currentUserId: string, currentDisplayName: string) {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const typingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const isTypingRef = useRef(false)
@@ -64,6 +65,11 @@ export function useTyping(channelId: string, currentUserId: string, currentDispl
       supabase.removeChannel(bc)
       typingTimeoutsRef.current.forEach((t) => clearTimeout(t))
       typingTimeoutsRef.current.clear()
+      if (stopTypingTimerRef.current) {
+        clearTimeout(stopTypingTimerRef.current)
+        stopTypingTimerRef.current = null
+      }
+      isTypingRef.current = false
     }
   }, [channelId, currentUserId])
 

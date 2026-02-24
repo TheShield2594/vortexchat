@@ -1,7 +1,11 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { MessageSquare, UserPlus } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 
 interface UserProfileData {
@@ -16,6 +20,8 @@ interface UserProfileData {
 
 interface UserProfilePopoverProps {
   user: UserProfileData | null
+  userId?: string
+  currentUserId?: string
   displayName: string
   status?: string
   roles?: RoleRow[]
@@ -43,8 +49,11 @@ function getStatusLabel(status?: string) {
   }
 }
 
+/** Popover card showing a user's profile (avatar, name, status, bio, roles) with optional Message and Add Friend actions. */
 export function UserProfilePopover({
   user,
+  userId,
+  currentUserId,
   displayName,
   status,
   roles = [],
@@ -53,6 +62,51 @@ export function UserProfilePopover({
   children,
 }: UserProfilePopoverProps) {
   const initials = displayName.slice(0, 2).toUpperCase()
+  const showActions = userId && currentUserId && userId !== currentUserId
+  const router = useRouter()
+  const { toast } = useToast()
+  const [actionLoading, setActionLoading] = useState<"message" | "friend" | null>(null)
+
+  async function handleMessage() {
+    if (!userId || actionLoading) return
+    setActionLoading("message")
+    try {
+      const res = await fetch("/api/dm/channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: [userId] }),
+      })
+      if (res.ok) {
+        const { id } = await res.json()
+        router.push(`/channels/me/${id}`)
+      } else {
+        const { error } = await res.json()
+        toast({ variant: "destructive", title: error || "Failed to open DM" })
+      }
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleAddFriend() {
+    if (!user?.username || actionLoading) return
+    setActionLoading("friend")
+    try {
+      const res = await fetch("/api/friends", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user.username }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        toast({ title: json.message })
+      } else {
+        toast({ variant: res.status === 409 ? "default" : "destructive", title: json.error || json.message })
+      }
+    } finally {
+      setActionLoading(null)
+    }
+  }
 
   return (
     <Popover>
@@ -156,6 +210,35 @@ export function UserProfilePopover({
                     {role.name}
                   </span>
                 ))}
+              </div>
+            </>
+          )}
+
+          {/* Action buttons */}
+          {showActions && (
+            <>
+              <div className="my-2 border-t" style={{ borderColor: "#1e1f22" }} />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleMessage}
+                  disabled={actionLoading === "message"}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
+                  style={{ background: "#5865f2", color: "white" }}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Message
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddFriend}
+                  disabled={actionLoading === "friend"}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
+                  style={{ background: "#23a55a", color: "white" }}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Add Friend
+                </button>
               </div>
             </>
           )}

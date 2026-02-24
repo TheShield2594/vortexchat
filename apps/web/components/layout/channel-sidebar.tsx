@@ -29,6 +29,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils/cn"
 import type { ChannelRow, RoleRow, ServerRow, UserRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -137,8 +138,11 @@ function mergeItemsPreservingOrder(
   return merged
 }
 
+/** Server channel sidebar with drag-and-drop reordering, category grouping, voice state indicators, and unread tracking. */
 export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
-  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel } = useAppStore()
+  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel } = useAppStore(
+    useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel }))
+  )
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showServerSettings, setShowServerSettings] = useState(false)
@@ -177,21 +181,21 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }, [server.id, setChannels])
 
   const channels = storeChannels[server.id] ?? initialChannels
-  const grouped = groupChannels(channels)
+  const grouped = useMemo(() => groupChannels(channels), [channels])
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
 
     async function loadThreadCounts() {
       try {
-        const response = await fetch(`/api/threads/counts?serverId=${server.id}`)
+        const response = await fetch(`/api/threads/counts?serverId=${server.id}`, { signal: controller.signal })
         if (!response.ok) return
         const data = await response.json()
-        if (!cancelled && data && typeof data === "object") {
+        if (!controller.signal.aborted && data && typeof data === "object") {
           setActiveThreadCounts(data as Record<string, number>)
         }
-      } catch (error) {
-        console.error("Failed to load thread counts", error)
+      } catch (error: any) {
+        if (error?.name !== "AbortError") console.error("Failed to load thread counts", error)
       }
     }
 
@@ -200,7 +204,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       void loadThreadCounts()
     }, 30000)
     return () => {
-      cancelled = true
+      controller.abort()
       window.clearInterval(interval)
     }
   }, [server.id])
@@ -305,7 +309,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
 
   // Track unread state for all text channels in this server
-  const textChannelIds = channels.filter((c) => c.type === "text").map((c) => c.id)
+  const textChannelIds = useMemo(() => channels.filter((c) => c.type === "text").map((c) => c.id), [channels])
   const { unreadChannelIds, mentionCounts } = useUnreadChannels(
     server.id,
     textChannelIds,

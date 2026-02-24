@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { ChannelSidebar } from "@/components/layout/channel-sidebar"
 import { ServerEmojiProvider } from "@/components/chat/server-emoji-context"
 import type { RoleRow } from "@/types/database"
@@ -9,44 +9,27 @@ interface Props {
   params: Promise<{ serverId: string }>
 }
 
+/** Server-rendered layout that verifies membership and renders the channel sidebar alongside the active channel. */
 export default async function ServerLayout({ children, params: paramsPromise }: Props) {
   const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+
+  const [supabase, { data: { user }, error }] = await Promise.all([
+    createServerSupabaseClient(),
+    getAuthUser(),
+  ])
 
   if (error || !user) redirect("/login")
 
-  // Verify user is member of this server
-  const { data: member } = await supabase
-    .from("server_members")
-    .select("server_id")
-    .eq("server_id", params.serverId)
-    .eq("user_id", user.id)
-    .single()
-
-  if (!member) notFound()
-
-  // Fetch server with channels
-  const { data: server } = await supabase
-    .from("servers")
-    .select("*")
-    .eq("id", params.serverId)
-    .single()
+  // Fetch membership, server, channels, and roles in parallel
+  const [{ data: member }, { data: server }, { data: channels }, { data: memberRoles }] = await Promise.all([
+    supabase.from("server_members").select("server_id").eq("server_id", params.serverId).eq("user_id", user.id).single(),
+    supabase.from("servers").select("*").eq("id", params.serverId).single(),
+    supabase.from("channels").select("*").eq("server_id", params.serverId).order("position", { ascending: true }),
+    supabase.from("member_roles").select("role_id, roles(*)").eq("server_id", params.serverId).eq("user_id", user.id),
+  ])
 
   if (!server) notFound()
-
-  const { data: channels } = await supabase
-    .from("channels")
-    .select("*")
-    .eq("server_id", params.serverId)
-    .order("position", { ascending: true })
-
-  // Fetch member's roles for permission checks
-  const { data: memberRoles } = await supabase
-    .from("member_roles")
-    .select("role_id, roles(*)")
-    .eq("server_id", params.serverId)
-    .eq("user_id", user.id)
+  if (!member) notFound()
 
   type MemberRoleWithRole = { role_id: string; roles: RoleRow | null }
   const userRoles = ((memberRoles ?? []) as unknown as MemberRoleWithRole[])

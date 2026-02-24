@@ -1,13 +1,15 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { Clipboard, AtSign } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Clipboard, AtSign, MessageSquare, UserPlus } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserProfilePopover } from "@/components/user-profile-popover"
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 import type { RealtimeChannel } from "@supabase/supabase-js"
@@ -47,13 +49,16 @@ function getStatusColor(status?: string) {
   }
 }
 
+/** Collapsible member list panel showing server members grouped by role with real-time presence indicators. */
 export function MemberList({ serverId }: Props) {
-  const { memberListOpen, currentUser } = useAppStore()
+  const { memberListOpen, currentUser } = useAppStore(
+    useShallow((s) => ({ memberListOpen: s.memberListOpen, currentUser: s.currentUser }))
+  )
   const [members, setMembers] = useState<MemberData[]>([])
   const [presence, setPresence] = useState<PresenceState>({})
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     async function fetchMembers() {
@@ -198,6 +203,7 @@ export function MemberList({ serverId }: Props) {
                 key={member.user_id}
                 member={member}
                 presence={presence[member.user_id]}
+                currentUserId={currentUser?.id}
               />
             ))}
           </div>
@@ -217,6 +223,7 @@ export function MemberList({ serverId }: Props) {
                 key={member.user_id}
                 member={member}
                 presence={presence[member.user_id]}
+                currentUserId={currentUser?.id}
                 offline
               />
             ))}
@@ -230,19 +237,23 @@ export function MemberList({ serverId }: Props) {
 function MemberItem({
   member,
   presence,
+  currentUserId,
   offline,
 }: {
   member: MemberData
   presence?: { status: string; speaking?: boolean; voice_channel_id?: string }
+  currentUserId?: string
   offline?: boolean
 }) {
   const { toast } = useToast()
+  const router = useRouter()
   const displayName =
     member.nickname ||
     member.user?.display_name ||
     member.user?.username ||
     "Unknown"
   const initials = displayName.slice(0, 2).toUpperCase()
+  const isOtherUser = currentUserId && member.user_id !== currentUserId
 
   // Get highest colored role
   const coloredRole = member.roles
@@ -251,10 +262,41 @@ function MemberItem({
 
   const roleColor = coloredRole?.color ?? undefined
 
+  async function handleMessage() {
+    const res = await fetch("/api/dm/channels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds: [member.user_id] }),
+    })
+    if (res.ok) {
+      const { id } = await res.json()
+      router.push(`/channels/me/${id}`)
+    } else {
+      const { error } = await res.json()
+      toast({ variant: "destructive", title: error || "Failed to open DM" })
+    }
+  }
+
+  async function handleAddFriend() {
+    if (!member.user?.username) return
+    const res = await fetch("/api/friends", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: member.user.username }),
+    })
+    const json = await res.json()
+    toast({
+      variant: res.ok || res.status === 409 ? "default" : "destructive",
+      title: json.message || json.error,
+    })
+  }
+
   return (
     <ContextMenu>
       <UserProfilePopover
         user={member.user}
+        userId={member.user?.id}
+        currentUserId={currentUserId}
         displayName={displayName}
         status={presence?.status}
         roles={member.roles}
@@ -307,6 +349,17 @@ function MemberItem({
       </UserProfilePopover>
 
       <ContextMenuContent className="w-48">
+        {isOtherUser && (
+          <>
+            <ContextMenuItem onClick={handleMessage}>
+              <MessageSquare className="w-4 h-4 mr-2" /> Message
+            </ContextMenuItem>
+            <ContextMenuItem onClick={handleAddFriend}>
+              <UserPlus className="w-4 h-4 mr-2" /> Add Friend
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        )}
         <ContextMenuItem onClick={() => {
           navigator.clipboard.writeText(`@${member.user?.username ?? displayName}`)
           toast({ title: "Mention copied!" })

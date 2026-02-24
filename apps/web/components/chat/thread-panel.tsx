@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { X, Hash, Lock, Archive, ArchiveRestore, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { ThreadRow, ThreadWithDetails, MessageWithAuthor, MessageRow } from "@/types/database"
@@ -19,6 +19,7 @@ interface Props {
   focusMessageId?: string | null
 }
 
+/** Slide-out panel displaying a thread's messages with real-time updates, archive/lock controls, and member management. */
 export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, focusMessageId }: Props) {
   const [messages, setMessages] = useState<MessageWithAuthor[]>([])
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
@@ -27,19 +28,25 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
   const [isMember, setIsMember] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const handledFocusRef = useRef<string | null>(null)
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const { toast } = useToast()
 
   // Load messages
   useEffect(() => {
+    const controller = new AbortController()
     setLoading(true)
-    fetch(`/api/threads/${thread.id}/messages`)
+    fetch(`/api/threads/${thread.id}/messages`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setMessages(data)
-        setLoading(false)
+        if (!controller.signal.aborted) {
+          if (Array.isArray(data)) setMessages(data)
+          setLoading(false)
+        }
       })
-      .catch(() => setLoading(false))
+      .catch((err) => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
   }, [thread.id])
 
   // Check membership

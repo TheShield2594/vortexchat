@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -54,12 +54,13 @@ function StatusDot({ status }: { status: string }) {
   )
 }
 
+/** Sidebar list of DM conversations with unread indicators, last-message previews, and real-time channel updates. */
 export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const [channels, setChannels] = useState<DMChannel[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   const fetchChannels = useCallback(async () => {
     const res = await fetch("/api/dm/channels")

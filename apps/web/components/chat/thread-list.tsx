@@ -15,6 +15,7 @@ interface Props {
   onSelectThread: (thread: ThreadRow) => void
 }
 
+/** Sidebar list of threads for a channel with active/archived filtering and real-time insert/update via Supabase. */
 export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }: Props) {
   const [threads, setThreads] = useState<ThreadRow[]>([])
   const [showArchived, setShowArchived] = useState(false)
@@ -25,22 +26,35 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
 
   // Load active threads
   useEffect(() => {
-    fetch(`/api/threads?channelId=${channelId}&archived=false`)
+    const controller = new AbortController()
+    fetch(`/api/threads?channelId=${channelId}&archived=false`, { signal: controller.signal })
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setThreads(data) })
+      .then((data) => {
+        if (!controller.signal.aborted && Array.isArray(data)) {
+          setThreads(data)
+        }
+      })
+      .catch((err) => { if (err.name !== "AbortError") console.error("Failed to load threads", err) })
+    return () => controller.abort()
   }, [channelId])
 
   // Load archived threads on demand
   useEffect(() => {
     if (!shouldShowArchived) return
+    const controller = new AbortController()
     setLoadingArchived(true)
-    fetch(`/api/threads?channelId=${channelId}&archived=true`)
+    fetch(`/api/threads?channelId=${channelId}&archived=true`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setArchivedThreads(data)
-        setLoadingArchived(false)
+        if (!controller.signal.aborted) {
+          if (Array.isArray(data)) setArchivedThreads(data)
+          setLoadingArchived(false)
+        }
       })
-      .catch(() => setLoadingArchived(false))
+      .catch((err) => {
+        if (!controller.signal.aborted) setLoadingArchived(false)
+      })
+    return () => controller.abort()
   }, [shouldShowArchived, channelId, filter])
 
   // Realtime updates

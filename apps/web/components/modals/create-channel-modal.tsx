@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Hash, Volume2, FolderOpen, MessageSquare, Mic2, Megaphone, Image, Clock } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import type { ChannelType } from "@vortex/shared"
 
 /** Available expiry durations in seconds → human label */
@@ -30,16 +31,19 @@ interface Props {
   categoryId?: string
 }
 
+/** Dialog for creating a new channel within a server, supporting text, voice, forum, announcement, media, and temporary channel types. */
 export function CreateChannelModal({ open, onClose, serverId, categoryId }: Props) {
   const router = useRouter()
   const { toast } = useToast()
-  const { addChannel } = useAppStore()
+  const { addChannel } = useAppStore(
+    useShallow((s) => ({ addChannel: s.addChannel }))
+  )
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [type, setType] = useState<ChannelType>("text")
   const [isTemporary, setIsTemporary] = useState(false)
   const [expirySeconds, setExpirySeconds] = useState(EXPIRY_OPTIONS[3].seconds) // default 1 day
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   function resetForm() {
     setName("")
