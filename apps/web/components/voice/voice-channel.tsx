@@ -668,7 +668,18 @@ const ParticipantTile = memo(function ParticipantTile({
     if (screenRef.current && screenStream) screenRef.current.srcObject = screenStream
   }, [screenStream])
 
-  const remoteHasVideo = remoteStream && remoteStream.getVideoTracks().length > 0
+  const [remoteHasVideo, setRemoteHasVideo] = useState(() => !!remoteStream && remoteStream.getVideoTracks().length > 0)
+  useEffect(() => {
+    if (!remoteStream) { setRemoteHasVideo(false); return }
+    const update = () => setRemoteHasVideo(remoteStream.getVideoTracks().length > 0)
+    update()
+    remoteStream.addEventListener("addtrack", update)
+    remoteStream.addEventListener("removetrack", update)
+    return () => {
+      remoteStream.removeEventListener("addtrack", update)
+      remoteStream.removeEventListener("removetrack", update)
+    }
+  }, [remoteStream])
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream && remoteHasVideo) remoteVideoRef.current.srcObject = remoteStream
   }, [remoteStream, remoteHasVideo])
