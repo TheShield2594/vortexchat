@@ -38,6 +38,19 @@ const BANNER_PRESETS = [
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
 
+const CSS_TEMPLATE = `/* Vortex Custom Theme Template */
+:root {
+  --background: 225 15% 10%;
+  --card: 230 17% 12%;
+  --accent: 264 85% 68%;
+  --ring: 190 95% 58%;
+}
+
+/* Optional per-component overrides */
+.message-content a {
+  color: #3ec5ff;
+}`
+
 /** Tabbed user settings dialog covering profile editing, account security (2FA, passkeys, sessions), and appearance preferences. */
 export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const router = useRouter()
@@ -58,7 +71,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance">("profile")
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
-  const appearanceSettings = useAppearanceStore((s) => s.toSettingsPayload())
+  const toSettingsPayload = useAppearanceStore((s) => s.toSettingsPayload)
 
   // Revoke blob URL on unmount to prevent memory leak
   useEffect(() => {
@@ -97,7 +110,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
-        appearance_settings: appearanceSettings,
+        appearance_settings: toSettingsPayload(),
       }
 
       const { data, error } = await supabase
@@ -579,18 +592,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
     useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, themePreset: s.themePreset, customCss: s.customCss, setMessageDisplay: s.setMessageDisplay, setFontScale: s.setFontScale, setSaturation: s.setSaturation, setThemePreset: s.setThemePreset, setCustomCss: s.setCustomCss }))
   )
 
-  const cssTemplate = `/* Vortex Custom Theme Template */
-:root {
-  --background: 225 15% 10%;
-  --card: 230 17% 12%;
-  --accent: 264 85% 68%;
-  --ring: 190 95% 58%;
-}
 
-/* Optional per-component overrides */
-.message-content a {
-  color: #3ec5ff;
-}`
 
   return (
     <div className="space-y-8">
@@ -607,6 +609,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
             { key: "carbon", label: "Carbon Glass" },
           ] as const).map((preset) => (
             <button
+              type="button"
               key={preset.key}
               onClick={() => setThemePreset(preset.key)}
               className="rounded-lg border px-3 py-2 text-left"
@@ -676,17 +679,17 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
         <textarea
           value={customCss}
           onChange={(event) => setCustomCss(event.target.value)}
-          placeholder={cssTemplate}
+          placeholder={CSS_TEMPLATE}
           className="w-full min-h-[180px] rounded-lg border p-3 text-xs font-mono"
           style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#dcddde" }}
         />
         <div className="mt-2 flex gap-2">
-          <Button type="button" variant="outline" onClick={() => setCustomCss(cssTemplate)}>Use Template</Button>
+          <Button type="button" variant="outline" onClick={() => setCustomCss(CSS_TEMPLATE)}>Use Template</Button>
           <Button
             type="button"
             variant="outline"
             onClick={async () => {
-              await navigator.clipboard.writeText(cssTemplate)
+              await navigator.clipboard.writeText(CSS_TEMPLATE)
               toast({ title: "Template copied" })
             }}
           >

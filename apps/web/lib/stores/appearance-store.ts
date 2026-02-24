@@ -23,12 +23,13 @@ interface AppearanceState {
   themePreset: ThemePreset
   customCss: string
   hasHydratedFromProfile: boolean
+  lastHydratedUserId: string | null
   setMessageDisplay: (v: MessageDisplay) => void
   setFontScale: (v: FontScale) => void
   setSaturation: (v: Saturation) => void
   setThemePreset: (v: ThemePreset) => void
   setCustomCss: (v: string) => void
-  hydrateFromSettings: (settings?: AppearanceSettings | null) => void
+  hydrateFromSettings: (settings?: AppearanceSettings | null, userId?: string | null) => void
   toSettingsPayload: () => Required<AppearanceSettings>
 }
 
@@ -40,32 +41,71 @@ const DEFAULTS: Required<AppearanceSettings> = {
   customCss: "",
 }
 
+const THEME_PRESETS: ThemePreset[] = ["discord", "midnight-neon", "synthwave", "carbon"]
+const MESSAGE_DISPLAY_MODES: MessageDisplay[] = ["cozy", "compact"]
+const FONT_SCALES: FontScale[] = ["small", "normal", "large"]
+const SATURATION_LEVELS: Saturation[] = ["normal", "reduced"]
+
+function sanitizeCustomCss(value: unknown): string {
+  if (typeof value !== "string") return ""
+  return value
+    .replace(/@import\b[^;]*;?/gi, "")
+    .replace(/url\s*\(/gi, "/* blocked:url( */(")
+    .slice(0, 12000)
+}
+
 export const useAppearanceStore = create<AppearanceState>()(
   persist(
     (set, get) => ({
       ...DEFAULTS,
       hasHydratedFromProfile: false,
+      lastHydratedUserId: null,
       setMessageDisplay: (v) => set({ messageDisplay: v }),
       setFontScale: (v) => set({ fontScale: v }),
       setSaturation: (v) => set({ saturation: v }),
       setThemePreset: (v) => set({ themePreset: v }),
-      setCustomCss: (v) => set({ customCss: v.slice(0, 12000) }),
-      hydrateFromSettings: (settings) => {
-        if (get().hasHydratedFromProfile) return
+      setCustomCss: (v) => set({ customCss: sanitizeCustomCss(v) }),
+      hydrateFromSettings: (settings, userId = null) => {
+        const state = get()
+        if (state.hasHydratedFromProfile && state.lastHydratedUserId === userId) return
+
+        const themePreset = THEME_PRESETS.includes(settings?.themePreset as ThemePreset)
+          ? (settings?.themePreset as ThemePreset)
+          : DEFAULTS.themePreset
+        const messageDisplay = MESSAGE_DISPLAY_MODES.includes(settings?.messageDisplay as MessageDisplay)
+          ? (settings?.messageDisplay as MessageDisplay)
+          : DEFAULTS.messageDisplay
+        const fontScale = FONT_SCALES.includes(settings?.fontScale as FontScale)
+          ? (settings?.fontScale as FontScale)
+          : DEFAULTS.fontScale
+        const saturation = SATURATION_LEVELS.includes(settings?.saturation as Saturation)
+          ? (settings?.saturation as Saturation)
+          : DEFAULTS.saturation
+
         set({
-          messageDisplay: settings?.messageDisplay ?? DEFAULTS.messageDisplay,
-          fontScale: settings?.fontScale ?? DEFAULTS.fontScale,
-          saturation: settings?.saturation ?? DEFAULTS.saturation,
-          themePreset: settings?.themePreset ?? DEFAULTS.themePreset,
-          customCss: (settings?.customCss ?? DEFAULTS.customCss).slice(0, 12000),
+          themePreset,
+          messageDisplay,
+          fontScale,
+          saturation,
+          customCss: sanitizeCustomCss(settings?.customCss),
           hasHydratedFromProfile: true,
+          lastHydratedUserId: userId,
         })
       },
       toSettingsPayload: () => {
         const { messageDisplay, fontScale, saturation, themePreset, customCss } = get()
-        return { messageDisplay, fontScale, saturation, themePreset, customCss: customCss.slice(0, 12000) }
+        return { messageDisplay, fontScale, saturation, themePreset, customCss: sanitizeCustomCss(customCss) }
       },
     }),
-    { name: "vortex:appearance" }
+    {
+      name: "vortex:appearance",
+      partialize: (state) => ({
+        messageDisplay: state.messageDisplay,
+        fontScale: state.fontScale,
+        saturation: state.saturation,
+        themePreset: state.themePreset,
+        customCss: state.customCss,
+      }),
+    }
   )
 )

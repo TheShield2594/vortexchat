@@ -21,7 +21,7 @@ export type Database = {
           custom_tag: string | null
           status: 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
           status_message: string | null
-          appearance_settings: Json | null
+          appearance_settings: Json
           created_at: string
           updated_at: string
         }
