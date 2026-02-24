@@ -37,6 +37,7 @@ const TONE_STYLES: Record<VoiceSessionTone, { dot: string; badgeBg: string; badg
   attention: { dot: "#f0b132", badgeBg: "rgba(240,177,50,0.2)", badgeText: "#ffd58a" },
 }
 
+/** Derive the voice session status label, detail text, and visual tone from current state. */
 function getVoiceSessionState(peerCount: number, speaking: boolean, hasError: boolean): {
   label: string
   detail: string
@@ -87,10 +88,12 @@ const PRESET_OPTIONS: Array<{ label: string; value: AudioPreset }> = [
   { label: "Flat", value: "flat" },
 ]
 
+/** Merge partial overrides into audio settings and reset the preset to "flat". */
 function markCustomSettings(settings: VoiceAudioSettings, partial: Partial<VoiceAudioSettings>): VoiceAudioSettings {
   return { ...settings, ...partial, preset: "flat" }
 }
 
+/** Main voice channel view with participant grid, spotlight mode, and media controls. */
 export function VoiceChannel({ channelId, channelName, serverId, currentUserId }: Props) {
   const { currentUser, setVoiceChannel, channels } = useAppStore()
   const router = useRouter()
@@ -272,6 +275,8 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 relative flex items-center justify-center overflow-hidden" style={{ background: "#1e1f22" }}>
               <button
+                type="button"
+                aria-label="Close spotlight"
                 onClick={() => setSpotlightUserId(null)}
                 className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
                 style={{ background: "rgba(0,0,0,0.6)" }}
@@ -423,6 +428,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   )
 }
 
+/** Floating panel for audio device selection, EQ, gain, and spatial settings. */
 function VoiceSettingsPanel({
   audioInputDevices,
   audioOutputDevices,
@@ -545,6 +551,7 @@ function VoiceSettingsPanel({
   )
 }
 
+/** Renders a single voice participant with avatar/video, status indicators, and optional volume controls. */
 function ParticipantTile({
   user,
   speaking,
@@ -630,7 +637,9 @@ function ParticipantTile({
       {onViewStream && (
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10" style={{ background: "rgba(0,0,0,0.4)" }}>
           <button
-            onMouseDown={(e) => { e.preventDefault(); onViewStream() }}
+            type="button"
+            onClick={() => onViewStream()}
+            onMouseDown={(e) => e.preventDefault()}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors hover:brightness-110"
             style={{ background: "#5865f2" }}
           >
@@ -668,6 +677,7 @@ function ParticipantTile({
   )
 }
 
+/** Hidden audio element that routes a remote peer's stream through Web Audio for gain and pan control. */
 function RemoteAudio({
   stream,
   deafened,
@@ -754,6 +764,7 @@ function RemoteAudio({
   return <audio ref={audioRef} autoPlay playsInline className="hidden" />
 }
 
+/** Full-size video element used in spotlight mode to display a screen share stream. */
 function SpotlightVideo({ stream }: { stream: MediaStream | null }) {
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => {

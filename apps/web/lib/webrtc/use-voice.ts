@@ -41,6 +41,7 @@ interface UseVoiceReturn {
   audioInitError: string | null
 }
 
+/** Manages WebRTC peer connections, media streams, audio processing, and signaling for a voice channel. */
 export function useVoice(channelId: string, userId: string, serverId?: string | null): UseVoiceReturn {
   const [peers, setPeers] = useState<Map<string, PeerState>>(new Map())
   const [muted, setMuted] = useState(false)

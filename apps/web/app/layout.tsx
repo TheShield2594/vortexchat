@@ -27,6 +27,7 @@ export const viewport: Viewport = {
   themeColor: "#5865f2",
 }
 
+/** Top-level HTML shell that applies the Inter font, dark theme, and global toast notifications. */
 export default function RootLayout({
   children,
 }: {
