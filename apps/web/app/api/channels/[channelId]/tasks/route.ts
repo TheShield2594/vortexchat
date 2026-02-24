@@ -1,0 +1,57 @@
+import { NextRequest, NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { requireWorkspaceAccess } from "@/lib/workspace-auth"
+
+export async function GET(_: NextRequest, { params }: { params: Promise<{ channelId: string }> }) {
+  const { channelId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data: channel } = await supabase.from("channels").select("server_id").eq("id", channelId).single()
+  if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  const access = await requireWorkspaceAccess(supabase, channel.server_id, user.id)
+  if (!access.canView) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  const { data, error } = await supabase
+    .from("channel_tasks")
+    .select("*, assignee:users!channel_tasks_assignee_id_fkey(id, username, display_name, avatar_url)")
+    .eq("channel_id", channelId)
+    .order("created_at", { ascending: false })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ tasks: data ?? [] })
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ channelId: string }> }) {
+  const { channelId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data: channel } = await supabase.from("channels").select("server_id").eq("id", channelId).single()
+  if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  const access = await requireWorkspaceAccess(supabase, channel.server_id, user.id)
+  if (!access.canEdit) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  const body = await req.json()
+  const payload = {
+    server_id: channel.server_id,
+    channel_id: channelId,
+    title: (body.title || "").trim(),
+    description: body.description?.trim() || null,
+    status: body.status || "todo",
+    due_date: body.dueDate || null,
+    assignee_id: body.assigneeId || null,
+    source_message_id: body.sourceMessageId || null,
+    created_by: user.id,
+    updated_by: user.id,
+  }
+  if (!payload.title) return NextResponse.json({ error: "title required" }, { status: 400 })
+
+  const { data, error } = await supabase.from("channel_tasks").insert(payload).select("*").single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ task: data }, { status: 201 })
+}

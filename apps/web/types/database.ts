@@ -1356,6 +1356,132 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_tasks: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string
+          title: string
+          description: string | null
+          status: 'todo' | 'in_progress' | 'done' | 'blocked'
+          due_date: string | null
+          assignee_id: string | null
+          source_message_id: string | null
+          created_by: string
+          updated_by: string
+          created_at: string
+          updated_at: string
+          search_vector: unknown | null
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id: string
+          title: string
+          description?: string | null
+          status?: 'todo' | 'in_progress' | 'done' | 'blocked'
+          due_date?: string | null
+          assignee_id?: string | null
+          source_message_id?: string | null
+          created_by: string
+          updated_by: string
+          created_at?: string
+          updated_at?: string
+          search_vector?: unknown | null
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string
+          title?: string
+          description?: string | null
+          status?: 'todo' | 'in_progress' | 'done' | 'blocked'
+          due_date?: string | null
+          assignee_id?: string | null
+          source_message_id?: string | null
+          created_by?: string
+          updated_by?: string
+          created_at?: string
+          updated_at?: string
+          search_vector?: unknown | null
+        }
+        Relationships: []
+      }
+      channel_docs: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string
+          title: string
+          content: string
+          created_by: string
+          updated_by: string
+          created_at: string
+          updated_at: string
+          search_vector: unknown | null
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id: string
+          title: string
+          content?: string
+          created_by: string
+          updated_by: string
+          created_at?: string
+          updated_at?: string
+          search_vector?: unknown | null
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string
+          title?: string
+          content?: string
+          created_by?: string
+          updated_by?: string
+          created_at?: string
+          updated_at?: string
+          search_vector?: unknown | null
+        }
+        Relationships: []
+      }
+      workspace_updates: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string
+          actor_id: string
+          entity_type: 'task' | 'doc'
+          entity_id: string
+          action: string
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id: string
+          actor_id: string
+          entity_type: 'task' | 'doc'
+          entity_id: string
+          action: string
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string
+          actor_id?: string
+          entity_type?: 'task' | 'doc'
+          entity_id?: string
+          action?: string
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
       app_usage_metrics: {
         Row: {
           id: number

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { AtSign, CircleHelp, Filter, Hash, MessageSquareText, MoreHorizontal, Pin, Search, Users } from "lucide-react"
+import { AtSign, CircleHelp, Filter, Hash, MessageSquareText, MoreHorizontal, Pin, Search, Users, Briefcase } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
@@ -16,6 +16,7 @@ import { ThreadPanel } from "@/components/chat/thread-panel"
 import { ThreadList } from "@/components/chat/thread-list"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { SearchModal } from "@/components/modals/search-modal"
+import { WorkspacePanel } from "@/components/chat/workspace-panel"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +66,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showReturnToContext, setShowReturnToContext] = useState(false)
   const [showSearchModal, setShowSearchModal] = useState(false)
+  const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [threadPanelOpen, setThreadPanelOpen] = useState(true)
   const [threadFilter, setThreadFilter] = useState<"all" | "active" | "archived">("all")
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -769,6 +771,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
           <div className="ml-auto flex items-center gap-1">
             <button
+              onClick={() => setWorkspaceOpen((open) => !open)}
+              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
+              title="Workspace"
+              aria-label="Workspace"
+            >
+              <Briefcase className="w-4 h-4" style={{ color: workspaceOpen ? "#5865f2" : "#b5bac1" }} />
+            </button>
+
+            <button
               onClick={() => setShowSearchModal(true)}
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title="Search messages"
@@ -1045,6 +1056,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           />
         </div>
       )}
+
+      <WorkspacePanel channelId={channel.id} open={workspaceOpen} />
     </div>
   )
 }
