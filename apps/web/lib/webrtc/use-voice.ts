@@ -41,6 +41,7 @@ interface UseVoiceReturn {
   audioInitError: string | null
 }
 
+/** Manages WebRTC peer connections, media streams, audio processing, and signaling for a voice channel. */
 export function useVoice(channelId: string, userId: string, serverId?: string | null): UseVoiceReturn {
   const [peers, setPeers] = useState<Map<string, PeerState>>(new Map())
   const [muted, setMuted] = useState(false)
@@ -388,9 +389,26 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         } catch (e) {
           console.warn("hark VAD failed to load:", e)
         }
-      } catch (error) {
-        setAudioInitError("Audio device or context unavailable. Voice processing was disabled.")
-        console.error("Voice init failed:", error)
+      } catch (error: any) {
+        const errMsg = error?.message ?? String(error)
+        let userMessage: string
+        if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
+          userMessage = "Microphone permission denied. Check browser permissions."
+        } else if (error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError") {
+          userMessage = "No microphone found. Connect a mic and try again."
+        } else if (error?.name === "NotReadableError" || error?.name === "TrackStartError") {
+          userMessage = "Microphone is in use by another app."
+        } else if (error?.name === "OverconstrainedError") {
+          userMessage = "Microphone doesn't support the requested settings. Try a different device."
+        } else if (errMsg.includes("timeout") || errMsg.includes("TIMED_OUT")) {
+          userMessage = "Realtime connection timed out. Check network."
+        } else if (errMsg.includes("CHANNEL_ERROR")) {
+          userMessage = "Realtime channel error. Check Supabase config."
+        } else {
+          userMessage = "Voice initialization failed. Please try again."
+        }
+        setAudioInitError(userMessage)
+        console.error("[useVoice] init failed:", { name: error?.name, message: errMsg, error })
       }
     }
 

@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
@@ -17,15 +17,17 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "VortexChat",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#5865f2",
 }
 
+/** Top-level HTML shell that applies the Inter font, dark theme, and global toast notifications. */
 export default function RootLayout({
   children,
 }: {
