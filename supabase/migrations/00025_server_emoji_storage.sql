@@ -9,27 +9,75 @@ VALUES (
   ARRAY['image/png', 'image/gif', 'image/webp']
 ) ON CONFLICT (id) DO NOTHING;
 
-CREATE POLICY IF NOT EXISTS "Anyone can view server emojis"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'server-emojis');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'Anyone can view server emojis'
+  ) THEN
+    CREATE POLICY "Anyone can view server emojis"
+      ON storage.objects FOR SELECT
+      USING (bucket_id = 'server-emojis');
+  END IF;
+END
+$$;
 
-CREATE POLICY IF NOT EXISTS "Admins can upload server emojis"
-  ON storage.objects FOR INSERT
-  WITH CHECK (
-    bucket_id = 'server-emojis' AND
-    public.has_permission(((storage.foldername(name))[1])::uuid, 128)
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'Admins can upload server emojis'
+  ) THEN
+    CREATE POLICY "Admins can upload server emojis"
+      ON storage.objects FOR INSERT
+      WITH CHECK (
+        bucket_id = 'server-emojis' AND
+        public.has_permission(((storage.foldername(name))[1])::uuid, 128)
+      );
+  END IF;
+END
+$$;
 
-CREATE POLICY IF NOT EXISTS "Admins can update server emojis"
-  ON storage.objects FOR UPDATE
-  USING (
-    bucket_id = 'server-emojis' AND
-    public.has_permission(((storage.foldername(name))[1])::uuid, 128)
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'Admins can update server emojis'
+  ) THEN
+    CREATE POLICY "Admins can update server emojis"
+      ON storage.objects FOR UPDATE
+      USING (
+        bucket_id = 'server-emojis' AND
+        public.has_permission(((storage.foldername(name))[1])::uuid, 128)
+      );
+  END IF;
+END
+$$;
 
-CREATE POLICY IF NOT EXISTS "Admins can delete server emojis"
-  ON storage.objects FOR DELETE
-  USING (
-    bucket_id = 'server-emojis' AND
-    public.has_permission(((storage.foldername(name))[1])::uuid, 128)
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'Admins can delete server emojis'
+  ) THEN
+    CREATE POLICY "Admins can delete server emojis"
+      ON storage.objects FOR DELETE
+      USING (
+        bucket_id = 'server-emojis' AND
+        public.has_permission(((storage.foldername(name))[1])::uuid, 128)
+      );
+  END IF;
+END
+$$;
