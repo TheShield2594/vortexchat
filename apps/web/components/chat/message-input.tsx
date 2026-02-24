@@ -198,6 +198,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 {file.name}
               </div>
               <button
+                type="button"
                 onClick={() => {
                   const url = fileUrlCache.current.get(files[i])
                   if (url) { URL.revokeObjectURL(url); fileUrlCache.current.delete(files[i]) }
