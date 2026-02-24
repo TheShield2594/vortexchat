@@ -41,6 +41,18 @@ function isDuplicateInsertError(error: { code?: string } | null): boolean {
   return error?.code === "23505"
 }
 
+function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
+  const timestamps = new Map<string, number>()
+  for (const item of items) {
+    timestamps.set(item.id, Date.parse(item.created_at))
+  }
+
+  return [...items].sort((a, b) => {
+    const ts = (timestamps.get(a.id) ?? 0) - (timestamps.get(b.id) ?? 0)
+    return ts !== 0 ? ts : a.id.localeCompare(b.id)
+  })
+}
+
 /** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt }: Props) {
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser } = useAppStore(
@@ -61,7 +73,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [threadPanelOpen, setThreadPanelOpen] = useState(true)
   const [isPaginating, setIsPaginating] = useState(false)
-  const [hasMoreHistory, setHasMoreHistory] = useState(true)
+  const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -74,6 +86,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const draftRef = useRef("")
   const prevChannelIdRef = useRef(channel.id)
   const paginationRequestRef = useRef(false)
+  const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -131,10 +144,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         ? [...prev, incoming]
         : prev.map((message, idx) => (idx === existingIndex ? { ...prev[existingIndex], ...incoming } : message))
 
-      return next.sort((a, b) => {
-        const ts = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        return ts !== 0 ? ts : a.id.localeCompare(b.id)
-      })
+      return sortMessagesChronologically(next)
     })
   }, [])
 
@@ -277,6 +287,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [serverId, channel.id])
 
   useEffect(() => {
+    messagesRef.current = initialMessages
     setMessages(initialMessages)
     previousLastMessageIdRef.current = initialMessages[initialMessages.length - 1]?.id ?? null
     setPendingNewMessageCount(0)
@@ -287,7 +298,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   const loadOlderMessages = useCallback(async () => {
     const container = messageScrollerRef.current
-    if (!container || paginationRequestRef.current || !hasMoreHistory || messages.length === 0) return
+    const currentMessages = messagesRef.current
+    if (!container || paginationRequestRef.current || !hasMoreHistory || currentMessages.length === 0) return
 
     paginationRequestRef.current = true
     setIsPaginating(true)
@@ -295,12 +307,19 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const previousTop = container.scrollTop
 
     try {
-      const oldest = messages[0]
+      const oldest = currentMessages[0]
       const before = encodeURIComponent(oldest.created_at)
-      const res = await fetch(`/api/messages?channelId=${channel.id}&before=${before}&limit=50`)
-      if (!res.ok) return
 
-      const older = await res.json() as MessageWithAuthor[]
+      let older: MessageWithAuthor[] | null = null
+      try {
+        const res = await fetch(`/api/messages?channelId=${channel.id}&before=${before}&limit=50`)
+        if (!res.ok) return
+        older = await res.json() as MessageWithAuthor[]
+      } catch (error) {
+        console.error("Failed to paginate older messages", error)
+        return
+      }
+
       if (!Array.isArray(older) || older.length === 0) {
         setHasMoreHistory(false)
         return
@@ -309,10 +328,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setMessages((prev) => {
         const known = new Set(prev.map((message) => message.id))
         const merged = [...older.filter((message) => !known.has(message.id)), ...prev]
-        return merged.sort((a, b) => {
-          const ts = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          return ts !== 0 ? ts : a.id.localeCompare(b.id)
-        })
+        return sortMessagesChronologically(merged)
       })
 
       if (older.length < 50) {
@@ -328,20 +344,28 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       paginationRequestRef.current = false
       setIsPaginating(false)
     }
-  }, [channel.id, hasMoreHistory, messages])
+  }, [channel.id, hasMoreHistory])
 
   const ensureMessageLoaded = useCallback(async (messageId: string) => {
-    if (messages.some((message) => message.id === messageId)) return true
+    if (messagesRef.current.some((message) => message.id === messageId)) return true
 
     let attempts = 0
     let localHasMore = hasMoreHistory
-    let cursor = messages[0]?.created_at ?? null
+    let cursor = messagesRef.current[0]?.created_at ?? null
 
     while (attempts < 8 && localHasMore && cursor) {
       attempts += 1
-      const res = await fetch(`/api/messages?channelId=${channel.id}&before=${encodeURIComponent(cursor)}&limit=50`)
-      if (!res.ok) return false
-      const older = await res.json() as MessageWithAuthor[]
+
+      let older: MessageWithAuthor[] | null = null
+      try {
+        const res = await fetch(`/api/messages?channelId=${channel.id}&before=${encodeURIComponent(cursor)}&limit=50`)
+        if (!res.ok) return false
+        older = await res.json() as MessageWithAuthor[]
+      } catch (error) {
+        console.error("Failed to load message jump target", error)
+        return false
+      }
+
       if (!Array.isArray(older) || older.length === 0) {
         localHasMore = false
         setHasMoreHistory(false)
@@ -351,10 +375,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setMessages((prev) => {
         const known = new Set(prev.map((message) => message.id))
         const merged = [...older.filter((message) => !known.has(message.id)), ...prev]
-        return merged.sort((a, b) => {
-          const ts = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          return ts !== 0 ? ts : a.id.localeCompare(b.id)
-        })
+        return sortMessagesChronologically(merged)
       })
 
       if (older.some((message) => message.id === messageId)) {
@@ -369,7 +390,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     return false
-  }, [channel.id, hasMoreHistory, messages])
+  }, [channel.id, hasMoreHistory])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -452,6 +473,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   useEffect(() => {
     draftRef.current = draft
   }, [draft])
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const flushDraftNow = useCallback((channelId: string) => {
     setDraft(channelId, draftRef.current)
@@ -608,23 +633,34 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setShowReturnToContext(true)
     }
 
-    let timer: number | undefined
+    let cancelled = false
+    let timerId: number | null = null
+    let rafId: number | null = null
+
     void (async () => {
       const loaded = await ensureMessageLoaded(jumpToMessageId)
-      if (!loaded) return
+      if (!loaded || cancelled) return
 
-      requestAnimationFrame(() => {
+      rafId = window.requestAnimationFrame(() => {
+        if (cancelled) return
         const target = document.getElementById(`message-${jumpToMessageId}`)
         if (!target) return
         target.scrollIntoView({ block: "center", behavior: "smooth" })
+        if (cancelled) return
         setHighlightedMessageId(jumpToMessageId)
         jumpedRef.current = true
-        timer = window.setTimeout(() => setHighlightedMessageId(null), 2200)
+        timerId = window.setTimeout(() => {
+          if (!cancelled) {
+            setHighlightedMessageId(null)
+          }
+        }, 2200)
       })
     })()
 
     return () => {
-      if (timer) window.clearTimeout(timer)
+      cancelled = true
+      if (rafId !== null) window.cancelAnimationFrame(rafId)
+      if (timerId) window.clearTimeout(timerId)
     }
   }, [ensureMessageLoaded, jumpToMessageId, openThreadId, returnScrollStorageKey])
 
@@ -963,6 +999,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           )}
 
           <div className="pb-4">
+            {isPaginating && (
+              <div className="px-4 py-2 text-[11px]" style={{ color: "#949ba4" }}>
+                Loading earlier messages…
+              </div>
+            )}
             {messages.map((message, i) => {
               const prevMessage = messages[i - 1]
               const isGrouped =
@@ -974,7 +1015,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               return (
                 <div key={message.id}>
                 {unreadAnchorMessageId === message.id && (
-                  <div className="px-4 py-2.5 flex items-center gap-2" role="separator" aria-label="New messages">
+                  <div className="px-4 py-2.5 flex items-center gap-2" role="separator" aria-label="New since last read">
                     <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, #f23f43 0%, #f87171 100%)" }} />
                     <span
                       className="text-[11px] font-bold uppercase tracking-[0.08em] px-2 py-1 rounded-full"
@@ -1052,11 +1093,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 </div>
               )
             })}
-            {isPaginating && (
-              <div className="px-4 py-2 text-[11px]" style={{ color: "#949ba4" }}>
-                Loading earlier messages…
-              </div>
-            )}
             <div ref={bottomRef} />
           </div>
 
