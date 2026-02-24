@@ -58,6 +58,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance">("profile")
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const appearanceSettings = useAppearanceStore((s) => s.toSettingsPayload())
 
   // Revoke blob URL on unmount to prevent memory leak
   useEffect(() => {
@@ -96,6 +97,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
+        appearance_settings: appearanceSettings,
       }
 
       const { data, error } = await supabase
@@ -421,7 +423,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                 </TabsContent>
 
                 <TabsContent value="appearance" className="mt-0">
-                  <AppearanceTab />
+                  <AppearanceTab onSave={handleSave} saving={loading} />
                 </TabsContent>
           </div>
         </Tabs>
@@ -571,13 +573,55 @@ function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Pr
 
 // ─── Appearance Tab ────────────────────────────────────────────────────────────
 
-function AppearanceTab() {
-  const { messageDisplay, fontScale, saturation, setMessageDisplay, setFontScale, setSaturation } = useAppearanceStore(
-    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, setMessageDisplay: s.setMessageDisplay, setFontScale: s.setFontScale, setSaturation: s.setSaturation }))
+function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving: boolean }) {
+  const { toast } = useToast()
+  const { messageDisplay, fontScale, saturation, themePreset, customCss, setMessageDisplay, setFontScale, setSaturation, setThemePreset, setCustomCss } = useAppearanceStore(
+    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, themePreset: s.themePreset, customCss: s.customCss, setMessageDisplay: s.setMessageDisplay, setFontScale: s.setFontScale, setSaturation: s.setSaturation, setThemePreset: s.setThemePreset, setCustomCss: s.setCustomCss }))
   )
+
+  const cssTemplate = `/* Vortex Custom Theme Template */
+:root {
+  --background: 225 15% 10%;
+  --card: 230 17% 12%;
+  --accent: 264 85% 68%;
+  --ring: 190 95% 58%;
+}
+
+/* Optional per-component overrides */
+.message-content a {
+  color: #3ec5ff;
+}`
 
   return (
     <div className="space-y-8">
+      <div>
+        <h3 className="text-base font-semibold text-white mb-1">Theme Presets</h3>
+        <p className="text-sm mb-4" style={{ color: "#949ba4" }}>
+          Pick a next-gen Discord-inspired skin, then layer your own CSS on top.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            { key: "discord", label: "Discord Classic" },
+            { key: "midnight-neon", label: "Midnight Neon" },
+            { key: "synthwave", label: "Synthwave" },
+            { key: "carbon", label: "Carbon Glass" },
+          ] as const).map((preset) => (
+            <button
+              key={preset.key}
+              onClick={() => setThemePreset(preset.key)}
+              className="rounded-lg border px-3 py-2 text-left"
+              style={{
+                background: themePreset === preset.key ? "rgba(88,101,242,0.15)" : "#2b2d31",
+                borderColor: themePreset === preset.key ? "#5865f2" : "#1e1f22",
+                color: themePreset === preset.key ? "#f2f3f5" : "#b5bac1",
+              }}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Message Display */}
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Message Display</h3>
@@ -595,7 +639,6 @@ function AppearanceTab() {
                 borderColor: messageDisplay === mode ? "#5865f2" : "#1e1f22",
               }}
             >
-              {/* Mini preview */}
               <div className="w-full space-y-1.5 pointer-events-none">
                 {mode === "cozy" ? (
                   <>
@@ -604,13 +647,6 @@ function AppearanceTab() {
                       <div className="flex-1 space-y-1">
                         <div className="h-2 rounded w-16" style={{ background: "#f2f3f5" }} />
                         <div className="h-2 rounded w-24" style={{ background: "#949ba4" }} />
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: "#23a55a" }} />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-2 rounded w-12" style={{ background: "#f2f3f5" }} />
-                        <div className="h-2 rounded w-20" style={{ background: "#949ba4" }} />
                       </div>
                     </div>
                   </>
@@ -634,6 +670,31 @@ function AppearanceTab() {
         </div>
       </div>
 
+      <div>
+        <h3 className="text-base font-semibold text-white mb-1">Custom CSS</h3>
+        <p className="text-sm mb-3" style={{ color: "#949ba4" }}>Like BetterDiscord/Vencord, your CSS is injected after the preset. Keep it client-safe and style-only.</p>
+        <textarea
+          value={customCss}
+          onChange={(event) => setCustomCss(event.target.value)}
+          placeholder={cssTemplate}
+          className="w-full min-h-[180px] rounded-lg border p-3 text-xs font-mono"
+          style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#dcddde" }}
+        />
+        <div className="mt-2 flex gap-2">
+          <Button type="button" variant="outline" onClick={() => setCustomCss(cssTemplate)}>Use Template</Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={async () => {
+              await navigator.clipboard.writeText(cssTemplate)
+              toast({ title: "Template copied" })
+            }}
+          >
+            Copy Template
+          </Button>
+        </div>
+      </div>
+
       {/* Font Size */}
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Chat Font Scaling</h3>
@@ -653,25 +714,13 @@ function AppearanceTab() {
                 fontSize: scale === "small" ? "13px" : scale === "large" ? "15px" : "14px",
               }}
             >
-              {scale === "small" ? "Aa" : scale === "large" ? "Aa" : "Aa"}
+              Aa
               <span className="block text-xs mt-0.5">{scale}</span>
             </button>
           ))}
         </div>
-        {/* Preview */}
-        <div className="mt-3 p-3 rounded-lg" style={{ background: "#1e1f22" }}>
-          <p className="text-xs mb-1" style={{ color: "#4e5058" }}>Preview</p>
-          <p style={{
-            color: "#dcddde",
-            fontSize: fontScale === "small" ? "14px" : fontScale === "large" ? "17px" : "16px",
-            lineHeight: 1.5,
-          }}>
-            The quick brown fox jumps over the lazy dog.
-          </p>
-        </div>
       </div>
 
-      {/* Accessibility */}
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Accessibility</h3>
         <div
@@ -701,6 +750,12 @@ function AppearanceTab() {
             />
           </button>
         </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={onSave} disabled={saving} style={{ background: "#5865f2" }}>
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Theme & Appearance
+        </Button>
       </div>
     </div>
   )

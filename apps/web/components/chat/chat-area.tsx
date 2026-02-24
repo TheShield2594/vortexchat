@@ -123,6 +123,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       custom_tag: null,
       status: "online" as const,
       status_message: null,
+      appearance_settings: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }

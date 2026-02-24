@@ -245,6 +245,42 @@
 
 /* ─── Appearance settings ─────────────────────────────────────────────────── */
 
+
+/* Theme presets */
+[data-theme-preset="discord"] {
+  --background: 223 7% 20%;
+  --card: 220 7% 18%;
+  --accent: 235 86% 65%;
+  --ring: 235 86% 65%;
+}
+
+[data-theme-preset="midnight-neon"] {
+  --background: 236 30% 9%;
+  --card: 236 27% 12%;
+  --popover: 236 30% 8%;
+  --accent: 186 100% 57%;
+  --primary: 186 100% 57%;
+  --ring: 315 100% 67%;
+}
+
+[data-theme-preset="synthwave"] {
+  --background: 258 30% 11%;
+  --card: 264 32% 14%;
+  --popover: 264 36% 10%;
+  --accent: 323 89% 66%;
+  --primary: 271 89% 72%;
+  --ring: 188 98% 62%;
+}
+
+[data-theme-preset="carbon"] {
+  --background: 220 7% 12%;
+  --card: 220 7% 15%;
+  --popover: 220 10% 9%;
+  --accent: 160 84% 40%;
+  --primary: 217 100% 70%;
+  --ring: 160 84% 40%;
+}
+
 /* Font scale */
 [data-font-scale="small"] { font-size: 14px; }
 [data-font-scale="normal"] { font-size: 16px; }
