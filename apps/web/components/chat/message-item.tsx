@@ -179,7 +179,7 @@ export const MessageItem = memo(function MessageItem({
         for (const node of renderTextBlock(before, keyCounter)) { segments.push(node); keyCounter++ }
       }
       const lang = cbMatch[1] || ""
-      const code = cbMatch[2].trimEnd()
+      const code = cbMatch[2]
       segments.push(
         <pre key={`cb-${keyCounter++}`} className="my-1 p-3 rounded overflow-x-auto text-sm" style={{ background: "#1e1f22", fontFamily: "monospace", color: "#dcddde", border: "1px solid #232428" }}>
           {lang && <div className="text-xs mb-1" style={{ color: "#5865f2", fontFamily: "sans-serif" }}>{lang}</div>}

@@ -8,6 +8,7 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useMentionAutocomplete } from "@/hooks/use-mention-autocomplete"
 import { MentionSuggestions } from "@/components/chat/mention-suggestions"
+import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
 
 interface Props {
   channelName: string
@@ -152,21 +153,37 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // Let mention autocomplete consume the event first
-    if (mention.isOpen) {
-      if (e.key === "Enter" || e.key === "Tab") {
-        const selected = mention.filteredMembers[mention.selectedIndex]
-        if (selected) {
-          e.preventDefault()
-          insertMention(selected)
-          return
-        }
-      }
-      if (mention.handleKeyDown(e)) return
+    const mentionHandledNavigation = mention.handleKeyDown(e)
+    const selected = mention.filteredMembers[mention.selectedIndex]
+    const action = resolveComposerKeybinding(e.key, e.shiftKey, {
+      isMentionOpen: mention.isOpen,
+      hasMentionSelection: Boolean(selected),
+      hasDraftContent: content.length > 0,
+      mentionHandledNavigation,
+    })
+
+    if (action.preventDefault) {
+      e.preventDefault()
     }
 
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
+    if (action.acceptMention && selected) {
+      insertMention(selected)
+      return
+    }
+
+    if (action.closeMention) {
+      mention.close()
+      return
+    }
+
+    if (action.clearDraft) {
+      setContent("")
+      onDraftChange("")
+      setCursorPosition(0)
+      return
+    }
+
+    if (action.sendMessage) {
       handleSend()
     }
   }
