@@ -67,3 +67,39 @@ export async function getMemberPermissions(
 
   return { isOwner, permissions, isAdmin, ownerId, screeningEnabled }
 }
+
+/**
+ * Resolve a member's effective permissions for a specific channel by applying
+ * role-level channel overwrite rows (deny first, then allow).
+ */
+export async function getChannelPermissions(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>,
+  serverId: string,
+  channelId: string,
+  userId: string
+): Promise<MemberPerms> {
+  const [memberPerms, memberRolesResult, overwritesResult] = await Promise.all([
+    getMemberPermissions(supabase, serverId, userId),
+    supabase.from("member_roles").select("role_id").eq("server_id", serverId).eq("user_id", userId),
+    supabase.from("channel_permissions").select("role_id, allow_permissions, deny_permissions").eq("channel_id", channelId),
+  ])
+
+  if (memberRolesResult.error) throw new Error(`Failed to fetch member roles: ${memberRolesResult.error.message}`)
+  if (overwritesResult.error) throw new Error(`Failed to fetch channel overrides: ${overwritesResult.error.message}`)
+
+  if (memberPerms.isOwner || memberPerms.isAdmin) {
+    return memberPerms
+  }
+
+  const roleIds = new Set((memberRolesResult.data ?? []).map((r) => r.role_id))
+  if (roleIds.size === 0) return memberPerms
+
+  const relevantOverwrites = (overwritesResult.data ?? []).filter((row) => roleIds.has(row.role_id))
+
+  const denyMask = relevantOverwrites.reduce((acc, row) => acc | (row.deny_permissions ?? 0), 0)
+  const allowMask = relevantOverwrites.reduce((acc, row) => acc | (row.allow_permissions ?? 0), 0)
+  const permissions = (memberPerms.permissions & ~denyMask) | allowMask
+
+  return { ...memberPerms, permissions }
+}
