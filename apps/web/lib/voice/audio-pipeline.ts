@@ -8,16 +8,7 @@ export interface InputAudioPipeline {
   bypassed: boolean
 }
 
-function closeAudioContext(audioContextRef: MutableRefObject<AudioContext | null>) {
-  const activeContext = audioContextRef.current
-  if (activeContext) {
-    activeContext.close().catch(() => {
-      // no-op
-    })
-    audioContextRef.current = null
-  }
-}
-
+/** Build a Web Audio processing chain (gain, compressor, noise gate, EQ) for a raw microphone stream. */
 export function createInputAudioPipeline(
   rawStream: MediaStream,
   settings: VoiceAudioSettings,
@@ -37,7 +28,7 @@ export function createInputAudioPipeline(
   if (shouldBypass) {
     return {
       processedStream: rawStream,
-      cleanup: () => closeAudioContext(audioContextRef),
+      cleanup: () => {},
       constrainedCpu,
       bypassed: true,
     }
@@ -97,7 +88,7 @@ export function createInputAudioPipeline(
     const targetGain = gateIsClosing ? settings.noiseGateFloor : 1
     const timeConstant = gateIsClosing ? 0.1 : 0.005
     gateGain.gain.setTargetAtTime(targetGain, audioContext.currentTime, timeConstant)
-  }, 50)
+  }, 100)
 
   const cleanup = () => {
     clearInterval(intervalId)
@@ -109,7 +100,6 @@ export function createInputAudioPipeline(
       }
     })
 
-    closeAudioContext(audioContextRef)
   }
 
   return { processedStream: destination.stream, cleanup, constrainedCpu, bypassed: false }
