@@ -14,13 +14,23 @@ export function useTabUnreadTitle(userId: string | null) {
 
     let cancelled = false
     async function refresh() {
-      const { count } = await supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-         .eq("user_id", currentUserId)
-        .eq("read", false)
+      const [{ count }, dmUnread] = await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", currentUserId)
+          .eq("read", false),
+        fetch("/api/dm/channels")
+          .then(async (res) => {
+            if (!res.ok) return 0
+            const channels = await res.json() as Array<{ is_unread?: boolean }>
+            return channels.filter((channel) => channel.is_unread).length
+          })
+          .catch(() => 0),
+      ])
+
       if (cancelled) return
-      const unread = count ?? 0
+      const unread = (count ?? 0) + dmUnread
       document.title = unread > 0 ? `(${unread}) VortexChat` : BASE_TITLE
     }
 

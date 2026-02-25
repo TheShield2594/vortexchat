@@ -7,6 +7,19 @@ import { lookup } from "dns/promises"
 const TIMEOUT_MS = 5000
 const MAX_BODY_BYTES = 256 * 1024 // 256 KB — enough to find <head> tags
 
+function getBlockedEmbedDomains(): string[] {
+  return (process.env.EMBED_BLOCKED_DOMAINS ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+function isBlockedEmbedHost(hostname: string): boolean {
+  const normalizedHost = hostname.toLowerCase()
+  const blocked = getBlockedEmbedDomains()
+  return blocked.some((domain) => normalizedHost === domain || normalizedHost.endsWith(`.${domain}`))
+}
+
 /** Returns true if the IP falls in a private/reserved range (SSRF guard). */
 function isPrivateIp(ip: string): boolean {
   // Unwrap IPv4-mapped IPv6 (::ffff:1.2.3.4)
@@ -44,6 +57,10 @@ export async function GET(req: NextRequest) {
     if (!["http:", "https:"].includes(parsedUrl.protocol)) throw new Error("bad protocol")
   } catch {
     return NextResponse.json({ error: "invalid url" }, { status: 400 })
+  }
+
+  if (isBlockedEmbedHost(parsedUrl.hostname)) {
+    return NextResponse.json({ error: "domain blocked" }, { status: 403 })
   }
 
   // SSRF guard: resolve hostname and block private/reserved IPs

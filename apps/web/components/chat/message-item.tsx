@@ -30,6 +30,7 @@ interface Props {
   onEdit: (content: string) => Promise<void>
   onDelete: () => Promise<void>
   onReaction: (emoji: string) => Promise<void>
+  onReplyJump?: (messageId: string) => void
   onThreadCreated?: (thread: ThreadRow) => void
   sendState?: "queued" | "sending" | "failed"
   onRetry?: () => void
@@ -46,6 +47,7 @@ export const MessageItem = memo(function MessageItem({
   onEdit,
   onDelete,
   onReaction,
+  onReplyJump,
   onThreadCreated,
   sendState,
   onRetry,
@@ -127,7 +129,20 @@ export const MessageItem = memo(function MessageItem({
       } else if (match[6] !== undefined) {
         parts.push(<code key={key++} className="px-1 py-0.5 rounded text-sm" style={{ background: "rgba(0,0,0,0.3)", fontFamily: "monospace" }}>{match[6]}</code>)
       } else if (match[7] !== undefined) {
-        parts.push(<span key={key++} className="px-0.5 rounded" style={{ color: "var(--theme-accent)", background: "rgba(88,101,242,0.1)" }}>@{match[7]}</span>)
+        const isSelfMention = match[7] === currentUserId
+        parts.push(
+          <span
+            key={key++}
+            className="px-0.5 rounded"
+            style={{
+              color: isSelfMention ? "#fde68a" : "var(--theme-accent)",
+              background: isSelfMention ? "rgba(245, 158, 11, 0.2)" : "rgba(88,101,242,0.1)",
+              border: isSelfMention ? "1px solid rgba(245, 158, 11, 0.45)" : undefined,
+            }}
+          >
+            @{match[7]}
+          </span>
+        )
       } else if (match[8] !== undefined) {
         parts.push(<SpoilerSpan key={key++}>{match[8]}</SpoilerSpan>)
       } else if (match[9] !== undefined) {
@@ -223,13 +238,18 @@ export const MessageItem = memo(function MessageItem({
         >
           {/* Reply reference */}
           {message.reply_to_id && message.reply_to && (
-            <div className="flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata">
+            <button
+              type="button"
+              onClick={() => onReplyJump?.(message.reply_to_id!)}
+              className="w-full text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--theme-accent)]"
+              aria-label="Jump to replied message"
+            >
               <Reply className="w-3 h-3 -scale-x-100" />
               <span className="font-medium" style={{ color: 'var(--theme-text-secondary)' }}>
                 {message.reply_to.author?.display_name || message.reply_to.author?.username}
               </span>
               <span className="truncate">{message.reply_to.content}</span>
-            </div>
+            </button>
           )}
 
           <div className="flex gap-3">

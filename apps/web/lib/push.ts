@@ -65,6 +65,7 @@ export async function sendPushToUser(
 export async function sendPushToChannel(opts: {
   serverId?: string
   channelId?: string
+  threadId?: string
   dmChannelId?: string
   senderName: string
   content: string
@@ -73,7 +74,7 @@ export async function sendPushToChannel(opts: {
 }): Promise<void> {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
 
-  const { serverId, channelId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts
+  const { serverId, channelId, threadId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts
   const mentionedSet = new Set(mentionedIds)
   const supabase = await createServerSupabaseClient()
 
@@ -84,6 +85,13 @@ export async function sendPushToChannel(opts: {
       .from("dm_channel_members")
       .select("user_id")
       .eq("dm_channel_id", dmChannelId)
+      .neq("user_id", excludeUserId)
+    memberIds = members?.map((m) => m.user_id) ?? []
+  } else if (threadId) {
+    const { data: members } = await supabase
+      .from("thread_members")
+      .select("user_id")
+      .eq("thread_id", threadId)
       .neq("user_id", excludeUserId)
     memberIds = members?.map((m) => m.user_id) ?? []
   } else if (serverId && channelId) {
@@ -100,7 +108,7 @@ export async function sendPushToChannel(opts: {
   // Fetch notification settings for all potential recipients
   const { data: settings } = await supabase
     .from("notification_settings")
-    .select("user_id, mode, server_id, channel_id")
+    .select("user_id, mode, server_id, channel_id, thread_id")
     .in("user_id", memberIds)
 
 
@@ -108,7 +116,7 @@ export async function sendPushToChannel(opts: {
     title: senderName,
     body: content.length > 100 ? content.slice(0, 97) + "…" : content,
     url: channelId && serverId
-      ? `/channels/${serverId}/${channelId}`
+      ? `/channels/${serverId}/${channelId}${threadId ? `?thread=${threadId}` : ""}`
       : dmChannelId
       ? `/channels/me/${dmChannelId}`
       : "/channels/me",
@@ -122,9 +130,9 @@ export async function sendPushToChannel(opts: {
         uid,
         serverId ?? null,
         channelId ?? null,
-        null,
+        threadId ?? null,
         eventType,
-        (settings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null }>
+        (settings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>
       )
 
       if (!resolved.shouldPush) return

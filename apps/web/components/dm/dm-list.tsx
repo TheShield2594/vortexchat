@@ -75,13 +75,23 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
     fetchChannels()
   }, [fetchChannels])
 
-  // Refresh list when new DMs arrive (via postgres_changes on direct_messages)
+  // Refresh list when DM messages or membership changes happen
   useEffect(() => {
     const ch = supabase
       .channel("dm-list-updates")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "direct_messages" },
+        () => fetchChannels()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "dm_channel_members" },
+        () => fetchChannels()
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "dm_channel_members" },
         () => fetchChannels()
       )
       .subscribe()

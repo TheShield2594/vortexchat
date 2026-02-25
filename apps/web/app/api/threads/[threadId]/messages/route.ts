@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { validateAttachments } from "@/lib/attachment-validation"
+import { sendPushToChannel } from "@/lib/push"
 
 interface Params {
   params: Promise<{ threadId: string }>
@@ -166,6 +167,16 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
   try {
     await supabase.from("thread_members").insert({ thread_id: threadId, user_id: user.id })
   } catch {}
+
+  const senderName = (message as any)?.author?.display_name || (message as any)?.author?.username || "Someone"
+  sendPushToChannel({
+    serverId: serverId ?? undefined,
+    channelId: thread.parent_channel_id,
+    threadId,
+    senderName,
+    content: content?.trim() ?? "Sent an attachment",
+    excludeUserId: user.id,
+  }).catch(() => {})
 
   return NextResponse.json(message, { status: 201 })
 }

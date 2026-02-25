@@ -15,7 +15,7 @@ interface Props {
   draft: string
   replyTo: MessageWithAuthor | null
   onCancelReply: () => void
-  onSend: (content: string, files?: File[]) => Promise<void>
+  onSend: (content: string, files?: File[], onUploadProgress?: (percent: number) => void) => Promise<void>
   onDraftChange: (value: string) => void
   onTyping?: () => void
   onSent?: () => void
@@ -40,6 +40,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [cursorPosition, setCursorPosition] = useState(0)
   const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [pickerTab, setPickerTab] = useState<"emoji" | "gif">("emoji")
   const [gifQuery, setGifQuery] = useState("")
@@ -144,16 +146,22 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
     setSending(true)
+    setSendError(null)
+    setUploadProgress(files.length > 0 ? 0 : null)
     onSent?.()
     try {
-      await onSend(content, files)
+      await onSend(content, files, (percent) => setUploadProgress(percent))
       setContent("")
       onDraftChange("")
       fileUrlCache.current.forEach((url) => URL.revokeObjectURL(url))
       fileUrlCache.current.clear()
       setFiles([])
+      setUploadProgress(null)
+    } catch (error: any) {
+      setSendError(error?.message ?? "Message send failed. Try again.")
     } finally {
       setSending(false)
+      setUploadProgress(null)
       textareaRef.current?.focus()
     }
   }
@@ -308,6 +316,22 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {(uploadProgress !== null || sendError) && (
+        <div className="px-3 py-2 rounded-t" style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
+          {uploadProgress !== null && (
+            <div>
+              <div className="h-1.5 rounded" style={{ background: "var(--theme-bg-tertiary)" }}>
+                <div className="h-1.5 rounded" style={{ width: `${uploadProgress}%`, background: "var(--theme-accent)", transition: "width 120ms linear" }} />
+              </div>
+              <p className="text-[10px] mt-1" style={{ color: "var(--theme-text-muted)" }}>Uploading attachments… {Math.round(uploadProgress)}%</p>
+            </div>
+          )}
+          {sendError && (
+            <p className="text-[11px]" style={{ color: "var(--theme-danger)" }}>{sendError}</p>
+          )}
         </div>
       )}
 

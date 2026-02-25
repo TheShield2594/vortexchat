@@ -43,6 +43,10 @@ function isDuplicateInsertError(error: { code?: string } | null): boolean {
   return error?.code === "23505"
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 const MESSAGE_SELECT = `*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`
 const REPLY_SELECT   = `*, author:users!messages_author_id_fkey(*)`
 
@@ -71,6 +75,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0)
+  const [liveAnnouncement, setLiveAnnouncement] = useState("")
   const [unreadAnchorMessageId, setUnreadAnchorMessageId] = useState<string | null>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showReturnToContext, setShowReturnToContext] = useState(false)
@@ -98,6 +103,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
   const jumpToMessageId = searchParams.get("message")
   const openThreadId = searchParams.get("thread")
+
+  const jumpToMessage = useCallback((messageId: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("message", messageId)
+    params.delete("thread")
+    router.replace(`/channels/${serverId}/${channel.id}?${params.toString()}`)
+  }, [channel.id, router, searchParams, serverId])
 
   const unreadAnchorStorageKey = useMemo(
     () => `vortexchat:unread-anchor:${currentUserId}:${channel.id}`,
@@ -291,6 +303,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!navigator.onLine) return
     const toReplay = resolveReplayOrder(outboxRef.current).filter((entry) => entry.channelId === channel.id)
     for (const entry of toReplay) {
+      if (!navigator.onLine) break
+      if (entry.retryCount > 0) {
+        const backoffMs = Math.min(1000 * (2 ** Math.min(entry.retryCount, 5)), 30_000)
+        const jitterMs = Math.floor(Math.random() * 300)
+        await sleep(backoffMs + jitterMs)
+      }
       await sendOutboxEntry(entry)
     }
   }, [channel.id, sendOutboxEntry])
@@ -631,6 +649,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       return
     }
 
+    const authorName = newestMessage.author?.display_name || newestMessage.author?.username || "Unknown"
+    setLiveAnnouncement(`New message from ${authorName}`)
+
     setPendingNewMessageCount((count) => count + 1)
     setUnreadAnchorMessageId((current) => {
       if (current) return current
@@ -753,9 +774,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setAndPersistOutbox((current) => removeOutboxEntry(current, newMessage.id))
     },
     (updatedMessage) => {
-      setMessages((prev) =>
-        prev.map((m) => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m)
-      )
+      setMessages((prev) => {
+        if (updatedMessage.deleted_at) {
+          return prev.filter((m) => m.id !== updatedMessage.id)
+        }
+        return prev.map((m) => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m)
+      })
+      if (updatedMessage.deleted_at) {
+        setAndPersistOutbox((current) => removeOutboxEntry(current, updatedMessage.id))
+      }
     },
     (reaction) => {
       setMessages((prev) =>
@@ -776,7 +803,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   )
 
-  async function handleSendMessage(content: string, attachmentFiles?: File[]) {
+  async function handleSendMessage(content: string, attachmentFiles?: File[], onUploadProgress?: (percent: number) => void): Promise<void> {
     if (!content.trim() && (!attachmentFiles || attachmentFiles.length === 0)) return
 
     if (!currentUserId) return
@@ -787,7 +814,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         title: "Attachments require a connection",
         description: "Files can't be queued offline yet. Reconnect and retry.",
       })
-      return
+      throw new Error("Attachments require a connection")
     }
 
     const messageId = crypto.randomUUID()
@@ -821,7 +848,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     const attachments: Array<{ url: string; filename: string; size: number; content_type: string; storage_path: string }> = []
     if (attachmentFiles?.length) {
-      for (const file of attachmentFiles) {
+      for (let index = 0; index < attachmentFiles.length; index += 1) {
+        const file = attachmentFiles[index]
         const path = `${channel.id}/${Date.now()}-${file.name}`
         const { error } = await supabase.storage.from("attachments").upload(path, file)
         if (error) {
@@ -830,6 +858,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             title: "Upload failed",
             description: `Failed to upload ${file.name}: ${error.message}`,
           })
+          onUploadProgress?.(Math.round(((index + 1) / attachmentFiles.length) * 100))
           continue
         }
         const { data: signed } = await supabase.storage.from("attachments").createSignedUrl(path, 3600 * 24 * 7)
@@ -842,6 +871,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             storage_path: path,
           })
         }
+        onUploadProgress?.(Math.round(((index + 1) / attachmentFiles.length) * 100))
       }
     }
 
@@ -878,7 +908,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         title: "Failed to send message",
         description: error.message || "Your message could not be sent. Please try again.",
       })
-      return
+      throw new Error("Your message could not be sent. Please try again.")
     }
 
     if (attachments.length > 0) {
@@ -905,7 +935,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           title: "Failed to attach files",
           description: attachmentInsertError.message || "Message send was rolled back due to attachment failure.",
         })
-        return
+        throw new Error("Failed to store attachments")
       }
     }
 
@@ -1042,6 +1072,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         )}
 
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
+          <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
           {messages.length === 0 && (
             <div className="px-4 py-8">
               <div
@@ -1097,6 +1128,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   sendState={outboxStateByMessageId[message.id]}
                   onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
                   onReply={() => setReplyTo(message)}
+                  onReplyJump={jumpToMessage}
                   onThreadCreated={(thread) => setActiveThread(thread)}
                   onEdit={async (content) => {
                     const { error } = await supabase

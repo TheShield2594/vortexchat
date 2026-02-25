@@ -878,6 +878,7 @@ export type Database = {
           user_id: string
           server_id: string | null
           channel_id: string | null
+          thread_id: string | null
           mode: string
           created_at: string
           updated_at: string
@@ -887,6 +888,7 @@ export type Database = {
           user_id: string
           server_id?: string | null
           channel_id?: string | null
+          thread_id?: string | null
           mode?: string
           created_at?: string
           updated_at?: string
@@ -896,6 +898,7 @@ export type Database = {
           user_id?: string
           server_id?: string | null
           channel_id?: string | null
+          thread_id?: string | null
           mode?: string
           created_at?: string
           updated_at?: string

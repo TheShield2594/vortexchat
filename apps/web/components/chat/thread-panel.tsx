@@ -27,6 +27,8 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
   const [draft, setDraftContent] = useState("")
   const [loading, setLoading] = useState(true)
   const [isMember, setIsMember] = useState(false)
+  const [threadNotifyMode, setThreadNotifyMode] = useState<"all" | "mentions" | "muted">("all")
+  const [threadNotifyInherited, setThreadNotifyInherited] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const handledFocusRef = useRef<string | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
@@ -60,6 +62,21 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
       .single()
       .then(({ data }) => setIsMember(!!data))
   }, [thread.id, currentUserId])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/notification-settings?threadId=${thread.id}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (cancelled || !data) return
+        if (data.mode && ["all", "mentions", "muted"].includes(data.mode)) {
+          setThreadNotifyMode(data.mode)
+        }
+        setThreadNotifyInherited(Boolean(data.inherited))
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [thread.id])
 
   // Scroll on new messages
   useEffect(() => {
@@ -168,6 +185,44 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
       const updated = await res.json()
       onThreadUpdate(updated)
       toast({ title: thread.locked ? "Thread unlocked" : "Thread locked" })
+    }
+  }
+
+  async function handleThreadNotifyMode(nextMode: "all" | "mentions" | "muted") {
+    const previousMode = threadNotifyMode
+    const previousInherited = threadNotifyInherited
+    setThreadNotifyMode(nextMode)
+    setThreadNotifyInherited(false)
+
+    const res = await fetch("/api/notification-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ threadId: thread.id, mode: nextMode }),
+    })
+
+    if (!res.ok) {
+      setThreadNotifyMode(previousMode)
+      setThreadNotifyInherited(previousInherited)
+      toast({ variant: "destructive", title: "Failed to update thread notifications" })
+    }
+  }
+
+  async function resetThreadNotifyInheritance() {
+    const previousMode = threadNotifyMode
+    const previousInherited = threadNotifyInherited
+    setThreadNotifyInherited(true)
+
+    const res = await fetch(`/api/notification-settings?threadId=${thread.id}`, { method: "DELETE" })
+    if (!res.ok) {
+      setThreadNotifyMode(previousMode)
+      setThreadNotifyInherited(previousInherited)
+      toast({ variant: "destructive", title: "Failed to reset thread notifications" })
+      return
+    }
+
+    const refreshed = await fetch(`/api/notification-settings?threadId=${thread.id}`).then((r) => r.ok ? r.json() : null).catch(() => null)
+    if (refreshed?.mode && ["all", "mentions", "muted"].includes(refreshed.mode)) {
+      setThreadNotifyMode(refreshed.mode)
     }
   }
 
@@ -282,7 +337,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
       </div>
 
       {/* Status badges */}
-      {(thread.archived || thread.locked) && (
+      {(thread.archived || thread.locked || !threadNotifyInherited) && (
         <div className="flex items-center gap-2 px-3 py-2" style={{ background: "var(--theme-bg-secondary)" }}>
           {thread.archived && (
             <span
@@ -299,6 +354,27 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
             >
               <Lock className="w-3 h-3" /> Locked
             </span>
+          )}
+          <select
+            value={threadNotifyMode}
+            onChange={(event) => handleThreadNotifyMode(event.target.value as "all" | "mentions" | "muted")}
+            className="ml-auto text-xs rounded px-2 py-1"
+            style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)", border: "1px solid var(--theme-text-faint)" }}
+            aria-label="Thread notification mode"
+          >
+            <option value="all">Thread: All</option>
+            <option value="mentions">Thread: Mentions</option>
+            <option value="muted">Thread: Muted</option>
+          </select>
+          {!threadNotifyInherited && (
+            <button
+              type="button"
+              onClick={resetThreadNotifyInheritance}
+              className="text-[11px] px-2 py-1 rounded hover:bg-white/10"
+              style={{ color: "var(--theme-text-muted)" }}
+            >
+              Reset
+            </button>
           )}
         </div>
       )}
