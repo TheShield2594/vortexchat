@@ -91,7 +91,6 @@ export async function POST(
     }
   }
 
-  // Persist ban first; membership/voice cleanup is best-effort.
   const { error } = await supabase
     .from("server_bans")
     .upsert({
@@ -110,7 +109,19 @@ export async function POST(
     .eq("user_id", userId)
 
   if (memberDeleteError) {
-    console.warn("failed to remove member after ban", { serverId, userId, error: memberDeleteError.message })
+    const { error: rollbackError } = await supabase
+      .from("server_bans")
+      .delete()
+      .eq("server_id", serverId)
+      .eq("user_id", userId)
+
+    console.warn("failed to remove member after ban", {
+      serverId,
+      userId,
+      error: memberDeleteError.message,
+      rollbackError: rollbackError?.message,
+    })
+    return NextResponse.json({ error: "Failed to ban user" }, { status: 500 })
   }
 
   const { error: voiceDeleteError } = await supabase
