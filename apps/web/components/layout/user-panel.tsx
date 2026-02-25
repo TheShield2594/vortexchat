@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -35,13 +35,36 @@ export function UserPanel() {
   const [showProfileSettings, setShowProfileSettings] = useState(false)
   const { toast } = useToast()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const [isStatusExpired, setIsStatusExpired] = useState(() => Boolean(currentUser?.status_expires_at && new Date(currentUser.status_expires_at).getTime() <= Date.now()))
+
+  useEffect(() => {
+    if (!currentUser?.status_expires_at) {
+      setIsStatusExpired(false)
+      return
+    }
+
+    const expiryMs = new Date(currentUser.status_expires_at).getTime()
+    if (Number.isNaN(expiryMs)) {
+      setIsStatusExpired(true)
+      return
+    }
+
+    const remaining = expiryMs - Date.now()
+    if (remaining <= 0) {
+      setIsStatusExpired(true)
+      return
+    }
+
+    setIsStatusExpired(false)
+    const timer = window.setTimeout(() => setIsStatusExpired(true), remaining)
+    return () => window.clearTimeout(timer)
+  }, [currentUser?.id, currentUser?.status_expires_at])
 
   if (!currentUser) return null
 
   const displayName = currentUser.display_name || currentUser.username
   const initials = displayName.slice(0, 2).toUpperCase()
-  const statusExpired = Boolean(currentUser.status_expires_at && new Date(currentUser.status_expires_at).getTime() <= Date.now())
-  const customStatusText = !statusExpired ? [currentUser.status_emoji, currentUser.status_message].filter(Boolean).join(" ").trim() : ""
+  const customStatusText = !isStatusExpired ? [currentUser.status_emoji, currentUser.status_message].filter(Boolean).join(" ").trim() : ""
 
   async function handleSetStatus(status: UserRow["status"]) {
     try {

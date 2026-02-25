@@ -71,7 +71,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   useEffect(() => {
     return () => {
-      fileUrlCache.current.forEach((url) => URL.revokeObjectURL(url))
+      for (const url of fileUrlCache.current.values()) URL.revokeObjectURL(url)
     }
   }, [])
 
@@ -153,10 +153,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       await onSend(content, files, (percent) => setUploadProgress(percent))
       setContent("")
       onDraftChange("")
-      fileUrlCache.current.forEach((url) => URL.revokeObjectURL(url))
+      for (const url of fileUrlCache.current.values()) URL.revokeObjectURL(url)
       fileUrlCache.current.clear()
       setFiles([])
-      setUploadProgress(null)
     } catch (error: any) {
       setSendError(error?.message ?? "Message send failed. Try again.")
     } finally {
@@ -320,7 +319,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       )}
 
       {(uploadProgress !== null || sendError) && (
-        <div className="px-3 py-2 rounded-t" style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
+        <div className={cn("px-3 py-2", files.length > 0 ? "rounded-none" : "rounded-t")} style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
           {uploadProgress !== null && (
             <div>
               <div className="h-1.5 rounded" style={{ background: "var(--theme-bg-tertiary)" }}>

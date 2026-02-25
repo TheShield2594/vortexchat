@@ -25,6 +25,23 @@ export async function PATCH(request: Request) {
     body.banner_color = normalized
   }
 
+  if (body.status_expires_at !== undefined && body.status_expires_at !== null) {
+    const expiryTime = new Date(body.status_expires_at).getTime()
+    if (Number.isNaN(expiryTime)) {
+      return NextResponse.json(
+        { error: "Invalid status_expires_at. Use an ISO-8601 datetime." },
+        { status: 422 }
+      )
+    }
+  }
+
+  if (body.status_emoji !== undefined && body.status_emoji !== null && body.status_emoji.length > 8) {
+    return NextResponse.json(
+      { error: "status_emoji must be 8 characters or fewer." },
+      { status: 422 }
+    )
+  }
+
   const { data, error } = await supabase
     .from("users")
     .update(body)

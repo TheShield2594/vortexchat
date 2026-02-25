@@ -4,6 +4,7 @@ import { rateLimiter } from "@/lib/rate-limit"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { validateAttachments } from "@/lib/attachment-validation"
 import { sendPushToChannel } from "@/lib/push"
+import type { Database } from "@/types/database"
 
 interface Params {
   params: Promise<{ threadId: string }>
@@ -168,13 +169,17 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
     await supabase.from("thread_members").insert({ thread_id: threadId, user_id: user.id })
   } catch {}
 
-  const senderName = (message as any)?.author?.display_name || (message as any)?.author?.username || "Someone"
+  const sentMessage = message as Database["public"]["Tables"]["messages"]["Row"] & {
+    author?: Database["public"]["Tables"]["users"]["Row"] | null
+  }
+  const senderName = sentMessage.author?.display_name || sentMessage.author?.username || "Someone"
+  const trimmedContent = content?.trim()
   sendPushToChannel({
     serverId: serverId ?? undefined,
     channelId: thread.parent_channel_id,
     threadId,
     senderName,
-    content: content?.trim() ?? "Sent an attachment",
+    content: trimmedContent ? trimmedContent : "Sent an attachment",
     excludeUserId: user.id,
   }).catch(() => {})
 

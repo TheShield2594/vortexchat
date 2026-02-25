@@ -111,6 +111,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
   const outputAudioContextRef = useRef<AudioContext | null>(null)
   const closeDeviceMenu = useCallback(() => setDeviceMenuOpen(false), [])
+  const reconnectTimerRef = useRef<number | null>(null)
   const {
     peers,
     muted,
@@ -222,12 +223,24 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
             self_stream: screenSharing,
           })
       } finally {
-        window.setTimeout(() => setReconnecting(false), 1000)
+        if (reconnectTimerRef.current) {
+          window.clearTimeout(reconnectTimerRef.current)
+        }
+        reconnectTimerRef.current = window.setTimeout(() => {
+          setReconnecting(false)
+          reconnectTimerRef.current = null
+        }, 1000)
       }
     }
 
     window.addEventListener("online", handleOnline)
-    return () => window.removeEventListener("online", handleOnline)
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      if (reconnectTimerRef.current) {
+        window.clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = null
+      }
+    }
   }, [channelId, currentUserId, deafened, muted, screenSharing, serverId, speaking])
 
   function handleLeave() {
@@ -299,7 +312,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
               {sessionState.label}
             </span>
             {reconnecting && (
-              <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "rgba(240,177,50,0.2)", color: "#ffd58a" }}>
+              <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "rgba(240,177,50,0.2)", color: "#ffd58a" }} role="status" aria-live="polite" aria-atomic="true">
                 Reconnecting…
               </span>
             )}

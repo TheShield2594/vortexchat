@@ -194,13 +194,17 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
     setThreadNotifyMode(nextMode)
     setThreadNotifyInherited(false)
 
-    const res = await fetch("/api/notification-settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ threadId: thread.id, mode: nextMode }),
-    })
+    try {
+      const res = await fetch("/api/notification-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadId: thread.id, mode: nextMode }),
+      })
 
-    if (!res.ok) {
+      if (!res.ok) {
+        throw new Error("Failed to update thread notifications")
+      }
+    } catch {
       setThreadNotifyMode(previousMode)
       setThreadNotifyInherited(previousInherited)
       toast({ variant: "destructive", title: "Failed to update thread notifications" })
@@ -212,17 +216,25 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
     const previousInherited = threadNotifyInherited
     setThreadNotifyInherited(true)
 
-    const res = await fetch(`/api/notification-settings?threadId=${thread.id}`, { method: "DELETE" })
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/notification-settings?threadId=${thread.id}`, { method: "DELETE" })
+      if (!res.ok) {
+        throw new Error("Failed to reset thread notifications")
+      }
+
+      const refreshedRes = await fetch(`/api/notification-settings?threadId=${thread.id}`)
+      if (!refreshedRes.ok) {
+        throw new Error("Failed to refresh thread notifications")
+      }
+
+      const refreshed = await refreshedRes.json()
+      if (refreshed?.mode && ["all", "mentions", "muted"].includes(refreshed.mode)) {
+        setThreadNotifyMode(refreshed.mode)
+      }
+    } catch {
       setThreadNotifyMode(previousMode)
       setThreadNotifyInherited(previousInherited)
       toast({ variant: "destructive", title: "Failed to reset thread notifications" })
-      return
-    }
-
-    const refreshed = await fetch(`/api/notification-settings?threadId=${thread.id}`).then((r) => r.ok ? r.json() : null).catch(() => null)
-    if (refreshed?.mode && ["all", "mentions", "muted"].includes(refreshed.mode)) {
-      setThreadNotifyMode(refreshed.mode)
     }
   }
 
@@ -337,9 +349,8 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
       </div>
 
       {/* Status badges */}
-      {(thread.archived || thread.locked || !threadNotifyInherited) && (
-        <div className="flex items-center gap-2 px-3 py-2" style={{ background: "var(--theme-bg-secondary)" }}>
-          {thread.archived && (
+      <div className="flex items-center gap-2 px-3 py-2" style={{ background: "var(--theme-bg-secondary)" }}>
+        {thread.archived && (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
               style={{ background: "#ed9c28", color: "#fff" }}
@@ -376,8 +387,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
               Reset
             </button>
           )}
-        </div>
-      )}
+      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, useCallback } from "react"
+import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -61,6 +61,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const inFlightRefreshRef = useRef<Promise<void> | null>(null)
 
   const fetchChannels = useCallback(async () => {
     const res = await fetch("/api/dm/channels")
@@ -71,9 +72,19 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    fetchChannels()
+  const refreshChannels = useCallback(() => {
+    if (inFlightRefreshRef.current) return inFlightRefreshRef.current
+
+    const task = fetchChannels().finally(() => {
+      inFlightRefreshRef.current = null
+    })
+    inFlightRefreshRef.current = task
+    return task
   }, [fetchChannels])
+
+  useEffect(() => {
+    refreshChannels()
+  }, [refreshChannels])
 
   // Refresh list when DM messages or membership changes happen
   useEffect(() => {
@@ -82,21 +93,21 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "direct_messages" },
-        () => fetchChannels()
+        () => refreshChannels()
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "dm_channel_members" },
-        () => fetchChannels()
+        () => refreshChannels()
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "dm_channel_members" },
-        () => fetchChannels()
+        () => refreshChannels()
       )
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [supabase, fetchChannels])
+  }, [supabase, refreshChannels])
 
   async function startDM(friendId: string) {
     const res = await fetch("/api/dm/channels", {
@@ -108,7 +119,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
       const { id } = await res.json()
       router.push(`/channels/me/${id}`)
       onNavigate?.()
-      fetchChannels()
+      refreshChannels()
     }
   }
 

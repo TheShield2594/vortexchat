@@ -23,19 +23,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: allSettingsError.message }, { status: 500 })
     }
 
-    let derivedChannelId: string | null = channelId
-    let derivedServerId: string | null = serverId
+    const { data: thread } = await supabase
+      .from("threads")
+      .select("parent_channel_id, channels(server_id)")
+      .eq("id", threadId)
+      .maybeSingle()
 
-    if (!derivedChannelId) {
-      const { data: thread } = await supabase
-        .from("threads")
-        .select("parent_channel_id, channels(server_id)")
-        .eq("id", threadId)
-        .maybeSingle()
-
-      derivedChannelId = thread?.parent_channel_id ?? null
-      derivedServerId = (thread?.channels as { server_id?: string | null } | null)?.server_id ?? null
-    }
+    const derivedChannelId: string | null = thread?.parent_channel_id ?? null
+    const derivedServerId: string | null = (thread?.channels as { server_id?: string | null } | null)?.server_id ?? null
 
     const explicit = (allSettings ?? []).find((row) => row.thread_id === threadId) ?? null
     const resolved = resolveNotification(
@@ -95,8 +90,6 @@ export async function PUT(req: NextRequest) {
   const row: any = { user_id: user.id, mode, updated_at: new Date().toISOString() }
   if (threadId) {
     row.thread_id = threadId
-    if (channelId) row.channel_id = channelId
-    if (serverId) row.server_id = serverId
   } else if (serverId) {
     row.server_id = serverId
   } else {

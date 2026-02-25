@@ -38,6 +38,35 @@ const BANNER_PRESETS = [
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
 
+const STATUS_EXPIRY_OPTIONS = [
+  { key: "never", label: "Never expires", minutes: null },
+  { key: "30m", label: "In 30 minutes", minutes: 30 },
+  { key: "1h", label: "In 1 hour", minutes: 60 },
+  { key: "4h", label: "In 4 hours", minutes: 240 },
+  { key: "1d", label: "In 1 day", minutes: 1440 },
+] as const
+
+type StatusExpiryKey = (typeof STATUS_EXPIRY_OPTIONS)[number]["key"]
+
+function inferStatusExpiryKey(value: string | null | undefined): StatusExpiryKey {
+  if (!value) return "never"
+  const expiryMs = new Date(value).getTime()
+  if (Number.isNaN(expiryMs)) return "never"
+  const diffMinutes = Math.round((expiryMs - Date.now()) / 60000)
+  if (diffMinutes <= 0) return "never"
+
+  const timedOptions = STATUS_EXPIRY_OPTIONS.filter((option) => option.minutes !== null)
+  const closest = timedOptions.sort((a, b) => Math.abs((a.minutes ?? 0) - diffMinutes) - Math.abs((b.minutes ?? 0) - diffMinutes))[0]
+
+  return (closest?.key ?? "never") as StatusExpiryKey
+}
+
+function getStatusExpiryIso(key: StatusExpiryKey): string {
+  const option = STATUS_EXPIRY_OPTIONS.find((entry) => entry.key === key)
+  if (!option || option.minutes === null) return ""
+  return new Date(Date.now() + option.minutes * 60 * 1000).toISOString()
+}
+
 const CSS_TEMPLATE = `/**
  * Vortex full custom theme template
  *
@@ -113,7 +142,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [customTag, setCustomTag] = useState(user.custom_tag ?? "")
   const [statusMessage, setStatusMessage] = useState(user.status_message ?? "")
   const [statusEmoji, setStatusEmoji] = useState(user.status_emoji ?? "")
-  const [statusExpiry, setStatusExpiry] = useState<string>(user.status_expires_at ?? "")
+  const [statusExpiryKey, setStatusExpiryKey] = useState<StatusExpiryKey>(() => inferStatusExpiryKey(user.status_expires_at))
   const [status, setStatus] = useState(user.status)
   const [bannerColor, setBannerColor] = useState(user.banner_color ?? "#5865f2")
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url)
@@ -158,7 +187,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         custom_tag: customTag.trim() || null,
         status_message: statusMessage.trim() || null,
         status_emoji: statusEmoji.trim() || null,
-        status_expires_at: statusExpiry || null,
+        status_expires_at: getStatusExpiryIso(statusExpiryKey) || null,
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
@@ -414,21 +443,19 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                       </div>
                       <div className="flex items-center gap-2">
                         <select
-                          value={statusExpiry}
-                          onChange={(e) => setStatusExpiry(e.target.value)}
+                          value={statusExpiryKey}
+                          onChange={(e) => setStatusExpiryKey(e.target.value as StatusExpiryKey)}
                           className="text-xs rounded px-2 py-1"
                           style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
                         >
-                          <option value="">Never expires</option>
-                          <option value={new Date(Date.now() + 30 * 60 * 1000).toISOString()}>In 30 minutes</option>
-                          <option value={new Date(Date.now() + 60 * 60 * 1000).toISOString()}>In 1 hour</option>
-                          <option value={new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString()}>In 4 hours</option>
-                          <option value={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()}>In 1 day</option>
+                          {STATUS_EXPIRY_OPTIONS.map((option) => (
+                            <option key={option.key} value={option.key}>{option.label}</option>
+                          ))}
                         </select>
-                        {statusExpiry && (
+                        {statusExpiryKey !== "never" && (
                           <button
                             type="button"
-                            onClick={() => setStatusExpiry("")}
+                            onClick={() => setStatusExpiryKey("never")}
                             className="text-xs px-2 py-1 rounded hover:bg-white/10"
                             style={{ color: "var(--theme-text-muted)" }}
                           >

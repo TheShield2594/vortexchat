@@ -98,11 +98,15 @@ export async function POST(
     .eq("server_id", serverId)
     .eq("user_id", userId)
 
-  await supabase
+  const { error: voiceDeleteError } = await supabase
     .from("voice_states")
     .delete()
     .eq("server_id", serverId)
     .eq("user_id", userId)
+
+  if (voiceDeleteError) {
+    return NextResponse.json({ error: voiceDeleteError.message }, { status: 500 })
+  }
 
   // Insert ban
   const { error } = await supabase

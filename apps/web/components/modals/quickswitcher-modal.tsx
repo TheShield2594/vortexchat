@@ -63,71 +63,85 @@ export function QuickSwitcherModal({ onClose }: Props) {
   }, [results, selected])
 
   useEffect(() => {
-    if (!query.trim()) { setResults([]); return }
-    const debounce = setTimeout(async () => {
+    let cancelled = false
+
+    if (!query.trim()) {
+      setResults([])
+      setLoading(false)
+      return () => { cancelled = true }
+    }
+
+    const debounce = window.setTimeout(async () => {
       setLoading(true)
       const q = `%${query}%`
 
-      // Fetch candidates then rank with local fuzzy scoring
-      const [{ data: channels }, { data: servers }, { data: users }] = await Promise.all([
-        supabase
-          .from("channels")
-          .select("id, name, type, server_id")
-          .ilike("name", q)
-          .in("type", ["text", "voice", "forum", "stage", "announcement", "media"])
-          .limit(40),
-        supabase
-          .from("servers")
-          .select("id, name")
-          .ilike("name", q)
-          .limit(20),
-        supabase
-          .from("users")
-          .select("id, username, display_name")
-          .or(`username.ilike.${q},display_name.ilike.${q}`)
-          .limit(25),
-      ])
+      try {
+        // Fetch candidates then rank with local fuzzy scoring
+        const [{ data: channels }, { data: servers }, { data: users }] = await Promise.all([
+          supabase
+            .from("channels")
+            .select("id, name, type, server_id")
+            .ilike("name", q)
+            .in("type", ["text", "voice", "forum", "stage", "announcement", "media"])
+            .limit(40),
+          supabase
+            .from("servers")
+            .select("id, name")
+            .ilike("name", q)
+            .limit(20),
+          supabase
+            .from("users")
+            .select("id, username, display_name")
+            .or(`username.ilike.${q},display_name.ilike.${q}`)
+            .limit(25),
+        ])
 
-      const channelResults: Result[] = (channels ?? []).map((c) => ({
-        type: "channel",
-        id: c.id,
-        name: c.name,
-        serverId: c.server_id,
-        channelType: c.type,
-      }))
-      const serverResults: Result[] = (servers ?? []).map((s) => ({
-        type: "server",
-        id: s.id,
-        name: s.name,
-      }))
-
-      const userResults: Result[] = (users ?? []).map((u) => ({
-        type: "user",
-        id: u.id,
-        name: u.display_name || u.username,
-        username: u.username,
-      }))
-
-      const ranked = [...channelResults, ...serverResults, ...userResults]
-        .map((entry) => ({
-          entry,
-          score: Math.max(
-            fuzzyScore(entry.name, query),
-            entry.username ? fuzzyScore(entry.username, query) - 1 : -1
-          ),
+        const channelResults: Result[] = (channels ?? []).map((c) => ({
+          type: "channel",
+          id: c.id,
+          name: c.name,
+          serverId: c.server_id,
+          channelType: c.type,
         }))
-        .filter((item) => item.score >= 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 12)
-        .map((item) => item.entry)
+        const serverResults: Result[] = (servers ?? []).map((s) => ({
+          type: "server",
+          id: s.id,
+          name: s.name,
+        }))
 
-      setResults(ranked)
-      setSelected(0)
-      setLoading(false)
+        const userResults: Result[] = (users ?? []).map((u) => ({
+          type: "user",
+          id: u.id,
+          name: u.display_name || u.username,
+          username: u.username,
+        }))
+
+        const ranked = [...channelResults, ...serverResults, ...userResults]
+          .map((entry) => ({
+            entry,
+            score: Math.max(
+              fuzzyScore(entry.name, query),
+              entry.username ? fuzzyScore(entry.username, query) - 1 : -1
+            ),
+          }))
+          .filter((item) => item.score >= 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 12)
+          .map((item) => item.entry)
+
+        if (cancelled) return
+        setResults(ranked)
+        setSelected(0)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }, 150)
 
-    return () => clearTimeout(debounce)
-  }, [query])
+    return () => {
+      cancelled = true
+      window.clearTimeout(debounce)
+    }
+  }, [query, supabase])
 
   function navigate(result: Result) {
     if (result.type === "channel" && result.serverId) {
@@ -135,7 +149,7 @@ export function QuickSwitcherModal({ onClose }: Props) {
     } else if (result.type === "server") {
       router.push(`/channels/${result.id}`)
     } else if (result.type === "user") {
-      router.push(`/friends?user=${result.id}`)
+      router.push(`/friends?user=${encodeURIComponent(result.id)}`)
     }
     onCloseRef.current()
   }

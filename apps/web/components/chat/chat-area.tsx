@@ -131,8 +131,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [messages, unreadAnchorMessageId])
   const typingAnnouncement = useMemo(() => {
     if (typingUsers.length === 0) return ""
-    if (typingUsers.length === 1) return `${typingUsers[0]} is typing`
-    if (typingUsers.length === 2) return `${typingUsers[0]} and ${typingUsers[1]} are typing`
+
+    const getTypingName = (entry: (typeof typingUsers)[number]) =>
+      entry.displayName || entry.userId
+
+    if (typingUsers.length === 1) return `${getTypingName(typingUsers[0])} is typing`
+    if (typingUsers.length === 2) return `${getTypingName(typingUsers[0])} and ${getTypingName(typingUsers[1])} are typing`
     return `${typingUsers.length} people are typing`
   }, [typingUsers])
 
@@ -901,6 +905,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         }
         onUploadProgress?.(Math.round(((index + 1) / attachmentFiles.length) * 100))
       }
+    }
+
+    if (attachmentFiles?.length && attachments.length === 0 && !content.trim()) {
+      setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
+      setMessages((prev) => prev.filter((message) => message.id !== messageId))
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: "All attachment uploads failed.",
+      })
+      throw new Error("All attachment uploads failed.")
     }
 
     if (attachments.length > 0) {

@@ -73,6 +73,7 @@ export async function sendPushToChannel(opts: {
   excludeUserId: string
 }): Promise<void> {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
+  ensureVapid()
 
   const { serverId, channelId, threadId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts
   const mentionedSet = new Set(mentionedIds)
@@ -120,7 +121,7 @@ export async function sendPushToChannel(opts: {
       : dmChannelId
       ? `/channels/me/${dmChannelId}`
       : "/channels/me",
-    tag: channelId ?? dmChannelId ?? "message",
+    tag: threadId ?? channelId ?? dmChannelId ?? "message",
   }
 
   await Promise.allSettled(
