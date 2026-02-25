@@ -221,13 +221,13 @@ Mitigation: add DELETE `/api/auth/sessions/[sessionId]` endpoint for per-session
 ## 5) "Better Than Discord" Roadmap (prioritized)
 
 ### Now (1–2 weeks): quick parity wins
-- Fix permission bit mismatch in timeout route (import from shared package) and add contract tests.
-- Build reaction CRUD API endpoints with optimistic UI and rapid-click idempotency.
-- Add block enforcement in DM send, mentions, and reaction paths.
-- Harden attachment validation (server-side MIME + extension blocklist + size limits).
-- Add per-session revocation endpoint and UI.
-- Add tab title unread count badge.
-- Add idle detection for presence status.
+- ~~Fix permission bit mismatch in timeout route (import from shared package) and add contract tests.~~
+- ~~Build reaction CRUD API endpoints with optimistic UI and rapid-click idempotency.~~
+- ~~Add block enforcement in DM send, mentions, and reaction paths.~~
+- ~~Harden attachment validation (server-side MIME + extension blocklist + size limits).~~
+- ~~Add per-session revocation endpoint and UI.~~
+- ~~Add tab title unread count badge.~~
+- ~~Add idle detection for presence status.~~
 
 ### Next (1–2 months): major features
 - Virtualized message timeline (@tanstack/react-virtual) + robust offline outbox dedupe with server-side idempotency.
