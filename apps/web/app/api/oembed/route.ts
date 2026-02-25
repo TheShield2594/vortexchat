@@ -163,26 +163,36 @@ export async function GET(req: NextRequest) {
   if (initialValidation instanceof NextResponse) return initialValidation
   let currentValidation = initialValidation
 
-  try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
+  try {
     let currentUrl = parsedUrl
     let resp: PinnedFetchResponse | null = null
 
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-      const pinnedAddress = currentValidation.addresses[0]?.address
-      if (!pinnedAddress) {
-        clearTimeout(timer)
-        return NextResponse.json({ error: "forbidden" }, { status: 403 })
+      let fetchError: unknown = null
+
+      for (const { address } of currentValidation.addresses) {
+        try {
+          resp = await fetchWithPinnedAddress(currentUrl, address, controller.signal)
+          fetchError = null
+          break
+        } catch (error) {
+          fetchError = error
+        }
       }
 
-      resp = await fetchWithPinnedAddress(currentUrl, pinnedAddress, controller.signal)
+      if (!resp) {
+        if ((fetchError as { name?: string } | null)?.name === "AbortError") {
+          throw fetchError
+        }
+        return NextResponse.json({ error: "forbidden" }, { status: 403 })
+      }
 
       if (resp.status >= 300 && resp.status < 400) {
         const location = typeof resp.headers.location === "string" ? resp.headers.location : null
         if (!location) {
-          clearTimeout(timer)
           return NextResponse.json({ error: "redirect failed" }, { status: 502 })
         }
 
@@ -191,18 +201,17 @@ export async function GET(req: NextRequest) {
           nextUrl = new URL(location, currentUrl)
           if (!["http:", "https:"].includes(nextUrl.protocol)) throw new Error("bad protocol")
         } catch {
-          clearTimeout(timer)
           return NextResponse.json({ error: "invalid redirect" }, { status: 400 })
         }
 
         const validation = await validateHost(nextUrl)
         if (validation instanceof NextResponse) {
-          clearTimeout(timer)
           return validation
         }
 
         currentUrl = nextUrl
         currentValidation = validation
+        resp = null
         continue
       }
 
@@ -210,17 +219,14 @@ export async function GET(req: NextRequest) {
     }
 
     if (!resp) {
-      clearTimeout(timer)
       return NextResponse.json({ error: "fetch failed" }, { status: 502 })
     }
 
     if (resp.status >= 300 && resp.status < 400) {
-      clearTimeout(timer)
       return NextResponse.json({ error: "too many redirects" }, { status: 502 })
     }
 
     if (resp.status < 200 || resp.status >= 300) {
-      clearTimeout(timer)
       return NextResponse.json({ error: "fetch failed" }, { status: 502 })
     }
 
@@ -228,11 +234,8 @@ export async function GET(req: NextRequest) {
       ? resp.headers["content-type"].join(",")
       : (resp.headers["content-type"] ?? "")
     if (!contentType.includes("text/html")) {
-      clearTimeout(timer)
       return NextResponse.json({ error: "not html" }, { status: 422 })
     }
-
-    clearTimeout(timer)
 
     const html = resp.body.toString("utf-8")
     const og = parseOG(html, currentUrl.origin, currentUrl.protocol)
@@ -244,6 +247,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "timeout" }, { status: 504 })
     }
     return NextResponse.json({ error: "internal error" }, { status: 500 })
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -297,5 +302,5 @@ function decodeHTMLEntities(str: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&#(?:39|039);|&apos;/g, "'")
 }

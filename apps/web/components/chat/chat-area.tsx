@@ -902,6 +902,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         }
         const { data: signed } = await supabase.storage.from("attachments").createSignedUrl(path, 3600 * 24 * 7)
         if (!signed) {
+          const { error: cleanupError } = await supabase.storage.from("attachments").remove([path])
+          if (cleanupError) {
+            console.warn("failed to cleanup orphaned attachment after signed URL failure", {
+              path,
+              error: cleanupError.message,
+            })
+          }
           continue
         }
 
