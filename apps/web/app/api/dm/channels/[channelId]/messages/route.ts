@@ -13,16 +13,23 @@ export async function POST(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Verify membership
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("dm_channel_members")
     .select("user_id")
     .eq("dm_channel_id", channelId)
     .eq("user_id", user.id)
-    .single()
+    .maybeSingle()
+
+  if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 })
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const body = await req.json()
+  let body: { content?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
   const content = body.content?.trim()
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 })
 

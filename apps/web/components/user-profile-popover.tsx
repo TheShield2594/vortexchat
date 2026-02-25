@@ -76,13 +76,14 @@ export function UserProfilePopover({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userIds: [userId] }),
       })
-      if (res.ok) {
-        const { id } = await res.json()
-        router.push(`/channels/me/${id}`)
+      const payload = await res.json().catch(() => ({ error: "Failed to open DM" })) as { id?: string; error?: string }
+      if (res.ok && payload.id) {
+        router.push(`/channels/me/${payload.id}`)
       } else {
-        const { error } = await res.json()
-        toast({ variant: "destructive", title: error || "Failed to open DM" })
+        toast({ variant: "destructive", title: payload.error || "Failed to open DM" })
       }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to open DM" })
     } finally {
       setActionLoading(null)
     }
