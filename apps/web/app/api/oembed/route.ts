@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { lookup } from "dns/promises"
+import { request as httpRequest } from "node:http"
+import { request as httpsRequest } from "node:https"
+import type { IncomingHttpHeaders } from "node:http"
 
 // Simple Open Graph scraper — fetches a URL and returns title, description, image, siteName
 // Runs server-side to avoid CORS issues and to not expose the target URL to analytics.
@@ -53,23 +56,94 @@ function isPrivateIp(ip: string): boolean {
   return false
 }
 
-async function validateHost(parsedUrl: URL): Promise<NextResponse | null> {
+type ValidatedHost = {
+  addresses: Array<{ address: string; family: number }>
+}
+
+type PinnedFetchResponse = {
+  status: number
+  headers: IncomingHttpHeaders
+  body: Buffer
+}
+
+async function fetchWithPinnedAddress(targetUrl: URL, pinnedAddress: string, signal: AbortSignal): Promise<PinnedFetchResponse> {
+  return new Promise((resolve, reject) => {
+    const isHttps = targetUrl.protocol === "https:"
+    const req = (isHttps ? httpsRequest : httpRequest)({
+      protocol: targetUrl.protocol,
+      hostname: pinnedAddress,
+      port: targetUrl.port ? Number(targetUrl.port) : undefined,
+      method: "GET",
+      path: `${targetUrl.pathname}${targetUrl.search}`,
+      headers: {
+        "User-Agent": "VortexChatBot/1.0 (link preview)",
+        Accept: "text/html",
+        Host: targetUrl.host,
+      },
+      servername: targetUrl.hostname,
+    }, (res) => {
+      const chunks: Buffer[] = []
+      let bytesRead = 0
+      let settled = false
+
+      const finish = () => {
+        if (settled) return
+        settled = true
+        resolve({
+          status: res.statusCode ?? 502,
+          headers: res.headers,
+          body: Buffer.concat(chunks),
+        })
+      }
+
+      res.on("data", (chunk: Buffer) => {
+        bytesRead += chunk.length
+        if (bytesRead > MAX_BODY_BYTES) {
+          chunks.push(chunk.subarray(0, chunk.length - (bytesRead - MAX_BODY_BYTES)))
+          res.destroy()
+          return
+        }
+        chunks.push(chunk)
+      })
+
+      res.on("end", finish)
+      res.on("close", finish)
+      res.on("error", reject)
+    })
+
+    const abortHandler = () => {
+      req.destroy(new Error("aborted"))
+      reject(Object.assign(new Error("aborted"), { name: "AbortError" }))
+    }
+
+    if (signal.aborted) {
+      abortHandler()
+      return
+    }
+
+    signal.addEventListener("abort", abortHandler, { once: true })
+    req.on("error", reject)
+    req.end()
+  })
+}
+
+async function validateHost(parsedUrl: URL): Promise<ValidatedHost | NextResponse> {
   if (isBlockedEmbedHost(parsedUrl.hostname)) {
     return NextResponse.json({ error: "domain blocked" }, { status: 403 })
   }
 
   try {
-    const addresses = await lookup(parsedUrl.hostname, { all: true })
-    for (const { address } of addresses) {
-      if (isPrivateIp(address)) {
-        return NextResponse.json({ error: "forbidden" }, { status: 403 })
-      }
+    const addresses = (await lookup(parsedUrl.hostname, { all: true }))
+      .filter(({ address }) => !isPrivateIp(address))
+
+    if (addresses.length === 0) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 })
     }
+
+    return { addresses }
   } catch {
     return NextResponse.json({ error: "invalid url" }, { status: 400 })
   }
-
-  return null
 }
 
 export async function GET(req: NextRequest) {
@@ -86,29 +160,39 @@ export async function GET(req: NextRequest) {
   }
 
   const initialValidation = await validateHost(parsedUrl)
-  if (initialValidation) return initialValidation
+  if (initialValidation instanceof NextResponse) return initialValidation
+  let currentValidation = initialValidation
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
-
     let currentUrl = parsedUrl
-    let resp: Response | null = null
+    let resp: PinnedFetchResponse | null = null
 
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-      resp = await fetch(currentUrl.href, {
-        signal: controller.signal,
-        redirect: "manual",
-        headers: {
-          "User-Agent": "VortexChatBot/1.0 (link preview)",
-          Accept: "text/html",
-        },
-      })
+      let fetchError: unknown = null
+
+      for (const { address } of currentValidation.addresses) {
+        try {
+          resp = await fetchWithPinnedAddress(currentUrl, address, controller.signal)
+          fetchError = null
+          break
+        } catch (error) {
+          fetchError = error
+        }
+      }
+
+      if (!resp) {
+        if ((fetchError as { name?: string } | null)?.name === "AbortError") {
+          throw fetchError
+        }
+        return NextResponse.json({ error: "forbidden" }, { status: 403 })
+      }
 
       if (resp.status >= 300 && resp.status < 400) {
-        const location = resp.headers.get("location")
+        const location = typeof resp.headers.location === "string" ? resp.headers.location : null
         if (!location) {
-          clearTimeout(timer)
           return NextResponse.json({ error: "redirect failed" }, { status: 502 })
         }
 
@@ -117,17 +201,17 @@ export async function GET(req: NextRequest) {
           nextUrl = new URL(location, currentUrl)
           if (!["http:", "https:"].includes(nextUrl.protocol)) throw new Error("bad protocol")
         } catch {
-          clearTimeout(timer)
           return NextResponse.json({ error: "invalid redirect" }, { status: 400 })
         }
 
         const validation = await validateHost(nextUrl)
-        if (validation) {
-          clearTimeout(timer)
+        if (validation instanceof NextResponse) {
           return validation
         }
 
         currentUrl = nextUrl
+        currentValidation = validation
+        resp = null
         continue
       }
 
@@ -135,52 +219,36 @@ export async function GET(req: NextRequest) {
     }
 
     if (!resp) {
-      clearTimeout(timer)
       return NextResponse.json({ error: "fetch failed" }, { status: 502 })
     }
 
     if (resp.status >= 300 && resp.status < 400) {
-      clearTimeout(timer)
       return NextResponse.json({ error: "too many redirects" }, { status: 502 })
     }
 
-    if (!resp.ok) {
-      clearTimeout(timer)
+    if (resp.status < 200 || resp.status >= 300) {
       return NextResponse.json({ error: "fetch failed" }, { status: 502 })
     }
 
-    const contentType = resp.headers.get("content-type") ?? ""
+    const contentType = Array.isArray(resp.headers["content-type"])
+      ? resp.headers["content-type"].join(",")
+      : (resp.headers["content-type"] ?? "")
     if (!contentType.includes("text/html")) {
-      clearTimeout(timer)
       return NextResponse.json({ error: "not html" }, { status: 422 })
     }
 
-    // Read only first MAX_BODY_BYTES to avoid huge pages
-    const reader = resp.body?.getReader()
-    let html = ""
-    let bytesRead = 0
-    if (reader) {
-      const decoder = new TextDecoder()
-      while (bytesRead < MAX_BODY_BYTES) {
-        const { done, value } = await reader.read()
-        if (done) break
-        html += decoder.decode(value, { stream: true })
-        bytesRead += value.byteLength
-        // Stop once we've passed </head>
-        if (html.includes("</head>")) break
-      }
-      reader.cancel()
-    }
-    // Clear abort timer only after body read is complete
-    clearTimeout(timer)
-
+    const html = resp.body.toString("utf-8")
     const og = parseOG(html, currentUrl.origin, currentUrl.protocol)
     return NextResponse.json(og, {
       headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" },
     })
-  } catch (err: any) {
-    if (err?.name === "AbortError") return NextResponse.json({ error: "timeout" }, { status: 504 })
+  } catch (err: unknown) {
+    if ((err as { name?: string } | null)?.name === "AbortError") {
+      return NextResponse.json({ error: "timeout" }, { status: 504 })
+    }
     return NextResponse.json({ error: "internal error" }, { status: 500 })
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -219,7 +287,13 @@ function parseOG(html: string, origin: string, protocol: string) {
   const siteName = meta("site_name") ?? null
   const favicon = `${origin}/favicon.ico`
 
-  return { title, description, image, siteName, url: null, favicon }
+  return {
+    title,
+    description,
+    image,
+    siteName,
+    favicon,
+  }
 }
 
 function decodeHTMLEntities(str: string): string {
@@ -228,6 +302,5 @@ function decodeHTMLEntities(str: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&apos;/g, "'")
+    .replace(/&#(?:39|039);|&apos;/g, "'")
 }

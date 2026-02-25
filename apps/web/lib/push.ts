@@ -136,6 +136,15 @@ export async function sendPushToChannel(opts: {
     settingsBatches.push((serverSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
   }
 
+  const { data: globalSettings } = await supabase
+    .from("notification_settings")
+    .select("user_id, mode, server_id, channel_id, thread_id")
+    .in("user_id", memberIds)
+    .is("server_id", null)
+    .is("channel_id", null)
+    .is("thread_id", null)
+  settingsBatches.push((globalSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+
   const settings = settingsBatches.flat()
 
   const payload: PushPayload = {

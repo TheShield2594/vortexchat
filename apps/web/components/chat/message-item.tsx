@@ -254,7 +254,6 @@ export const MessageItem = memo(function MessageItem({
             ) : (
               <div
                 className="w-full text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5"
-                aria-hidden="true"
               >
                 <Reply className="w-3 h-3 -scale-x-100" />
                 <span className="font-medium" style={{ color: 'var(--theme-text-secondary)' }}>

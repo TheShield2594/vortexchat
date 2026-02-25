@@ -88,13 +88,16 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
     refreshChannels()
   }, [refreshChannels])
 
+  const channelIdsStr = useMemo(() => {
+    return channels.map((channel) => channel.id).sort().join(",")
+  }, [channels])
+
   // Refresh list when DM messages or membership changes happen
   useEffect(() => {
     if (!currentUserId) return
 
-    const channelIds = channels.map((channel) => channel.id)
-    const dmMessageFilter = channelIds.length > 0
-      ? `dm_channel_id=in.(${channelIds.join(",")})`
+    const dmMessageFilter = channelIdsStr
+      ? `dm_channel_id=in.(${channelIdsStr})`
       : `sender_id=eq.${currentUserId}`
 
     const ch = supabase
@@ -116,7 +119,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
       )
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [supabase, refreshChannels, channels, currentUserId])
+  }, [supabase, refreshChannels, channelIdsStr, currentUserId])
 
   async function startDM(friendId: string) {
     const res = await fetch("/api/dm/channels", {

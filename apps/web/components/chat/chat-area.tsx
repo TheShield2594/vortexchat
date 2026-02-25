@@ -324,7 +324,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         const backoffMs = Math.min(1000 * (2 ** Math.min(entry.retryCount, 5)), 30_000)
         const jitterMs = Math.floor(Math.random() * 300)
         await sleep(backoffMs + jitterMs)
+        if (!navigator.onLine) break
       }
+      if (!navigator.onLine) break
       await sendOutboxEntry(entry)
     }
   }, [channel.id, sendOutboxEntry])
@@ -682,7 +684,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     const authorName = newestMessage.author?.display_name || newestMessage.author?.username || "Unknown"
     liveAnnouncementCounterRef.current += 1
-    setLiveAnnouncement(`New message from ${authorName}​${liveAnnouncementCounterRef.current}`)
+    setLiveAnnouncement("")
+    queueMicrotask(() => {
+      setLiveAnnouncement(`New message from ${authorName}`)
+    })
 
     setPendingNewMessageCount((count) => count + 1)
     setUnreadAnchorMessageId((current) => {
@@ -893,19 +898,27 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             title: "Upload failed",
             description: `Failed to upload ${file.name}: ${error.message}`,
           })
-          onUploadProgress?.(Math.round(((index + 1) / attachmentFiles.length) * 100))
           continue
         }
         const { data: signed } = await supabase.storage.from("attachments").createSignedUrl(path, 3600 * 24 * 7)
-        if (signed) {
-          attachments.push({
-            url: signed.signedUrl,
-            filename: file.name,
-            size: file.size,
-            content_type: file.type,
-            storage_path: path,
-          })
+        if (!signed) {
+          const { error: cleanupError } = await supabase.storage.from("attachments").remove([path])
+          if (cleanupError) {
+            console.warn("failed to cleanup orphaned attachment after signed URL failure", {
+              path,
+              error: cleanupError.message,
+            })
+          }
+          continue
         }
+
+        attachments.push({
+          url: signed.signedUrl,
+          filename: file.name,
+          size: file.size,
+          content_type: file.type,
+          storage_path: path,
+        })
         onUploadProgress?.(Math.round(((index + 1) / attachmentFiles.length) * 100))
       }
     }
