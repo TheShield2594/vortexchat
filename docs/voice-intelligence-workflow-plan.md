@@ -16,9 +16,9 @@ This document defines the end-to-end implementation steps for:
    - `voice_translation_enabled` (workspace/server)
    - `voice_post_call_summary_enabled` (workspace/server)
 2. Publish policy copy and consent language.
-   - Explain what data is captured.
-   - Explain where and for how long it is stored.
-   - Explain who can access it.
+   - Describe the data captured.
+   - State storage locations and retention periods.
+   - Clarify access and permissions.
 3. Classify data by sensitivity.
    - Raw audio (ephemeral/transient only where possible)
    - Transcript segments (persistent)
@@ -32,38 +32,65 @@ Add schema support for call sessions, participants, consent, transcript chunks, 
 ### 2.1 New tables
 
 1. `voice_call_sessions`
-   - `id`, `scope_type` (`server_channel` | `dm_call`), `scope_id`
-   - `started_at`, `ended_at`, `started_by`
+   - PK: `id`
+   - `scope_type` (`server_channel` | `dm_call`), `scope_id`
+   - `started_at` NOT NULL, `ended_at`, `started_by` FK -> `users.id`
    - `transcription_mode` (`off` | `manual_opt_in` | `server_policy_required`)
    - `summary_status` (`pending` | `ready` | `failed`)
+   - Indexes: `(scope_type, scope_id, started_at)`, `(started_by, started_at)`
 2. `voice_call_participants`
-   - `session_id`, `user_id`, `joined_at`, `left_at`
-   - `consent_transcription` (boolean)
-   - `consent_translation` (boolean)
+   - PK: `id`
+   - `session_id` NOT NULL FK -> `voice_call_sessions.id` ON DELETE CASCADE
+   - `user_id` NOT NULL FK -> `users.id`, `joined_at` NOT NULL, `left_at`
+   - `consent_transcription` NOT NULL boolean
+   - `consent_translation` NOT NULL boolean
    - `preferred_subtitle_language` (nullable)
+   - Unique constraint: `UNIQUE(session_id, user_id)`
+   - Indexes: `(session_id, joined_at)`, `(user_id, joined_at)`
 3. `voice_transcript_segments`
-   - `id`, `session_id`, `speaker_user_id` (nullable if unknown)
-   - `source_language`, `text`, `started_at`, `ended_at`
+   - PK: `id`
+   - `session_id` NOT NULL FK -> `voice_call_sessions.id` ON DELETE CASCADE
+   - `speaker_user_id` nullable FK -> `users.id` (nullable if unknown)
+   - `source_language`, `text` NOT NULL, `started_at` NOT NULL, `ended_at` NOT NULL
    - `confidence`, `provider`, `is_redacted`
+   - Indexes: `(session_id, started_at)`, `(speaker_user_id, started_at)`
 4. `voice_transcript_translations`
-   - `id`, `segment_id`, `target_user_id`
+   - PK: `id`
+   - `segment_id` NOT NULL FK -> `voice_transcript_segments.id` ON DELETE CASCADE
+   - `target_user_id` nullable FK -> `users.id`
    - `target_language`, `translated_text`, `provider`
+   - Indexes: `(segment_id, target_user_id)`, `(target_user_id, segment_id)`
 5. `voice_call_summaries`
-   - `session_id`, `model`, `highlights_md`, `decisions_md`, `action_items_md`
+   - PK/Unique: `session_id` FK -> `voice_call_sessions.id` ON DELETE CASCADE
+   - `model`, `highlights_md`, `decisions_md`, `action_items_md` NOT NULL
    - `generated_at`, `quality_score` (nullable)
+   - Indexes: `(generated_at)`, `(session_id, generated_at)`
 6. `voice_intelligence_policies`
-   - scope: server/workspace
-   - defaults for consent requirement, allowed locales, retention days, summary toggle
+   - PK: `id`
+   - scope: `scope_type` (`workspace` | `server`) + `scope_id`
+   - defaults for consent requirement, allowed locales, retention days, summary toggle are NOT NULL
+   - Unique constraint: `UNIQUE(scope_type, scope_id)`
+   - Indexes: `(scope_type, scope_id)`
 7. `voice_intelligence_audit_log`
-   - `id`, `session_id`, `actor_user_id`, `event_type`, `payload_json`, `created_at`
+   - PK: `id`
+   - `session_id` FK -> `voice_call_sessions.id` ON DELETE SET NULL (preserves compliance trail)
+   - `actor_user_id` FK -> `users.id`, `event_type` NOT NULL, `payload_json` NOT NULL, `created_at` NOT NULL
+   - Indexes: `(session_id, created_at)`, `(actor_user_id, created_at)`, `(event_type, created_at)`
 
 ### 2.2 Retention metadata
 
-1. Add `expires_at` for transcript and summary records.
-2. Add soft-delete + purge workflow markers (`deleted_at`, `purged_at`).
-3. Add indexed columns for cleanup jobs:
+1. Include `expires_at` for transcript and summary records.
+2. Provide soft-delete + purge workflow markers (`deleted_at`, `purged_at`).
+3. Introduce legal-hold controls:
+   - Either `legal_hold` boolean + `legal_hold_reason`, or dedicated `voice_legal_holds` table keyed to transcript/summary IDs.
+   - Legal hold overrides `expires_at`, `deleted_at`, and `purged_at` automation until hold release is audited.
+4. List indexed columns for cleanup jobs:
    - `(expires_at, purged_at)`
    - `(session_id, created_at)`
+5. Define backup-boundary behavior:
+   - Primary data stores must honor deletion SLA unless legal hold is active.
+   - Exports, cold backups, and cache layers must be tagged with retention class and documented maximum TTL.
+   - Purge jobs must skip held records, record skip reasons, and schedule bounded follow-up cleanup for non-primary copies after hold release.
 
 ### 2.3 Access control / RLS
 
@@ -152,12 +179,24 @@ Provide admin settings page:
 ## 5.1 Server APIs
 
 1. `POST /voice/sessions/start`
+   - Required scope: `voice:sessions:create`
+   - Idempotency: require `X-Idempotency-Key` (or client-provided stable session UUID); retries return the originally created session (`201` on first create, `200` on replay).
 2. `POST /voice/sessions/{id}/consent`
+   - Required scopes: `voice:sessions:modify` + `voice:consent`
+   - Idempotency: same payload is a no-op (`200`); conflicting replay with same idempotency key returns `409`; last-write-wins only when server accepts higher client timestamp.
 3. `POST /voice/sessions/{id}/subtitle-preferences`
+   - Required scopes: `voice:sessions:modify` + `voice:consent`
+   - Idempotency: identical preference updates are no-ops (`200`); deterministic last-write behavior when timestamps are supplied.
 4. `POST /voice/sessions/{id}/end`
+   - Required scope: `voice:sessions:modify`
+   - Idempotency: repeated end requests return existing terminal state (`200`) and never create duplicate summary jobs.
 5. `GET /voice/sessions/{id}/transcript`
+   - Required scope: `voice:sessions:read`
 6. `GET /voice/sessions/{id}/summary`
+   - Required scope: `voice:sessions:read`
 7. `PATCH /servers/{id}/voice-intelligence-policy`
+   - Required scope: `voice:policy:write`
+   - Idempotency: accepts `X-Idempotency-Key`; replay returns original policy revision (`200`), conflicting optimistic-lock version returns `409`.
 
 ## 5.2 Realtime events
 
@@ -167,6 +206,25 @@ Provide admin settings page:
 4. `voice.transcript.translation.final`
 5. `voice.summary.ready`
 6. `voice.consent.changed`
+
+### Event envelope, versioning, and compatibility contract
+
+1. Every realtime event must include envelope metadata:
+   - `event_name`
+   - `schema_version` (semver string, for example `1.2.0`)
+   - `event_id`, `occurred_at`, `session_id`
+2. Compatibility guarantees:
+   - Additive-only field additions are allowed in minor/patch versions.
+   - Field rename/removal requires a deprecation window (minimum 2 minor releases or 90 days, whichever is longer).
+   - During deprecation, producers emit both old and new fields and publish migration guidance.
+3. Backward/forward compatibility rules:
+   - Clients must ignore unknown fields.
+   - Clients should parse and branch on `schema_version` when behavior differs.
+   - Producers must avoid changing semantic meaning of existing fields without version bump + deprecation notice.
+4. Validation and upgrade expectations:
+   - Event publisher contract tests validate required envelope fields and version-specific schemas.
+   - Consumer tests must include at least one older and one newer `schema_version` fixture.
+   - Release notes include an event schema changelog entry for every version increment.
 
 ## 6) Operational workflow (end-to-end)
 
@@ -193,6 +251,11 @@ Provide admin settings page:
    - write immutable purge audit events.
 4. Data export:
    - allow authorized export of transcript + summary package.
+5. Legal hold and backup-boundary rules:
+   - Legal hold (`legal_hold=true` or active hold record) freezes automatic expiry/purge even when `expires_at`, `deleted_at`, or `purged_at` criteria would otherwise match.
+   - Hold scope can target a session, transcript segment set, summary, or export package; release requires auditable actor + reason.
+   - Backup/cold-storage/cache copies are in-scope for retention policy documentation and must declare deletion SLA boundaries.
+   - Cleanup workers using `(expires_at, purged_at)` and `(session_id, created_at)` indexes must explicitly filter out held records and queue post-release cleanup for backups/exports.
 
 ## 8) Testing plan
 
