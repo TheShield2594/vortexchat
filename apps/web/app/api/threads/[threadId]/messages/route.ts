@@ -181,7 +181,9 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
     senderName,
     content: trimmedContent ? trimmedContent : "Sent an attachment",
     excludeUserId: user.id,
-  }).catch(() => {})
+  }).catch((error) => {
+    console.warn("push delivery failed", { threadId, messageId: message.id, error })
+  })
 
   return NextResponse.json(message, { status: 201 })
 }

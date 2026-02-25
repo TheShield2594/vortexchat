@@ -5,6 +5,35 @@ import { useRouter } from "next/navigation"
 import { Search, Hash, Volume2, MessageSquare, Mic2, Megaphone, Image, Loader2, User } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
+type IconType = typeof Hash
+
+const CHANNEL_ICONS: Record<string, IconType> = {
+  voice: Volume2,
+  stage: Mic2,
+  forum: MessageSquare,
+  announcement: Megaphone,
+  media: Image,
+}
+
+function fuzzyScore(candidate: string, q: string): number {
+  const value = candidate.toLowerCase()
+  const queryValue = q.toLowerCase().trim()
+  if (!queryValue) return 0
+  if (value === queryValue) return 1000
+  if (value.startsWith(queryValue)) return 700 - (value.length - queryValue.length)
+  if (value.includes(queryValue)) return 500 - value.indexOf(queryValue)
+
+  let score = 0
+  let cursor = 0
+  for (const ch of queryValue) {
+    const idx = value.indexOf(ch, cursor)
+    if (idx === -1) return -1
+    score += 20 - Math.min(19, idx - cursor)
+    cursor = idx + 1
+  }
+  return score
+}
+
 interface Result {
   type: "channel" | "server" | "user"
   id: string
@@ -32,25 +61,6 @@ export function QuickSwitcherModal({ onClose }: Props) {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  function fuzzyScore(candidate: string, q: string): number {
-    const value = candidate.toLowerCase()
-    const queryValue = q.toLowerCase().trim()
-    if (!queryValue) return 0
-    if (value === queryValue) return 1000
-    if (value.startsWith(queryValue)) return 700 - (value.length - queryValue.length)
-    if (value.includes(queryValue)) return 500 - value.indexOf(queryValue)
-
-    let score = 0
-    let cursor = 0
-    for (const ch of queryValue) {
-      const idx = value.indexOf(ch, cursor)
-      if (idx === -1) return -1
-      score += 20 - Math.min(19, idx - cursor)
-      cursor = idx + 1
-    }
-    return score
-  }
-
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { onCloseRef.current(); return }
@@ -76,8 +86,7 @@ export function QuickSwitcherModal({ onClose }: Props) {
       const q = `%${query}%`
 
       try {
-        // Fetch candidates then rank with local fuzzy scoring
-        const [{ data: channels }, { data: servers }, { data: users }] = await Promise.all([
+        const [{ data: channels }, { data: servers }, { data: usersByUsername }, { data: usersByDisplayName }] = await Promise.all([
           supabase
             .from("channels")
             .select("id, name, type, server_id")
@@ -92,7 +101,12 @@ export function QuickSwitcherModal({ onClose }: Props) {
           supabase
             .from("users")
             .select("id, username, display_name")
-            .or(`username.ilike.${q},display_name.ilike.${q}`)
+            .ilike("username", q)
+            .limit(25),
+          supabase
+            .from("users")
+            .select("id, username, display_name")
+            .ilike("display_name", q)
             .limit(25),
         ])
 
@@ -109,7 +123,9 @@ export function QuickSwitcherModal({ onClose }: Props) {
           name: s.name,
         }))
 
-        const userResults: Result[] = (users ?? []).map((u) => ({
+        const mergedUsers = [...(usersByUsername ?? []), ...(usersByDisplayName ?? [])]
+        const uniqueUsers = Array.from(new Map(mergedUsers.map((user) => [user.id, user])).values())
+        const userResults: Result[] = uniqueUsers.map((u) => ({
           type: "user",
           id: u.id,
           name: u.display_name || u.username,
@@ -183,29 +199,30 @@ export function QuickSwitcherModal({ onClose }: Props) {
         {/* Results */}
         {results.length > 0 && (
           <ul className="py-1 max-h-72 overflow-y-auto">
-            {results.map((r, i) => (
-              <li key={`${r.type}-${r.id}`}>
-                <button
-                  onClick={() => navigate(r)}
-                  onMouseEnter={() => setSelected(i)}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
-                  style={{ background: selected === i ? "rgba(88,101,242,0.2)" : "transparent" }}
-                >
-                  {r.type === "channel" ? (
-                    r.channelType === "voice" ? <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
-                    r.channelType === "stage" ? <Mic2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
-                    r.channelType === "forum" ? <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
-                    r.channelType === "announcement" ? <Megaphone className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
-                    r.channelType === "media" ? <Image className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
-                    <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
-                  ) : r.type === "server" ? <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> : <User className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />}
-                  <span className="text-sm text-white">{r.name}</span>
-                  <span className="text-xs ml-auto" style={{ color: "var(--theme-text-faint)" }}>
-                    {r.type === "channel" ? "Channel" : r.type === "server" ? "Server" : "User"}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {results.map((r, i) => {
+              const Icon = r.type === "user"
+                ? User
+                : r.type === "server"
+                  ? Hash
+                  : CHANNEL_ICONS[r.channelType ?? ""] ?? Hash
+
+              return (
+                <li key={`${r.type}-${r.id}`}>
+                  <button
+                    onClick={() => navigate(r)}
+                    onMouseEnter={() => setSelected(i)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
+                    style={{ background: selected === i ? "rgba(88,101,242,0.2)" : "transparent" }}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
+                    <span className="text-sm text-white">{r.name}</span>
+                    <span className="text-xs ml-auto" style={{ color: "var(--theme-text-faint)" }}>
+                      {r.type === "channel" ? "Channel" : r.type === "server" ? "Server" : "User"}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         )}
 

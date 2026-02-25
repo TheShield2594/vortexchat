@@ -64,18 +64,22 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
   }, [thread.id, currentUserId])
 
   useEffect(() => {
-    let cancelled = false
-    fetch(`/api/notification-settings?threadId=${thread.id}`)
+    const controller = new AbortController()
+
+    fetch(`/api/notification-settings?threadId=${thread.id}`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
-        if (cancelled || !data) return
+        if (!data || controller.signal.aborted) return
         if (data.mode && ["all", "mentions", "muted"].includes(data.mode)) {
           setThreadNotifyMode(data.mode)
         }
         setThreadNotifyInherited(Boolean(data.inherited))
       })
-      .catch(() => undefined)
-    return () => { cancelled = true }
+      .catch((error) => {
+        if ((error as { name?: string } | null)?.name === "AbortError") return
+      })
+
+    return () => { controller.abort() }
   }, [thread.id])
 
   // Scroll on new messages
@@ -204,7 +208,8 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
       if (!res.ok) {
         throw new Error("Failed to update thread notifications")
       }
-    } catch {
+    } catch (error) {
+      console.warn("failed to update thread notifications", { threadId: thread.id, error })
       setThreadNotifyMode(previousMode)
       setThreadNotifyInherited(previousInherited)
       toast({ variant: "destructive", title: "Failed to update thread notifications" })
@@ -231,7 +236,8 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
       if (refreshed?.mode && ["all", "mentions", "muted"].includes(refreshed.mode)) {
         setThreadNotifyMode(refreshed.mode)
       }
-    } catch {
+    } catch (error) {
+      console.warn("failed to reset thread notifications", { threadId: thread.id, error })
       setThreadNotifyMode(previousMode)
       setThreadNotifyInherited(previousInherited)
       toast({ variant: "destructive", title: "Failed to reset thread notifications" })
@@ -366,26 +372,30 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
               <Lock className="w-3 h-3" /> Locked
             </span>
           )}
-          <select
-            value={threadNotifyMode}
-            onChange={(event) => handleThreadNotifyMode(event.target.value as "all" | "mentions" | "muted")}
-            className="ml-auto text-xs rounded px-2 py-1"
-            style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)", border: "1px solid var(--theme-text-faint)" }}
-            aria-label="Thread notification mode"
-          >
-            <option value="all">Thread: All</option>
-            <option value="mentions">Thread: Mentions</option>
-            <option value="muted">Thread: Muted</option>
-          </select>
-          {!threadNotifyInherited && (
-            <button
-              type="button"
-              onClick={resetThreadNotifyInheritance}
-              className="text-[11px] px-2 py-1 rounded hover:bg-white/10"
-              style={{ color: "var(--theme-text-muted)" }}
-            >
-              Reset
-            </button>
+          {isMember && (
+            <>
+              <select
+                value={threadNotifyMode}
+                onChange={(event) => handleThreadNotifyMode(event.target.value as "all" | "mentions" | "muted")}
+                className="ml-auto text-xs rounded px-2 py-1"
+                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)", border: "1px solid var(--theme-text-faint)" }}
+                aria-label="Thread notification mode"
+              >
+                <option value="all">Thread: All</option>
+                <option value="mentions">Thread: Mentions</option>
+                <option value="muted">Thread: Muted</option>
+              </select>
+              {!threadNotifyInherited && (
+                <button
+                  type="button"
+                  onClick={resetThreadNotifyInheritance}
+                  className="text-[11px] px-2 py-1 rounded hover:bg-white/10"
+                  style={{ color: "var(--theme-text-muted)" }}
+                >
+                  Reset
+                </button>
+              )}
+            </>
           )}
       </div>
 

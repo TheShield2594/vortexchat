@@ -135,9 +135,9 @@ export const MessageItem = memo(function MessageItem({
             key={key++}
             className="px-0.5 rounded"
             style={{
-              color: isSelfMention ? "#fde68a" : "var(--theme-accent)",
-              background: isSelfMention ? "rgba(245, 158, 11, 0.2)" : "rgba(88,101,242,0.1)",
-              border: isSelfMention ? "1px solid rgba(245, 158, 11, 0.45)" : undefined,
+              color: isSelfMention ? "var(--theme-mention-self-color)" : "var(--theme-accent)",
+              background: isSelfMention ? "var(--theme-mention-self-bg)" : "rgba(88,101,242,0.1)",
+              border: isSelfMention ? "1px solid var(--theme-mention-self-border)" : undefined,
             }}
           >
             @{match[7]}

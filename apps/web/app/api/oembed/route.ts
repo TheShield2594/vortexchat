@@ -12,11 +12,13 @@ function normalizeHost(value: string): string {
   return value.toLowerCase().replace(/\.+$/, "")
 }
 
+const cachedBlockedEmbedDomains = (process.env.EMBED_BLOCKED_DOMAINS ?? "")
+  .split(",")
+  .map((value) => normalizeHost(value.trim()))
+  .filter(Boolean)
+
 function getBlockedEmbedDomains(): string[] {
-  return (process.env.EMBED_BLOCKED_DOMAINS ?? "")
-    .split(",")
-    .map((value) => normalizeHost(value.trim()))
-    .filter(Boolean)
+  return cachedBlockedEmbedDomains
 }
 
 function isBlockedEmbedHost(hostname: string): boolean {

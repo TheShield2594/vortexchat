@@ -53,6 +53,9 @@
     --theme-warning: #f0b132;
     --theme-danger: #f23f43;
     --theme-presence-offline: #80848e;
+    --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 60%, white);
+    --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
+    --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   }
 }
 

@@ -79,15 +79,23 @@ export async function PUT(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { serverId, channelId, threadId, mode } = await req.json()
-  if (!["all", "mentions", "muted"].includes(mode)) {
+  const payload = await req.json() as Record<string, unknown>
+  const { serverId, channelId, threadId, mode } = payload
+
+  if ((serverId !== undefined && typeof serverId !== "string")
+    || (channelId !== undefined && typeof channelId !== "string")
+    || (threadId !== undefined && typeof threadId !== "string")) {
+    return NextResponse.json({ error: "serverId, channelId, and threadId must be strings" }, { status: 400 })
+  }
+
+  if (!["all", "mentions", "muted"].includes(String(mode))) {
     return NextResponse.json({ error: "Invalid mode" }, { status: 400 })
   }
   if (!serverId && !channelId && !threadId) {
     return NextResponse.json({ error: "serverId, channelId, or threadId required" }, { status: 400 })
   }
 
-  const row: any = { user_id: user.id, mode, updated_at: new Date().toISOString() }
+  const row: any = { user_id: user.id, mode: String(mode), updated_at: new Date().toISOString() }
   if (threadId) {
     row.thread_id = threadId
   } else if (serverId) {
@@ -127,7 +135,10 @@ export async function DELETE(req: NextRequest) {
   else if (channelId) query = query.eq("channel_id", channelId)
   else return NextResponse.json({ error: "serverId, channelId, or threadId required" }, { status: 400 })
 
-  const { error } = await query
+  const { data, error } = await query.select("user_id").limit(1)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+
+  const deleted = (data?.length ?? 0) > 0
+  if (!deleted) return NextResponse.json({ ok: true, deleted: false }, { status: 404 })
+  return NextResponse.json({ ok: true, deleted: true })
 }

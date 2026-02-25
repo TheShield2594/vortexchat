@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils/cn"
 import { format, isToday } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
+import { useAppStore } from "@/lib/stores/app-store"
 
 interface DMChannel {
   id: string
@@ -61,6 +62,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const currentUserId = useAppStore((state) => state.currentUser?.id)
   const inFlightRefreshRef = useRef<Promise<void> | null>(null)
 
   const fetchChannels = useCallback(async () => {
@@ -88,26 +90,33 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
 
   // Refresh list when DM messages or membership changes happen
   useEffect(() => {
+    if (!currentUserId) return
+
+    const channelIds = channels.map((channel) => channel.id)
+    const dmMessageFilter = channelIds.length > 0
+      ? `dm_channel_id=in.(${channelIds.join(",")})`
+      : `sender_id=eq.${currentUserId}`
+
     const ch = supabase
       .channel("dm-list-updates")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "direct_messages" },
+        { event: "INSERT", schema: "public", table: "direct_messages", filter: dmMessageFilter },
         () => refreshChannels()
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "dm_channel_members" },
+        { event: "INSERT", schema: "public", table: "dm_channel_members", filter: `user_id=eq.${currentUserId}` },
         () => refreshChannels()
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "dm_channel_members" },
+        { event: "DELETE", schema: "public", table: "dm_channel_members", filter: `user_id=eq.${currentUserId}` },
         () => refreshChannels()
       )
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [supabase, refreshChannels])
+  }, [supabase, refreshChannels, channels, currentUserId])
 
   async function startDM(friendId: string) {
     const res = await fetch("/api/dm/channels", {

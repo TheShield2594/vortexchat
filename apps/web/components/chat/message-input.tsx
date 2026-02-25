@@ -338,7 +338,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       <div
         className={cn(
           "flex items-end gap-2 rounded-lg px-3 py-2",
-          replyTo || files.length > 0 ? "rounded-t-none" : ""
+          replyTo || files.length > 0 || uploadProgress !== null || Boolean(sendError) ? "rounded-t-none" : ""
         )}
         style={{ background: "var(--theme-surface-input)" }}
       >

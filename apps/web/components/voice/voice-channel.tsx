@@ -239,6 +239,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
       if (reconnectTimerRef.current) {
         window.clearTimeout(reconnectTimerRef.current)
         reconnectTimerRef.current = null
+        setReconnecting(false)
       }
     }
   }, [channelId, currentUserId, deafened, muted, screenSharing, serverId, speaking])

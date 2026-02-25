@@ -96,6 +96,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
+  const liveAnnouncementCounterRef = useRef(0)
   const unreadAnchorCycleRef = useRef<number | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
@@ -154,6 +155,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       status_message: null,
       status_emoji: null,
       status_expires_at: null,
+      discoverable: false,
       appearance_settings: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -679,7 +681,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     const authorName = newestMessage.author?.display_name || newestMessage.author?.username || "Unknown"
-    setLiveAnnouncement(`New message from ${authorName}`)
+    liveAnnouncementCounterRef.current += 1
+    setLiveAnnouncement(`New message from ${authorName}​${liveAnnouncementCounterRef.current}`)
 
     setPendingNewMessageCount((count) => count + 1)
     setUnreadAnchorMessageId((current) => {
@@ -1114,9 +1117,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           />
         )}
 
+        <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
+        <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
-          <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
-          <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
           {messages.length === 0 && (
             <div className="px-4 py-8">
               <div

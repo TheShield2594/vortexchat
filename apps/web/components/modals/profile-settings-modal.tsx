@@ -56,7 +56,7 @@ function inferStatusExpiryKey(value: string | null | undefined): StatusExpiryKey
   if (diffMinutes <= 0) return "never"
 
   const timedOptions = STATUS_EXPIRY_OPTIONS.filter((option) => option.minutes !== null)
-  const closest = timedOptions.sort((a, b) => Math.abs((a.minutes ?? 0) - diffMinutes) - Math.abs((b.minutes ?? 0) - diffMinutes))[0]
+  const closest = [...timedOptions].sort((a, b) => Math.abs((a.minutes ?? 0) - diffMinutes) - Math.abs((b.minutes ?? 0) - diffMinutes))[0]
 
   return (closest?.key ?? "never") as StatusExpiryKey
 }
@@ -430,7 +430,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           value={statusEmoji}
                           onChange={(e) => setStatusEmoji(e.target.value)}
                           placeholder="😀"
-                          maxLength={16}
+                          maxLength={8}
                           style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
                         />
                         <Input

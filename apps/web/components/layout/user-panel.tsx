@@ -49,15 +49,30 @@ export function UserPanel() {
       return
     }
 
-    const remaining = expiryMs - Date.now()
-    if (remaining <= 0) {
-      setIsStatusExpired(true)
-      return
+    const MAX_DELAY = 2 ** 31 - 1
+    let timer: number | null = null
+
+    const scheduleExpiryCheck = () => {
+      const remaining = expiryMs - Date.now()
+      if (remaining <= 0) {
+        setIsStatusExpired(true)
+        return
+      }
+
+      setIsStatusExpired(false)
+      const delay = Math.min(remaining, MAX_DELAY)
+      timer = window.setTimeout(() => {
+        scheduleExpiryCheck()
+      }, delay)
     }
 
-    setIsStatusExpired(false)
-    const timer = window.setTimeout(() => setIsStatusExpired(true), remaining)
-    return () => window.clearTimeout(timer)
+    scheduleExpiryCheck()
+
+    return () => {
+      if (timer !== null) {
+        window.clearTimeout(timer)
+      }
+    }
   }, [currentUser?.id, currentUser?.status_expires_at])
 
   if (!currentUser) return null

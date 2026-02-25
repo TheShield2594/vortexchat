@@ -91,24 +91,7 @@ export async function POST(
     }
   }
 
-  // Remove from server first (kick)
-  await supabase
-    .from("server_members")
-    .delete()
-    .eq("server_id", serverId)
-    .eq("user_id", userId)
-
-  const { error: voiceDeleteError } = await supabase
-    .from("voice_states")
-    .delete()
-    .eq("server_id", serverId)
-    .eq("user_id", userId)
-
-  if (voiceDeleteError) {
-    return NextResponse.json({ error: voiceDeleteError.message }, { status: 500 })
-  }
-
-  // Insert ban
+  // Persist ban first; membership/voice cleanup is best-effort.
   const { error } = await supabase
     .from("server_bans")
     .upsert({
@@ -119,6 +102,26 @@ export async function POST(
     })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const { error: memberDeleteError } = await supabase
+    .from("server_members")
+    .delete()
+    .eq("server_id", serverId)
+    .eq("user_id", userId)
+
+  if (memberDeleteError) {
+    console.warn("failed to remove member after ban", { serverId, userId, error: memberDeleteError.message })
+  }
+
+  const { error: voiceDeleteError } = await supabase
+    .from("voice_states")
+    .delete()
+    .eq("server_id", serverId)
+    .eq("user_id", userId)
+
+  if (voiceDeleteError) {
+    console.warn("failed to remove voice state after ban", { serverId, userId, error: voiceDeleteError.message })
+  }
 
   // Audit log
   await supabase.from("audit_logs").insert({
