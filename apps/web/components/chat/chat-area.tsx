@@ -16,6 +16,7 @@ import { ThreadPanel } from "@/components/chat/thread-panel"
 import { ThreadList } from "@/components/chat/thread-list"
 import { SearchModal } from "@/components/modals/search-modal"
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
+import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import {
   type OutboxEntry,
@@ -1169,22 +1170,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           />
         </div>
 
-        {typingUsers.length > 0 && (
-          <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0" style={{ minHeight: "24px" }}>
-            <span className="flex gap-0.5 items-end">
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-            </span>
-            <span className="text-xs" style={{ color: "#949ba4" }}>
-              {typingUsers.length === 1
-                ? `${typingUsers[0].displayName} is typing…`
-                : typingUsers.length === 2
-                ? `${typingUsers[0].displayName} and ${typingUsers[1].displayName} are typing…`
-                : "Several people are typing…"}
-            </span>
-          </div>
-        )}
+        <TypingIndicator users={typingUsers.map((user) => user.displayName)} />
 
         <MessageInput
           channelName={channel.name}
