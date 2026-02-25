@@ -145,3 +145,4 @@ Offline/outbox semantics, reconnect replay rules, and conflict handling are docu
 ## License
 
 MIT
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/TheShield2594/vortexchat?utm_source=oss&utm_medium=github&utm_campaign=TheShield2594%2Fvortexchat&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
