@@ -13,7 +13,7 @@ import type { MessageWithAuthor, AttachmentRow, ThreadRow } from "@/types/databa
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
-import { LinkEmbed, extractFirstUrl } from "@/components/chat/link-embed"
+import { LinkEmbed, extractFirstUrl, extractGiphyUrl, getEmbeddableGiphyUrl, stripUrlFromContent } from "@/components/chat/link-embed"
 import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
 import { CreateThreadModal } from "@/components/modals/create-thread-modal"
@@ -78,6 +78,11 @@ export const MessageItem = memo(function MessageItem({
   const initials = displayName.slice(0, 2).toUpperCase()
   const timestamp = new Date(message.created_at)
   const messageMetaId = useId()
+  const giphyUrl = message.content ? extractGiphyUrl(message.content) : null
+  const embeddableGiphyUrl = giphyUrl ? getEmbeddableGiphyUrl(giphyUrl) : null
+  const renderedContent = message.content && giphyUrl
+    ? stripUrlFromContent(message.content, giphyUrl)
+    : message.content
 
   // Group reactions by emoji
   const reactionGroups = message.reactions.reduce(
@@ -356,17 +361,26 @@ export const MessageItem = memo(function MessageItem({
                 </div>
               ) : (
                 <>
-                  {message.content && (
+                  {renderedContent && (
                     <p
                       className="text-sm leading-relaxed message-content break-words"
                       style={{ color: "#dcddde" }}
                     >
-                      {renderContent(message.content)}
+                      {renderContent(renderedContent)}
                     </p>
                   )}
 
+                  {embeddableGiphyUrl && (
+                    <img
+                      src={embeddableGiphyUrl}
+                      alt="GIF"
+                      className="mt-2 max-w-sm w-full rounded-md border"
+                      style={{ borderColor: "#1e1f22", background: "#1e1f22" }}
+                    />
+                  )}
+
                   {/* Link embed — shown for messages with a URL and no image attachments */}
-                  {message.content && (!message.attachments?.length) && (() => {
+                  {message.content && (!message.attachments?.length) && !giphyUrl && (() => {
                     const url = extractFirstUrl(message.content)
                     return url ? <LinkEmbed url={url} /> : null
                   })()}

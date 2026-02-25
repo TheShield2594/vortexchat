@@ -149,7 +149,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     })
   }, [])
 
-  const makeOptimisticMessage = useCallback((entry: OutboxEntry): MessageWithAuthor => ({
+  const makeOptimisticMessage = useCallback((entry: OutboxEntry): MessageWithAuthor => {
+    const replyToMessage = entry.replyToId ? messagesRef.current.find((message) => message.id === entry.replyToId) ?? null : null
+    return ({
     id: entry.id,
     channel_id: entry.channelId,
     author_id: entry.authorId,
@@ -178,8 +180,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       created_at: entry.createdAt,
     })) as AttachmentRow[],
     reactions: [],
-    reply_to: null,
-  }), [optimisticAuthor])
+    reply_to: replyToMessage,
+  })
+  }, [optimisticAuthor])
 
   const persistOutboxAttachments = useCallback(async (messageId: string, entry: OutboxEntry) => {
     if (!entry.attachments?.length) return
@@ -236,7 +239,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           reply_to_id: entry.replyToId,
           client_nonce: entry.id,
         })
-        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
         .single()
       data = result.data
       error = result.error
@@ -542,15 +545,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [isOnline, channel.id, flushOutbox])
 
   useEffect(() => {
-    const container = messageScrollerRef.current
-    if (!container) return
-    const savedScrollTop = typeof window === "undefined" ? null : window.sessionStorage.getItem(scrollStorageKey)
-    if (savedScrollTop) {
-      container.scrollTop = Number(savedScrollTop)
-      return
-    }
-    bottomRef.current?.scrollIntoView()
-  }, [scrollStorageKey])
+    if (jumpToMessageId || openThreadId) return
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" })
+    })
+  }, [channel.id, jumpToMessageId, openThreadId])
 
   useEffect(() => {
     const container = messageScrollerRef.current
@@ -842,7 +841,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         reply_to_id: replyTo?.id || null,
         client_nonce: messageId,
       })
-      .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+      .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
       .single()
 
     if (error && !isDuplicateInsertError(error)) {
@@ -1091,33 +1090,40 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     }
                   }}
                   onDelete={async () => {
-                    const { error } = await supabase
+                    const { data, error } = await supabase
                       .from("messages")
-                      .delete()
+                      .update({ deleted_at: new Date().toISOString() })
                       .eq("id", message.id)
+                      .eq("author_id", currentUserId)
+                      .select("id")
                     if (error) throw error
+                    if (!data || data.length === 0) {
+                      throw new Error("Message could not be deleted. It may have already been removed.")
+                    }
                     setMessages((prev) => prev.filter((m) => m.id !== message.id))
                     setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
                   }}
                   onReaction={async (emoji) => {
-                    const previousMessage = messages.find((m) => m.id === message.id)
-                    const existing = message.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
-                    const remove = Boolean(existing)
+                    const previousMessage = messagesRef.current.find((m) => m.id === message.id)
+                    let remove = false
+                    let touched = false
 
                     setMessages((prev) =>
                       prev.map((m) => {
                         if (m.id !== message.id) return m
+                        touched = true
                         const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                        remove = hasOwnReaction
                         return {
                           ...m,
-                          reactions: remove
+                          reactions: hasOwnReaction
                             ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
-                            : hasOwnReaction
-                              ? m.reactions
-                              : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                            : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
                         }
                       })
                     )
+
+                    if (!touched) return
 
                     try {
                       await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })

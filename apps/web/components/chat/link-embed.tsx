@@ -22,6 +22,39 @@ export function extractFirstUrl(content: string): string | null {
   return match[0].replace(/[.,)\]};:!?"']+$/, "")
 }
 
+export function extractGiphyUrl(content: string): string | null {
+  const url = extractFirstUrl(content)
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname.includes("giphy.com") || parsed.hostname.includes("gph.is")) {
+      return url
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+export function stripUrlFromContent(content: string, url: string): string {
+  return content.replace(url, "").replace(/\s{2,}/g, " ").trim()
+}
+
+export function getEmbeddableGiphyUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname.includes("media.giphy.com") && parsed.pathname.endsWith(".gif")) {
+      return url
+    }
+    const idMatch = parsed.pathname.match(/-([a-zA-Z0-9]+)$/) ?? parsed.pathname.match(/\/media\/([a-zA-Z0-9]+)\//)
+    const id = idMatch?.[1]
+    if (!id) return null
+    return `https://media.giphy.com/media/${id}/giphy.gif`
+  } catch {
+    return null
+  }
+}
+
 export function LinkEmbed({ url }: Props) {
   const [data, setData] = useState<OGData | null>(null)
   const [failed, setFailed] = useState(false)

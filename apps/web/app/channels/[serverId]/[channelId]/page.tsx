@@ -42,7 +42,8 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
         *,
         author:users!messages_author_id_fkey(*),
         attachments(*),
-        reactions(*)
+        reactions(*),
+        reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))
       `)
       .eq("channel_id", params.channelId)
       .is("deleted_at", null)

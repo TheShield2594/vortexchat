@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     const [{ data: beforeRows, error: beforeError }, { data: afterRows, error: afterError }] = await Promise.all([
       supabase
         .from("messages")
-        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
         .eq("channel_id", channelId)
         .is("deleted_at", null)
         .lt("created_at", target.created_at)
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
         .limit(sideLimit + 1),
       supabase
         .from("messages")
-        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
         .eq("channel_id", channelId)
         .is("deleted_at", null)
         .gte("created_at", target.created_at)
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("messages")
-    .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+    .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
     .eq("channel_id", channelId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
   if (clientNonce?.trim()) {
     const { data: existing } = await supabase
       .from("messages")
-      .select(`*, author:users(*), attachments(*), reactions(*)`)
+      .select(`*, author:users(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
       .eq("channel_id", channelId)
       .eq("author_id", user.id)
       .eq("client_nonce", clientNonce.trim())
@@ -501,7 +501,7 @@ export async function POST(request: Request) {
       mention_everyone: mentionEveryone,
       client_nonce: clientNonce?.trim() || null,
     })
-    .select(`*, author:users(*), attachments(*), reactions(*)`)
+    .select(`*, author:users(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
     .single()
 
   if (msgError) {
@@ -510,7 +510,7 @@ export async function POST(request: Request) {
     if (isDuplicate && clientNonce?.trim()) {
       const { data: existing } = await supabase
         .from("messages")
-        .select(`*, author:users(*), attachments(*), reactions(*)`)
+        .select(`*, author:users(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
         .eq("channel_id", channelId)
         .eq("author_id", user.id)
         .eq("client_nonce", clientNonce.trim())
