@@ -12,6 +12,8 @@ import {
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import type { AutoModRuleWithParsed } from "@/types/database"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { filterMentionsByBlockState } from "@/lib/blocking"
+import { validateAttachments } from "@/lib/attachment-validation"
 
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -163,6 +165,13 @@ export async function POST(request: Request) {
   if (!content?.trim() && attachments.length === 0) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
   }
+
+  const attachmentValidation = validateAttachments(attachments)
+  if (!attachmentValidation.valid) {
+    return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
+  }
+
+  const { allowed: safeMentions } = await filterMentionsByBlockState(supabase as any, user.id, mentions)
 
   // --- Fetch channel for server context and slowmode check ---
   const { data: channel } = await supabase
@@ -440,7 +449,7 @@ export async function POST(request: Request) {
       author_id: user.id,
       content: content?.trim() || null,
       reply_to_id: replyToId || null,
-      mentions,
+      mentions: safeMentions,
       mention_everyone: mentionEveryone,
     })
     .select(`*, author:users(*), attachments(*), reactions(*)`)
@@ -466,7 +475,7 @@ export async function POST(request: Request) {
       const serviceSupabase = await createServiceRoleClient()
       const recipientIds = new Set<string>()
 
-      for (const mentionedUserId of mentions) {
+      for (const mentionedUserId of safeMentions) {
         if (mentionedUserId && mentionedUserId !== user.id) {
           recipientIds.add(mentionedUserId)
         }
@@ -490,7 +499,7 @@ export async function POST(request: Request) {
 
       const bodyPreview = (content?.trim() || "Sent an attachment").slice(0, MAX_NOTIFICATION_BODY_LENGTH)
       const rows = Array.from(recipientIds).map((recipientId) => {
-        const isMentionTarget = mentions.includes(recipientId)
+        const isMentionTarget = safeMentions.includes(recipientId)
 
         return {
           user_id: recipientId,
@@ -514,7 +523,7 @@ export async function POST(request: Request) {
     channelId,
     senderName,
     content: content?.trim() ?? "Sent an attachment",
-    mentionedIds: mentions,
+    mentionedIds: safeMentions,
     excludeUserId: user.id,
   }).catch(() => {})
 

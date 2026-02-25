@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { validateAttachments } from "@/lib/attachment-validation"
 
 interface Params {
   params: Promise<{ threadId: string }>
@@ -98,6 +99,11 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
   const { content, replyToId, attachments = [] } = body
   if (!content?.trim() && attachments.length === 0) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
+  }
+
+  const attachmentValidation = validateAttachments(attachments)
+  if (!attachmentValidation.valid) {
+    return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
   }
 
   // Fetch thread to get the channel_id and check locked/archived

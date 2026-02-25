@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { X, Hash, Lock, Archive, ArchiveRestore, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { sendReactionMutation } from "@/lib/reactions-client"
 import type { ThreadRow, ThreadWithDetails, MessageWithAuthor, MessageRow } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
@@ -363,55 +364,26 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
                     }
                   }}
                   onReaction={async (emoji) => {
-                    const existing = message.reactions.find(
-                      (r) => r.emoji === emoji && r.user_id === currentUserId
+                    const existing = message.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
+                    const remove = Boolean(existing)
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === message.id
+                          ? {
+                              ...m,
+                              reactions: remove
+                                ? m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId))
+                                : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                            }
+                          : m
+                      )
                     )
-                    if (existing) {
-                      await supabase
-                        .from("reactions")
-                        .delete()
-                        .eq("message_id", message.id)
-                        .eq("user_id", currentUserId)
-                        .eq("emoji", emoji)
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === message.id
-                            ? {
-                                ...m,
-                                reactions: m.reactions.filter(
-                                  (r) => !(r.emoji === emoji && r.user_id === currentUserId)
-                                ),
-                              }
-                            : m
-                        )
-                      )
-                    } else {
-                      await supabase.from("reactions").insert({
-                        message_id: message.id,
-                        user_id: currentUserId,
-                        emoji,
-                      })
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === message.id
-                            ? {
-                                ...m,
-                                reactions: [
-                                  ...m.reactions,
-                                  {
-                                    message_id: message.id,
-                                    user_id: currentUserId,
-                                    emoji,
-                                    created_at: new Date().toISOString(),
-                                  },
-                                ],
-                              }
-                            : m
-                        )
-                      )
+                    try {
+                      await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
+                    } catch {
+                      setMessages((prev) => prev)
                     }
-                  }}
-                />
+                  }}                />
               )
             })}
             <div ref={bottomRef} />

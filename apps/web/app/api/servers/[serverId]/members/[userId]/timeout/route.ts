@@ -6,13 +6,13 @@
  * DELETE /api/servers/[serverId]/members/[userId]/timeout
  *   Remove an active timeout.
  *
- * Requires MODERATE_MEMBERS (permission bit 10, i.e. 1 << 10 = 1024) or ownership.
+ * Requires MODERATE_MEMBERS permission or ownership.
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
+import { PERMISSIONS } from "@vortex/shared"
 
-const MODERATE_MEMBERS = 1 << 10  // 1024
 const MAX_TIMEOUT_SECONDS = 2_419_200  // 28 days
 
 type Params = { params: Promise<{ serverId: string; userId: string }> }
@@ -32,7 +32,7 @@ async function checkModeratePermission(
     .single()
 
   const perms = aggregateMemberPermissions((member as any)?.member_roles ?? [])
-  return (perms & MODERATE_MEMBERS) !== 0
+  return (perms & PERMISSIONS.MODERATE_MEMBERS) !== 0
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {

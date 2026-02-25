@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Megaphone, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
@@ -209,13 +210,9 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
                 }}
                 onReaction={async (emoji) => {
                   const existing = message.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
-                  if (existing) {
-                    await supabase.from("reactions").delete().eq("message_id", message.id).eq("user_id", currentUserId).eq("emoji", emoji)
-                    setMessages((prev) => prev.map((m) => m.id === message.id ? { ...m, reactions: m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) } : m))
-                  } else {
-                    await supabase.from("reactions").insert({ message_id: message.id, user_id: currentUserId, emoji })
-                    setMessages((prev) => prev.map((m) => m.id === message.id ? { ...m, reactions: [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] } : m))
-                  }
+                  const remove = Boolean(existing)
+                  setMessages((prev) => prev.map((m) => m.id === message.id ? { ...m, reactions: remove ? m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] } : m))
+                  await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
                 }}
               />
             )
