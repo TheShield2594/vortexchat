@@ -159,7 +159,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { channelId, content, replyToId, mentions = [], mentionEveryone = false, attachments = [] } = body
+  const { channelId, content, replyToId, mentions: rawMentions, mentionEveryone = false, attachments: rawAttachments } = body
+  const mentions = rawMentions ?? []
+  const attachments = rawAttachments ?? []
+
+  if (!Array.isArray(mentions)) return NextResponse.json({ error: "Invalid mentions" }, { status: 400 })
+  if (!Array.isArray(attachments)) return NextResponse.json({ error: "Invalid attachments" }, { status: 400 })
 
   if (!channelId) return NextResponse.json({ error: "channelId required" }, { status: 400 })
   if (!content?.trim() && attachments.length === 0) {

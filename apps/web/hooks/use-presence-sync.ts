@@ -68,6 +68,9 @@ export function usePresenceSync(userId: string | null, status?: 'online' | 'idle
       if (document.hidden) {
         persistStatus("offline")
       } else {
+        if (status === "dnd" || status === "invisible" || currentStatus === "dnd" || currentStatus === "invisible") {
+          return
+        }
         persistStatus("online")
         scheduleIdle()
       }

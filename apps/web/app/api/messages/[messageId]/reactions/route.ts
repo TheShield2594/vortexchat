@@ -68,6 +68,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
   const emoji = normalizeEmoji(body.emoji)
   if (!emoji) return NextResponse.json({ error: "emoji required" }, { status: 400 })
 
+  const { data: message, error: messageError } = await resolveMessageContext(supabase, messageId)
+  if (messageError) return NextResponse.json({ error: messageError.message }, { status: 500 })
+  if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
+
+  const channelServerId = (message as any)?.channels?.server_id as string | null
+  if (channelServerId) {
+    const { isAdmin, permissions } = await getChannelPermissions(supabase, channelServerId, message.channel_id, user.id)
+    if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+  }
+
   const { error } = await supabase
     .from("reactions")
     .delete()

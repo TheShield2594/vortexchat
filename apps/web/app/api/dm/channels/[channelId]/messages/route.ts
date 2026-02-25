@@ -25,12 +25,16 @@ export async function POST(
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { data: channelMembers } = await supabase
+  const { data: channelMembers, error: channelMembersError } = await supabase
     .from("dm_channel_members")
     .select("user_id")
     .eq("dm_channel_id", channelId)
 
-  for (const member of channelMembers ?? []) {
+  if (channelMembersError || !channelMembers) {
+    return NextResponse.json({ error: channelMembersError?.message ?? "Failed to load DM members" }, { status: 500 })
+  }
+
+  for (const member of channelMembers) {
     if (member.user_id === user.id) continue
     if (await isBlockedBetweenUsers(supabase as any, user.id, member.user_id)) {
       return NextResponse.json({ error: "Cannot send messages while blocked" }, { status: 403 })

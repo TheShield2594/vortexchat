@@ -8,16 +8,23 @@ export async function isBlockedBetweenUsers(
 ): Promise<boolean> {
   if (!leftUserId || !rightUserId || leftUserId === rightUserId) return false
 
-  const { data } = await supabase
+  const participantIds = [leftUserId, rightUserId]
+  const { data, error } = await supabase
     .from("friendships")
-    .select("id")
+    .select("requester_id, addressee_id")
     .eq("status", "blocked")
-    .or(
-      `and(requester_id.eq.${leftUserId},addressee_id.eq.${rightUserId}),and(requester_id.eq.${rightUserId},addressee_id.eq.${leftUserId})`
-    )
-    .limit(1)
+    .in("requester_id", participantIds)
+    .in("addressee_id", participantIds)
 
-  return Boolean(data && data.length > 0)
+  if (error) {
+    throw new Error(`Failed to evaluate block state: ${error.message}`)
+  }
+
+  return (data ?? []).some((row) => {
+    const isForward = row.requester_id === leftUserId && row.addressee_id === rightUserId
+    const isBackward = row.requester_id === rightUserId && row.addressee_id === leftUserId
+    return isForward || isBackward
+  })
 }
 
 /** Filters mention ids down to users that are not blocked relative to sender. */
@@ -29,18 +36,22 @@ export async function filterMentionsByBlockState(
   const uniqueMentions = Array.from(new Set(mentions.filter(Boolean))).filter((id) => id !== senderUserId)
   if (uniqueMentions.length === 0) return { allowed: [], blocked: [] }
 
-  const { data } = await supabase
+  const participantIds = [senderUserId, ...uniqueMentions]
+  const { data, error } = await supabase
     .from("friendships")
     .select("requester_id, addressee_id")
     .eq("status", "blocked")
-    .or(
-      `and(requester_id.eq.${senderUserId},addressee_id.in.(${uniqueMentions.join(",")})),and(addressee_id.eq.${senderUserId},requester_id.in.(${uniqueMentions.join(",")}))`
-    )
+    .in("requester_id", participantIds)
+    .in("addressee_id", participantIds)
+
+  if (error) {
+    throw new Error(`Failed to evaluate mention block state: ${error.message}`)
+  }
 
   const blockedSet = new Set<string>()
   for (const row of data ?? []) {
-    if (row.requester_id === senderUserId) blockedSet.add(row.addressee_id)
-    if (row.addressee_id === senderUserId) blockedSet.add(row.requester_id)
+    if (row.requester_id === senderUserId && uniqueMentions.includes(row.addressee_id)) blockedSet.add(row.addressee_id)
+    if (row.addressee_id === senderUserId && uniqueMentions.includes(row.requester_id)) blockedSet.add(row.requester_id)
   }
 
   return {

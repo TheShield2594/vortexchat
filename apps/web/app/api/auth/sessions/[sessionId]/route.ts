@@ -8,12 +8,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data: session } = await db
+  const { data: session, error: sessionLookupError } = await db
     .from("auth_sessions")
     .select("id")
     .eq("id", sessionId)
     .eq("user_id", auth.user.id)
     .maybeSingle()
+
+  if (sessionLookupError) {
+    return NextResponse.json({ error: sessionLookupError.message }, { status: 500 })
+  }
 
   if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 })
 

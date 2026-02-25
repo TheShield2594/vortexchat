@@ -1097,37 +1097,29 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
                   }}
                   onReaction={async (emoji) => {
+                    const previousMessages = messages
                     const existing = message.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
                     const remove = Boolean(existing)
 
                     setMessages((prev) =>
-                      prev.map((m) =>
-                        m.id === message.id
-                          ? {
-                              ...m,
-                              reactions: remove
-                                ? m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId))
-                                : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
-                            }
-                          : m
-                      )
+                      prev.map((m) => {
+                        if (m.id !== message.id) return m
+                        const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                        return {
+                          ...m,
+                          reactions: remove
+                            ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+                            : hasOwnReaction
+                              ? m.reactions
+                              : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                        }
+                      })
                     )
 
                     try {
                       await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
                     } catch {
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === message.id
-                            ? {
-                                ...m,
-                                reactions: remove
-                                  ? [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }]
-                                  : m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)),
-                              }
-                            : m
-                        )
-                      )
+                      setMessages(previousMessages)
                     }
                   }}
                 />

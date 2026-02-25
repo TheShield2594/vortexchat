@@ -6,23 +6,29 @@ export async function sendReactionMutation(params: {
   remove: boolean
   nonce: string
 }): Promise<void> {
-  const key = `${params.messageId}:${params.emoji}:${params.remove ? "remove" : "add"}`
-  const running = inFlight.get(key)
-  if (running) return running
+  const key = `${params.messageId}:${params.emoji}`
+  const previous = inFlight.get(key) ?? Promise.resolve()
 
-  const request = fetch(`/api/messages/${params.messageId}/reactions`, {
-    method: params.remove ? "DELETE" : "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ emoji: params.emoji, nonce: params.nonce }),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const payload = await res.json().catch(() => ({}))
-      throw new Error(payload.error || "Failed to update reaction")
-    }
-  }).finally(() => {
-    inFlight.delete(key)
-  })
+  const next = previous
+    .catch(() => {})
+    .then(async () => {
+      const res = await fetch(`/api/messages/${params.messageId}/reactions`, {
+        method: params.remove ? "DELETE" : "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ emoji: params.emoji, nonce: params.nonce }),
+      })
 
-  inFlight.set(key, request)
-  return request
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error(payload.error || "Failed to update reaction")
+      }
+    })
+    .finally(() => {
+      if (inFlight.get(key) === next) {
+        inFlight.delete(key)
+      }
+    })
+
+  inFlight.set(key, next)
+  return next
 }

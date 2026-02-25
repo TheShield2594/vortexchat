@@ -568,12 +568,26 @@ function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Pr
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [sessions, setSessions] = useState<AuthSessionRow[]>([])
+  const [sessionsError, setSessionsError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/auth/sessions")
-      .then((res) => res.json())
-      .then((payload) => setSessions(Array.isArray(payload.sessions) ? payload.sessions : []))
-      .catch(() => {})
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load sessions")
+        return res.json()
+      })
+      .then((payload) => {
+        if (Array.isArray(payload.sessions)) {
+          setSessions(payload.sessions)
+          setSessionsError(null)
+        } else {
+          setSessionsError("Unexpected sessions payload")
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load sessions", error)
+        setSessionsError(error instanceof Error ? error.message : "Failed to load sessions")
+      })
   }, [])
 
   async function revokeSession(sessionId: string) {
@@ -608,6 +622,7 @@ function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Pr
       </div>
       <div className="rounded-lg p-3 space-y-2" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
         <p className="text-xs" style={{ color: "#949ba4" }}>Active sessions</p>
+        {sessionsError && <p className="text-xs" style={{ color: "#f23f43" }}>{sessionsError}</p>}
         {sessions.map((session) => (
           <div key={session.id} className="flex items-center justify-between gap-3">
             <div className="min-w-0">

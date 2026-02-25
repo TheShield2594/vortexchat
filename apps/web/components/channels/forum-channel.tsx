@@ -228,10 +228,27 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                 if (!error) { setMessages((prev) => prev.filter((m) => m.id !== activeThread.id)); setView("list"); setActiveThread(null) }
               }}
               onReaction={async (emoji) => {
+                const previousMessages = messages
                 const existing = activeThread.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
                 const remove = Boolean(existing)
-                setMessages((prev) => prev.map((m) => m.id === activeThread.id ? { ...m, reactions: remove ? m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) : [...m.reactions, { message_id: activeThread.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] } : m))
-                await sendReactionMutation({ messageId: activeThread.id, emoji, remove, nonce: crypto.randomUUID() })
+                setMessages((prev) => prev.map((m) => {
+                  if (m.id !== activeThread.id) return m
+                  const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                  return {
+                    ...m,
+                    reactions: remove
+                      ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+                      : hasOwnReaction
+                        ? m.reactions
+                        : [...m.reactions, { message_id: activeThread.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                  }
+                }))
+                try {
+                  await sendReactionMutation({ messageId: activeThread.id, emoji, remove, nonce: crypto.randomUUID() })
+                } catch (error) {
+                  console.error("Failed to update thread reaction", error)
+                  setMessages(previousMessages)
+                }
               }}
             />
           </div>
@@ -261,10 +278,27 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                     if (!error) setMessages((prev) => prev.filter((m) => m.id !== reply.id))
                   }}
                   onReaction={async (emoji) => {
+                    const previousMessages = messages
                     const existing = reply.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
                     const remove = Boolean(existing)
-                    setMessages((prev) => prev.map((m) => m.id === reply.id ? { ...m, reactions: remove ? m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) : [...m.reactions, { message_id: reply.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] } : m))
-                    await sendReactionMutation({ messageId: reply.id, emoji, remove, nonce: crypto.randomUUID() })
+                    setMessages((prev) => prev.map((m) => {
+                      if (m.id !== reply.id) return m
+                      const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                      return {
+                        ...m,
+                        reactions: remove
+                          ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+                          : hasOwnReaction
+                            ? m.reactions
+                            : [...m.reactions, { message_id: reply.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                      }
+                    }))
+                    try {
+                      await sendReactionMutation({ messageId: reply.id, emoji, remove, nonce: crypto.randomUUID() })
+                    } catch (error) {
+                      console.error("Failed to update thread reply reaction", error)
+                      setMessages(previousMessages)
+                    }
                   }}
                 />
               )

@@ -96,7 +96,10 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { content, replyToId, attachments = [] } = body
+  const { content, replyToId, attachments: rawAttachments } = body
+  const attachments = rawAttachments ?? []
+
+  if (!Array.isArray(attachments)) return NextResponse.json({ error: "Invalid attachments" }, { status: 400 })
   if (!content?.trim() && attachments.length === 0) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
   }
