@@ -29,7 +29,7 @@ export function useRealtimeMessages(
           // Fetch full message with relations
           const { data } = await supabase
             .from("messages")
-            .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+            .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
             .eq("id", payload.new.id)
             .single()
           if (data) onInsert(data as unknown as MessageWithAuthor)

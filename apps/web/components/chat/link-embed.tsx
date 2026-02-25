@@ -15,11 +15,60 @@ interface Props {
   url: string
 }
 
+function isGiphyHost(hostname: string): boolean {
+  return hostname === "giphy.com"
+    || hostname.endsWith(".giphy.com")
+    || hostname === "gph.is"
+    || hostname.endsWith(".gph.is")
+}
+
+function isEmbeddableGiphyHost(hostname: string): boolean {
+  return hostname === "giphy.com"
+    || hostname === "www.giphy.com"
+    || hostname.endsWith(".giphy.com")
+}
+
 // Extract first http(s) URL from message content, stripping trailing punctuation
 export function extractFirstUrl(content: string): string | null {
   const match = content.match(/https?:\/\/[^\s>]+/)
   if (!match) return null
   return match[0].replace(/[.,)\]};:!?"']+$/, "")
+}
+
+export function extractGiphyUrl(content: string): string | null {
+  const url = extractFirstUrl(content)
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    if (isGiphyHost(parsed.hostname)) {
+      return url
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+export function stripUrlFromContent(content: string, url: string): string {
+  return content.replace(url, "").replace(/\s{2,}/g, " ").trim()
+}
+
+export function getEmbeddableGiphyUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (!isEmbeddableGiphyHost(parsed.hostname)) {
+      return null
+    }
+    if (parsed.hostname === "media.giphy.com" && parsed.pathname.endsWith(".gif")) {
+      return url
+    }
+    const idMatch = parsed.pathname.match(/-([a-zA-Z0-9]+)$/) ?? parsed.pathname.match(/\/media\/([a-zA-Z0-9]+)\//)
+    const id = idMatch?.[1]
+    if (!id) return null
+    return `https://media.giphy.com/media/${id}/giphy.gif`
+  } catch {
+    return null
+  }
 }
 
 export function LinkEmbed({ url }: Props) {
