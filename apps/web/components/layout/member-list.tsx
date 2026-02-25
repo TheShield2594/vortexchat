@@ -9,6 +9,7 @@ import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserProfilePopover } from "@/components/user-profile-popover"
+import { ProfilePanel } from "@/components/profile/profile-panel"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
@@ -36,6 +37,7 @@ interface MemberData {
     bio: string | null
     banner_color: string | null
     custom_tag: string | null
+    created_at: string
   } | null
   roles: RoleRow[]
 }
@@ -56,6 +58,7 @@ export function MemberList({ serverId }: Props) {
   )
   const [members, setMembers] = useState<MemberData[]>([])
   const [presence, setPresence] = useState<PresenceState>({})
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
@@ -169,12 +172,28 @@ export function MemberList({ serverId }: Props) {
     return !p || p.status === "offline" || p.status === "invisible"
   })
 
+  const selectedMember = selectedMemberId
+    ? members.find((member) => member.user_id === selectedMemberId) ?? null
+    : null
+
   return (
-    <div
-      className="w-60 flex-shrink-0 flex flex-col"
-      style={{ background: "var(--app-bg-secondary)" }}
-    >
-      <ScrollArea className="flex-1 py-4">
+    <div className="flex h-full flex-shrink-0">
+      {selectedMember && (
+        <ProfilePanel
+          user={selectedMember.user}
+          displayName={selectedMember.nickname || selectedMember.user?.display_name || selectedMember.user?.username || "Unknown"}
+          status={presence[selectedMember.user_id]?.status}
+          roles={selectedMember.roles}
+          currentUserId={currentUser?.id}
+          onClose={() => setSelectedMemberId(null)}
+        />
+      )}
+
+      <div
+        className="w-60 flex-shrink-0 flex flex-col"
+        style={{ background: "var(--app-bg-secondary)" }}
+      >
+        <ScrollArea className="flex-1 py-4">
         {loadingMembers && (
           <div className="space-y-3 px-3">
             {Array.from({ length: 9 }).map((_, index) => (
@@ -204,6 +223,7 @@ export function MemberList({ serverId }: Props) {
                 member={member}
                 presence={presence[member.user_id]}
                 currentUserId={currentUser?.id}
+                onViewProfile={() => setSelectedMemberId(member.user_id)}
               />
             ))}
           </div>
@@ -224,12 +244,14 @@ export function MemberList({ serverId }: Props) {
                 member={member}
                 presence={presence[member.user_id]}
                 currentUserId={currentUser?.id}
+                onViewProfile={() => setSelectedMemberId(member.user_id)}
                 offline
               />
             ))}
           </div>
         )}
-      </ScrollArea>
+        </ScrollArea>
+      </div>
     </div>
   )
 }
@@ -238,11 +260,13 @@ function MemberItem({
   member,
   presence,
   currentUserId,
+  onViewProfile,
   offline,
 }: {
   member: MemberData
   presence?: { status: string; speaking?: boolean; voice_channel_id?: string }
   currentUserId?: string
+  onViewProfile: () => void
   offline?: boolean
 }) {
   const { toast } = useToast()
@@ -305,6 +329,7 @@ function MemberItem({
         <ContextMenuTrigger asChild>
           <div
             className="flex items-center gap-2 px-2 py-1.5 mx-2 rounded cursor-pointer hover:bg-white/5 transition-colors group"
+            onClick={onViewProfile}
           >
             <div className="relative flex-shrink-0">
               <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
@@ -360,6 +385,8 @@ function MemberItem({
             <ContextMenuSeparator />
           </>
         )}
+        <ContextMenuItem onClick={onViewProfile}>View Profile</ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={() => {
           navigator.clipboard.writeText(`@${member.user?.username ?? displayName}`)
           toast({ title: "Mention copied!" })
