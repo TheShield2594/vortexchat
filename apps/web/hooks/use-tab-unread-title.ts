@@ -18,7 +18,7 @@ export function useTabUnreadTitle(userId: string | null) {
         .from("notifications")
         .select("id", { count: "exact", head: true })
          .eq("user_id", currentUserId)
-        .is("read_at", null)
+        .eq("read", false)
       if (cancelled) return
       const unread = count ?? 0
       document.title = unread > 0 ? `(${unread}) VortexChat` : BASE_TITLE
