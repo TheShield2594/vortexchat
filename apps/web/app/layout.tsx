@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "VortexChat — Chat, Hang Out, Belong",
-  description: "A self-hosted Discord-style chat platform",
+  description: "A modern chat platform for communities and teams",
   icons: {
     icon: "/favicon.ico",
   },

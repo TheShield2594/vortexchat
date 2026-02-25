@@ -7,8 +7,8 @@ const PUBLIC_ROUTES = ["/login", "/register", "/api/auth", "/auth/callback"]
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Allow public routes
-  if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
+  // Allow public routes and marketing homepage
+  if (pathname === "/" || PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     try {
       const { response } = await updateSession(request)
       return response
