@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff } from "lucide-react"
+import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
@@ -300,6 +300,23 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         )}
         <span className="font-semibold text-white flex-1">{displayName}</span>
 
+        <button
+          className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+          style={{ color: "#b5bac1" }}
+          title="Search in conversation"
+          type="button"
+        >
+          <Search className="w-4 h-4" />
+        </button>
+        <button
+          className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+          style={{ color: "#b5bac1" }}
+          title="Pinned messages"
+          type="button"
+        >
+          <Pin className="w-4 h-4" />
+        </button>
+
         {/* Call buttons — voice-only vs video differentiated */}
         {!channel.is_group && (
           <>
@@ -511,6 +528,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             className="flex-1 bg-transparent text-sm focus:outline-none"
             style={{ color: "#dcddde" }}
           />
+          <button
+            className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+            style={{ color: "#949ba4" }}
+            title="Open emoji picker"
+            type="button"
+          >
+            <SmilePlus className="w-4 h-4" />
+          </button>
           {content.trim() && (
             <button onClick={handleSend} disabled={sending} style={{ color: "#5865f2" }}>
               <Send className="w-5 h-5" />
