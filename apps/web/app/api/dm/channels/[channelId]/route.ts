@@ -56,7 +56,7 @@ export async function GET(
 
   let query = supabase
     .from("direct_messages")
-    .select("id, dm_channel_id, sender_id, content, edited_at, deleted_at, created_at, sender:users!sender_id(id, username, display_name, avatar_url, status)")
+    .select("id, dm_channel_id, sender_id, content, edited_at, deleted_at, created_at, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
     .eq("dm_channel_id", channelId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
