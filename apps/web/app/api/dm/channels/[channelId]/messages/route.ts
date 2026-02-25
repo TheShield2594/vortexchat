@@ -51,18 +51,21 @@ export async function POST(
     }
   }
 
-  let body: { content?: string; encrypted?: boolean }
+  let body: { content?: string }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
-  const { data: channel } = await (supabase as any)
+  const { data: channel, error: channelError } = await (supabase as any)
     .from("dm_channels")
     .select("is_encrypted")
     .eq("id", channelId)
-     .maybeSingle()
-  const channelInfo = channel as any
+    .maybeSingle()
+  if (channelError || !channel) {
+    return NextResponse.json({ error: "Unable to verify channel encryption" }, { status: 500 })
+  }
+  const channelInfo = channel as { is_encrypted: boolean }
   const content = body.content?.trim()
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 })
 

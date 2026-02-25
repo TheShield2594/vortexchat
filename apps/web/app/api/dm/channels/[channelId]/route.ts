@@ -24,7 +24,7 @@ export async function GET(
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   // Fetch channel info (flat, no joins)
-  const { data: channel, error: channelError } = await (supabase as any)
+  const { data: channel, error: channelError } = await supabase
     .from("dm_channels")
     .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
     .eq("id", channelId)

@@ -12,7 +12,7 @@ import { useTyping } from "@/hooks/use-typing"
 import { useAppStore } from "@/lib/stores/app-store"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useShallow } from "zustand/react/shallow"
-import { decryptDmContent, encryptDmContent, exportPrivateKey, exportPublicKey, fingerprintFromPublicKey, generateConversationKey, generateDeviceKeyPair, importPrivateKey, importPublicKey, parseEncryptedEnvelope, unwrapConversationKey, wrapConversationKey } from "@/lib/dm-encryption"
+import { decryptDmContent, encryptDmContent, exportPublicKey, fingerprintFromPublicKey, generateConversationKey, generateDeviceKeyPair, importPublicKey, parseEncryptedEnvelope, unwrapConversationKey, wrapConversationKey } from "@/lib/dm-encryption"
 
 interface User {
   id: string
@@ -47,6 +47,49 @@ interface Props {
   currentUserId: string
 }
 
+
+const DEVICE_STORAGE_KEY = "dm-device-key-v1"
+const DEVICE_KEY_DB = "vortexchat-e2ee"
+const DEVICE_KEY_STORE = "device-private-keys"
+let deviceKeyRegistered = false
+
+function openDeviceKeyDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DEVICE_KEY_DB, 1)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains(DEVICE_KEY_STORE)) {
+        db.createObjectStore(DEVICE_KEY_STORE)
+      }
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function putDevicePrivateKey(deviceId: string, privateKey: CryptoKey) {
+  const db = await openDeviceKeyDb()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(DEVICE_KEY_STORE, "readwrite")
+    tx.objectStore(DEVICE_KEY_STORE).put(privateKey, deviceId)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+  db.close()
+}
+
+async function getDevicePrivateKey(deviceId: string): Promise<CryptoKey | null> {
+  const db = await openDeviceKeyDb()
+  const key = await new Promise<CryptoKey | null>((resolve, reject) => {
+    const tx = db.transaction(DEVICE_KEY_STORE, "readonly")
+    const req = tx.objectStore(DEVICE_KEY_STORE).get(deviceId)
+    req.onsuccess = () => resolve((req.result as CryptoKey | undefined) ?? null)
+    req.onerror = () => reject(req.error)
+  })
+  db.close()
+  return key
+}
+
 /** Channel-based DM view with message history, file uploads, voice/video calling, typing indicators, and real-time updates. */
 export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [channel, setChannel] = useState<Channel | null>(null)
@@ -56,6 +99,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [loadError, setLoadError] = useState(false)
   const [content, setContent] = useState("")
   const [decryptedContent, setDecryptedContent] = useState<Record<string, { text: string; failed: boolean }>>({})
+  const decryptedRef = useRef<Record<string, { text: string; failed: boolean }>>({})
   const [conversationKey, setConversationKey] = useState<Uint8Array | null>(null)
   const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
@@ -77,24 +121,45 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
 
   const ensureDeviceIdentity = useCallback(async () => {
-    const key = `dm-device-key-v1`
-    const existing = localStorage.getItem(key)
+    const existing = localStorage.getItem(DEVICE_STORAGE_KEY)
     if (existing) {
-      const parsed = JSON.parse(existing)
-      setDeviceId(parsed.deviceId)
-      setDeviceFingerprint(await fingerprintFromPublicKey(parsed.publicKey))
-      await fetch("/api/dm/keys/device", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId: parsed.deviceId, publicKey: parsed.publicKey }) })
-      return parsed
+      try {
+        const parsed = JSON.parse(existing) as { deviceId?: string; publicKey?: string }
+        if (typeof parsed.deviceId === "string" && parsed.deviceId && typeof parsed.publicKey === "string" && parsed.publicKey) {
+          const privateKey = await getDevicePrivateKey(parsed.deviceId)
+          if (privateKey) {
+            setDeviceId(parsed.deviceId)
+            setDeviceFingerprint(await fingerprintFromPublicKey(parsed.publicKey))
+            deviceKeyRegistered = true
+            return { deviceId: parsed.deviceId, publicKey: parsed.publicKey, privateKey }
+          }
+        }
+        localStorage.removeItem(DEVICE_STORAGE_KEY)
+      } catch {
+        localStorage.removeItem(DEVICE_STORAGE_KEY)
+      }
     }
 
     const pair = await generateDeviceKeyPair()
     const publicKey = await exportPublicKey(pair.publicKey)
-    const privateKey = await exportPrivateKey(pair.privateKey)
+    const privateKey = pair.privateKey
     const newDeviceId = crypto.randomUUID()
-    localStorage.setItem(key, JSON.stringify({ deviceId: newDeviceId, publicKey, privateKey }))
+
+    await putDevicePrivateKey(newDeviceId, privateKey)
+    localStorage.setItem(DEVICE_STORAGE_KEY, JSON.stringify({ deviceId: newDeviceId, publicKey }))
+
     setDeviceId(newDeviceId)
     setDeviceFingerprint(await fingerprintFromPublicKey(publicKey))
-    await fetch("/api/dm/keys/device", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId: newDeviceId, publicKey }) })
+
+    if (!deviceKeyRegistered) {
+      await fetch("/api/dm/keys/device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: newDeviceId, publicKey }),
+      })
+      deviceKeyRegistered = true
+    }
+
     return { deviceId: newDeviceId, publicKey, privateKey }
   }, [])
 
@@ -117,7 +182,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     const keyRes = await fetch(`/api/dm/channels/${channelInfo.id}/keys`)
     if (!keyRes.ok) return null
     const payload = await keyRes.json()
-    const privateKey = await importPrivateKey(identity.privateKey)
+    const privateKey = identity.privateKey
 
     const existingWrapped = (payload.wrappedKeys ?? []).find((row: any) => row.key_version === version && row.target_device_id === identity.deviceId)
     if (existingWrapped) {
@@ -182,7 +247,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   // Scroll to bottom on initial load
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto" })
-  }, [channelId, ensureConversationKey])
+  }, [channelId])
 
   // Scroll to bottom on new messages (if near bottom)
   useEffect(() => {
@@ -195,26 +260,38 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   // Realtime subscription
   useEffect(() => {
     if (!channel?.is_encrypted || !conversationKey) {
+      decryptedRef.current = {}
       setDecryptedContent({})
       return
     }
 
     let cancelled = false
     ;(async () => {
-      const next: Record<string, { text: string; failed: boolean }> = {}
+      const next = { ...decryptedRef.current }
+      let changed = false
+
       for (const msg of messages) {
+        const cached = next[msg.id]
+        if (cached && !cached.failed) continue
+
         const envelope = parseEncryptedEnvelope(msg.content)
         if (!envelope) {
           next[msg.id] = { text: "Unable to decrypt this message", failed: true }
+          changed = true
           continue
         }
+
         try {
           next[msg.id] = { text: await decryptDmContent(envelope, conversationKey), failed: false }
         } catch {
           next[msg.id] = { text: "Unable to decrypt this message", failed: true }
         }
+        changed = true
       }
-      if (!cancelled) setDecryptedContent(next)
+
+      if (!changed || cancelled) return
+      decryptedRef.current = next
+      setDecryptedContent(next)
     })()
 
     return () => { cancelled = true }
@@ -304,6 +381,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   async function handleEditSave(messageId: string) {
     if (!editContent.trim()) return
+    if (channel?.is_encrypted) {
+      toast({ variant: "destructive", title: "Editing encrypted messages is currently disabled" })
+      setEditingId(null)
+      return
+    }
+
     const res = await fetch(`/api/dm/channels/${channelId}/messages/${messageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

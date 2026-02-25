@@ -21,7 +21,13 @@ function getCrypto() {
 }
 
 function bytesToBase64(input: Uint8Array): string {
-  return btoa(String.fromCharCode(...input))
+  const chunkSize = 0x8000
+  let binary = ""
+  for (let index = 0; index < input.length; index += chunkSize) {
+    const chunk = input.subarray(index, index + chunkSize)
+    binary += String.fromCharCode.apply(null, Array.from(chunk))
+  }
+  return btoa(binary)
 }
 
 function base64ToBytes(input: string): Uint8Array {
@@ -61,7 +67,7 @@ export async function importPrivateKey(privateKey: string): Promise<CryptoKey> {
     "pkcs8",
     base64ToBytes(privateKey) as BufferSource,
     { name: "ECDH", namedCurve: "P-256" },
-    true,
+    false,
     ["deriveBits"]
   )
 }
@@ -138,7 +144,17 @@ export function parseEncryptedEnvelope(content: string | null): EncryptedEnvelop
   if (!content) return null
   try {
     const parsed = JSON.parse(content)
-    if (parsed?.kind === "dm-e2ee" && parsed?.version === 1 && typeof parsed?.ciphertext === "string") {
+    if (
+      parsed?.kind === "dm-e2ee"
+      && parsed?.version === 1
+      && typeof parsed?.ciphertext === "string"
+      && parsed.ciphertext.length > 0
+      && typeof parsed?.iv === "string"
+      && parsed.iv.length > 0
+      && typeof parsed?.keyVersion === "number"
+      && Number.isInteger(parsed.keyVersion)
+      && parsed.keyVersion >= 0
+    ) {
       return parsed as EncryptedEnvelope
     }
   } catch {
@@ -153,6 +169,7 @@ export async function fingerprintFromPublicKey(publicKeyBase64: string): Promise
   return hex.slice(0, 32).match(/.{1,4}/g)?.join(" ") ?? hex.slice(0, 32)
 }
 
+// Centralized key-version bump logic used by rotation workflows; keep exported for future overflow/epoch handling.
 export function nextKeyVersion(currentVersion: number): number {
   return currentVersion + 1
 }

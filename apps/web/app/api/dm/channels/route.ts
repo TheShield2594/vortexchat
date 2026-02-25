@@ -19,7 +19,7 @@ export async function GET() {
   if (!channelIds.length) return NextResponse.json([])
 
   // 2. Fetch channel metadata
-  const { data: channelRows, error: channelRowsError } = await (supabase as any)
+  const { data: channelRows, error: channelRowsError } = await supabase
     .from("dm_channels")
     .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
     .in("id", channelIds)
@@ -83,7 +83,7 @@ export async function GET() {
   }
 
   // 7. Assemble result
-  const channels = ((channelRows ?? []) as any[]).map((ch) => {
+  const channels = (channelRows ?? []).map((ch) => {
     const members = membersByChannel[ch.id] ?? []
     const partner = ch.is_group ? null : (members.find((u) => u.id !== user.id) ?? null)
     const latest = latestMessages[ch.id] ?? null
@@ -97,6 +97,7 @@ export async function GET() {
       is_group: ch.is_group,
       owner_id: ch.owner_id,
       updated_at: ch.updated_at,
+      is_encrypted: ch.is_encrypted,
       members,
       partner,
       latest_message: latest ? { ...latest, content: ch.is_encrypted ? "Encrypted message" : latest.content } : null,
@@ -168,7 +169,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Create new channel
-  const { data: channel, error: chanErr } = await (supabase as any)
+  const { data: channel, error: chanErr } = await supabase
     .from("dm_channels")
     .insert({ name: name ?? null, is_group: isGroup, owner_id: user.id, is_encrypted: encrypted })
     .select()

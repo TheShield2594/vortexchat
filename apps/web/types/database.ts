@@ -789,6 +789,9 @@ export type Database = {
           icon_url: string | null
           owner_id: string | null
           is_group: boolean
+          is_encrypted: boolean
+          encryption_key_version: number
+          encryption_membership_epoch: number
           created_at: string
           updated_at: string
         }
@@ -798,6 +801,9 @@ export type Database = {
           icon_url?: string | null
           owner_id?: string | null
           is_group?: boolean
+          is_encrypted?: boolean
+          encryption_key_version?: number
+          encryption_membership_epoch?: number
           created_at?: string
           updated_at?: string
         }
@@ -807,8 +813,71 @@ export type Database = {
           icon_url?: string | null
           owner_id?: string | null
           is_group?: boolean
+          is_encrypted?: boolean
+          encryption_key_version?: number
+          encryption_membership_epoch?: number
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_device_keys: {
+        Row: {
+          user_id: string
+          device_id: string
+          public_key: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          device_id: string
+          public_key: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          device_id?: string
+          public_key?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dm_channel_keys: {
+        Row: {
+          dm_channel_id: string
+          key_version: number
+          target_user_id: string
+          target_device_id: string
+          wrapped_key: string
+          wrapped_by_user_id: string
+          wrapped_by_device_id: string
+          sender_public_key: string
+          created_at: string
+        }
+        Insert: {
+          dm_channel_id: string
+          key_version: number
+          target_user_id: string
+          target_device_id: string
+          wrapped_key: string
+          wrapped_by_user_id: string
+          wrapped_by_device_id: string
+          sender_public_key: string
+          created_at?: string
+        }
+        Update: {
+          dm_channel_id?: string
+          key_version?: number
+          target_user_id?: string
+          target_device_id?: string
+          wrapped_key?: string
+          wrapped_by_user_id?: string
+          wrapped_by_device_id?: string
+          sender_public_key?: string
+          created_at?: string
         }
         Relationships: []
       }

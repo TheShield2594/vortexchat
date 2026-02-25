@@ -43,7 +43,7 @@ CREATE POLICY "dm members can view recipient key envelopes"
     target_user_id = auth.uid()
     AND EXISTS (
       SELECT 1 FROM public.dm_channel_members m
-      WHERE m.dm_channel_id = dm_channel_id AND m.user_id = auth.uid()
+      WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = auth.uid()
     )
   );
 
@@ -53,9 +53,62 @@ CREATE POLICY "dm members can insert recipient key envelopes"
     wrapped_by_user_id = auth.uid()
     AND EXISTS (
       SELECT 1 FROM public.dm_channel_members m
-      WHERE m.dm_channel_id = dm_channel_id AND m.user_id = auth.uid()
+      WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = auth.uid()
     )
   );
+
+CREATE POLICY "dm members can update recipient key envelopes"
+  ON public.dm_channel_keys FOR UPDATE
+  USING (
+    wrapped_by_user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.dm_channel_members m
+      WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    wrapped_by_user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.dm_channel_members m
+      WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = auth.uid()
+    )
+  );
+
+CREATE OR REPLACE FUNCTION public.prune_dm_channel_keys(p_dm_channel_id UUID, p_keep_versions INTEGER DEFAULT 5)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_max_version INTEGER;
+BEGIN
+  SELECT MAX(key_version) INTO v_max_version
+  FROM public.dm_channel_keys
+  WHERE dm_channel_id = p_dm_channel_id;
+
+  IF v_max_version IS NULL THEN
+    RETURN;
+  END IF;
+
+  DELETE FROM public.dm_channel_keys
+  WHERE dm_channel_id = p_dm_channel_id
+    AND key_version < (v_max_version - GREATEST(p_keep_versions, 1));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.dm_channel_keys_prune_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM public.prune_dm_channel_keys(NEW.dm_channel_id, 5);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS dm_channel_keys_prune_after_write ON public.dm_channel_keys;
+CREATE TRIGGER dm_channel_keys_prune_after_write
+  AFTER INSERT OR UPDATE ON public.dm_channel_keys
+  FOR EACH ROW EXECUTE FUNCTION public.dm_channel_keys_prune_trigger();
 
 CREATE OR REPLACE FUNCTION public.dm_channel_rotate_on_member_change()
 RETURNS TRIGGER
@@ -64,9 +117,10 @@ AS $$
 BEGIN
   UPDATE public.dm_channels
   SET encryption_key_version = CASE WHEN is_encrypted THEN encryption_key_version + 1 ELSE encryption_key_version END,
-      encryption_membership_epoch = encryption_membership_epoch + 1,
-      updated_at = NOW()
-  WHERE id = COALESCE(NEW.dm_channel_id, OLD.dm_channel_id);
+      encryption_membership_epoch = CASE WHEN is_encrypted THEN encryption_membership_epoch + 1 ELSE encryption_membership_epoch END,
+      updated_at = CASE WHEN is_encrypted THEN NOW() ELSE updated_at END
+  WHERE id = COALESCE(NEW.dm_channel_id, OLD.dm_channel_id)
+    AND is_encrypted = TRUE;
 
   RETURN COALESCE(NEW, OLD);
 END;

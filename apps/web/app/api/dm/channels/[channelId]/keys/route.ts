@@ -6,13 +6,14 @@ async function assertMembership(channelId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { supabase, user: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
 
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("dm_channel_members")
     .select("user_id")
     .eq("dm_channel_id", channelId)
     .eq("user_id", user.id)
     .maybeSingle()
 
+  if (membershipError) return { supabase, user, error: NextResponse.json({ error: membershipError.message }, { status: 500 }) }
   if (!membership) return { supabase, user, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
   return { supabase, user, error: null }
 }
@@ -25,8 +26,12 @@ export async function GET(
   const { supabase, user, error } = await assertMembership(channelId)
   if (error || !user) return error!
 
-  const [{ data: channel }, { data: memberRows }, { data: keyRows }] = await Promise.all([
-    (supabase as any).from("dm_channels").select("is_encrypted, encryption_key_version, encryption_membership_epoch").eq("id", channelId).single(),
+  const [channelResult, memberRowsResult, keyRowsResult] = await Promise.all([
+    (supabase as any)
+      .from("dm_channels")
+      .select("id, is_encrypted, encryption_key_version, encryption_membership_epoch")
+      .eq("id", channelId)
+      .maybeSingle(),
     supabase.from("dm_channel_members").select("user_id").eq("dm_channel_id", channelId),
     (supabase as any).from("dm_channel_keys")
       .select("key_version, target_user_id, target_device_id, wrapped_key, wrapped_by_user_id, wrapped_by_device_id, sender_public_key")
@@ -34,19 +39,49 @@ export async function GET(
       .eq("target_user_id", user.id),
   ])
 
-  const memberIds = (memberRows ?? []).map((m) => m.user_id)
-  const { data: deviceRows } = memberIds.length
+  if (channelResult.error) return NextResponse.json({ error: channelResult.error.message }, { status: 500 })
+  if (!channelResult.data) return NextResponse.json({ error: "DM channel not found" }, { status: 404 })
+  if (memberRowsResult.error) return NextResponse.json({ error: memberRowsResult.error.message }, { status: 500 })
+  if (keyRowsResult.error) return NextResponse.json({ error: keyRowsResult.error.message }, { status: 500 })
+
+  const memberIds = (memberRowsResult.data ?? []).map((m) => m.user_id)
+  const deviceRowsResult = memberIds.length
     ? await (supabase as any)
       .from("user_device_keys")
       .select("user_id, device_id, public_key")
       .in("user_id", memberIds)
-    : { data: [] }
+      .order("updated_at", { ascending: false })
+      .limit(20)
+    : { data: [], error: null }
+
+  if (deviceRowsResult.error) return NextResponse.json({ error: deviceRowsResult.error.message }, { status: 500 })
 
   return NextResponse.json({
-    channel,
-    memberDeviceKeys: deviceRows ?? [],
-    wrappedKeys: keyRows ?? [],
+    channel: channelResult.data,
+    memberDeviceKeys: deviceRowsResult.data ?? [],
+    wrappedKeys: keyRowsResult.data ?? [],
   })
+}
+
+function validateWrappedKeyEntry(entry: unknown, index: number) {
+  if (!entry || typeof entry !== "object") return `wrappedKeys[${index}] must be an object`
+
+  const fields: Array<keyof {
+    targetUserId: unknown
+    targetDeviceId: unknown
+    wrappedKey: unknown
+    wrappedByDeviceId: unknown
+    senderPublicKey: unknown
+  }> = ["targetUserId", "targetDeviceId", "wrappedKey", "wrappedByDeviceId", "senderPublicKey"]
+
+  const missing: string[] = []
+  for (const field of fields) {
+    const value = (entry as Record<string, unknown>)[field]
+    if (typeof value !== "string" || value.trim().length === 0) missing.push(field)
+  }
+
+  if (missing.length) return `wrappedKeys[${index}] invalid fields: ${missing.join(", ")}`
+  return null
 }
 
 export async function POST(
@@ -61,8 +96,13 @@ export async function POST(
   const keyVersion = Number.isInteger(body?.keyVersion) ? body.keyVersion : null
   const wrappedKeys = Array.isArray(body?.wrappedKeys) ? body.wrappedKeys : null
 
-  if (!keyVersion || !wrappedKeys?.length) {
+  if (keyVersion == null || !wrappedKeys?.length) {
     return NextResponse.json({ error: "keyVersion and wrappedKeys[] required" }, { status: 400 })
+  }
+
+  for (let index = 0; index < wrappedKeys.length; index += 1) {
+    const entryError = validateWrappedKeyEntry(wrappedKeys[index], index)
+    if (entryError) return NextResponse.json({ error: entryError }, { status: 400 })
   }
 
   const rows = wrappedKeys.map((entry: any) => ({
