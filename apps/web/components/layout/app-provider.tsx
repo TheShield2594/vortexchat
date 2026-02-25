@@ -40,23 +40,14 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
 
     const customCssStyleId = "vortex-custom-theme-css"
     let styleTag = document.getElementById(customCssStyleId) as HTMLStyleElement | null
-    const createdByThisEffect = !styleTag
     if (!styleTag) {
       styleTag = document.createElement("style")
       styleTag.id = customCssStyleId
       document.head.appendChild(styleTag)
     }
     styleTag.textContent = customCss.trim()
-
-    return () => {
-      if (createdByThisEffect && styleTag?.parentNode) {
-        styleTag.parentNode.removeChild(styleTag)
-      }
-      delete root.dataset.messageDisplay
-      delete root.dataset.fontScale
-      delete root.dataset.saturation
-      delete root.dataset.themePreset
-    }
+    // No cleanup: attributes and style tag persist until the app unmounts (page unload).
+    // Removing them on every dependency change caused a visible theme flash on each re-render.
   }, [messageDisplay, fontScale, saturation, themePreset, customCss])
 
   // Auto-sync presence: marks user online on mount, offline on tab close

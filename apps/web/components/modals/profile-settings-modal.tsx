@@ -38,18 +38,39 @@ const BANNER_PRESETS = [
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
 
-const CSS_TEMPLATE = `/* Vortex Custom Theme Template */
+const CSS_TEMPLATE = `/**
+ * Vortex Custom Theme – BetterDiscord-compatible
+ *
+ * Paste any BetterDiscord / Vencord theme here.
+ * @import and url() are supported for HTTPS fonts & images.
+ *
+ * Example: import a Google Font
+ * @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+ */
+
 :root {
-  --background: 225 15% 10%;
-  --card: 230 17% 12%;
-  --accent: 264 85% 68%;
-  --ring: 190 95% 58%;
+  /* Override app surface colors */
+  --app-bg-primary: #1e1e2e;
+  --app-bg-secondary: #181825;
+  --app-bg-tertiary: #11111b;
+
+  /* Override Tailwind design tokens (HSL without hsl() wrapper) */
+  --background: 240 21% 15%;
+  --card: 240 21% 12%;
+  --popover: 240 24% 10%;
+  --foreground: 226 64% 88%;
+  --muted: 240 14% 28%;
+  --muted-foreground: 228 20% 70%;
+  --border: 240 14% 22%;
+  --input: 240 14% 18%;
+  --primary: 267 84% 81%;
+  --accent: 316 73% 69%;
+  --ring: 267 84% 81%;
 }
 
-/* Optional per-component overrides */
-.message-content a {
-  color: #3ec5ff;
-}`
+/* Optional: style specific elements */
+.message-content a { color: #89b4fa; }
+`
 
 /** Tabbed user settings dialog covering profile editing, account security (2FA, passkeys, sessions), and appearance preferences. */
 export function ProfileSettingsModal({ open, onClose, user }: Props) {
@@ -658,27 +679,55 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Theme Presets</h3>
         <p className="text-sm mb-4" style={{ color: "#949ba4" }}>
-          Pick a next-gen Discord-inspired skin, then layer your own CSS on top.
+          Pick a skin — changes apply instantly. Layer your own CSS on top for full BetterDiscord-style customization.
         </p>
         <div className="grid grid-cols-2 gap-3">
           {([
-            { key: "discord", label: "Discord Classic" },
-            { key: "midnight-neon", label: "Midnight Neon" },
-            { key: "synthwave", label: "Synthwave" },
-            { key: "carbon", label: "Carbon Glass" },
+            {
+              key: "discord",
+              label: "Discord Classic",
+              desc: "Familiar dark blue-grey",
+              swatches: ["#313338", "#5865f2", "#23a55a"],
+            },
+            {
+              key: "midnight-neon",
+              label: "Midnight Neon",
+              desc: "Deep navy + cyan glow",
+              swatches: ["#1b1f31", "#00e5ff", "#f700ff"],
+            },
+            {
+              key: "synthwave",
+              label: "Synthwave",
+              desc: "Retro purple + pink",
+              swatches: ["#2a1e46", "#f92aad", "#7c3aed"],
+            },
+            {
+              key: "carbon",
+              label: "Carbon Glass",
+              desc: "Near-black + green",
+              swatches: ["#1f2124", "#3ba55c", "#5b8af0"],
+            },
           ] as const).map((preset) => (
             <button
               type="button"
               key={preset.key}
               onClick={() => setThemePreset(preset.key)}
-              className="rounded-lg border px-3 py-2 text-left"
+              className="rounded-lg border px-3 py-2.5 text-left flex flex-col gap-2"
               style={{
                 background: themePreset === preset.key ? "rgba(88,101,242,0.15)" : "#2b2d31",
                 borderColor: themePreset === preset.key ? "#5865f2" : "#1e1f22",
                 color: themePreset === preset.key ? "#f2f3f5" : "#b5bac1",
               }}
             >
-              {preset.label}
+              <div className="flex items-center justify-between w-full">
+                <span className="text-sm font-medium">{preset.label}</span>
+                <div className="flex gap-1">
+                  {preset.swatches.map((color) => (
+                    <span key={color} className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                  ))}
+                </div>
+              </div>
+              <span className="text-xs" style={{ color: "#72767d" }}>{preset.desc}</span>
             </button>
           ))}
         </div>
@@ -734,26 +783,40 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
 
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Custom CSS</h3>
-        <p className="text-sm mb-3" style={{ color: "#949ba4" }}>Like BetterDiscord/Vencord, your CSS is injected after the preset. Keep it client-safe and style-only.</p>
+        <p className="text-sm mb-3" style={{ color: "#949ba4" }}>
+          Paste any BetterDiscord / Vencord theme here — <code className="rounded px-1 text-xs" style={{ background: "#1e1f22", color: "#dcddde" }}>@import</code> and <code className="rounded px-1 text-xs" style={{ background: "#1e1f22", color: "#dcddde" }}>url()</code> are supported for HTTPS resources. Your CSS is injected on top of the preset, so you have full control.
+        </p>
         <textarea
           value={customCss}
           onChange={(event) => setCustomCss(event.target.value)}
           placeholder={CSS_TEMPLATE}
-          className="w-full min-h-[180px] rounded-lg border p-3 text-xs font-mono"
-          style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#dcddde" }}
+          spellCheck={false}
+          className="w-full min-h-[240px] rounded-lg border p-3 text-xs font-mono leading-relaxed"
+          style={{ background: "#1e1f22", borderColor: customCss.length > 50000 ? "#f23f43" : "#1e1f22", color: "#dcddde", resize: "vertical" }}
         />
-        <div className="mt-2 flex gap-2">
-          <Button type="button" variant="outline" onClick={() => setCustomCss(CSS_TEMPLATE)}>Use Template</Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={async () => {
-              await navigator.clipboard.writeText(CSS_TEMPLATE)
-              toast({ title: "Template copied" })
-            }}
-          >
-            Copy Template
-          </Button>
+        <div className="mt-1.5 flex items-center justify-between">
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setCustomCss(CSS_TEMPLATE)}>Use Template</Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await navigator.clipboard.writeText(CSS_TEMPLATE)
+                toast({ title: "Template copied" })
+              }}
+            >
+              Copy Template
+            </Button>
+            {customCss.trim() && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setCustomCss("")} style={{ color: "#f23f43", borderColor: "rgba(242,63,67,0.4)" }}>
+                Clear
+              </Button>
+            )}
+          </div>
+          <span className="text-xs tabular-nums" style={{ color: customCss.length > 50000 ? "#f23f43" : "#4e5058" }}>
+            {customCss.length.toLocaleString()} / 50,000
+          </span>
         </div>
       </div>
 

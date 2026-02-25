@@ -41,6 +41,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-color: var(--app-bg-primary);
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
@@ -248,59 +249,131 @@
 /* ─── Appearance settings ─────────────────────────────────────────────────── */
 
 
-/* Theme presets */
+/* Theme presets – every preset declares all tokens so switching themes is
+   fully self-contained with no leftover values from a previous preset. */
+
 [data-theme-preset="discord"] {
+  /* Core surface palette */
   --background: 223 7% 20%;
+  --foreground: 220 9% 95%;
   --card: 220 7% 18%;
+  --card-foreground: 220 9% 95%;
+  --popover: 220 7% 14%;
+  --popover-foreground: 220 9% 95%;
+  /* Brand / interactive */
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 6% 18%;
+  --secondary-foreground: 215 8% 73%;
   --accent: 235 86% 65%;
+  --accent-foreground: 0 0% 100%;
+  /* Neutral */
+  --muted: 220 5% 30%;
+  --muted-foreground: 215 8% 60%;
+  --border: 220 6% 25%;
+  --input: 220 6% 18%;
   --ring: 235 86% 65%;
+  /* Destructive */
+  --destructive: 359 87% 57%;
+  --destructive-foreground: 0 0% 100%;
+  /* App-specific surfaces (used by sidebar / shell) */
   --app-bg-primary: #313338;
   --app-bg-secondary: #2b2d31;
+  --app-bg-tertiary: #1e1f22;
+  --app-accent-color: #5865f2;
 }
 
 [data-theme-preset="midnight-neon"] {
+  /* Core surface palette */
   --background: 236 30% 9%;
   --foreground: 210 40% 98%;
   --card: 236 27% 12%;
+  --card-foreground: 210 40% 98%;
   --popover: 236 30% 8%;
+  --popover-foreground: 210 40% 98%;
+  /* Brand / interactive */
+  --primary: 186 100% 57%;
+  --primary-foreground: 230 40% 8%;
+  --secondary: 234 19% 18%;
+  --secondary-foreground: 217 24% 76%;
+  --accent: 186 100% 57%;
+  --accent-foreground: 230 40% 8%;
+  /* Neutral */
   --muted: 234 19% 24%;
   --muted-foreground: 217 24% 76%;
-  --border: 233 22% 46%;
-  --input: 234 19% 18%;
-  --destructive: 357 85% 62%;
-  --accent: 186 100% 57%;
-  --primary: 186 100% 57%;
+  --border: 234 22% 22%;
+  --input: 234 19% 14%;
   --ring: 315 100% 67%;
+  /* Destructive */
+  --destructive: 357 85% 62%;
+  --destructive-foreground: 0 0% 100%;
+  /* App-specific surfaces */
   --app-bg-primary: #1b1f31;
   --app-bg-secondary: #151829;
+  --app-bg-tertiary: #0f1120;
+  --app-accent-color: #00e5ff;
 }
 
 [data-theme-preset="synthwave"] {
+  /* Core surface palette */
   --background: 258 30% 11%;
   --foreground: 286 33% 96%;
   --card: 264 32% 14%;
+  --card-foreground: 286 33% 96%;
   --popover: 264 36% 10%;
+  --popover-foreground: 286 33% 96%;
+  /* Brand / interactive */
+  --primary: 271 89% 72%;
+  --primary-foreground: 260 40% 8%;
+  --secondary: 262 23% 20%;
+  --secondary-foreground: 280 26% 79%;
+  --accent: 323 89% 66%;
+  --accent-foreground: 260 40% 8%;
+  /* Neutral */
   --muted: 262 23% 27%;
   --muted-foreground: 280 26% 79%;
-  --border: 266 24% 48%;
-  --input: 262 23% 20%;
-  --destructive: 353 80% 63%;
-  --accent: 323 89% 66%;
-  --primary: 271 89% 72%;
+  --border: 264 22% 28%;
+  --input: 262 23% 16%;
   --ring: 188 98% 62%;
+  /* Destructive */
+  --destructive: 353 80% 63%;
+  --destructive-foreground: 0 0% 100%;
+  /* App-specific surfaces */
   --app-bg-primary: #2a1e46;
   --app-bg-secondary: #23193b;
+  --app-bg-tertiary: #1a1030;
+  --app-accent-color: #f92aad;
 }
 
 [data-theme-preset="carbon"] {
+  /* Core surface palette */
   --background: 220 7% 12%;
+  --foreground: 215 20% 90%;
   --card: 220 7% 15%;
+  --card-foreground: 215 20% 90%;
   --popover: 220 10% 9%;
-  --accent: 160 84% 40%;
+  --popover-foreground: 215 20% 90%;
+  /* Brand / interactive */
   --primary: 217 100% 70%;
+  --primary-foreground: 220 40% 8%;
+  --secondary: 220 7% 18%;
+  --secondary-foreground: 215 14% 65%;
+  --accent: 160 84% 40%;
+  --accent-foreground: 220 40% 8%;
+  /* Neutral */
+  --muted: 220 6% 22%;
+  --muted-foreground: 215 10% 55%;
+  --border: 220 6% 20%;
+  --input: 220 6% 14%;
   --ring: 160 84% 40%;
+  /* Destructive */
+  --destructive: 359 87% 57%;
+  --destructive-foreground: 0 0% 100%;
+  /* App-specific surfaces */
   --app-bg-primary: #1f2124;
   --app-bg-secondary: #191b1e;
+  --app-bg-tertiary: #141618;
+  --app-accent-color: #3ba55c;
 }
 
 /* Font scale */

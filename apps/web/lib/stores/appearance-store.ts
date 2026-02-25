@@ -49,9 +49,17 @@ const SATURATION_LEVELS: Saturation[] = ["normal", "reduced"]
 function sanitizeCustomCss(value: unknown): string {
   if (typeof value !== "string") return ""
   return value
-    .replace(/@import\b[^;]*;?/gi, "")
-    .replace(/url\s*\(/gi, "/* blocked:url( */(")
-    .slice(0, 12000)
+    // Block expression() – IE/legacy XSS vector
+    .replace(/expression\s*\(/gi, "/* blocked:expression */(")
+    // Block -moz-binding – old Firefox XSS vector
+    .replace(/-moz-binding\s*:/gi, "/* blocked */:")
+    // Block behavior: – IE XSS vector
+    .replace(/behavior\s*:/gi, "/* blocked */:")
+    // Block javascript: URLs inside url()
+    .replace(/url\s*\(\s*(['"]?)javascript:/gi, "url($1data:text/plain,blocked")
+    // Block data: URLs for non-image/font types (e.g. data:text/html XSS)
+    .replace(/url\s*\(\s*(['"]?)data:(?!image\/|font\/|application\/font|application\/x-font)/gi, "url($1data:text/plain,blocked")
+    .slice(0, 50000)
 }
 
 export const useAppearanceStore = create<AppearanceState>()(

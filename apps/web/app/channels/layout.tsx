@@ -34,7 +34,7 @@ export default async function ChannelsLayout({
 
   return (
     <AppProvider user={profile} servers={servers}>
-      <div className="flex h-screen overflow-hidden" style={{ background: '#313338' }}>
+      <div className="flex h-screen overflow-hidden" style={{ background: 'var(--app-bg-primary)' }}>
         <ServerSidebar />
         {children}
       </div>
