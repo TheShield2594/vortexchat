@@ -15,7 +15,20 @@ import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { filterMentionsByBlockState } from "@/lib/blocking"
 import { validateAttachments } from "@/lib/attachment-validation"
 
-const MESSAGE_PROJECTION = `*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`
+// Base projection — does NOT embed reply_to via FK join because the
+// self-referential FK is not guaranteed to be in PostgREST's schema cache.
+// Reply-to messages are hydrated in a separate query by withReplyTo().
+const MESSAGE_PROJECTION = `*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`
+const REPLY_PROJECTION   = `*, author:users!messages_author_id_fkey(*)`
+
+/** Fetch parent messages for any rows that have reply_to_id set and stitch them in. */
+async function withReplyTo(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, rows: any[]): Promise<any[]> {
+  const ids = [...new Set(rows.map((r: any) => r.reply_to_id).filter(Boolean))] as string[]
+  if (!ids.length) return rows.map((r: any) => ({ ...r, reply_to: null }))
+  const { data } = await supabase.from("messages").select(REPLY_PROJECTION).in("id", ids)
+  const map = new Map((data ?? []).map((m: any) => [m.id, m]))
+  return rows.map((r: any) => ({ ...r, reply_to: r.reply_to_id ? (map.get(r.reply_to_id) ?? null) : null }))
+}
 
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -94,7 +107,7 @@ export async function GET(request: Request) {
     )
 
     return NextResponse.json({
-      messages: deduped,
+      messages: await withReplyTo(supabase, deduped),
       hasMoreBefore,
       hasMoreAfter,
     })
@@ -116,7 +129,7 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json((messages ?? []).reverse())
+  return NextResponse.json(await withReplyTo(supabase, (messages ?? []).reverse()))
 }
 
 export async function POST(request: Request) {
@@ -202,7 +215,8 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (existing) {
-      return NextResponse.json(existing, { status: 200 })
+      const [hydrated] = await withReplyTo(supabase, [existing])
+      return NextResponse.json(hydrated, { status: 200 })
     }
   }
 
@@ -519,7 +533,8 @@ export async function POST(request: Request) {
         .maybeSingle()
 
       if (existing) {
-        return NextResponse.json(existing, { status: 200 })
+        const [hydrated] = await withReplyTo(supabase, [existing])
+        return NextResponse.json(hydrated, { status: 200 })
       }
     }
 
@@ -596,5 +611,6 @@ export async function POST(request: Request) {
     excludeUserId: user.id,
   }).catch(() => {})
 
-  return NextResponse.json(message, { status: 201 })
+  const [hydratedMessage] = await withReplyTo(supabase, [message])
+  return NextResponse.json(hydratedMessage, { status: 201 })
 }
