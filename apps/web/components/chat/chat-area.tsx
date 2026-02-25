@@ -43,7 +43,8 @@ function isDuplicateInsertError(error: { code?: string } | null): boolean {
   return error?.code === "23505"
 }
 
-const MESSAGE_SELECT = `*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`
+const MESSAGE_SELECT = `*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`
+const REPLY_SELECT   = `*, author:users!messages_author_id_fkey(*)`
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()
@@ -266,7 +267,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setAndPersistOutbox((current) => removeOutboxEntry(current, entry.id))
 
     if (data) {
-      upsertMessage(data as unknown as MessageWithAuthor)
+      const msg = data as any
+      let replyTo = null
+      if (msg.reply_to_id) {
+        const { data: parent } = await supabase.from("messages").select(REPLY_SELECT).eq("id", msg.reply_to_id).single()
+        replyTo = parent ?? null
+      }
+      upsertMessage({ ...msg, reply_to: replyTo } as MessageWithAuthor)
     }
   }, [persistOutboxAttachments, setAndPersistOutbox, supabase, upsertMessage])
 
@@ -894,7 +901,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
     if (message) {
-      upsertMessage(message as unknown as MessageWithAuthor)
+      upsertMessage({ ...message, reply_to: replyTo ?? null } as unknown as MessageWithAuthor)
     }
 
     setReplyTo(null)

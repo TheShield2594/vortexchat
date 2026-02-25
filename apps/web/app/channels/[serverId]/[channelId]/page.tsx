@@ -38,13 +38,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
       .single(),
     supabase
       .from("messages")
-      .select(`
-        *,
-        author:users!messages_author_id_fkey(*),
-        attachments(*),
-        reactions(*),
-        reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))
-      `)
+      .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
       .eq("channel_id", params.channelId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -62,7 +56,18 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
   // Filter messages to only text-based channel types
   let messages: any[] = []
   if ((MESSAGE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
-    messages = (messagesData ?? []).reverse()
+    const raw = (messagesData ?? []).reverse()
+    // Hydrate reply_to without relying on the self-referential FK join
+    const replyIds = [...new Set(raw.map((m: any) => m.reply_to_id).filter(Boolean))] as string[]
+    let replyMap = new Map<string, any>()
+    if (replyIds.length > 0) {
+      const { data: replyRows } = await supabase
+        .from("messages")
+        .select(`*, author:users!messages_author_id_fkey(*)`)
+        .in("id", replyIds)
+      for (const r of replyRows ?? []) replyMap.set(r.id, r)
+    }
+    messages = raw.map((m: any) => ({ ...m, reply_to: m.reply_to_id ? (replyMap.get(m.reply_to_id) ?? null) : null }))
   }
 
   // Voice and Stage channels use the WebRTC voice infrastructure
