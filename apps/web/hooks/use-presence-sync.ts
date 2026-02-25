@@ -16,6 +16,7 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const currentStatusRef = useRef<PresenceStatus>(resolveInitialPresenceStatus(status))
   const explicitStatusRef = useRef<PresenceStatus>(resolveInitialPresenceStatus(status))
+  const isIdleExplicitRef = useRef<boolean>(status === "idle")
   const idleTimerRef = useRef<number | undefined>(undefined)
   const userIdRef = useRef<string | null>(null)
 
@@ -24,6 +25,7 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
   useEffect(() => {
     if (status === "idle" || status === "dnd" || status === "invisible") {
       explicitStatusRef.current = status
+      isIdleExplicitRef.current = status === "idle"
     }
   }, [status])
 
@@ -38,6 +40,14 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
       currentStatusRef.current = nextStatus
       if (rememberExplicit) {
         explicitStatusRef.current = nextStatus
+      }
+
+      if (nextStatus === "idle") {
+        isIdleExplicitRef.current = rememberExplicit
+      } else if (nextStatus === "online") {
+        isIdleExplicitRef.current = false
+      } else if (rememberExplicit) {
+        isIdleExplicitRef.current = false
       }
 
       if (persistUserRecord) {
@@ -96,7 +106,7 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
       })
 
     const onActivity = () => {
-      if (currentStatusRef.current === "idle") {
+      if (currentStatusRef.current === "idle" && !isIdleExplicitRef.current) {
         persistStatus("online", { persistUserRecord: false, rememberExplicit: false })
       }
       scheduleIdle()
@@ -113,7 +123,7 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
         return
       }
 
-      persistStatus("online")
+      persistStatus("online", { persistUserRecord: false, rememberExplicit: false })
       scheduleIdle()
     }
 
