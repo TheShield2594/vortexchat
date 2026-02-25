@@ -3,6 +3,22 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendPushToChannel } from "@/lib/push"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
 
+function isValidDmE2eeEnvelope(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false
+  const envelope = value as Record<string, unknown>
+  return envelope.kind === "dm-e2ee"
+    && envelope.version === 1
+    && envelope.algorithm === "AES-GCM"
+    && typeof envelope.iv === "string"
+    && envelope.iv.length > 0
+    && typeof envelope.ciphertext === "string"
+    && envelope.ciphertext.length > 0
+    && typeof envelope.keyVersion === "number"
+    && Number.isInteger(envelope.keyVersion)
+    && envelope.keyVersion >= 0
+}
+
+
 // POST /api/dm/channels/[channelId]/messages — send a message
 export async function POST(
   req: NextRequest,
@@ -72,7 +88,7 @@ export async function POST(
   if (channelInfo?.is_encrypted) {
     try {
       const parsed = JSON.parse(content)
-      if (parsed?.kind !== "dm-e2ee") {
+      if (!isValidDmE2eeEnvelope(parsed)) {
         return NextResponse.json({ error: "Encrypted channels require encrypted payload" }, { status: 400 })
       }
     } catch {

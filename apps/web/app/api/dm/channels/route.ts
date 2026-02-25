@@ -156,9 +156,10 @@ export async function POST(req: NextRequest) {
       // Get non-group channels from those IDs
       const { data: nonGroupChannels, error: nonGroupChannelsError } = await supabase
         .from("dm_channels")
-        .select("id")
+        .select("id, is_encrypted")
         .in("id", sharedChannelIds)
         .eq("is_group", false)
+        .eq("is_encrypted", encrypted)
       if (nonGroupChannelsError) return NextResponse.json({ error: nonGroupChannelsError.message }, { status: 500 })
 
       const existingChannel = (nonGroupChannels ?? [])[0]

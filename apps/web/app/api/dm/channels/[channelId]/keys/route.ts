@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
+const PER_USER_DEVICE_LIMIT = 20
+const MAX_KEY_VERSION = 1_000_000
+
 async function assertMembership(channelId: string) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -48,17 +51,24 @@ export async function GET(
   const deviceRowsResult = memberIds.length
     ? await (supabase as any)
       .from("user_device_keys")
-      .select("user_id, device_id, public_key")
+      .select("user_id, device_id, public_key, updated_at")
       .in("user_id", memberIds)
       .order("updated_at", { ascending: false })
-      .limit(20)
     : { data: [], error: null }
 
   if (deviceRowsResult.error) return NextResponse.json({ error: deviceRowsResult.error.message }, { status: 500 })
 
+  const grouped = new Map<string, Array<{ user_id: string; device_id: string; public_key: string }>>()
+  for (const row of (deviceRowsResult.data ?? []) as Array<{ user_id: string; device_id: string; public_key: string }>) {
+    const list = grouped.get(row.user_id) ?? []
+    if (list.length < PER_USER_DEVICE_LIMIT) list.push(row)
+    grouped.set(row.user_id, list)
+  }
+  const boundedDeviceRows = Array.from(grouped.values()).flat()
+
   return NextResponse.json({
     channel: channelResult.data,
-    memberDeviceKeys: deviceRowsResult.data ?? [],
+    memberDeviceKeys: boundedDeviceRows,
     wrappedKeys: keyRowsResult.data ?? [],
   })
 }
@@ -98,6 +108,20 @@ export async function POST(
 
   if (keyVersion == null || !wrappedKeys?.length) {
     return NextResponse.json({ error: "keyVersion and wrappedKeys[] required" }, { status: 400 })
+  }
+
+  const { data: channelInfo, error: channelError } = await (supabase as any)
+    .from("dm_channels")
+    .select("encryption_key_version")
+    .eq("id", channelId)
+    .maybeSingle()
+
+  if (channelError || !channelInfo) {
+    return NextResponse.json({ error: "Unable to verify channel key version" }, { status: 500 })
+  }
+
+  if (keyVersion < 0 || keyVersion > MAX_KEY_VERSION || keyVersion > channelInfo.encryption_key_version) {
+    return NextResponse.json({ error: "Invalid keyVersion" }, { status: 400 })
   }
 
   for (let index = 0; index < wrappedKeys.length; index += 1) {

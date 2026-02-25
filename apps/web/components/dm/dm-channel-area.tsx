@@ -51,6 +51,7 @@ interface Props {
 const DEVICE_STORAGE_KEY = "dm-device-key-v1"
 const DEVICE_KEY_DB = "vortexchat-e2ee"
 const DEVICE_KEY_STORE = "device-private-keys"
+const CONVERSATION_KEY_STORE = "conversation-keys"
 let deviceKeyRegistered = false
 
 function openDeviceKeyDb(): Promise<IDBDatabase> {
@@ -60,6 +61,9 @@ function openDeviceKeyDb(): Promise<IDBDatabase> {
       const db = req.result
       if (!db.objectStoreNames.contains(DEVICE_KEY_STORE)) {
         db.createObjectStore(DEVICE_KEY_STORE)
+      }
+      if (!db.objectStoreNames.contains(CONVERSATION_KEY_STORE)) {
+        db.createObjectStore(CONVERSATION_KEY_STORE)
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -88,6 +92,34 @@ async function getDevicePrivateKey(deviceId: string): Promise<CryptoKey | null> 
   })
   db.close()
   return key
+}
+
+async function putConversationKey(cacheKey: string, keyBytes: Uint8Array) {
+  const db = await openDeviceKeyDb()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(CONVERSATION_KEY_STORE, "readwrite")
+    tx.objectStore(CONVERSATION_KEY_STORE).put(keyBytes, cacheKey)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+  db.close()
+}
+
+async function getConversationKey(cacheKey: string): Promise<Uint8Array | null> {
+  const db = await openDeviceKeyDb()
+  const value = await new Promise<Uint8Array | null>((resolve, reject) => {
+    const tx = db.transaction(CONVERSATION_KEY_STORE, "readonly")
+    const req = tx.objectStore(CONVERSATION_KEY_STORE).get(cacheKey)
+    req.onsuccess = () => {
+      const result = req.result
+      if (result instanceof Uint8Array) return resolve(result)
+      if (result instanceof ArrayBuffer) return resolve(new Uint8Array(result))
+      resolve(null)
+    }
+    req.onerror = () => reject(req.error)
+  })
+  db.close()
+  return value
 }
 
 /** Channel-based DM view with message history, file uploads, voice/video calling, typing indicators, and real-time updates. */
@@ -120,6 +152,19 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
 
+  const syncDeviceRegistration = useCallback(async (deviceId: string, publicKey: string) => {
+    if (deviceKeyRegistered) return
+    const res = await fetch("/api/dm/keys/device", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, publicKey }),
+    })
+    if (!res.ok) {
+      throw new Error("Failed to register device key")
+    }
+    deviceKeyRegistered = true
+  }, [])
+
   const ensureDeviceIdentity = useCallback(async () => {
     const existing = localStorage.getItem(DEVICE_STORAGE_KEY)
     if (existing) {
@@ -128,9 +173,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         if (typeof parsed.deviceId === "string" && parsed.deviceId && typeof parsed.publicKey === "string" && parsed.publicKey) {
           const privateKey = await getDevicePrivateKey(parsed.deviceId)
           if (privateKey) {
+            await syncDeviceRegistration(parsed.deviceId, parsed.publicKey)
             setDeviceId(parsed.deviceId)
             setDeviceFingerprint(await fingerprintFromPublicKey(parsed.publicKey))
-            deviceKeyRegistered = true
             return { deviceId: parsed.deviceId, publicKey: parsed.publicKey, privateKey }
           }
         }
@@ -151,17 +196,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     setDeviceId(newDeviceId)
     setDeviceFingerprint(await fingerprintFromPublicKey(publicKey))
 
-    if (!deviceKeyRegistered) {
-      await fetch("/api/dm/keys/device", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId: newDeviceId, publicKey }),
-      })
-      deviceKeyRegistered = true
-    }
+    await syncDeviceRegistration(newDeviceId, publicKey)
 
     return { deviceId: newDeviceId, publicKey, privateKey }
-  }, [])
+  }, [syncDeviceRegistration])
 
   const ensureConversationKey = useCallback(async (channelInfo: Channel) => {
     if (!channelInfo?.is_encrypted) {
@@ -172,12 +210,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     const identity = await ensureDeviceIdentity()
     const version = channelInfo.encryption_key_version ?? 1
     const cacheKey = `dm-conversation-key:${channelInfo.id}:${version}`
-    const cached = localStorage.getItem(cacheKey)
+    const cached = await getConversationKey(cacheKey)
     if (cached) {
-      const keyBytes = Uint8Array.from(atob(cached), (c) => c.charCodeAt(0))
-      setConversationKey(keyBytes)
-      return keyBytes
+      setConversationKey(cached)
+      return cached
     }
+
+    const legacyCached = localStorage.getItem(cacheKey)
+    if (legacyCached) localStorage.removeItem(cacheKey)
 
     const keyRes = await fetch(`/api/dm/channels/${channelInfo.id}/keys`)
     if (!keyRes.ok) return null
@@ -188,7 +228,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     if (existingWrapped) {
       const senderPublic = await importPublicKey(existingWrapped.sender_public_key)
       const unwrapped = await unwrapConversationKey(existingWrapped.wrapped_key, privateKey, senderPublic)
-      localStorage.setItem(cacheKey, btoa(String.fromCharCode(...unwrapped)))
+      await putConversationKey(cacheKey, unwrapped)
       setConversationKey(unwrapped)
       return unwrapped
     }
@@ -204,13 +244,17 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       senderPublicKey: identity.publicKey,
     })))
 
-    await fetch(`/api/dm/channels/${channelInfo.id}/keys`, {
+    const uploadRes = await fetch(`/api/dm/channels/${channelInfo.id}/keys`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ keyVersion: version, wrappedKeys }),
     })
 
-    localStorage.setItem(cacheKey, btoa(String.fromCharCode(...nextKey)))
+    if (!uploadRes.ok) {
+      throw new Error("Failed to upload wrapped conversation keys")
+    }
+
+    await putConversationKey(cacheKey, nextKey)
     setConversationKey(nextKey)
     return nextKey
   }, [currentUserId, ensureDeviceIdentity])

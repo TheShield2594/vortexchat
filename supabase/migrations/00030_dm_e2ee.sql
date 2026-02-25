@@ -55,6 +55,10 @@ CREATE POLICY "dm members can insert recipient key envelopes"
       SELECT 1 FROM public.dm_channel_members m
       WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = auth.uid()
     )
+    AND EXISTS (
+      SELECT 1 FROM public.dm_channel_members m
+      WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = dm_channel_keys.target_user_id
+    )
   );
 
 CREATE POLICY "dm members can update recipient key envelopes"
@@ -65,12 +69,20 @@ CREATE POLICY "dm members can update recipient key envelopes"
       SELECT 1 FROM public.dm_channel_members m
       WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = auth.uid()
     )
+    AND EXISTS (
+      SELECT 1 FROM public.dm_channel_members m
+      WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = dm_channel_keys.target_user_id
+    )
   )
   WITH CHECK (
     wrapped_by_user_id = auth.uid()
     AND EXISTS (
       SELECT 1 FROM public.dm_channel_members m
       WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = auth.uid()
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.dm_channel_members m
+      WHERE m.dm_channel_id = dm_channel_keys.dm_channel_id AND m.user_id = dm_channel_keys.target_user_id
     )
   );
 
@@ -91,7 +103,7 @@ BEGIN
 
   DELETE FROM public.dm_channel_keys
   WHERE dm_channel_id = p_dm_channel_id
-    AND key_version < (v_max_version - GREATEST(p_keep_versions, 1));
+    AND key_version <= (v_max_version - GREATEST(p_keep_versions, 1));
 END;
 $$;
 
@@ -99,16 +111,23 @@ CREATE OR REPLACE FUNCTION public.dm_channel_keys_prune_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  v_dm_channel_id UUID;
 BEGIN
-  PERFORM public.prune_dm_channel_keys(NEW.dm_channel_id, 5);
-  RETURN NEW;
+  FOR v_dm_channel_id IN
+    SELECT DISTINCT dm_channel_id FROM new_rows
+  LOOP
+    PERFORM public.prune_dm_channel_keys(v_dm_channel_id, 5);
+  END LOOP;
+  RETURN NULL;
 END;
 $$;
 
 DROP TRIGGER IF EXISTS dm_channel_keys_prune_after_write ON public.dm_channel_keys;
 CREATE TRIGGER dm_channel_keys_prune_after_write
   AFTER INSERT OR UPDATE ON public.dm_channel_keys
-  FOR EACH ROW EXECUTE FUNCTION public.dm_channel_keys_prune_trigger();
+  REFERENCING NEW TABLE AS new_rows
+  FOR EACH STATEMENT EXECUTE FUNCTION public.dm_channel_keys_prune_trigger();
 
 CREATE OR REPLACE FUNCTION public.dm_channel_rotate_on_member_change()
 RETURNS TRIGGER

@@ -45,8 +45,8 @@
 - No out-of-band identity proof yet; fingerprint verification is manual.
 - Multi-device bootstrap depends on online wrapped-key publication.
 - Metadata (sender, timestamp, channel membership, message size patterns) remains visible to server.
-- Cached conversation keys are still persisted in localStorage for fast decryption; any XSS can exfiltrate them and decrypt historical ciphertext for cached versions.
-- Earlier designs that stored device private keys in localStorage would be critically vulnerable to XSS exfiltration; mitigation is to keep private keys out of localStorage (IndexedDB non-extractable `CryptoKey`, secure enclave, or OS keystore).
+- Conversation keys and device private keys are persisted in IndexedDB on this rollout; this reduces trivial key scraping from localStorage but still does **not** protect against active XSS running in-origin.
+- Earlier designs that stored key material in localStorage would be critically vulnerable to XSS exfiltration; current mitigation keeps private keys out of localStorage, but robust protection still requires strong XSS prevention and platform key stores/secure enclaves where possible.
 - This rollout does not implement forward secrecy per-message ratchets.
 
 ## Non-Goals (Current)

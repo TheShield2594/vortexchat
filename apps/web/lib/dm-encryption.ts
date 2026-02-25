@@ -151,6 +151,8 @@ export function parseEncryptedEnvelope(content: string | null): EncryptedEnvelop
       && parsed.ciphertext.length > 0
       && typeof parsed?.iv === "string"
       && parsed.iv.length > 0
+      && typeof parsed?.algorithm === "string"
+      && parsed.algorithm === "AES-GCM"
       && typeof parsed?.keyVersion === "number"
       && Number.isInteger(parsed.keyVersion)
       && parsed.keyVersion >= 0

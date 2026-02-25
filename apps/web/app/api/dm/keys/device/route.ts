@@ -70,6 +70,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid device public key" }, { status: 400 })
   }
 
+  const { count, error: countError } = await (supabase as any)
+    .from("user_device_keys")
+    .select("device_id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .neq("device_id", deviceId)
+
+  if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
+  if ((count ?? 0) >= DEVICE_LIMIT) {
+    return NextResponse.json({ error: `Device limit reached (${DEVICE_LIMIT})` }, { status: 409 })
+  }
+
   const { error } = await (supabase as any).from("user_device_keys").upsert({
     user_id: user.id,
     device_id: deviceId,
