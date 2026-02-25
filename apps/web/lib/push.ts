@@ -65,6 +65,7 @@ export async function sendPushToUser(
 export async function sendPushToChannel(opts: {
   serverId?: string
   channelId?: string
+  threadId?: string
   dmChannelId?: string
   senderName: string
   content: string
@@ -72,8 +73,9 @@ export async function sendPushToChannel(opts: {
   excludeUserId: string
 }): Promise<void> {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
+  ensureVapid()
 
-  const { serverId, channelId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts
+  const { serverId, channelId, threadId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts
   const mentionedSet = new Set(mentionedIds)
   const supabase = await createServerSupabaseClient()
 
@@ -84,6 +86,13 @@ export async function sendPushToChannel(opts: {
       .from("dm_channel_members")
       .select("user_id")
       .eq("dm_channel_id", dmChannelId)
+      .neq("user_id", excludeUserId)
+    memberIds = members?.map((m) => m.user_id) ?? []
+  } else if (threadId) {
+    const { data: members } = await supabase
+      .from("thread_members")
+      .select("user_id")
+      .eq("thread_id", threadId)
       .neq("user_id", excludeUserId)
     memberIds = members?.map((m) => m.user_id) ?? []
   } else if (serverId && channelId) {
@@ -97,22 +106,47 @@ export async function sendPushToChannel(opts: {
 
   if (!memberIds.length) return
 
-  // Fetch notification settings for all potential recipients
-  const { data: settings } = await supabase
-    .from("notification_settings")
-    .select("user_id, mode, server_id, channel_id")
-    .in("user_id", memberIds)
+    // Fetch only relevant notification settings for potential recipients
+  const settingsBatches: Array<Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>> = []
 
+  if (threadId) {
+    const { data: threadSettings } = await supabase
+      .from("notification_settings")
+      .select("user_id, mode, server_id, channel_id, thread_id")
+      .in("user_id", memberIds)
+      .eq("thread_id", threadId)
+    settingsBatches.push((threadSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+  }
+
+  if (channelId) {
+    const { data: channelSettings } = await supabase
+      .from("notification_settings")
+      .select("user_id, mode, server_id, channel_id, thread_id")
+      .in("user_id", memberIds)
+      .eq("channel_id", channelId)
+    settingsBatches.push((channelSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+  }
+
+  if (serverId) {
+    const { data: serverSettings } = await supabase
+      .from("notification_settings")
+      .select("user_id, mode, server_id, channel_id, thread_id")
+      .in("user_id", memberIds)
+      .eq("server_id", serverId)
+    settingsBatches.push((serverSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+  }
+
+  const settings = settingsBatches.flat()
 
   const payload: PushPayload = {
     title: senderName,
     body: content.length > 100 ? content.slice(0, 97) + "…" : content,
     url: channelId && serverId
-      ? `/channels/${serverId}/${channelId}`
+      ? `/channels/${serverId}/${channelId}${threadId ? `?thread=${threadId}` : ""}`
       : dmChannelId
       ? `/channels/me/${dmChannelId}`
       : "/channels/me",
-    tag: channelId ?? dmChannelId ?? "message",
+    tag: threadId ?? channelId ?? dmChannelId ?? "message",
   }
 
   await Promise.allSettled(
@@ -122,9 +156,9 @@ export async function sendPushToChannel(opts: {
         uid,
         serverId ?? null,
         channelId ?? null,
-        null,
+        threadId ?? null,
         eventType,
-        (settings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null }>
+        (settings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>
       )
 
       if (!resolved.shouldPush) return

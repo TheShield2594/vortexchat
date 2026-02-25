@@ -6,6 +6,26 @@ import { lookup } from "dns/promises"
 
 const TIMEOUT_MS = 5000
 const MAX_BODY_BYTES = 256 * 1024 // 256 KB — enough to find <head> tags
+const MAX_REDIRECTS = 3
+
+function normalizeHost(value: string): string {
+  return value.toLowerCase().replace(/\.+$/, "")
+}
+
+const cachedBlockedEmbedDomains = (process.env.EMBED_BLOCKED_DOMAINS ?? "")
+  .split(",")
+  .map((value) => normalizeHost(value.trim()))
+  .filter(Boolean)
+
+function getBlockedEmbedDomains(): string[] {
+  return cachedBlockedEmbedDomains
+}
+
+function isBlockedEmbedHost(hostname: string): boolean {
+  const normalizedHost = normalizeHost(hostname)
+  const blocked = getBlockedEmbedDomains()
+  return blocked.some((domain) => normalizedHost === domain || normalizedHost.endsWith(`.${domain}`))
+}
 
 /** Returns true if the IP falls in a private/reserved range (SSRF guard). */
 function isPrivateIp(ip: string): boolean {
@@ -33,6 +53,25 @@ function isPrivateIp(ip: string): boolean {
   return false
 }
 
+async function validateHost(parsedUrl: URL): Promise<NextResponse | null> {
+  if (isBlockedEmbedHost(parsedUrl.hostname)) {
+    return NextResponse.json({ error: "domain blocked" }, { status: 403 })
+  }
+
+  try {
+    const addresses = await lookup(parsedUrl.hostname, { all: true })
+    for (const { address } of addresses) {
+      if (isPrivateIp(address)) {
+        return NextResponse.json({ error: "forbidden" }, { status: 403 })
+      }
+    }
+  } catch {
+    return NextResponse.json({ error: "invalid url" }, { status: 400 })
+  }
+
+  return null
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url")
   if (!url) return NextResponse.json({ error: "url required" }, { status: 400 })
@@ -46,29 +85,64 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "invalid url" }, { status: 400 })
   }
 
-  // SSRF guard: resolve hostname and block private/reserved IPs
-  try {
-    const addresses = await lookup(parsedUrl.hostname, { all: true })
-    for (const { address } of addresses) {
-      if (isPrivateIp(address)) {
-        return NextResponse.json({ error: "forbidden" }, { status: 403 })
-      }
-    }
-  } catch {
-    return NextResponse.json({ error: "invalid url" }, { status: 400 })
-  }
+  const initialValidation = await validateHost(parsedUrl)
+  if (initialValidation) return initialValidation
 
   try {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-    const resp = await fetch(parsedUrl.href, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "VortexChatBot/1.0 (link preview)",
-        Accept: "text/html",
-      },
-    })
+    let currentUrl = parsedUrl
+    let resp: Response | null = null
+
+    for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
+      resp = await fetch(currentUrl.href, {
+        signal: controller.signal,
+        redirect: "manual",
+        headers: {
+          "User-Agent": "VortexChatBot/1.0 (link preview)",
+          Accept: "text/html",
+        },
+      })
+
+      if (resp.status >= 300 && resp.status < 400) {
+        const location = resp.headers.get("location")
+        if (!location) {
+          clearTimeout(timer)
+          return NextResponse.json({ error: "redirect failed" }, { status: 502 })
+        }
+
+        let nextUrl: URL
+        try {
+          nextUrl = new URL(location, currentUrl)
+          if (!["http:", "https:"].includes(nextUrl.protocol)) throw new Error("bad protocol")
+        } catch {
+          clearTimeout(timer)
+          return NextResponse.json({ error: "invalid redirect" }, { status: 400 })
+        }
+
+        const validation = await validateHost(nextUrl)
+        if (validation) {
+          clearTimeout(timer)
+          return validation
+        }
+
+        currentUrl = nextUrl
+        continue
+      }
+
+      break
+    }
+
+    if (!resp) {
+      clearTimeout(timer)
+      return NextResponse.json({ error: "fetch failed" }, { status: 502 })
+    }
+
+    if (resp.status >= 300 && resp.status < 400) {
+      clearTimeout(timer)
+      return NextResponse.json({ error: "too many redirects" }, { status: 502 })
+    }
 
     if (!resp.ok) {
       clearTimeout(timer)
@@ -100,7 +174,7 @@ export async function GET(req: NextRequest) {
     // Clear abort timer only after body read is complete
     clearTimeout(timer)
 
-    const og = parseOG(html, parsedUrl.origin, parsedUrl.protocol)
+    const og = parseOG(html, currentUrl.origin, currentUrl.protocol)
     return NextResponse.json(og, {
       headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" },
     })

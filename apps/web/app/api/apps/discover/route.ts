@@ -16,24 +16,41 @@ export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get("q")?.trim()
   const category = req.nextUrl.searchParams.get("category")?.trim()
 
-  let builder = supabase
-    .from("app_catalog_public")
-    .select("id, slug, name, description, category, trust_badge, average_rating, review_count, permissions")
-    .eq("is_published", true)
-    .order("review_count", { ascending: false })
+  const baseBuilder = () => {
+    let builder = supabase
+      .from("app_catalog_public")
+      .select("id, slug, name, description, category, trust_badge, average_rating, review_count, permissions")
+      .eq("is_published", true)
+
+    if (category && category !== "all") {
+      builder = builder.eq("category", category)
+    }
+
+    return builder
+  }
 
   if (query) {
     const safeQuery = sanitizeIlikeQuery(query)
     if (safeQuery) {
-      builder = builder.or(`name.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`)
+      const term = `%${safeQuery}%`
+      const [{ data: byName, error: nameError }, { data: byDescription, error: descriptionError }] = await Promise.all([
+        baseBuilder().ilike("name", term).order("review_count", { ascending: false }).limit(100),
+        baseBuilder().ilike("description", term).order("review_count", { ascending: false }).limit(100),
+      ])
+
+      if (nameError || descriptionError) {
+        return NextResponse.json({ error: nameError?.message ?? descriptionError?.message ?? "query failed" }, { status: 500 })
+      }
+
+      const merged = [...(byName ?? []), ...(byDescription ?? [])]
+      const unique = Array.from(new Map(merged.map((entry) => [entry.id, entry])).values())
+        .sort((a, b) => (b.review_count ?? 0) - (a.review_count ?? 0))
+
+      return NextResponse.json(unique)
     }
   }
 
-  if (category && category !== "all") {
-    builder = builder.eq("category", category)
-  }
-
-  const { data, error } = await builder
+  const { data, error } = await baseBuilder().order("review_count", { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json(data ?? [])

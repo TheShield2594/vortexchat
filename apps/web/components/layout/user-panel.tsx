@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -35,11 +35,51 @@ export function UserPanel() {
   const [showProfileSettings, setShowProfileSettings] = useState(false)
   const { toast } = useToast()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const [isStatusExpired, setIsStatusExpired] = useState(() => Boolean(currentUser?.status_expires_at && new Date(currentUser.status_expires_at).getTime() <= Date.now()))
+
+  useEffect(() => {
+    if (!currentUser?.status_expires_at) {
+      setIsStatusExpired(false)
+      return
+    }
+
+    const expiryMs = new Date(currentUser.status_expires_at).getTime()
+    if (Number.isNaN(expiryMs)) {
+      setIsStatusExpired(true)
+      return
+    }
+
+    const MAX_DELAY = 2 ** 31 - 1
+    let timer: number | null = null
+
+    const scheduleExpiryCheck = () => {
+      const remaining = expiryMs - Date.now()
+      if (remaining <= 0) {
+        setIsStatusExpired(true)
+        return
+      }
+
+      setIsStatusExpired(false)
+      const delay = Math.min(remaining, MAX_DELAY)
+      timer = window.setTimeout(() => {
+        scheduleExpiryCheck()
+      }, delay)
+    }
+
+    scheduleExpiryCheck()
+
+    return () => {
+      if (timer !== null) {
+        window.clearTimeout(timer)
+      }
+    }
+  }, [currentUser?.id, currentUser?.status_expires_at])
 
   if (!currentUser) return null
 
   const displayName = currentUser.display_name || currentUser.username
   const initials = displayName.slice(0, 2).toUpperCase()
+  const customStatusText = !isStatusExpired ? [currentUser.status_emoji, currentUser.status_message].filter(Boolean).join(" ").trim() : ""
 
   async function handleSetStatus(status: UserRow["status"]) {
     try {
@@ -84,9 +124,9 @@ export function UserPanel() {
             {/* Username */}
             <div className="min-w-0">
               <div className="text-xs font-semibold text-white truncate">{displayName}</div>
-              {currentUser.status_message ? (
+              {customStatusText ? (
                 <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
-                  {currentUser.status_message}
+                  {customStatusText}
                 </div>
               ) : (
                 <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
