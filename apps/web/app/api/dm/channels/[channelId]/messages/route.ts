@@ -51,14 +51,31 @@ export async function POST(
     }
   }
 
-  let body: { content?: string }
+  let body: { content?: string; encrypted?: boolean }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
+  const { data: channel } = await (supabase as any)
+    .from("dm_channels")
+    .select("is_encrypted")
+    .eq("id", channelId)
+     .maybeSingle()
+  const channelInfo = channel as any
   const content = body.content?.trim()
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 })
+
+  if (channelInfo?.is_encrypted) {
+    try {
+      const parsed = JSON.parse(content)
+      if (parsed?.kind !== "dm-e2ee") {
+        return NextResponse.json({ error: "Encrypted channels require encrypted payload" }, { status: 400 })
+      }
+    } catch {
+      return NextResponse.json({ error: "Encrypted channels require encrypted payload" }, { status: 400 })
+    }
+  }
 
   const { data: message, error } = await supabase
     .from("direct_messages")
@@ -77,7 +94,7 @@ export async function POST(
   sendPushToChannel({
     dmChannelId: channelId,
     senderName,
-    content,
+    content: channelInfo?.is_encrypted ? "Encrypted message" : content,
     excludeUserId: user.id,
   }).catch(() => {})
 

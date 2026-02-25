@@ -19,9 +19,9 @@ export async function GET() {
   if (!channelIds.length) return NextResponse.json([])
 
   // 2. Fetch channel metadata
-  const { data: channelRows, error: channelRowsError } = await supabase
+  const { data: channelRows, error: channelRowsError } = await (supabase as any)
     .from("dm_channels")
-    .select("id, name, icon_url, is_group, owner_id, updated_at")
+    .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
     .in("id", channelIds)
   if (channelRowsError) return NextResponse.json({ error: channelRowsError.message }, { status: 500 })
 
@@ -83,7 +83,7 @@ export async function GET() {
   }
 
   // 7. Assemble result
-  const channels = (channelRows ?? []).map((ch) => {
+  const channels = ((channelRows ?? []) as any[]).map((ch) => {
     const members = membersByChannel[ch.id] ?? []
     const partner = ch.is_group ? null : (members.find((u) => u.id !== user.id) ?? null)
     const latest = latestMessages[ch.id] ?? null
@@ -99,7 +99,7 @@ export async function GET() {
       updated_at: ch.updated_at,
       members,
       partner,
-      latest_message: latest,
+      latest_message: latest ? { ...latest, content: ch.is_encrypted ? "Encrypted message" : latest.content } : null,
       is_unread: isUnread,
     }
   })
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let parsedBody: { userIds?: string[]; name?: string }
+  let parsedBody: { userIds?: string[]; name?: string; encrypted?: boolean }
   try {
     parsedBody = await req.json()
   } catch {
@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { userIds, name } = parsedBody
+  const encrypted = parsedBody.encrypted === true
   if (!userIds?.length) return NextResponse.json({ error: "userIds required" }, { status: 400 })
 
   const allMembers = Array.from(new Set([user.id, ...userIds])) as string[]
@@ -167,9 +168,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Create new channel
-  const { data: channel, error: chanErr } = await supabase
+  const { data: channel, error: chanErr } = await (supabase as any)
     .from("dm_channels")
-    .insert({ name: name ?? null, is_group: isGroup, owner_id: user.id })
+    .insert({ name: name ?? null, is_group: isGroup, owner_id: user.id, is_encrypted: encrypted })
     .select()
     .single()
 
