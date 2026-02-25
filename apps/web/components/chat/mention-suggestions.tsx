@@ -42,8 +42,8 @@ export function MentionSuggestions({ members, selectedIndex, query, onSelect }: 
       aria-label="Mention suggestions"
       className="rounded-lg shadow-xl overflow-y-auto max-h-52 py-1"
       style={{
-        background: "#2b2d31",
-        border: "1px solid #1e1f22",
+        background: "var(--theme-bg-secondary)",
+        border: "1px solid var(--theme-bg-tertiary)",
       }}
     >
       {members.map((member, i) => {
@@ -52,7 +52,7 @@ export function MentionSuggestions({ members, selectedIndex, query, onSelect }: 
         const isSelected = i === selectedIndex
         const confidence = getMatchConfidence(member, query)
         const confidenceTone =
-          confidence === "Exact" ? "#3ba55d" : confidence === "Strong" ? "#5865f2" : "#faa81a"
+          confidence === "Exact" ? "#3ba55d" : confidence === "Strong" ? "var(--theme-accent)" : "#faa81a"
 
         return (
           <button
@@ -62,7 +62,7 @@ export function MentionSuggestions({ members, selectedIndex, query, onSelect }: 
             className="flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors"
             style={{
               background: isSelected ? "rgba(88,101,242,0.2)" : "transparent",
-              color: "#dcddde",
+              color: "var(--theme-text-normal)",
             }}
             onMouseDown={(e) => {
               e.preventDefault()
@@ -72,14 +72,14 @@ export function MentionSuggestions({ members, selectedIndex, query, onSelect }: 
             <Avatar className="w-6 h-6">
               {member.avatar_url && <AvatarImage src={member.avatar_url} />}
               <AvatarFallback
-                style={{ background: "#5865f2", color: "white", fontSize: "10px" }}
+                style={{ background: "var(--theme-accent)", color: "white", fontSize: "10px" }}
               >
                 {initials}
               </AvatarFallback>
             </Avatar>
             <span className="text-sm font-medium truncate">{displayName}</span>
             {displayName !== member.username && (
-              <span className="text-xs truncate" style={{ color: "#949ba4" }}>
+              <span className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
                 {member.username}
               </span>
             )}

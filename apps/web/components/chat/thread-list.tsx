@@ -103,13 +103,13 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
   return (
     <div
       className="border-t mx-0"
-      style={{ borderColor: "#1e1f22" }}
+      style={{ borderColor: "var(--theme-bg-tertiary)" }}
     >
       {/* Section header */}
       <button
         onClick={() => setExpanded((e) => !e)}
         className="flex items-center gap-1.5 w-full px-4 py-2 text-xs font-semibold uppercase tracking-wide hover:bg-white/5 transition-colors"
-        style={{ color: "#949ba4" }}
+        style={{ color: "var(--theme-text-muted)" }}
       >
         {expanded ? (
           <ChevronDown className="w-3 h-3" />
@@ -120,7 +120,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
         Channel threads
         <span
           className="ml-auto rounded-full px-1.5 py-0.5 text-xs"
-          style={{ background: "#4e5058", color: "#dcddde" }}
+          style={{ background: "var(--theme-text-faint)", color: "var(--theme-text-normal)" }}
         >
           {threads.length}
         </span>
@@ -195,18 +195,18 @@ function ThreadListItem({
       )}
       style={{ maxWidth: "calc(100% - 8px)" }}
     >
-      <MessageSquare className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#949ba4" }} />
+      <MessageSquare className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
       <span
         className="truncate flex-1"
-        style={{ color: isActive ? "#f2f3f5" : "#b5bac1" }}
+        style={{ color: isActive ? "var(--theme-text-primary)" : "var(--theme-text-secondary)" }}
       >
         {thread.name}
       </span>
-      {thread.locked && <Lock className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />}
+      {thread.locked && <Lock className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-danger)" }} />}
       {thread.archived && <Archive className="w-3 h-3 flex-shrink-0" style={{ color: "#ed9c28" }} />}
       <span
         className="text-xs flex-shrink-0 ml-auto"
-        style={{ color: "#4e5058" }}
+        style={{ color: "var(--theme-text-faint)" }}
         title={format(new Date(thread.updated_at), "PPpp")}
       >
         {formatDistanceToNow(new Date(thread.updated_at), { addSuffix: false })}

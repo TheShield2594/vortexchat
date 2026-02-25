@@ -14,14 +14,14 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { UserRow } from "@/types/database"
 
 const STATUS_OPTIONS: { value: UserRow["status"]; label: string; color: string }[] = [
-  { value: "online", label: "Online", color: "#23a55a" },
-  { value: "idle", label: "Idle", color: "#f0b132" },
-  { value: "dnd", label: "Do Not Disturb", color: "#f23f43" },
-  { value: "invisible", label: "Invisible", color: "#80848e" },
+  { value: "online", label: "Online", color: "var(--theme-success)" },
+  { value: "idle", label: "Idle", color: "var(--theme-warning)" },
+  { value: "dnd", label: "Do Not Disturb", color: "var(--theme-danger)" },
+  { value: "invisible", label: "Invisible", color: "var(--theme-presence-offline)" },
 ]
 
 function getStatusColor(status: string) {
-  return STATUS_OPTIONS.find((o) => o.value === status)?.color ?? "#80848e"
+  return STATUS_OPTIONS.find((o) => o.value === status)?.color ?? "var(--theme-presence-offline)"
 }
 
 /** Bottom-bar user panel with avatar, status selector, mute/deafen/disconnect controls, and settings shortcut. */
@@ -59,7 +59,7 @@ export function UserPanel() {
   return (
     <div
       className="flex items-center gap-2 p-2 border-t"
-      style={{ background: '#232428', borderColor: '#1e1f22' }}
+      style={{ background: '#232428', borderColor: 'var(--theme-bg-tertiary)' }}
     >
       <ContextMenu>
         <ContextMenuTrigger asChild>
@@ -68,7 +68,7 @@ export function UserPanel() {
             <div className="relative flex-shrink-0">
               <Avatar className="w-8 h-8">
                 {currentUser.avatar_url && <AvatarImage src={currentUser.avatar_url} />}
-                <AvatarFallback style={{ background: '#5865f2', color: 'white', fontSize: '12px' }}>
+                <AvatarFallback style={{ background: 'var(--theme-accent)', color: 'white', fontSize: '12px' }}>
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -85,11 +85,11 @@ export function UserPanel() {
             <div className="min-w-0">
               <div className="text-xs font-semibold text-white truncate">{displayName}</div>
               {currentUser.status_message ? (
-                <div className="text-xs truncate" style={{ color: '#949ba4' }}>
+                <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
                   {currentUser.status_message}
                 </div>
               ) : (
-                <div className="text-xs" style={{ color: '#949ba4' }}>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
                   #{currentUser.username}
                 </div>
               )}
@@ -107,7 +107,7 @@ export function UserPanel() {
                 <ContextMenuItem key={value} onClick={() => handleSetStatus(value)}>
                   <Circle className="w-3 h-3 mr-2 fill-current" style={{ color }} />
                   {label}
-                  {currentUser.status === value && <span className="ml-auto text-xs" style={{ color: '#949ba4' }}>&#10003;</span>}
+                  {currentUser.status === value && <span className="ml-auto text-xs" style={{ color: 'var(--theme-text-muted)' }}>&#10003;</span>}
                 </ContextMenuItem>
               ))}
             </ContextMenuSubContent>
@@ -154,7 +154,7 @@ export function UserPanel() {
                   }
                 }}
                 className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors"
-                style={{ color: '#f23f43' }}
+                style={{ color: 'var(--theme-danger)' }}
               >
                 <PhoneOff className="w-4 h-4" />
               </button>
@@ -168,7 +168,7 @@ export function UserPanel() {
             <button
               onClick={() => setMuted(!muted)}
               className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
-              style={{ color: muted ? '#f23f43' : '#949ba4' }}
+              style={{ color: muted ? 'var(--theme-danger)' : 'var(--theme-text-muted)' }}
             >
               {muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
@@ -181,7 +181,7 @@ export function UserPanel() {
             <button
               onClick={() => setDeafened(!deafened)}
               className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
-              style={{ color: deafened ? '#f23f43' : '#949ba4' }}
+              style={{ color: deafened ? 'var(--theme-danger)' : 'var(--theme-text-muted)' }}
             >
               <Headphones className="w-4 h-4" />
             </button>
@@ -194,7 +194,7 @@ export function UserPanel() {
             <button
               onClick={() => setShowProfileSettings(true)}
               className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
-              style={{ color: '#949ba4' }}
+              style={{ color: 'var(--theme-text-muted)' }}
             >
               <Settings className="w-4 h-4" />
             </button>

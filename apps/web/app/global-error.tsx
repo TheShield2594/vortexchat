@@ -18,7 +18,7 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body style={{ margin: 0, background: "#313338", color: "#f2f3f5", fontFamily: "system-ui, sans-serif" }}>
+      <body style={{ margin: 0, background: "var(--theme-bg-primary)", color: "var(--theme-text-primary)", fontFamily: "system-ui, sans-serif" }}>
         <div
           role="alert"
           style={{
@@ -31,7 +31,7 @@ export default function GlobalError({
           }}
         >
           <h2 style={{ fontSize: "20px", fontWeight: "bold", margin: 0 }}>Something went wrong</h2>
-          <p style={{ fontSize: "14px", color: "#b5bac1", margin: 0 }}>
+          <p style={{ fontSize: "14px", color: "var(--theme-text-secondary)", margin: 0 }}>
             An unexpected error occurred. Please try again.
           </p>
           <button
@@ -43,7 +43,7 @@ export default function GlobalError({
               fontSize: "14px",
               fontWeight: 500,
               color: "white",
-              background: "#5865f2",
+              background: "var(--theme-accent)",
               border: "none",
               cursor: "pointer",
             }}

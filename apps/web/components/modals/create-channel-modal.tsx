@@ -153,28 +153,28 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
 
   function getInputIcon() {
     switch (type) {
-      case "voice": return <Volume2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
-      case "forum": return <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
-      case "announcement": return <Megaphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
-      case "media": return <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
-      case "stage": return <Mic2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
-      default: return <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#949ba4' }} />
+      case "voice": return <Volume2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />
+      case "forum": return <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />
+      case "announcement": return <Megaphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />
+      case "media": return <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />
+      case "stage": return <Mic2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />
+      default: return <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={resetForm}>
-      <DialogContent style={{ background: '#313338', borderColor: '#1e1f22', maxWidth: '460px' }}>
+      <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)', maxWidth: '460px' }}>
         <DialogHeader>
           <DialogTitle className="text-white">Create Channel</DialogTitle>
           {categoryId && (
-            <p className="text-sm" style={{ color: '#b5bac1' }}>in a category</p>
+            <p className="text-sm" style={{ color: 'var(--theme-text-secondary)' }}>in a category</p>
           )}
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: '#b5bac1' }}>
+            <Label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: 'var(--theme-text-secondary)' }}>
               Channel Type
             </Label>
             <div className="space-y-2">
@@ -184,14 +184,14 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
                   onClick={() => setType(t)}
                   className="w-full flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left"
                   style={{
-                    background: type === t ? '#5865f2' : '#2b2d31',
-                    border: `1px solid ${type === t ? '#5865f2' : 'transparent'}`,
+                    background: type === t ? 'var(--theme-accent)' : 'var(--theme-bg-secondary)',
+                    border: `1px solid ${type === t ? 'var(--theme-accent)' : 'transparent'}`,
                   }}
                 >
-                  <span style={{ color: type === t ? 'white' : '#949ba4' }}>{icon}</span>
+                  <span style={{ color: type === t ? 'white' : 'var(--theme-text-muted)' }}>{icon}</span>
                   <div>
                     <div className="font-medium text-white text-sm">{label}</div>
-                    <div className="text-xs" style={{ color: type === t ? 'rgba(255,255,255,0.7)' : '#949ba4' }}>
+                    <div className="text-xs" style={{ color: type === t ? 'rgba(255,255,255,0.7)' : 'var(--theme-text-muted)' }}>
                       {description}
                     </div>
                   </div>
@@ -201,7 +201,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+            <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
               Channel Name <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
@@ -220,7 +220,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
                 }
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                 className={type !== "category" ? "pl-8" : ""}
-                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />
             </div>
           </div>
@@ -230,12 +230,12 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" style={{ color: '#949ba4' }} />
+                  <Clock className="w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />
                   <div>
                     <Label className="text-sm font-medium text-white cursor-pointer" htmlFor="temporary-toggle">
                       Temporary Channel
                     </Label>
-                    <p className="text-xs" style={{ color: '#949ba4' }}>
+                    <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
                       Auto-delete this channel after a set time
                     </p>
                   </div>
@@ -249,7 +249,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
 
               {isTemporary && (
                 <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: '#b5bac1' }}>
+                  <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
                     Delete after
                   </Label>
                   <div className="grid grid-cols-3 gap-2">
@@ -259,9 +259,9 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
                         onClick={() => setExpirySeconds(seconds)}
                         className="py-1.5 px-2 rounded text-sm font-medium transition-colors"
                         style={{
-                          background: expirySeconds === seconds ? '#5865f2' : '#2b2d31',
-                          color: expirySeconds === seconds ? 'white' : '#949ba4',
-                          border: `1px solid ${expirySeconds === seconds ? '#5865f2' : 'transparent'}`,
+                          background: expirySeconds === seconds ? 'var(--theme-accent)' : 'var(--theme-bg-secondary)',
+                          color: expirySeconds === seconds ? 'white' : 'var(--theme-text-muted)',
+                          border: `1px solid ${expirySeconds === seconds ? 'var(--theme-accent)' : 'transparent'}`,
                         }}
                       >
                         {label}
@@ -278,7 +278,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
               variant="ghost"
               onClick={resetForm}
               className="flex-1"
-              style={{ color: '#b5bac1' }}
+              style={{ color: 'var(--theme-text-secondary)' }}
             >
               Cancel
             </Button>
@@ -286,7 +286,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
               onClick={handleCreate}
               disabled={loading || !name.trim()}
               className="flex-1"
-              style={{ background: '#5865f2' }}
+              style={{ background: 'var(--theme-accent)' }}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Channel

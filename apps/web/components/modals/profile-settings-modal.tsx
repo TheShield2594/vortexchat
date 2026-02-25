@@ -24,10 +24,10 @@ interface Props {
 }
 
 const STATUS_OPTIONS = [
-  { value: "online", label: "Online", color: "#23a55a" },
-  { value: "idle", label: "Idle", color: "#f0b132" },
-  { value: "dnd", label: "Do Not Disturb", color: "#f23f43" },
-  { value: "invisible", label: "Invisible", color: "#80848e" },
+  { value: "online", label: "Online", color: "var(--theme-success)" },
+  { value: "idle", label: "Idle", color: "var(--theme-warning)" },
+  { value: "dnd", label: "Do Not Disturb", color: "var(--theme-danger)" },
+  { value: "invisible", label: "Invisible", color: "var(--theme-presence-offline)" },
 ] as const
 
 const BANNER_PRESETS = [
@@ -39,37 +39,64 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024 // 5MB
 
 const CSS_TEMPLATE = `/**
- * Vortex Custom Theme – BetterDiscord-compatible
+ * Vortex full custom theme template
  *
- * Paste any BetterDiscord / Vencord theme here.
- * @import and url() are supported for HTTPS fonts & images.
- *
- * Example: import a Google Font
- * @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+ * Override any variable below. Everything in the app reads from these tokens.
  */
 
 :root {
-  /* Override app surface colors */
-  --app-bg-primary: #1e1e2e;
-  --app-bg-secondary: #181825;
-  --app-bg-tertiary: #11111b;
+  /* App shell */
+  --app-bg-primary: #313338;
+  --app-bg-secondary: #2b2d31;
+  --app-bg-tertiary: #1e1f22;
+  --app-accent-color: #5865f2;
 
-  /* Override Tailwind design tokens (HSL without hsl() wrapper) */
-  --background: 240 21% 15%;
-  --card: 240 21% 12%;
-  --popover: 240 24% 10%;
-  --foreground: 226 64% 88%;
-  --muted: 240 14% 28%;
-  --muted-foreground: 228 20% 70%;
-  --border: 240 14% 22%;
-  --input: 240 14% 18%;
-  --primary: 267 84% 81%;
-  --accent: 316 73% 69%;
-  --ring: 267 84% 81%;
+  /* Semantic theme tokens */
+  --theme-bg-primary: #313338;
+  --theme-bg-secondary: #2b2d31;
+  --theme-bg-tertiary: #1e1f22;
+  --theme-surface-elevated: #3f4147;
+  --theme-surface-input: #383a40;
+
+  --theme-text-primary: #f2f3f5;
+  --theme-text-normal: #dcddde;
+  --theme-text-secondary: #b5bac1;
+  --theme-text-muted: #949ba4;
+  --theme-text-faint: #4e5058;
+  --theme-text-bright: #dbdee1;
+
+  --theme-accent: #5865f2;
+  --theme-link: #00a8fc;
+  --theme-success: #23a55a;
+  --theme-positive: #3ba55c;
+  --theme-warning: #f0b132;
+  --theme-danger: #f23f43;
+  --theme-presence-offline: #80848e;
+
+  /* Tailwind tokens (HSL values, no hsl() wrapper) */
+  --background: 223 7% 20%;
+  --foreground: 220 9% 95%;
+  --card: 220 7% 18%;
+  --card-foreground: 220 9% 95%;
+  --popover: 220 7% 14%;
+  --popover-foreground: 220 9% 95%;
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 6% 18%;
+  --secondary-foreground: 215 8% 73%;
+  --accent: 235 86% 65%;
+  --accent-foreground: 0 0% 100%;
+  --muted: 220 5% 30%;
+  --muted-foreground: 215 8% 60%;
+  --border: 220 6% 25%;
+  --input: 220 6% 18%;
+  --ring: 235 86% 65%;
+  --destructive: 359 87% 57%;
+  --destructive-foreground: 0 0% 100%;
 }
 
-/* Optional: style specific elements */
-.message-content a { color: #89b4fa; }
+/* Optional element-level overrides */
+.message-content a { color: var(--theme-link); }
 `
 
 /** Tabbed user settings dialog covering profile editing, account security (2FA, passkeys, sessions), and appearance preferences. */
@@ -210,23 +237,23 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-hidden p-0"
-        style={{ background: "#313338", borderColor: "#1e1f22" }}
+        style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }}
       >
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "profile" | "security" | "appearance")} orientation="vertical" className="flex h-[80vh]">
           {/* Settings nav */}
-          <div className="w-52 flex-shrink-0 p-4 flex flex-col" style={{ background: "#2b2d31" }}>
-            <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#949ba4" }}>
+          <div className="w-52 flex-shrink-0 p-4 flex flex-col" style={{ background: "var(--theme-bg-secondary)" }}>
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>
               User Settings
             </h3>
 
             <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
-              <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
+              <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
                 My Account
               </TabsTrigger>
-                <TabsTrigger value="security" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
+                <TabsTrigger value="security" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
                 Security
               </TabsTrigger>
-              <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "#b5bac1" }}>
+              <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
                 Appearance
               </TabsTrigger>
             </TabsList>
@@ -236,16 +263,16 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
           <div className="flex-1 overflow-y-auto p-6">
                 <DialogHeader className="mb-6 space-y-1">
                   <DialogTitle className="text-2xl font-semibold leading-tight text-white">{tabMeta[activeTab].title}</DialogTitle>
-                  <p className="text-sm" style={{ color: "#949ba4" }}>{tabMeta[activeTab].subtitle}</p>
+                  <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>{tabMeta[activeTab].subtitle}</p>
                 </DialogHeader>
 
                 <TabsContent value="profile" className="mt-0 space-y-8">
                   {/* Profile preview card */}
-                  <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #1e1f22" }}>
+                  <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--theme-bg-tertiary)" }}>
                     {/* Banner */}
                     <div
                       className="h-20 relative"
-                      style={{ background: /^#[0-9a-f]{6}$/i.test(bannerColor) ? bannerColor : "#5865f2" }}
+                      style={{ background: /^#[0-9a-f]{6}$/i.test(bannerColor) ? bannerColor : "var(--theme-accent)" }}
                     />
 
                     {/* Avatar */}
@@ -258,7 +285,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "#232428" } as React.CSSProperties}>
                             {avatarPreview && <AvatarImage src={avatarPreview} />}
                             <AvatarFallback
-                              style={{ background: "#5865f2", color: "white", fontSize: "24px" }}
+                              style={{ background: "var(--theme-accent)", color: "white", fontSize: "24px" }}
                             >
                               {displayNamePreview.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
@@ -276,9 +303,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         />
                       </div>
                       <div className="font-bold text-white">{displayNamePreview}</div>
-                      <div className="text-sm" style={{ color: "#b5bac1" }}>#{user.username}</div>
+                      <div className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>#{user.username}</div>
                       {user.custom_tag && (
-                        <div className="text-xs mt-1" style={{ color: "#949ba4" }}>{user.custom_tag}</div>
+                        <div className="text-xs mt-1" style={{ color: "var(--theme-text-muted)" }}>{user.custom_tag}</div>
                       )}
                     </div>
                   </div>
@@ -286,42 +313,42 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   {/* Form fields */}
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Display Name
                       </Label>
                       <Input
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder={user.username}
-                        style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }}
+                        style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Username
                       </Label>
                       <Input
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }}
+                        style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Custom Tag / Subtitle
                       </Label>
                       <Input
                         value={customTag}
                         onChange={(e) => setCustomTag(e.target.value)}
                         placeholder="e.g. Game Dev | Coffee Addict"
-                        style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }}
+                        style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         About Me
                       </Label>
                       <textarea
@@ -331,15 +358,15 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         rows={3}
                         maxLength={190}
                         className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
-                        style={{ background: "#1e1f22", color: "#f2f3f5", border: "1px solid #1e1f22" }}
+                        style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
                       />
-                      <div className="text-right text-xs" style={{ color: "#4e5058" }}>
+                      <div className="text-right text-xs" style={{ color: "var(--theme-text-faint)" }}>
                         {bio.length}/190
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Status
                       </Label>
                       <div className="grid grid-cols-2 gap-2">
@@ -349,9 +376,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                             onClick={() => setStatus(value)}
                             className="flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors text-left"
                             style={{
-                              background: status === value ? "rgba(255,255,255,0.1)" : "#1e1f22",
-                              border: `1px solid ${status === value ? "#5865f2" : "transparent"}`,
-                              color: "#f2f3f5",
+                              background: status === value ? "rgba(255,255,255,0.1)" : "var(--theme-bg-tertiary)",
+                              border: `1px solid ${status === value ? "var(--theme-accent)" : "transparent"}`,
+                              color: "var(--theme-text-primary)",
                             }}
                           >
                             <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
@@ -362,7 +389,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Custom Status
                       </Label>
                       <Input
@@ -370,12 +397,12 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         onChange={(e) => setStatusMessage(e.target.value)}
                         placeholder="What are you up to?"
                         maxLength={128}
-                        style={{ background: "#1e1f22", borderColor: "#1e1f22", color: "#f2f3f5" }}
+                        style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b5bac1" }}>
+                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Banner Color
                       </Label>
                       <div className="flex flex-wrap gap-2">
@@ -432,18 +459,18 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                       variant="ghost"
                       onClick={handleLogout}
                       className="w-fit"
-                      style={{ color: "#f23f43", background: "rgba(242,63,67,0.12)" }}
+                      style={{ color: "var(--theme-danger)", background: "rgba(242,63,67,0.12)" }}
                     >
                       <LogOut className="w-4 h-4 mr-2" />
                       Log Out
                     </Button>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: "#1e1f22" }}>
+                  <div className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
                     <Button
                       onClick={handleSave}
                       disabled={loading}
-                      style={{ background: "#5865f2" }}
+                      style={{ background: "var(--theme-accent)" }}
                     >
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Save Changes
@@ -515,23 +542,23 @@ function PasskeysSection() {
     <div className="space-y-4">
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Passkeys</h3>
-        <p className="text-sm" style={{ color: "#949ba4" }}>Passkeys are phishing-resistant and work across biometrics, device PIN, or hardware keys. Keep at least one backup passkey on a second device.</p>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Passkeys are phishing-resistant and work across biometrics, device PIN, or hardware keys. Keep at least one backup passkey on a second device.</p>
       </div>
-      <Button onClick={handleRegisterPasskey} disabled={loading} style={{ background: "#3ba55c" }}>
+      <Button onClick={handleRegisterPasskey} disabled={loading} style={{ background: "var(--theme-positive)" }}>
         {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <KeyRound className="w-4 h-4 mr-2" />} Register Passkey
       </Button>
       <div className="space-y-2">
         {credentials.map((cred) => (
-          <div key={cred.id} className="rounded p-3 flex items-center gap-2" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
+          <div key={cred.id} className="rounded p-3 flex items-center gap-2" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
             <div className="flex-1">
               <p className="text-sm text-white">{cred.name}</p>
-              <p className="text-xs" style={{ color: "#949ba4" }}>Last used: {cred.last_used_at ? new Date(cred.last_used_at).toLocaleString() : "Never"}</p>
+              <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Last used: {cred.last_used_at ? new Date(cred.last_used_at).toLocaleString() : "Never"}</p>
             </div>
-            <button onClick={() => rename(cred.id)} className="p-2 rounded" style={{ background: "#383a40" }}><Pencil className="w-4 h-4" /></button>
-            <button onClick={() => revoke(cred.id)} className="p-2 rounded" style={{ background: "rgba(242,63,67,0.15)", color: "#f23f43" }}><Trash2 className="w-4 h-4" /></button>
+            <button onClick={() => rename(cred.id)} className="p-2 rounded" style={{ background: "var(--theme-surface-input)" }}><Pencil className="w-4 h-4" /></button>
+            <button onClick={() => revoke(cred.id)} className="p-2 rounded" style={{ background: "rgba(242,63,67,0.15)", color: "var(--theme-danger)" }}><Trash2 className="w-4 h-4" /></button>
           </div>
         ))}
-        {credentials.length === 0 && <p className="text-xs" style={{ color: "#949ba4" }}>No passkeys yet. Add one now and keep password/magic-link recovery enabled until you register a backup device.</p>}
+        {credentials.length === 0 && <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>No passkeys yet. Add one now and keep password/magic-link recovery enabled until you register a backup device.</p>}
       </div>
     </div>
   )
@@ -561,15 +588,15 @@ function SecurityPolicySection() {
     <div className="space-y-4">
       <div className="space-y-1">
         <h3 className="text-base font-semibold text-white">Account Security Policy</h3>
-        <p className="text-sm" style={{ color: "#949ba4" }}>Choose passkey-first login. Owners/admins can optionally enforce passkeys and disable fallback methods.</p>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Choose passkey-first login. Owners/admins can optionally enforce passkeys and disable fallback methods.</p>
       </div>
-      <div className="rounded-lg p-4 space-y-3" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
-        <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Passkey-first sign in</span><input type="checkbox" checked={policy.passkey_first} onChange={(e) => save({ ...policy, passkey_first: e.target.checked })} /></label>
-        <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Enforce passkey (admins/owners optional)</span><input type="checkbox" checked={policy.enforce_passkey} onChange={(e) => save({ ...policy, enforce_passkey: e.target.checked })} /></label>
-        <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Allow password fallback</span><input type="checkbox" checked={policy.fallback_password} onChange={(e) => save({ ...policy, fallback_password: e.target.checked })} disabled={policy.enforce_passkey} /></label>
-        <label className="flex items-center justify-between text-sm" style={{ color: "#b5bac1" }}><span>Allow magic-link fallback</span><input type="checkbox" checked={policy.fallback_magic_link} onChange={(e) => save({ ...policy, fallback_magic_link: e.target.checked })} disabled={policy.enforce_passkey} /></label>
+      <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+        <label className="flex items-center justify-between text-sm" style={{ color: "var(--theme-text-secondary)" }}><span>Passkey-first sign in</span><input type="checkbox" checked={policy.passkey_first} onChange={(e) => save({ ...policy, passkey_first: e.target.checked })} /></label>
+        <label className="flex items-center justify-between text-sm" style={{ color: "var(--theme-text-secondary)" }}><span>Enforce passkey (admins/owners optional)</span><input type="checkbox" checked={policy.enforce_passkey} onChange={(e) => save({ ...policy, enforce_passkey: e.target.checked })} /></label>
+        <label className="flex items-center justify-between text-sm" style={{ color: "var(--theme-text-secondary)" }}><span>Allow password fallback</span><input type="checkbox" checked={policy.fallback_password} onChange={(e) => save({ ...policy, fallback_password: e.target.checked })} disabled={policy.enforce_passkey} /></label>
+        <label className="flex items-center justify-between text-sm" style={{ color: "var(--theme-text-secondary)" }}><span>Allow magic-link fallback</span><input type="checkbox" checked={policy.fallback_magic_link} onChange={(e) => save({ ...policy, fallback_magic_link: e.target.checked })} disabled={policy.enforce_passkey} /></label>
       </div>
-      {loading && <p className="text-xs" style={{ color: "#949ba4" }}>Saving policy…</p>}
+      {loading && <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Saving policy…</p>}
     </div>
   )
 }
@@ -639,16 +666,16 @@ function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Pr
     <div className="space-y-4">
       <div className="space-y-1">
         <h3 className="text-base font-semibold text-white">Session Management</h3>
-        <p className="text-sm" style={{ color: "#949ba4" }}>Mark devices as trusted to reduce repeated prompts. If a device is lost, revoke all sessions immediately.</p>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Mark devices as trusted to reduce repeated prompts. If a device is lost, revoke all sessions immediately.</p>
       </div>
-      <div className="rounded-lg p-3 space-y-2" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
-        <p className="text-xs" style={{ color: "#949ba4" }}>Active sessions</p>
-        {sessionsError && <p className="text-xs" style={{ color: "#f23f43" }}>{sessionsError}</p>}
+      <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Active sessions</p>
+        {sessionsError && <p className="text-xs" style={{ color: "var(--theme-danger)" }}>{sessionsError}</p>}
         {sessions.map((session) => (
           <div key={session.id} className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs text-white truncate">{session.user_agent || "Unknown device"}</p>
-              <p className="text-[11px]" style={{ color: "#949ba4" }}>Last seen: {session.last_seen_at ? new Date(session.last_seen_at).toLocaleString() : "Unknown"}</p>
+              <p className="text-[11px]" style={{ color: "var(--theme-text-muted)" }}>Last seen: {session.last_seen_at ? new Date(session.last_seen_at).toLocaleString() : "Unknown"}</p>
             </div>
             <Button size="sm" variant="ghost" disabled={Boolean(session.revoked_at)} onClick={() => revokeSession(session.id)}>{session.revoked_at ? "Revoked" : "Revoke"}</Button>
           </div>
@@ -656,7 +683,7 @@ function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Pr
       </div>
       <div className="rounded-lg p-4 space-y-3" style={{ background: "rgba(242,63,67,0.08)", border: "1px solid rgba(242,63,67,0.35)" }}>
         <p className="text-xs" style={{ color: "#b98f92" }}>This action signs out all active sessions and removes trusted devices.</p>
-        <Button variant="outline" onClick={revokeAll} disabled={loading} style={{ borderColor: "#f23f43", color: "#f23f43", background: "rgba(242,63,67,0.1)" }}>
+        <Button variant="outline" onClick={revokeAll} disabled={loading} style={{ borderColor: "var(--theme-danger)", color: "var(--theme-danger)", background: "rgba(242,63,67,0.1)" }}>
           {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Revoke All Sessions
         </Button>
       </div>
@@ -678,7 +705,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
     <div className="space-y-8">
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Theme Presets</h3>
-        <p className="text-sm mb-4" style={{ color: "#949ba4" }}>
+        <p className="text-sm mb-4" style={{ color: "var(--theme-text-muted)" }}>
           Pick a skin — changes apply instantly. Layer your own CSS on top for full BetterDiscord-style customization.
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -687,7 +714,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               key: "discord",
               label: "Discord Classic",
               desc: "Familiar dark blue-grey",
-              swatches: ["#313338", "#5865f2", "#23a55a"],
+              swatches: ["var(--theme-bg-primary)", "var(--theme-accent)", "var(--theme-success)"],
             },
             {
               key: "midnight-neon",
@@ -705,7 +732,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               key: "carbon",
               label: "Carbon Glass",
               desc: "Near-black + green",
-              swatches: ["#1f2124", "#3ba55c", "#5b8af0"],
+              swatches: ["#1f2124", "var(--theme-positive)", "#5b8af0"],
             },
           ] as const).map((preset) => (
             <button
@@ -714,9 +741,9 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               onClick={() => setThemePreset(preset.key)}
               className="rounded-lg border px-3 py-2.5 text-left flex flex-col gap-2"
               style={{
-                background: themePreset === preset.key ? "rgba(88,101,242,0.15)" : "#2b2d31",
-                borderColor: themePreset === preset.key ? "#5865f2" : "#1e1f22",
-                color: themePreset === preset.key ? "#f2f3f5" : "#b5bac1",
+                background: themePreset === preset.key ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
+                borderColor: themePreset === preset.key ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
+                color: themePreset === preset.key ? "var(--theme-text-primary)" : "var(--theme-text-secondary)",
               }}
             >
               <div className="flex items-center justify-between w-full">
@@ -736,7 +763,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
       {/* Message Display */}
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Message Display</h3>
-        <p className="text-sm mb-4" style={{ color: "#949ba4" }}>
+        <p className="text-sm mb-4" style={{ color: "var(--theme-text-muted)" }}>
           Choose how messages look in the chat.
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -746,18 +773,18 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               onClick={() => setMessageDisplay(mode)}
               className="flex flex-col items-start gap-2 p-3 rounded-lg text-left transition-colors border"
               style={{
-                background: messageDisplay === mode ? "rgba(88,101,242,0.15)" : "#2b2d31",
-                borderColor: messageDisplay === mode ? "#5865f2" : "#1e1f22",
+                background: messageDisplay === mode ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
+                borderColor: messageDisplay === mode ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
               }}
             >
               <div className="w-full space-y-1.5 pointer-events-none">
                 {mode === "cozy" ? (
                   <>
                     <div className="flex items-start gap-2">
-                      <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: "#5865f2" }} />
+                      <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: "var(--theme-accent)" }} />
                       <div className="flex-1 space-y-1">
-                        <div className="h-2 rounded w-16" style={{ background: "#f2f3f5" }} />
-                        <div className="h-2 rounded w-24" style={{ background: "#949ba4" }} />
+                        <div className="h-2 rounded w-16" style={{ background: "var(--theme-text-primary)" }} />
+                        <div className="h-2 rounded w-24" style={{ background: "var(--theme-text-muted)" }} />
                       </div>
                     </div>
                   </>
@@ -765,15 +792,15 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
                   <>
                     {[28, 20, 24, 16].map((w, i) => (
                       <div key={i} className="flex items-center gap-1.5 h-2.5">
-                        <div className="w-5 h-1.5 rounded flex-shrink-0" style={{ background: "#4e5058" }} />
-                        <div className="h-1.5 rounded" style={{ background: "#949ba4", width: `${w}px` }} />
+                        <div className="w-5 h-1.5 rounded flex-shrink-0" style={{ background: "var(--theme-text-faint)" }} />
+                        <div className="h-1.5 rounded" style={{ background: "var(--theme-text-muted)", width: `${w}px` }} />
                         <div className="h-1.5 rounded flex-1" style={{ background: "#72767d" }} />
                       </div>
                     ))}
                   </>
                 )}
               </div>
-              <span className="text-sm font-medium capitalize" style={{ color: messageDisplay === mode ? "#f2f3f5" : "#b5bac1" }}>
+              <span className="text-sm font-medium capitalize" style={{ color: messageDisplay === mode ? "var(--theme-text-primary)" : "var(--theme-text-secondary)" }}>
                 {mode}
               </span>
             </button>
@@ -783,8 +810,8 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
 
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Custom CSS</h3>
-        <p className="text-sm mb-3" style={{ color: "#949ba4" }}>
-          Paste any BetterDiscord / Vencord theme here — <code className="rounded px-1 text-xs" style={{ background: "#1e1f22", color: "#dcddde" }}>@import</code> and <code className="rounded px-1 text-xs" style={{ background: "#1e1f22", color: "#dcddde" }}>url()</code> are supported for HTTPS resources. Your CSS is injected on top of the preset, so you have full control.
+        <p className="text-sm mb-3" style={{ color: "var(--theme-text-muted)" }}>
+          Paste your full theme CSS here. Override the global tokens in the template (or add your own selectors). Your CSS is injected on top of the selected preset, so custom tokens and rules apply app-wide instantly.
         </p>
         <textarea
           value={customCss}
@@ -792,7 +819,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
           placeholder={CSS_TEMPLATE}
           spellCheck={false}
           className="w-full min-h-[240px] rounded-lg border p-3 text-xs font-mono leading-relaxed"
-          style={{ background: "#1e1f22", borderColor: customCss.length > 50000 ? "#f23f43" : "#1e1f22", color: "#dcddde", resize: "vertical" }}
+          style={{ background: "var(--theme-bg-tertiary)", borderColor: customCss.length > 50000 ? "var(--theme-danger)" : "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)", resize: "vertical" }}
         />
         <div className="mt-1.5 flex items-center justify-between">
           <div className="flex gap-2">
@@ -809,12 +836,12 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               Copy Template
             </Button>
             {customCss.trim() && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setCustomCss("")} style={{ color: "#f23f43", borderColor: "rgba(242,63,67,0.4)" }}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setCustomCss("")} style={{ color: "var(--theme-danger)", borderColor: "rgba(242,63,67,0.4)" }}>
                 Clear
               </Button>
             )}
           </div>
-          <span className="text-xs tabular-nums" style={{ color: customCss.length > 50000 ? "#f23f43" : "#4e5058" }}>
+          <span className="text-xs tabular-nums" style={{ color: customCss.length > 50000 ? "var(--theme-danger)" : "var(--theme-text-faint)" }}>
             {customCss.length.toLocaleString()} / 50,000
           </span>
         </div>
@@ -823,7 +850,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
       {/* Font Size */}
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Chat Font Scaling</h3>
-        <p className="text-sm mb-4" style={{ color: "#949ba4" }}>
+        <p className="text-sm mb-4" style={{ color: "var(--theme-text-muted)" }}>
           Choose a comfortable size for reading messages.
         </p>
         <div className="flex items-center gap-3">
@@ -833,9 +860,9 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               onClick={() => setFontScale(scale)}
               className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors border capitalize"
               style={{
-                background: fontScale === scale ? "rgba(88,101,242,0.15)" : "#2b2d31",
-                borderColor: fontScale === scale ? "#5865f2" : "#1e1f22",
-                color: fontScale === scale ? "#f2f3f5" : "#b5bac1",
+                background: fontScale === scale ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
+                borderColor: fontScale === scale ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
+                color: fontScale === scale ? "var(--theme-text-primary)" : "var(--theme-text-secondary)",
                 fontSize: scale === "small" ? "13px" : scale === "large" ? "15px" : "14px",
               }}
             >
@@ -850,11 +877,11 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
         <h3 className="text-base font-semibold text-white mb-1">Accessibility</h3>
         <div
           className="flex items-center justify-between p-3 rounded-lg"
-          style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
+          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
         >
           <div>
             <p className="text-sm font-medium text-white">Reduced Saturation</p>
-            <p className="text-xs mt-0.5" style={{ color: "#949ba4" }}>
+            <p className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>
               Desaturates interface colors for color-sensitivity.
             </p>
           </div>
@@ -863,7 +890,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
             aria-checked={saturation === "reduced"}
             onClick={() => setSaturation(saturation === "reduced" ? "normal" : "reduced")}
             className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200"
-            style={{ background: saturation === "reduced" ? "#5865f2" : "#4e5058" }}
+            style={{ background: saturation === "reduced" ? "var(--theme-accent)" : "var(--theme-text-faint)" }}
           >
             <span
               className="pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out mt-0.5"
@@ -878,7 +905,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={onSave} disabled={saving} style={{ background: "#5865f2" }}>
+        <Button onClick={onSave} disabled={saving} style={{ background: "var(--theme-accent)" }}>
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Theme & Appearance
         </Button>
       </div>
@@ -963,37 +990,37 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
   const has2FA = verified.length > 0
 
   if (loading) {
-    return <div className="flex justify-center py-8"><Loader2 className="animate-spin" style={{ color: "#949ba4" }} /></div>
+    return <div className="flex justify-center py-8"><Loader2 className="animate-spin" style={{ color: "var(--theme-text-muted)" }} /></div>
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Two-Factor Authentication</h3>
-        <p className="text-sm" style={{ color: "#949ba4" }}>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
           Add an extra layer of security to your account using an authenticator app (Google Authenticator, Authy, etc.).
         </p>
       </div>
 
       {/* Current 2FA status */}
-      <div className="rounded-lg p-4 flex items-center gap-3" style={{ background: has2FA ? "rgba(35,165,90,0.1)" : "#2b2d31", border: `1px solid ${has2FA ? "#23a55a" : "#1e1f22"}` }}>
+      <div className="rounded-lg p-4 flex items-center gap-3" style={{ background: has2FA ? "rgba(35,165,90,0.1)" : "var(--theme-bg-secondary)", border: `1px solid ${has2FA ? "var(--theme-success)" : "var(--theme-bg-tertiary)"}` }}>
         {has2FA
-          ? <ShieldCheck className="w-6 h-6 flex-shrink-0" style={{ color: "#23a55a" }} />
-          : <ShieldOff className="w-6 h-6 flex-shrink-0" style={{ color: "#4e5058" }} />}
+          ? <ShieldCheck className="w-6 h-6 flex-shrink-0" style={{ color: "var(--theme-success)" }} />
+          : <ShieldOff className="w-6 h-6 flex-shrink-0" style={{ color: "var(--theme-text-faint)" }} />}
         <div className="flex-1">
           <p className="text-sm font-medium text-white">{has2FA ? "2FA is enabled" : "2FA is not enabled"}</p>
-          <p className="text-xs" style={{ color: "#949ba4" }}>
+          <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
             {has2FA ? `${verified.length} authenticator app${verified.length > 1 ? "s" : ""} registered.` : "Your account is protected by password only."}
           </p>
         </div>
         {has2FA
           ? (
-            <button onClick={() => handleUnenroll(verified[0].id)} className="px-3 py-1.5 rounded text-sm transition-colors" style={{ background: "rgba(242,63,67,0.15)", color: "#f23f43", border: "1px solid rgba(242,63,67,0.3)" }}>
+            <button onClick={() => handleUnenroll(verified[0].id)} className="px-3 py-1.5 rounded text-sm transition-colors" style={{ background: "rgba(242,63,67,0.15)", color: "var(--theme-danger)", border: "1px solid rgba(242,63,67,0.3)" }}>
               Remove
             </button>
           )
           : !qrCode && (
-            <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 rounded text-sm font-semibold transition-colors" style={{ background: "#5865f2", color: "white" }}>
+            <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 rounded text-sm font-semibold transition-colors" style={{ background: "var(--theme-accent)", color: "white" }}>
               {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enable 2FA"}
             </button>
           )}
@@ -1001,20 +1028,20 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
 
       {/* QR code enrollment flow */}
       {qrCode && (
-        <div className="rounded-lg p-4 space-y-4" style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}>
+        <div className="rounded-lg p-4 space-y-4" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
           <p className="text-sm font-medium text-white">Scan with your authenticator app</p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qrCode} alt="2FA QR Code" className="w-40 h-40 rounded bg-white p-2 mx-auto" />
           {secret && (
             <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs px-2 py-1.5 rounded break-all" style={{ background: "#1e1f22", color: "#949ba4", fontFamily: "monospace" }}>{secret}</code>
-              <button onClick={copySecret} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded" style={{ background: "#383a40", color: "#b5bac1" }} title="Copy secret">
-                {copied ? <Check className="w-4 h-4" style={{ color: "#23a55a" }} /> : <Copy className="w-4 h-4" />}
+              <code className="flex-1 text-xs px-2 py-1.5 rounded break-all" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)", fontFamily: "monospace" }}>{secret}</code>
+              <button onClick={copySecret} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }} title="Copy secret">
+                {copied ? <Check className="w-4 h-4" style={{ color: "var(--theme-success)" }} /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
           )}
           <div className="space-y-2">
-            <p className="text-sm" style={{ color: "#b5bac1" }}>Enter the 6-digit code from your app to confirm:</p>
+            <p className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>Enter the 6-digit code from your app to confirm:</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -1024,12 +1051,12 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
                 onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
                 placeholder="000000"
                 className="w-32 px-3 py-2 rounded text-center text-lg tracking-widest focus:outline-none"
-                style={{ background: "#1e1f22", color: "#f2f3f5", border: "1px solid #3f4147", fontFamily: "monospace" }}
+                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)", fontFamily: "monospace" }}
               />
-              <button onClick={handleVerify} disabled={verifyCode.length !== 6 || verifying} className="px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50" style={{ background: "#5865f2", color: "white" }}>
+              <button onClick={handleVerify} disabled={verifyCode.length !== 6 || verifying} className="px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50" style={{ background: "var(--theme-accent)", color: "white" }}>
                 {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify"}
               </button>
-              <button onClick={() => { setQrCode(null); setSecret(null); setFactorId(null) }} className="px-3 py-2 rounded text-sm" style={{ color: "#949ba4" }}>Cancel</button>
+              <button onClick={() => { setQrCode(null); setSecret(null); setFactorId(null) }} className="px-3 py-2 rounded text-sm" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
             </div>
           </div>
         </div>

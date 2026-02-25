@@ -16,9 +16,9 @@ interface AuditEntry {
 }
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
-  kick: <UserX className="w-4 h-4" style={{ color: "#f0b132" }} />,
-  ban: <Ban className="w-4 h-4" style={{ color: "#f23f43" }} />,
-  unban: <Shield className="w-4 h-4" style={{ color: "#23a55a" }} />,
+  kick: <UserX className="w-4 h-4" style={{ color: "var(--theme-warning)" }} />,
+  ban: <Ban className="w-4 h-4" style={{ color: "var(--theme-danger)" }} />,
+  unban: <Shield className="w-4 h-4" style={{ color: "var(--theme-success)" }} />,
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -58,12 +58,12 @@ export function AuditLogViewer({ serverId }: { serverId: string }) {
   }
 
   if (loading) {
-    return <div className="flex justify-center py-8"><Loader2 className="animate-spin" style={{ color: "#949ba4" }} /></div>
+    return <div className="flex justify-center py-8"><Loader2 className="animate-spin" style={{ color: "var(--theme-text-muted)" }} /></div>
   }
 
   if (entries.length === 0) {
     return (
-      <div className="text-center py-8" style={{ color: "#949ba4" }}>
+      <div className="text-center py-8" style={{ color: "var(--theme-text-muted)" }}>
         <Shield className="w-10 h-10 mx-auto mb-2 opacity-30" />
         <p className="text-sm">No audit log entries yet.</p>
       </div>
@@ -81,10 +81,10 @@ export function AuditLogViewer({ serverId }: { serverId: string }) {
           <div
             key={entry.id}
             className="flex items-start gap-3 px-3 py-2.5 rounded"
-            style={{ background: "#2b2d31" }}
+            style={{ background: "var(--theme-bg-secondary)" }}
           >
             <div className="flex-shrink-0 mt-0.5">
-              {ACTION_ICONS[entry.action] ?? <Shield className="w-4 h-4" style={{ color: "#949ba4" }} />}
+              {ACTION_ICONS[entry.action] ?? <Shield className="w-4 h-4" style={{ color: "var(--theme-text-muted)" }} />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-white">
@@ -93,10 +93,10 @@ export function AuditLogViewer({ serverId }: { serverId: string }) {
                 <span className="font-semibold text-white">{targetName}</span>
               </p>
               {entry.reason && (
-                <p className="text-xs mt-0.5" style={{ color: "#949ba4" }}>Reason: {entry.reason}</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>Reason: {entry.reason}</p>
               )}
             </div>
-            <span className="text-xs flex-shrink-0 mt-0.5" style={{ color: "#4e5058" }}>
+            <span className="text-xs flex-shrink-0 mt-0.5" style={{ color: "var(--theme-text-faint)" }}>
               {format(new Date(entry.created_at), "MMM d, h:mm a")}
             </span>
           </div>
@@ -108,7 +108,7 @@ export function AuditLogViewer({ serverId }: { serverId: string }) {
           onClick={loadMore}
           disabled={loadingMore}
           className="w-full text-center text-sm py-2 rounded transition-colors hover:bg-white/5"
-          style={{ color: "#949ba4" }}
+          style={{ color: "var(--theme-text-muted)" }}
         >
           {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Load more"}
         </button>

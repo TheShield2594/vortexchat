@@ -228,14 +228,14 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
   return (
     <div
       className="flex flex-col w-80 flex-shrink-0 border-l"
-      style={{ background: "#313338", borderColor: "#1e1f22" }}
+      style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }}
     >
       {/* Header */}
       <div
         className="flex items-center gap-2 px-3 py-3 border-b flex-shrink-0"
-        style={{ borderColor: "#1e1f22" }}
+        style={{ borderColor: "var(--theme-bg-tertiary)" }}
       >
-        <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} />
+        <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
         <span className="font-semibold text-white text-sm truncate flex-1">{thread.name}</span>
         <div className="flex items-center gap-1 ml-auto">
           {thread.owner_id === currentUserId && (
@@ -243,7 +243,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
               <button
                 onClick={handleArchive}
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-                style={{ color: "#949ba4" }}
+                style={{ color: "var(--theme-text-muted)" }}
                 title={thread.archived ? "Unarchive thread" : "Archive thread"}
               >
                 {thread.archived ? (
@@ -255,7 +255,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
               <button
                 onClick={handleLock}
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-                style={{ color: thread.locked ? "#f23f43" : "#949ba4" }}
+                style={{ color: thread.locked ? "var(--theme-danger)" : "var(--theme-text-muted)" }}
                 title={thread.locked ? "Unlock thread" : "Lock thread"}
               >
                 <Lock className="w-4 h-4" />
@@ -265,7 +265,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
           <button
             onClick={isMember ? handleLeave : handleJoin}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-            style={{ color: isMember ? "#5865f2" : "#949ba4" }}
+            style={{ color: isMember ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
             title={isMember ? "Leave thread" : "Join thread"}
           >
             <Users className="w-4 h-4" />
@@ -273,7 +273,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
           <button
             onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-            style={{ color: "#949ba4" }}
+            style={{ color: "var(--theme-text-muted)" }}
             title="Close thread"
           >
             <X className="w-4 h-4" />
@@ -283,7 +283,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
 
       {/* Status badges */}
       {(thread.archived || thread.locked) && (
-        <div className="flex items-center gap-2 px-3 py-2" style={{ background: "#2b2d31" }}>
+        <div className="flex items-center gap-2 px-3 py-2" style={{ background: "var(--theme-bg-secondary)" }}>
           {thread.archived && (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
@@ -295,7 +295,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
           {thread.locked && (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "#f23f43", color: "#fff" }}
+              style={{ background: "var(--theme-danger)", color: "#fff" }}
             >
               <Lock className="w-3 h-3" /> Locked
             </span>
@@ -318,7 +318,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
             ))}
           </div>
         ) : messages.length === 0 ? (
-          <div className="px-4 py-6 text-sm text-center" style={{ color: "#949ba4" }}>
+          <div className="px-4 py-6 text-sm text-center" style={{ color: "var(--theme-text-muted)" }}>
             No messages yet. Start the conversation!
           </div>
         ) : (
@@ -409,7 +409,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
       ) : (
         <div
           className="px-4 py-3 text-sm text-center flex-shrink-0"
-          style={{ color: "#949ba4", background: "#2b2d31", borderTop: "1px solid #1e1f22" }}
+          style={{ color: "var(--theme-text-muted)", background: "var(--theme-bg-secondary)", borderTop: "1px solid var(--theme-bg-tertiary)" }}
         >
           {thread.locked ? "This thread is locked." : "This thread is archived."}
         </div>

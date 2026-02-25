@@ -149,12 +149,12 @@ export function CreateServerModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent style={{ background: '#313338', borderColor: '#1e1f22', maxWidth: '440px' }}>
+      <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)', maxWidth: '440px' }}>
         <DialogHeader>
           <DialogTitle className="text-white text-center text-xl">
             {mode === "create" ? "Customize Your Server" : "Join a Server"}
           </DialogTitle>
-          <p className="text-center text-sm" style={{ color: '#b5bac1' }}>
+          <p className="text-center text-sm" style={{ color: 'var(--theme-text-secondary)' }}>
             {mode === "create"
               ? "Give your server a personality with a name and icon."
               : "Enter an invite code to join an existing server."}
@@ -165,21 +165,21 @@ export function CreateServerModal({ open, onClose }: Props) {
           <button
             onClick={() => setMode("create")}
             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${mode === "create" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
-            style={{ background: mode === "create" ? '#5865f2' : '#2b2d31' }}
+            style={{ background: mode === "create" ? 'var(--theme-accent)' : 'var(--theme-bg-secondary)' }}
           >
             Create New
           </button>
           <button
             onClick={() => setMode("join")}
             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${mode === "join" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
-            style={{ background: mode === "join" ? '#5865f2' : '#2b2d31' }}
+            style={{ background: mode === "join" ? 'var(--theme-accent)' : 'var(--theme-bg-secondary)' }}
           >
             Join Existing
           </button>
           <button
             onClick={() => setMode("template")}
             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${mode === "template" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
-            style={{ background: mode === "template" ? '#5865f2' : '#2b2d31' }}
+            style={{ background: mode === "template" ? 'var(--theme-accent)' : 'var(--theme-bg-secondary)' }}
           >
             Import Template
           </button>
@@ -192,14 +192,14 @@ export function CreateServerModal({ open, onClose }: Props) {
               <div
                 onClick={() => fileRef.current?.click()}
                 className="w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-white/50 transition-colors overflow-hidden"
-                style={{ borderColor: '#4e5058' }}
+                style={{ borderColor: 'var(--theme-text-faint)' }}
               >
                 {iconPreview ? (
                   <img src={iconPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="text-center">
-                    <Upload className="w-5 h-5 mx-auto mb-1" style={{ color: '#949ba4' }} />
-                    <span className="text-xs" style={{ color: '#949ba4' }}>UPLOAD</span>
+                    <Upload className="w-5 h-5 mx-auto mb-1" style={{ color: 'var(--theme-text-muted)' }} />
+                    <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>UPLOAD</span>
                   </div>
                 )}
               </div>
@@ -207,7 +207,7 @@ export function CreateServerModal({ open, onClose }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                 Server Name <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -215,7 +215,7 @@ export function CreateServerModal({ open, onClose }: Props) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Awesome Server"
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />
             </div>
 
@@ -223,7 +223,7 @@ export function CreateServerModal({ open, onClose }: Props) {
               onClick={handleCreate}
               disabled={loading || !name.trim()}
               className="w-full"
-              style={{ background: '#5865f2' }}
+              style={{ background: 'var(--theme-accent)' }}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Server
@@ -232,7 +232,7 @@ export function CreateServerModal({ open, onClose }: Props) {
         ) : mode === "join" ? (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                 Invite Code
               </Label>
               <Input
@@ -240,7 +240,7 @@ export function CreateServerModal({ open, onClose }: Props) {
                 onChange={(e) => setJoinCode(e.target.value)}
                 placeholder="e.g. abc123def456"
                 onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />
             </div>
 
@@ -248,7 +248,7 @@ export function CreateServerModal({ open, onClose }: Props) {
               onClick={handleJoin}
               disabled={loading || !joinCode.trim()}
               className="w-full"
-              style={{ background: '#5865f2' }}
+              style={{ background: 'var(--theme-accent)' }}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Join Server
@@ -257,14 +257,14 @@ export function CreateServerModal({ open, onClose }: Props) {
         ) : (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                 Server Name <span className="text-red-500">*</span>
               </Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Template Powered Server"
-                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />
             </div>
             <TemplateManager

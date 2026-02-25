@@ -83,12 +83,12 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label className="text-xs uppercase" style={{ color: '#b5bac1' }}>Starter template</Label>
+        <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Starter template</Label>
         <select
           value={starterKey}
           onChange={(e) => setStarterKey(e.target.value)}
           className="w-full rounded px-3 py-2 text-sm"
-          style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #1e1f22' }}
+          style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-bg-tertiary)' }}
         >
           <option value="">Custom JSON</option>
           {Object.keys(starterTemplates).map((key) => (
@@ -98,26 +98,26 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs uppercase" style={{ color: '#b5bac1' }}>Template JSON</Label>
+        <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Template JSON</Label>
         <textarea
           value={rawTemplate}
           onChange={(e) => { setRawTemplate(e.target.value); setStarterKey("") }}
           rows={8}
           placeholder='{"metadata":{"source":"custom","version":"1.0.0","created_by":"you"},"roles":[],"categories":[],"channels":[]}'
           className="w-full rounded px-3 py-2 text-xs font-mono resize-y"
-          style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #1e1f22' }}
+          style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-bg-tertiary)' }}
         />
       </div>
 
       <div className="flex gap-2">
         {serverId && <Button variant="outline" onClick={() => request("preview")} disabled={loading}>Preview Diff</Button>}
-        {serverId && <Button onClick={() => request("apply")} disabled={loading} style={{ background: '#5865f2' }}>Import Template</Button>}
-        {!serverId && <Button onClick={() => request("create-server")} disabled={loading || !createName?.trim()} style={{ background: '#5865f2' }}>Create from Template</Button>}
+        {serverId && <Button onClick={() => request("apply")} disabled={loading} style={{ background: 'var(--theme-accent)' }}>Import Template</Button>}
+        {!serverId && <Button onClick={() => request("create-server")} disabled={loading || !createName?.trim()} style={{ background: 'var(--theme-accent)' }}>Create from Template</Button>}
         {serverId && <Button variant="outline" onClick={() => request("export")} disabled={loading}>Export</Button>}
       </div>
 
       {diff && (
-        <div className="text-xs rounded p-2" style={{ background: '#1e1f22', color: '#b5bac1' }}>
+        <div className="text-xs rounded p-2" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-secondary)' }}>
           <div>Roles: {diff.roles.current} → {diff.roles.incoming}</div>
           <div>Categories: {diff.categories.current} → {diff.categories.incoming}</div>
           <div>Channels: {diff.channels.current} → {diff.channels.incoming}</div>
@@ -132,8 +132,8 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
 
       {exportValue && (
         <div className="space-y-1">
-          <Label className="text-xs uppercase" style={{ color: '#b5bac1' }}>Exported template</Label>
-          <textarea readOnly value={exportValue} rows={8} className="w-full rounded px-3 py-2 text-xs font-mono" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #1e1f22' }} />
+          <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Exported template</Label>
+          <textarea readOnly value={exportValue} rows={8} className="w-full rounded px-3 py-2 text-xs font-mono" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-bg-tertiary)' }} />
         </div>
       )}
     </div>

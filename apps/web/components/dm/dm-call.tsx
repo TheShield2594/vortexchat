@@ -159,7 +159,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
   const initials = partnerName.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex flex-col items-center justify-between flex-1 p-6" style={{ background: "#1e1f22" }}>
+    <div className="flex flex-col items-center justify-between flex-1 p-6" style={{ background: "var(--theme-bg-tertiary)" }}>
       {/* Remote video / avatar */}
       <div className="flex-1 flex items-center justify-center w-full relative">
         <video
@@ -174,10 +174,10 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
           <div className="flex flex-col items-center gap-4">
             <Avatar className="w-24 h-24">
               {partner.avatar_url && <AvatarImage src={partner.avatar_url} />}
-              <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "32px" }}>{initials}</AvatarFallback>
+              <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "32px" }}>{initials}</AvatarFallback>
             </Avatar>
             <div className="text-white font-semibold text-lg">{partnerName}</div>
-            <div className="flex items-center gap-2 text-sm" style={{ color: "#b5bac1" }}>
+            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
               <Loader2 className="w-4 h-4 animate-spin" /> Connecting…
             </div>
           </div>
@@ -191,7 +191,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
             playsInline
             muted
             className="absolute bottom-3 right-3 w-32 h-24 rounded-lg object-cover border-2"
-            style={{ borderColor: "#5865f2", background: "#000", transform: "scaleX(-1)" }}
+            style={{ borderColor: "var(--theme-accent)", background: "#000", transform: "scaleX(-1)" }}
           />
         )}
       </div>
@@ -201,7 +201,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
         <button
           onClick={toggleMute}
           className="w-14 h-14 rounded-full flex items-center justify-center transition-colors"
-          style={{ background: muted ? "#f23f43" : "#4e5058" }}
+          style={{ background: muted ? "var(--theme-danger)" : "var(--theme-text-faint)" }}
           title={muted ? "Unmute" : "Mute"}
         >
           {muted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
@@ -211,7 +211,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
           <button
             onClick={toggleVideo}
             className="w-14 h-14 rounded-full flex items-center justify-center transition-colors"
-            style={{ background: videoOff ? "#f23f43" : "#4e5058" }}
+            style={{ background: videoOff ? "var(--theme-danger)" : "var(--theme-text-faint)" }}
             title={videoOff ? "Turn on camera" : "Turn off camera"}
           >
             {videoOff ? <VideoOff className="w-6 h-6 text-white" /> : <Video className="w-6 h-6 text-white" />}
@@ -221,7 +221,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
         <button
           onClick={handleHangUp}
           className="w-14 h-14 rounded-full flex items-center justify-center"
-          style={{ background: "#f23f43" }}
+          style={{ background: "var(--theme-danger)" }}
           title="Hang up"
         >
           <PhoneOff className="w-6 h-6 text-white" />
@@ -244,18 +244,18 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
   return (
     <div
       className="fixed bottom-6 right-6 z-50 rounded-xl shadow-2xl p-4 flex items-center gap-4 min-w-72"
-      style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
+      style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
     >
       {call.callerAvatar ? (
         <img src={call.callerAvatar} alt="" className="w-12 h-12 rounded-full object-cover" />
       ) : (
-        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold" style={{ background: "#5865f2" }}>
+        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold" style={{ background: "var(--theme-accent)" }}>
           {call.callerName.slice(0, 2).toUpperCase()}
         </div>
       )}
       <div className="flex-1 min-w-0">
         <div className="text-white font-semibold truncate">{call.callerName}</div>
-        <div className="text-sm" style={{ color: "#b5bac1" }}>
+        <div className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>
           {call.withVideo ? "Incoming video call…" : "Incoming voice call…"}
         </div>
       </div>
@@ -263,7 +263,7 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
         <button
           onClick={() => onAccept(false)}
           className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-          style={{ background: "#23a55a" }}
+          style={{ background: "var(--theme-success)" }}
           title="Accept (voice)"
         >
           <Phone className="w-4 h-4 text-white" />
@@ -272,7 +272,7 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
           <button
             onClick={() => onAccept(true)}
             className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-            style={{ background: "#5865f2" }}
+            style={{ background: "var(--theme-accent)" }}
             title="Accept (video)"
           >
             <Video className="w-4 h-4 text-white" />
@@ -281,7 +281,7 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
         <button
           onClick={onDecline}
           className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-          style={{ background: "#f23f43" }}
+          style={{ background: "var(--theme-danger)" }}
           title="Decline"
         >
           <PhoneOff className="w-4 h-4 text-white" />

@@ -20,17 +20,17 @@ export default function Error({
     <div
       role="alert"
       className="flex flex-col items-center justify-center min-h-screen gap-4"
-      style={{ background: "#313338", color: "#f2f3f5" }}
+      style={{ background: "var(--theme-bg-primary)", color: "var(--theme-text-primary)" }}
     >
       <h2 className="text-xl font-bold">Something went wrong</h2>
-      <p className="text-sm" style={{ color: "#b5bac1" }}>
+      <p className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>
         An unexpected error occurred. Please try again.
       </p>
       <button
         type="button"
         onClick={reset}
         className="px-4 py-2 rounded text-sm font-medium text-white transition-colors hover:opacity-90"
-        style={{ background: "#5865f2" }}
+        style={{ background: "var(--theme-accent)" }}
       >
         Try Again
       </button>

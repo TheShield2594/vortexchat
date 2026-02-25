@@ -938,22 +938,22 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
+      <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
         <div
           className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
-          style={{ borderColor: '#1e1f22' }}
+          style={{ borderColor: 'var(--theme-bg-tertiary)' }}
         >
-          <Hash className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
+          <Hash className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
           <span className="font-semibold text-white">{channel.name}</span>
           {!isOnline && (
-            <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#f0b23222", color: "#f0b232" }}>
+            <span className="text-xs px-2 py-0.5 rounded" style={{ background: "color-mix(in srgb, var(--theme-warning) 13%, transparent)", color: "var(--theme-warning)" }}>
               Offline
             </span>
           )}
           {channel.topic && (
             <>
-              <span style={{ color: '#4e5058' }}>|</span>
-              <span className="text-sm truncate" style={{ color: '#949ba4' }}>
+              <span style={{ color: 'var(--theme-text-faint)' }}>|</span>
+              <span className="text-sm truncate" style={{ color: 'var(--theme-text-muted)' }}>
                 {channel.topic}
               </span>
             </>
@@ -968,7 +968,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               title="Workspace"
               aria-label="Workspace"
             >
-              <Briefcase className="w-4 h-4" style={{ color: workspaceOpen ? "#5865f2" : "#b5bac1" }} />
+              <Briefcase className="w-4 h-4" style={{ color: workspaceOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
             </button>
 
             <button
@@ -977,7 +977,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               title="Search messages"
               aria-label="Search messages"
             >
-              <Search className="w-4 h-4" style={{ color: "#b5bac1" }} />
+              <Search className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
             </button>
 
             <button
@@ -986,7 +986,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               title="Pinned messages"
               aria-label="Pinned messages"
             >
-              <Pin className="w-4 h-4" style={{ color: "#b5bac1" }} />
+              <Pin className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
             </button>
 
             <button
@@ -995,7 +995,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               title="Help"
               aria-label="Help"
             >
-              <CircleHelp className="w-4 h-4" style={{ color: "#b5bac1" }} />
+              <CircleHelp className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
             </button>
 
             <button
@@ -1003,7 +1003,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title={memberListOpen ? "Hide Member List" : "Show Member List"}
             >
-              <Users className="w-4 h-4" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
+              <Users className="w-4 h-4" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
             </button>
 
             <button
@@ -1011,7 +1011,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
               title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
             >
-              <MessageSquareText className="w-4 h-4" style={{ color: threadPanelOpen ? '#f2f3f5' : '#949ba4' }} />
+              <MessageSquareText className="w-4 h-4" style={{ color: threadPanelOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
             </button>
           </div>
         </div>
@@ -1029,14 +1029,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div className="px-4 py-8">
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                style={{ background: '#4e5058' }}
+                style={{ background: 'var(--theme-text-faint)' }}
               >
                 <Hash className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">
                 Welcome to #{channel.name}!
               </h2>
-              <p style={{ color: '#b5bac1' }}>
+              <p style={{ color: 'var(--theme-text-secondary)' }}>
                 This is the start of the #{channel.name} channel.
                 {channel.topic && ` ${channel.topic}`}
               </p>
@@ -1045,7 +1045,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
           <div className="pb-4">
             {isPaginating && (
-              <div className="px-4 py-2 text-[11px]" style={{ color: "#949ba4" }}>
+              <div className="px-4 py-2 text-[11px]" style={{ color: "var(--theme-text-muted)" }}>
                 Loading earlier messages…
               </div>
             )}
@@ -1061,14 +1061,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 <div key={message.id}>
                 {unreadDividerMessageId === message.id && (
                   <div className="px-4 py-2.5 flex items-center gap-2" role="separator" aria-label="New since last read">
-                    <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, #f23f43 0%, #f87171 100%)" }} />
+                    <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, var(--theme-danger) 0%, #f87171 100%)" }} />
                     <span
                       className="text-[11px] font-bold uppercase tracking-[0.08em] px-2 py-1 rounded-full"
-                      style={{ color: "#ffe3e3", background: "#f23f4333", border: "1px solid #f23f4399" }}
+                      style={{ color: "#ffe3e3", background: "color-mix(in srgb, var(--theme-danger) 20%, transparent)", border: "1px solid color-mix(in srgb, var(--theme-danger) 60%, transparent)" }}
                     >
                       New since last read
                     </span>
-                    <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, #f87171 0%, #f23f43 100%)" }} />
+                    <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, #f87171 0%, var(--theme-danger) 100%)" }} />
                   </div>
                 )}
                 <MessageItem
@@ -1148,7 +1148,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               <button
                 onClick={jumpToLatest}
                 className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg"
-                style={{ background: "#5865f2", color: "white" }}
+                style={{ background: "var(--theme-accent)", color: "white" }}
               >
                 Jump to present {pendingNewMessageCount > 0 ? `(${pendingNewMessageCount})` : ""}
               </button>
@@ -1160,7 +1160,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               <button
                 onClick={returnToContext}
                 className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{ background: "#2b2d31", color: "#f2f3f5", border: "1px solid #1e1f22" }}
+                style={{ background: "var(--theme-bg-secondary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
               >
                 Back to where you were
               </button>

@@ -115,7 +115,7 @@ export const MessageItem = memo(function MessageItem({
       if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index))
       const full = match[0]
       if (/^https?:\/\//.test(full)) {
-        parts.push(<a key={key++} href={full} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "#00a8fc" }}>{full}</a>)
+        parts.push(<a key={key++} href={full} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "var(--theme-link)" }}>{full}</a>)
       } else if (match[2] !== undefined) {
         parts.push(<strong key={key++}>{match[2]}</strong>)
       } else if (match[3] !== undefined) {
@@ -127,7 +127,7 @@ export const MessageItem = memo(function MessageItem({
       } else if (match[6] !== undefined) {
         parts.push(<code key={key++} className="px-1 py-0.5 rounded text-sm" style={{ background: "rgba(0,0,0,0.3)", fontFamily: "monospace" }}>{match[6]}</code>)
       } else if (match[7] !== undefined) {
-        parts.push(<span key={key++} className="px-0.5 rounded" style={{ color: "#5865f2", background: "rgba(88,101,242,0.1)" }}>@{match[7]}</span>)
+        parts.push(<span key={key++} className="px-0.5 rounded" style={{ color: "var(--theme-accent)", background: "rgba(88,101,242,0.1)" }}>@{match[7]}</span>)
       } else if (match[8] !== undefined) {
         parts.push(<SpoilerSpan key={key++}>{match[8]}</SpoilerSpan>)
       } else if (match[9] !== undefined) {
@@ -153,7 +153,7 @@ export const MessageItem = memo(function MessageItem({
           i++
         }
         result.push(
-          <blockquote key={`bq-${key++}`} className="pl-3 my-1" style={{ borderLeft: "4px solid #4e5058", color: "#b5bac1" }}>
+          <blockquote key={`bq-${key++}`} className="pl-3 my-1" style={{ borderLeft: "4px solid var(--theme-text-faint)", color: "var(--theme-text-secondary)" }}>
             {quoteLines.map((ql, qi) => <div key={qi}>{renderInline(ql, key + qi * 100)}</div>)}
           </blockquote>
         )
@@ -186,8 +186,8 @@ export const MessageItem = memo(function MessageItem({
       const lang = cbMatch[1] || ""
       const code = cbMatch[2]
       segments.push(
-        <pre key={`cb-${keyCounter++}`} className="my-1 p-3 rounded overflow-x-auto text-sm" style={{ background: "#1e1f22", fontFamily: "monospace", color: "#dcddde", border: "1px solid #232428" }}>
-          {lang && <div className="text-xs mb-1" style={{ color: "#5865f2", fontFamily: "sans-serif" }}>{lang}</div>}
+        <pre key={`cb-${keyCounter++}`} className="my-1 p-3 rounded overflow-x-auto text-sm" style={{ background: "var(--theme-bg-tertiary)", fontFamily: "monospace", color: "var(--theme-text-normal)", border: "1px solid #232428" }}>
+          {lang && <div className="text-xs mb-1" style={{ color: "var(--theme-accent)", fontFamily: "sans-serif" }}>{lang}</div>}
           <code>{code}</code>
         </pre>
       )
@@ -208,7 +208,7 @@ export const MessageItem = memo(function MessageItem({
           id={containerId}
           className={cn(
             "relative group px-4 message-hover motion-interactive",
-            highlighted && "bg-[#5865f233]",
+            highlighted && "mention-highlight",
             isGrouped ? "py-0.5" : "pt-4 pb-0.5"
           )}
           onMouseEnter={() => setShowActions(true)}
@@ -225,7 +225,7 @@ export const MessageItem = memo(function MessageItem({
           {message.reply_to_id && message.reply_to && (
             <div className="flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata">
               <Reply className="w-3 h-3 -scale-x-100" />
-              <span className="font-medium" style={{ color: '#b5bac1' }}>
+              <span className="font-medium" style={{ color: 'var(--theme-text-secondary)' }}>
                 {message.reply_to.author?.display_name || message.reply_to.author?.username}
               </span>
               <span className="truncate">{message.reply_to.content}</span>
@@ -251,7 +251,7 @@ export const MessageItem = memo(function MessageItem({
                         <AvatarImage src={message.author.avatar_url} />
                       )}
                       <AvatarFallback
-                        style={{ background: "#5865f2", color: "white", fontSize: "14px" }}
+                        style={{ background: "var(--theme-accent)", color: "white", fontSize: "14px" }}
                       >
                         {initials}
                       </AvatarFallback>
@@ -268,13 +268,13 @@ export const MessageItem = memo(function MessageItem({
                     {format(timestamp, "HH:mm")}
                   </span>
                   {sendState === "queued" && (
-                    <Clock3 className="w-3 h-3" style={{ color: "#f0b232" }} />
+                    <Clock3 className="w-3 h-3" style={{ color: "var(--theme-warning)" }} />
                   )}
                   {sendState === "sending" && (
-                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#949ba4" }} />
+                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: "var(--theme-text-muted)" }} />
                   )}
                   {sendState === "failed" && (
-                    <AlertCircle className="w-3 h-3" style={{ color: "#f23f43" }} />
+                    <AlertCircle className="w-3 h-3" style={{ color: "var(--theme-danger)" }} />
                   )}
                 </div>
               )}
@@ -301,17 +301,17 @@ export const MessageItem = memo(function MessageItem({
                     {format(timestamp, "MM/dd/yyyy h:mm a")}
                   </span>
                   {sendState === "queued" && (
-                    <span className="text-xs flex items-center gap-1" style={{ color: "#f0b232" }}>
+                    <span className="text-xs flex items-center gap-1" style={{ color: "var(--theme-warning)" }}>
                       <Clock3 className="w-3 h-3" /> queued
                     </span>
                   )}
                   {sendState === "sending" && (
-                    <span className="text-xs flex items-center gap-1" style={{ color: "#949ba4" }}>
+                    <span className="text-xs flex items-center gap-1" style={{ color: "var(--theme-text-muted)" }}>
                       <Loader2 className="w-3 h-3 animate-spin" /> sending
                     </span>
                   )}
                   {sendState === "failed" && (
-                    <span className="text-xs flex items-center gap-1" style={{ color: "#f23f43" }}>
+                    <span className="text-xs flex items-center gap-1" style={{ color: "var(--theme-danger)" }}>
                       <AlertCircle className="w-3 h-3" /> failed
                     </span>
                   )}
@@ -340,9 +340,9 @@ export const MessageItem = memo(function MessageItem({
                     }}
                     className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
                     style={{
-                      background: "#1e1f22",
-                      color: "#f2f3f5",
-                      border: "1px solid #5865f2",
+                      background: "var(--theme-bg-tertiary)",
+                      color: "var(--theme-text-primary)",
+                      border: "1px solid var(--theme-accent)",
                     }}
                     rows={3}
                     autoFocus
@@ -353,7 +353,7 @@ export const MessageItem = memo(function MessageItem({
                     <button
                       onClick={handleEditSubmit}
                       className="focus-ring rounded"
-                      style={{ color: "#00a8fc" }}
+                      style={{ color: "var(--theme-link)" }}
                     >
                       Enter to save
                     </button>
@@ -364,7 +364,7 @@ export const MessageItem = memo(function MessageItem({
                   {renderedContent && (
                     <p
                       className="text-sm leading-relaxed message-content break-words"
-                      style={{ color: "#dcddde" }}
+                      style={{ color: "var(--theme-text-normal)" }}
                     >
                       {renderContent(renderedContent)}
                     </p>
@@ -375,7 +375,7 @@ export const MessageItem = memo(function MessageItem({
                       src={embeddableGiphyUrl}
                       alt="GIF"
                       className="mt-2 max-w-sm w-full rounded-md border"
-                      style={{ borderColor: "#1e1f22", background: "#1e1f22" }}
+                      style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-tertiary)" }}
                     />
                   )}
 
@@ -417,8 +417,8 @@ export const MessageItem = memo(function MessageItem({
                             background: hasOwn
                               ? "rgba(88,101,242,0.3)"
                               : "rgba(255,255,255,0.06)",
-                            border: `1px solid ${hasOwn ? "#5865f2" : "transparent"}`,
-                            color: "#dcddde",
+                            border: `1px solid ${hasOwn ? "var(--theme-accent)" : "transparent"}`,
+                            color: "var(--theme-text-normal)",
                           }}
                         >
                           {emoji} {count}
@@ -440,7 +440,7 @@ export const MessageItem = memo(function MessageItem({
                 "action-rail-motion absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden",
                 showActions ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-1"
               )}
-              style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
+              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
             >
               {/* Quick reactions */}
               {showEmojiPicker && (
@@ -462,7 +462,7 @@ export const MessageItem = memo(function MessageItem({
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
-                style={{ color: "#b5bac1" }}
+                style={{ color: "var(--theme-text-secondary)" }}
                 title="Add Reaction"
                 aria-label="Add reaction"
                 aria-describedby={messageMetaId}
@@ -474,7 +474,7 @@ export const MessageItem = memo(function MessageItem({
               <button
                 onClick={onReply}
                 className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
-                style={{ color: "#b5bac1" }}
+                style={{ color: "var(--theme-text-secondary)" }}
                 title="Reply"
                 aria-label="Reply to message"
                 aria-describedby={messageMetaId}
@@ -487,7 +487,7 @@ export const MessageItem = memo(function MessageItem({
                 <button
                   onClick={() => setShowCreateThread(true)}
                   className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
-                  style={{ color: "#b5bac1" }}
+                  style={{ color: "var(--theme-text-secondary)" }}
                   title="Create Thread"
                   aria-label="Create thread from message"
                   aria-describedby={messageMetaId}
@@ -501,7 +501,7 @@ export const MessageItem = memo(function MessageItem({
                 <button
                   onClick={() => setIsEditing(true)}
                   className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
-                  style={{ color: "#b5bac1" }}
+                  style={{ color: "var(--theme-text-secondary)" }}
                   title="Edit"
                   aria-label="Edit message"
                   aria-describedby={messageMetaId}
@@ -515,7 +515,7 @@ export const MessageItem = memo(function MessageItem({
                 <button
                   onClick={onRetry}
                   className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
-                  style={{ color: "#f0b232" }}
+                  style={{ color: "var(--theme-warning)" }}
                   title="Retry send"
                   aria-label="Retry sending message"
                   aria-describedby={messageMetaId}
@@ -529,7 +529,7 @@ export const MessageItem = memo(function MessageItem({
                 <button
                   onClick={() => setShowDeleteDialog(true)}
                   className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-red-500/20 focus-ring"
-                  style={{ color: "#f23f43" }}
+                  style={{ color: "var(--theme-danger)" }}
                   title="Delete"
                   aria-label="Delete message"
                   aria-describedby={messageMetaId}
@@ -607,10 +607,10 @@ export const MessageItem = memo(function MessageItem({
     )}
 
     <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-      <DialogContent style={{ background: "#313338", borderColor: "#1e1f22", color: "#f2f3f5" }}>
+      <DialogContent style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}>
         <DialogHeader>
           <DialogTitle>Delete message?</DialogTitle>
-          <DialogDescription style={{ color: "#b5bac1" }}>
+          <DialogDescription style={{ color: "var(--theme-text-secondary)" }}>
             This action is irreversible. This message will be permanently removed for everyone in this channel.
           </DialogDescription>
         </DialogHeader>
@@ -656,7 +656,7 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
       <Dialog open={lightboxIndex !== null} onOpenChange={(open) => { if (!open) closeImage() }}>
         <DialogContent
           className="max-w-5xl border"
-          style={{ background: "#1e1f22", borderColor: "#2b2d31", color: "#f2f3f5" }}
+          style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-secondary)", color: "var(--theme-text-primary)" }}
           onKeyDown={(event) => {
             if (event.key === "ArrowRight") {
               event.preventDefault()
@@ -670,7 +670,7 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
           {currentAttachment && (
             <div className="space-y-3">
               <img src={currentAttachment.url} alt={currentAttachment.filename} className="w-full max-h-[75vh] object-contain rounded" />
-              <div className="flex items-center justify-between text-xs" style={{ color: "#b5bac1" }}>
+              <div className="flex items-center justify-between text-xs" style={{ color: "var(--theme-text-secondary)" }}>
                 <span>{currentAttachment.filename}</span>
                 {imageIndexes.length > 1 && (
                   <span>
@@ -697,7 +697,7 @@ function AttachmentDisplay({ attachment, onOpenImage }: { attachment: Attachment
           src={attachment.url}
           alt={attachment.filename}
           className="rounded max-h-80 object-contain"
-          style={{ background: "#1e1f22" }}
+          style={{ background: "var(--theme-bg-tertiary)" }}
         />
       </button>
     )
@@ -709,11 +709,11 @@ function AttachmentDisplay({ attachment, onOpenImage }: { attachment: Attachment
       target="_blank"
       rel="noopener noreferrer"
       className="motion-interactive flex items-center gap-3 p-3 rounded max-w-sm hover:bg-white/5"
-      style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
+      style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
     >
       <div
         className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
-        style={{ background: "#5865f2" }}
+        style={{ background: "var(--theme-accent)" }}
       >
         <span className="text-white text-xs font-bold">
           {attachment.filename.split(".").pop()?.toUpperCase().slice(0, 4)}
@@ -723,7 +723,7 @@ function AttachmentDisplay({ attachment, onOpenImage }: { attachment: Attachment
         <div className="text-sm font-medium text-white truncate">
           {attachment.filename}
         </div>
-        <div className="text-xs" style={{ color: "#949ba4" }}>
+        <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
           {(attachment.size / 1024).toFixed(1)} KB
         </div>
       </div>
@@ -738,8 +738,8 @@ function SpoilerSpan({ children }: { children: React.ReactNode }) {
       onClick={() => setRevealed(true)}
       className="rounded px-0.5 cursor-pointer select-none"
       style={{
-        background: revealed ? "rgba(255,255,255,0.1)" : "#2b2d31",
-        color: revealed ? "#dcddde" : "transparent",
+        background: revealed ? "rgba(255,255,255,0.1)" : "var(--theme-bg-secondary)",
+        color: revealed ? "var(--theme-text-normal)" : "transparent",
         transition: "color 0.1s",
       }}
       title={revealed ? undefined : "Click to reveal spoiler"}

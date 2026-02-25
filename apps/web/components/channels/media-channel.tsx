@@ -130,18 +130,18 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
   const mediaMessages = messages.filter((m) => m.attachments.length > 0)
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
+    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
       {/* Channel header */}
       <div
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: '#1e1f22' }}
+        style={{ borderColor: 'var(--theme-bg-tertiary)' }}
       >
-        <ImageIcon className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
+        <ImageIcon className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
         <span className="font-semibold text-white">{channel.name}</span>
         {channel.topic && (
           <>
-            <span style={{ color: '#4e5058' }}>|</span>
-            <span className="text-sm truncate" style={{ color: '#949ba4' }}>{channel.topic}</span>
+            <span style={{ color: 'var(--theme-text-faint)' }}>|</span>
+            <span className="text-sm truncate" style={{ color: 'var(--theme-text-muted)' }}>{channel.topic}</span>
           </>
         )}
         <div className="ml-auto flex items-center">
@@ -150,7 +150,7 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
             className="p-1.5 rounded hover:bg-white/10 transition-colors"
             title={memberListOpen ? "Hide Member List" : "Show Member List"}
           >
-            <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
+            <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>
         </div>
       </div>
@@ -161,12 +161,12 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
           <div className="px-4 py-8">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ background: '#4e5058' }}
+              style={{ background: 'var(--theme-text-faint)' }}
             >
               <ImageIcon className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Welcome to #{channel.name}!</h2>
-            <p style={{ color: '#b5bac1' }}>
+            <p style={{ color: 'var(--theme-text-secondary)' }}>
               Share images, videos, and files in this media channel.
               {channel.topic && ` ${channel.topic}`}
             </p>

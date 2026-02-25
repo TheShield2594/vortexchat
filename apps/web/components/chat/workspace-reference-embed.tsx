@@ -22,7 +22,7 @@ export function WorkspaceReferenceEmbed({ type, id }: { type: "task" | "doc"; id
   if (!data) return null
 
   return (
-    <div className="mt-2 rounded border border-[#1e1f22] bg-[#2b2d31] p-2 text-xs text-zinc-200">
+    <div className="mt-2 rounded border border-[var(--theme-bg-tertiary)] bg-[var(--theme-bg-secondary)] p-2 text-xs text-zinc-200">
       <div className="mb-1 flex items-center gap-1 font-medium text-white">
         {type === "task" ? <CheckSquare className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
         {type.toUpperCase()} • {data.title}

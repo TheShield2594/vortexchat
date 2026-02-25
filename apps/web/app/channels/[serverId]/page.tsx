@@ -24,12 +24,12 @@ export default async function ServerHomePage({ params: paramsPromise }: Props) {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center" style={{ background: '#313338' }}>
+    <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--theme-bg-primary)' }}>
       <div className="text-center">
         <h2 className="text-xl font-semibold text-white mb-2">
           No channels yet
         </h2>
-        <p style={{ color: '#b5bac1' }} className="text-sm">
+        <p style={{ color: 'var(--theme-text-secondary)' }} className="text-sm">
           Create a channel to get started
         </p>
       </div>

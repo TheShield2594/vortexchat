@@ -264,11 +264,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   if (loadError) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: "var(--app-bg-primary)" }}>
-        <p className="text-sm" style={{ color: "#949ba4" }}>Failed to load conversation.</p>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Failed to load conversation.</p>
         <button
           onClick={() => loadMessages()}
           className="px-4 py-2 rounded text-sm font-medium"
-          style={{ background: "#5865f2", color: "white" }}
+          style={{ background: "var(--theme-accent)", color: "white" }}
         >
           Retry
         </button>
@@ -279,7 +279,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   if (!channel) {
     return (
       <div className="flex-1 flex items-center justify-center" style={{ background: "var(--app-bg-primary)" }}>
-        <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+        <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--theme-accent)", borderTopColor: "transparent" }} />
       </div>
     )
   }
@@ -292,16 +292,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   return (
     <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "var(--app-bg-primary)" }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "#1e1f22" }}>
+      <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
         <MobileMenuButton />
         {channel.is_group ? (
-          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#5865f2" }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--theme-accent)" }}>
             <Users className="w-4 h-4 text-white" />
           </div>
         ) : (
           <Avatar className="w-8 h-8">
             {channel.partner?.avatar_url && <AvatarImage src={channel.partner.avatar_url} />}
-            <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "12px" }}>
+            <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "12px" }}>
               {partnerInitials}
             </AvatarFallback>
           </Avatar>
@@ -310,7 +310,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
         <button
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-          style={{ color: "#b5bac1" }}
+          style={{ color: "var(--theme-text-secondary)" }}
           title="Search in conversation"
           aria-label="Search in conversation"
           type="button"
@@ -320,7 +320,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         </button>
         <button
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-          style={{ color: "#b5bac1" }}
+          style={{ color: "var(--theme-text-secondary)" }}
           title="Pinned messages"
           aria-label="Pinned messages"
           type="button"
@@ -335,7 +335,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             <button
               onClick={startVoiceCall}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-              style={{ color: (inCall && !callWithVideo) ? "#23a55a" : "#b5bac1" }}
+              style={{ color: (inCall && !callWithVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start voice call"
               disabled={inCall}
             >
@@ -344,7 +344,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             <button
               onClick={startVideoCall}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-              style={{ color: (inCall && callWithVideo) ? "#23a55a" : "#b5bac1" }}
+              style={{ color: (inCall && callWithVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start video call"
               disabled={inCall}
             >
@@ -375,7 +375,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
               onClick={loadMore}
               disabled={loadingMore}
               className="text-xs px-3 py-1 rounded transition-colors hover:bg-white/10"
-              style={{ color: "#949ba4" }}
+              style={{ color: "var(--theme-text-muted)" }}
             >
               {loadingMore ? "Loading…" : "Load older messages"}
             </button>
@@ -387,19 +387,19 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         {!hasMore && messages.length === 0 && (
           <div className="text-center py-16">
             {channel.is_group ? (
-              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#5865f2" }}>
+              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--theme-accent)" }}>
                 <Users className="w-10 h-10 text-white" />
               </div>
             ) : (
               <Avatar className="w-20 h-20 mx-auto mb-4">
                 {channel.partner?.avatar_url && <AvatarImage src={channel.partner.avatar_url} />}
-                <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "28px" }}>
+                <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "28px" }}>
                   {partnerInitials}
                 </AvatarFallback>
               </Avatar>
             )}
             <h2 className="text-2xl font-bold text-white mb-1">{displayName}</h2>
-            <p style={{ color: "#b5bac1" }} className="text-sm">
+            <p style={{ color: "var(--theme-text-secondary)" }} className="text-sm">
               {channel.is_group
                 ? `Welcome to your group DM with ${channel.members.length} members.`
                 : `This is the beginning of your DM with ${displayName}.`}
@@ -425,7 +425,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
               {!isGrouped && (
                 <Avatar className="w-8 h-8 flex-shrink-0 mt-0.5">
                   {msg.sender?.avatar_url && <AvatarImage src={msg.sender.avatar_url} />}
-                  <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "12px" }}>
+                  <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "12px" }}>
                     {senderInitials}
                   </AvatarFallback>
                 </Avatar>
@@ -436,7 +436,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     <span className="text-sm font-semibold" style={{ color: isOwn ? "#00b0f4" : "white" }}>
                       {isOwn ? "You" : senderName}
                     </span>
-                    <span className="text-xs" style={{ color: "#4e5058" }}>
+                    <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}>
                       {format(new Date(msg.created_at), "h:mm a")}
                     </span>
                   </div>
@@ -452,10 +452,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                         if (e.key === "Escape") setEditingId(null)
                       }}
                       className="flex-1 bg-transparent border-b text-sm focus:outline-none"
-                      style={{ color: "#dcddde", borderColor: "#5865f2" }}
+                      style={{ color: "var(--theme-text-normal)", borderColor: "var(--theme-accent)" }}
                     />
-                    <button onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "#5865f2", color: "white" }}>Save</button>
-                    <button onClick={() => setEditingId(null)} className="text-xs" style={{ color: "#949ba4" }}>Cancel</button>
+                    <button onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--theme-accent)", color: "white" }}>Save</button>
+                    <button onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
                   </div>
                 ) : imageMatch ? (
                   <div className="mt-1">
@@ -467,15 +467,15 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
                       />
                     </a>
-                    <span className="text-xs" style={{ color: "#949ba4" }}>{imageMatch[1]}</span>
+                    <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{imageMatch[1]}</span>
                   </div>
                 ) : (
-                  <p className="text-sm break-words" style={{ color: "#dcddde" }}>
+                  <p className="text-sm break-words" style={{ color: "var(--theme-text-normal)" }}>
                     {msg.content}
                   </p>
                 )}
                 {msg.edited_at && !isEditing && (
-                  <span className="text-xs" style={{ color: "#4e5058" }}> (edited)</span>
+                  <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}> (edited)</span>
                 )}
               </div>
               {/* Hover actions — own messages only */}
@@ -484,7 +484,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   <button
                     onClick={() => { setEditingId(msg.id); setEditContent(msg.content) }}
                     className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
-                    style={{ color: "#949ba4" }}
+                    style={{ color: "var(--theme-text-muted)" }}
                     title="Edit"
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -492,7 +492,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   <button
                     onClick={() => handleDelete(msg.id)}
                     className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20"
-                    style={{ color: "#949ba4" }}
+                    style={{ color: "var(--theme-text-muted)" }}
                     title="Delete"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -510,17 +510,17 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
       {/* Input */}
       <div className="px-4 pb-4 flex-shrink-0">
-        <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#383a40" }}>
+        <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "var(--theme-surface-input)" }}>
           {/* File upload */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingFile}
             className="flex-shrink-0 transition-colors hover:text-white"
-            style={{ color: "#949ba4" }}
+            style={{ color: "var(--theme-text-muted)" }}
             title="Attach file"
           >
             {uploadingFile
-              ? <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+              ? <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--theme-accent)", borderTopColor: "transparent" }} />
               : <Paperclip className="w-5 h-5" />}
           </button>
           <input
@@ -538,18 +538,18 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             placeholder={`Message ${channel.is_group ? displayName : `@${displayName}`}`}
             className="flex-1 bg-transparent text-sm focus:outline-none"
-            style={{ color: "#dcddde" }}
+            style={{ color: "var(--theme-text-normal)" }}
           />
           <button
             className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-            style={{ color: "#949ba4" }}
+            style={{ color: "var(--theme-text-muted)" }}
             title="Open emoji picker"
             type="button"
           >
             <SmilePlus className="w-4 h-4" />
           </button>
           {content.trim() && (
-            <button onClick={handleSend} disabled={sending} style={{ color: "#5865f2" }}>
+            <button onClick={handleSend} disabled={sending} style={{ color: "var(--theme-accent)" }}>
               <Send className="w-5 h-5" />
             </button>
           )}
@@ -585,7 +585,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
     connecting: {
       label: "Connecting",
       detail: withVideo ? `Setting up video with ${displayName}` : `Reaching ${displayName}`,
-      tone: "#b5bac1",
+      tone: "var(--theme-text-secondary)",
       bg: "rgba(181,186,193,0.18)",
     },
     connected: {
@@ -721,7 +721,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   }
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center" style={{ background: "#1e1f22" }}>
+    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center" style={{ background: "var(--theme-bg-tertiary)" }}>
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       {/* Video area (video calls only) */}
@@ -734,18 +734,18 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
             playsInline
             muted
             className="absolute bottom-3 right-3 w-32 rounded-lg border-2 object-cover"
-            style={{ borderColor: "#5865f2", transform: "scaleX(-1)" }}
+            style={{ borderColor: "var(--theme-accent)", transform: "scaleX(-1)" }}
           />
           {status === "connecting" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(0,0,0,0.6)" }}>
-              <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+              <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--theme-accent)", borderTopColor: "transparent" }} />
               <p className="text-white text-sm">{statusMeta.connecting.detail}…</p>
             </div>
           )}
           {status === "failed" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
               <p className="text-white font-medium">{statusMeta.failed.label}</p>
-              <p className="text-sm text-center" style={{ color: "#b5bac1" }}>{statusMeta.failed.detail}</p>
+              <p className="text-sm text-center" style={{ color: "var(--theme-text-secondary)" }}>{statusMeta.failed.detail}</p>
             </div>
           )}
         </div>
@@ -755,9 +755,9 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           <div
             className={cn(
               "w-32 h-32 rounded-full flex items-center justify-center overflow-hidden",
-              status === "connected" ? "ring-4 ring-green-500/80" : "ring-2 ring-[#4e5058]/60"
+              status === "connected" ? "ring-4 ring-green-500/80" : "ring-2 ring-[var(--theme-text-faint)]/60"
             )}
-            style={{ background: "#5865f2", transition: "box-shadow 240ms ease" }}
+            style={{ background: "var(--theme-accent)", transition: "box-shadow 240ms ease" }}
           >
             {partner?.avatar_url ? (
               <img src={partner.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -771,8 +771,8 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
             <span className="ml-2" style={{ color: "#c9ccd1" }}>{statusMeta[status].detail}</span>
           </div>
           {status === "connecting" && (
-            <div className="flex items-center gap-2 text-xs" style={{ color: "#949ba4" }}>
-              <div className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#5865f2", borderTopColor: "transparent" }} />
+            <div className="flex items-center gap-2 text-xs" style={{ color: "var(--theme-text-muted)" }}>
+              <div className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--theme-accent)", borderTopColor: "transparent" }} />
               Establishing secure media link…
             </div>
           )}
@@ -784,7 +784,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
         <button
           onClick={toggleMute}
           className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-          style={{ background: muted ? "#f23f43" : "#4e5058" }}
+          style={{ background: muted ? "var(--theme-danger)" : "var(--theme-text-faint)" }}
           title={muted ? "Unmute" : "Mute"}
         >
           {muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
@@ -793,7 +793,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           <button
             onClick={toggleVideo}
             className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-            style={{ background: videoOff ? "#f23f43" : "#4e5058" }}
+            style={{ background: videoOff ? "var(--theme-danger)" : "var(--theme-text-faint)" }}
             title={videoOff ? "Turn on camera" : "Turn off camera"}
           >
             {videoOff ? <VideoOff className="w-5 h-5 text-white" /> : <Video className="w-5 h-5 text-white" />}
@@ -802,7 +802,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
         <button
           onClick={hangup}
           className="w-12 h-12 rounded-full flex items-center justify-center"
-          style={{ background: "#f23f43" }}
+          style={{ background: "var(--theme-danger)" }}
           title="Hang up"
         >
           <PhoneOff className="w-5 h-5 text-white" />

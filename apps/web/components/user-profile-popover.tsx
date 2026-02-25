@@ -32,10 +32,10 @@ interface UserProfilePopoverProps {
 
 function getStatusColor(status?: string) {
   switch (status) {
-    case "online": return "#23a55a"
-    case "idle": return "#f0b132"
-    case "dnd": return "#f23f43"
-    default: return "#80848e"
+    case "online": return "var(--theme-success)"
+    case "idle": return "var(--theme-warning)"
+    case "dnd": return "var(--theme-danger)"
+    default: return "var(--theme-presence-offline)"
   }
 }
 
@@ -120,12 +120,12 @@ export function UserProfilePopover({
         align={align}
         sideOffset={8}
         className="w-72 p-0 overflow-hidden"
-        style={{ background: "#232428", borderColor: "#1e1f22" }}
+        style={{ background: "#232428", borderColor: "var(--theme-bg-tertiary)" }}
       >
         {/* Banner */}
         <div
           className="h-16"
-          style={{ background: user?.banner_color ?? "#5865f2" }}
+          style={{ background: user?.banner_color ?? "var(--theme-accent)" }}
         />
 
         {/* Avatar + Info */}
@@ -134,7 +134,7 @@ export function UserProfilePopover({
             <Avatar className="w-14 h-14 ring-4" style={{ "--tw-ring-color": "#232428" } as React.CSSProperties}>
               {user?.avatar_url && <AvatarImage src={user.avatar_url} />}
               <AvatarFallback
-                style={{ background: "#5865f2", color: "white", fontSize: "18px" }}
+                style={{ background: "var(--theme-accent)", color: "white", fontSize: "18px" }}
               >
                 {initials}
               </AvatarFallback>
@@ -150,17 +150,17 @@ export function UserProfilePopover({
 
           {/* Name */}
           <div className="font-bold text-white text-base">{displayName}</div>
-          <div className="text-sm" style={{ color: "#b5bac1" }}>
+          <div className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>
             {user?.username}
           </div>
           {user?.custom_tag && (
-            <div className="text-xs mt-0.5" style={{ color: "#949ba4" }}>
+            <div className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>
               {user.custom_tag}
             </div>
           )}
 
           {/* Divider */}
-          <div className="my-2 border-t" style={{ borderColor: "#1e1f22" }} />
+          <div className="my-2 border-t" style={{ borderColor: "var(--theme-bg-tertiary)" }} />
 
           {/* Status */}
           <div className="flex items-center gap-1.5 mb-1">
@@ -168,13 +168,13 @@ export function UserProfilePopover({
               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ background: getStatusColor(status) }}
             />
-            <span className="text-xs" style={{ color: "#b5bac1" }}>
+            <span className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>
               {getStatusLabel(status)}
             </span>
           </div>
 
           {user?.status_message && (
-            <div className="text-xs mb-2" style={{ color: "#dcddde" }}>
+            <div className="text-xs mb-2" style={{ color: "var(--theme-text-normal)" }}>
               {user.status_message}
             </div>
           )}
@@ -182,10 +182,10 @@ export function UserProfilePopover({
           {/* Bio */}
           {user?.bio && (
             <>
-              <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#b5bac1" }}>
+              <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--theme-text-secondary)" }}>
                 About Me
               </div>
-              <div className="text-sm" style={{ color: "#dcddde" }}>
+              <div className="text-sm" style={{ color: "var(--theme-text-normal)" }}>
                 {user.bio}
               </div>
             </>
@@ -194,7 +194,7 @@ export function UserProfilePopover({
           {/* Roles */}
           {roles.length > 0 && (
             <>
-              <div className="text-xs font-semibold uppercase tracking-wider mt-2 mb-1" style={{ color: "#b5bac1" }}>
+              <div className="text-xs font-semibold uppercase tracking-wider mt-2 mb-1" style={{ color: "var(--theme-text-secondary)" }}>
                 Roles
               </div>
               <div className="flex flex-wrap gap-1">
@@ -202,11 +202,11 @@ export function UserProfilePopover({
                   <span
                     key={role.id}
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
-                    style={{ background: "#1e1f22", color: role.color || "#dcddde" }}
+                    style={{ background: "var(--theme-bg-tertiary)", color: role.color || "var(--theme-text-normal)" }}
                   >
                     <span
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ background: role.color || "#dcddde" }}
+                      style={{ background: role.color || "var(--theme-text-normal)" }}
                     />
                     {role.name}
                   </span>
@@ -218,14 +218,14 @@ export function UserProfilePopover({
           {/* Action buttons */}
           {showActions && (
             <>
-              <div className="my-2 border-t" style={{ borderColor: "#1e1f22" }} />
+              <div className="my-2 border-t" style={{ borderColor: "var(--theme-bg-tertiary)" }} />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={handleMessage}
                   disabled={actionLoading === "message"}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
-                  style={{ background: "#5865f2", color: "white" }}
+                  style={{ background: "var(--theme-accent)", color: "white" }}
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   Message
@@ -235,7 +235,7 @@ export function UserProfilePopover({
                   onClick={handleAddFriend}
                   disabled={actionLoading === "friend"}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
-                  style={{ background: "#23a55a", color: "white" }}
+                  style={{ background: "var(--theme-success)", color: "white" }}
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   Add Friend

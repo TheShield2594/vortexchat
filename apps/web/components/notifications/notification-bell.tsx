@@ -214,7 +214,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           {unreadCount > 0 && (
             <span
               className="min-w-[18px] h-[18px] rounded-full px-1 text-[10px] font-bold flex items-center justify-center"
-              style={{ background: "#f23f43", color: "white" }}
+              style={{ background: "var(--theme-danger)", color: "white" }}
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
@@ -225,7 +225,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           ref={triggerRef}
           onClick={() => setOpen((v) => !v)}
           className="relative w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 focus-ring"
-          style={{ color: open ? "#f2f3f5" : "#949ba4" }}
+          style={{ color: open ? "var(--theme-text-primary)" : "var(--theme-text-muted)" }}
           title="Notifications"
           aria-label="Open notifications"
           aria-expanded={open}
@@ -235,7 +235,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           {unreadCount > 0 && (
             <span
               className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center text-xs font-bold px-0.5"
-              style={{ background: "#f23f43", color: "white", fontSize: "10px" }}
+              style={{ background: "var(--theme-danger)", color: "white", fontSize: "10px" }}
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
@@ -252,17 +252,17 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           aria-label="Notifications inbox"
           tabIndex={-1}
           className="absolute right-0 top-full mt-2 w-80 rounded-xl shadow-2xl overflow-hidden z-50"
-          style={{ background: "#2b2d31", border: "1px solid #1e1f22" }}
+          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#1e1f22" }}>
+          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
             <span className="text-sm font-semibold text-white">Notifications</span>
             <div className="flex items-center gap-1">
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
                   className="flex items-center gap-1 text-xs transition-colors hover:text-white focus-ring rounded px-1"
-                  style={{ color: "#949ba4" }}
+                  style={{ color: "var(--theme-text-muted)" }}
                   title="Mark all as read"
                   aria-label="Mark all notifications as read"
                 >
@@ -293,7 +293,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                 <div
                   key={n.id}
                   className="flex items-start justify-between gap-2 px-4 py-3 border-b transition-colors hover:bg-white/5"
-                  style={{ borderColor: "#1e1f22", background: n.read ? "transparent" : "rgba(88,101,242,0.05)" }}
+                  style={{ borderColor: "var(--theme-bg-tertiary)", background: n.read ? "transparent" : "rgba(88,101,242,0.05)" }}
                   role="group"
                   aria-label={`Notification: ${n.title}`}
                 >
@@ -306,13 +306,13 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                     {/* Type icon */}
                     <div
                       className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5"
-                      style={{ background: n.read ? "#383a40" : "#5865f2", color: "white" }}
+                      style={{ background: n.read ? "var(--theme-surface-input)" : "var(--theme-accent)", color: "white" }}
                     >
                       {TYPE_ICONS[n.type]}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: n.read ? "#b5bac1" : "#f2f3f5" }}>{n.title}</p>
+                      <p className="text-sm font-medium truncate" style={{ color: n.read ? "var(--theme-text-secondary)" : "var(--theme-text-primary)" }}>{n.title}</p>
                       {n.body && (
                         <p className="text-xs truncate mt-0.5 tertiary-metadata">{n.body}</p>
                       )}
@@ -327,7 +327,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                       <button
                         onClick={(e) => { e.stopPropagation(); markRead(n.id) }}
                         className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 focus-ring"
-                        style={{ color: "#949ba4" }}
+                        style={{ color: "var(--theme-text-muted)" }}
                         title={`Mark "${n.title}" as read`}
                         aria-label={`Mark "${n.title}" as read`}
                       >
