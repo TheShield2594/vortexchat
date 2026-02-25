@@ -12,37 +12,43 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Verify membership
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("dm_channel_members")
     .select("user_id")
     .eq("dm_channel_id", channelId)
     .eq("user_id", user.id)
-    .single()
+    .maybeSingle()
+
+  if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 })
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   // Fetch channel info (flat, no joins)
-  const { data: channel } = await supabase
+  const { data: channel, error: channelError } = await supabase
     .from("dm_channels")
     .select("id, name, icon_url, is_group, owner_id, updated_at")
     .eq("id", channelId)
-    .single()
+    .maybeSingle()
+  if (channelError) return NextResponse.json({ error: channelError.message }, { status: 500 })
+  if (!channel) return NextResponse.json({ error: "DM channel not found" }, { status: 404 })
 
   // Fetch member user_ids
-  const { data: memberRows } = await supabase
+  const { data: memberRows, error: memberRowsError } = await supabase
     .from("dm_channel_members")
     .select("user_id")
     .eq("dm_channel_id", channelId)
+  if (memberRowsError) return NextResponse.json({ error: memberRowsError.message }, { status: 500 })
 
   const memberIds = memberRows?.map((r) => r.user_id) ?? []
 
   // Fetch user profiles for members
-  const { data: memberUsers } = memberIds.length
+  const { data: memberUsers, error: memberUsersError } = memberIds.length
     ? await supabase
         .from("users")
         .select("id, username, display_name, avatar_url, status, status_message")
         .in("id", memberIds)
-    : { data: [] }
+    : { data: [], error: null }
+  if (memberUsersError) return NextResponse.json({ error: memberUsersError.message }, { status: 500 })
 
   const members = memberUsers ?? []
   const partner = channel && !channel.is_group

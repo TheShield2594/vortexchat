@@ -19,16 +19,18 @@ export async function GET() {
   if (!channelIds.length) return NextResponse.json([])
 
   // 2. Fetch channel metadata
-  const { data: channelRows } = await supabase
+  const { data: channelRows, error: channelRowsError } = await supabase
     .from("dm_channels")
     .select("id, name, icon_url, is_group, owner_id, updated_at")
     .in("id", channelIds)
+  if (channelRowsError) return NextResponse.json({ error: channelRowsError.message }, { status: 500 })
 
   // 3. Fetch all members across these channels
-  const { data: allMemberRows } = await supabase
+  const { data: allMemberRows, error: allMemberRowsError } = await supabase
     .from("dm_channel_members")
     .select("dm_channel_id, user_id")
     .in("dm_channel_id", channelIds)
+  if (allMemberRowsError) return NextResponse.json({ error: allMemberRowsError.message }, { status: 500 })
 
   // 4. Fetch user profiles for all unique member IDs
   const allUserIds = Array.from(new Set((allMemberRows ?? []).map((m) => m.user_id)))
@@ -39,6 +41,7 @@ export async function GET() {
         .in("id", allUserIds)
     : null
   const userRows = userRowsQuery?.data ?? []
+  if (userRowsQuery?.error) return NextResponse.json({ error: userRowsQuery.error.message }, { status: 500 })
 
   const userMap = Object.fromEntries(userRows.map((u) => [u.id, u]))
 
@@ -51,12 +54,13 @@ export async function GET() {
   }
 
   // 5. Get latest message per channel
-  const { data: latest } = await supabase
+  const { data: latest, error: latestError } = await supabase
     .from("direct_messages")
     .select("dm_channel_id, content, created_at, sender_id")
     .in("dm_channel_id", channelIds)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
+  if (latestError) return NextResponse.json({ error: latestError.message }, { status: 500 })
 
   const latestMessages: Record<string, any> = {}
   for (const msg of latest ?? []) {
@@ -66,11 +70,12 @@ export async function GET() {
   }
 
   // 6. Get read states
-  const { data: reads } = await supabase
+  const { data: reads, error: readsError } = await supabase
     .from("dm_read_states")
     .select("dm_channel_id, last_read_at")
     .eq("user_id", user.id)
     .in("dm_channel_id", channelIds)
+  if (readsError) return NextResponse.json({ error: readsError.message }, { status: 500 })
 
   const readStates: Record<string, string> = {}
   for (const r of reads ?? []) {
@@ -111,7 +116,14 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { userIds, name } = await req.json()
+  let parsedBody: { userIds?: string[]; name?: string }
+  try {
+    parsedBody = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  const { userIds, name } = parsedBody
   if (!userIds?.length) return NextResponse.json({ error: "userIds required" }, { status: 400 })
 
   const allMembers = Array.from(new Set([user.id, ...userIds])) as string[]
@@ -121,33 +133,35 @@ export async function POST(req: NextRequest) {
     const partnerId = userIds[0] as string
 
     // Find existing 1:1 channel between current user and partner
-    const { data: userMems } = await supabase
+    const { data: userMems, error: userMemsError } = await supabase
       .from("dm_channel_members")
       .select("dm_channel_id")
       .eq("user_id", user.id)
+    if (userMemsError) return NextResponse.json({ error: userMemsError.message }, { status: 500 })
 
-    const userChannelIds = (userMems ?? []).map((m) => m.dm_channel_id)
+    const { data: partnerMems, error: partnerMemsError } = await supabase
+      .from("dm_channel_members")
+      .select("dm_channel_id")
+      .eq("user_id", partnerId)
+    if (partnerMemsError) return NextResponse.json({ error: partnerMemsError.message }, { status: 500 })
 
-    if (userChannelIds.length > 0) {
+    const userChannelIds = new Set((userMems ?? []).map((m) => m.dm_channel_id))
+    const sharedChannelIds = (partnerMems ?? [])
+      .map((m) => m.dm_channel_id)
+      .filter((id) => userChannelIds.has(id))
+
+    if (sharedChannelIds.length > 0) {
       // Get non-group channels from those IDs
-      const { data: nonGroupChannels } = await supabase
+      const { data: nonGroupChannels, error: nonGroupChannelsError } = await supabase
         .from("dm_channels")
         .select("id")
-        .in("id", userChannelIds)
+        .in("id", sharedChannelIds)
         .eq("is_group", false)
+      if (nonGroupChannelsError) return NextResponse.json({ error: nonGroupChannelsError.message }, { status: 500 })
 
-      for (const ch of nonGroupChannels ?? []) {
-        // Check if partner is also a member of this channel
-        const { data: partnerMem } = await supabase
-          .from("dm_channel_members")
-          .select("dm_channel_id")
-          .eq("dm_channel_id", ch.id)
-          .eq("user_id", partnerId)
-          .single()
-
-        if (partnerMem) {
-          return NextResponse.json({ id: ch.id, existing: true })
-        }
+      const existingChannel = (nonGroupChannels ?? [])[0]
+      if (existingChannel) {
+        return NextResponse.json({ id: existingChannel.id, existing: true })
       }
     }
   }
