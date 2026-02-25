@@ -660,8 +660,8 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
                 <span>{currentAttachment.filename}</span>
                 {imageIndexes.length > 1 && (
                   <span>
-                    <button className="px-2 py-1 rounded hover:bg-white/10" onClick={() => move(-1)}>← Prev</button>
-                    <button className="px-2 py-1 rounded hover:bg-white/10 ml-2" onClick={() => move(1)}>Next →</button>
+                    <button type="button" className="px-2 py-1 rounded hover:bg-white/10" onClick={() => move(-1)}>← Prev</button>
+                    <button type="button" className="px-2 py-1 rounded hover:bg-white/10 ml-2" onClick={() => move(1)}>Next →</button>
                   </span>
                 )}
               </div>

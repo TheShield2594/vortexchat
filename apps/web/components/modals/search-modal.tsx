@@ -57,7 +57,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
           <Search className="w-5 h-5" style={{ color: "#949ba4" }} />
           <input ref={inputRef} type="text" value={query} onChange={handleInput} placeholder="Search… try from:<userId> has:link has:image before:2026-01-01" className="flex-1 bg-transparent text-white text-sm focus:outline-none" />
           {loading && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#949ba4" }} />}
-          <button onClick={onClose}><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose}><X className="w-5 h-5" /></button>
         </div>
 
             <div className="px-4 py-1 text-[11px]" style={{ color: "#949ba4" }}>

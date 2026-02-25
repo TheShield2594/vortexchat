@@ -17,10 +17,11 @@ function parseSearchQuery(raw: string): { query: string; filters: SearchFilters 
     query = query.replace(fromMatch[0], " ")
   }
 
-  const hasMatch = query.match(/(?:^|\s)has:(link|image|file)/i)
-  if (hasMatch?.[1]) {
-    filters.has = hasMatch[1].toLowerCase() as SearchFilters["has"]
-    query = query.replace(hasMatch[0], " ")
+  const hasMatches = Array.from(query.matchAll(/(?:^|\s)has:(link|image|file)/ig))
+  const lastHasMatch = hasMatches.at(-1)
+  if (lastHasMatch?.[1]) {
+    filters.has = lastHasMatch[1].toLowerCase() as SearchFilters["has"]
+    query = query.replace(/(?:^|\s)has:(?:link|image|file)/ig, " ")
   }
 
   const beforeMatch = query.match(/(?:^|\s)before:([^\s]+)/i)
@@ -66,6 +67,34 @@ export async function GET(req: NextRequest) {
 
   if (channelIds.length === 0) return NextResponse.json({ results: [], total: 0 })
 
+  let attachmentBackedImageMessageIds: string[] = []
+  let attachmentBackedFileMessageIds: string[] = []
+
+  if (filters.has === "image" || filters.has === "file") {
+    const { data: candidateMessages } = await supabase
+      .from("messages")
+      .select("id")
+      .in("channel_id", channelIds)
+      .is("deleted_at", null)
+
+    const candidateMessageIds = (candidateMessages ?? []).map((row) => row.id)
+
+    const { data: attachmentRows } = candidateMessageIds.length === 0
+      ? { data: [] as Array<{ message_id: string; content_type: string | null; filename: string }> }
+      : await supabase
+        .from("attachments")
+        .select("message_id, content_type, filename")
+        .in("message_id", candidateMessageIds)
+
+    const rows = attachmentRows ?? []
+    attachmentBackedImageMessageIds = Array.from(new Set(
+      rows
+        .filter((row) => row.content_type?.toLowerCase().startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(row.filename ?? ""))
+        .map((row) => row.message_id)
+    ))
+    attachmentBackedFileMessageIds = Array.from(new Set(rows.map((row) => row.message_id)))
+  }
+
   let messageQuery = supabase.from("messages").select("id, content, channel_id, created_at, author_id, author:users!messages_author_id_fkey(id, username, display_name, avatar_url)")
     .in("channel_id", channelIds)
     .is("deleted_at", null)
@@ -85,10 +114,19 @@ export async function GET(req: NextRequest) {
     messageQuery = messageQuery.ilike("content", "%http%")
   }
   if (filters.has === "image") {
-    messageQuery = messageQuery.or("content.ilike.%http%.png%,content.ilike.%http%.jpg%,content.ilike.%http%.jpeg%,content.ilike.%http%.gif%,content.ilike.%http%.webp%")
+    const contentImageFilter = "content.ilike.%http%.png%,content.ilike.%http%.jpg%,content.ilike.%http%.jpeg%,content.ilike.%http%.gif%,content.ilike.%http%.webp%"
+    if (attachmentBackedImageMessageIds.length > 0) {
+      messageQuery = messageQuery.or(`${contentImageFilter},id.in.(${attachmentBackedImageMessageIds.join(",")})`)
+    } else {
+      messageQuery = messageQuery.or(contentImageFilter)
+    }
   }
   if (filters.has === "file") {
-    messageQuery = messageQuery.ilike("content", "[%](http%")
+    if (attachmentBackedFileMessageIds.length > 0) {
+      messageQuery = messageQuery.in("id", attachmentBackedFileMessageIds)
+    } else {
+      messageQuery = messageQuery.eq("id", "00000000-0000-0000-0000-000000000000")
+    }
   }
 
   const [{ data: messages }, { data: tasks }, { data: docs }] = await Promise.all([
