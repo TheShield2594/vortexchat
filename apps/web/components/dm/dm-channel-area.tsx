@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff } from "lucide-react"
+import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
@@ -253,6 +253,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     setInCall(true)
   }
 
+  function handleSearchClick() {
+    toast({ title: "Search is coming soon", description: "Conversation search isn’t wired up yet." })
+  }
+
+  function handlePinClick() {
+    toast({ title: "Pinned messages coming soon", description: "Pin browsing will be available in a future update." })
+  }
+
   if (loadError) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: "var(--app-bg-primary)" }}>
@@ -299,6 +307,27 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           </Avatar>
         )}
         <span className="font-semibold text-white flex-1">{displayName}</span>
+
+        <button
+          className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+          style={{ color: "#b5bac1" }}
+          title="Search in conversation"
+          aria-label="Search in conversation"
+          type="button"
+          onClick={handleSearchClick}
+        >
+          <Search className="w-4 h-4" />
+        </button>
+        <button
+          className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+          style={{ color: "#b5bac1" }}
+          title="Pinned messages"
+          aria-label="Pinned messages"
+          type="button"
+          onClick={handlePinClick}
+        >
+          <Pin className="w-4 h-4" />
+        </button>
 
         {/* Call buttons — voice-only vs video differentiated */}
         {!channel.is_group && (
@@ -511,6 +540,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             className="flex-1 bg-transparent text-sm focus:outline-none"
             style={{ color: "#dcddde" }}
           />
+          <button
+            className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+            style={{ color: "#949ba4" }}
+            title="Open emoji picker"
+            type="button"
+          >
+            <SmilePlus className="w-4 h-4" />
+          </button>
           {content.trim() && (
             <button onClick={handleSend} disabled={sending} style={{ color: "#5865f2" }}>
               <Send className="w-5 h-5" />
