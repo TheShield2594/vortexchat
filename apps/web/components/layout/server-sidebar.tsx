@@ -1,8 +1,9 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import Link from "next/link"
-import { Plus, Compass, MessageSquare, Clipboard, LogOut, UserPlus } from "lucide-react"
+import { Plus, Compass, Clipboard, LogOut, UserPlus } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -93,9 +94,13 @@ export function ServerSidebar() {
                 background: activeServerId === null ? 'var(--theme-accent)' : 'var(--theme-bg-primary)',
               }}
             >
-              <MessageSquare
-                className="w-6 h-6 transition-colors"
-                style={{ color: activeServerId === null ? 'white' : 'var(--theme-text-muted)' }}
+              <Image
+                src="/logo.svg"
+                alt="VortexChat"
+                width={24}
+                height={24}
+                className="transition-opacity"
+                style={{ opacity: activeServerId === null ? 1 : 0.7 }}
               />
             </Link>
           </TooltipTrigger>

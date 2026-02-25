@@ -1,11 +1,11 @@
-import { MessageSquare } from "lucide-react"
+import Image from "next/image"
 
 export default function DirectMessagesHome() {
   return (
     <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--theme-bg-primary)' }}>
       <div className="text-center">
         <div className="flex justify-center mb-4">
-          <MessageSquare className="w-16 h-16" style={{ color: 'var(--theme-text-faint)' }} />
+          <Image src="/logo.svg" alt="VortexChat" width={64} height={64} className="opacity-70" />
         </div>
         <h2 className="text-xl font-semibold text-white mb-2">
           No DM selected

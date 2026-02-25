@@ -9,7 +9,9 @@ export const metadata: Metadata = {
   title: "VortexChat — Chat, Hang Out, Belong",
   description: "A self-hosted Discord-style chat platform",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+    shortcut: "/logo.svg",
   },
   manifest: "/manifest.json",
   appleWebApp: {

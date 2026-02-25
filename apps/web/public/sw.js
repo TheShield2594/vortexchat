@@ -30,13 +30,13 @@ self.addEventListener("push", (event) => {
     data = { title: "VortexChat", body: event.data.text() }
   }
 
-  const { title = "VortexChat", body = "New message", icon = "/icon-192.png", url = "/channels/@me", tag } = data
+  const { title = "VortexChat", body = "New message", icon = "/logo.svg", url = "/channels/@me", tag } = data
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
       icon,
-      badge: "/icon-192.png",
+      badge: "/logo.svg",
       tag: tag || "vortexchat-message",
       data: { url },
       renotify: true,
