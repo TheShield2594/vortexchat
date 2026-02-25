@@ -7,18 +7,22 @@ const IDLE_TIMEOUT_MS = 5 * 60 * 1000
 
 type PresenceStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
 
+function resolveInitialPresenceStatus(status?: PresenceStatus): PresenceStatus {
+  return status === "idle" || status === "dnd" || status === "invisible" ? status : "online"
+}
+
 export function usePresenceSync(userId: string | null, status?: PresenceStatus) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
-  const currentStatusRef = useRef<PresenceStatus>(status ?? "online")
-  const explicitStatusRef = useRef<PresenceStatus>((status === "dnd" || status === "invisible") ? status : "online")
+  const currentStatusRef = useRef<PresenceStatus>(resolveInitialPresenceStatus(status))
+  const explicitStatusRef = useRef<PresenceStatus>(resolveInitialPresenceStatus(status))
   const idleTimerRef = useRef<number | undefined>(undefined)
   const userIdRef = useRef<string | null>(null)
 
   const persistStatusRef = useRef<(nextStatus: PresenceStatus) => void>(() => {})
 
   useEffect(() => {
-    if (status === "dnd" || status === "invisible") {
+    if (status === "idle" || status === "dnd" || status === "invisible") {
       explicitStatusRef.current = status
     }
   }, [status])
@@ -27,17 +31,22 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
     if (!userId) return
     userIdRef.current = userId
 
-    const persistStatus = (nextStatus: PresenceStatus) => {
+    const persistStatus = (nextStatus: PresenceStatus, options?: { persistUserRecord?: boolean; rememberExplicit?: boolean }) => {
+      const persistUserRecord = options?.persistUserRecord ?? true
+      const rememberExplicit = options?.rememberExplicit ?? (nextStatus === "idle" || nextStatus === "dnd" || nextStatus === "invisible")
+
       currentStatusRef.current = nextStatus
-      if (nextStatus === "dnd" || nextStatus === "invisible") {
+      if (rememberExplicit) {
         explicitStatusRef.current = nextStatus
       }
 
-      supabase
-        .from("users")
-        .update({ status: nextStatus, updated_at: new Date().toISOString() })
-        .eq("id", userId)
-        .then()
+      if (persistUserRecord) {
+        supabase
+          .from("users")
+          .update({ status: nextStatus, updated_at: new Date().toISOString() })
+          .eq("id", userId)
+          .then()
+      }
 
       channelRef.current?.track({
         user_id: userId,
@@ -59,11 +68,13 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
       clearIdleTimer()
       idleTimerRef.current = window.setTimeout(() => {
         if (document.hidden) return
-        if (currentStatusRef.current === "online") persistStatus("idle")
+        if (currentStatusRef.current === "online") {
+          persistStatus("idle", { persistUserRecord: false, rememberExplicit: false })
+        }
       }, IDLE_TIMEOUT_MS)
     }
 
-    const initialStatus = status ?? "online"
+    const initialStatus = resolveInitialPresenceStatus(status)
     persistStatus(initialStatus)
 
     const channel = supabase.channel("presence:global", {
@@ -86,18 +97,18 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
 
     const onActivity = () => {
       if (currentStatusRef.current === "idle") {
-        persistStatus("online")
+        persistStatus("online", { persistUserRecord: false, rememberExplicit: false })
       }
       scheduleIdle()
     }
 
     const onVisibility = () => {
       if (document.hidden) {
-        persistStatus("offline")
+        persistStatus("offline", { persistUserRecord: false, rememberExplicit: false })
         return
       }
 
-      if (explicitStatusRef.current === "dnd" || explicitStatusRef.current === "invisible") {
+      if (explicitStatusRef.current === "idle" || explicitStatusRef.current === "dnd" || explicitStatusRef.current === "invisible") {
         persistStatus(explicitStatusRef.current)
         return
       }
@@ -128,11 +139,6 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
       if (!currentUserId) return
 
       channelRef.current?.untrack()
-      supabase
-        .from("users")
-        .update({ status: "offline", updated_at: new Date().toISOString() })
-        .eq("id", currentUserId)
-        .then()
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload)
