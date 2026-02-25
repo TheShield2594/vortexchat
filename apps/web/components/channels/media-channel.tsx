@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react"
 import { ImageIcon, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
@@ -27,6 +28,7 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [draft, setDraftState] = useState(() => getDraft(channel.id))
   const bottomRef = useRef<HTMLDivElement>(null)
+  const pendingReactionsRef = useRef(new Set<string>())
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
@@ -195,13 +197,37 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
                   if (!error) setMessages((prev) => prev.filter((m) => m.id !== message.id))
                 }}
                 onReaction={async (emoji) => {
-                  const existing = message.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
-                  if (existing) {
-                    await supabase.from("reactions").delete().eq("message_id", message.id).eq("user_id", currentUserId).eq("emoji", emoji)
-                    setMessages((prev) => prev.map((m) => m.id === message.id ? { ...m, reactions: m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) } : m))
-                  } else {
-                    await supabase.from("reactions").insert({ message_id: message.id, user_id: currentUserId, emoji })
-                    setMessages((prev) => prev.map((m) => m.id === message.id ? { ...m, reactions: [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] } : m))
+                  const mutationKey = `${message.id}:${emoji}:${currentUserId}`
+                  if (pendingReactionsRef.current.has(mutationKey)) return
+
+                  const previousMessages = messages
+                  const currentMessage = previousMessages.find((m) => m.id === message.id)
+                  const previousReactions = currentMessage?.reactions ?? message.reactions
+                  const remove = Boolean(currentMessage?.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji))
+
+                  pendingReactionsRef.current.add(mutationKey)
+                  setMessages((prev) => prev.map((m) => {
+                    if (m.id !== message.id) return m
+                    const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                    return {
+                      ...m,
+                      reactions: remove
+                        ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+                        : hasOwnReaction
+                          ? m.reactions
+                          : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                    }
+                  }))
+
+                  try {
+                    await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
+                  } catch (error) {
+                    console.error("Failed to update reaction", error)
+                    setMessages((prev) =>
+                      prev.map((m) => (m.id === message.id ? { ...m, reactions: previousReactions } : m))
+                    )
+                  } finally {
+                    pendingReactionsRef.current.delete(mutationKey)
                   }
                 }}
               />

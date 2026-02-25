@@ -6,6 +6,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { usePresenceSync } from "@/hooks/use-presence-sync"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
+import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
 import type { UserRow, ServerRow } from "@/types/database"
 
 interface AppProviderProps {
@@ -63,6 +64,7 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
 
   // Register service worker + push notifications if previously granted
   usePushNotifications()
+  useTabUnreadTitle(user?.id ?? null)
 
   return <>{children}</>
 }

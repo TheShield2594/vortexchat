@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { validateAttachments } from "@/lib/attachment-validation"
 
 interface Params {
   params: Promise<{ threadId: string }>
@@ -95,9 +96,29 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { content, replyToId, attachments = [] } = body
+  const { content, replyToId, attachments: rawAttachments } = body
+  const attachments = rawAttachments ?? []
+
+  if (!Array.isArray(attachments)) return NextResponse.json({ error: "Invalid attachments" }, { status: 400 })
+  if (!attachments.every((attachment) => {
+    if (!attachment || typeof attachment !== "object") return false
+    const candidate = attachment as Record<string, unknown>
+    return (
+      typeof candidate.url === "string"
+      && typeof candidate.filename === "string"
+      && typeof candidate.size === "number"
+      && typeof candidate.content_type === "string"
+    )
+  })) {
+    return NextResponse.json({ error: "Invalid attachment elements" }, { status: 400 })
+  }
   if (!content?.trim() && attachments.length === 0) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
+  }
+
+  const attachmentValidation = validateAttachments(attachments)
+  if (!attachmentValidation.valid) {
+    return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
   }
 
   // Fetch thread to get the channel_id and check locked/archived

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendPushToChannel } from "@/lib/push"
+import { isBlockedBetweenUsers } from "@/lib/blocking"
 
 // POST /api/dm/channels/[channelId]/messages — send a message
 export async function POST(
@@ -23,6 +24,32 @@ export async function POST(
   if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 })
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  const { data: channelMembers, error: channelMembersError } = await supabase
+    .from("dm_channel_members")
+    .select("user_id")
+    .eq("dm_channel_id", channelId)
+
+  if (channelMembersError || !channelMembers) {
+    return NextResponse.json({ error: channelMembersError?.message ?? "Failed to load DM members" }, { status: 500 })
+  }
+
+  for (const member of channelMembers) {
+    if (member.user_id === user.id) continue
+    try {
+      if (await isBlockedBetweenUsers(supabase as any, user.id, member.user_id)) {
+        return NextResponse.json({ error: "Cannot send messages while blocked" }, { status: 403 })
+      }
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: "Error checking block status",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+        { status: 500 }
+      )
+    }
+  }
 
   let body: { content?: string }
   try {

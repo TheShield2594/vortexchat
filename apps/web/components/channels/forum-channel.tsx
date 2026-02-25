@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react"
 import { MessageSquare, Plus, ArrowLeft, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
@@ -227,13 +228,29 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                 if (!error) { setMessages((prev) => prev.filter((m) => m.id !== activeThread.id)); setView("list"); setActiveThread(null) }
               }}
               onReaction={async (emoji) => {
-                const existing = activeThread.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
-                if (existing) {
-                  await supabase.from("reactions").delete().eq("message_id", activeThread.id).eq("user_id", currentUserId).eq("emoji", emoji)
-                  setMessages((prev) => prev.map((m) => m.id === activeThread.id ? { ...m, reactions: m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) } : m))
-                } else {
-                  await supabase.from("reactions").insert({ message_id: activeThread.id, user_id: currentUserId, emoji })
-                  setMessages((prev) => prev.map((m) => m.id === activeThread.id ? { ...m, reactions: [...m.reactions, { message_id: activeThread.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] } : m))
+                const currentThread = messages.find((m) => m.id === activeThread.id)
+                const previousReactions = currentThread?.reactions ?? activeThread.reactions
+                const existing = previousReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
+                const remove = Boolean(existing)
+                setMessages((prev) => prev.map((m) => {
+                  if (m.id !== activeThread.id) return m
+                  const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                  return {
+                    ...m,
+                    reactions: remove
+                      ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+                      : hasOwnReaction
+                        ? m.reactions
+                        : [...m.reactions, { message_id: activeThread.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                  }
+                }))
+                try {
+                  await sendReactionMutation({ messageId: activeThread.id, emoji, remove, nonce: crypto.randomUUID() })
+                } catch (error) {
+                  console.error("Failed to update thread reaction", error)
+                  setMessages((prev) =>
+                    prev.map((m) => (m.id === activeThread.id ? { ...m, reactions: previousReactions } : m))
+                  )
                 }
               }}
             />
@@ -264,13 +281,28 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                     if (!error) setMessages((prev) => prev.filter((m) => m.id !== reply.id))
                   }}
                   onReaction={async (emoji) => {
+                    const previousReactions = reply.reactions
                     const existing = reply.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
-                    if (existing) {
-                      await supabase.from("reactions").delete().eq("message_id", reply.id).eq("user_id", currentUserId).eq("emoji", emoji)
-                      setMessages((prev) => prev.map((m) => m.id === reply.id ? { ...m, reactions: m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) } : m))
-                    } else {
-                      await supabase.from("reactions").insert({ message_id: reply.id, user_id: currentUserId, emoji })
-                      setMessages((prev) => prev.map((m) => m.id === reply.id ? { ...m, reactions: [...m.reactions, { message_id: reply.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] } : m))
+                    const remove = Boolean(existing)
+                    setMessages((prev) => prev.map((m) => {
+                      if (m.id !== reply.id) return m
+                      const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                      return {
+                        ...m,
+                        reactions: remove
+                          ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+                          : hasOwnReaction
+                            ? m.reactions
+                            : [...m.reactions, { message_id: reply.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                      }
+                    }))
+                    try {
+                      await sendReactionMutation({ messageId: reply.id, emoji, remove, nonce: crypto.randomUUID() })
+                    } catch (error) {
+                      console.error("Failed to update thread reply reaction", error)
+                      setMessages((prev) =>
+                        prev.map((m) => (m.id === reply.id ? { ...m, reactions: previousReactions } : m))
+                      )
                     }
                   }}
                 />

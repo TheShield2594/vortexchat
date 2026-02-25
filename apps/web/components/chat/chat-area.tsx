@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import type { AttachmentRow, ChannelRow, MessageWithAuthor, ThreadRow } from "@/types/database"
@@ -1096,35 +1097,31 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
                   }}
                   onReaction={async (emoji) => {
-                    const existing = message.reactions.find(
-                      (r) => r.emoji === emoji && r.user_id === currentUserId
-                    )
-                    if (existing) {
-                      await supabase
-                        .from("reactions")
-                        .delete()
-                        .eq("message_id", message.id)
-                        .eq("user_id", currentUserId)
-                        .eq("emoji", emoji)
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === message.id
-                            ? { ...m, reactions: m.reactions.filter((r) => !(r.emoji === emoji && r.user_id === currentUserId)) }
-                            : m
-                        )
-                      )
-                    } else {
-                      await supabase.from("reactions").insert({
-                        message_id: message.id,
-                        user_id: currentUserId,
-                        emoji,
+                    const previousMessage = messages.find((m) => m.id === message.id)
+                    const existing = message.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
+                    const remove = Boolean(existing)
+
+                    setMessages((prev) =>
+                      prev.map((m) => {
+                        if (m.id !== message.id) return m
+                        const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                        return {
+                          ...m,
+                          reactions: remove
+                            ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+                            : hasOwnReaction
+                              ? m.reactions
+                              : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                        }
                       })
+                    )
+
+                    try {
+                      await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
+                    } catch {
+                      if (!previousMessage) return
                       setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === message.id
-                            ? { ...m, reactions: [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }] }
-                            : m
-                        )
+                        prev.map((m) => (m.id === message.id ? { ...m, ...previousMessage } : m))
                       )
                     }
                   }}

@@ -12,6 +12,8 @@ import {
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import type { AutoModRuleWithParsed } from "@/types/database"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { filterMentionsByBlockState } from "@/lib/blocking"
+import { validateAttachments } from "@/lib/attachment-validation"
 
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -157,11 +159,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { channelId, content, replyToId, mentions = [], mentionEveryone = false, attachments = [] } = body
+  const { channelId, content, replyToId, mentions: rawMentions, mentionEveryone = false, attachments: rawAttachments } = body
+  const mentions = rawMentions ?? []
+  const attachments = rawAttachments ?? []
+
+  if (!Array.isArray(mentions)) return NextResponse.json({ error: "Invalid mentions" }, { status: 400 })
+  if (!Array.isArray(attachments)) return NextResponse.json({ error: "Invalid attachments" }, { status: 400 })
+  if (!mentions.every((mention) => typeof mention === "string" && mention.trim().length > 0)) {
+    return NextResponse.json({ error: "Invalid mention elements" }, { status: 400 })
+  }
+  if (!attachments.every((attachment) => {
+    if (!attachment || typeof attachment !== "object") return false
+    const candidate = attachment as Record<string, unknown>
+    return (
+      typeof candidate.url === "string"
+      && typeof candidate.filename === "string"
+      && typeof candidate.size === "number"
+      && typeof candidate.content_type === "string"
+    )
+  })) {
+    return NextResponse.json({ error: "Invalid attachment elements" }, { status: 400 })
+  }
 
   if (!channelId) return NextResponse.json({ error: "channelId required" }, { status: 400 })
   if (!content?.trim() && attachments.length === 0) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
+  }
+
+  const attachmentValidation = validateAttachments(attachments)
+  if (!attachmentValidation.valid) {
+    return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
+  }
+
+  let safeMentions: string[]
+  try {
+    const filteredMentions = await filterMentionsByBlockState(supabase as any, user.id, mentions)
+    safeMentions = filteredMentions.allowed
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to validate mentions" },
+      { status: 400 }
+    )
   }
 
   // --- Fetch channel for server context and slowmode check ---
@@ -440,7 +478,7 @@ export async function POST(request: Request) {
       author_id: user.id,
       content: content?.trim() || null,
       reply_to_id: replyToId || null,
-      mentions,
+      mentions: safeMentions,
       mention_everyone: mentionEveryone,
     })
     .select(`*, author:users(*), attachments(*), reactions(*)`)
@@ -466,7 +504,7 @@ export async function POST(request: Request) {
       const serviceSupabase = await createServiceRoleClient()
       const recipientIds = new Set<string>()
 
-      for (const mentionedUserId of mentions) {
+      for (const mentionedUserId of safeMentions) {
         if (mentionedUserId && mentionedUserId !== user.id) {
           recipientIds.add(mentionedUserId)
         }
@@ -490,7 +528,7 @@ export async function POST(request: Request) {
 
       const bodyPreview = (content?.trim() || "Sent an attachment").slice(0, MAX_NOTIFICATION_BODY_LENGTH)
       const rows = Array.from(recipientIds).map((recipientId) => {
-        const isMentionTarget = mentions.includes(recipientId)
+        const isMentionTarget = safeMentions.includes(recipientId)
 
         return {
           user_id: recipientId,
@@ -514,7 +552,7 @@ export async function POST(request: Request) {
     channelId,
     senderName,
     content: content?.trim() ?? "Sent an attachment",
-    mentionedIds: mentions,
+    mentionedIds: safeMentions,
     excludeUserId: user.id,
   }).catch(() => {})
 
