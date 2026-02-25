@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, ShieldCheck, Zap } from "lucide-react"
+import { Loader2, ShieldCheck, Sparkles } from "lucide-react"
 import { startPasskeyLogin, supportsPasskeys } from "@/lib/auth/passkeys-client"
 
 export default function LoginPage() {
@@ -81,19 +81,30 @@ export default function LoginPage() {
   const showFallbacks = !policy.enforce_passkey
 
   return (
-    <div className="rounded-lg p-8 shadow-2xl" style={{ background: "var(--theme-bg-primary)" }}>
-      <div className="text-center mb-8">
-        <div className="flex justify-center mb-4"><div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--theme-accent)" }}><Zap className="w-7 h-7 text-white" /></div></div>
+    <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 text-slate-100 shadow-2xl backdrop-blur">
+      <div className="mb-8 text-center">
+        <div className="mb-4 flex justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/40 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-200">
+            <Sparkles className="h-3.5 w-3.5" /> Secure sign in
+          </div>
+        </div>
         <h1 className="text-2xl font-bold text-white">{isNewUser ? "Verify your email" : "Welcome back!"}</h1>
-        <p style={{ color: "var(--theme-text-secondary)" }} className="text-sm mt-1">{isNewUser ? "Check your inbox for a verification link, then log in below." : "We’re so excited to see you again!"}</p>
+        <p className="mt-1 text-sm text-slate-300">
+          {isNewUser ? "Check your inbox for a verification link, then log in below." : "We’re so excited to see you again!"}
+        </p>
       </div>
 
-      <div className="rounded-md p-3 mb-4 text-sm" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}>
-        <p className="font-medium text-white flex items-center gap-2 mb-1"><ShieldCheck className="w-4 h-4" />Passkey-first security</p>
+      <div className="mb-4 rounded-lg border border-white/10 bg-slate-950/60 p-3 text-sm text-slate-300">
+        <p className="mb-1 flex items-center gap-2 font-medium text-white"><ShieldCheck className="h-4 w-4 text-emerald-400" />Passkey-first security</p>
         <p>Use your device passkey for phishing-resistant sign in. If your policy allows it, password and magic link remain available as backups.</p>
       </div>
 
-      <Button type="button" disabled={passkeyLoading} onClick={handlePasskeyLogin} className="w-full h-11 font-medium mb-4" style={{ background: "var(--theme-positive)" }}>
+      <Button
+        type="button"
+        disabled={passkeyLoading}
+        onClick={handlePasskeyLogin}
+        className="mb-4 h-11 w-full bg-indigo-500 font-medium text-white transition hover:bg-indigo-400"
+      >
         {passkeyLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Continue with Passkey
       </Button>
 
@@ -101,27 +112,49 @@ export default function LoginPage() {
         <>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Email <span className="text-red-500">*</span></Label>
-              <Input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required className="h-10" style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }} />
+              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-slate-300">Email <span className="text-red-400">*</span></Label>
+              <Input
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+                className="h-10 border-white/10 bg-slate-800 text-slate-100 placeholder:text-slate-500"
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Password <span className="text-red-500">*</span></Label>
-              <Input id="password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required className="h-10" style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }} />
+              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-slate-300">Password <span className="text-red-400">*</span></Label>
+              <Input
+                id="password"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                required
+                className="h-10 border-white/10 bg-slate-800 text-slate-100 placeholder:text-slate-500"
+              />
             </div>
-            <Button type="submit" disabled={loading} className="w-full h-11 font-medium" style={{ background: "var(--theme-accent)" }}>
+            <Button type="submit" disabled={loading} className="h-11 w-full bg-indigo-500 font-medium text-white transition hover:bg-indigo-400">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Log In with Password
             </Button>
           </form>
 
-          <Button type="button" variant="outline" disabled={magicLinkLoading} onClick={handleMagicLink} className="w-full h-10 mt-4" style={{ borderColor: "var(--theme-text-faint)", color: "var(--theme-text-secondary)", background: "transparent" }}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={magicLinkLoading}
+            onClick={handleMagicLink}
+            className="mt-4 h-10 w-full border-white/20 bg-white/5 text-slate-200 hover:bg-white/10"
+          >
             {magicLinkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send Magic Link
           </Button>
         </>
       )}
 
-      {!showFallbacks && <p className="text-xs mt-3" style={{ color: "var(--theme-warning)" }}>Your account policy requires passkey login. Contact an owner/admin if you need recovery help.</p>}
+      {!showFallbacks && <p className="mt-3 text-xs text-amber-300">Your account policy requires passkey login. Contact an owner/admin if you need recovery help.</p>}
 
-      <p className="text-center text-sm mt-6" style={{ color: "var(--theme-text-secondary)" }}>Need an account? <Link href="/register" className="hover:underline" style={{ color: "var(--theme-link)" }}>Register</Link></p>
+      <p className="mt-6 text-center text-sm text-slate-300">
+        Need an account? <Link href="/register" className="text-indigo-300 hover:underline">Register</Link>
+      </p>
     </div>
   )
 }
