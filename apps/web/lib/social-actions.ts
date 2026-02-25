@@ -8,8 +8,8 @@ interface RouterLike {
 
 async function parseJsonResponse(response: Response): Promise<Record<string, unknown>> {
   const payload = await response.json()
-  if (!payload || typeof payload !== "object") {
-    throw new Error("Invalid server response")
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Invalid server response shape")
   }
   return payload as Record<string, unknown>
 }
@@ -22,19 +22,26 @@ export async function openDmChannel(userId: string, router: RouterLike, toast: T
     body: JSON.stringify({ userIds: [userId] }),
   })
 
-  const payload = await parseJsonResponse(response)
-
-  if (response.ok) {
-    const channelId = payload.id
-    if (typeof channelId !== "string") {
-      throw new Error("Missing DM channel id")
+  if (!response.ok) {
+    let message = "Failed to open DM"
+    try {
+      const errorPayload = await parseJsonResponse(response)
+      if (typeof errorPayload.error === "string") {
+        message = errorPayload.error
+      }
+    } catch {
+      // Keep fallback message when server body is not parseable JSON.
     }
-    router.push(`/channels/me/${channelId}`)
+    toast({ variant: "destructive", title: message })
     return
   }
 
-  const message = typeof payload.error === "string" ? payload.error : "Failed to open DM"
-  toast({ variant: "destructive", title: message })
+  const payload = await parseJsonResponse(response)
+  const channelId = payload.id
+  if (typeof channelId !== "string") {
+    throw new Error("Missing DM channel id")
+  }
+  router.push(`/channels/me/${channelId}`)
 }
 
 /** Sends a friend request and shows toast feedback (409 remains non-destructive). */
@@ -51,7 +58,7 @@ export async function sendFriendRequest(username: string, toast: ToastFn): Promi
       ? payload.message
       : typeof payload.error === "string"
         ? payload.error
-        : "Request failed"
+        : "Request completed"
 
   toast({
     variant: response.ok || response.status === 409 ? "default" : "destructive",

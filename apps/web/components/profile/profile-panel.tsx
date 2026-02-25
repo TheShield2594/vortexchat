@@ -7,7 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
+import { sanitizeBannerColor } from "@/lib/banner-color"
 import type { RoleRow } from "@/types/database"
+import { PERMISSIONS } from "@vortex/shared"
 
 interface ProfileUser {
   id: string
@@ -43,7 +45,7 @@ function getJoinedDate(rawDate?: string) {
   if (!rawDate) return "Unknown"
   const date = new Date(rawDate)
   if (Number.isNaN(date.getTime())) return "Unknown"
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -58,6 +60,8 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
   const initials = displayName.slice(0, 2).toUpperCase()
   const isOtherUser = Boolean(user?.id && currentUserId && user.id !== currentUserId)
   const joined = useMemo(() => getJoinedDate(user?.created_at), [user?.created_at])
+  const bannerColor = sanitizeBannerColor(user?.banner_color)
+  const isAdmin = roles.some((role) => Boolean(role.permissions & PERMISSIONS.ADMINISTRATOR))
 
   async function handleMessage() {
     if (!user?.id || actionLoading) return
@@ -95,9 +99,9 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
     <div className="w-80 shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
       <div
         className="h-24 relative bg-primary/20"
-        style={user?.banner_color ? { "--profile-banner-color": user.banner_color } as CSSProperties : undefined}
+        style={bannerColor ? { "--profile-banner-color": bannerColor } as CSSProperties : undefined}
       >
-        {user?.banner_color && <div className="absolute inset-0 bg-[var(--profile-banner-color)]" />}
+        {bannerColor && <div className="absolute inset-0 bg-[var(--profile-banner-color)]" />}
         <button
           type="button"
           onClick={onClose}
@@ -122,7 +126,7 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-xl font-bold text-foreground truncate">{displayName}</h3>
-              {roles.some((role) => role.name.toLowerCase() === "admin" || role.name.toLowerCase() === "administrator") && (
+              {isAdmin && (
                 <Shield className="w-4 h-4 text-primary" />
               )}
             </div>

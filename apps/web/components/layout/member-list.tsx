@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Clipboard, AtSign, MessageSquare, UserPlus } from "lucide-react"
+import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { Skeleton } from "@/components/ui/skeleton"
+import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 
 interface Props {
   serverId: string
@@ -279,6 +280,7 @@ function MemberItem({
     "Unknown"
   const initials = displayName.slice(0, 2).toUpperCase()
   const isOtherUser = currentUserId && member.user_id !== currentUserId
+  const [actionLoading, setActionLoading] = useState<"message" | "friend" | null>(null)
 
   // Get highest colored role
   const coloredRole = member.roles
@@ -288,32 +290,35 @@ function MemberItem({
   const roleColor = coloredRole?.color ?? undefined
 
   async function handleMessage() {
-    const res = await fetch("/api/dm/channels", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userIds: [member.user_id] }),
-    })
-    if (res.ok) {
-      const { id } = await res.json()
-      router.push(`/channels/me/${id}`)
-    } else {
-      const { error } = await res.json()
-      toast({ variant: "destructive", title: error || "Failed to open DM" })
+    if (actionLoading) return
+    setActionLoading("message")
+    try {
+      await openDmChannel(member.user_id, router, toast)
+    } catch (error) {
+      console.error("Failed to open DM from member list:", error)
+      toast({
+        variant: "destructive",
+        title: error instanceof Error ? error.message : "Network error while opening DM",
+      })
+    } finally {
+      setActionLoading(null)
     }
   }
 
   async function handleAddFriend() {
-    if (!member.user?.username) return
-    const res = await fetch("/api/friends", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: member.user.username }),
-    })
-    const json = await res.json()
-    toast({
-      variant: res.ok || res.status === 409 ? "default" : "destructive",
-      title: json.message || json.error,
-    })
+    if (!member.user?.username || actionLoading) return
+    setActionLoading("friend")
+    try {
+      await sendFriendRequest(member.user.username, toast)
+    } catch (error) {
+      console.error("Failed to send friend request from member list:", error)
+      toast({
+        variant: "destructive",
+        title: error instanceof Error ? error.message : "Network error while adding friend",
+      })
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   return (
@@ -330,6 +335,10 @@ function MemberItem({
         <ContextMenuTrigger asChild>
           <div
             className="flex items-center gap-2 px-2 py-1.5 mx-2 rounded cursor-pointer hover:bg-white/5 transition-colors group"
+            onClick={(event) => {
+              event.preventDefault()
+              onViewProfile()
+            }}
           >
             <div className="relative flex-shrink-0">
               <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
@@ -376,16 +385,18 @@ function MemberItem({
       <ContextMenuContent className="w-48">
         {isOtherUser && (
           <>
-            <ContextMenuItem onClick={handleMessage}>
+            <ContextMenuItem onClick={handleMessage} disabled={actionLoading === "message"}>
               <MessageSquare className="w-4 h-4 mr-2" /> Message
             </ContextMenuItem>
-            <ContextMenuItem onClick={handleAddFriend}>
+            <ContextMenuItem onClick={handleAddFriend} disabled={actionLoading === "friend"}>
               <UserPlus className="w-4 h-4 mr-2" /> Add Friend
             </ContextMenuItem>
             <ContextMenuSeparator />
           </>
         )}
-        <ContextMenuItem onClick={onViewProfile}>View Profile</ContextMenuItem>
+        <ContextMenuItem onClick={onViewProfile}>
+          <UserCircle className="w-4 h-4 mr-2" /> View Profile
+        </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => {
           navigator.clipboard.writeText(`@${member.user?.username ?? displayName}`)
