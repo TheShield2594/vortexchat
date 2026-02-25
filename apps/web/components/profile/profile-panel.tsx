@@ -1,11 +1,12 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
 import { Calendar, MessageSquare, Shield, UserPlus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
+import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 import type { RoleRow } from "@/types/database"
 
 interface ProfileUser {
@@ -62,18 +63,13 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
     if (!user?.id || actionLoading) return
     setActionLoading("message")
     try {
-      const res = await fetch("/api/dm/channels", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userIds: [user.id] }),
+      await openDmChannel(user.id, router, toast)
+    } catch (error) {
+      console.error("Failed to open DM:", error)
+      toast({
+        variant: "destructive",
+        title: error instanceof Error ? error.message : "Network error while opening DM",
       })
-      if (res.ok) {
-        const { id } = await res.json()
-        router.push(`/channels/me/${id}`)
-      } else {
-        const { error } = await res.json()
-        toast({ variant: "destructive", title: error || "Failed to open DM" })
-      }
     } finally {
       setActionLoading(null)
     }
@@ -83,15 +79,12 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
     if (!user?.username || actionLoading) return
     setActionLoading("friend")
     try {
-      const res = await fetch("/api/friends", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: user.username }),
-      })
-      const json = await res.json()
+      await sendFriendRequest(user.username, toast)
+    } catch (error) {
+      console.error("Failed to send friend request:", error)
       toast({
-        variant: res.ok || res.status === 409 ? "default" : "destructive",
-        title: json.message || json.error,
+        variant: "destructive",
+        title: error instanceof Error ? error.message : "Network error while adding friend",
       })
     } finally {
       setActionLoading(null)
@@ -100,7 +93,11 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
 
   return (
     <div className="w-80 shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
-      <div className="h-24 relative bg-primary/20">
+      <div
+        className="h-24 relative bg-primary/20"
+        style={user?.banner_color ? { "--profile-banner-color": user.banner_color } as CSSProperties : undefined}
+      >
+        {user?.banner_color && <div className="absolute inset-0 bg-[var(--profile-banner-color)]" />}
         <button
           type="button"
           onClick={onClose}
@@ -129,7 +126,7 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                 <Shield className="w-4 h-4 text-primary" />
               )}
             </div>
-            <p className="text-sm text-muted-foreground">@{user?.username ?? displayName.toLowerCase().replaceAll(" ", ".")}</p>
+            {user?.username && <p className="text-sm text-muted-foreground">@{user.username}</p>}
           </div>
 
           {isOtherUser && (

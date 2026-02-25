@@ -64,6 +64,10 @@ export function MemberList({ serverId }: Props) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
+    setSelectedMemberId(null)
+  }, [serverId])
+
+  useEffect(() => {
     async function fetchMembers() {
       setLoadingMembers(true)
       // Fetch members and roles separately — no FK between server_members and member_roles
@@ -189,10 +193,7 @@ export function MemberList({ serverId }: Props) {
         />
       )}
 
-      <div
-        className="w-60 flex-shrink-0 flex flex-col"
-        style={{ background: "var(--app-bg-secondary)" }}
-      >
+      <div className="w-60 flex-shrink-0 flex flex-col bg-[var(--app-bg-secondary)]">
         <ScrollArea className="flex-1 py-4">
         {loadingMembers && (
           <div className="space-y-3 px-3">
@@ -329,7 +330,6 @@ function MemberItem({
         <ContextMenuTrigger asChild>
           <div
             className="flex items-center gap-2 px-2 py-1.5 mx-2 rounded cursor-pointer hover:bg-white/5 transition-colors group"
-            onClick={onViewProfile}
           >
             <div className="relative flex-shrink-0">
               <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
