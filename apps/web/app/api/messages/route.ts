@@ -122,21 +122,6 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // --- Rate limit: max 5 messages per 10 seconds per user ---
-  const rl = rateLimiter.check(`msg:${user.id}`, { limit: 5, windowMs: 10_000 })
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "You are sending messages too fast. Slow down." },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
-          "X-RateLimit-Remaining": "0",
-        },
-      }
-    )
-  }
-
   let body: {
     channelId: string
     content?: string
@@ -151,6 +136,7 @@ export async function POST(request: Request) {
       width?: number
       height?: number
     }>
+    clientNonce?: string
   }
 
   try {
@@ -159,7 +145,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { channelId, content, replyToId, mentions: rawMentions, mentionEveryone = false, attachments: rawAttachments } = body
+  const { channelId, content, replyToId, mentions: rawMentions, mentionEveryone = false, attachments: rawAttachments, clientNonce } = body
   const mentions = rawMentions ?? []
   const attachments = rawAttachments ?? []
 
@@ -182,6 +168,9 @@ export async function POST(request: Request) {
   }
 
   if (!channelId) return NextResponse.json({ error: "channelId required" }, { status: 400 })
+  if (clientNonce !== undefined && (typeof clientNonce !== "string" || clientNonce.trim().length < 6 || clientNonce.trim().length > 100)) {
+    return NextResponse.json({ error: "Invalid clientNonce" }, { status: 400 })
+  }
   if (!content?.trim() && attachments.length === 0) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
   }
@@ -189,6 +178,45 @@ export async function POST(request: Request) {
   const attachmentValidation = validateAttachments(attachments)
   if (!attachmentValidation.valid) {
     return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
+  }
+
+  // --- Fetch channel for server context and basic validation ---
+  const { data: channel } = await supabase
+    .from("channels")
+    .select("slowmode_delay, server_id")
+    .eq("id", channelId)
+    .single()
+
+  if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  // --- Idempotency lookup (same nonce/user/channel returns the original message) ---
+  if (clientNonce?.trim()) {
+    const { data: existing } = await supabase
+      .from("messages")
+      .select(`*, author:users(*), attachments(*), reactions(*)`)
+      .eq("channel_id", channelId)
+      .eq("author_id", user.id)
+      .eq("client_nonce", clientNonce.trim())
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json(existing, { status: 200 })
+    }
+  }
+
+  // --- Rate limit: max 5 messages per 10 seconds per user ---
+  const rl = rateLimiter.check(`msg:${user.id}`, { limit: 5, windowMs: 10_000 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "You are sending messages too fast. Slow down." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+          "X-RateLimit-Remaining": "0",
+        },
+      }
+    )
   }
 
   let safeMentions: string[]
@@ -201,15 +229,6 @@ export async function POST(request: Request) {
       { status: 400 }
     )
   }
-
-  // --- Fetch channel for server context and slowmode check ---
-  const { data: channel } = await supabase
-    .from("channels")
-    .select("slowmode_delay, server_id")
-    .eq("id", channelId)
-    .single()
-
-  if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
 
   const serverId: string | null = channel.server_id ?? null
 
@@ -480,11 +499,30 @@ export async function POST(request: Request) {
       reply_to_id: replyToId || null,
       mentions: safeMentions,
       mention_everyone: mentionEveryone,
+      client_nonce: clientNonce?.trim() || null,
     })
     .select(`*, author:users(*), attachments(*), reactions(*)`)
     .single()
 
-  if (msgError) return NextResponse.json({ error: msgError.message }, { status: 500 })
+  if (msgError) {
+    const isDuplicate = msgError.code === "23505" || /duplicate key/i.test(msgError.message ?? "")
+
+    if (isDuplicate && clientNonce?.trim()) {
+      const { data: existing } = await supabase
+        .from("messages")
+        .select(`*, author:users(*), attachments(*), reactions(*)`)
+        .eq("channel_id", channelId)
+        .eq("author_id", user.id)
+        .eq("client_nonce", clientNonce.trim())
+        .maybeSingle()
+
+      if (existing) {
+        return NextResponse.json(existing, { status: 200 })
+      }
+    }
+
+    return NextResponse.json({ error: msgError.message }, { status: 500 })
+  }
 
   // --- Insert attachments ---
   if (attachments.length > 0 && message) {

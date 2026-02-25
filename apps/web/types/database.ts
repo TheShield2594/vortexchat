@@ -393,6 +393,7 @@ export type Database = {
           channel_id: string
           author_id: string
           content: string | null
+          client_nonce: string | null
           edited_at: string | null
           deleted_at: string | null
           reply_to_id: string | null
@@ -409,6 +410,7 @@ export type Database = {
           channel_id: string
           author_id: string
           content?: string | null
+          client_nonce?: string | null
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
@@ -425,6 +427,7 @@ export type Database = {
           channel_id?: string
           author_id?: string
           content?: string | null
+          client_nonce?: string | null
           edited_at?: string | null
           deleted_at?: string | null
           reply_to_id?: string | null
