@@ -2,18 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Clipboard, AtSign, MessageSquare, UserPlus } from "lucide-react"
+import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserProfilePopover } from "@/components/user-profile-popover"
+import { ProfilePanel } from "@/components/profile/profile-panel"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { Skeleton } from "@/components/ui/skeleton"
+import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 
 interface Props {
   serverId: string
@@ -36,6 +38,7 @@ interface MemberData {
     bio: string | null
     banner_color: string | null
     custom_tag: string | null
+    created_at: string
   } | null
   roles: RoleRow[]
 }
@@ -56,9 +59,14 @@ export function MemberList({ serverId }: Props) {
   )
   const [members, setMembers] = useState<MemberData[]>([])
   const [presence, setPresence] = useState<PresenceState>({})
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+
+  useEffect(() => {
+    setSelectedMemberId(null)
+  }, [serverId])
 
   useEffect(() => {
     async function fetchMembers() {
@@ -169,12 +177,25 @@ export function MemberList({ serverId }: Props) {
     return !p || p.status === "offline" || p.status === "invisible"
   })
 
+  const selectedMember = selectedMemberId
+    ? members.find((member) => member.user_id === selectedMemberId) ?? null
+    : null
+
   return (
-    <div
-      className="w-60 flex-shrink-0 flex flex-col"
-      style={{ background: "var(--app-bg-secondary)" }}
-    >
-      <ScrollArea className="flex-1 py-4">
+    <div className="flex h-full flex-shrink-0">
+      {selectedMember && (
+        <ProfilePanel
+          user={selectedMember.user}
+          displayName={selectedMember.nickname || selectedMember.user?.display_name || selectedMember.user?.username || "Unknown"}
+          status={presence[selectedMember.user_id]?.status}
+          roles={selectedMember.roles}
+          currentUserId={currentUser?.id}
+          onClose={() => setSelectedMemberId(null)}
+        />
+      )}
+
+      <div className="w-60 flex-shrink-0 flex flex-col bg-[var(--app-bg-secondary)]">
+        <ScrollArea className="flex-1 py-4">
         {loadingMembers && (
           <div className="space-y-3 px-3">
             {Array.from({ length: 9 }).map((_, index) => (
@@ -204,6 +225,7 @@ export function MemberList({ serverId }: Props) {
                 member={member}
                 presence={presence[member.user_id]}
                 currentUserId={currentUser?.id}
+                onViewProfile={() => setSelectedMemberId(member.user_id)}
               />
             ))}
           </div>
@@ -224,12 +246,14 @@ export function MemberList({ serverId }: Props) {
                 member={member}
                 presence={presence[member.user_id]}
                 currentUserId={currentUser?.id}
+                onViewProfile={() => setSelectedMemberId(member.user_id)}
                 offline
               />
             ))}
           </div>
         )}
-      </ScrollArea>
+        </ScrollArea>
+      </div>
     </div>
   )
 }
@@ -238,11 +262,13 @@ function MemberItem({
   member,
   presence,
   currentUserId,
+  onViewProfile,
   offline,
 }: {
   member: MemberData
   presence?: { status: string; speaking?: boolean; voice_channel_id?: string }
   currentUserId?: string
+  onViewProfile: () => void
   offline?: boolean
 }) {
   const { toast } = useToast()
@@ -254,6 +280,7 @@ function MemberItem({
     "Unknown"
   const initials = displayName.slice(0, 2).toUpperCase()
   const isOtherUser = currentUserId && member.user_id !== currentUserId
+  const [actionLoading, setActionLoading] = useState<"message" | "friend" | null>(null)
 
   // Get highest colored role
   const coloredRole = member.roles
@@ -263,32 +290,35 @@ function MemberItem({
   const roleColor = coloredRole?.color ?? undefined
 
   async function handleMessage() {
-    const res = await fetch("/api/dm/channels", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userIds: [member.user_id] }),
-    })
-    if (res.ok) {
-      const { id } = await res.json()
-      router.push(`/channels/me/${id}`)
-    } else {
-      const { error } = await res.json()
-      toast({ variant: "destructive", title: error || "Failed to open DM" })
+    if (actionLoading) return
+    setActionLoading("message")
+    try {
+      await openDmChannel(member.user_id, router, toast)
+    } catch (error) {
+      console.error("Failed to open DM from member list:", error)
+      toast({
+        variant: "destructive",
+        title: error instanceof Error ? error.message : "Network error while opening DM",
+      })
+    } finally {
+      setActionLoading(null)
     }
   }
 
   async function handleAddFriend() {
-    if (!member.user?.username) return
-    const res = await fetch("/api/friends", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: member.user.username }),
-    })
-    const json = await res.json()
-    toast({
-      variant: res.ok || res.status === 409 ? "default" : "destructive",
-      title: json.message || json.error,
-    })
+    if (!member.user?.username || actionLoading) return
+    setActionLoading("friend")
+    try {
+      await sendFriendRequest(member.user.username, toast)
+    } catch (error) {
+      console.error("Failed to send friend request from member list:", error)
+      toast({
+        variant: "destructive",
+        title: error instanceof Error ? error.message : "Network error while adding friend",
+      })
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   return (
@@ -305,6 +335,10 @@ function MemberItem({
         <ContextMenuTrigger asChild>
           <div
             className="flex items-center gap-2 px-2 py-1.5 mx-2 rounded cursor-pointer hover:bg-white/5 transition-colors group"
+            onClick={(event) => {
+              event.preventDefault()
+              onViewProfile()
+            }}
           >
             <div className="relative flex-shrink-0">
               <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
@@ -351,15 +385,19 @@ function MemberItem({
       <ContextMenuContent className="w-48">
         {isOtherUser && (
           <>
-            <ContextMenuItem onClick={handleMessage}>
+            <ContextMenuItem onClick={handleMessage} disabled={actionLoading === "message"}>
               <MessageSquare className="w-4 h-4 mr-2" /> Message
             </ContextMenuItem>
-            <ContextMenuItem onClick={handleAddFriend}>
+            <ContextMenuItem onClick={handleAddFriend} disabled={actionLoading === "friend"}>
               <UserPlus className="w-4 h-4 mr-2" /> Add Friend
             </ContextMenuItem>
             <ContextMenuSeparator />
           </>
         )}
+        <ContextMenuItem onClick={onViewProfile}>
+          <UserCircle className="w-4 h-4 mr-2" /> View Profile
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={() => {
           navigator.clipboard.writeText(`@${member.user?.username ?? displayName}`)
           toast({ title: "Mention copied!" })

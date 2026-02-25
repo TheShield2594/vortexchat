@@ -113,16 +113,18 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         appearance_settings: toSettingsPayload(),
       }
 
-      const { data, error } = await supabase
-        .from("users")
-        .update(updates)
-        .eq("id", user.id)
-        .select()
-        .single()
+      const res = await fetch("/api/users/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      })
+      const payload = await res.json()
 
-      if (error) throw error
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to save profile")
+      }
 
-      setCurrentUser(data)
+      setCurrentUser(payload)
       toast({ title: "Profile updated!" })
       onClose()
     } catch (error: any) {
