@@ -151,6 +151,7 @@ export async function POST(request: Request) {
       width?: number
       height?: number
     }>
+    clientNonce?: string
   }
 
   try {
@@ -159,7 +160,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { channelId, content, replyToId, mentions: rawMentions, mentionEveryone = false, attachments: rawAttachments } = body
+  const { channelId, content, replyToId, mentions: rawMentions, mentionEveryone = false, attachments: rawAttachments, clientNonce } = body
   const mentions = rawMentions ?? []
   const attachments = rawAttachments ?? []
 
@@ -182,6 +183,9 @@ export async function POST(request: Request) {
   }
 
   if (!channelId) return NextResponse.json({ error: "channelId required" }, { status: 400 })
+  if (clientNonce !== undefined && (typeof clientNonce !== "string" || clientNonce.trim().length < 6 || clientNonce.trim().length > 100)) {
+    return NextResponse.json({ error: "Invalid clientNonce" }, { status: 400 })
+  }
   if (!content?.trim() && attachments.length === 0) {
     return NextResponse.json({ error: "Message must have content or attachments" }, { status: 400 })
   }
@@ -470,6 +474,21 @@ export async function POST(request: Request) {
     }
   }
 
+  // --- Idempotency lookup (same nonce/user/channel returns the original message) ---
+  if (clientNonce?.trim()) {
+    const { data: existing } = await supabase
+      .from("messages")
+      .select(`*, author:users(*), attachments(*), reactions(*)`)
+      .eq("channel_id", channelId)
+      .eq("author_id", user.id)
+      .eq("client_nonce", clientNonce.trim())
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json(existing, { status: 200 })
+    }
+  }
+
   // --- Insert message ---
   const { data: message, error: msgError } = await supabase
     .from("messages")
@@ -480,6 +499,7 @@ export async function POST(request: Request) {
       reply_to_id: replyToId || null,
       mentions: safeMentions,
       mention_everyone: mentionEveryone,
+      client_nonce: clientNonce?.trim() || null,
     })
     .select(`*, author:users(*), attachments(*), reactions(*)`)
     .single()

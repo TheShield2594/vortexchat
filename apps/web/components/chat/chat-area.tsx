@@ -154,6 +154,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     channel_id: entry.channelId,
     author_id: entry.authorId,
     content: entry.content,
+    client_nonce: entry.id,
     edited_at: null,
     deleted_at: null,
     reply_to_id: entry.replyToId,
@@ -233,6 +234,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           author_id: entry.authorId,
           content: entry.content.trim() || null,
           reply_to_id: entry.replyToId,
+          client_nonce: entry.id,
         })
         .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
         .single()
@@ -838,6 +840,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         author_id: currentUserId,
         content: content.trim() || null,
         reply_to_id: replyTo?.id || null,
+        client_nonce: messageId,
       })
       .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
       .single()

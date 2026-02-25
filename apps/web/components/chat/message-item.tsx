@@ -379,9 +379,7 @@ export const MessageItem = memo(function MessageItem({
                   {/* Attachments */}
                   {message.attachments?.length > 0 && (
                     <div className="mt-2 space-y-2">
-                      {message.attachments.map((attachment) => (
-                        <AttachmentDisplay key={attachment.id} attachment={attachment} />
-                      ))}
+                      <AttachmentGallery attachments={message.attachments} />
                     </div>
                   )}
 
@@ -616,19 +614,78 @@ export const MessageItem = memo(function MessageItem({
   )
 })
 
-function AttachmentDisplay({ attachment }: { attachment: AttachmentRow }) {
+function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
+  const imageIndexes = attachments
+    .map((attachment, index) => ({ attachment, index }))
+    .filter((entry) => entry.attachment.content_type?.startsWith("image/"))
+    .map((entry) => entry.index)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  const openImage = (index: number) => setLightboxIndex(index)
+  const closeImage = () => setLightboxIndex(null)
+
+  const currentImageListIndex = lightboxIndex === null ? -1 : imageIndexes.indexOf(lightboxIndex)
+  const currentAttachment = lightboxIndex === null ? null : attachments[lightboxIndex]
+
+  function move(direction: 1 | -1) {
+    if (currentImageListIndex < 0) return
+    const nextIndex = (currentImageListIndex + direction + imageIndexes.length) % imageIndexes.length
+    setLightboxIndex(imageIndexes[nextIndex])
+  }
+
+  return (
+    <>
+      {attachments.map((attachment, index) => (
+        <AttachmentDisplay key={attachment.id} attachment={attachment} onOpenImage={() => openImage(index)} />
+      ))}
+
+      <Dialog open={lightboxIndex !== null} onOpenChange={(open) => { if (!open) closeImage() }}>
+        <DialogContent
+          className="max-w-5xl border"
+          style={{ background: "#1e1f22", borderColor: "#2b2d31", color: "#f2f3f5" }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowRight") {
+              event.preventDefault()
+              move(1)
+            } else if (event.key === "ArrowLeft") {
+              event.preventDefault()
+              move(-1)
+            }
+          }}
+        >
+          {currentAttachment && (
+            <div className="space-y-3">
+              <img src={currentAttachment.url} alt={currentAttachment.filename} className="w-full max-h-[75vh] object-contain rounded" />
+              <div className="flex items-center justify-between text-xs" style={{ color: "#b5bac1" }}>
+                <span>{currentAttachment.filename}</span>
+                {imageIndexes.length > 1 && (
+                  <span>
+                    <button className="px-2 py-1 rounded hover:bg-white/10" onClick={() => move(-1)}>← Prev</button>
+                    <button className="px-2 py-1 rounded hover:bg-white/10 ml-2" onClick={() => move(1)}>Next →</button>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function AttachmentDisplay({ attachment, onOpenImage }: { attachment: AttachmentRow; onOpenImage?: () => void }) {
   const isImage = attachment.content_type?.startsWith("image/")
 
   if (isImage) {
     return (
-      <div className="max-w-sm">
+      <button type="button" className="max-w-sm" onClick={onOpenImage}>
         <img
           src={attachment.url}
           alt={attachment.filename}
           className="rounded max-h-80 object-contain"
           style={{ background: "#1e1f22" }}
         />
-      </div>
+      </button>
     )
   }
 
