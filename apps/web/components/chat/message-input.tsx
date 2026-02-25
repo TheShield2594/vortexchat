@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Plus, Send, X, Smile, Reply, Keyboard } from "lucide-react"
+import { Plus, Send, X, Smile, Reply, Keyboard, FileUp, BarChart3 } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -43,6 +43,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showComposerMenu, setShowComposerMenu] = useState(false)
+  const [showPollCreator, setShowPollCreator] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState("")
+  const [pollOptions, setPollOptions] = useState(["", ""])
   const [pickerTab, setPickerTab] = useState<"emoji" | "gif">("emoji")
   const [gifQuery, setGifQuery] = useState("")
   const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
@@ -51,6 +55,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
+  const composerMenuRef = useRef<HTMLDivElement>(null)
+  const pollCreatorRef = useRef<HTMLDivElement>(null)
+  const composerMenuButtonRef = useRef<HTMLButtonElement>(null)
   const fileUrlCache = useRef(new Map<File, string>())
 
   // Mention autocomplete
@@ -105,6 +112,24 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     document.addEventListener("mousedown", handlePointerDown)
     return () => document.removeEventListener("mousedown", handlePointerDown)
   }, [showEmojiPicker])
+
+  useEffect(() => {
+    if (!showComposerMenu && !showPollCreator) return
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node
+      const clickedInsideMenu = composerMenuRef.current?.contains(target)
+      const clickedInsidePollCreator = pollCreatorRef.current?.contains(target)
+      const clickedToggleButton = composerMenuButtonRef.current?.contains(target)
+      if (!clickedInsideMenu && !clickedInsidePollCreator && !clickedToggleButton) {
+        setShowComposerMenu(false)
+        setShowPollCreator(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    return () => document.removeEventListener("mousedown", handlePointerDown)
+  }, [showComposerMenu, showPollCreator])
 
   useEffect(() => {
     if (!showEmojiPicker || pickerTab !== "gif") return
@@ -252,6 +277,30 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     setCursorPosition(e.currentTarget.selectionStart)
   }
 
+  function handleCreatePoll() {
+    const question = pollQuestion.trim()
+    const options = pollOptions.map((option) => option.trim()).filter(Boolean)
+    if (!question || options.length < 2) return
+
+    const pollBlock = ["[POLL]", question, ...options.map((option) => `- ${option}`), "[/POLL]"].join("\n")
+    const spacer = content.trim() ? "\n\n" : ""
+    const next = `${content}${spacer}${pollBlock}`
+    setContent(next)
+    onDraftChange(next)
+    setCursorPosition(next.length)
+    setShowComposerMenu(false)
+    setShowPollCreator(false)
+    setPollQuestion("")
+    setPollOptions(["", ""])
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = next.length
+        textareaRef.current.selectionEnd = next.length
+      }
+    })
+  }
+
   return (
     <div className="px-4 pb-4 flex-shrink-0" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
       {/* Reply indicator */}
@@ -334,6 +383,64 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         </div>
       )}
 
+      {showPollCreator && (
+        <div
+          ref={pollCreatorRef}
+          className="mb-2 rounded-lg p-3 space-y-2"
+          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold" style={{ color: "var(--theme-text-primary)" }}>Create poll</p>
+            <button type="button" onClick={() => setShowPollCreator(false)} style={{ color: "var(--theme-text-muted)" }}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <input
+            value={pollQuestion}
+            onChange={(event) => setPollQuestion(event.target.value)}
+            placeholder="Poll question"
+            className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
+            style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+          />
+          <div className="space-y-1.5">
+            {pollOptions.map((option, index) => (
+              <input
+                key={`poll-option-${index}`}
+                value={option}
+                onChange={(event) => {
+                  const next = [...pollOptions]
+                  next[index] = event.target.value
+                  setPollOptions(next)
+                }}
+                placeholder={`Option ${index + 1}`}
+                className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
+                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setPollOptions((prev) => prev.length >= 8 ? prev : [...prev, ""])}
+              disabled={pollOptions.length >= 8}
+              className="text-xs disabled:opacity-50"
+              style={{ color: "var(--theme-link)" }}
+            >
+              Add option
+            </button>
+            <button
+              type="button"
+              onClick={handleCreatePoll}
+              disabled={pollQuestion.trim().length === 0 || pollOptions.filter((option) => option.trim().length > 0).length < 2}
+              className="px-2 py-1 rounded text-xs font-medium disabled:opacity-50"
+              style={{ background: "var(--theme-accent)", color: "white" }}
+            >
+              Insert poll
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input area */}
       <div
         className={cn(
@@ -342,15 +449,50 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         )}
         style={{ background: "var(--theme-surface-input)" }}
       >
-        {/* Attach file */}
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="motion-interactive motion-press flex-shrink-0 mb-1 hover:text-white"
-          style={{ color: "var(--theme-text-secondary)" }}
-          title="Attach File"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
+        <div className="relative mb-1">
+          <button
+            ref={composerMenuButtonRef}
+            onClick={() => {
+              setShowComposerMenu((prev) => !prev)
+              setShowPollCreator(false)
+            }}
+            className="motion-interactive motion-press flex-shrink-0 hover:text-white"
+            style={{ color: "var(--theme-text-secondary)" }}
+            title="Add to message"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+          {showComposerMenu && (
+            <div
+              ref={composerMenuRef}
+              className="absolute bottom-8 left-0 rounded-lg p-1.5 shadow-xl z-50 min-w-44"
+              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  fileRef.current?.click()
+                  setShowComposerMenu(false)
+                }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-white/10"
+                style={{ color: "var(--theme-text-primary)" }}
+              >
+                <FileUp className="w-3.5 h-3.5" /> Attach file
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowComposerMenu(false)
+                  setShowPollCreator(true)
+                }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-white/10"
+                style={{ color: "var(--theme-text-primary)" }}
+              >
+                <BarChart3 className="w-3.5 h-3.5" /> Create poll
+              </button>
+            </div>
+          )}
+        </div>
         <input
           ref={fileRef}
           type="file"
