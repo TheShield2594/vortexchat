@@ -19,6 +19,7 @@ import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
 import { CreateThreadModal } from "@/components/modals/create-thread-modal"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
+const POLL_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"]
 
 interface Props {
   message: MessageWithAuthor
@@ -34,6 +35,24 @@ interface Props {
   onThreadCreated?: (thread: ThreadRow) => void
   sendState?: "queued" | "sending" | "failed"
   onRetry?: () => void
+}
+
+function extractPoll(content: string | null): { question: string; options: string[]; sanitizedContent: string | null } | null {
+  if (!content) return null
+  const pollMatch = content.match(/\[POLL\]\s*([\s\S]*?)\s*\[\/POLL\]/i)
+  if (!pollMatch) return null
+  const pollBody = pollMatch[1] ?? ""
+  const lines = pollBody.split("\n").map((line) => line.trim()).filter(Boolean)
+  if (lines.length < 3) return null
+  const question = lines[0]
+  const options = lines.slice(1).map((line) => line.replace(/^-\s*/, "").trim()).filter(Boolean)
+  if (!question || options.length < 2) return null
+  const sanitized = content.replace(pollMatch[0], "").trim()
+  return {
+    question,
+    options: options.slice(0, POLL_NUMBER_EMOJIS.length),
+    sanitizedContent: sanitized.length > 0 ? sanitized : null,
+  }
 }
 
 /** Memoized message bubble with author info, attachments, reactions, inline editing, thread creation, and context menu actions. */
@@ -85,6 +104,8 @@ export const MessageItem = memo(function MessageItem({
   const renderedContent = message.content && giphyUrl && embeddableGiphyUrl
     ? stripUrlFromContent(message.content, giphyUrl)
     : message.content
+  const parsedPoll = extractPoll(renderedContent)
+  const messageBodyContent = parsedPoll ? parsedPoll.sanitizedContent : renderedContent
 
   // Group reactions by emoji
   const reactionGroups = message.reactions.reduce(
@@ -97,6 +118,8 @@ export const MessageItem = memo(function MessageItem({
     },
     {} as Record<string, { count: number; users: string[]; hasOwn: boolean }>
   )
+  const pollEmojiSet = parsedPoll ? new Set(parsedPoll.options.map((_, index) => POLL_NUMBER_EMOJIS[index])) : null
+  const genericReactionEntries = Object.entries(reactionGroups).filter(([emoji]) => !pollEmojiSet?.has(emoji))
 
   async function handleEditSubmit() {
     if (editContent.trim() && editContent !== message.content) {
@@ -393,12 +416,37 @@ export const MessageItem = memo(function MessageItem({
                 </div>
               ) : (
                 <>
-                  {renderedContent && (
+                  {parsedPoll && (
+                    <div className="mt-1 rounded-lg p-3 space-y-2" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+                      <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-muted)" }}>Poll</p>
+                      <p className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>{parsedPoll.question}</p>
+                      <div className="space-y-1.5">
+                        {parsedPoll.options.map((option, index) => {
+                          const emoji = POLL_NUMBER_EMOJIS[index]
+                          const votes = reactionGroups[emoji]?.count ?? 0
+                          return (
+                            <button
+                              type="button"
+                              key={`poll-option-${message.id}-${index}`}
+                              onClick={() => onReaction(emoji)}
+                              className="w-full flex items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-white/5"
+                              style={{ border: "1px solid var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+                            >
+                              <span className="truncate text-left">{emoji} {option}</span>
+                              <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{votes}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {messageBodyContent && (
                     <p
                       className="text-sm leading-relaxed message-content break-words"
                       style={{ color: "var(--theme-text-normal)" }}
                     >
-                      {renderContent(renderedContent)}
+                      {renderContent(messageBodyContent)}
                     </p>
                   )}
 
@@ -430,9 +478,9 @@ export const MessageItem = memo(function MessageItem({
                   )}
 
                   {/* Reactions */}
-                  {Object.entries(reactionGroups).length > 0 && (
+                  {genericReactionEntries.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {Object.entries(reactionGroups).map(([emoji, { count, hasOwn, users }]) => (
+                      {genericReactionEntries.map(([emoji, { count, hasOwn, users }]) => (
                         <button
                           key={emoji}
                           onClick={() => onReaction(emoji)}
