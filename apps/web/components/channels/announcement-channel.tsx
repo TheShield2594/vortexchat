@@ -209,7 +209,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
                   if (!error) setMessages((prev) => prev.filter((m) => m.id !== message.id))
                 }}
                 onReaction={async (emoji) => {
-                  const previousMessages = messages
+                  const previousReactions = message.reactions
                   const existing = message.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
                   const remove = Boolean(existing)
                   setMessages((prev) => prev.map((m) => {
@@ -228,7 +228,9 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
                     await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
                   } catch (error) {
                     console.error("Failed to update reaction", error)
-                    setMessages(previousMessages)
+                    setMessages((prev) =>
+                      prev.map((m) => (m.id === message.id ? { ...m, reactions: previousReactions } : m))
+                    )
                   }
                 }}
               />

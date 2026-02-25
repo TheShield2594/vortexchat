@@ -165,6 +165,21 @@ export async function POST(request: Request) {
 
   if (!Array.isArray(mentions)) return NextResponse.json({ error: "Invalid mentions" }, { status: 400 })
   if (!Array.isArray(attachments)) return NextResponse.json({ error: "Invalid attachments" }, { status: 400 })
+  if (!mentions.every((mention) => typeof mention === "string" && mention.trim().length > 0)) {
+    return NextResponse.json({ error: "Invalid mention elements" }, { status: 400 })
+  }
+  if (!attachments.every((attachment) => {
+    if (!attachment || typeof attachment !== "object") return false
+    const candidate = attachment as Record<string, unknown>
+    return (
+      typeof candidate.url === "string"
+      && typeof candidate.filename === "string"
+      && typeof candidate.size === "number"
+      && typeof candidate.content_type === "string"
+    )
+  })) {
+    return NextResponse.json({ error: "Invalid attachment elements" }, { status: 400 })
+  }
 
   if (!channelId) return NextResponse.json({ error: "channelId required" }, { status: 400 })
   if (!content?.trim() && attachments.length === 0) {
@@ -176,7 +191,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
   }
 
-  const { allowed: safeMentions } = await filterMentionsByBlockState(supabase as any, user.id, mentions)
+  let safeMentions: string[]
+  try {
+    const filteredMentions = await filterMentionsByBlockState(supabase as any, user.id, mentions)
+    safeMentions = filteredMentions.allowed
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to validate mentions" },
+      { status: 400 }
+    )
+  }
 
   // --- Fetch channel for server context and slowmode check ---
   const { data: channel } = await supabase

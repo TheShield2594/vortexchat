@@ -1097,7 +1097,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
                   }}
                   onReaction={async (emoji) => {
-                    const previousMessages = messages
+                    const previousMessage = messages.find((m) => m.id === message.id)
                     const existing = message.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
                     const remove = Boolean(existing)
 
@@ -1119,7 +1119,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     try {
                       await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
                     } catch {
-                      setMessages(previousMessages)
+                      if (!previousMessage) return
+                      setMessages((prev) =>
+                        prev.map((m) => (m.id === message.id ? { ...m, ...previousMessage } : m))
+                      )
                     }
                   }}
                 />

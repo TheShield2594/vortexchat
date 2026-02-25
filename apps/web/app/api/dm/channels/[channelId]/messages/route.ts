@@ -36,8 +36,18 @@ export async function POST(
 
   for (const member of channelMembers) {
     if (member.user_id === user.id) continue
-    if (await isBlockedBetweenUsers(supabase as any, user.id, member.user_id)) {
-      return NextResponse.json({ error: "Cannot send messages while blocked" }, { status: 403 })
+    try {
+      if (await isBlockedBetweenUsers(supabase as any, user.id, member.user_id)) {
+        return NextResponse.json({ error: "Cannot send messages while blocked" }, { status: 403 })
+      }
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: "Error checking block status",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+        { status: 500 }
+      )
     }
   }
 

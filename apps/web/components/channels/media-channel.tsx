@@ -202,6 +202,7 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
 
                   const previousMessages = messages
                   const currentMessage = previousMessages.find((m) => m.id === message.id)
+                  const previousReactions = currentMessage?.reactions ?? message.reactions
                   const remove = Boolean(currentMessage?.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji))
 
                   pendingReactionsRef.current.add(mutationKey)
@@ -222,7 +223,9 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
                     await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
                   } catch (error) {
                     console.error("Failed to update reaction", error)
-                    setMessages(previousMessages)
+                    setMessages((prev) =>
+                      prev.map((m) => (m.id === message.id ? { ...m, reactions: previousReactions } : m))
+                    )
                   } finally {
                     pendingReactionsRef.current.delete(mutationKey)
                   }
