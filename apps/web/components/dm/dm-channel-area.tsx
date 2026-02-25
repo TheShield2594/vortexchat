@@ -10,6 +10,7 @@ import { MobileMenuButton } from "@/components/layout/mobile-nav"
 import { useToast } from "@/components/ui/use-toast"
 import { useTyping } from "@/hooks/use-typing"
 import { useAppStore } from "@/lib/stores/app-store"
+import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useShallow } from "zustand/react/shallow"
 
 interface User {
@@ -476,22 +477,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       </div>
 
       {/* Typing indicator */}
-      {typingUsers.length > 0 && (
-        <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0" style={{ minHeight: "24px" }}>
-          <span className="flex gap-0.5 items-end">
-            <span className="typing-dot" />
-            <span className="typing-dot" />
-            <span className="typing-dot" />
-          </span>
-          <span className="text-xs" style={{ color: "#949ba4" }}>
-            {typingUsers.length === 1
-              ? `${typingUsers[0].displayName} is typing…`
-              : typingUsers.length === 2
-              ? `${typingUsers[0].displayName} and ${typingUsers[1].displayName} are typing…`
-              : "Several people are typing…"}
-          </span>
-        </div>
-      )}
+      <TypingIndicator users={typingUsers.map((user) => user.displayName)} />
 
       {/* Input */}
       <div className="px-4 pb-4 flex-shrink-0">
