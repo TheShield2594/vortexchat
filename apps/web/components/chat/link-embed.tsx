@@ -22,6 +22,12 @@ function isGiphyHost(hostname: string): boolean {
     || hostname.endsWith(".gph.is")
 }
 
+function isEmbeddableGiphyHost(hostname: string): boolean {
+  return hostname === "giphy.com"
+    || hostname === "www.giphy.com"
+    || hostname.endsWith(".giphy.com")
+}
+
 // Extract first http(s) URL from message content, stripping trailing punctuation
 export function extractFirstUrl(content: string): string | null {
   const match = content.match(/https?:\/\/[^\s>]+/)
@@ -50,6 +56,9 @@ export function stripUrlFromContent(content: string, url: string): string {
 export function getEmbeddableGiphyUrl(url: string): string | null {
   try {
     const parsed = new URL(url)
+    if (!isEmbeddableGiphyHost(parsed.hostname)) {
+      return null
+    }
     if (parsed.hostname === "media.giphy.com" && parsed.pathname.endsWith(".gif")) {
       return url
     }

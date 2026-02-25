@@ -43,7 +43,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [pickerTab, setPickerTab] = useState<"emoji" | "gif">("emoji")
   const [gifQuery, setGifQuery] = useState("")
-  const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string }>>([])
+  const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [gifLoading, setGifLoading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -126,8 +126,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           title: gif.title || "GIF",
           previewUrl: gif.images?.fixed_width_small?.url ?? gif.images?.preview_gif?.url ?? gif.images?.fixed_width_small_still?.url ?? gif.images?.original_still?.url ?? gif.images?.original?.url ?? "",
           gifUrl: gif.images?.original?.url ?? gif.images?.downsized?.url ?? "",
-          url: gif.url ?? "",
-        })).filter((gif: { previewUrl: string; gifUrl: string; url: string }) => Boolean(gif.previewUrl && (gif.url || gif.gifUrl))))
+          url: gif.url || null,
+        })).filter((gif: { previewUrl: string; gifUrl: string; url: string | null }) => Boolean(gif.previewUrl && (gif.url || gif.gifUrl))))
       } catch {
         setGifResults([])
       } finally {
@@ -454,7 +454,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                           key={gif.id}
                           onClick={() => {
                             const spacer = content.trim() ? " " : ""
-                            const next = `${content}${spacer}${gif.url ?? gif.gifUrl}`
+                            const next = `${content}${spacer}${gif.url || gif.gifUrl}`
                             setContent(next)
                             setCursorPosition(next.length)
                             onDraftChange(next)

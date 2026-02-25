@@ -43,6 +43,8 @@ function isDuplicateInsertError(error: { code?: string } | null): boolean {
   return error?.code === "23505"
 }
 
+const MESSAGE_SELECT = `*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`
+
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()
   for (const item of items) {
@@ -239,7 +241,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           reply_to_id: entry.replyToId,
           client_nonce: entry.id,
         })
-        .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
+        .select(MESSAGE_SELECT)
         .single()
       data = result.data
       error = result.error
@@ -842,7 +844,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         reply_to_id: replyTo?.id || null,
         client_nonce: messageId,
       })
-      .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*), reply_to:messages!messages_reply_to_id_fkey(*, author:users!messages_author_id_fkey(*))`)
+      .select(MESSAGE_SELECT)
       .single()
 
     if (error && !isDuplicateInsertError(error)) {
