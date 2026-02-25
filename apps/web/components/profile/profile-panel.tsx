@@ -19,6 +19,8 @@ interface ProfileUser {
   bio: string | null
   banner_color: string | null
   status_message: string | null
+  status_emoji?: string | null
+  status_expires_at?: string | null
   created_at?: string
 }
 
@@ -60,6 +62,8 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
   const initials = displayName.slice(0, 2).toUpperCase()
   const isOtherUser = Boolean(user?.id && currentUserId && user.id !== currentUserId)
   const joined = useMemo(() => getJoinedDate(user?.created_at), [user?.created_at])
+  const statusExpired = Boolean(user?.status_expires_at && new Date(user.status_expires_at).getTime() <= Date.now())
+  const customStatus = !statusExpired ? [user?.status_emoji, user?.status_message].filter(Boolean).join(" ").trim() : ""
   const bannerColor = sanitizeBannerColor(user?.banner_color)
   const isAdmin = roles.some((role) => Boolean(role.permissions & PERMISSIONS.ADMINISTRATOR))
 
@@ -159,7 +163,7 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
           <section className="rounded-xl bg-secondary/60 p-3">
             <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-1.5">STATUS</h4>
             <p className="text-sm text-foreground">{getStatusLabel(status)}</p>
-            {user?.status_message && <p className="text-sm text-muted-foreground mt-1">{user.status_message}</p>}
+            {customStatus && <p className="text-sm text-muted-foreground mt-1">{customStatus}</p>}
           </section>
 
           {user?.bio && (

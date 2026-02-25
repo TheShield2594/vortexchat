@@ -98,6 +98,12 @@ export async function POST(
     .eq("server_id", serverId)
     .eq("user_id", userId)
 
+  await supabase
+    .from("voice_states")
+    .delete()
+    .eq("server_id", serverId)
+    .eq("user_id", userId)
+
   // Insert ban
   const { error } = await supabase
     .from("server_bans")

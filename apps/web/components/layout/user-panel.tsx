@@ -40,6 +40,8 @@ export function UserPanel() {
 
   const displayName = currentUser.display_name || currentUser.username
   const initials = displayName.slice(0, 2).toUpperCase()
+  const statusExpired = Boolean(currentUser.status_expires_at && new Date(currentUser.status_expires_at).getTime() <= Date.now())
+  const customStatusText = !statusExpired ? [currentUser.status_emoji, currentUser.status_message].filter(Boolean).join(" ").trim() : ""
 
   async function handleSetStatus(status: UserRow["status"]) {
     try {
@@ -84,9 +86,9 @@ export function UserPanel() {
             {/* Username */}
             <div className="min-w-0">
               <div className="text-xs font-semibold text-white truncate">{displayName}</div>
-              {currentUser.status_message ? (
+              {customStatusText ? (
                 <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
-                  {currentUser.status_message}
+                  {customStatusText}
                 </div>
               ) : (
                 <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>

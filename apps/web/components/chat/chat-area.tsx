@@ -95,6 +95,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const prevChannelIdRef = useRef(channel.id)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
+  const reconnectCycleRef = useRef(0)
+  const unreadAnchorCycleRef = useRef<number | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -127,6 +129,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!unreadAnchorMessageId) return null
     return messages.some((message) => message.id === unreadAnchorMessageId) ? unreadAnchorMessageId : null
   }, [messages, unreadAnchorMessageId])
+  const typingAnnouncement = useMemo(() => {
+    if (typingUsers.length === 0) return ""
+    if (typingUsers.length === 1) return `${typingUsers[0]} is typing`
+    if (typingUsers.length === 2) return `${typingUsers[0]} and ${typingUsers[1]} are typing`
+    return `${typingUsers.length} people are typing`
+  }, [typingUsers])
 
   const optimisticAuthor = useMemo(() => {
     return currentUser ?? {
@@ -140,6 +148,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       custom_tag: null,
       status: "online" as const,
       status_message: null,
+      status_emoji: null,
+      status_expires_at: null,
       appearance_settings: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -352,6 +362,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setIsPaginating(true)
     const previousHeight = container.scrollHeight
     const previousTop = container.scrollTop
+    const firstVisible = Array.from(container.querySelectorAll<HTMLElement>("[id^='message-']")).find((el) => el.offsetTop >= previousTop)
+    const firstVisibleId = firstVisible?.id ?? null
+    const firstVisibleOffset = firstVisible ? firstVisible.offsetTop - previousTop : null
 
     const paginationPromise = (async () => {
       const oldest = currentMessages[0]
@@ -384,8 +397,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       requestAnimationFrame(() => {
         if (!messageScrollerRef.current) return
-        const nextHeight = messageScrollerRef.current.scrollHeight
-        messageScrollerRef.current.scrollTop = previousTop + (nextHeight - previousHeight)
+        const scroller = messageScrollerRef.current
+        if (firstVisibleId && firstVisibleOffset !== null) {
+          const anchor = document.getElementById(firstVisibleId)
+          if (anchor) {
+            scroller.scrollTop = anchor.offsetTop - firstVisibleOffset
+            return
+          }
+        }
+        const nextHeight = scroller.scrollHeight
+        scroller.scrollTop = previousTop + (nextHeight - previousHeight)
       })
     })()
 
@@ -536,7 +557,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [channel.id, makeOptimisticMessage])
 
   useEffect(() => {
-    const onOnline = () => setIsOnline(true)
+    const onOnline = () => {
+      reconnectCycleRef.current += 1
+      unreadAnchorCycleRef.current = null
+      setIsOnline(true)
+    }
     const onOffline = () => setIsOnline(false)
     window.addEventListener("online", onOnline)
     window.addEventListener("offline", onOffline)
@@ -655,6 +680,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setPendingNewMessageCount((count) => count + 1)
     setUnreadAnchorMessageId((current) => {
       if (current) return current
+      const reconnectCycle = reconnectCycleRef.current
+      if (unreadAnchorCycleRef.current === reconnectCycle) return null
+      unreadAnchorCycleRef.current = reconnectCycle
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(unreadAnchorStorageKey, newestMessage.id)
       }
@@ -1073,6 +1101,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
           <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
+          <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
           {messages.length === 0 && (
             <div className="px-4 py-8">
               <div

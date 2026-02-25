@@ -102,6 +102,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const router = useRouter()
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantInfo[]>([])
   const [spotlightUserId, setSpotlightUserId] = useState<string | null>(null)
+  const [reconnecting, setReconnecting] = useState(false)
   const [pttEnabled, setPttEnabled] = useState(false)
   const supabaseRef = useRef<ReturnType<typeof createClientSupabaseClient> | null>(null)
   if (!supabaseRef.current) supabaseRef.current = createClientSupabaseClient()
@@ -205,6 +206,30 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     return () => { supabase.removeChannel(channel) }
   }, [channelId])
 
+  useEffect(() => {
+    async function handleOnline() {
+      setReconnecting(true)
+      try {
+        await supabase
+          .from("voice_states")
+          .upsert({
+            user_id: currentUserId,
+            channel_id: channelId,
+            server_id: serverId,
+            muted,
+            deafened,
+            speaking,
+            self_stream: screenSharing,
+          })
+      } finally {
+        window.setTimeout(() => setReconnecting(false), 1000)
+      }
+    }
+
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
+  }, [channelId, currentUserId, deafened, muted, screenSharing, serverId, speaking])
+
   function handleLeave() {
     leaveChannel()
     setVoiceChannel(null, null)
@@ -273,6 +298,11 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: activeTone.dot }} />
               {sessionState.label}
             </span>
+            {reconnecting && (
+              <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "rgba(240,177,50,0.2)", color: "#ffd58a" }}>
+                Reconnecting…
+              </span>
+            )}
             <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{sessionState.detail}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">

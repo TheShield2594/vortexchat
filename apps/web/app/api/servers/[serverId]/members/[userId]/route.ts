@@ -126,6 +126,14 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Force realtime/voice access revocation for active sessions in this server.
+  // This removes active voice presence rows immediately.
+  await supabase
+    .from("voice_states")
+    .delete()
+    .eq("server_id", serverId)
+    .eq("user_id", userId)
+
   await supabase.from("audit_logs").insert({
     server_id: serverId,
     actor_id: user.id,

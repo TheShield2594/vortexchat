@@ -112,6 +112,8 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [bio, setBio] = useState(user.bio ?? "")
   const [customTag, setCustomTag] = useState(user.custom_tag ?? "")
   const [statusMessage, setStatusMessage] = useState(user.status_message ?? "")
+  const [statusEmoji, setStatusEmoji] = useState(user.status_emoji ?? "")
+  const [statusExpiry, setStatusExpiry] = useState<string>(user.status_expires_at ?? "")
   const [status, setStatus] = useState(user.status)
   const [bannerColor, setBannerColor] = useState(user.banner_color ?? "#5865f2")
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url)
@@ -155,6 +157,8 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         bio: bio.trim() || null,
         custom_tag: customTag.trim() || null,
         status_message: statusMessage.trim() || null,
+        status_emoji: statusEmoji.trim() || null,
+        status_expires_at: statusExpiry || null,
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
@@ -392,13 +396,46 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                       <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Custom Status
                       </Label>
-                      <Input
-                        value={statusMessage}
-                        onChange={(e) => setStatusMessage(e.target.value)}
-                        placeholder="What are you up to?"
-                        maxLength={128}
-                        style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
-                      />
+                      <div className="grid grid-cols-[90px_1fr] gap-2">
+                        <Input
+                          value={statusEmoji}
+                          onChange={(e) => setStatusEmoji(e.target.value)}
+                          placeholder="😀"
+                          maxLength={16}
+                          style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
+                        />
+                        <Input
+                          value={statusMessage}
+                          onChange={(e) => setStatusMessage(e.target.value)}
+                          placeholder="What are you up to?"
+                          maxLength={128}
+                          style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={statusExpiry}
+                          onChange={(e) => setStatusExpiry(e.target.value)}
+                          className="text-xs rounded px-2 py-1"
+                          style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                        >
+                          <option value="">Never expires</option>
+                          <option value={new Date(Date.now() + 30 * 60 * 1000).toISOString()}>In 30 minutes</option>
+                          <option value={new Date(Date.now() + 60 * 60 * 1000).toISOString()}>In 1 hour</option>
+                          <option value={new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString()}>In 4 hours</option>
+                          <option value={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()}>In 1 day</option>
+                        </select>
+                        {statusExpiry && (
+                          <button
+                            type="button"
+                            onClick={() => setStatusExpiry("")}
+                            className="text-xs px-2 py-1 rounded hover:bg-white/10"
+                            style={{ color: "var(--theme-text-muted)" }}
+                          >
+                            Clear expiry
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-2">

@@ -21,6 +21,8 @@ export type Database = {
           custom_tag: string | null
           status: 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
           status_message: string | null
+          status_emoji: string | null
+          status_expires_at: string | null
           appearance_settings: Json
           created_at: string
           updated_at: string
@@ -36,6 +38,8 @@ export type Database = {
           custom_tag?: string | null
           status?: 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
           status_message?: string | null
+          status_emoji?: string | null
+          status_expires_at?: string | null
           appearance_settings?: Json | null
           created_at?: string
           updated_at?: string
@@ -51,6 +55,8 @@ export type Database = {
           custom_tag?: string | null
           status?: 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
           status_message?: string | null
+          status_emoji?: string | null
+          status_expires_at?: string | null
           appearance_settings?: Json | null
           created_at?: string
           updated_at?: string

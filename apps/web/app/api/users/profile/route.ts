@@ -4,7 +4,7 @@ import { sanitizeBannerColor } from "@/lib/banner-color"
 import type { UserRow } from "@/types/database"
 
 type ProfileUpdatePayload = Partial<Pick<UserRow,
-  "display_name" | "username" | "bio" | "custom_tag" | "status_message" | "status" | "banner_color" | "avatar_url" | "appearance_settings"
+  "display_name" | "username" | "bio" | "custom_tag" | "status_message" | "status_emoji" | "status_expires_at" | "status" | "banner_color" | "avatar_url" | "appearance_settings"
 >>
 
 export async function PATCH(request: Request) {

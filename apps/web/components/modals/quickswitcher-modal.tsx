@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Hash, Volume2, MessageSquare, Mic2, Megaphone, Image, Loader2 } from "lucide-react"
+import { Search, Hash, Volume2, MessageSquare, Mic2, Megaphone, Image, Loader2, User } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 interface Result {
-  type: "channel" | "server"
+  type: "channel" | "server" | "user"
   id: string
   name: string
   serverId?: string
   channelType?: string
+  username?: string
 }
 
 interface Props {
@@ -31,6 +32,25 @@ export function QuickSwitcherModal({ onClose }: Props) {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
+  function fuzzyScore(candidate: string, q: string): number {
+    const value = candidate.toLowerCase()
+    const queryValue = q.toLowerCase().trim()
+    if (!queryValue) return 0
+    if (value === queryValue) return 1000
+    if (value.startsWith(queryValue)) return 700 - (value.length - queryValue.length)
+    if (value.includes(queryValue)) return 500 - value.indexOf(queryValue)
+
+    let score = 0
+    let cursor = 0
+    for (const ch of queryValue) {
+      const idx = value.indexOf(ch, cursor)
+      if (idx === -1) return -1
+      score += 20 - Math.min(19, idx - cursor)
+      cursor = idx + 1
+    }
+    return score
+  }
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { onCloseRef.current(); return }
@@ -48,19 +68,24 @@ export function QuickSwitcherModal({ onClose }: Props) {
       setLoading(true)
       const q = `%${query}%`
 
-      // Fetch matching channels and servers the user is a member of
-      const [{ data: channels }, { data: servers }] = await Promise.all([
+      // Fetch candidates then rank with local fuzzy scoring
+      const [{ data: channels }, { data: servers }, { data: users }] = await Promise.all([
         supabase
           .from("channels")
           .select("id, name, type, server_id")
           .ilike("name", q)
           .in("type", ["text", "voice", "forum", "stage", "announcement", "media"])
-          .limit(5),
+          .limit(40),
         supabase
           .from("servers")
           .select("id, name")
           .ilike("name", q)
-          .limit(3),
+          .limit(20),
+        supabase
+          .from("users")
+          .select("id, username, display_name")
+          .or(`username.ilike.${q},display_name.ilike.${q}`)
+          .limit(25),
       ])
 
       const channelResults: Result[] = (channels ?? []).map((c) => ({
@@ -76,7 +101,27 @@ export function QuickSwitcherModal({ onClose }: Props) {
         name: s.name,
       }))
 
-      setResults([...channelResults, ...serverResults])
+      const userResults: Result[] = (users ?? []).map((u) => ({
+        type: "user",
+        id: u.id,
+        name: u.display_name || u.username,
+        username: u.username,
+      }))
+
+      const ranked = [...channelResults, ...serverResults, ...userResults]
+        .map((entry) => ({
+          entry,
+          score: Math.max(
+            fuzzyScore(entry.name, query),
+            entry.username ? fuzzyScore(entry.username, query) - 1 : -1
+          ),
+        }))
+        .filter((item) => item.score >= 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 12)
+        .map((item) => item.entry)
+
+      setResults(ranked)
       setSelected(0)
       setLoading(false)
     }, 150)
@@ -89,6 +134,8 @@ export function QuickSwitcherModal({ onClose }: Props) {
       router.push(`/channels/${result.serverId}/${result.id}`)
     } else if (result.type === "server") {
       router.push(`/channels/${result.id}`)
+    } else if (result.type === "user") {
+      router.push(`/friends?user=${result.id}`)
     }
     onCloseRef.current()
   }
@@ -137,10 +184,10 @@ export function QuickSwitcherModal({ onClose }: Props) {
                     r.channelType === "announcement" ? <Megaphone className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
                     r.channelType === "media" ? <Image className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
                     <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
-                  ) : <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />}
+                  ) : r.type === "server" ? <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> : <User className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />}
                   <span className="text-sm text-white">{r.name}</span>
                   <span className="text-xs ml-auto" style={{ color: "var(--theme-text-faint)" }}>
-                    {r.type === "channel" ? "Channel" : "Server"}
+                    {r.type === "channel" ? "Channel" : r.type === "server" ? "Server" : "User"}
                   </span>
                 </button>
               </li>
