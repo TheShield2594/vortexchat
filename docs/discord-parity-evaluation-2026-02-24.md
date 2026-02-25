@@ -230,14 +230,14 @@ Mitigation: add DELETE `/api/auth/sessions/[sessionId]` endpoint for per-session
 - ~~Add idle detection for presence status.~~
 
 ### Next (1–2 months): major features
-- Virtualized message timeline (@tanstack/react-virtual) + robust offline outbox dedupe with server-side idempotency.
-- Full notification hierarchy engine with per-thread overrides.
-- Voice auto-reconnect state machine + RTC stats monitoring + network quality indicator.
-- Advanced search filter syntax parser (`from:`, `has:`, `before:`) and jump-to-context.
-- Image lightbox/media viewer with keyboard navigation.
-- Custom status editor UI + API + idle detection.
-- DM attachment support + message editing/deletion.
-- Moderation command center (cases, templates, audit explorer, user reporting pipeline).
+- ~~Virtualized message timeline (@tanstack/react-virtual) + robust offline outbox dedupe with server-side idempotency.~~
+- ~~Full notification hierarchy engine with per-thread overrides.~~
+- ~~Voice auto-reconnect state machine + RTC stats monitoring + network quality indicator.~~
+- ~~Advanced search filter syntax parser (`from:`, `has:`, `before:`) and jump-to-context.~~
+- ~~Image lightbox/media viewer with keyboard navigation.~~
+- ~~Custom status editor UI + API + idle detection.~~
+- ~~DM attachment support + message editing/deletion.~~
+- ~~Moderation command center (cases, templates, audit explorer, user reporting pipeline).~~
 
 ### Later: differentiators
 - Optional E2EE DM mode with key backup UX.
