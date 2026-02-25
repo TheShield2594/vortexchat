@@ -123,7 +123,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       const clickedToggleButton = composerMenuButtonRef.current?.contains(target)
       if (!clickedInsideMenu && !clickedInsidePollCreator && !clickedToggleButton) {
         setShowComposerMenu(false)
-        setShowPollCreator(false)
+        if (showPollCreator) {
+          setShowPollCreator(false)
+          resetPollDraftToBlank()
+        }
       }
     }
 
@@ -277,6 +280,25 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     setCursorPosition(e.currentTarget.selectionStart)
   }
 
+  const canInsertPoll = pollQuestion.trim().length > 0 && pollOptions.filter((option) => option.trim().length > 0).length >= 2
+
+  function resetPollDraftToBlank() {
+    setPollQuestion("")
+    setPollOptions([])
+  }
+
+  function handlePollInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter" || event.shiftKey) return
+    if (!canInsertPoll) return
+    event.preventDefault()
+    handleCreatePoll()
+  }
+
+  function removePollOption(index: number) {
+    if (pollOptions.length <= 2) return
+    setPollOptions((prev) => prev.filter((_, optionIndex) => optionIndex !== index))
+  }
+
   function handleCreatePoll() {
     const question = pollQuestion.trim()
     const options = pollOptions.map((option) => option.trim()).filter(Boolean)
@@ -391,31 +413,47 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         >
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold" style={{ color: "var(--theme-text-primary)" }}>Create poll</p>
-            <button type="button" onClick={() => setShowPollCreator(false)} style={{ color: "var(--theme-text-muted)" }}>
+            <button type="button" onClick={() => {
+              setShowPollCreator(false)
+              resetPollDraftToBlank()
+            }} style={{ color: "var(--theme-text-muted)" }}>
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
           <input
             value={pollQuestion}
             onChange={(event) => setPollQuestion(event.target.value)}
+            onKeyDown={handlePollInputKeyDown}
             placeholder="Poll question"
             className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
             style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
           />
           <div className="space-y-1.5">
             {pollOptions.map((option, index) => (
-              <input
-                key={`poll-option-${index}`}
-                value={option}
-                onChange={(event) => {
-                  const next = [...pollOptions]
-                  next[index] = event.target.value
-                  setPollOptions(next)
-                }}
-                placeholder={`Option ${index + 1}`}
-                className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
-                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
-              />
+              <div key={`poll-option-${index}`} className="flex items-center gap-1.5">
+                <input
+                  value={option}
+                  onChange={(event) => {
+                    const next = [...pollOptions]
+                    next[index] = event.target.value
+                    setPollOptions(next)
+                  }}
+                  onKeyDown={handlePollInputKeyDown}
+                  placeholder={`Option ${index + 1}`}
+                  className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
+                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removePollOption(index)}
+                  disabled={pollOptions.length <= 2}
+                  className="px-2 py-1 rounded text-xs disabled:opacity-50"
+                  style={{ color: "var(--theme-text-muted)", border: "1px solid var(--theme-bg-tertiary)" }}
+                  aria-label={`Remove option ${index + 1}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             ))}
           </div>
           <div className="flex items-center justify-between">
@@ -431,7 +469,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             <button
               type="button"
               onClick={handleCreatePoll}
-              disabled={pollQuestion.trim().length === 0 || pollOptions.filter((option) => option.trim().length > 0).length < 2}
+              disabled={!canInsertPoll}
               className="px-2 py-1 rounded text-xs font-medium disabled:opacity-50"
               style={{ background: "var(--theme-accent)", color: "white" }}
             >
@@ -451,10 +489,14 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       >
         <div className="relative mb-1">
           <button
+            type="button"
             ref={composerMenuButtonRef}
             onClick={() => {
               setShowComposerMenu((prev) => !prev)
-              setShowPollCreator(false)
+              if (showPollCreator) {
+                setShowPollCreator(false)
+                resetPollDraftToBlank()
+              }
             }}
             className="motion-interactive motion-press flex-shrink-0 hover:text-white"
             style={{ color: "var(--theme-text-secondary)" }}
@@ -483,6 +525,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 type="button"
                 onClick={() => {
                   setShowComposerMenu(false)
+                  if (pollOptions.length === 0) {
+                    setPollOptions(["", ""])
+                  }
                   setShowPollCreator(true)
                 }}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-white/10"

@@ -118,6 +118,8 @@ export const MessageItem = memo(function MessageItem({
     },
     {} as Record<string, { count: number; users: string[]; hasOwn: boolean }>
   )
+  const pollEmojiSet = parsedPoll ? new Set(parsedPoll.options.map((_, index) => POLL_NUMBER_EMOJIS[index])) : null
+  const genericReactionEntries = Object.entries(reactionGroups).filter(([emoji]) => !pollEmojiSet?.has(emoji))
 
   async function handleEditSubmit() {
     if (editContent.trim() && editContent !== message.content) {
@@ -424,6 +426,7 @@ export const MessageItem = memo(function MessageItem({
                           const votes = reactionGroups[emoji]?.count ?? 0
                           return (
                             <button
+                              type="button"
                               key={`poll-option-${message.id}-${index}`}
                               onClick={() => onReaction(emoji)}
                               className="w-full flex items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-white/5"
@@ -475,9 +478,9 @@ export const MessageItem = memo(function MessageItem({
                   )}
 
                   {/* Reactions */}
-                  {Object.entries(reactionGroups).length > 0 && (
+                  {genericReactionEntries.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {Object.entries(reactionGroups).map(([emoji, { count, hasOwn, users }]) => (
+                      {genericReactionEntries.map(([emoji, { count, hasOwn, users }]) => (
                         <button
                           key={emoji}
                           onClick={() => onReaction(emoji)}
