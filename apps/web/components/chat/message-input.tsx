@@ -124,10 +124,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         setGifResults((json.data ?? []).map((gif: any) => ({
           id: gif.id,
           title: gif.title || "GIF",
-          previewUrl: gif.images.fixed_width_small.url || gif.images.preview_gif.url || gif.images.fixed_width_small_still.url,
-          gifUrl: gif.images.original.url,
-          url: gif.url,
-        })))
+          previewUrl: gif.images?.fixed_width_small?.url ?? gif.images?.preview_gif?.url ?? gif.images?.fixed_width_small_still?.url ?? gif.images?.original_still?.url ?? gif.images?.original?.url ?? "",
+          gifUrl: gif.images?.original?.url ?? gif.images?.downsized?.url ?? "",
+          url: gif.url ?? "",
+        })).filter((gif: { previewUrl: string; gifUrl: string; url: string }) => Boolean(gif.previewUrl && (gif.url || gif.gifUrl))))
       } catch {
         setGifResults([])
       } finally {

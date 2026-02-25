@@ -15,6 +15,13 @@ interface Props {
   url: string
 }
 
+function isGiphyHost(hostname: string): boolean {
+  return hostname === "giphy.com"
+    || hostname.endsWith(".giphy.com")
+    || hostname === "gph.is"
+    || hostname.endsWith(".gph.is")
+}
+
 // Extract first http(s) URL from message content, stripping trailing punctuation
 export function extractFirstUrl(content: string): string | null {
   const match = content.match(/https?:\/\/[^\s>]+/)
@@ -27,7 +34,7 @@ export function extractGiphyUrl(content: string): string | null {
   if (!url) return null
   try {
     const parsed = new URL(url)
-    if (parsed.hostname.includes("giphy.com") || parsed.hostname.includes("gph.is")) {
+    if (isGiphyHost(parsed.hostname)) {
       return url
     }
   } catch {
@@ -43,7 +50,7 @@ export function stripUrlFromContent(content: string, url: string): string {
 export function getEmbeddableGiphyUrl(url: string): string | null {
   try {
     const parsed = new URL(url)
-    if (parsed.hostname.includes("media.giphy.com") && parsed.pathname.endsWith(".gif")) {
+    if (parsed.hostname === "media.giphy.com" && parsed.pathname.endsWith(".gif")) {
       return url
     }
     const idMatch = parsed.pathname.match(/-([a-zA-Z0-9]+)$/) ?? parsed.pathname.match(/\/media\/([a-zA-Z0-9]+)\//)

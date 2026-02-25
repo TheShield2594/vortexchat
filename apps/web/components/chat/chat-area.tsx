@@ -544,12 +544,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     flushOutbox()
   }, [isOnline, channel.id, flushOutbox])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (jumpToMessageId || openThreadId) return
     requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior: "auto" })
     })
-  }, [channel.id, jumpToMessageId, openThreadId])
+  }, [channel.id])
 
   useEffect(() => {
     const container = messageScrollerRef.current
@@ -1105,25 +1106,24 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   }}
                   onReaction={async (emoji) => {
                     const previousMessage = messagesRef.current.find((m) => m.id === message.id)
-                    let remove = false
-                    let touched = false
+                    const touched = Boolean(previousMessage)
+                    const remove = previousMessage
+                      ? previousMessage.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                      : false
+
+                    if (!touched) return
 
                     setMessages((prev) =>
                       prev.map((m) => {
                         if (m.id !== message.id) return m
-                        touched = true
-                        const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
-                        remove = hasOwnReaction
                         return {
                           ...m,
-                          reactions: hasOwnReaction
+                          reactions: remove
                             ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
                             : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
                         }
                       })
                     )
-
-                    if (!touched) return
 
                     try {
                       await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })

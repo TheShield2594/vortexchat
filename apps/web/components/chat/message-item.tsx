@@ -80,7 +80,7 @@ export const MessageItem = memo(function MessageItem({
   const messageMetaId = useId()
   const giphyUrl = message.content ? extractGiphyUrl(message.content) : null
   const embeddableGiphyUrl = giphyUrl ? getEmbeddableGiphyUrl(giphyUrl) : null
-  const renderedContent = message.content && giphyUrl
+  const renderedContent = message.content && giphyUrl && embeddableGiphyUrl
     ? stripUrlFromContent(message.content, giphyUrl)
     : message.content
 
@@ -380,7 +380,7 @@ export const MessageItem = memo(function MessageItem({
                   )}
 
                   {/* Link embed — shown for messages with a URL and no image attachments */}
-                  {message.content && (!message.attachments?.length) && !giphyUrl && (() => {
+                  {message.content && (!message.attachments?.length) && !embeddableGiphyUrl && (() => {
                     const url = extractFirstUrl(message.content)
                     return url ? <LinkEmbed url={url} /> : null
                   })()}
