@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 
 interface SearchFilters {
   fromUserId?: string
@@ -58,12 +59,39 @@ export async function GET(req: NextRequest) {
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  let channelIds: string[] = []
-  if (channelId) channelIds = [channelId]
-  else {
-    const { data: channels } = await supabase.from("channels").select("id").eq("server_id", serverId as string).in("type", ["text", "announcement", "forum", "media"])
-    channelIds = (channels ?? []).map((c) => c.id)
+  let scopedChannels: Array<{ id: string; server_id: string | null }> = []
+  if (channelId) {
+    const { data: requestedChannel } = await supabase
+      .from("channels")
+      .select("id, server_id")
+      .eq("id", channelId)
+      .maybeSingle()
+
+    if (!requestedChannel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+    if (serverId && requestedChannel.server_id !== serverId) {
+      return NextResponse.json({ error: "Channel does not belong to server" }, { status: 400 })
+    }
+
+    scopedChannels = [requestedChannel]
+  } else {
+    const { data: channels } = await supabase
+      .from("channels")
+      .select("id, server_id")
+      .eq("server_id", serverId as string)
+      .in("type", ["text", "announcement", "forum", "media"])
+    scopedChannels = channels ?? []
   }
+
+  const permissionCheckedChannels = await Promise.all(
+    scopedChannels.map(async (channel) => {
+      if (!channel.server_id) return null
+      const { isAdmin, permissions } = await getChannelPermissions(supabase, channel.server_id, channel.id, user.id)
+      if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) return null
+      return channel.id
+    })
+  )
+
+  const channelIds = permissionCheckedChannels.filter((id): id is string => Boolean(id))
 
   if (channelIds.length === 0) return NextResponse.json({ results: [], total: 0 })
 

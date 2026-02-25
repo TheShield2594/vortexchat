@@ -143,7 +143,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   const upsertMessage = useCallback((incoming: MessageWithAuthor) => {
     setMessages((prev) => {
-      const existingIndex = prev.findIndex((m) => m.id === incoming.id)
+      const existingIndex = prev.findIndex((m) => {
+        if (m.id === incoming.id) return true
+
+        if (!m.client_nonce || !incoming.client_nonce) return false
+        return (
+          m.client_nonce === incoming.client_nonce
+          && m.author_id === incoming.author_id
+          && m.channel_id === incoming.channel_id
+        )
+      })
+
       const next = existingIndex === -1
         ? [...prev, incoming]
         : prev.map((message, idx) => (idx === existingIndex ? { ...prev[existingIndex], ...incoming } : message))
