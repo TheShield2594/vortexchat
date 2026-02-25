@@ -253,6 +253,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     setInCall(true)
   }
 
+  function handleSearchClick() {
+    toast({ title: "Search is coming soon", description: "Conversation search isn’t wired up yet." })
+  }
+
+  function handlePinClick() {
+    toast({ title: "Pinned messages coming soon", description: "Pin browsing will be available in a future update." })
+  }
+
   if (loadError) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: "var(--app-bg-primary)" }}>
@@ -304,7 +312,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
           style={{ color: "#b5bac1" }}
           title="Search in conversation"
+          aria-label="Search in conversation"
           type="button"
+          onClick={handleSearchClick}
         >
           <Search className="w-4 h-4" />
         </button>
@@ -312,7 +322,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
           style={{ color: "#b5bac1" }}
           title="Pinned messages"
+          aria-label="Pinned messages"
           type="button"
+          onClick={handlePinClick}
         >
           <Pin className="w-4 h-4" />
         </button>
