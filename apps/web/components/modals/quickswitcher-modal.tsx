@@ -100,12 +100,12 @@ export function QuickSwitcherModal({ onClose }: Props) {
       style={{ background: "rgba(0,0,0,0.7)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-xl rounded-xl overflow-hidden shadow-2xl" style={{ background: "#2b2d31" }}>
+      <div className="w-full max-w-xl rounded-xl overflow-hidden shadow-2xl" style={{ background: "var(--theme-bg-secondary)" }}>
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "#1e1f22" }}>
+        <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
           {loading
-            ? <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" style={{ color: "#949ba4" }} />
-            : <Search className="w-5 h-5 flex-shrink-0" style={{ color: "#949ba4" }} />}
+            ? <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
+            : <Search className="w-5 h-5 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />}
           <input
             ref={inputRef}
             type="text"
@@ -114,7 +114,7 @@ export function QuickSwitcherModal({ onClose }: Props) {
             placeholder="Where would you like to go?"
             className="flex-1 bg-transparent text-white text-sm focus:outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-xs" style={{ background: "#1e1f22", color: "#4e5058" }}>
+          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-xs" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-faint)" }}>
             ESC
           </kbd>
         </div>
@@ -131,15 +131,15 @@ export function QuickSwitcherModal({ onClose }: Props) {
                   style={{ background: selected === i ? "rgba(88,101,242,0.2)" : "transparent" }}
                 >
                   {r.type === "channel" ? (
-                    r.channelType === "voice" ? <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
-                    r.channelType === "stage" ? <Mic2 className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
-                    r.channelType === "forum" ? <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
-                    r.channelType === "announcement" ? <Megaphone className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
-                    r.channelType === "media" ? <Image className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} /> :
-                    <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} />
-                  ) : <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "#949ba4" }} />}
+                    r.channelType === "voice" ? <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
+                    r.channelType === "stage" ? <Mic2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
+                    r.channelType === "forum" ? <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
+                    r.channelType === "announcement" ? <Megaphone className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
+                    r.channelType === "media" ? <Image className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} /> :
+                    <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
+                  ) : <Hash className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />}
                   <span className="text-sm text-white">{r.name}</span>
-                  <span className="text-xs ml-auto" style={{ color: "#4e5058" }}>
+                  <span className="text-xs ml-auto" style={{ color: "var(--theme-text-faint)" }}>
                     {r.type === "channel" ? "Channel" : "Server"}
                   </span>
                 </button>
@@ -149,13 +149,13 @@ export function QuickSwitcherModal({ onClose }: Props) {
         )}
 
         {query && !loading && results.length === 0 && (
-          <div className="px-4 py-6 text-center text-sm" style={{ color: "#949ba4" }}>
+          <div className="px-4 py-6 text-center text-sm" style={{ color: "var(--theme-text-muted)" }}>
             No results for &ldquo;{query}&rdquo;
           </div>
         )}
 
         {!query && (
-          <div className="px-4 py-4 text-xs" style={{ color: "#4e5058" }}>
+          <div className="px-4 py-4 text-xs" style={{ color: "var(--theme-text-faint)" }}>
             <div className="flex justify-between mb-1"><span>Navigate channels</span><span>↑ ↓ to select, ↵ to go</span></div>
             <div className="flex justify-between"><span>Search servers</span><span>Ctrl+K to open</span></div>
           </div>

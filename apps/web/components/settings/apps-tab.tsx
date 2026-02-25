@@ -132,18 +132,18 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-white">Installed Apps</h3>
-        <p className="text-sm" style={{ color: "#949ba4" }}>Install apps with scoped permissions. Webhooks continue to work unchanged.</p>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Install apps with scoped permissions. Webhooks continue to work unchanged.</p>
       </div>
 
-      {loading ? <p style={{ color: "#949ba4" }}>Loading apps…</p> : (
+      {loading ? <p style={{ color: "var(--theme-text-muted)" }}>Loading apps…</p> : (
         <div className="grid gap-3">
-          {installed.length === 0 && <p style={{ color: "#949ba4" }}>No apps installed on this server.</p>}
+          {installed.length === 0 && <p style={{ color: "var(--theme-text-muted)" }}>No apps installed on this server.</p>}
           {installed.map((entry) => (
-            <div key={entry.id} className="rounded border p-3" style={{ borderColor: "#3f4147" }}>
+            <div key={entry.id} className="rounded border p-3" style={{ borderColor: "var(--theme-surface-elevated)" }}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-white font-medium">{entry.app_catalog?.name ?? entry.app_id}</p>
-                  <p className="text-xs" style={{ color: "#949ba4" }}>
+                  <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
                     Scopes: {entry.install_scopes.join(", ")} · Permissions: {entry.granted_permissions.join(", ")}
                   </p>
                 </div>
@@ -165,13 +165,13 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
         <h4 className="text-md font-semibold text-white mb-2">Marketplace quick install</h4>
         <div className="grid gap-3">
           {market.slice(0, 6).map((app) => (
-            <div key={app.id} className="rounded border p-3 flex items-center justify-between" style={{ borderColor: "#3f4147" }}>
+            <div key={app.id} className="rounded border p-3 flex items-center justify-between" style={{ borderColor: "var(--theme-surface-elevated)" }}>
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-white">{app.name}</p>
                   {app.trust_badge && <BadgeCheck className="w-4 h-4 text-emerald-400" />}
                 </div>
-                <p className="text-xs" style={{ color: "#949ba4" }}>
+                <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
                   <Shield className="w-3 h-3 inline mr-1" />{app.category} · <Star className="w-3 h-3 inline mr-1" />{app.average_rating.toFixed(1)} ({app.review_count})
                 </p>
               </div>

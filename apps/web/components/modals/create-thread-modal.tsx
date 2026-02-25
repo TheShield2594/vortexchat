@@ -46,17 +46,17 @@ export function CreateThreadModal({ open, onClose, messageId, onCreated }: Props
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent style={{ background: "#313338", border: "1px solid #1e1f22", color: "white" }}>
+      <DialogContent style={{ background: "var(--theme-bg-primary)", border: "1px solid var(--theme-bg-tertiary)", color: "white" }}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
-            <MessageSquare className="w-5 h-5" style={{ color: "#5865f2" }} />
+            <MessageSquare className="w-5 h-5" style={{ color: "var(--theme-accent)" }} />
             Create Thread
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
           <div className="space-y-2">
-            <Label style={{ color: "#b5bac1" }}>Thread Name</Label>
+            <Label style={{ color: "var(--theme-text-secondary)" }}>Thread Name</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -65,7 +65,7 @@ export function CreateThreadModal({ open, onClose, messageId, onCreated }: Props
               }}
               placeholder="e.g. Discussion about this"
               autoFocus
-              style={{ background: "#1e1f22", border: "1px solid #4e5058", color: "white" }}
+              style={{ background: "var(--theme-bg-tertiary)", border: "1px solid var(--theme-text-faint)", color: "white" }}
             />
           </div>
 
@@ -73,14 +73,14 @@ export function CreateThreadModal({ open, onClose, messageId, onCreated }: Props
             <Button
               variant="ghost"
               onClick={onClose}
-              style={{ color: "#b5bac1" }}
+              style={{ color: "var(--theme-text-secondary)" }}
             >
               Cancel
             </Button>
             <Button
               onClick={handleCreate}
               disabled={!name.trim() || loading}
-              style={{ background: "#5865f2", color: "white" }}
+              style={{ background: "var(--theme-accent)", color: "white" }}
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Thread

@@ -133,18 +133,18 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
+    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
       {/* Channel header */}
       <div
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: '#1e1f22' }}
+        style={{ borderColor: 'var(--theme-bg-tertiary)' }}
       >
-        <Megaphone className="w-5 h-5 flex-shrink-0" style={{ color: '#f0b132' }} />
+        <Megaphone className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-warning)' }} />
         <span className="font-semibold text-white">{channel.name}</span>
         {channel.topic && (
           <>
-            <span style={{ color: '#4e5058' }}>|</span>
-            <span className="text-sm truncate" style={{ color: '#949ba4' }}>{channel.topic}</span>
+            <span style={{ color: 'var(--theme-text-faint)' }}>|</span>
+            <span className="text-sm truncate" style={{ color: 'var(--theme-text-muted)' }}>{channel.topic}</span>
           </>
         )}
         <div className="ml-auto flex items-center">
@@ -153,7 +153,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
             className="p-1.5 rounded hover:bg-white/10 transition-colors"
             title={memberListOpen ? "Hide Member List" : "Show Member List"}
           >
-            <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
+            <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>
         </div>
       </div>
@@ -161,7 +161,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
       {/* Announcement banner */}
       <div
         className="mx-4 mt-3 px-3 py-2 rounded text-sm flex items-center gap-2"
-        style={{ background: 'rgba(240,177,50,0.1)', border: '1px solid rgba(240,177,50,0.3)', color: '#f0b132' }}
+        style={{ background: 'rgba(240,177,50,0.1)', border: '1px solid rgba(240,177,50,0.3)', color: 'var(--theme-warning)' }}
       >
         <Megaphone className="w-4 h-4 flex-shrink-0" />
         <span>This is an Announcement channel. Members can follow it to receive updates in their own servers.</span>
@@ -175,10 +175,10 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
               className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
               style={{ background: 'rgba(240,177,50,0.2)' }}
             >
-              <Megaphone className="w-8 h-8" style={{ color: '#f0b132' }} />
+              <Megaphone className="w-8 h-8" style={{ color: 'var(--theme-warning)' }} />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Welcome to #{channel.name}!</h2>
-            <p style={{ color: '#b5bac1' }}>
+            <p style={{ color: 'var(--theme-text-secondary)' }}>
               This is the beginning of the #{channel.name} announcement channel.
               {channel.topic && ` ${channel.topic}`}
             </p>

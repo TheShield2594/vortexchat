@@ -52,15 +52,15 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-24" style={{ background: "rgba(0,0,0,0.7)" }} onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col" style={{ background: "#2b2d31", maxHeight: "70vh" }}>
-        <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "#1e1f22" }}>
-          <Search className="w-5 h-5" style={{ color: "#949ba4" }} />
+      <div className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col" style={{ background: "var(--theme-bg-secondary)", maxHeight: "70vh" }}>
+        <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+          <Search className="w-5 h-5" style={{ color: "var(--theme-text-muted)" }} />
           <input ref={inputRef} type="text" value={query} onChange={handleInput} placeholder="Search… try from:<userId> has:link has:image before:2026-01-01" className="flex-1 bg-transparent text-white text-sm focus:outline-none" />
-          {loading && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#949ba4" }} />}
+          {loading && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--theme-text-muted)" }} />}
           <button type="button" onClick={onClose}><X className="w-5 h-5" /></button>
         </div>
 
-            <div className="px-4 py-1 text-[11px]" style={{ color: "#949ba4" }}>
+            <div className="px-4 py-1 text-[11px]" style={{ color: "var(--theme-text-muted)" }}>
               Filters: <code className="px-1 py-0.5 rounded bg-black/20">from:user-id</code> <code className="px-1 py-0.5 rounded bg-black/20">has:link</code> <code className="px-1 py-0.5 rounded bg-black/20">has:image</code> <code className="px-1 py-0.5 rounded bg-black/20">before:YYYY-MM-DD</code>
             </div>
 
@@ -69,7 +69,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
           : results.length === 0 && !loading ? <div className="px-4 py-10"><BrandedEmptyState icon={Calendar} title="No results" description={`No results for “${query}”.`} /></div>
           : <>
             {loading && results.length === 0 && <div className="space-y-3 px-4 py-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>}
-            {total > 0 && <div className="px-4 py-2 text-xs" style={{ color: "#949ba4" }}>{total} results</div>}
+            {total > 0 && <div className="px-4 py-2 text-xs" style={{ color: "var(--theme-text-muted)" }}>{total} results</div>}
             {results.map((result) => {
               if (result.type === "message") {
                 const displayName = result.author?.display_name || result.author?.username || "Unknown"

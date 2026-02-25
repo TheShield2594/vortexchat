@@ -32,6 +32,27 @@
     --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
     --app-bg-primary: #313338;
     --app-bg-secondary: #2b2d31;
+    --app-bg-tertiary: #1e1f22;
+    --app-accent-color: #5865f2;
+    /* Global semantic tokens for full custom themes */
+    --theme-bg-primary: #313338;
+    --theme-bg-secondary: #2b2d31;
+    --theme-bg-tertiary: #1e1f22;
+    --theme-surface-elevated: #3f4147;
+    --theme-surface-input: #383a40;
+    --theme-text-primary: #f2f3f5;
+    --theme-text-normal: #dcddde;
+    --theme-text-secondary: #b5bac1;
+    --theme-text-muted: #949ba4;
+    --theme-text-faint: #4e5058;
+    --theme-text-bright: #dbdee1;
+    --theme-accent: #5865f2;
+    --theme-link: #00a8fc;
+    --theme-success: #23a55a;
+    --theme-positive: #3ba55c;
+    --theme-warning: #f0b132;
+    --theme-danger: #f23f43;
+    --theme-presence-offline: #80848e;
   }
 }
 
@@ -56,12 +77,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #1a1b1e;
+    background: var(--theme-bg-tertiary);
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #111214;
+    background: color-mix(in srgb, var(--theme-bg-tertiary) 80%, black);
   }
 }
 
@@ -281,6 +302,24 @@
   --app-bg-secondary: #2b2d31;
   --app-bg-tertiary: #1e1f22;
   --app-accent-color: #5865f2;
+  --theme-bg-primary: #313338;
+  --theme-bg-secondary: #2b2d31;
+  --theme-bg-tertiary: #1e1f22;
+  --theme-surface-elevated: #3f4147;
+  --theme-surface-input: #383a40;
+  --theme-text-primary: #f2f3f5;
+  --theme-text-normal: #dcddde;
+  --theme-text-secondary: #b5bac1;
+  --theme-text-muted: #949ba4;
+  --theme-text-faint: #4e5058;
+  --theme-text-bright: #dbdee1;
+  --theme-accent: #5865f2;
+  --theme-link: #00a8fc;
+  --theme-success: #23a55a;
+  --theme-positive: #3ba55c;
+  --theme-warning: #f0b132;
+  --theme-danger: #f23f43;
+  --theme-presence-offline: #80848e;
 }
 
 [data-theme-preset="midnight-neon"] {
@@ -312,6 +351,24 @@
   --app-bg-secondary: #151829;
   --app-bg-tertiary: #0f1120;
   --app-accent-color: #00e5ff;
+  --theme-bg-primary: #1b1f31;
+  --theme-bg-secondary: #151829;
+  --theme-bg-tertiary: #0f1120;
+  --theme-surface-elevated: #252a42;
+  --theme-surface-input: #2a2f48;
+  --theme-text-primary: #e6ecff;
+  --theme-text-normal: #d6defc;
+  --theme-text-secondary: #b6c0dd;
+  --theme-text-muted: #8f9bbf;
+  --theme-text-faint: #6b7392;
+  --theme-text-bright: #f4f7ff;
+  --theme-accent: #00e5ff;
+  --theme-link: #6fd8ff;
+  --theme-success: #3ddc97;
+  --theme-positive: #6ee7b7;
+  --theme-warning: #ffb84d;
+  --theme-danger: #ff5d73;
+  --theme-presence-offline: #6f7898;
 }
 
 [data-theme-preset="synthwave"] {
@@ -343,6 +400,24 @@
   --app-bg-secondary: #23193b;
   --app-bg-tertiary: #1a1030;
   --app-accent-color: #f92aad;
+  --theme-bg-primary: #2a1e46;
+  --theme-bg-secondary: #23193b;
+  --theme-bg-tertiary: #1a1030;
+  --theme-surface-elevated: #35255a;
+  --theme-surface-input: #3f2d67;
+  --theme-text-primary: #f5edff;
+  --theme-text-normal: #e9dcff;
+  --theme-text-secondary: #cab7e8;
+  --theme-text-muted: #a990d0;
+  --theme-text-faint: #7f6aa8;
+  --theme-text-bright: #fff7ff;
+  --theme-accent: #f92aad;
+  --theme-link: #50e5ff;
+  --theme-success: #5ae6a9;
+  --theme-positive: #65d17a;
+  --theme-warning: #ffc266;
+  --theme-danger: #ff5f8c;
+  --theme-presence-offline: #8674a8;
 }
 
 [data-theme-preset="carbon"] {
@@ -374,6 +449,24 @@
   --app-bg-secondary: #191b1e;
   --app-bg-tertiary: #141618;
   --app-accent-color: #3ba55c;
+  --theme-bg-primary: #1f2124;
+  --theme-bg-secondary: #191b1e;
+  --theme-bg-tertiary: #141618;
+  --theme-surface-elevated: #2a2d31;
+  --theme-surface-input: #30343a;
+  --theme-text-primary: #e7eaee;
+  --theme-text-normal: #d5d9df;
+  --theme-text-secondary: #b5bcc6;
+  --theme-text-muted: #98a0ab;
+  --theme-text-faint: #6b737f;
+  --theme-text-bright: #f5f7fa;
+  --theme-accent: #3ba55c;
+  --theme-link: #5db3ff;
+  --theme-success: #3ba55c;
+  --theme-positive: #64c184;
+  --theme-warning: #d19c4c;
+  --theme-danger: #d65257;
+  --theme-presence-offline: #7d858f;
 }
 
 /* Font scale */

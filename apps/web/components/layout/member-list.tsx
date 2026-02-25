@@ -45,10 +45,10 @@ interface MemberData {
 
 function getStatusColor(status?: string) {
   switch (status) {
-    case "online": return "#23a55a"
-    case "idle": return "#f0b132"
-    case "dnd": return "#f23f43"
-    default: return "#80848e"
+    case "online": return "var(--theme-success)"
+    case "idle": return "var(--theme-warning)"
+    case "dnd": return "var(--theme-danger)"
+    default: return "var(--theme-presence-offline)"
   }
 }
 
@@ -215,7 +215,7 @@ export function MemberList({ serverId }: Props) {
           <div className="mb-2">
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"
-              style={{ color: "#949ba4" }}
+              style={{ color: "var(--theme-text-muted)" }}
             >
               Online — {onlineMembers.length}
             </div>
@@ -236,7 +236,7 @@ export function MemberList({ serverId }: Props) {
           <div>
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"
-              style={{ color: "#949ba4" }}
+              style={{ color: "var(--theme-text-muted)" }}
             >
               Offline — {offlineMembers.length}
             </div>
@@ -345,7 +345,7 @@ function MemberItem({
                 {member.user?.avatar_url && <AvatarImage src={member.user.avatar_url} />}
                 <AvatarFallback
                   style={{
-                    background: "#5865f2",
+                    background: "var(--theme-accent)",
                     color: "white",
                     fontSize: "12px",
                     opacity: offline ? 0.5 : 1,
@@ -358,7 +358,7 @@ function MemberItem({
                 className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
                 style={{
                   background: getStatusColor(presence?.status),
-                  borderColor: "#2b2d31",
+                  borderColor: "var(--theme-bg-secondary)",
                 }}
               />
             </div>
@@ -367,13 +367,13 @@ function MemberItem({
               <div
                 className="text-sm font-medium truncate"
                 style={{
-                  color: roleColor ?? (offline ? "#4e5058" : "#dcddde"),
+                  color: roleColor ?? (offline ? "var(--theme-text-faint)" : "var(--theme-text-normal)"),
                 }}
               >
                 {displayName}
               </div>
               {member.user?.status_message && !offline && (
-                <div className="text-xs truncate" style={{ color: "#949ba4" }}>
+                <div className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
                   {member.user.status_message}
                 </div>
               )}

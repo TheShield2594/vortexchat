@@ -75,7 +75,7 @@ export function ServerSidebar() {
     <TooltipProvider delayDuration={200}>
       <div
         className="flex flex-col items-center w-[72px] py-3 gap-2 flex-shrink-0 overflow-y-auto no-scrollbar"
-        style={{ background: '#1e1f22' }}
+        style={{ background: 'var(--theme-bg-tertiary)' }}
       >
         {/* DMs / Home */}
         <Tooltip>
@@ -90,19 +90,19 @@ export function ServerSidebar() {
                   : "hover:rounded-2xl"
               )}
               style={{
-                background: activeServerId === null ? '#5865f2' : '#313338',
+                background: activeServerId === null ? 'var(--theme-accent)' : 'var(--theme-bg-primary)',
               }}
             >
               <MessageSquare
                 className="w-6 h-6 transition-colors"
-                style={{ color: activeServerId === null ? 'white' : '#949ba4' }}
+                style={{ color: activeServerId === null ? 'white' : 'var(--theme-text-muted)' }}
               />
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right">Direct Messages</TooltipContent>
         </Tooltip>
 
-        <Separator className="w-8 my-1" style={{ background: '#3f4147' }} />
+        <Separator className="w-8 my-1" style={{ background: 'var(--theme-surface-elevated)' }} />
 
         {/* Server list */}
         {servers.map((server) => (
@@ -116,7 +116,7 @@ export function ServerSidebar() {
           />
         ))}
 
-        <Separator className="w-8 my-1" style={{ background: '#3f4147' }} />
+        <Separator className="w-8 my-1" style={{ background: 'var(--theme-surface-elevated)' }} />
 
         {/* Add server */}
         <Tooltip>
@@ -124,9 +124,9 @@ export function ServerSidebar() {
             <button
               onClick={() => setShowCreateServer(true)}
               className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group"
-              style={{ background: '#313338' }}
+              style={{ background: 'var(--theme-bg-primary)' }}
             >
-              <Plus className="w-6 h-6 transition-colors" style={{ color: '#23a55a' }} />
+              <Plus className="w-6 h-6 transition-colors" style={{ color: 'var(--theme-success)' }} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Add a Server</TooltipContent>
@@ -137,9 +137,9 @@ export function ServerSidebar() {
           <TooltipTrigger asChild>
             <button
               className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200"
-              style={{ background: '#313338' }}
+              style={{ background: 'var(--theme-bg-primary)' }}
             >
-              <Compass className="w-6 h-6" style={{ color: '#23a55a' }} />
+              <Compass className="w-6 h-6" style={{ color: 'var(--theme-success)' }} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Explore Public Servers</TooltipContent>
@@ -189,7 +189,7 @@ function ServerIcon({
                     ? "h-10 -left-3"
                     : "h-5 -left-3 opacity-0 group-hover:opacity-100 group-hover:h-5"
                 )}
-                style={{ background: '#f2f3f5' }}
+                style={{ background: 'var(--theme-text-primary)' }}
               />
               <div
                 className={cn(

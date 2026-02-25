@@ -564,13 +564,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     <TooltipProvider delayDuration={200}>
       <div
         className="w-60 flex flex-col flex-shrink-0"
-        style={{ background: '#2b2d31' }}
+        style={{ background: 'var(--theme-bg-secondary)' }}
       >
         {/* Server header */}
         <button
           onClick={() => setShowServerSettings(true)}
           className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-white/5 motion-interactive motion-press group focus-ring" aria-label="Open server settings"
-          style={{ borderColor: '#1e1f22' }}
+          style={{ borderColor: 'var(--theme-bg-tertiary)' }}
         >
           <span className="font-semibold text-white truncate text-sm">{server.name}</span>
           <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white motion-interactive" />
@@ -671,7 +671,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
               {activeChannel ? (
                 <div
                   className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-white shadow-lg opacity-90"
-                  style={{ background: '#313338', width: '208px' }}
+                  style={{ background: 'var(--theme-bg-primary)', width: '208px' }}
                 >
                   <ChannelIcon channel={activeChannel} isVoiceActive={false} />
                   <span className="truncate">{activeChannel.name}</span>
@@ -679,7 +679,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
               ) : activeCategory ? (
                 <div
                   className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-white shadow-lg opacity-90"
-                  style={{ background: '#313338', width: '208px' }}
+                  style={{ background: 'var(--theme-bg-primary)', width: '208px' }}
                 >
                   <ChevronDown className="w-3 h-3 tertiary-metadata" />
                   <span className="truncate uppercase text-xs font-semibold tracking-wider">{activeCategory.name}</span>
@@ -741,10 +741,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
         {/* Delete channel confirmation dialog */}
         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
-          <DialogContent style={{ background: '#313338', borderColor: '#1e1f22' }}>
+          <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}>
             <DialogHeader>
               <DialogTitle className="text-white">Delete Channel</DialogTitle>
-              <DialogDescription style={{ color: '#b5bac1' }}>
+              <DialogDescription style={{ color: 'var(--theme-text-secondary)' }}>
                 Are you sure you want to delete{" "}
                 <span className="font-semibold text-white">#{deleteTarget?.name}</span>?
                 {" "}This cannot be undone.
@@ -754,7 +754,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
               <button
                 onClick={() => setDeleteTarget(null)}
                 className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press hover:bg-white/10 focus-ring"
-                style={{ color: '#b5bac1' }}
+                style={{ color: 'var(--theme-text-secondary)' }}
               >
                 Cancel
               </button>
@@ -787,7 +787,7 @@ function formatTimeRemaining(expiresAt: string): string {
 }
 
 function ChannelIcon({ channel, isVoiceActive }: { channel: ChannelRow; isVoiceActive: boolean }) {
-  const iconStyle = { color: isVoiceActive ? '#23a55a' : undefined }
+  const iconStyle = { color: isVoiceActive ? 'var(--theme-success)' : undefined }
   switch (channel.type) {
     case "voice":        return <Volume2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
     case "forum":        return <MessageSquare className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
@@ -997,12 +997,12 @@ function SortableChannelItem({
               {showBadge && (mentionCount ?? 0) > 0 ? (
                 <span
                   className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold text-white px-1"
-                  style={{ background: "#f23f43" }}
+                  style={{ background: "var(--theme-danger)" }}
                 >
                   {(mentionCount ?? 0) > 99 ? "99+" : mentionCount}
                 </span>
               ) : showBadge ? (
-                <span className="w-2 h-2 rounded-full" style={{ background: "#f2f3f5" }} />
+                <span className="w-2 h-2 rounded-full" style={{ background: "var(--theme-text-primary)" }} />
               ) : null}
               {(activeThreadCount ?? 0) > 0 && (
                 <span
@@ -1046,24 +1046,24 @@ function SortableChannelItem({
               <div
                 key={participant.user_id}
                 className="flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-white/5"
-                style={{ color: "#b5bac1" }}
+                style={{ color: "var(--theme-text-secondary)" }}
               >
                 <Avatar className="w-5 h-5 flex-shrink-0">
                   {participant.user?.avatar_url && (
                     <AvatarImage src={participant.user.avatar_url} />
                   )}
                   <AvatarFallback
-                    style={{ background: "#5865f2", color: "white", fontSize: "8px" }}
+                    style={{ background: "var(--theme-accent)", color: "white", fontSize: "8px" }}
                   >
                     {initials}
                   </AvatarFallback>
                 </Avatar>
                 <span className="truncate">{name}</span>
                 {participant.muted && (
-                  <MicOff className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />
+                  <MicOff className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-danger)" }} />
                 )}
                 {participant.deafened && (
-                  <Headphones className="w-3 h-3 flex-shrink-0" style={{ color: "#f23f43" }} />
+                  <Headphones className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-danger)" }} />
                 )}
               </div>
             )

@@ -90,18 +90,18 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
       {/* Header */}
       <div
         className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: "#1e1f22" }}
+        style={{ borderColor: "var(--theme-bg-tertiary)" }}
       >
         <Avatar className="w-8 h-8">
           {partner.avatar_url && <AvatarImage src={partner.avatar_url} />}
-          <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "12px" }}>
+          <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "12px" }}>
             {partnerInitials}
           </AvatarFallback>
         </Avatar>
         <div>
           <span className="font-semibold text-white">{partnerName}</span>
           {partner.status_message && (
-            <div className="text-xs" style={{ color: "#949ba4" }}>{partner.status_message}</div>
+            <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{partner.status_message}</div>
           )}
         </div>
       </div>
@@ -112,12 +112,12 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
           <div className="text-center py-16">
             <Avatar className="w-20 h-20 mx-auto mb-4">
               {partner.avatar_url && <AvatarImage src={partner.avatar_url} />}
-              <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "28px" }}>
+              <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "28px" }}>
                 {partnerInitials}
               </AvatarFallback>
             </Avatar>
             <h2 className="text-2xl font-bold text-white mb-1">{partnerName}</h2>
-            <p style={{ color: "#b5bac1" }} className="text-sm">
+            <p style={{ color: "var(--theme-text-secondary)" }} className="text-sm">
               This is the beginning of your direct message history with <strong>{partnerName}</strong>.
             </p>
           </div>
@@ -134,7 +134,7 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
               {!isGrouped && (
                 <Avatar className="w-8 h-8 flex-shrink-0 mt-0.5">
                   {isOwn ? null : (partner.avatar_url && <AvatarImage src={partner.avatar_url} />)}
-                  <AvatarFallback style={{ background: isOwn ? "#5865f2" : "#36393f", color: "white", fontSize: "12px" }}>
+                  <AvatarFallback style={{ background: isOwn ? "var(--theme-accent)" : "#36393f", color: "white", fontSize: "12px" }}>
                     {isOwn ? "ME" : partnerInitials}
                   </AvatarFallback>
                 </Avatar>
@@ -145,16 +145,16 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
                     <span className="text-sm font-semibold text-white">
                       {isOwn ? "You" : partnerName}
                     </span>
-                    <span className="text-xs" style={{ color: "#4e5058" }}>
+                    <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}>
                       {format(new Date(msg.created_at), "h:mm a")}
                     </span>
                   </div>
                 )}
-                <p className="text-sm break-words" style={{ color: "#dcddde" }}>
+                <p className="text-sm break-words" style={{ color: "var(--theme-text-normal)" }}>
                   {msg.content}
                 </p>
                 {msg.edited_at && (
-                  <span className="text-xs" style={{ color: "#4e5058" }}> (edited)</span>
+                  <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}> (edited)</span>
                 )}
               </div>
             </div>
@@ -165,7 +165,7 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
 
       {/* Input */}
       <div className="px-4 pb-4 flex-shrink-0">
-        <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#383a40" }}>
+        <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "var(--theme-surface-input)" }}>
           <input
             type="text"
             value={content}
@@ -173,13 +173,13 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             placeholder={`Message @${partnerName}`}
             className="flex-1 bg-transparent text-sm focus:outline-none"
-            style={{ color: "#dcddde" }}
+            style={{ color: "var(--theme-text-normal)" }}
           />
           {content.trim() && (
             <button
               onClick={handleSend}
               disabled={sending}
-              style={{ color: "#5865f2" }}
+              style={{ color: "var(--theme-accent)" }}
             >
               <Send className="w-5 h-5" />
             </button>

@@ -188,11 +188,11 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
 
   if (view === "thread" && activeThread) {
     return (
-      <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
+      <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
         {/* Thread header */}
         <div
           className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-          style={{ borderColor: '#1e1f22' }}
+          style={{ borderColor: 'var(--theme-bg-tertiary)' }}
         >
           <button
             onClick={() => { setView("list"); setActiveThread(null) }}
@@ -200,20 +200,20 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           >
             <ArrowLeft className="w-4 h-4 text-white" />
           </button>
-          <MessageSquare className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
+          <MessageSquare className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
           <span className="font-semibold text-white truncate">
             {activeThread.content?.split("\n")[0].replace(/\*\*/g, "") ?? "Thread"}
           </span>
           <div className="ml-auto flex items-center">
             <button onClick={toggleMemberList} className="p-1.5 rounded hover:bg-white/10 transition-colors">
-              <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
+              <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
             </button>
           </div>
         </div>
 
         {/* Original post */}
         <div className="overflow-y-auto flex-1">
-          <div className="border-b pb-2" style={{ borderColor: '#1e1f22' }}>
+          <div className="border-b pb-2" style={{ borderColor: 'var(--theme-bg-tertiary)' }}>
             <MessageItem
               message={activeThread}
               isGrouped={false}
@@ -259,7 +259,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           {/* Thread replies */}
           <div className="pb-4">
             {threadReplies.length === 0 && (
-              <p className="px-4 py-4 text-sm" style={{ color: '#949ba4' }}>No replies yet. Be the first to reply!</p>
+              <p className="px-4 py-4 text-sm" style={{ color: 'var(--theme-text-muted)' }}>No replies yet. Be the first to reply!</p>
             )}
             {threadReplies.map((reply, i) => {
               const prev = threadReplies[i - 1]
@@ -327,31 +327,31 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
 
   // Forum post list view
   return (
-    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#313338' }}>
+    <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
       {/* Forum header */}
       <div
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: '#1e1f22' }}
+        style={{ borderColor: 'var(--theme-bg-tertiary)' }}
       >
-        <MessageSquare className="w-5 h-5 flex-shrink-0" style={{ color: '#949ba4' }} />
+        <MessageSquare className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
         <span className="font-semibold text-white">{channel.name}</span>
         {channel.topic && (
           <>
-            <span style={{ color: '#4e5058' }}>|</span>
-            <span className="text-sm truncate" style={{ color: '#949ba4' }}>{channel.topic}</span>
+            <span style={{ color: 'var(--theme-text-faint)' }}>|</span>
+            <span className="text-sm truncate" style={{ color: 'var(--theme-text-muted)' }}>{channel.topic}</span>
           </>
         )}
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => setShowNewPost(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors"
-            style={{ background: '#5865f2', color: 'white' }}
+            style={{ background: 'var(--theme-accent)', color: 'white' }}
           >
             <Plus className="w-4 h-4" />
             New Post
           </button>
           <button onClick={toggleMemberList} className="p-1.5 rounded hover:bg-white/10 transition-colors">
-            <Users className="w-5 h-5" style={{ color: memberListOpen ? '#f2f3f5' : '#949ba4' }} />
+            <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>
         </div>
       </div>
@@ -360,7 +360,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
       {channel.forum_guidelines && (
         <div
           className="mx-4 mt-3 px-3 py-2 rounded text-sm"
-          style={{ background: 'rgba(88,101,242,0.1)', border: '1px solid rgba(88,101,242,0.3)', color: '#b5bac1' }}
+          style={{ background: 'rgba(88,101,242,0.1)', border: '1px solid rgba(88,101,242,0.3)', color: 'var(--theme-text-secondary)' }}
         >
           <strong className="text-white">Guidelines: </strong>{channel.forum_guidelines}
         </div>
@@ -370,14 +370,14 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
       {showNewPost && (
         <div
           className="mx-4 mt-3 p-3 rounded border"
-          style={{ background: '#2b2d31', borderColor: '#1e1f22' }}
+          style={{ background: 'var(--theme-bg-secondary)', borderColor: 'var(--theme-bg-tertiary)' }}
         >
           <input
             value={newPostTitle}
             onChange={(e) => setNewPostTitle(e.target.value)}
             placeholder="Post title (optional)"
             className="w-full px-3 py-2 mb-2 rounded text-sm text-white focus:outline-none"
-            style={{ background: '#1e1f22' }}
+            style={{ background: 'var(--theme-bg-tertiary)' }}
           />
           <MessageInput
             channelName="new post content"
@@ -392,7 +392,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           <button
             onClick={() => { setShowNewPost(false); setNewPostTitle(""); setNewPostDraft("") }}
             className="mt-1 text-xs"
-            style={{ color: '#949ba4' }}
+            style={{ color: 'var(--theme-text-muted)' }}
           >
             Cancel
           </button>
@@ -405,18 +405,18 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           <div className="text-center py-12">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto"
-              style={{ background: '#4e5058' }}
+              style={{ background: 'var(--theme-text-faint)' }}
             >
               <MessageSquare className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-xl font-bold text-white mb-2">No posts yet</h2>
-            <p className="mb-4" style={{ color: '#b5bac1' }}>
+            <p className="mb-4" style={{ color: 'var(--theme-text-secondary)' }}>
               {channel.forum_guidelines || "Be the first to start a discussion!"}
             </p>
             <button
               onClick={() => setShowNewPost(true)}
               className="px-4 py-2 rounded font-medium transition-colors"
-              style={{ background: '#5865f2', color: 'white' }}
+              style={{ background: 'var(--theme-accent)', color: 'white' }}
             >
               <Plus className="w-4 h-4 inline mr-1" />
               Create First Post
@@ -436,10 +436,10 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
               key={post.id}
               onClick={() => { setActiveThread(post); setView("thread") }}
               className="w-full text-left p-3 rounded border transition-colors hover:bg-white/5"
-              style={{ background: '#2b2d31', borderColor: '#1e1f22' }}
+              style={{ background: 'var(--theme-bg-secondary)', borderColor: 'var(--theme-bg-tertiary)' }}
             >
               <div className="flex items-start gap-3">
-                <MessageSquare className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#949ba4' }} />
+                <MessageSquare className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--theme-text-muted)' }} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium text-white text-sm truncate">
@@ -448,7 +448,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                     </span>
                   </div>
                   {title && body && (
-                    <p className="text-xs truncate" style={{ color: '#949ba4' }}>
+                    <p className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
                       {body.slice(0, 120)}{body.length > 120 ? "…" : ""}
                     </p>
                   )}

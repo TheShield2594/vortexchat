@@ -40,16 +40,16 @@ function formatTime(ts: string) {
 
 function StatusDot({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    online: "#23a55a",
-    idle: "#f0b132",
-    dnd: "#f23f43",
-    offline: "#80848e",
-    invisible: "#80848e",
+    online: "var(--theme-success)",
+    idle: "var(--theme-warning)",
+    dnd: "var(--theme-danger)",
+    offline: "var(--theme-presence-offline)",
+    invisible: "var(--theme-presence-offline)",
   }
   return (
     <span
       className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2"
-      style={{ background: colors[status] ?? "#80848e", borderColor: "#2b2d31" }}
+      style={{ background: colors[status] ?? "var(--theme-presence-offline)", borderColor: "var(--theme-bg-secondary)" }}
     />
   )
 }
@@ -125,12 +125,12 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#949ba4" }}>
+        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-muted)" }}>
           Direct Messages
         </span>
         <button
           className="w-4 h-4 hover:text-white transition-colors"
-          style={{ color: "#949ba4" }}
+          style={{ color: "var(--theme-text-muted)" }}
           title="New DM"
         >
           <Plus className="w-4 h-4" />
@@ -172,14 +172,14 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
                 {ch.is_group ? (
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{ background: "#5865f2" }}
+                    style={{ background: "var(--theme-accent)" }}
                   >
                     <Users className="w-4 h-4 text-white" />
                   </div>
                 ) : (
                   <Avatar className="w-8 h-8">
                     {ch.partner?.avatar_url && <AvatarImage src={ch.partner.avatar_url} />}
-                    <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "11px" }}>
+                    <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "11px" }}>
                       {initials}
                     </AvatarFallback>
                   </Avatar>
@@ -198,13 +198,13 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
                     {displayName}
                   </span>
                   {ch.latest_message && (
-                    <span className="text-xs flex-shrink-0" style={{ color: "#4e5058" }}>
+                    <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-faint)" }}>
                       {formatTime(ch.latest_message.created_at)}
                     </span>
                   )}
                 </div>
                 {ch.latest_message && (
-                  <p className="text-xs truncate" style={{ color: "#949ba4" }}>
+                  <p className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
                     {ch.latest_message.content}
                   </p>
                 )}

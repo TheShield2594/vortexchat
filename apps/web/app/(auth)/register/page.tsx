@@ -78,22 +78,22 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="rounded-lg p-8 shadow-2xl" style={{ background: '#313338' }}>
+    <div className="rounded-lg p-8 shadow-2xl" style={{ background: 'var(--theme-bg-primary)' }}>
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#5865f2' }}>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'var(--theme-accent)' }}>
             <Zap className="w-7 h-7 text-white" />
           </div>
         </div>
         <h1 className="text-2xl font-bold text-white">Create an account</h1>
-        <p style={{ color: '#b5bac1' }} className="text-sm mt-1">
+        <p style={{ color: 'var(--theme-text-secondary)' }} className="text-sm mt-1">
           Join Vortex — then add a passkey in Security settings for passkey-first login.
         </p>
       </div>
 
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Email <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -102,12 +102,12 @@ export default function RegisterPage() {
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required
             className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Username <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -117,12 +117,12 @@ export default function RegisterPage() {
             placeholder="cooluser123"
             required
             className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Display Name
           </Label>
           <Input
@@ -131,12 +131,12 @@ export default function RegisterPage() {
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
             placeholder="How others see you"
             className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Password <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -145,12 +145,12 @@ export default function RegisterPage() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
             className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Confirm Password <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -159,7 +159,7 @@ export default function RegisterPage() {
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             required
             className="h-10"
-            style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
           />
         </div>
 
@@ -167,21 +167,21 @@ export default function RegisterPage() {
           type="submit"
           disabled={loading}
           className="w-full h-11 font-medium mt-2"
-          style={{ background: '#5865f2' }}
+          style={{ background: 'var(--theme-accent)' }}
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Continue
         </Button>
       </form>
 
-      <p className="text-center text-sm mt-6" style={{ color: '#b5bac1' }}>
+      <p className="text-center text-sm mt-6" style={{ color: 'var(--theme-text-secondary)' }}>
         Already have an account?{" "}
-        <Link href="/login" className="hover:underline" style={{ color: '#00a8fc' }}>
+        <Link href="/login" className="hover:underline" style={{ color: 'var(--theme-link)' }}>
           Log In
         </Link>
       </p>
 
-      <p className="text-center text-xs mt-4" style={{ color: '#4e5058' }}>
+      <p className="text-center text-xs mt-4" style={{ color: 'var(--theme-text-faint)' }}>
         By registering, you agree to Vortex&apos;s terms of service. Keep password/magic link recovery enabled until you add a backup passkey on another device.
       </p>
     </div>

@@ -95,36 +95,36 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
 
   const unusedRoles = roles.filter((r) => !perms.find((p) => p.role_id === r.id))
 
-  if (loading) return <div className="flex justify-center py-4"><Loader2 className="animate-spin" style={{ color: "#949ba4" }} /></div>
+  if (loading) return <div className="flex justify-center py-4"><Loader2 className="animate-spin" style={{ color: "var(--theme-text-muted)" }} /></div>
 
   return (
     <div className="flex gap-3 h-72">
       {/* Role list */}
       <div className="w-40 flex-shrink-0 space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#949ba4" }}>Roles</p>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>Roles</p>
         {perms.map((p) => (
           <button
             key={p.role_id}
             onClick={() => setSelected(p)}
             className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left"
-            style={{ background: selected?.role_id === p.role_id ? "rgba(255,255,255,0.1)" : "transparent", color: "#f2f3f5" }}
+            style={{ background: selected?.role_id === p.role_id ? "rgba(255,255,255,0.1)" : "transparent", color: "var(--theme-text-primary)" }}
           >
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.role.color }} />
             <span className="truncate flex-1">{p.role.name}</span>
-            <button onClick={(e) => { e.stopPropagation(); remove(p.role_id) }} style={{ color: "#f23f43" }}>
+            <button onClick={(e) => { e.stopPropagation(); remove(p.role_id) }} style={{ color: "var(--theme-danger)" }}>
               <Trash2 className="w-3 h-3" />
             </button>
           </button>
         ))}
         {unusedRoles.length > 0 && (
-          <div className="pt-2 border-t" style={{ borderColor: "#3f4147" }}>
-            <p className="text-xs mb-1" style={{ color: "#4e5058" }}>Add override</p>
+          <div className="pt-2 border-t" style={{ borderColor: "var(--theme-surface-elevated)" }}>
+            <p className="text-xs mb-1" style={{ color: "var(--theme-text-faint)" }}>Add override</p>
             {unusedRoles.map((r) => (
               <button
                 key={r.id}
                 onClick={() => addRole(r)}
                 className="w-full flex items-center gap-2 px-2 py-1 rounded text-xs text-left hover:bg-white/5"
-                style={{ color: "#b5bac1" }}
+                style={{ color: "var(--theme-text-secondary)" }}
               >
                 <Plus className="w-3 h-3" />
                 <span className="truncate">{r.name}</span>
@@ -137,13 +137,13 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
       {/* Permission editor */}
       {selected ? (
         <div className="flex-1 overflow-y-auto space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#949ba4" }}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>
             Permissions for <span style={{ color: selected.role.color }}>{selected.role.name}</span>
           </p>
           <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 items-center">
-            <span className="text-xs font-medium" style={{ color: "#b5bac1" }}>Permission</span>
-            <span className="text-xs text-center" style={{ color: "#23a55a" }}>Allow</span>
-            <span className="text-xs text-center" style={{ color: "#f23f43" }}>Deny</span>
+            <span className="text-xs font-medium" style={{ color: "var(--theme-text-secondary)" }}>Permission</span>
+            <span className="text-xs text-center" style={{ color: "var(--theme-success)" }}>Allow</span>
+            <span className="text-xs text-center" style={{ color: "var(--theme-danger)" }}>Deny</span>
             {PERM_LIST.map(({ key, label }) => (
               <>
                 <span key={`${key}-label`} className="text-sm text-white">{label}</span>
@@ -164,13 +164,13 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
             onClick={save}
             disabled={saving}
             className="mt-3 px-3 py-1.5 rounded text-sm font-semibold"
-            style={{ background: "#5865f2", color: "white" }}
+            style={{ background: "var(--theme-accent)", color: "white" }}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
           </button>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-sm" style={{ color: "#4e5058" }}>
+        <div className="flex-1 flex items-center justify-center text-sm" style={{ color: "var(--theme-text-faint)" }}>
           Select a role to edit permissions
         </div>
       )}

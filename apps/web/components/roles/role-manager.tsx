@@ -252,7 +252,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
   }
 
   if (loading) {
-    return <div className="flex justify-center py-8"><Loader2 className="animate-spin" style={{ color: '#949ba4' }} /></div>
+    return <div className="flex justify-center py-8"><Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} /></div>
   }
 
   return (
@@ -260,9 +260,9 @@ export function RoleManager({ serverId, isOwner }: Props) {
       {/* Role list */}
       <div className="w-40 flex-shrink-0">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#949ba4' }}>Roles</span>
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Roles</span>
           {isOwner && (
-            <button onClick={handleCreateRole} style={{ color: '#23a55a' }}>
+            <button onClick={handleCreateRole} style={{ color: 'var(--theme-success)' }}>
               <Plus className="w-4 h-4" />
             </button>
           )}
@@ -276,13 +276,13 @@ export function RoleManager({ serverId, isOwner }: Props) {
               className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors"
               style={{
                 background: selectedRole?.id === role.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                color: '#f2f3f5',
+                color: 'var(--theme-text-primary)',
               }}
             >
               <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: role.color }} />
               <span className="truncate">{role.name}</span>
               {role.is_default && (
-                <span className="ml-auto text-xs" style={{ color: '#949ba4' }}>default</span>
+                <span className="ml-auto text-xs" style={{ color: 'var(--theme-text-muted)' }}>default</span>
               )}
             </button>
           ))}
@@ -293,7 +293,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
       {selectedRole ? (
         <div className="flex-1 overflow-y-auto space-y-4 pr-1">
           <div className="space-y-1">
-            <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+            <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
               Role Name
             </Label>
             <div className="flex items-center gap-3">
@@ -302,7 +302,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
                 onChange={(e) => setEditName(e.target.value)}
                 disabled={selectedRole.is_default}
                 className="flex-1"
-                style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />
               <div className="flex items-center gap-2 flex-shrink-0">
                 <input
@@ -310,7 +310,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
                   value={editColor}
                   onChange={(e) => setEditColor(e.target.value)}
                   className="w-9 h-9 rounded cursor-pointer border-0 p-0.5"
-                  style={{ background: '#1e1f22' }}
+                  style={{ background: 'var(--theme-bg-tertiary)' }}
                 />
               </div>
             </div>
@@ -328,13 +328,13 @@ export function RoleManager({ serverId, isOwner }: Props) {
           </div>
 
           <div>
-            <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: '#b5bac1' }}>
+            <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
               Permissions
             </Label>
             <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100% - 2rem)' }}>
               {PERMISSION_CATEGORIES.map(({ label: catLabel, perms }) => (
                 <div key={catLabel}>
-                  <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#5865f2' }}>
+                  <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--theme-accent)' }}>
                     {catLabel}
                   </div>
                   <div className="space-y-1">
@@ -342,7 +342,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
                       <div key={key} className="flex items-center justify-between py-1">
                         <div>
                           <div className="text-sm font-medium text-white">{label}</div>
-                          <div className="text-xs" style={{ color: '#949ba4' }}>{description}</div>
+                          <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{description}</div>
                         </div>
                         <Switch
                           checked={!!(editPermissions & PERMISSIONS[key])}
@@ -361,14 +361,14 @@ export function RoleManager({ serverId, isOwner }: Props) {
           {!selectedRole.is_default && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+                <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                   Members — {roleMembers.length}
                 </Label>
                 {isOwner && (
                   <button
                     onClick={() => setShowAddMember(!showAddMember)}
                     className="text-xs px-2 py-1 rounded transition-colors hover:bg-white/10"
-                    style={{ color: '#23a55a' }}
+                    style={{ color: 'var(--theme-success)' }}
                   >
                     <Plus className="w-3.5 h-3.5 inline mr-1" />
                     Add
@@ -379,17 +379,17 @@ export function RoleManager({ serverId, isOwner }: Props) {
               {showAddMember && (() => {
                 const availableMembers = allMembers.filter((m) => !roleMembers.some((rm) => rm.id === m.id))
                 return (
-                <div className="mb-2 p-2 rounded space-y-1 max-h-32 overflow-y-auto" style={{ background: '#1e1f22' }}>
+                <div className="mb-2 p-2 rounded space-y-1 max-h-32 overflow-y-auto" style={{ background: 'var(--theme-bg-tertiary)' }}>
                   {availableMembers.map((member) => (
                       <button
                         key={member.id}
                         onClick={() => handleAddMemberToRole(member.id)}
                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left hover:bg-white/10 transition-colors"
-                        style={{ color: '#f2f3f5' }}
+                        style={{ color: 'var(--theme-text-primary)' }}
                       >
                         <Avatar className="w-5 h-5">
                           {member.avatar_url && <AvatarImage src={member.avatar_url} />}
-                          <AvatarFallback style={{ background: '#5865f2', color: 'white', fontSize: '10px' }}>
+                          <AvatarFallback style={{ background: 'var(--theme-accent)', color: 'white', fontSize: '10px' }}>
                             {(member.display_name || member.username).slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
@@ -397,7 +397,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
                       </button>
                     ))}
                   {availableMembers.length === 0 && (
-                    <p className="text-xs text-center py-1" style={{ color: '#949ba4' }}>All members have this role</p>
+                    <p className="text-xs text-center py-1" style={{ color: 'var(--theme-text-muted)' }}>All members have this role</p>
                   )}
                 </div>
                 )
@@ -408,11 +408,11 @@ export function RoleManager({ serverId, isOwner }: Props) {
                   <div
                     key={member.id}
                     className="flex items-center gap-2 px-2 py-1.5 rounded text-sm group"
-                    style={{ background: '#2b2d31', color: '#f2f3f5' }}
+                    style={{ background: 'var(--theme-bg-secondary)', color: 'var(--theme-text-primary)' }}
                   >
                     <Avatar className="w-5 h-5">
                       {member.avatar_url && <AvatarImage src={member.avatar_url} />}
-                      <AvatarFallback style={{ background: '#5865f2', color: 'white', fontSize: '10px' }}>
+                      <AvatarFallback style={{ background: 'var(--theme-accent)', color: 'white', fontSize: '10px' }}>
                         {(member.display_name || member.username).slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -421,7 +421,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
                       <button
                         onClick={() => handleRemoveMemberFromRole(member.id)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ color: '#f23f43' }}
+                        style={{ color: 'var(--theme-danger)' }}
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -429,7 +429,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
                   </div>
                 ))}
                 {roleMembers.length === 0 && (
-                  <p className="text-xs py-1" style={{ color: '#949ba4' }}>No members have this role</p>
+                  <p className="text-xs py-1" style={{ color: 'var(--theme-text-muted)' }}>No members have this role</p>
                 )}
               </div>
             </div>
@@ -441,7 +441,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDeleteRole(selectedRole.id)}
-                style={{ color: '#f23f43' }}
+                style={{ color: 'var(--theme-danger)' }}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
                 Delete
@@ -451,7 +451,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
               size="sm"
               onClick={handleSaveRole}
               disabled={saving}
-              style={{ background: '#5865f2' }}
+              style={{ background: 'var(--theme-accent)' }}
               className="ml-auto"
             >
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -460,7 +460,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center" style={{ color: '#949ba4' }}>
+        <div className="flex-1 flex items-center justify-center" style={{ color: 'var(--theme-text-muted)' }}>
           Select a role to edit
         </div>
       )}

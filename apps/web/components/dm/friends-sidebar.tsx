@@ -16,18 +16,18 @@ interface FriendsData {
 
 function StatusDot({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    online: "#23a55a",
-    idle: "#f0b232",
-    dnd: "#f23f43",
-    invisible: "#80848e",
-    offline: "#80848e",
+    online: "var(--theme-success)",
+    idle: "var(--theme-warning)",
+    dnd: "var(--theme-danger)",
+    invisible: "var(--theme-presence-offline)",
+    offline: "var(--theme-presence-offline)",
   }
   return (
     <span
       className="w-3 h-3 rounded-full border-2 flex-shrink-0"
       style={{
-        background: colors[status] ?? "#80848e",
-        borderColor: "#2b2d31",
+        background: colors[status] ?? "var(--theme-presence-offline)",
+        borderColor: "var(--theme-bg-secondary)",
       }}
     />
   )
@@ -51,25 +51,25 @@ function FriendEntry({
       <div className="relative flex-shrink-0">
         <Avatar className="w-9 h-9">
           {friend.avatar_url && <AvatarImage src={friend.avatar_url} />}
-          <AvatarFallback style={{ background: "#5865f2", color: "white", fontSize: "13px" }}>
+          <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "13px" }}>
             {initials}
           </AvatarFallback>
         </Avatar>
         <span
           className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2"
           style={{
-            background: friend.status === "online" ? "#23a55a"
-              : friend.status === "idle" ? "#f0b232"
-              : friend.status === "dnd" ? "#f23f43"
-              : "#80848e",
-            borderColor: "#2b2d31",
+            background: friend.status === "online" ? "var(--theme-success)"
+              : friend.status === "idle" ? "var(--theme-warning)"
+              : friend.status === "dnd" ? "var(--theme-danger)"
+              : "var(--theme-presence-offline)",
+            borderColor: "var(--theme-bg-secondary)",
           }}
         />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold text-white truncate">{displayName}</div>
-        <div className="text-xs truncate capitalize" style={{ color: "#949ba4" }}>
+        <div className="text-xs truncate capitalize" style={{ color: "var(--theme-text-muted)" }}>
           {friend.username !== displayName ? `@${friend.username} · ` : ""}
           {friend.status_message || friend.status || "Offline"}
         </div>
@@ -100,7 +100,7 @@ function IconButton({
       className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
       style={{
         background: danger ? "rgba(242,63,67,0.15)" : "rgba(255,255,255,0.08)",
-        color: danger ? "#f23f43" : "#b5bac1",
+        color: danger ? "var(--theme-danger)" : "var(--theme-text-secondary)",
       }}
     >
       {children}
@@ -219,9 +219,9 @@ export function FriendsSidebar() {
       {/* Header */}
       <div
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: "#1e1f22" }}
+        style={{ borderColor: "var(--theme-bg-tertiary)" }}
       >
-        <UserPlus className="w-5 h-5 flex-shrink-0" style={{ color: "#b5bac1" }} />
+        <UserPlus className="w-5 h-5 flex-shrink-0" style={{ color: "var(--theme-text-secondary)" }} />
         <span className="font-semibold text-white">Friends</span>
       </div>
 
@@ -235,16 +235,16 @@ export function FriendsSidebar() {
             placeholder="Add friend by username…"
             className="flex-1 px-3 py-2 rounded text-sm focus:outline-none"
             style={{
-              background: "#1e1f22",
-              color: "#f2f3f5",
-              border: "1px solid #3f4147",
+              background: "var(--theme-bg-tertiary)",
+              color: "var(--theme-text-primary)",
+              border: "1px solid var(--theme-surface-elevated)",
             }}
           />
           <button
             type="submit"
             disabled={addLoading || !addUsername.trim()}
             className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
-            style={{ background: "#5865f2", color: "white" }}
+            style={{ background: "var(--theme-accent)", color: "white" }}
           >
             {addLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
           </button>
@@ -252,7 +252,7 @@ export function FriendsSidebar() {
         {addStatus && (
           <p
             className="mt-1 text-xs px-1"
-            style={{ color: addStatus.type === "success" ? "#23a55a" : "#f23f43" }}
+            style={{ color: addStatus.type === "success" ? "var(--theme-success)" : "var(--theme-danger)" }}
           >
             {addStatus.msg}
           </p>
@@ -262,7 +262,7 @@ export function FriendsSidebar() {
       {/* Tabs */}
       <div
         className="flex gap-1 px-4 pb-2 flex-shrink-0 border-b"
-        style={{ borderColor: "#1e1f22" }}
+        style={{ borderColor: "var(--theme-bg-tertiary)" }}
       >
         {tabs.map((t) => (
           <button
@@ -271,14 +271,14 @@ export function FriendsSidebar() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors"
             style={{
               background: tab === t.id ? "#404249" : "transparent",
-              color: tab === t.id ? "#f2f3f5" : "#949ba4",
+              color: tab === t.id ? "var(--theme-text-primary)" : "var(--theme-text-muted)",
             }}
           >
             {t.label}
             {t.count && t.count > 0 ? (
               <span
                 className="px-1.5 py-0.5 rounded-full text-xs font-bold"
-                style={{ background: "#f23f43", color: "white" }}
+                style={{ background: "var(--theme-danger)", color: "white" }}
               >
                 {t.count}
               </span>
@@ -291,14 +291,14 @@ export function FriendsSidebar() {
       <div className="flex-1 overflow-y-auto px-2 py-2">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#949ba4" }} />
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--theme-text-muted)" }} />
           </div>
         ) : (
           <>
             {/* Pending received */}
             {pendingReceivedList.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs font-semibold uppercase px-1 mb-1" style={{ color: "#949ba4" }}>
+                <p className="text-xs font-semibold uppercase px-1 mb-1" style={{ color: "var(--theme-text-muted)" }}>
                   Incoming — {pendingReceivedList.length}
                 </p>
                 {pendingReceivedList.map((entry) => (
@@ -323,7 +323,7 @@ export function FriendsSidebar() {
             {/* Pending sent */}
             {pendingSentList.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs font-semibold uppercase px-1 mb-1" style={{ color: "#949ba4" }}>
+                <p className="text-xs font-semibold uppercase px-1 mb-1" style={{ color: "var(--theme-text-muted)" }}>
                   Outgoing — {pendingSentList.length}
                 </p>
                 {pendingSentList.map((entry) => (
@@ -343,7 +343,7 @@ export function FriendsSidebar() {
             {/* Main list */}
             {displayList.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase px-1 mb-1" style={{ color: "#949ba4" }}>
+                <p className="text-xs font-semibold uppercase px-1 mb-1" style={{ color: "var(--theme-text-muted)" }}>
                   {tab === "online"
                     ? `Online — ${displayList.length}`
                     : tab === "all"
@@ -377,12 +377,12 @@ export function FriendsSidebar() {
 
             {/* Empty states */}
             {tab === "pending" && pendingReceivedList.length === 0 && pendingSentList.length === 0 && (
-              <p className="text-center py-8 text-sm" style={{ color: "#949ba4" }}>
+              <p className="text-center py-8 text-sm" style={{ color: "var(--theme-text-muted)" }}>
                 No pending friend requests
               </p>
             )}
             {tab !== "pending" && displayList.length === 0 && (
-              <p className="text-center py-8 text-sm" style={{ color: "#949ba4" }}>
+              <p className="text-center py-8 text-sm" style={{ color: "var(--theme-text-muted)" }}>
                 {tab === "online"
                   ? "No friends online"
                   : tab === "all"

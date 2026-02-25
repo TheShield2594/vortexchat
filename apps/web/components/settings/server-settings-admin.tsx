@@ -21,10 +21,10 @@ interface Props {
 
 export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }: Props) {
   return (
-    <main className="flex-1 overflow-y-auto p-6" style={{ background: "#1e1f22" }}>
+    <main className="flex-1 overflow-y-auto p-6" style={{ background: "var(--theme-bg-tertiary)" }}>
       <div className="mx-auto max-w-6xl">
         <h1 className="text-2xl font-semibold text-white">Server Settings</h1>
-        <p className="mt-1 text-sm" style={{ color: "#949ba4" }}>{serverName}</p>
+        <p className="mt-1 text-sm" style={{ color: "var(--theme-text-muted)" }}>{serverName}</p>
 
         <Tabs defaultValue="roles" className="mt-6 flex gap-6">
           <div className="w-56 flex-shrink-0">
@@ -34,7 +34,7 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               <TabsTrigger value="webhooks" className="w-full justify-start">Webhooks</TabsTrigger>
               <TabsTrigger value="social-alerts" className="w-full justify-start">Social Alerts</TabsTrigger>
               <TabsTrigger value="apps" className="w-full justify-start">Apps</TabsTrigger>
-              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "#949ba4" }}>
+              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
                 Moderation
               </div>
               <TabsTrigger value="moderation" className="w-full justify-start">
@@ -53,7 +53,7 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
             </TabsList>
           </div>
 
-          <div className="min-w-0 flex-1 rounded-md p-4" style={{ background: "#313338" }}>
+          <div className="min-w-0 flex-1 rounded-md p-4" style={{ background: "var(--theme-bg-primary)" }}>
             <TabsContent value="roles" className="mt-0">
               <RoleManager serverId={serverId} isOwner={isOwner} />
             </TabsContent>
@@ -79,7 +79,7 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               <AutoModTab serverId={serverId} channels={channels} open />
             </TabsContent>
             <TabsContent value="templates" className="mt-0">
-              {isOwner ? <TemplateManager serverId={serverId} /> : <p style={{ color: "#b5bac1" }}>Only the owner can import/export templates.</p>}
+              {isOwner ? <TemplateManager serverId={serverId} /> : <p style={{ color: "var(--theme-text-secondary)" }}>Only the owner can import/export templates.</p>}
             </TabsContent>
           </div>
         </Tabs>

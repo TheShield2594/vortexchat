@@ -113,26 +113,26 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
         className="max-w-4xl max-h-[90vh] overflow-hidden p-0"
-        style={{ background: '#313338', borderColor: '#1e1f22' }}
+        style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
       >
         <Tabs defaultValue="overview" orientation="vertical" className="flex h-[80vh]">
           {/* Settings sidebar */}
-          <div className="w-48 flex-shrink-0 p-4 flex flex-col" style={{ background: '#2b2d31' }}>
-            <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#949ba4' }}>
+          <div className="w-48 flex-shrink-0 p-4 flex flex-col" style={{ background: 'var(--theme-bg-secondary)' }}>
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--theme-text-muted)' }}>
               {liveServer.name}
             </h3>
             <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
-              <TabsTrigger value="overview" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
+              <TabsTrigger value="overview" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="invites" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: '#b5bac1' }}>
+              <TabsTrigger value="invites" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Invites
               </TabsTrigger>
             </TabsList>
-            <p className="mt-3 px-2 text-xs leading-relaxed" style={{ color: '#949ba4' }}>
+            <p className="mt-3 px-2 text-xs leading-relaxed" style={{ color: 'var(--theme-text-muted)' }}>
               Need roles, moderation, integrations, or templates?
             </p>
-            <Button asChild variant="ghost" className="mt-2 justify-start px-2 text-sm" style={{ color: '#b5bac1' }}>
+            <Button asChild variant="ghost" className="mt-2 justify-start px-2 text-sm" style={{ color: 'var(--theme-text-secondary)' }}>
               <Link href={`/channels/${server.id}/settings`} onClick={onClose}>
                 Open Server Settings
               </Link>
@@ -143,19 +143,19 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
           <div className="flex-1 overflow-y-auto p-6">
             <TabsContent value="overview" className="mt-0 space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+                <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                   Server Name
                 </Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={!isOwner}
-                  style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                  style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+                <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                   Description
                 </Label>
                 <textarea
@@ -164,13 +164,13 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                   disabled={!isOwner}
                   rows={3}
                   className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
-                  style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #1e1f22' }}
+                  style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-bg-tertiary)' }}
                   placeholder="What's this server about?"
                 />
               </div>
 
               {isOwner && (
-                <Button onClick={handleSave} disabled={loading} style={{ background: '#5865f2' }}>
+                <Button onClick={handleSave} disabled={loading} style={{ background: 'var(--theme-accent)' }}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save Changes
                 </Button>
@@ -196,7 +196,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
 
             <TabsContent value="invites" className="mt-0 space-y-4">
               <div>
-                <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: '#b5bac1' }}>
+                <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
                   Invite Code
                 </Label>
                 <div className="flex gap-2">
@@ -204,13 +204,13 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                     id="invite-code"
                     value={liveServer.invite_code}
                     readOnly
-                    style={{ background: '#1e1f22', borderColor: '#1e1f22', color: '#f2f3f5' }}
+                    style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
                   />
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={copyInvite}
-                    style={{ color: '#949ba4' }}
+                    style={{ color: 'var(--theme-text-muted)' }}
                     aria-label="Copy invite code"
                     aria-describedby="invite-code"
                   >
@@ -222,13 +222,13 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                 <Button
                   variant="outline"
                   onClick={handleRegenerateInvite}
-                  style={{ borderColor: '#4e5058', color: '#b5bac1', background: 'transparent' }}
+                  style={{ borderColor: 'var(--theme-text-faint)', color: 'var(--theme-text-secondary)', background: 'transparent' }}
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Regenerate Code
                 </Button>
               )}
-              <p className="text-xs" style={{ color: '#949ba4' }}>
+              <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
                 Share this code with friends to invite them to your server.
               </p>
             </TabsContent>
@@ -238,10 +238,10 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
     </DialogContent>
 
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent style={{ background: '#313338', borderColor: '#1e1f22', color: '#f2f3f5' }}>
+        <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}>
           <DialogHeader>
             <DialogTitle>Delete server?</DialogTitle>
-            <DialogDescription style={{ color: '#b5bac1' }}>
+            <DialogDescription style={{ color: 'var(--theme-text-secondary)' }}>
               This action is irreversible and will permanently remove
               <span className="font-semibold text-white"> {liveServer.name}</span>.
             </DialogDescription>
@@ -328,30 +328,30 @@ export function EmojisTab({ serverId }: { serverId: string }) {
     <div className="space-y-4">
       <div>
         <p className="text-white font-semibold mb-0.5">Custom Emoji</p>
-        <p className="text-xs" style={{ color: '#949ba4' }}>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           Upload custom emoji to use in messages on this server. Max 256 KB, PNG/GIF/WEBP.
         </p>
-        <p className="text-xs mt-1" style={{ color: '#b5bac1' }}>
+        <p className="text-xs mt-1" style={{ color: 'var(--theme-text-secondary)' }}>
           {emojis.length} / {CUSTOM_EMOJI_LIMIT} custom emojis used.
         </p>
       </div>
 
       {/* Upload form */}
-      <div className="rounded-lg p-4 space-y-3" style={{ background: '#2b2d31', border: '1px solid #1e1f22' }}>
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>Upload Emoji</p>
+      <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-bg-tertiary)' }}>
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Upload Emoji</p>
         <div className="flex gap-2 flex-wrap">
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())}
             placeholder="emoji_name"
             className="flex-1 min-w-0 px-3 py-2 rounded text-sm focus:outline-none"
-            style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
           />
           <input ref={fileRef} type="file" accept="image/png,image/gif,image/webp" className="hidden" />
           <button
             onClick={() => fileRef.current?.click()}
             className="px-3 py-2 rounded text-sm transition-colors"
-            style={{ background: '#383a40', color: '#b5bac1' }}
+            style={{ background: 'var(--theme-surface-input)', color: 'var(--theme-text-secondary)' }}
           >
             Choose file
           </button>
@@ -359,7 +359,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
             onClick={handleUpload}
             disabled={uploading || !newName.trim() || emojis.length >= CUSTOM_EMOJI_LIMIT}
             className="px-3 py-2 rounded text-sm font-semibold disabled:opacity-50"
-            style={{ background: '#5865f2', color: 'white' }}
+            style={{ background: 'var(--theme-accent)', color: 'white' }}
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           </button>
@@ -369,22 +369,22 @@ export function EmojisTab({ serverId }: { serverId: string }) {
       {/* Emoji list */}
       {loading ? (
         <div className="flex justify-center py-6">
-          <Loader2 className="animate-spin" style={{ color: '#949ba4' }} />
+          <Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} />
         </div>
       ) : emojis.length === 0 ? (
-        <div className="text-center py-8 text-sm" style={{ color: '#949ba4' }}>
+        <div className="text-center py-8 text-sm" style={{ color: 'var(--theme-text-muted)' }}>
           No custom emoji yet.
         </div>
       ) : (
         <div className="space-y-1">
           {emojis.map((e) => (
-            <div key={e.id} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: '#2b2d31' }}>
+            <div key={e.id} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: 'var(--theme-bg-secondary)' }}>
               <img src={e.image_url} alt={e.name} className="w-8 h-8 object-contain rounded" />
               <span className="flex-1 text-sm text-white">:{e.name}:</span>
               <button
                 onClick={() => handleDelete(e.id)}
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors"
-                style={{ color: '#4e5058' }}
+                style={{ color: 'var(--theme-text-faint)' }}
                 title="Delete"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -481,30 +481,30 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
     <div className="space-y-4">
       <div>
         <p className="text-white font-semibold mb-0.5 flex items-center gap-2">
-          <Webhook className="w-4 h-4" style={{ color: '#5865f2' }} />
+          <Webhook className="w-4 h-4" style={{ color: 'var(--theme-accent)' }} />
           Webhooks
         </p>
-        <p className="text-xs" style={{ color: '#949ba4' }}>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           Create URLs that allow external services to post messages to your server.
         </p>
       </div>
 
       {/* Create form */}
-      <div className="rounded-lg p-4 space-y-3" style={{ background: '#2b2d31', border: '1px solid #1e1f22' }}>
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>New Webhook</p>
+      <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-bg-tertiary)' }}>
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>New Webhook</p>
         <div className="flex gap-2">
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Webhook name"
             className="flex-1 px-3 py-2 rounded text-sm focus:outline-none"
-            style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
           />
           <select
             value={newChannelId}
             onChange={(e) => setNewChannelId(e.target.value)}
             className="px-2 py-2 rounded text-sm focus:outline-none"
-            style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
           >
             {channels.map((c) => (
               <option key={c.id} value={c.id}>#{c.name}</option>
@@ -514,7 +514,7 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
             onClick={handleCreate}
             disabled={creating || !newChannelId}
             className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
-            style={{ background: '#5865f2', color: 'white' }}
+            style={{ background: 'var(--theme-accent)', color: 'white' }}
           >
             {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           </button>
@@ -524,38 +524,38 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
       {/* List */}
       {loading ? (
         <div className="flex justify-center py-6">
-          <Loader2 className="animate-spin" style={{ color: '#949ba4' }} />
+          <Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} />
         </div>
       ) : webhooks.length === 0 ? (
-        <div className="text-center py-8 text-sm" style={{ color: '#949ba4' }}>
+        <div className="text-center py-8 text-sm" style={{ color: 'var(--theme-text-muted)' }}>
           No webhooks yet. Create one above.
         </div>
       ) : (
         <div className="space-y-2">
           {webhooks.map((wh) => (
-            <div key={wh.id} className="rounded-lg p-3" style={{ background: '#2b2d31', border: '1px solid #1e1f22' }}>
+            <div key={wh.id} className="rounded-lg p-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-bg-tertiary)' }}>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div>
                   <p className="text-sm font-medium text-white">{wh.name}</p>
-                  <p className="text-xs" style={{ color: '#949ba4' }}>#{channelName(wh.channel_id)}</p>
+                  <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>#{channelName(wh.channel_id)}</p>
                 </div>
                 <button
                   onClick={() => handleDelete(wh.id)}
                   className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors"
-                  style={{ color: '#4e5058' }}
+                  style={{ color: 'var(--theme-text-faint)' }}
                   title="Delete"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs px-2 py-1 rounded truncate" style={{ background: '#1e1f22', color: '#949ba4', fontFamily: 'monospace' }}>
+                <code className="flex-1 text-xs px-2 py-1 rounded truncate" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-muted)', fontFamily: 'monospace' }}>
                   {wh.url}
                 </code>
                 <button
                   onClick={() => copyUrl(wh.id, wh.url)}
                   className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded transition-colors hover:bg-white/10"
-                  style={{ color: copiedId === wh.id ? '#23a55a' : '#949ba4' }}
+                  style={{ color: copiedId === wh.id ? 'var(--theme-success)' : 'var(--theme-text-muted)' }}
                   title="Copy URL"
                 >
                   {copiedId === wh.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -656,36 +656,36 @@ export function SocialAlertsTab({ serverId, channels, open }: { serverId: string
     <div className="space-y-4">
       <div>
         <p className="text-white font-semibold mb-0.5 flex items-center gap-2">
-          <Radio className="w-4 h-4" style={{ color: '#5865f2' }} />
+          <Radio className="w-4 h-4" style={{ color: 'var(--theme-accent)' }} />
           Social Alerts
         </p>
-        <p className="text-xs" style={{ color: '#949ba4' }}>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           Connect RSS feeds and deliver new posts into a designated channel.
         </p>
       </div>
 
-      <div className="rounded-lg p-4 space-y-3" style={{ background: '#2b2d31', border: '1px solid #1e1f22' }}>
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>New RSS Feed Alert</p>
+      <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-bg-tertiary)' }}>
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>New RSS Feed Alert</p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Alert name"
             className="px-3 py-2 rounded text-sm focus:outline-none"
-            style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
           />
           <input
             value={newFeedUrl}
             onChange={(e) => setNewFeedUrl(e.target.value)}
             placeholder="https://example.com/feed.xml"
             className="md:col-span-2 px-3 py-2 rounded text-sm focus:outline-none"
-            style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
           />
           <select
             value={newChannelId}
             onChange={(e) => setNewChannelId(e.target.value)}
             className="px-2 py-2 rounded text-sm focus:outline-none"
-            style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
           >
             {channels.map((c) => (
               <option key={c.id} value={c.id}>#{c.name}</option>
@@ -697,32 +697,32 @@ export function SocialAlertsTab({ serverId, channels, open }: { serverId: string
           onClick={handleCreate}
           disabled={creating || !newChannelId || !newFeedUrl.trim()}
           className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
-          style={{ background: '#5865f2', color: 'white' }}
+          style={{ background: 'var(--theme-accent)', color: 'white' }}
         >
           {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Alert"}
         </button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="animate-spin" style={{ color: '#949ba4' }} /></div>
+        <div className="flex justify-center py-6"><Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} /></div>
       ) : alerts.length === 0 ? (
-        <div className="text-center py-8 text-sm" style={{ color: '#949ba4' }}>
+        <div className="text-center py-8 text-sm" style={{ color: 'var(--theme-text-muted)' }}>
           No social alerts yet. Add an RSS feed above.
         </div>
       ) : (
         <div className="space-y-2">
           {alerts.map((alert) => (
-            <div key={alert.id} className="rounded-lg p-3" style={{ background: '#2b2d31', border: '1px solid #1e1f22' }}>
+            <div key={alert.id} className="rounded-lg p-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-bg-tertiary)' }}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-white">{alert.name}</p>
-                  <p className="text-xs truncate" style={{ color: '#949ba4' }}>{alert.feed_url}</p>
-                  <p className="text-xs mt-1" style={{ color: '#949ba4' }}>
+                  <p className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{alert.feed_url}</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
                     #{channelName(alert.channel_id)} {alert.last_checked_at ? `• Checked ${new Date(alert.last_checked_at).toLocaleString()}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs" style={{ color: '#b5bac1' }}>
+                  <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>
                     <input
                       type="checkbox"
                       checked={alert.enabled}
@@ -735,7 +735,7 @@ export function SocialAlertsTab({ serverId, channels, open }: { serverId: string
                     type="button"
                     onClick={() => handleDelete(alert.id)}
                     className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors"
-                    style={{ color: '#4e5058' }}
+                    style={{ color: 'var(--theme-text-faint)' }}
                     title="Delete"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -809,31 +809,31 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
     setSaving(false)
   }
 
-  if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: '#949ba4' }} /></div>
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} /></div>
   if (!settings) return null
 
   return (
     <div className="space-y-6">
       <div>
         <p className="text-white font-semibold flex items-center gap-2 mb-0.5">
-          <Shield className="w-4 h-4" style={{ color: '#5865f2' }} />
+          <Shield className="w-4 h-4" style={{ color: 'var(--theme-accent)' }} />
           Moderation Settings
         </p>
-        <p className="text-xs" style={{ color: '#949ba4' }}>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           Configure server-level safety and content filters.
         </p>
       </div>
 
       {/* Verification Level */}
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
           Verification Level
         </Label>
         <select
           value={settings.verification_level}
           onChange={(e) => setSettings({ ...settings, verification_level: Number(e.target.value) })}
           className="w-full px-3 py-2 rounded text-sm focus:outline-none"
-          style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+          style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
         >
           {VERIFICATION_LEVELS.map((v) => (
             <option key={v.value} value={v.value}>{v.label} — {v.description}</option>
@@ -843,14 +843,14 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
 
       {/* Explicit Content Filter */}
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
           Explicit Content Filter
         </Label>
         <select
           value={settings.explicit_content_filter}
           onChange={(e) => setSettings({ ...settings, explicit_content_filter: Number(e.target.value) })}
           className="w-full px-3 py-2 rounded text-sm focus:outline-none"
-          style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+          style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
         >
           {CONTENT_FILTERS.map((f) => (
             <option key={f.value} value={f.value}>{f.label}</option>
@@ -860,14 +860,14 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
 
       {/* Default Notifications */}
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>
+        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
           Default Message Notifications
         </Label>
         <select
           value={settings.default_message_notifications}
           onChange={(e) => setSettings({ ...settings, default_message_notifications: Number(e.target.value) })}
           className="w-full px-3 py-2 rounded text-sm focus:outline-none"
-          style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+          style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
         >
           <option value={0}>All Messages</option>
           <option value={1}>Only @mentions</option>
@@ -875,10 +875,10 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
       </div>
 
       {/* Screening Toggle */}
-      <div className="flex items-center justify-between rounded-lg p-3" style={{ background: '#2b2d31' }}>
+      <div className="flex items-center justify-between rounded-lg p-3" style={{ background: 'var(--theme-bg-secondary)' }}>
         <div>
           <p className="text-sm font-medium text-white">Membership Screening</p>
-          <p className="text-xs" style={{ color: '#949ba4' }}>Require new members to accept rules before participating</p>
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Require new members to accept rules before participating</p>
         </div>
         <button
           onClick={() => setSettings({ ...settings, screening_enabled: !settings.screening_enabled })}
@@ -888,7 +888,7 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
         </button>
       </div>
 
-      <Button onClick={handleSave} disabled={saving} style={{ background: '#5865f2' }}>
+      <Button onClick={handleSave} disabled={saving} style={{ background: 'var(--theme-accent)' }}>
         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Save Changes
       </Button>
@@ -967,48 +967,48 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
     }
   }
 
-  if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: '#949ba4' }} /></div>
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} /></div>
 
   return (
     <div className="space-y-4">
       <div>
         <p className="text-white font-semibold flex items-center gap-2 mb-0.5">
-          <ShieldCheck className="w-4 h-4" style={{ color: '#5865f2' }} />
+          <ShieldCheck className="w-4 h-4" style={{ color: 'var(--theme-accent)' }} />
           Membership Screening
         </p>
-        <p className="text-xs" style={{ color: '#949ba4' }}>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           New members must read and accept these rules before they can send messages.
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>Title</Label>
+        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Title</Label>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={{ background: '#1e1f22', borderColor: '#3f4147', color: '#f2f3f5' }}
+          style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-surface-elevated)', color: 'var(--theme-text-primary)' }}
         />
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>Description (optional)</Label>
+        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Description (optional)</Label>
         <Input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="A short intro shown above the rules"
-          style={{ background: '#1e1f22', borderColor: '#3f4147', color: '#f2f3f5' }}
+          style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-surface-elevated)', color: 'var(--theme-text-primary)' }}
         />
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>Rules Text</Label>
+        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Rules Text</Label>
         <textarea
           value={rulesText}
           onChange={(e) => setRulesText(e.target.value)}
           rows={8}
           className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
           placeholder="1. Be respectful&#10;2. No spam&#10;..."
-          style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+          style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
         />
       </div>
 
@@ -1023,7 +1023,7 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
       </div>
 
       <div className="flex gap-2">
-        <Button onClick={handleSave} disabled={saving} style={{ background: '#5865f2' }}>
+        <Button onClick={handleSave} disabled={saving} style={{ background: 'var(--theme-accent)' }}>
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save Rules
         </Button>
@@ -1289,35 +1289,35 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
       )
     : null
 
-  if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: '#949ba4' }} /></div>
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} /></div>
 
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-white font-semibold flex items-center gap-2 mb-0.5">
-            <Zap className="w-4 h-4" style={{ color: '#5865f2' }} />
+            <Zap className="w-4 h-4" style={{ color: 'var(--theme-accent)' }} />
             AutoMod Rules
           </p>
-          <p className="text-xs" style={{ color: '#949ba4' }}>
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
             Rules that automatically moderate messages in this server.
           </p>
         </div>
-        <Button size="sm" onClick={startNew} style={{ background: '#5865f2' }}>
+        <Button size="sm" onClick={startNew} style={{ background: 'var(--theme-accent)' }}>
           <Plus className="w-3.5 h-3.5 mr-1" /> New Rule
         </Button>
       </div>
 
       {/* Existing rules list */}
       {rules.length === 0 && editingId !== "new" && (
-        <div className="text-center py-8 text-sm" style={{ color: '#949ba4' }}>
+        <div className="text-center py-8 text-sm" style={{ color: 'var(--theme-text-muted)' }}>
           No AutoMod rules yet. Create one to get started.
         </div>
       )}
 
       <div className="space-y-2">
         {rules.map((rule) => (
-          <div key={rule.id} className="rounded-lg p-3 flex items-center gap-3" style={{ background: '#2b2d31', border: '1px solid #1e1f22' }}>
+          <div key={rule.id} className="rounded-lg p-3 flex items-center gap-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-bg-tertiary)' }}>
             <button
               onClick={() => toggleEnabled(rule)}
               className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${rule.enabled ? 'bg-indigo-600' : 'bg-gray-600'}`}
@@ -1326,23 +1326,23 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
             </button>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{rule.name}</p>
-              <p className="text-xs" style={{ color: '#949ba4' }}>{TRIGGER_LABELS[rule.trigger_type] ?? rule.trigger_type}</p>
+              <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{TRIGGER_LABELS[rule.trigger_type] ?? rule.trigger_type}</p>
             </div>
             <div className="flex gap-1.5">
               <button
                 onClick={() => movePriority(rule, -1)}
                 className="text-xs px-2 py-1 rounded transition-colors hover:bg-white/10"
-                style={{ color: '#b5bac1' }}
+                style={{ color: 'var(--theme-text-secondary)' }}
               >↑</button>
               <button
                 onClick={() => movePriority(rule, 1)}
                 className="text-xs px-2 py-1 rounded transition-colors hover:bg-white/10"
-                style={{ color: '#b5bac1' }}
+                style={{ color: 'var(--theme-text-secondary)' }}
               >↓</button>
               <button
                 onClick={() => startEdit(rule)}
                 className="text-xs px-2 py-1 rounded transition-colors hover:bg-white/10"
-                style={{ color: '#b5bac1' }}
+                style={{ color: 'var(--theme-text-secondary)' }}
               >
                 Edit
               </button>
@@ -1360,27 +1360,27 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
 
       {/* Rule editor form */}
       {editingId !== null && (
-        <div className="rounded-lg p-4 space-y-3" style={{ background: '#2b2d31', border: '1px solid #3f4147' }}>
+        <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-surface-elevated)' }}>
           <p className="text-sm font-semibold text-white">{editingId === "new" ? "New Rule" : "Edit Rule"}</p>
 
           <div className="space-y-1">
-            <label className="text-xs" style={{ color: '#b5bac1' }}>Rule name</label>
+            <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Rule name</label>
             <input
               value={form.name}
               onChange={(e) => updateForm("name", e.target.value)}
               placeholder="My Rule"
               className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-              style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+              style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs" style={{ color: '#b5bac1' }}>Trigger type</label>
+            <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Trigger type</label>
             <select
               value={form.trigger_type}
               onChange={(e) => updateForm("trigger_type", e.target.value)}
               className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-              style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+              style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
             >
               <option value="keyword_filter">Keyword Filter</option>
               <option value="regex_filter">Regex Filter</option>
@@ -1393,34 +1393,34 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
           {form.trigger_type === "keyword_filter" && (
             <>
               <div className="space-y-1">
-                <label className="text-xs" style={{ color: '#b5bac1' }}>Blocked keywords (comma-separated)</label>
+                <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Blocked keywords (comma-separated)</label>
                 <input
                   value={form.keywords}
                   onChange={(e) => updateForm("keywords", e.target.value)}
                   placeholder="spam, badword, ..."
                   className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-                  style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                  style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs" style={{ color: '#b5bac1' }}>Priority (lower runs first)</label>
+                <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Priority (lower runs first)</label>
                 <input
                   type="number"
                   min={1}
                   value={form.priority}
                   onChange={(e) => updateForm("priority", Number(e.target.value))}
                   className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-                  style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                  style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs" style={{ color: '#b5bac1' }}>Regex patterns (comma-separated, optional)</label>
+                <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Regex patterns (comma-separated, optional)</label>
                 <input
                   value={form.regex_patterns}
                   onChange={(e) => updateForm("regex_patterns", e.target.value)}
                   placeholder="\\bspam\\b, ..."
                   className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-                  style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                  style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
                 />
               </div>
             </>
@@ -1428,41 +1428,41 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
 
           {form.trigger_type === "regex_filter" && (
             <div className="space-y-1">
-              <label className="text-xs" style={{ color: '#b5bac1' }}>Regex patterns (comma-separated)</label>
+              <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Regex patterns (comma-separated)</label>
               <input
                 value={form.regex_patterns}
                 onChange={(e) => updateForm("regex_patterns", e.target.value)}
                 placeholder="\\bspam\\b, ..."
                 className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-                style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
               />
             </div>
           )}
 
           {form.trigger_type === "mention_spam" && (
             <div className="space-y-1">
-              <label className="text-xs" style={{ color: '#b5bac1' }}>Max mentions per message</label>
+              <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Max mentions per message</label>
               <input
                 type="number"
                 min={1}
                 value={form.mention_threshold}
                 onChange={(e) => updateForm("mention_threshold", Number(e.target.value))}
                 className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-                style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
               />
             </div>
           )}
 
           {form.trigger_type === "link_spam" && (
             <div className="space-y-1">
-              <label className="text-xs" style={{ color: '#b5bac1' }}>Max links per message</label>
+              <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Max links per message</label>
               <input
                 type="number"
                 min={1}
                 value={form.link_threshold}
                 onChange={(e) => updateForm("link_threshold", Number(e.target.value))}
                 className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-                style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
               />
             </div>
           )}
@@ -1470,33 +1470,33 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
           {form.trigger_type === "rapid_message" && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-xs" style={{ color: '#b5bac1' }}>Messages in window</label>
-                <input type="number" min={1} value={form.message_threshold} onChange={(e) => updateForm("message_threshold", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }} />
+                <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Messages in window</label>
+                <input type="number" min={1} value={form.message_threshold} onChange={(e) => updateForm("message_threshold", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }} />
               </div>
               <div className="space-y-1">
-                <label className="text-xs" style={{ color: '#b5bac1' }}>Window (seconds)</label>
-                <input type="number" min={1} value={form.window_seconds} onChange={(e) => updateForm("window_seconds", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }} />
+                <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Window (seconds)</label>
+                <input type="number" min={1} value={form.window_seconds} onChange={(e) => updateForm("window_seconds", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }} />
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <label className="text-xs" style={{ color: '#b5bac1' }}>Channel scope (optional)</label>
-              <select value={form.channel_scope} onChange={(e) => updateForm("channel_scope", e.target.value)} className="w-full px-2 py-1 rounded text-sm focus:outline-none" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}>
+              <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Channel scope (optional)</label>
+              <select value={form.channel_scope} onChange={(e) => updateForm("channel_scope", e.target.value)} className="w-full px-2 py-1 rounded text-sm focus:outline-none" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}>
                 <option value="">All channels</option>
                 {channels.map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs" style={{ color: '#b5bac1' }}>Minimum account age (minutes)</label>
-              <input type="number" min={0} value={form.min_account_age_minutes} onChange={(e) => updateForm("min_account_age_minutes", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }} />
+              <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>Minimum account age (minutes)</label>
+              <input type="number" min={0} value={form.min_account_age_minutes} onChange={(e) => updateForm("min_account_age_minutes", Number(e.target.value))} className="w-full px-3 py-1.5 rounded text-sm focus:outline-none" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }} />
             </div>
           </div>
 
           {/* Actions */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#b5bac1' }}>Actions</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--theme-text-secondary)' }}>Actions</p>
             <div className="space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.block_message} onChange={(e) => updateForm("block_message", e.target.checked)} className="rounded" />
@@ -1524,9 +1524,9 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
                       updateForm("timeout_duration", Math.min(Math.max(1, v), 2_419_200))
                     }}
                     className="w-20 px-2 py-1 rounded text-sm focus:outline-none"
-                    style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                    style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
                   />
-                  <span className="text-xs" style={{ color: '#949ba4' }}>seconds (max 28 days)</span>
+                  <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>seconds (max 28 days)</span>
                 </div>
               )}
 
@@ -1545,7 +1545,7 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
                     value={form.alert_channel_id}
                     onChange={(e) => updateForm("alert_channel_id", e.target.value)}
                     className="w-full px-2 py-1 rounded text-sm focus:outline-none"
-                    style={{ background: '#1e1f22', color: '#f2f3f5', border: '1px solid #3f4147' }}
+                    style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
                   >
                     {channels.map((c) => (
                       <option key={c.id} value={c.id}>#{c.name}</option>
@@ -1556,33 +1556,33 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
             </div>
           </div>
 
-          <div className="space-y-2 rounded p-3" style={{ background: '#1e1f22', border: '1px solid #3f4147' }}>
-            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#b5bac1' }}>Sample message evaluator</p>
+          <div className="space-y-2 rounded p-3" style={{ background: 'var(--theme-bg-tertiary)', border: '1px solid var(--theme-surface-elevated)' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Sample message evaluator</p>
             <input
               value={sampleMessage}
               onChange={(e) => setSampleMessage(e.target.value)}
               placeholder="Type a sample message to test this rule"
               className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-              style={{ background: '#111214', color: '#f2f3f5', border: '1px solid #3f4147' }}
+              style={{ background: '#111214', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
             />
-            <p className="text-xs" style={{ color: sampleMessage ? (sampleViolation ? '#f0b232' : '#57f287') : '#949ba4' }}>
+            <p className="text-xs" style={{ color: sampleMessage ? (sampleViolation ? 'var(--theme-warning)' : '#57f287') : 'var(--theme-text-muted)' }}>
               {sampleMessage
                 ? sampleViolation
                   ? `Triggered: ${sampleViolation.reason}`
                   : 'No trigger match.'
                 : 'Enter a sample message for live evaluation.'}
             </p>
-            <p className="text-xs" style={{ color: '#949ba4' }}>
+            <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
               Conflict resolution: lower priority value executes first; block/quarantine overrides warn-only outcomes.
             </p>
           </div>
 
           <div className="flex gap-2 pt-1">
-            <Button size="sm" onClick={handleSave} disabled={saving} style={{ background: '#5865f2' }}>
+            <Button size="sm" onClick={handleSave} disabled={saving} style={{ background: 'var(--theme-accent)' }}>
               {saving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
               {editingId === "new" ? "Create" : "Update"}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} style={{ color: '#b5bac1' }}>
+            <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} style={{ color: 'var(--theme-text-secondary)' }}>
               Cancel
             </Button>
           </div>
@@ -1590,10 +1590,10 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
       )}
 
       <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
-        <DialogContent style={{ background: '#313338', borderColor: '#1e1f22' }}>
+        <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}>
           <DialogHeader>
             <DialogTitle className="text-white">Delete AutoMod rule?</DialogTitle>
-            <DialogDescription style={{ color: '#b5bac1' }}>
+            <DialogDescription style={{ color: 'var(--theme-text-secondary)' }}>
               This action can&apos;t be undone. The rule <span className="font-semibold text-white">{deleteTarget?.name}</span> will stop moderating messages immediately.
             </DialogDescription>
           </DialogHeader>

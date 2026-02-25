@@ -251,17 +251,17 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       {replyTo && (
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-t text-xs"
-          style={{ background: "#2b2d31", borderBottom: "1px solid #1e1f22" }}
+          style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}
         >
-          <Reply className="w-3 h-3 -scale-x-100" style={{ color: "#949ba4" }} />
-          <span style={{ color: "#949ba4" }}>Replying to</span>
+          <Reply className="w-3 h-3 -scale-x-100" style={{ color: "var(--theme-text-muted)" }} />
+          <span style={{ color: "var(--theme-text-muted)" }}>Replying to</span>
           <span className="font-semibold text-white">
             {replyTo.author?.display_name || replyTo.author?.username}
           </span>
-          <span className="truncate flex-1" style={{ color: "#949ba4" }}>
+          <span className="truncate flex-1" style={{ color: "var(--theme-text-muted)" }}>
             {replyTo.content}
           </span>
-          <button onClick={onCancelReply} style={{ color: "#949ba4" }}>
+          <button onClick={onCancelReply} style={{ color: "var(--theme-text-muted)" }}>
             <X className="w-3 h-3 hover:text-white" />
           </button>
         </div>
@@ -271,7 +271,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       {files.length > 0 && (
         <div
           className="flex gap-2 p-2 flex-wrap rounded-t"
-          style={{ background: "#2b2d31", borderBottom: "1px solid #1e1f22" }}
+          style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}
         >
           {files.map((file, i) => (
             <div key={i} className="relative group w-24">
@@ -280,17 +280,17 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   src={getPreviewUrl(file)}
                   alt={file.name}
                   className="w-24 h-24 object-cover rounded-md border"
-                  style={{ borderColor: "#1e1f22" }}
+                  style={{ borderColor: "var(--theme-bg-tertiary)" }}
                 />
               ) : (
                 <div
                   className="w-24 h-24 rounded-md border flex items-center justify-center text-xs text-center p-2"
-                  style={{ background: "#1e1f22", color: "#b5bac1", borderColor: "#111214" }}
+                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)", borderColor: "#111214" }}
                 >
                   {file.name}
                 </div>
               )}
-              <div className="mt-1 text-[10px] truncate" style={{ color: "#949ba4" }} title={file.name}>
+              <div className="mt-1 text-[10px] truncate" style={{ color: "var(--theme-text-muted)" }} title={file.name}>
                 {file.name}
               </div>
               <button
@@ -301,7 +301,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   setFiles((prev) => prev.filter((_, j) => j !== i))
                 }}
                 className="motion-interactive absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
-                style={{ background: "#f23f43" }}
+                style={{ background: "var(--theme-danger)" }}
                 aria-label={`Remove ${file.name}`}
               >
                 <X className="w-3 h-3 text-white" />
@@ -317,13 +317,13 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           "flex items-end gap-2 rounded-lg px-3 py-2",
           replyTo || files.length > 0 ? "rounded-t-none" : ""
         )}
-        style={{ background: "#383a40" }}
+        style={{ background: "var(--theme-surface-input)" }}
       >
         {/* Attach file */}
         <button
           onClick={() => fileRef.current?.click()}
           className="motion-interactive motion-press flex-shrink-0 mb-1 hover:text-white"
-          style={{ color: "#b5bac1" }}
+          style={{ color: "var(--theme-text-secondary)" }}
           title="Attach File"
         >
           <Plus className="w-5 h-5" />
@@ -366,7 +366,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none py-1"
-            style={{ color: "#dcddde", maxHeight: "200px", lineHeight: "1.5" }}
+            style={{ color: "var(--theme-text-normal)", maxHeight: "200px", lineHeight: "1.5" }}
           />
         </div>
 
@@ -376,7 +376,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             ref={emojiButtonRef}
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             className="motion-interactive motion-press hover:text-white"
-            style={{ color: "#b5bac1" }}
+            style={{ color: "var(--theme-text-secondary)" }}
             title="Emoji"
           >
             <Smile className="w-5 h-5" />
@@ -387,20 +387,20 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               ref={emojiPickerRef}
               data-state="open"
               className="panel-surface-motion absolute bottom-8 right-0 p-2 rounded-lg shadow-xl z-50"
-              style={{ background: "#2b2d31", border: "1px solid #1e1f22", width: "320px" }}
+              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", width: "320px" }}
             >
               <div className="mb-2 flex items-center gap-2">
                 <button
                   onClick={() => setPickerTab("emoji")}
                   className="px-2 py-1 rounded text-xs font-medium"
-                  style={{ background: pickerTab === "emoji" ? "#5865f2" : "transparent", color: "#f2f3f5" }}
+                  style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
                 >
                   Emoji
                 </button>
                 <button
                   onClick={() => setPickerTab("gif")}
                   className="px-2 py-1 rounded text-xs font-medium"
-                  style={{ background: pickerTab === "gif" ? "#5865f2" : "transparent", color: "#f2f3f5" }}
+                  style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
                 >
                   GIFs
                 </button>
@@ -410,7 +410,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 <div className="max-h-72 overflow-y-auto pr-1 space-y-2">
                   {Object.entries(EMOJI_CATEGORIES).map(([category, emojis]) => (
                     <div key={category}>
-                      <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: "#949ba4" }}>{category}</p>
+                      <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--theme-text-muted)" }}>{category}</p>
                       <div className="grid grid-cols-8 gap-1">
                         {emojis.map((emoji) => (
                           <button
@@ -439,14 +439,14 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     onChange={(e) => setGifQuery(e.target.value)}
                     placeholder="Search GIFs"
                     className="w-full px-2 py-1.5 rounded text-xs focus:outline-none"
-                    style={{ background: "#1e1f22", color: "#dcddde" }}
+                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   />
                   {!process.env.NEXT_PUBLIC_GIPHY_API_KEY ? (
-                    <p className="text-xs" style={{ color: "#949ba4" }}>
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
                       Add NEXT_PUBLIC_GIPHY_API_KEY to enable GIF search.
                     </p>
                   ) : gifLoading ? (
-                    <p className="text-xs" style={{ color: "#949ba4" }}>Loading GIFs…</p>
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
                   ) : (
                     <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
                       {gifResults.map((gif) => (
@@ -465,7 +465,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                           title={gif.title}
                         >
                           <img src={gif.previewUrl} alt={gif.title} className="w-full h-16 object-cover" />
-                          <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "#b5bac1", background: "#1e1f22" }}>{gif.title || "GIF"}</span>
+                          <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
                         </button>
                       ))}
                     </div>
@@ -482,7 +482,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onClick={handleSend}
             disabled={sending}
             className="motion-interactive motion-press flex-shrink-0 mb-1 hover:text-white"
-            style={{ color: "#5865f2" }}
+            style={{ color: "var(--theme-accent)" }}
             title="Send Message"
           >
             <Send className="w-5 h-5" />
@@ -491,7 +491,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       </div>
       <div
         className="mt-1 px-1 flex items-center justify-between text-[11px]"
-        style={{ color: "#949ba4" }}
+        style={{ color: "var(--theme-text-muted)" }}
       >
         <div className="flex items-center gap-1.5">
           <Keyboard className="w-3 h-3" />

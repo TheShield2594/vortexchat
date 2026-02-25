@@ -47,14 +47,14 @@ export function NotificationSettingsModal({ open, onClose, serverId, channelId, 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent style={{ background: "#313338", borderColor: "#1e1f22" }} className="max-w-sm">
+      <DialogContent style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }} className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-white">Notification Settings</DialogTitle>
-          <p className="text-sm" style={{ color: "#949ba4" }}>{label}</p>
+          <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>{label}</p>
         </DialogHeader>
 
         {loading ? (
-          <div className="flex justify-center py-6"><Loader2 className="animate-spin" style={{ color: "#949ba4" }} /></div>
+          <div className="flex justify-center py-6"><Loader2 className="animate-spin" style={{ color: "var(--theme-text-muted)" }} /></div>
         ) : (
           <div className="space-y-2 pt-2">
             {OPTIONS.map((opt) => (
@@ -63,16 +63,16 @@ export function NotificationSettingsModal({ open, onClose, serverId, channelId, 
                 onClick={() => save(opt.mode)}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors"
                 style={{
-                  background: mode === opt.mode ? "rgba(88,101,242,0.15)" : "#2b2d31",
-                  border: mode === opt.mode ? "1px solid #5865f2" : "1px solid transparent",
+                  background: mode === opt.mode ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
+                  border: mode === opt.mode ? "1px solid var(--theme-accent)" : "1px solid transparent",
                 }}
               >
-                <span style={{ color: mode === opt.mode ? "#5865f2" : "#949ba4" }}>{opt.icon}</span>
+                <span style={{ color: mode === opt.mode ? "var(--theme-accent)" : "var(--theme-text-muted)" }}>{opt.icon}</span>
                 <div>
                   <p className="text-sm font-medium text-white">{opt.label}</p>
-                  <p className="text-xs" style={{ color: "#949ba4" }}>{opt.description}</p>
+                  <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{opt.description}</p>
                 </div>
-                {saving && mode === opt.mode && <Loader2 className="w-4 h-4 animate-spin ml-auto" style={{ color: "#5865f2" }} />}
+                {saving && mode === opt.mode && <Loader2 className="w-4 h-4 animate-spin ml-auto" style={{ color: "var(--theme-accent)" }} />}
               </button>
             ))}
           </div>
