@@ -138,83 +138,83 @@ Implementation principle to avoid "Discord with bloat": ship each opportunity as
 
 ## 4) Bug & Risk Audit (based on repo patterns)
 
-1. **Realtime event ordering drift**
+1. ~~**Realtime event ordering drift**
 Risk: INSERT/UPDATE + optimistic UI can duplicate or reorder messages.
 Repro: send rapidly from two clients while reconnecting one tab.
-Mitigation: client-generated UUID idempotency key + monotonic server sequence + dedupe reducer.
+Mitigation: client-generated UUID idempotency key + monotonic server sequence + dedupe reducer.~~~
 
-2. **Permission constant mismatch for moderation timeout** **(CONFIRMED CRITICAL)**
+2. ~~**Permission constant mismatch for moderation timeout** **(CONFIRMED CRITICAL)**
 Risk: Timeout route at `apps/web/app/api/servers/[serverId]/members/[userId]/timeout/route.ts:15` hardcodes `MODERATE_MEMBERS = 1 << 10` (1024) while `packages/shared/src/index.ts:20` defines `MODERATE_MEMBERS = 1 << 14` (16384). Bit 10 is actually `MUTE_MEMBERS`. **This means anyone with MUTE_MEMBERS permission can timeout users, bypassing the intended MODERATE_MEMBERS requirement.**
 Repro: assign only MODERATE_MEMBERS bit (16384) per shared package — timeout API will reject (checks wrong bit). Assign MUTE_MEMBERS bit (1024) — timeout API will allow (wrong authorization).
-Mitigation: Import `PERMISSIONS.MODERATE_MEMBERS` from shared package; add contract tests to prevent hardcoded permission constants in API routes. Note: `lib/moderation-auth.ts` correctly defines `BAN_MEMBERS = 16` and `ADMINISTRATOR = 128`.
+Mitigation: Import `PERMISSIONS.MODERATE_MEMBERS` from shared package; add contract tests to prevent hardcoded permission constants in API routes. Note: `lib/moderation-auth.ts` correctly defines `BAN_MEMBERS = 16` and `ADMINISTRATOR = 128`.~~
 
-3. **Auth/session drift between Supabase session and custom session tables**
+3. ~~**Auth/session drift between Supabase session and custom session tables**
 Risk: revoked custom session may not fully invalidate active Supabase auth tokens.
 Repro: revoke all sessions then retry with existing token/cookie race.
-Mitigation: unified revocation webhook/middleware check on every privileged route.
+Mitigation: unified revocation webhook/middleware check on every privileged route.~~
 
-4. **Friend/block enforcement gaps** **(CONFIRMED CRITICAL)**
+4. ~~**Friend/block enforcement gaps** **(CONFIRMED CRITICAL)**
 Risk: Block state enforced ONLY in friend request handler (`/api/friends`). NOT checked in: DM message send (`/api/dm/channels/[channelId]/messages`), reactions (no API exists), mentions, or search. **Users can message blocked contacts via the DM API.**
 Repro: block user via friends API, then POST to DM message endpoint — message succeeds.
-Mitigation: central authorization guard checking block state in all DM/message/reaction/mention write paths.
+Mitigation: central authorization guard checking block state in all DM/message/reaction/mention write paths.~~
 
-5. **Attachment security gaps** **(CONFIRMED)**
+5. ~~**Attachment security gaps** **(CONFIRMED)**
 Risk: MIME validation exists only for emoji uploads (PNG/WebP/GIF, 256KB). Message attachments have **zero server-side validation** — no MIME check, no file extension blocklist, no size enforcement, no AV scanning, no quarantine.
 Repro: upload renamed executable or malformed SVG as message attachment — accepted without validation.
-Mitigation: strict server-side MIME sniffing on all uploads, extension denylist for active content, async AV scan queue with quarantine state.
+Mitigation: strict server-side MIME sniffing on all uploads, extension denylist for active content, async AV scan queue with quarantine state.~~
 
-6. **Search data exposure edge cases**
+6. ~~**Search data exposure edge cases**
 Risk: search validates serverId and channelId membership but may not enforce per-channel effective permission checks (allow/deny overrides) for users with restricted channel access.
 Repro: user with revoked channel override searches server scope.
-Mitigation: enforce per-channel effective permission checks via `getChannelPermissions()` in search query builder.
+Mitigation: enforce per-channel effective permission checks via `getChannelPermissions()` in search query builder.~~
 
-7. **Notification policy inconsistency**
+7. ~~**Notification policy inconsistency**
 Risk: global/server/channel settings conflicts cause unexpected ping spam. No per-thread overrides exist.
 Repro: set contradictory overrides and trigger mentions.
-Mitigation: deterministic precedence engine (global→server→channel→thread) + explainability UI.
+Mitigation: deterministic precedence engine (global→server→channel→thread) + explainability UI.~~
 
-8. **Voice reconnection fragility** **(PARTIALLY MITIGATED)**
+8. ~~**Voice reconnection fragility** **(PARTIALLY MITIGATED)**
 Risk: transient network loss leaves ghost participants or stale mute state.
 Repro: cut connection mid-call, restore quickly.
 Current state: heartbeat (5s interval) + stale peer GC (45s timeout with connection state awareness) + `peer-rejoin-request` broadcast exists. **But no automatic room rejoin** — user must manually rejoin if local WebRTC connections die.
-Mitigation: add explicit reconnect state machine with automatic room rejoin after network recovery.
+Mitigation: add explicit reconnect state machine with automatic room rejoin after network recovery.~~
 
-9. **Rate-limit/spam vectors on high-frequency actions** **(PARTIALLY MITIGATED)**
+9. ~~**Rate-limit/spam vectors on high-frequency actions** **(PARTIALLY MITIGATED)**
 Risk: typing/reaction/message endpoints abused for spam/DoS.
 Current state: messages rate-limited at 5/10s per user (in-memory sliding window), appeals at 3/hr per user+server, typing indicator has client-side throttle. **In-memory rate limiter breaks on multi-instance deployment.** No rate limits on: channel creation, role changes, server settings, DM messages.
 Repro: script rapid POSTs from one account — message rate limit works; deploy second instance — rate limit bypassed.
-Mitigation: distributed rate limiter (Redis-backed), IP-based throttles, rate limits on all mutating endpoints.
+Mitigation: distributed rate limiter (Redis-backed), IP-based throttles, rate limits on all mutating endpoints.~~
 
-10. **Audit completeness gaps**
+10. ~~**Audit completeness gaps**
 Risk: some destructive actions may bypass audit insert paths.
 Current coverage: ban/kick/timeout/automod/role/settings/pin/screening/appeals all logged. **Reason field is not required** on destructive actions (passed when available but not enforced).
 Repro: perform delete/edit/role changes via all endpoints and compare audit coverage matrix.
-Mitigation: central audit middleware with required action taxonomy; require reason on ban/timeout.
+Mitigation: central audit middleware with required action taxonomy; require reason on ban/timeout.~~
 
-11. **Reactions API entirely missing** **(NEW — CRITICAL)**
+11. ~~**Reactions API entirely missing** **(NEW — CRITICAL)**
 Risk: `reactions` table exists in DB with realtime subscriptions active, but **no POST/DELETE API endpoints exist** to add or remove reactions. UI components may reference reaction data but cannot modify it.
 Repro: attempt to add a reaction to any message — no endpoint available.
-Mitigation: build `/api/messages/[messageId]/reactions` CRUD endpoints with optimistic UI, rapid-click idempotency, and block-state enforcement.
+Mitigation: build `/api/messages/[messageId]/reactions` CRUD endpoints with optimistic UI, rapid-click idempotency, and block-state enforcement.~~
 
-12. **No tab title unread count** **(NEW)**
+12. ~~**No tab title unread count** **(NEW)**
 Risk: users miss messages when VortexChat tab is not focused because browser tab title shows no unread badge. Discord and other chat apps show unread counts in tab title (e.g., "(3) Discord").
 Repro: receive DM/mention while in different browser tab — tab title unchanged.
-Mitigation: global unread count aggregation + `document.title` update hook.
+Mitigation: global unread count aggregation + `document.title` update hook.~~
 
-13. **DM feature gaps** **(NEW)**
+13. ~~**DM feature gaps** **(NEW)**
 Risk: DM messages lack attachment support (server messages have attachments), message editing, and message deletion. Users expect these core messaging features in DMs.
 Repro: attempt to edit/delete a DM message or attach a file — not possible.
-Mitigation: extend DM message routes with attachment, edit, and soft-delete support.
+Mitigation: extend DM message routes with attachment, edit, and soft-delete support.~~
 
-14. **No idle detection** **(NEW)**
+14. ~~**No idle detection** **(NEW)**
 Risk: presence system only auto-sets online (mount) and offline (beforeunload). No activity timer to transition to idle status after inactivity. Users appear permanently online.
 Repro: leave app open without interaction for 30+ minutes — status remains "online".
-Mitigation: add idle detection timer (e.g., 5min inactivity → idle) using mouse/keyboard/focus events.
+Mitigation: add idle detection timer (e.g., 5min inactivity → idle) using mouse/keyboard/focus events.~~
 
-15. **Individual session revocation missing** **(NEW)**
+15. ~~**Individual session revocation missing** **(NEW)**
 Risk: session management only supports bulk revoke-all. Users cannot revoke a single suspicious session without logging out everywhere.
 Repro: detect suspicious session in list — only option is "Revoke All Sessions".
-Mitigation: add DELETE `/api/auth/sessions/[sessionId]` endpoint for per-session revocation.
+Mitigation: add DELETE `/api/auth/sessions/[sessionId]` endpoint for per-session revocation~~
 
 ---
 
