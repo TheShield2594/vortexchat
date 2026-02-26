@@ -67,7 +67,7 @@ export async function POST(
     }
   }
 
-  let body: { content?: string }
+  let body: { content?: string; reply_to_id?: string }
   try {
     body = await req.json()
   } catch {
@@ -99,17 +99,47 @@ export async function POST(
     }
   }
 
+  // Validate reply_to_id if provided
+  const replyToId = body.reply_to_id ?? null
+  if (replyToId) {
+    const { data: replyTarget, error: replyError } = await supabase
+      .from("direct_messages")
+      .select("id, dm_channel_id")
+      .eq("id", replyToId)
+      .is("deleted_at", null)
+      .single()
+
+    if (replyError || !replyTarget) {
+      return NextResponse.json({ error: "Replied-to message not found" }, { status: 400 })
+    }
+    if (replyTarget.dm_channel_id !== channelId) {
+      return NextResponse.json({ error: "Replied-to message must be in the same channel" }, { status: 400 })
+    }
+  }
+
   const { data: message, error } = await supabase
     .from("direct_messages")
     .insert({
       dm_channel_id: channelId,
       sender_id: user.id,
       content,
-    })
+      ...(replyToId ? { reply_to_id: replyToId } : {}),
+    } as any)
     .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Fetch reply_to message info if this is a reply
+  let replyToMessage = null
+  if (replyToId) {
+    const { data: replyMsg } = await supabase
+      .from("direct_messages")
+      .select("id, content, sender_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
+      .eq("id", replyToId)
+      .single()
+    replyToMessage = replyMsg ?? null
+  }
 
   // Send push notifications (fire-and-forget)
   const senderName = (message as any)?.sender?.display_name || (message as any)?.sender?.username || "Someone"
@@ -120,5 +150,5 @@ export async function POST(
     excludeUserId: user.id,
   }).catch(() => {})
 
-  return NextResponse.json(message, { status: 201 })
+  return NextResponse.json({ ...message, reply_to_id: replyToId, reply_to: replyToMessage }, { status: 201 })
 }

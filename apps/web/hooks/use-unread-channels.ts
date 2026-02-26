@@ -17,8 +17,11 @@ export function useUnreadChannels(
   serverId: string,
   channelIds: string[],
   currentUserId: string,
-  activeChannelId: string | null
+  activeChannelId: string | null,
+  onNewUnread?: () => void
 ) {
+  const onNewUnreadRef = useRef(onNewUnread)
+  onNewUnreadRef.current = onNewUnread
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [unreadChannelIds, setUnreadChannelIds] = useState<Set<string>>(new Set())
   const [mentionCounts, setMentionCounts] = useState<Record<string, number>>({})
@@ -137,6 +140,7 @@ export function useUnreadChannels(
             next.add(msg.channel_id)
             return next
           })
+          onNewUnreadRef.current?.()
         }
       )
       .subscribe()

@@ -1,0 +1,68 @@
+import { NextRequest, NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+
+// PATCH /api/servers/[serverId]/channels/[channelId]/messages/[messageId] — edit a server channel message
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ serverId: string; channelId: string; messageId: string }> }
+) {
+  const { serverId, channelId, messageId } = await params
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { content } = await req.json()
+  if (!content?.trim())
+    return NextResponse.json({ error: "Content required" }, { status: 400 })
+
+  // Verify the message exists and belongs to this channel
+  const { data: message, error: msgError } = await supabase
+    .from("messages")
+    .select("id, author_id, channel_id")
+    .eq("id", messageId)
+    .eq("channel_id", channelId)
+    .is("deleted_at", null)
+    .single()
+
+  if (msgError || !message)
+    return NextResponse.json({ error: "Message not found" }, { status: 404 })
+
+  // Permission check: message author can always edit their own messages.
+  // Users with MANAGE_MESSAGES (or ADMINISTRATOR) can edit any message.
+  const isAuthor = message.author_id === user.id
+
+  if (!isAuthor) {
+    const { isAdmin, permissions } = await getChannelPermissions(
+      supabase,
+      serverId,
+      channelId,
+      user.id
+    )
+
+    if (!isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
+      return NextResponse.json(
+        { error: "You can only edit your own messages unless you have MANAGE_MESSAGES permission" },
+        { status: 403 }
+      )
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("messages")
+    .update({ content: content.trim(), edited_at: new Date().toISOString() })
+    .eq("id", messageId)
+    .eq("channel_id", channelId)
+    .select()
+    .single()
+
+  if (error || !data)
+    return NextResponse.json(
+      { error: error?.message ?? "Failed to update message" },
+      { status: error ? 500 : 404 }
+    )
+
+  return NextResponse.json(data)
+}

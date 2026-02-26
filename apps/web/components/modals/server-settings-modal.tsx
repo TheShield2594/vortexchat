@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
-import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap, Radio } from "lucide-react"
+import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap, Radio, Upload, X, Clock, Users } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +40,9 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [name, setName] = useState(liveServer.name)
   const [description, setDescription] = useState(liveServer.description ?? "")
+  const [iconFile, setIconFile] = useState<File | null>(null)
+  const [iconPreview, setIconPreview] = useState<string | null>(null)
+  const iconFileRef = useRef<HTMLInputElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
@@ -47,17 +50,55 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
     setDescription(liveServer.description ?? "")
   }, [liveServer.name, liveServer.description])
 
+  // Revoke blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (iconPreview && iconPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(iconPreview)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function handleIconFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIconFile(file)
+    if (iconPreview) URL.revokeObjectURL(iconPreview)
+    setIconPreview(URL.createObjectURL(file))
+  }
+
+  function clearIcon() {
+    setIconFile(null)
+    if (iconPreview) URL.revokeObjectURL(iconPreview)
+    setIconPreview(null)
+    if (iconFileRef.current) iconFileRef.current.value = ""
+  }
+
   async function handleSave() {
     if (!name.trim()) return
     setLoading(true)
     try {
-      const { error } = await supabase
-        .from("servers")
-        .update({ name: name.trim(), description: description.trim() || null })
-        .eq("id", server.id)
+      const formData = new FormData()
+      formData.append("name", name.trim())
+      formData.append("description", description.trim())
+      if (iconFile) {
+        formData.append("icon", iconFile)
+      }
 
-      if (error) throw error
-      updateServer(server.id, { name: name.trim(), description: description.trim() || null })
+      const res = await fetch(`/api/servers/${server.id}`, {
+        method: "PATCH",
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to save server settings")
+      }
+
+      const updated = await res.json()
+      updateServer(server.id, updated)
+      clearIcon()
       toast({ title: "Server settings saved!" })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to save", description: error.message })
@@ -142,6 +183,52 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
           {/* Main content */}
           <div className="flex-1 overflow-y-auto p-6">
             <TabsContent value="overview" className="mt-0 space-y-4">
+              {/* Server Icon */}
+              {isOwner && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Server Icon
+                  </Label>
+                  <div className="flex items-center gap-4">
+                    <div
+                      onClick={() => iconFileRef.current?.click()}
+                      className="w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-white/50 transition-colors overflow-hidden relative"
+                      style={{ borderColor: 'var(--theme-text-faint)' }}
+                    >
+                      {iconPreview || liveServer.icon_url ? (
+                        <img
+                          src={iconPreview || liveServer.icon_url!}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <Upload className="w-5 h-5 mx-auto mb-1" style={{ color: 'var(--theme-text-muted)' }} />
+                          <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>UPLOAD</span>
+                        </div>
+                      )}
+                    </div>
+                    {iconPreview && (
+                      <button
+                        onClick={clearIcon}
+                        className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                        style={{ color: 'var(--theme-text-muted)' }}
+                        title="Remove selected icon"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    <input
+                      ref={iconFileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleIconFileChange}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                   Server Name
@@ -150,6 +237,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={!isOwner}
+                  maxLength={100}
                   style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
                 />
               </div>
@@ -163,6 +251,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                   onChange={(e) => setDescription(e.target.value)}
                   disabled={!isOwner}
                   rows={3}
+                  maxLength={1024}
                   className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
                   style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-bg-tertiary)' }}
                   placeholder="What's this server about?"
@@ -195,9 +284,10 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
             </TabsContent>
 
             <TabsContent value="invites" className="mt-0 space-y-4">
+              {/* Legacy invite code section */}
               <div>
                 <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
-                  Invite Code
+                  Permanent Invite Code
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -228,9 +318,9 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                   Regenerate Code
                 </Button>
               )}
-              <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-                Share this code with friends to invite them to your server.
-              </p>
+              <div className="border-t pt-4 mt-4" style={{ borderColor: 'var(--theme-bg-tertiary)' }}>
+                <InvitesManager serverId={server.id} isOwner={isOwner} />
+              </div>
             </TabsContent>
 
           </div>
@@ -1611,6 +1701,287 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
               Delete rule
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ── Invites Manager ──────────────────────────────────────────────────────────
+
+interface InviteEntry {
+  code: string
+  server_id: string
+  channel_id: string | null
+  created_by: string | null
+  max_uses: number | null
+  uses: number
+  expires_at: string | null
+  temporary: boolean
+  created_at: string
+  creator?: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null
+}
+
+const EXPIRY_OPTIONS: { label: string; hours: number | null }[] = [
+  { label: "30 minutes", hours: 0.5 },
+  { label: "1 hour", hours: 1 },
+  { label: "6 hours", hours: 6 },
+  { label: "12 hours", hours: 12 },
+  { label: "1 day", hours: 24 },
+  { label: "7 days", hours: 168 },
+  { label: "Never", hours: null },
+]
+
+function formatRelativeTime(dateStr: string): string {
+  const ms = new Date(dateStr).getTime() - Date.now()
+  if (ms <= 0) return "Expired"
+  const totalSeconds = Math.floor(ms / 1000)
+  if (totalSeconds < 60) return `${totalSeconds}s`
+  const totalMinutes = Math.floor(totalSeconds / 60)
+  if (totalMinutes < 60) return `${totalMinutes}m`
+  const totalHours = Math.floor(totalMinutes / 60)
+  if (totalHours < 24) return `${totalHours}h`
+  const totalDays = Math.floor(totalHours / 24)
+  return `${totalDays}d`
+}
+
+/** Full invite management panel with table, create dialog, and revoke actions. */
+function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: boolean }) {
+  const { toast } = useToast()
+  const [invites, setInvites] = useState<InviteEntry[]>([])
+  const [loadingInvites, setLoadingInvites] = useState(true)
+  const [showCreateInvite, setShowCreateInvite] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [expiryHours, setExpiryHours] = useState<number | null>(24)
+  const [maxUses, setMaxUses] = useState<string>("")
+
+  useEffect(() => {
+    setLoadingInvites(true)
+    fetch(`/api/servers/${serverId}/invites`)
+      .then((r) => r.json())
+      .then((data) => {
+        setInvites(Array.isArray(data) ? data : [])
+        setLoadingInvites(false)
+      })
+      .catch(() => setLoadingInvites(false))
+  }, [serverId])
+
+  async function handleCreateInvite() {
+    setCreating(true)
+    try {
+      const body: Record<string, unknown> = {}
+      if (expiryHours !== null) body.expiresIn = expiryHours
+      const parsedMaxUses = parseInt(maxUses)
+      if (!isNaN(parsedMaxUses) && parsedMaxUses > 0) body.maxUses = parsedMaxUses
+
+      const res = await fetch(`/api/servers/${serverId}/invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to create invite")
+      }
+
+      const invite = await res.json()
+      setInvites((prev) => [invite, ...prev])
+      setShowCreateInvite(false)
+      setExpiryHours(24)
+      setMaxUses("")
+      toast({ title: "Invite created!" })
+
+      // Copy to clipboard automatically
+      navigator.clipboard.writeText(invite.code)
+      toast({ title: "Invite code copied to clipboard!" })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to create invite", description: error.message })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function handleRevoke(code: string) {
+    try {
+      const res = await fetch(`/api/servers/${serverId}/invites?code=${encodeURIComponent(code)}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to revoke invite")
+      }
+
+      setInvites((prev) => prev.filter((inv) => inv.code !== code))
+      toast({ title: "Invite revoked" })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to revoke invite", description: error.message })
+    }
+  }
+
+  function copyCode(code: string) {
+    navigator.clipboard.writeText(code)
+    toast({ title: "Invite code copied!" })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-white font-semibold text-sm">Custom Invites</p>
+          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+            Create invite links with custom expiry and usage limits.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateInvite(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-white"
+          style={{ background: 'var(--theme-accent)' }}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Create Invite
+        </button>
+      </div>
+
+      {/* Invites table */}
+      {loadingInvites ? (
+        <div className="flex justify-center py-6">
+          <Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} />
+        </div>
+      ) : invites.length === 0 ? (
+        <div className="text-center py-8 text-sm" style={{ color: 'var(--theme-text-muted)' }}>
+          No custom invites yet.
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {invites.map((inv) => {
+            const isExpired = inv.expires_at && new Date(inv.expires_at).getTime() < Date.now()
+            const isMaxed = inv.max_uses !== null && inv.uses >= inv.max_uses
+            return (
+              <div
+                key={inv.code}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+                style={{ background: 'var(--theme-bg-secondary)', opacity: isExpired || isMaxed ? 0.5 : 1 }}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyCode(inv.code)}
+                      className="font-mono text-sm font-semibold text-white hover:underline cursor-pointer"
+                      title="Click to copy"
+                    >
+                      {inv.code}
+                    </button>
+                    <button
+                      onClick={() => copyCode(inv.code)}
+                      className="p-0.5 rounded hover:bg-white/10"
+                      style={{ color: 'var(--theme-text-muted)' }}
+                      title="Copy invite code"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+                    {inv.creator && (
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        {inv.creator.display_name || inv.creator.username}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {inv.expires_at
+                        ? (isExpired ? "Expired" : `Expires in ${formatRelativeTime(inv.expires_at)}`)
+                        : "Never expires"}
+                    </span>
+                    <span>
+                      {inv.uses}{inv.max_uses !== null ? `/${inv.max_uses}` : ""} uses
+                    </span>
+                  </div>
+                </div>
+                {(isOwner || true) && (
+                  <button
+                    onClick={() => handleRevoke(inv.code)}
+                    className="p-1.5 rounded hover:bg-red-500/20 transition-colors flex-shrink-0"
+                    style={{ color: 'var(--theme-text-faint)' }}
+                    title="Revoke invite"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Create invite dialog */}
+      <Dialog open={showCreateInvite} onOpenChange={setShowCreateInvite}>
+        <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)', maxWidth: '420px' }}>
+          <DialogHeader>
+            <DialogTitle className="text-white">Create Invite</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+                Expire After
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                {EXPIRY_OPTIONS.map(({ label, hours }) => (
+                  <button
+                    key={label}
+                    onClick={() => setExpiryHours(hours)}
+                    className="py-1.5 px-2 rounded text-sm font-medium transition-colors"
+                    style={{
+                      background: expiryHours === hours ? 'var(--theme-accent)' : 'var(--theme-bg-secondary)',
+                      color: expiryHours === hours ? 'white' : 'var(--theme-text-muted)',
+                      border: `1px solid ${expiryHours === hours ? 'var(--theme-accent)' : 'transparent'}`,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+                Max Number of Uses
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                value={maxUses}
+                onChange={(e) => setMaxUses(e.target.value)}
+                placeholder="No limit"
+                style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
+              />
+              <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+                Leave empty for unlimited uses.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setShowCreateInvite(false)}
+                className="flex-1"
+                style={{ color: 'var(--theme-text-secondary)' }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateInvite}
+                disabled={creating}
+                className="flex-1"
+                style={{ background: 'var(--theme-accent)' }}
+              >
+                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Invite
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

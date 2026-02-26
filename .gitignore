@@ -26,6 +26,9 @@ build/
 .DS_Store
 Thumbs.db
 
+# Claude
+CLAUDE.md
+
 # Editor
 .vscode/
 .idea/

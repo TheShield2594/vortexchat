@@ -13,7 +13,7 @@ import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import type { AutoModRuleWithParsed } from "@/types/database"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { filterMentionsByBlockState } from "@/lib/blocking"
-import { validateAttachments } from "@/lib/attachment-validation"
+import { validateAttachments, validateAttachmentContent } from "@/lib/attachment-validation"
 
 // Base projection — does NOT embed reply_to via FK join because the
 // self-referential FK is not guaranteed to be in PostgREST's schema cache.
@@ -193,6 +193,16 @@ export async function POST(request: Request) {
   const attachmentValidation = validateAttachments(attachments)
   if (!attachmentValidation.valid) {
     return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
+  }
+
+  // --- Server-side MIME type verification using magic bytes ---
+  // Detects mismatched extensions (e.g., .jpg that is actually an executable)
+  // TODO: AV scanning requires external service integration
+  if (attachments.length > 0) {
+    const contentValidation = await validateAttachmentContent(attachments)
+    if (!contentValidation.valid) {
+      return NextResponse.json({ error: contentValidation.error }, { status: 400 })
+    }
   }
 
   // --- Fetch channel for server context and basic validation ---

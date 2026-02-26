@@ -1,8 +1,8 @@
 "use client"
 
-import { memo, useId, useState } from "react"
+import { memo, useCallback, useId, useRef, useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
@@ -17,6 +17,7 @@ import { LinkEmbed, extractFirstUrl, extractGiphyUrl, getEmbeddableGiphyUrl, str
 import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
 import { CreateThreadModal } from "@/components/modals/create-thread-modal"
+import { ReportModal } from "@/components/modals/report-modal"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 const POLL_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"]
@@ -79,6 +80,7 @@ export const MessageItem = memo(function MessageItem({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showCreateThread, setShowCreateThread] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
   const { toast } = useToast()
   const isOwn = message.author_id === currentUserId
   const { activeServerId, membersByServer } = useAppStore(
@@ -650,6 +652,14 @@ export const MessageItem = memo(function MessageItem({
         }}>
           <Hash className="w-4 h-4 mr-2" /> Copy Message ID
         </ContextMenuItem>
+        {!isOwn && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={() => setShowReportModal(true)}>
+              <Flag className="w-4 h-4 mr-2" /> Report Message
+            </ContextMenuItem>
+          </>
+        )}
         {isOwn && (
           <>
             <ContextMenuSeparator />
@@ -660,6 +670,17 @@ export const MessageItem = memo(function MessageItem({
         )}
       </ContextMenuContent>
     </ContextMenu>
+
+    {!isOwn && (
+      <ReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={message.author_id}
+        reportedUsername={displayName}
+        reportedMessageId={message.id}
+        serverId={activeServerId ?? undefined}
+      />
+    )}
 
     {onThreadCreated && (
       <CreateThreadModal
@@ -701,18 +722,52 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
     .filter((entry) => entry.attachment.content_type?.startsWith("image/"))
     .map((entry) => entry.index)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const [panOrigin, setPanOrigin] = useState({ x: 50, y: 50 })
+  const imageContainerRef = useRef<HTMLDivElement>(null)
 
-  const openImage = (index: number) => setLightboxIndex(index)
-  const closeImage = () => setLightboxIndex(null)
+  const openImage = (index: number) => { setLightboxIndex(index); setZoom(1); setPanOrigin({ x: 50, y: 50 }) }
+  const closeImage = () => { setLightboxIndex(null); setZoom(1) }
 
   const currentImageListIndex = lightboxIndex === null ? -1 : imageIndexes.indexOf(lightboxIndex)
   const currentAttachment = lightboxIndex === null ? null : attachments[lightboxIndex]
 
-  function move(direction: 1 | -1) {
+  const move = useCallback((direction: 1 | -1) => {
     if (currentImageListIndex < 0) return
     const nextIndex = (currentImageListIndex + direction + imageIndexes.length) % imageIndexes.length
     setLightboxIndex(imageIndexes[nextIndex])
-  }
+    setZoom(1)
+    setPanOrigin({ x: 50, y: 50 })
+  }, [currentImageListIndex, imageIndexes])
+
+  const handleImageClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (zoom === 1) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const x = ((e.clientX - rect.left) / rect.width) * 100
+      const y = ((e.clientY - rect.top) / rect.height) * 100
+      setPanOrigin({ x, y })
+      setZoom(2)
+    } else {
+      setZoom(1)
+      setPanOrigin({ x: 50, y: 50 })
+    }
+  }, [zoom])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (zoom <= 1) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * 100
+    const y = ((e.clientY - rect.top) / rect.height) * 100
+    setPanOrigin({ x, y })
+  }, [zoom])
+
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setZoom((prev) => {
+      const next = prev + (e.deltaY < 0 ? 0.5 : -0.5)
+      return Math.max(1, Math.min(5, next))
+    })
+  }, [])
 
   return (
     <>
@@ -731,20 +786,56 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
             } else if (event.key === "ArrowLeft") {
               event.preventDefault()
               move(-1)
+            } else if (event.key === "+" || event.key === "=") {
+              event.preventDefault()
+              setZoom((prev) => Math.min(5, prev + 0.5))
+            } else if (event.key === "-") {
+              event.preventDefault()
+              setZoom((prev) => Math.max(1, prev - 0.5))
+            } else if (event.key === "0") {
+              event.preventDefault()
+              setZoom(1)
+              setPanOrigin({ x: 50, y: 50 })
             }
           }}
         >
           {currentAttachment && (
             <div className="space-y-3">
-              <img src={currentAttachment.url} alt={currentAttachment.filename} className="w-full max-h-[75vh] object-contain rounded" />
+              <div
+                ref={imageContainerRef}
+                className="overflow-hidden rounded"
+                style={{ cursor: zoom > 1 ? "zoom-out" : "zoom-in" }}
+                onClick={handleImageClick}
+                onMouseMove={handleMouseMove}
+                onWheel={handleWheel}
+              >
+                <img
+                  src={currentAttachment.url}
+                  alt={currentAttachment.filename}
+                  className="w-full max-h-[75vh] object-contain"
+                  draggable={false}
+                  style={{
+                    transform: `scale(${zoom})`,
+                    transformOrigin: `${panOrigin.x}% ${panOrigin.y}%`,
+                    transition: zoom === 1 ? "transform 0.2s ease-out" : "none",
+                  }}
+                />
+              </div>
               <div className="flex items-center justify-between text-xs" style={{ color: "var(--theme-text-secondary)" }}>
                 <span>{currentAttachment.filename}</span>
-                {imageIndexes.length > 1 && (
-                  <span>
-                    <button type="button" className="px-2 py-1 rounded hover:bg-white/10" onClick={() => move(-1)}>← Prev</button>
-                    <button type="button" className="px-2 py-1 rounded hover:bg-white/10 ml-2" onClick={() => move(1)}>Next →</button>
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {zoom > 1 && (
+                    <span className="px-2 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.1)" }}>
+                      {Math.round(zoom * 100)}%
+                    </span>
+                  )}
+                  {imageIndexes.length > 1 && (
+                    <span>
+                      <button type="button" className="px-2 py-1 rounded hover:bg-white/10" onClick={() => move(-1)} aria-label="Previous image">← Prev</button>
+                      <button type="button" className="px-2 py-1 rounded hover:bg-white/10 ml-2" onClick={() => move(1)} aria-label="Next image">Next →</button>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           )}

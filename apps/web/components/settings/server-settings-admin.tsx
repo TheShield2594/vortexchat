@@ -1,11 +1,12 @@
 "use client"
 
-import { Shield, ShieldCheck, Zap } from "lucide-react"
+import { Shield, ShieldCheck, Zap, Flag } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleManager } from "@/components/roles/role-manager"
 import { TemplateManager } from "@/components/modals/template-manager"
 import { AutoModTab, EmojisTab, ModerationTab, ScreeningTab, SocialAlertsTab, WebhooksTab } from "@/components/modals/server-settings-modal"
 import { AppsTab } from "@/components/settings/apps-tab"
+import { ReportsTab } from "@/components/settings/reports-tab"
 
 interface Channel {
   id: string
@@ -49,6 +50,10 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
                 <Zap className="mr-1.5 h-3.5 w-3.5" />
                 AutoMod
               </TabsTrigger>
+              <TabsTrigger value="reports" className="w-full justify-start">
+                <Flag className="mr-1.5 h-3.5 w-3.5" />
+                Reports
+              </TabsTrigger>
               <TabsTrigger value="templates" className="w-full justify-start">Templates</TabsTrigger>
             </TabsList>
           </div>
@@ -77,6 +82,9 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
             </TabsContent>
             <TabsContent value="automod" className="mt-0">
               <AutoModTab serverId={serverId} channels={channels} open />
+            </TabsContent>
+            <TabsContent value="reports" className="mt-0">
+              <ReportsTab serverId={serverId} />
             </TabsContent>
             <TabsContent value="templates" className="mt-0">
               {isOwner ? <TemplateManager serverId={serverId} /> : <p style={{ color: "var(--theme-text-secondary)" }}>Only the owner can import/export templates.</p>}

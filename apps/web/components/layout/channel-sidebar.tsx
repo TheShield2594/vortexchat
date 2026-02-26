@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, MessageCircle,
+  Plus, Clipboard, Pencil, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, MessageCircle,
   MicOff, Headphones
 } from "lucide-react"
 import {
@@ -37,6 +37,7 @@ import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, C
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { CreateChannelModal } from "@/components/modals/create-channel-modal"
+import { EditChannelModal } from "@/components/modals/edit-channel-modal"
 import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
 import { UserPanel } from "@/components/layout/user-panel"
 import { QuickSwitcherModal } from "@/components/modals/quickswitcher-modal"
@@ -44,6 +45,7 @@ import { SearchModal } from "@/components/modals/search-modal"
 import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal"
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
 import { useUnreadChannels } from "@/hooks/use-unread-channels"
+import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { useKeyboardShortcuts, type ShortcutHandlers } from "@/hooks/use-keyboard-shortcuts"
 
 const NO_CATEGORY = "__no_category__"
@@ -152,6 +154,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [items, setItems] = useState<Record<string, string[]>>({})
   const [overContainerId, setOverContainerId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [editTarget, setEditTarget] = useState<ChannelRow | null>(null)
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
@@ -307,11 +310,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
   // Track unread state for all text channels in this server
   const textChannelIds = useMemo(() => channels.filter((c) => c.type === "text").map((c) => c.id), [channels])
+  const { playNotification } = useNotificationSound()
   const { unreadChannelIds, mentionCounts, markRead } = useUnreadChannels(
     server.id,
     textChannelIds,
     currentUserId,
-    activeChannelId
+    activeChannelId,
+    playNotification
   )
 
   const navigableChannelIds = useMemo(
@@ -649,6 +654,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                               }
                               router.push(`/channels/${server.id}/${channel.id}`)
                             }}
+                            onEdit={() => setEditTarget(channel)}
                             onDelete={() => setDeleteTarget({ id: channel.id, name: channel.name })}
                           />
                         ))}
@@ -738,6 +744,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           onOpenChange={setShortcutHelpOpen}
           handlers={shortcutHandlers}
         />
+        {editTarget && (
+          <EditChannelModal
+            open={!!editTarget}
+            onClose={() => setEditTarget(null)}
+            channel={editTarget}
+          />
+        )}
 
         {/* Delete channel confirmation dialog */}
         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
@@ -892,6 +905,7 @@ function SortableChannelItem({
   activeThreadCount,
   voiceParticipants,
   onClick,
+  onEdit,
   onDelete,
 }: {
   channel: ChannelRow
@@ -904,6 +918,7 @@ function SortableChannelItem({
   activeThreadCount?: number
   voiceParticipants?: VoiceParticipant[]
   onClick: () => void
+  onEdit: () => void
   onDelete: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: channel.id })
@@ -1028,6 +1043,9 @@ function SortableChannelItem({
           {canManageChannels && (
             <>
               <ContextMenuSeparator />
+              <ContextMenuItem onClick={onEdit}>
+                <Pencil className="w-4 h-4 mr-2" /> Edit Channel
+              </ContextMenuItem>
               <ContextMenuItem variant="destructive" onClick={onDelete}>
                 <Trash2 className="w-4 h-4 mr-2" /> Delete Channel
               </ContextMenuItem>

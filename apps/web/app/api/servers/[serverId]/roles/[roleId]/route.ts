@@ -1,0 +1,199 @@
+import { NextRequest, NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+
+/**
+ * Fetch the actor's highest role position in the server.
+ * Returns -1 when the actor has no roles (so any positive-positioned role is out of reach).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getActorMaxRolePosition(supabase: any, serverId: string, actorId: string): Promise<number> {
+  const { data } = await supabase
+    .from("member_roles")
+    .select("roles(position)")
+    .eq("server_id", serverId)
+    .eq("user_id", actorId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return Math.max(-1, ...(data ?? []).map((mr: any) => mr.roles?.position ?? -1))
+}
+
+// PATCH /api/servers/[serverId]/roles/[roleId] — update a role
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ serverId: string; roleId: string }> }
+) {
+  const { serverId, roleId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Permission check: MANAGE_ROLES required
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
+    return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  // Fetch the target role
+  const { data: targetRole, error: roleError } = await supabase
+    .from("roles")
+    .select("*")
+    .eq("id", roleId)
+    .eq("server_id", serverId)
+    .single()
+
+  if (roleError || !targetRole) {
+    return NextResponse.json({ error: "Role not found" }, { status: 404 })
+  }
+
+  // Cannot edit the @everyone default role's position
+  if (targetRole.is_default && body.position !== undefined) {
+    return NextResponse.json(
+      { error: "Cannot change the position of the default role" },
+      { status: 400 }
+    )
+  }
+
+  // Role hierarchy enforcement: non-admins cannot edit roles at or above their own highest role
+  if (!isAdmin) {
+    const actorMaxPosition = await getActorMaxRolePosition(supabase, serverId, user.id)
+    if (targetRole.position >= actorMaxPosition) {
+      return NextResponse.json(
+        { error: "Cannot edit a role at or above your own highest role" },
+        { status: 403 }
+      )
+    }
+  }
+
+  // Build update payload from allowed fields
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updates: Record<string, any> = {}
+  if (body.name !== undefined) updates.name = String(body.name)
+  if (body.color !== undefined) updates.color = String(body.color)
+  if (body.permissions !== undefined) updates.permissions = Number(body.permissions)
+  if (body.is_hoisted !== undefined) updates.is_hoisted = Boolean(body.is_hoisted)
+  if (body.mentionable !== undefined) updates.mentionable = Boolean(body.mentionable)
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
+  }
+
+  const { data: updatedRole, error: updateError } = await supabase
+    .from("roles")
+    .update(updates)
+    .eq("id", roleId)
+    .eq("server_id", serverId)
+    .select()
+    .single()
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  }
+
+  // Build before/after diff for audit log
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const before: Record<string, any> = {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const after: Record<string, any> = {}
+  for (const key of Object.keys(updates)) {
+    before[key] = targetRole[key as keyof typeof targetRole]
+    after[key] = updatedRole[key as keyof typeof updatedRole]
+  }
+
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user.id,
+    action: "role_updated",
+    target_id: roleId,
+    target_type: "role",
+    changes: {
+      role_name: targetRole.name,
+      before,
+      after,
+    },
+  })
+
+  return NextResponse.json(updatedRole)
+}
+
+// DELETE /api/servers/[serverId]/roles/[roleId] — delete a role
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ serverId: string; roleId: string }> }
+) {
+  const { serverId, roleId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Permission check: MANAGE_ROLES required
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
+    return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
+  }
+
+  // Fetch the target role
+  const { data: targetRole, error: roleError } = await supabase
+    .from("roles")
+    .select("*")
+    .eq("id", roleId)
+    .eq("server_id", serverId)
+    .single()
+
+  if (roleError || !targetRole) {
+    return NextResponse.json({ error: "Role not found" }, { status: 404 })
+  }
+
+  // Cannot delete the @everyone default role
+  if (targetRole.is_default) {
+    return NextResponse.json(
+      { error: "Cannot delete the default role" },
+      { status: 400 }
+    )
+  }
+
+  // Role hierarchy enforcement: non-admins cannot delete roles at or above their own highest role
+  if (!isAdmin) {
+    const actorMaxPosition = await getActorMaxRolePosition(supabase, serverId, user.id)
+    if (targetRole.position >= actorMaxPosition) {
+      return NextResponse.json(
+        { error: "Cannot delete a role at or above your own highest role" },
+        { status: 403 }
+      )
+    }
+  }
+
+  const { error: deleteError } = await supabase
+    .from("roles")
+    .delete()
+    .eq("id", roleId)
+    .eq("server_id", serverId)
+
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 })
+  }
+
+  // Audit log the deletion
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user.id,
+    action: "role_deleted",
+    target_id: roleId,
+    target_type: "role",
+    changes: {
+      role_name: targetRole.name,
+      role_color: targetRole.color,
+      role_position: targetRole.position,
+      role_permissions: targetRole.permissions,
+    },
+  })
+
+  return new NextResponse(null, { status: 204 })
+}

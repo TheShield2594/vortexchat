@@ -60,9 +60,9 @@ export async function GET(
   const before = searchParams.get("before")
   const limit = 50
 
-  let query = supabase
+  let query = (supabase as any)
     .from("direct_messages")
-    .select("id, dm_channel_id, sender_id, content, edited_at, deleted_at, created_at, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
+    .select("id, dm_channel_id, sender_id, content, edited_at, deleted_at, created_at, reply_to_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
     .eq("dm_channel_id", channelId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
@@ -74,12 +74,34 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Resolve replied-to messages
+  const replyIds: string[] = (messages ?? [])
+    .map((m: any) => m.reply_to_id as string | null)
+    .filter((id: string | null): id is string => !!id)
+  const uniqueReplyIds: string[] = [...new Set(replyIds)]
+
+  let replyMap: Record<string, any> = {}
+  if (uniqueReplyIds.length > 0) {
+    const { data: replyMessages } = await supabase
+      .from("direct_messages")
+      .select("id, content, sender_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
+      .in("id", uniqueReplyIds)
+    if (replyMessages) {
+      replyMap = Object.fromEntries(replyMessages.map((m) => [m.id, m]))
+    }
+  }
+
+  const enrichedMessages = (messages ?? []).map((m: any) => ({
+    ...m,
+    reply_to: m.reply_to_id ? (replyMap[m.reply_to_id] ?? null) : null,
+  }))
+
   // Mark as read
   await supabase.rpc("mark_dm_read", { p_dm_channel_id: channelId })
 
   return NextResponse.json({
     channel: { ...channel, members, partner },
-    messages: (messages ?? []).reverse(),
+    messages: enrichedMessages.reverse(),
     has_more: (messages?.length ?? 0) === limit,
   })
 }

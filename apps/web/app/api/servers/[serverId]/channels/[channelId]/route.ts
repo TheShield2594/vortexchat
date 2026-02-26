@@ -1,0 +1,113 @@
+import { NextRequest, NextResponse } from "next/server"
+import { requireServerPermission } from "@/lib/server-auth"
+import type { Json } from "@/types/database"
+
+type Params = { params: Promise<{ serverId: string; channelId: string }> }
+
+const VALID_SLOWMODE_VALUES = [0, 5, 10, 15, 30, 60]
+
+/**
+ * PATCH /api/servers/[serverId]/channels/[channelId]
+ *
+ * Editable fields: name, topic, nsfw, slowmode_delay
+ * Requires MANAGE_CHANNELS permission.
+ */
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const { serverId, channelId } = await params
+  const { supabase, user, error } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
+  if (error) return error
+
+  let body: Record<string, unknown>
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  // Verify the channel belongs to this server
+  const { data: channel } = await supabase
+    .from("channels")
+    .select("id, server_id, name, topic, nsfw, slowmode_delay")
+    .eq("id", channelId)
+    .eq("server_id", serverId)
+    .single()
+
+  if (!channel)
+    return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  const updates: Record<string, unknown> = {}
+  const changes: Record<string, { old: unknown; new: unknown }> = {}
+
+  // Validate name
+  if ("name" in body) {
+    const name = body.name
+    if (typeof name !== "string" || name.trim().length < 1 || name.trim().length > 100) {
+      return NextResponse.json({ error: "name must be 1–100 characters" }, { status: 400 })
+    }
+    const sanitized = name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+    if (sanitized.length < 1) {
+      return NextResponse.json({ error: "name must contain at least one valid character" }, { status: 400 })
+    }
+    updates.name = sanitized
+    changes.name = { old: channel.name, new: sanitized }
+  }
+
+  // Validate topic
+  if ("topic" in body) {
+    const topic = body.topic
+    if (topic !== null && (typeof topic !== "string" || topic.length > 1024)) {
+      return NextResponse.json({ error: "topic must be a string of 0–1024 characters or null" }, { status: 400 })
+    }
+    const sanitized = typeof topic === "string" ? (topic.trim() || null) : null
+    updates.topic = sanitized
+    changes.topic = { old: channel.topic, new: sanitized }
+  }
+
+  // Validate nsfw
+  if ("nsfw" in body) {
+    const nsfw = body.nsfw
+    if (typeof nsfw !== "boolean") {
+      return NextResponse.json({ error: "nsfw must be a boolean" }, { status: 400 })
+    }
+    updates.nsfw = nsfw
+    changes.nsfw = { old: channel.nsfw, new: nsfw }
+  }
+
+  // Validate slowmode_delay
+  if ("slowmode_delay" in body) {
+    const slowmode = body.slowmode_delay
+    if (typeof slowmode !== "number" || !VALID_SLOWMODE_VALUES.includes(slowmode)) {
+      return NextResponse.json(
+        { error: `slowmode_delay must be one of: ${VALID_SLOWMODE_VALUES.join(", ")}` },
+        { status: 400 }
+      )
+    }
+    updates.slowmode_delay = slowmode
+    changes.slowmode_delay = { old: channel.slowmode_delay, new: slowmode }
+  }
+
+  if (Object.keys(updates).length === 0)
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
+
+  const { data: updated, error: dbErr } = await supabase
+    .from("channels")
+    .update(updates)
+    .eq("id", channelId)
+    .select()
+    .single()
+
+  if (dbErr)
+    return NextResponse.json({ error: dbErr.message }, { status: 500 })
+
+  // Audit log
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user!.id,
+    action: "channel_update",
+    target_id: channelId,
+    target_type: "channel",
+    changes: changes as unknown as Json,
+  })
+
+  return NextResponse.json(updated)
+}
