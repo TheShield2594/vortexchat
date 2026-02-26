@@ -19,13 +19,12 @@ import { SearchModal } from "@/components/modals/search-modal"
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
+import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
+import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
 import {
   type OutboxEntry,
-  getDraft,
-  loadOutbox,
   removeOutboxEntry,
   resolveReplayOrder,
-  saveOutbox,
   setDraft,
   updateOutboxStatus,
   upsertOutboxEntry,
@@ -71,10 +70,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [activeThread, setActiveThread] = useState<ThreadRow | null>(null)
-  const [outbox, setOutbox] = useState<OutboxEntry[]>([])
-  const [draft, setDraftState] = useState("")
-  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine)
-  const [isAtBottom, setIsAtBottom] = useState(true)
   const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0)
   const [liveAnnouncement, setLiveAnnouncement] = useState("")
   const [unreadAnchorMessageId, setUnreadAnchorMessageId] = useState<string | null>(null)
@@ -87,14 +82,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
-  const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jumpedRef = useRef(false)
   const lastJumpMessageIdRef = useRef<string | null>(null)
   const jumpSignatureRef = useRef<string | null>(null)
-  const outboxRef = useRef<OutboxEntry[]>([])
-  const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const draftRef = useRef("")
-  const prevChannelIdRef = useRef(channel.id)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
@@ -164,23 +154,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [currentUser, currentUserId])
 
-  const setAndPersistOutbox = useCallback((next: OutboxEntry[] | ((current: OutboxEntry[]) => OutboxEntry[])) => {
-    const resolved = typeof next === "function" ? next(outboxRef.current) : next
-    setOutbox(resolved)
-    outboxRef.current = resolved
-    saveOutbox(resolved)
-  }, [])
-
-  const resetComposerState = useCallback(() => {
-    setReplyTo(null)
-    setDraftState("")
-    if (draftPersistTimerRef.current) {
-      clearTimeout(draftPersistTimerRef.current)
-      draftPersistTimerRef.current = null
-    }
-    setDraft(channel.id, "")
-  }, [channel.id])
-
   const upsertMessage = useCallback((incoming: MessageWithAuthor) => {
     setMessages((prev) => {
       const existingIndex = prev.findIndex((m) => {
@@ -236,6 +209,25 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     reply_to: replyToMessage,
   })
   }, [optimisticAuthor])
+
+  const {
+    draft,
+    draftPersistTimerRef,
+    draftRef,
+    isOnline,
+    outbox,
+    outboxRef,
+    resetComposerState,
+    setAndPersistOutbox,
+    setDraftState,
+    setIsOnline,
+  } = useChatOutbox({
+    channelId: channel.id,
+    initialIsOnline: typeof navigator === "undefined" ? true : navigator.onLine,
+    makeOptimisticMessage,
+    setMessages,
+    setReplyTo,
+  })
 
   const persistOutboxAttachments = useCallback(async (messageId: string, entry: OutboxEntry) => {
     if (!entry.attachments?.length) return
@@ -525,6 +517,19 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [channel.id])
 
+  const { isAtBottom } = useChatScroll({
+    hasMoreHistory,
+    loadOlderMessages,
+    messageScrollerRef,
+    paginationRequestRef,
+    scrollStorageKey,
+    unreadAnchorStorageKey,
+    onReachedBottom: () => {
+      setPendingNewMessageCount(0)
+      setUnreadAnchorMessageId(null)
+    },
+  })
+
   useEffect(() => {
     const savedAnchor = typeof window === "undefined" ? null : window.sessionStorage.getItem(unreadAnchorStorageKey)
     if (savedAnchor && initialMessages.some((message) => message.id === savedAnchor)) {
@@ -559,67 +564,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [unreadAnchorMessageId, unreadDividerMessageId, unreadAnchorStorageKey])
 
   useEffect(() => {
-    const persisted = loadOutbox()
-    outboxRef.current = persisted
-    setOutbox(persisted)
-    setDraftState(getDraft(channel.id))
-
-    const channelOutbox = persisted.filter((entry) => entry.channelId === channel.id)
-    if (channelOutbox.length > 0) {
-      setMessages((prev) => {
-        const known = new Set(prev.map((message) => message.id))
-        const optimistic = channelOutbox
-          .filter((entry) => !known.has(entry.id))
-          .map(makeOptimisticMessage)
-        return [...prev, ...optimistic]
-      })
-    }
-  }, [channel.id, makeOptimisticMessage])
-
-  useEffect(() => {
     const onOnline = () => {
       reconnectCycleRef.current += 1
       unreadAnchorCycleRef.current = null
       setIsOnline(true)
     }
-    const onOffline = () => setIsOnline(false)
     window.addEventListener("online", onOnline)
-    window.addEventListener("offline", onOffline)
     return () => {
       window.removeEventListener("online", onOnline)
-      window.removeEventListener("offline", onOffline)
     }
-  }, [])
-
-
-  useEffect(() => {
-    outboxRef.current = outbox
-  }, [outbox])
-
-  useEffect(() => {
-    draftRef.current = draft
-  }, [draft])
-
-  useEffect(() => {
-    messagesRef.current = messages
-  }, [messages])
-
-  const flushDraftNow = useCallback((channelId: string) => {
-    setDraft(channelId, draftRef.current)
-  }, [])
-
-  useEffect(() => {
-    const channelIdAtEffect = channel.id
-    prevChannelIdRef.current = channelIdAtEffect
-
-    return () => {
-      if (draftPersistTimerRef.current) {
-        flushDraftNow(channelIdAtEffect)
-        clearTimeout(draftPersistTimerRef.current)
-        draftPersistTimerRef.current = null
-      }
-    }
-  }, [channel.id, flushDraftNow])
+  }, [setIsOnline])
 
   useEffect(() => {
     if (!isOnline) return
@@ -633,54 +587,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       bottomRef.current?.scrollIntoView({ behavior: "auto" })
     })
   }, [channel.id])
-
-  useEffect(() => {
-    const container = messageScrollerRef.current
-    if (!container) return
-
-    const persistScroll = () => {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem(scrollStorageKey, String(container.scrollTop))
-      }
-    }
-
-    const onScroll = () => {
-      if (container.scrollTop < 120 && hasMoreHistory && !paginationRequestRef.current) {
-        void loadOlderMessages()
-      }
-
-      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
-      const nextIsAtBottom = distanceFromBottom < 120
-      setIsAtBottom(nextIsAtBottom)
-
-      if (scrollSaveTimerRef.current) {
-        clearTimeout(scrollSaveTimerRef.current)
-      }
-      scrollSaveTimerRef.current = setTimeout(() => {
-        persistScroll()
-        scrollSaveTimerRef.current = null
-      }, 250)
-
-      if (nextIsAtBottom) {
-        setPendingNewMessageCount(0)
-        setUnreadAnchorMessageId(null)
-        if (typeof window !== "undefined") {
-          window.sessionStorage.removeItem(unreadAnchorStorageKey)
-        }
-      }
-    }
-
-    onScroll()
-    container.addEventListener("scroll", onScroll)
-    return () => {
-      if (scrollSaveTimerRef.current) {
-        clearTimeout(scrollSaveTimerRef.current)
-        scrollSaveTimerRef.current = null
-      }
-      persistScroll()
-      container.removeEventListener("scroll", onScroll)
-    }
-  }, [hasMoreHistory, loadOlderMessages, scrollStorageKey, unreadAnchorStorageKey])
 
   useEffect(() => {
     const newestMessage = messages[messages.length - 1]
