@@ -28,13 +28,43 @@ export async function GET(
 
   // Use service role for the full member list payload because RLS policies can
   // legitimately scope user-token reads down to only the requester row.
-  const adminSupabase = await createServiceRoleClient()
+  let adminSupabase
+  try {
+    adminSupabase = await createServiceRoleClient()
+  } catch (error) {
+    console.error("Failed to initialize service-role Supabase client for member list", error)
+    return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
+  }
+
   const { data: members, error } = await adminSupabase
     .from("server_members")
     .select(`
-      *,
-      user:users(*),
-      roles:member_roles(role_id, roles(*))
+      server_id,
+      user_id,
+      nickname,
+      user:users(
+        id,
+        username,
+        display_name,
+        avatar_url,
+        status_message,
+        bio,
+        banner_color,
+        custom_tag,
+        created_at
+      ),
+      roles:member_roles(
+        role_id,
+        roles(
+          id,
+          server_id,
+          name,
+          color,
+          permissions,
+          position,
+          created_at
+        )
+      )
     `)
     .eq("server_id", params.serverId)
 
