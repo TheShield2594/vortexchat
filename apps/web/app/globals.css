@@ -534,8 +534,7 @@
 }
 
 .recent-activity-halo {
-  box-shadow: 0 0 0 2px rgba(93, 179, 255, 0.22);
-  animation: recent-activity-halo 1.8s ease-out 1;
+  animation: recent-activity-halo 1.8s ease-out infinite;
 }
 
 .message-state-morph {

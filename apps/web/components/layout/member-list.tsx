@@ -380,7 +380,7 @@ function MemberItem({
               onViewProfile()
             }}
           >
-            <div className={`relative flex-shrink-0 ${recentlyActive ? "recent-activity-halo" : ""}`}>
+            <div className={`relative flex-shrink-0 rounded-full ${recentlyActive ? "recent-activity-halo" : ""}`}>
               <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
                 {member.user?.avatar_url && <AvatarImage src={member.user.avatar_url} />}
                 <AvatarFallback
