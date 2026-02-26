@@ -171,6 +171,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     saveOutbox(resolved)
   }, [])
 
+  const resetComposerState = useCallback(() => {
+    setReplyTo(null)
+    setDraftState("")
+    if (draftPersistTimerRef.current) {
+      clearTimeout(draftPersistTimerRef.current)
+      draftPersistTimerRef.current = null
+    }
+    setDraft(channel.id, "")
+  }, [channel.id])
+
   const upsertMessage = useCallback((incoming: MessageWithAuthor) => {
     setMessages((prev) => {
       const existingIndex = prev.findIndex((m) => {
@@ -879,10 +889,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setAndPersistOutbox((current) => upsertOutboxEntry(current, entry))
 
     if (!navigator.onLine) {
-      setReplyTo(null)
-      setDraftState("")
-      if (draftPersistTimerRef.current) { clearTimeout(draftPersistTimerRef.current); draftPersistTimerRef.current = null }
-      setDraft(channel.id, "")
+      resetComposerState()
       onSent()
       toast({ title: "Queued for send", description: "Message will send when your connection returns." })
       return
@@ -1063,10 +1070,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       upsertMessage({ ...message, reply_to: replyTo ?? null } as unknown as MessageWithAuthor)
     }
 
-    setReplyTo(null)
-    setDraftState("")
-    if (draftPersistTimerRef.current) { clearTimeout(draftPersistTimerRef.current); draftPersistTimerRef.current = null }
-    setDraft(channel.id, "")
+    resetComposerState()
     onSent()
   }
 

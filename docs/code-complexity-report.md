@@ -15,6 +15,27 @@ Repository: `vortexchat`
 
 ---
 
+## Remediation update (implemented)
+
+Completed in this cycle:
+
+- Refactored `POST` in `apps/web/app/api/messages/route.ts` by extracting the AutoMod decisioning flow into `runServerAutomodChecks`, reducing nested branch depth in the route handler and isolating policy/audit logic.
+- Extracted message persistence + attachment insertion into `insertMessageWithAttachments` so the route orchestration path is smaller and easier to reason about/test.
+- Extracted request-shape validation for `POST` into `parsePostMessageRequestBody` to reduce inline branching and keep the handler focused on orchestration.
+- Extracted `GET` route concerns into focused helpers (`getChannelForRead`, `getMessagesAroundTarget`) to isolate permission/context-window logic from top-level endpoint flow.
+- Preserved existing behavior for idempotency, moderation outcomes, audit logging, and notification flow; only responsibility boundaries changed.
+
+Additional remediation completed across the previously listed hotspots:
+
+- `useVoice`: extracted repeated peer teardown into `removePeerConnection` to centralize stale/leave cleanup behavior.
+- `ChatArea`: extracted repeated composer reset behavior into `resetComposerState` to reduce duplicated side-effect branches in send flow.
+- `DMChannelArea`: extracted DM message POST plumbing into `sendDmPayload` for reuse across text and file-send paths.
+- `ChannelSidebar`: extracted thread-count fetching and voice-state normalization into dedicated helpers (`fetchThreadCounts`, `normalizeVoiceParticipants`).
+- `AutoModTab` (`server-settings-modal.tsx`): extracted upsert branching into `upsertAutomodRule` to simplify save-path state updates.
+- `POST` follow-up in `messages/route.ts`: extracted `resolveSafeMentions`, `enforceServerMessagingGuards`, and `enforceSlowmode` to further shrink inline guard/validation branching in the endpoint.
+
+---
+
 ## 1) Cyclomatic complexity findings
 
 ### High complexity functions (estimated > 10)

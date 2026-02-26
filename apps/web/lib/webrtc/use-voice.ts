@@ -523,6 +523,21 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       }
     }
 
+    function removePeerConnection(peerId: string, closeConnection = true) {
+      const pc = peerConnections.current.get(peerId)
+      if (closeConnection) {
+        pc?.close()
+      }
+      peerConnections.current.delete(peerId)
+      lastSeenByPeerRef.current.delete(peerId)
+      iceRestartAttemptsRef.current.delete(peerId)
+      setPeers((prev) => {
+        const next = new Map(prev)
+        next.delete(peerId)
+        return next
+      })
+    }
+
     function createPeerConnection(
       peerId: string,
       peerUserId: string,
@@ -827,16 +842,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
 
       rtChannel.on("presence", { event: "leave" }, ({ leftPresences }) => {
         for (const p of (leftPresences as unknown) as Array<{ client_id: string }>) {
-          const pc = peerConnections.current.get(p.client_id)
-          pc?.close()
-          peerConnections.current.delete(p.client_id)
-          lastSeenByPeerRef.current.delete(p.client_id)
-          iceRestartAttemptsRef.current.delete(p.client_id)
-          setPeers((prev) => {
-            const next = new Map(prev)
-            next.delete(p.client_id)
-            return next
-          })
+          removePeerConnection(p.client_id)
         }
       })
 
@@ -895,15 +901,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
                   || pc.iceConnectionState === "closed"
                 if (!isEvictableState) continue
 
-                pc?.close()
-                peerConnections.current.delete(peerId)
-                lastSeenByPeerRef.current.delete(peerId)
-                iceRestartAttemptsRef.current.delete(peerId)
-                setPeers((prev) => {
-                  const next = new Map(prev)
-                  next.delete(peerId)
-                  return next
-                })
+                removePeerConnection(peerId)
               }
             }, HEARTBEAT_INTERVAL_MS)
 
