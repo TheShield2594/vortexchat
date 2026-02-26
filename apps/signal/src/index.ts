@@ -3,6 +3,7 @@ import { Server, type Socket } from "socket.io"
 import { createClient } from "@supabase/supabase-js"
 import dotenv from "dotenv"
 import { RoomManager } from "./rooms"
+import { createVoiceStateSync } from "./voice-state-sync"
 
 dotenv.config()
 
@@ -37,6 +38,7 @@ const io = new Server(httpServer, {
 })
 
 const rooms = new RoomManager()
+const voiceStateSync = supabase ? createVoiceStateSync(supabase) : null
 
 io.on("connection", (socket: Socket) => {
   console.log(`[connect] ${socket.id}`)
@@ -104,9 +106,8 @@ io.on("connection", (socket: Socket) => {
       avatarUrl,
     })
 
-    // Update Supabase voice_states
-    if (supabase) {
-      // Get serverId from channel
+    // Queue Supabase voice_states upsert
+    if (supabase && voiceStateSync) {
       const { data: channel } = await supabase
         .from("channels")
         .select("server_id")
@@ -114,7 +115,7 @@ io.on("connection", (socket: Socket) => {
         .single()
 
       if (channel) {
-        await supabase.from("voice_states").upsert({
+        voiceStateSync.enqueueUpsert({
           user_id: userId,
           channel_id: channelId,
           server_id: channel.server_id,
@@ -150,12 +151,8 @@ io.on("connection", (socket: Socket) => {
     rooms.updatePeer(peer.channelId, socket.id, { speaking })
     socket.to(peer.channelId).emit("peer-speaking", { peerId: socket.id, speaking })
 
-    if (supabase) {
-      supabase.from("voice_states")
-        .update({ speaking })
-        .eq("user_id", peer.userId)
-        .eq("channel_id", peer.channelId)
-        .then()
+    if (voiceStateSync) {
+      voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { speaking } })
     }
   })
 
@@ -166,12 +163,8 @@ io.on("connection", (socket: Socket) => {
     rooms.updatePeer(peer.channelId, socket.id, { muted })
     socket.to(peer.channelId).emit("peer-muted", { peerId: socket.id, muted })
 
-    if (supabase) {
-      supabase.from("voice_states")
-        .update({ muted })
-        .eq("user_id", peer.userId)
-        .eq("channel_id", peer.channelId)
-        .then()
+    if (voiceStateSync) {
+      voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { muted } })
     }
   })
 
@@ -182,12 +175,8 @@ io.on("connection", (socket: Socket) => {
     rooms.updatePeer(peer.channelId, socket.id, { deafened })
     socket.to(peer.channelId).emit("peer-deafened", { peerId: socket.id, deafened })
 
-    if (supabase) {
-      supabase.from("voice_states")
-        .update({ deafened })
-        .eq("user_id", peer.userId)
-        .eq("channel_id", peer.channelId)
-        .then()
+    if (voiceStateSync) {
+      voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { deafened } })
     }
   })
 
@@ -198,12 +187,8 @@ io.on("connection", (socket: Socket) => {
     rooms.updatePeer(peer.channelId, socket.id, { screenSharing: sharing })
     socket.to(peer.channelId).emit("peer-screen-share", { peerId: socket.id, sharing })
 
-    if (supabase) {
-      supabase.from("voice_states")
-        .update({ self_stream: sharing })
-        .eq("user_id", peer.userId)
-        .eq("channel_id", peer.channelId)
-        .then()
+    if (voiceStateSync) {
+      voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { self_stream: sharing } })
     }
   })
 
@@ -220,12 +205,8 @@ io.on("connection", (socket: Socket) => {
     for (const { channelId, userId } of left) {
       socket.to(channelId).emit("peer-left", { peerId: socket.id, userId })
 
-      if (supabase) {
-        supabase.from("voice_states")
-          .delete()
-          .eq("user_id", userId)
-          .eq("channel_id", channelId)
-          .then()
+      if (voiceStateSync) {
+        voiceStateSync.enqueueDelete({ userId, channelId })
       }
     }
   })
@@ -249,12 +230,8 @@ io.on("connection", (socket: Socket) => {
     socket.leave(channelId)
     socket.to(channelId).emit("peer-left", { peerId: socket.id, userId: peer.userId })
 
-    if (supabase) {
-      supabase.from("voice_states")
-        .delete()
-        .eq("user_id", peer.userId)
-        .eq("channel_id", channelId)
-        .then()
+    if (voiceStateSync) {
+      voiceStateSync.enqueueDelete({ userId: peer.userId, channelId })
     }
 
     console.log(`[leave] ${peer.userId} ← room ${channelId}`)
