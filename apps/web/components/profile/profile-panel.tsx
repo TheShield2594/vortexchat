@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 import { sanitizeBannerColor } from "@/lib/banner-color"
+import { getStatusLabel } from "@/lib/presence-status"
 import type { RoleRow } from "@/types/database"
 import { PERMISSIONS } from "@vortex/shared"
 
@@ -33,15 +34,6 @@ interface ProfilePanelProps {
   onClose: () => void
 }
 
-function getStatusLabel(status?: string) {
-  switch (status) {
-    case "online": return "Online"
-    case "idle": return "Idle"
-    case "dnd": return "Do Not Disturb"
-    case "invisible": return "Invisible"
-    default: return "Offline"
-  }
-}
 
 function getJoinedDate(rawDate?: string) {
   if (!rawDate) return "Unknown"

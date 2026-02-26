@@ -17,6 +17,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js"
 import { Skeleton } from "@/components/ui/skeleton"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 import { ReportModal } from "@/components/modals/report-modal"
+import { getStatusColor } from "@/lib/presence-status"
 
 interface Props {
   serverId: string
@@ -44,14 +45,6 @@ interface MemberData {
   roles: RoleRow[]
 }
 
-function getStatusColor(status?: string) {
-  switch (status) {
-    case "online": return "var(--theme-success)"
-    case "idle": return "var(--theme-warning)"
-    case "dnd": return "var(--theme-danger)"
-    default: return "var(--theme-presence-offline)"
-  }
-}
 
 /** Collapsible member list panel showing server members grouped by role with real-time presence indicators. */
 export function MemberList({ serverId }: Props) {

@@ -7,6 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
+import { getStatusColor, getStatusLabel } from "@/lib/presence-status"
 
 interface UserProfileData {
   username: string
@@ -30,24 +31,6 @@ interface UserProfilePopoverProps {
   children: React.ReactNode
 }
 
-function getStatusColor(status?: string) {
-  switch (status) {
-    case "online": return "var(--theme-success)"
-    case "idle": return "var(--theme-warning)"
-    case "dnd": return "var(--theme-danger)"
-    default: return "var(--theme-presence-offline)"
-  }
-}
-
-function getStatusLabel(status?: string) {
-  switch (status) {
-    case "online": return "Online"
-    case "idle": return "Idle"
-    case "dnd": return "Do Not Disturb"
-    case "invisible": return "Invisible"
-    default: return "Offline"
-  }
-}
 
 /** Popover card showing a user's profile (avatar, name, status, bio, roles) with optional Message and Add Friend actions. */
 export function UserProfilePopover({
