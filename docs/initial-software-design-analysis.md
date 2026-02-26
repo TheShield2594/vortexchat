@@ -1,6 +1,7 @@
 # Initial Software Design Analysis
 
 ## Scope & Method
+- Re-verified each finding against the current `HEAD` code before applying edits to this report.
 - Reviewed monorepo/workspace boundaries and package wiring (`package.json`, `turbo.json`, app package manifests).
 - Read key orchestration paths for web request handling and UI composition:
   - `apps/web/app/api/messages/route.ts`
@@ -47,16 +48,18 @@
 
 **What would prove it fully:** a complete static import graph (e.g., madge/dependency-cruiser) run across `apps/web`, `apps/signal`, and `packages/shared` with cycle reporting committed to CI.
 
-### 5) Modularity rating
+### 5) Modularity rating (qualitative score)
 **Rating: 6.5 / 10**
 
-**Justification:**
-- **+2.5:** Clear workspace/service boundaries (`apps/web`, `apps/signal`, `packages/shared`).
-- **+1.5:** Shared abstractions exist for permissions/types (`packages/shared`, `apps/web/lib/permissions.ts`).
-- **+1.0:** Utility modules exist (`lib/*`) rather than only page-level code.
-- **-2.0:** Oversized orchestration modules (`messages/route.ts`, `chat-area.tsx`) reduce replaceability/test isolation.
-- **-1.0:** Query/DTO hydration logic appears duplicated across endpoints/pages.
-- **-0.5:** No enforced cycle checks in lint config.
+**Scoring method:** This is a qualitative reviewer judgement (not a strict arithmetic formula). The bullets below are weighted observations that informed the final 6.5 score.
+
+**Weighted observations:**
+- Clear workspace/service boundaries (`apps/web`, `apps/signal`, `packages/shared`).
+- Shared abstractions exist for permissions/types (`packages/shared`, `apps/web/lib/permissions.ts`).
+- Utility modules exist (`lib/*`) rather than only page-level code.
+- Oversized orchestration modules (`messages/route.ts`, `chat-area.tsx`) reduce replaceability/test isolation.
+- Query/DTO hydration logic appears duplicated across endpoints/pages.
+- No enforced cycle checks in lint config.
 
 ---
 
