@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus } from "lucide-react"
+import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus, Reply, X } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
@@ -13,6 +13,7 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useShallow } from "zustand/react/shallow"
 import { decryptDmContent, encryptDmContent, exportPublicKey, fingerprintFromPublicKey, generateConversationKey, generateDeviceKeyPair, importPublicKey, parseEncryptedEnvelope, unwrapConversationKey, wrapConversationKey } from "@/lib/dm-encryption"
+import { useNotificationSound } from "@/hooks/use-notification-sound"
 
 interface User {
   id: string
@@ -22,6 +23,13 @@ interface User {
   status: string
 }
 
+interface ReplyToMessage {
+  id: string
+  content: string | null
+  sender_id: string
+  sender: User
+}
+
 interface Message {
   id: string
   content: string
@@ -29,6 +37,8 @@ interface Message {
   edited_at: string | null
   sender_id: string
   sender: User
+  reply_to_id: string | null
+  reply_to: ReplyToMessage | null
 }
 
 interface Channel {
@@ -138,9 +148,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [sending, setSending] = useState(false)
   const [inCall, setInCall] = useState(false)
   const [callWithVideo, setCallWithVideo] = useState(false)
+  const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
   const [uploadingFile, setUploadingFile] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
@@ -149,6 +161,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const { currentUser } = useAppStore(
     useShallow((s) => ({ currentUser: s.currentUser }))
   )
+
+  const { playNotification } = useNotificationSound()
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
 
@@ -364,13 +378,27 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const msg = payload.new as any
           // Only add if it's from someone else (we already added our own optimistically)
           if (msg.sender_id !== currentUserId) {
-            supabase
+            playNotification();
+            (supabase as any)
               .from("direct_messages")
-              .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
+              .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status), reply_to_id")
               .eq("id", msg.id)
               .single()
-              .then(({ data }) => {
-                if (data) setMessages((prev) => [...prev, data as Message])
+              .then(async ({ data }: { data: any }) => {
+                if (!data) return
+                // Resolve reply_to if present
+                let replyToMsg = null
+                if (data.reply_to_id) {
+                  const { data: replyData } = await supabase
+                    .from("direct_messages")
+                    .select("id, content, sender_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
+                    .eq("id", data.reply_to_id)
+                    .eq("dm_channel_id", channelId)
+                    .is("deleted_at", null)
+                    .single()
+                  replyToMsg = replyData ?? null
+                }
+                setMessages((prev) => [...prev, { ...data, reply_to: replyToMsg } as Message])
               })
           }
         }
@@ -384,7 +412,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     if (!content.trim() || sending) return
     setSending(true)
     const text = content.trim()
+    const currentReplyTo = replyTo
     setContent("")
+    setReplyTo(null)
     onSent()
 
     try {
@@ -395,10 +425,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         const envelope = await encryptDmContent(text, key, channel.encryption_key_version ?? 1)
         outbound = JSON.stringify(envelope)
       }
+      const payload: { content: string; reply_to_id?: string } = { content: outbound }
+      if (currentReplyTo) {
+        payload.reply_to_id = currentReplyTo.id
+      }
       const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: outbound }),
+        body: JSON.stringify(payload),
       })
       if (res.ok) {
         const msg = await res.json()
@@ -406,6 +440,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       } else {
         // Restore so user can retry
         setContent(text)
+        setReplyTo(currentReplyTo)
         toast({
           variant: "destructive",
           title: "Failed to send message",
@@ -414,6 +449,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       }
     } catch {
       setContent(text)
+      setReplyTo(currentReplyTo)
       toast({
         variant: "destructive",
         title: "Connection error",
@@ -684,6 +720,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const prev = messages[i - 1]
           const isGrouped = prev &&
             prev.sender_id === msg.sender_id &&
+            !msg.reply_to_id &&
             new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime() < 5 * 60 * 1000
           const isOwn = msg.sender_id === currentUserId
           const senderName = msg.sender?.display_name || msg.sender?.username || "Unknown"
@@ -697,84 +734,121 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const imageMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
 
           return (
-            <div key={msg.id} className={cn("group flex items-start gap-3 hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
-              {!isGrouped && (
-                <Avatar className="w-8 h-8 flex-shrink-0 mt-0.5">
-                  {msg.sender?.avatar_url && <AvatarImage src={msg.sender.avatar_url} />}
-                  <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "12px" }}>
-                    {senderInitials}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <div className="min-w-0 flex-1">
-                {!isGrouped && (
-                  <div className="flex items-baseline gap-2 mb-0.5">
-                    <span className="text-sm font-semibold" style={{ color: isOwn ? "#00b0f4" : "white" }}>
-                      {isOwn ? "You" : senderName}
-                    </span>
-                    <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}>
-                      {format(new Date(msg.created_at), "h:mm a")}
-                    </span>
-                  </div>
-                )}
-                {isEditing ? (
-                  <div className="flex gap-2 items-center">
-                    <input
-                      autoFocus
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) handleEditSave(msg.id)
-                        if (e.key === "Escape") setEditingId(null)
-                      }}
-                      className="flex-1 bg-transparent border-b text-sm focus:outline-none"
-                      style={{ color: "var(--theme-text-normal)", borderColor: "var(--theme-accent)" }}
-                    />
-                    <button onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--theme-accent)", color: "white" }}>Save</button>
-                    <button onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
-                  </div>
-                ) : imageMatch ? (
-                  <div className="mt-1">
-                    <a href={imageMatch[2]} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={imageMatch[2]}
-                        alt={imageMatch[1]}
-                        className="max-w-xs max-h-60 rounded object-contain"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-                      />
-                    </a>
-                    <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{imageMatch[1]}</span>
-                  </div>
-                ) : (
-                  <p className="text-sm break-words" style={{ color: decryptFailed ? "var(--theme-warning)" : "var(--theme-text-normal)" }}>
-                    {renderedContent}
-                  </p>
-                )}
-                {msg.edited_at && !isEditing && (
-                  <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}> (edited)</span>
-                )}
-              </div>
-              {/* Hover actions — own messages only */}
-              {isOwn && !isEditing && !channel.is_encrypted && (
-                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-opacity">
-                  <button
-                    onClick={() => { setEditingId(msg.id); setEditContent(renderedContent) }}
-                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
-                    style={{ color: "var(--theme-text-muted)" }}
-                    title="Edit"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(msg.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20"
-                    style={{ color: "var(--theme-text-muted)" }}
-                    title="Delete"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+            <div key={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
+              {/* Reply reference */}
+              {msg.reply_to_id && msg.reply_to && (
+                <div
+                  className="flex items-center gap-2 mb-0.5 ml-11 text-xs rounded px-1 py-0.5"
+                  style={{ color: "var(--theme-text-muted)" }}
+                >
+                  <Reply className="w-3 h-3 -scale-x-100 flex-shrink-0" />
+                  <span className="font-medium" style={{ color: "var(--theme-text-secondary)" }}>
+                    {msg.reply_to.sender?.display_name || msg.reply_to.sender?.username || "Unknown"}
+                  </span>
+                  <span className="truncate">
+                    {channel.is_encrypted
+                      ? (decryptedContent[msg.reply_to.id]?.text ?? "Encrypted message")
+                      : (msg.reply_to.content ?? "Message deleted")}
+                  </span>
                 </div>
               )}
+
+              <div className="flex items-start gap-3">
+                {!isGrouped && (
+                  <Avatar className="w-8 h-8 flex-shrink-0 mt-0.5">
+                    {msg.sender?.avatar_url && <AvatarImage src={msg.sender.avatar_url} />}
+                    <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "12px" }}>
+                      {senderInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <div className="min-w-0 flex-1">
+                  {!isGrouped && (
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <span className="text-sm font-semibold" style={{ color: isOwn ? "#00b0f4" : "white" }}>
+                        {isOwn ? "You" : senderName}
+                      </span>
+                      <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}>
+                        {format(new Date(msg.created_at), "h:mm a")}
+                      </span>
+                    </div>
+                  )}
+                  {isEditing ? (
+                    <div className="flex gap-2 items-center">
+                      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+                      <input
+                        autoFocus
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) handleEditSave(msg.id)
+                          if (e.key === "Escape") setEditingId(null)
+                        }}
+                        className="flex-1 bg-transparent border-b text-sm focus:outline-none"
+                        style={{ color: "var(--theme-text-normal)", borderColor: "var(--theme-accent)" }}
+                      />
+                      <button type="button" onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--theme-accent)", color: "white" }}>Save</button>
+                      <button type="button" onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
+                    </div>
+                  ) : imageMatch ? (
+                    <div className="mt-1">
+                      <a href={imageMatch[2]} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={imageMatch[2]}
+                          alt={imageMatch[1]}
+                          className="max-w-xs max-h-60 rounded object-contain"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                        />
+                      </a>
+                      <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{imageMatch[1]}</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm break-words" style={{ color: decryptFailed ? "var(--theme-warning)" : "var(--theme-text-normal)" }}>
+                      {renderedContent}
+                    </p>
+                  )}
+                  {msg.edited_at && !isEditing && (
+                    <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}> (edited)</span>
+                  )}
+                </div>
+                {/* Hover actions */}
+                {!isEditing && (
+                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-opacity">
+                    {/* Reply button — available for all messages */}
+                    <button
+                      type="button"
+                      onClick={() => { setReplyTo(msg); inputRef.current?.focus() }}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
+                      style={{ color: "var(--theme-text-muted)" }}
+                      title="Reply"
+                    >
+                      <Reply className="w-3.5 h-3.5 -scale-x-100" />
+                    </button>
+                    {isOwn && !channel.is_encrypted && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingId(msg.id); setEditContent(renderedContent) }}
+                          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
+                          style={{ color: "var(--theme-text-muted)" }}
+                          title="Edit"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(msg.id)}
+                          className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20"
+                          style={{ color: "var(--theme-text-muted)" }}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )
         })}
@@ -786,7 +860,28 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
       {/* Input */}
       <div className="px-4 pb-4 flex-shrink-0">
-        <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "var(--theme-surface-input)" }}>
+        {/* Reply indicator */}
+        {replyTo && (
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-t text-xs"
+            style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}
+          >
+            <Reply className="w-3 h-3 -scale-x-100 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
+            <span style={{ color: "var(--theme-text-muted)" }}>Replying to</span>
+            <span className="font-semibold text-white">
+              {replyTo.sender?.display_name || replyTo.sender?.username || "Unknown"}
+            </span>
+            <span className="truncate flex-1" style={{ color: "var(--theme-text-muted)" }}>
+              {channel.is_encrypted
+                ? (decryptedContent[replyTo.id]?.text ?? "Encrypted message")
+                : replyTo.content}
+            </span>
+            <button type="button" onClick={() => setReplyTo(null)} style={{ color: "var(--theme-text-muted)" }}>
+              <X className="w-3 h-3 hover:text-white" />
+            </button>
+          </div>
+        )}
+        <div className={cn("flex items-center gap-2 px-3 py-2", replyTo ? "rounded-b-lg" : "rounded-lg")} style={{ background: "var(--theme-surface-input)" }}>
           {/* File upload */}
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -808,11 +903,15 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           />
 
           <input
+            ref={inputRef}
             type="text"
             value={content}
             onChange={(e) => { setContent(e.target.value); if (e.target.value) onKeystroke() }}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder={`Message ${channel.is_group ? displayName : `@${displayName}`}`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) handleSend()
+              if (e.key === "Escape" && replyTo) { e.preventDefault(); setReplyTo(null) }
+            }}
+            placeholder={replyTo ? `Reply to ${replyTo.sender?.display_name || replyTo.sender?.username || "Unknown"}` : `Message ${channel.is_group ? displayName : `@${displayName}`}`}
             className="flex-1 bg-transparent text-sm focus:outline-none"
             style={{ color: "var(--theme-text-normal)" }}
           />

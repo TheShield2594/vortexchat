@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation"
 import {
   Volume2, Mic, MicOff, Headphones, PhoneOff,
   Monitor, MonitorOff, Video, VideoOff, Radio, Settings,
-  RotateCcw, X,
+  RotateCcw, X, RefreshCw, WifiOff,
 } from "lucide-react"
-import { useVoice } from "@/lib/webrtc/use-voice"
+import { useVoice, type NetworkQualityTier, type NetworkQualityStats } from "@/lib/webrtc/use-voice"
 import { usePushToTalk } from "@/hooks/use-push-to-talk"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -102,7 +102,6 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const router = useRouter()
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantInfo[]>([])
   const [spotlightUserId, setSpotlightUserId] = useState<string | null>(null)
-  const [reconnecting, setReconnecting] = useState(false)
   const [pttEnabled, setPttEnabled] = useState(false)
   const supabaseRef = useRef<ReturnType<typeof createClientSupabaseClient> | null>(null)
   if (!supabaseRef.current) supabaseRef.current = createClientSupabaseClient()
@@ -111,7 +110,6 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
   const outputAudioContextRef = useRef<AudioContext | null>(null)
   const closeDeviceMenu = useCallback(() => setDeviceMenuOpen(false), [])
-  const reconnectTimerRef = useRef<number | null>(null)
   const {
     peers,
     muted,
@@ -137,6 +135,9 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     setAudioSettings,
     cpuBypassActive,
     audioInitError,
+    networkQuality,
+    reconnectInfo,
+    manualReconnect,
   } = useVoice(channelId, currentUserId, serverId)
 
   const { setParticipantVolume, setParticipantPan } = useVoiceAudioStore(
@@ -207,42 +208,35 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     return () => { supabase.removeChannel(channel) }
   }, [channelId])
 
-  useEffect(() => {
-    async function handleOnline() {
-      setReconnecting(true)
-      try {
-        await supabase
-          .from("voice_states")
-          .upsert({
-            user_id: currentUserId,
-            channel_id: channelId,
-            server_id: serverId,
-            muted,
-            deafened,
-            speaking,
-            self_stream: screenSharing,
-          })
-      } finally {
-        if (reconnectTimerRef.current) {
-          window.clearTimeout(reconnectTimerRef.current)
-        }
-        reconnectTimerRef.current = window.setTimeout(() => {
-          setReconnecting(false)
-          reconnectTimerRef.current = null
-        }, 1000)
-      }
-    }
+  // Refs for latest voice state values (used in reconnect effect to avoid stale closures)
+  const mutedRef = useRef(muted)
+  const deafenedRef = useRef(deafened)
+  const speakingRef = useRef(speaking)
+  const screenSharingRef = useRef(screenSharing)
+  mutedRef.current = muted
+  deafenedRef.current = deafened
+  speakingRef.current = speaking
+  screenSharingRef.current = screenSharing
 
-    window.addEventListener("online", handleOnline)
-    return () => {
-      window.removeEventListener("online", handleOnline)
-      if (reconnectTimerRef.current) {
-        window.clearTimeout(reconnectTimerRef.current)
-        reconnectTimerRef.current = null
-        setReconnecting(false)
-      }
-    }
-  }, [channelId, currentUserId, deafened, muted, screenSharing, serverId, speaking])
+  // Network recovery and voice state re-sync on reconnect
+  useEffect(() => {
+    if (reconnectInfo.state !== "connected") return
+    // Re-upsert voice state when connection is restored (handles network recovery scenarios)
+    supabase
+      .from("voice_states")
+      .upsert({
+        user_id: currentUserId,
+        channel_id: channelId,
+        server_id: serverId,
+        muted: mutedRef.current,
+        deafened: deafenedRef.current,
+        speaking: speakingRef.current,
+        self_stream: screenSharingRef.current,
+      })
+      .then(undefined, () => {})
+  // Only run when connection state transitions to "connected"
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reconnectInfo.state])
 
   function handleLeave() {
     leaveChannel()
@@ -312,14 +306,29 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: activeTone.dot }} />
               {sessionState.label}
             </span>
-            {reconnecting && (
+            {reconnectInfo.state === "reconnecting" && (
               <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "rgba(240,177,50,0.2)", color: "#ffd58a" }} role="status" aria-live="polite" aria-atomic="true">
-                Reconnecting…
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                Reconnecting... ({reconnectInfo.attempt}/{reconnectInfo.maxAttempts})
+              </span>
+            )}
+            {reconnectInfo.state === "disconnected" && (
+              <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "rgba(237,66,69,0.2)", color: "#f38ba8" }} role="status" aria-live="assertive" aria-atomic="true">
+                <WifiOff className="w-3 h-3" />
+                Connection lost
+                <button
+                  type="button"
+                  onClick={manualReconnect}
+                  className="ml-1 underline hover:no-underline"
+                >
+                  Rejoin
+                </button>
               </span>
             )}
             <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{sessionState.detail}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <NetworkQualityIndicator quality={networkQuality} />
             {cpuBypassActive && <span className="text-xs" style={{ color: "var(--theme-warning)" }}>CPU bypass enabled</span>}
             {audioInitError && <span className="text-xs" style={{ color: "var(--theme-warning)" }}>{audioInitError}</span>}
           </div>
@@ -465,6 +474,64 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         ))}
       </div>
     </TooltipProvider>
+  )
+}
+
+/** Three-bar network quality indicator (green/yellow/red). */
+const QUALITY_COLORS: Record<NetworkQualityTier, string> = {
+  good: "var(--theme-success)",
+  degraded: "var(--theme-warning)",
+  poor: "var(--theme-danger)",
+}
+
+const QUALITY_LABELS: Record<NetworkQualityTier, string> = {
+  good: "Good",
+  degraded: "Unstable",
+  poor: "Poor",
+}
+
+function NetworkQualityIndicator({ quality }: { quality: NetworkQualityStats | null }) {
+  if (!quality) return null
+
+  const color = QUALITY_COLORS[quality.tier]
+  const label = QUALITY_LABELS[quality.tier]
+  // 3 bars: bar 1 always lit, bar 2 lit for good/degraded, bar 3 lit for good only
+  const bars = quality.tier === "good" ? 3 : quality.tier === "degraded" ? 2 : 1
+
+  const tooltipText = [
+    `Network: ${label}`,
+    `RTT: ${quality.rttMs}ms`,
+    `Loss: ${quality.packetLossPercent}%`,
+    `Jitter: ${quality.jitterMs}ms`,
+    quality.availableBitrateKbps !== null ? `Bitrate: ${quality.availableBitrateKbps} kbps` : null,
+  ].filter(Boolean).join(" | ")
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="flex items-end gap-[2px] h-4 cursor-default"
+          role="status"
+          aria-label={`Network quality: ${label}`}
+        >
+          {[1, 2, 3].map((bar) => (
+            <div
+              key={bar}
+              className="rounded-sm transition-colors duration-300"
+              style={{
+                width: "4px",
+                height: `${bar * 4 + 2}px`,
+                background: bar <= bars ? color : "var(--theme-text-faint)",
+                opacity: bar <= bars ? 1 : 0.3,
+              }}
+            />
+          ))}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p className="text-xs">{tooltipText}</p>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 

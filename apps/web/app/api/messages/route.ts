@@ -13,7 +13,7 @@ import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import type { AutoModRuleWithParsed } from "@/types/database"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { filterMentionsByBlockState } from "@/lib/blocking"
-import { validateAttachments } from "@/lib/attachment-validation"
+import { validateAttachments, validateAttachmentContent } from "@/lib/attachment-validation"
 
 // Base projection — does NOT embed reply_to via FK join because the
 // self-referential FK is not guaranteed to be in PostgREST's schema cache.
@@ -233,6 +233,15 @@ export async function POST(request: Request) {
         },
       }
     )
+  }
+
+  // --- Server-side MIME type verification using magic bytes ---
+  // Runs after auth and rate-limit to avoid unnecessary work for rejected requests
+  if (attachments.length > 0) {
+    const contentValidation = await validateAttachmentContent(attachments)
+    if (!contentValidation.valid) {
+      return NextResponse.json({ error: contentValidation.error }, { status: 400 })
+    }
   }
 
   let safeMentions: string[]

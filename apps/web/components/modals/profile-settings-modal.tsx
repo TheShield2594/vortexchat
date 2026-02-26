@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
-import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil } from "lucide-react"
+import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import type { MessageDisplay, FontScale, Saturation } from "@/lib/stores/appearance-store"
 import type { UserRow } from "@/types/database"
+import { useNotificationSound } from "@/hooks/use-notification-sound"
 
 interface Props {
   open: boolean
@@ -545,6 +546,8 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                 <TabsContent value="security" className="mt-0 space-y-8">
                   <PasskeysSection />
                   <SecurityPolicySection />
+                  <PasswordChangeSection />
+                  <RecoveryCodesSection />
                   <SessionManagementSection onForcedLogout={handleLogout} />
                   <TwoFactorSection supabase={supabase} toast={toast} />
                 </TabsContent>
@@ -666,6 +669,275 @@ function SecurityPolicySection() {
 }
 
 
+function PasswordChangeSection() {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" })
+  const [revokeOtherSessions, setRevokeOtherSessions] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (form.newPassword !== form.confirmPassword) {
+      toast({ variant: "destructive", title: "Passwords do not match" })
+      return
+    }
+    if (form.newPassword.length < 12) {
+      toast({ variant: "destructive", title: "Password must be at least 12 characters" })
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await fetch("/api/auth/password", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: form.currentPassword,
+          newPassword: form.newPassword,
+          revokeOtherSessions,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Password change failed", description: data.error || "Please try again" })
+        return
+      }
+      toast({ title: "Password changed", description: revokeOtherSessions ? "All other sessions have been revoked." : "Your password has been updated." })
+      setForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold text-white">Change Password</h3>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Update your account password. Minimum 12 characters required.</p>
+      </div>
+      <form onSubmit={handleSubmit} className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+        <div className="space-y-1">
+          <label htmlFor="current-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Current Password</label>
+          <div className="relative">
+            <input
+              id="current-password"
+              type={showCurrent ? "text" : "password"}
+              value={form.currentPassword}
+              onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+              required
+              className="w-full rounded px-3 py-2 pr-10 text-sm focus:outline-none"
+              style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)" }}
+            />
+            <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1" style={{ color: "var(--theme-text-muted)" }}>
+              {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="new-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>New Password</label>
+          <div className="relative">
+            <input
+              id="new-password"
+              type={showNew ? "text" : "password"}
+              value={form.newPassword}
+              onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+              required
+              minLength={12}
+              className="w-full rounded px-3 py-2 pr-10 text-sm focus:outline-none"
+              style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)" }}
+            />
+            <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1" style={{ color: "var(--theme-text-muted)" }}>
+              {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {form.newPassword.length > 0 && form.newPassword.length < 12 && (
+            <p className="text-xs" style={{ color: "var(--theme-danger)" }}>Must be at least 12 characters ({form.newPassword.length}/12)</p>
+          )}
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="confirm-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Confirm New Password</label>
+          <input
+            id="confirm-password"
+            type="password"
+            value={form.confirmPassword}
+            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+            required
+            className="w-full rounded px-3 py-2 text-sm focus:outline-none"
+            style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)" }}
+          />
+          {form.confirmPassword.length > 0 && form.newPassword !== form.confirmPassword && (
+            <p className="text-xs" style={{ color: "var(--theme-danger)" }}>Passwords do not match</p>
+          )}
+        </div>
+        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
+          <input type="checkbox" checked={revokeOtherSessions} onChange={(e) => setRevokeOtherSessions(e.target.checked)} />
+          Sign out all other sessions after changing password
+        </label>
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={loading || !form.currentPassword || !form.newPassword || !form.confirmPassword}
+            className="px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
+            style={{ background: "var(--theme-accent)", color: "white" }}
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Lock className="w-4 h-4 inline mr-1" />Change Password</>}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+
+function RecoveryCodesSection() {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [remaining, setRemaining] = useState(0)
+  const [total, setTotal] = useState(0)
+  const [codes, setCodes] = useState<string[] | null>(null)
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const loadStatus = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/auth/recovery-codes")
+      const data = await res.json()
+      if (res.ok) {
+        setRemaining(data.remaining ?? 0)
+        setTotal(data.total ?? 0)
+      }
+    } catch {
+      // Silently handle — recovery codes may not be set up yet
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadStatus() }, [loadStatus])
+
+  async function handleGenerate() {
+    setGenerating(true)
+    try {
+      const res = await fetch("/api/auth/recovery-codes", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Failed to generate recovery codes", description: data.error })
+        return
+      }
+      setCodes(data.codes)
+      setAcknowledged(false)
+      toast({ title: "Recovery codes generated", description: "Save these codes in a safe place. They will not be shown again." })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleCopyCodes() {
+    if (!codes) return
+    await navigator.clipboard.writeText(codes.join("\n"))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function handleDismissCodes() {
+    setCodes(null)
+    setAcknowledged(false)
+    loadStatus()
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-4"><Loader2 className="animate-spin" style={{ color: "var(--theme-text-muted)" }} /></div>
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold text-white">Recovery Codes</h3>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
+          Recovery codes let you access your account if you lose your authenticator app or passkey. Each code can only be used once.
+        </p>
+      </div>
+
+      {/* Show generated codes */}
+      {codes && (
+        <div className="rounded-lg p-4 space-y-4" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+          <div className="rounded-lg p-3" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.3)" }}>
+            <p className="text-sm font-medium" style={{ color: "#faa61a" }}>Save these codes now</p>
+            <p className="text-xs mt-1" style={{ color: "#c4882e" }}>
+              These codes will not be shown again. Store them somewhere safe and accessible — like a password manager or printed copy.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {codes.map((code, i) => (
+              <div key={i} className="rounded px-3 py-2 text-center font-mono text-sm" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}>
+                {code}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={handleCopyCodes} className="flex items-center gap-1 px-3 py-1.5 rounded text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }}>
+              {copied ? <Check className="w-4 h-4" style={{ color: "var(--theme-success)" }} /> : <Copy className="w-4 h-4" />}
+              {copied ? "Copied" : "Copy all"}
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
+            <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />
+            I have saved these recovery codes in a safe place
+          </label>
+          <button
+            onClick={handleDismissCodes}
+            disabled={!acknowledged}
+            className="w-full py-2 rounded text-sm font-semibold transition-colors disabled:opacity-40"
+            style={{ background: "var(--theme-accent)", color: "white" }}
+          >
+            Done
+          </button>
+        </div>
+      )}
+
+      {/* Status and generate/regenerate button */}
+      {!codes && (
+        <div className="rounded-lg p-4 flex items-center gap-3" style={{ background: total > 0 ? "rgba(35,165,90,0.1)" : "var(--theme-bg-secondary)", border: `1px solid ${total > 0 ? "var(--theme-success)" : "var(--theme-bg-tertiary)"}` }}>
+          <KeyRound className="w-6 h-6 flex-shrink-0" style={{ color: total > 0 ? "var(--theme-success)" : "var(--theme-text-faint)" }} />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-white">
+              {total > 0 ? `${remaining} of ${total} codes remaining` : "No recovery codes generated"}
+            </p>
+            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+              {total > 0 ? "Generate new codes to replace the current set." : "Generate codes to protect against losing access to your authenticator."}
+            </p>
+          </div>
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="flex items-center gap-1 px-3 py-1.5 rounded text-sm font-semibold transition-colors"
+            style={{ background: "var(--theme-accent)", color: "white" }}
+          >
+            {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {total > 0 ? "Regenerate" : "Generate"}
+          </button>
+        </div>
+      )}
+
+      {total > 0 && remaining <= 2 && remaining > 0 && !codes && (
+        <div className="rounded p-3" style={{ background: "rgba(250,166,26,0.08)", border: "1px solid rgba(250,166,26,0.3)" }}>
+          <p className="text-xs" style={{ color: "#c4882e" }}>
+            You are running low on recovery codes. Consider regenerating a new set.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 interface AuthSessionRow {
   id: string
   created_at: string
@@ -762,8 +1034,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
   const { messageDisplay, fontScale, saturation, themePreset, customCss, setMessageDisplay, setFontScale, setSaturation, setThemePreset, setCustomCss } = useAppearanceStore(
     useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, themePreset: s.themePreset, customCss: s.customCss, setMessageDisplay: s.setMessageDisplay, setFontScale: s.setFontScale, setSaturation: s.setSaturation, setThemePreset: s.setThemePreset, setCustomCss: s.setCustomCss }))
   )
-
-
+  const { notificationSoundEnabled, setNotificationSoundEnabled, playNotification } = useNotificationSound()
 
   return (
     <div className="space-y-8">
@@ -968,6 +1239,42 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
         </div>
       </div>
 
+      {/* Notification Sound */}
+      <div>
+        <h3 className="text-base font-semibold text-white mb-1">Notification Sound</h3>
+        <div
+          className="flex items-center justify-between p-3 rounded-lg"
+          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+        >
+          <div>
+            <p className="text-sm font-medium text-white">Play sound on new messages</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>
+              Plays a short tone when you receive a message in another channel or DM.
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={notificationSoundEnabled}
+            onClick={() => {
+              const next = !notificationSoundEnabled
+              setNotificationSoundEnabled(next)
+              if (next) playNotification()
+            }}
+            className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200"
+            style={{ background: notificationSoundEnabled ? "var(--theme-accent)" : "var(--theme-text-faint)" }}
+          >
+            <span
+              className="pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out mt-0.5"
+              style={{
+                background: "white",
+                marginLeft: notificationSoundEnabled ? "22px" : "2px",
+                transition: "margin-left 0.2s",
+              }}
+            />
+          </button>
+        </div>
+      </div>
+
       <div className="flex justify-end">
         <Button onClick={onSave} disabled={saving} style={{ background: "var(--theme-accent)" }}>
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Theme & Appearance
@@ -989,6 +1296,9 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
   const [verifyCode, setVerifyCode] = useState("")
   const [verifying, setVerifying] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
+  const [recoveryAcknowledged, setRecoveryAcknowledged] = useState(false)
+  const [recoveryCopied, setRecoveryCopied] = useState(false)
 
   const loadFactors = useCallback(async () => {
     setLoading(true)
@@ -1026,7 +1336,23 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
     if (verifyError) {
       toast({ variant: "destructive", title: "Invalid code", description: "The code you entered is incorrect." })
     } else {
-      toast({ title: "2FA enabled!", description: "Your account is now protected with two-factor authentication." })
+      // Generate recovery codes automatically during MFA enrollment
+      let generatedCodes = false
+      try {
+        const codesRes = await fetch("/api/auth/recovery-codes", { method: "POST" })
+        const codesData = await codesRes.json()
+        if (codesRes.ok && codesData.codes) {
+          setRecoveryCodes(codesData.codes)
+          setRecoveryAcknowledged(false)
+          generatedCodes = true
+          toast({ title: "2FA enabled!", description: "Save your recovery codes below before closing this dialog." })
+        }
+      } catch {
+        // Recovery code generation is non-critical — toast a warning but don't block
+      }
+      if (!generatedCodes) {
+        toast({ title: "2FA enabled!", description: "Your account is now protected with two-factor authentication. Generate recovery codes from the Recovery Codes section." })
+      }
       setQrCode(null); setSecret(null); setFactorId(null); setVerifyCode("")
       loadFactors()
     }
@@ -1123,6 +1449,51 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
               <button onClick={() => { setQrCode(null); setSecret(null); setFactorId(null) }} className="px-3 py-2 rounded text-sm" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Recovery codes generated during enrollment */}
+      {recoveryCodes && (
+        <div className="rounded-lg p-4 space-y-4" style={{ background: "var(--theme-bg-secondary)", border: "1px solid rgba(250,166,26,0.4)" }}>
+          <div className="rounded-lg p-3" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.3)" }}>
+            <p className="text-sm font-medium" style={{ color: "#faa61a" }}>Save your recovery codes</p>
+            <p className="text-xs mt-1" style={{ color: "#c4882e" }}>
+              2FA is now active. Save these backup codes — they will not be shown again. Use them if you lose access to your authenticator app.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {recoveryCodes.map((code, i) => (
+              <div key={i} className="rounded px-3 py-2 text-center font-mono text-sm" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}>
+                {code}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(recoveryCodes.join("\n"))
+                setRecoveryCopied(true)
+                setTimeout(() => setRecoveryCopied(false), 2000)
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded text-sm"
+              style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }}
+            >
+              {recoveryCopied ? <Check className="w-4 h-4" style={{ color: "var(--theme-success)" }} /> : <Copy className="w-4 h-4" />}
+              {recoveryCopied ? "Copied" : "Copy all"}
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
+            <input type="checkbox" checked={recoveryAcknowledged} onChange={(e) => setRecoveryAcknowledged(e.target.checked)} />
+            I have saved these recovery codes in a safe place
+          </label>
+          <button
+            onClick={() => { setRecoveryCodes(null); setRecoveryAcknowledged(false) }}
+            disabled={!recoveryAcknowledged}
+            className="w-full py-2 rounded text-sm font-semibold transition-colors disabled:opacity-40"
+            style={{ background: "var(--theme-accent)", color: "white" }}
+          >
+            Done
+          </button>
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
  */
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { hasPermission, type Permission } from "@vortex/shared"
 
 /**
  * Fixed UUID of the system/AutoMod bot user (seeded in 00015_system_bot.sql).
@@ -52,6 +53,49 @@ export async function requireServerOwner(serverId: string) {
   if (!server)
     return { supabase, user, error: NextResponse.json({ error: "Server not found" }, { status: 404 }) }
   if (server.owner_id !== user.id)
+    return { supabase, user, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
+
+  return { supabase, user, error: null }
+}
+
+/**
+ * Verifies that the authenticated user has the given permission in a server.
+ * The server owner and ADMINISTRATOR role holders always pass.
+ *
+ * Returns `{ supabase, user, error: null }` on success, or
+ * `{ supabase, user, error: NextResponse }` when any check fails.
+ */
+export async function requireServerPermission(serverId: string, permission: Permission) {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user)
+    return { supabase, user: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
+
+  const { data: server } = await supabase
+    .from("servers")
+    .select("owner_id")
+    .eq("id", serverId)
+    .single()
+
+  if (!server)
+    return { supabase, user, error: NextResponse.json({ error: "Server not found" }, { status: 404 }) }
+
+  // Server owner always passes
+  if (server.owner_id === user.id)
+    return { supabase, user, error: null }
+
+  // Look up member roles and aggregate permissions
+  const { data: memberRoles } = await supabase
+    .from("member_roles")
+    .select("roles(permissions)")
+    .eq("user_id", user.id)
+    .eq("server_id", serverId)
+
+  const permissions = aggregateMemberPermissions(memberRoles)
+
+  if (!hasPermission(permissions, permission))
     return { supabase, user, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
 
   return { supabase, user, error: null }

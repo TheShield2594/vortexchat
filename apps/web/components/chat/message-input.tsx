@@ -15,7 +15,7 @@ interface Props {
   draft: string
   replyTo: MessageWithAuthor | null
   onCancelReply: () => void
-  onSend: (content: string, files?: File[], onUploadProgress?: (percent: number) => void) => Promise<void>
+  onSend: (content: string, files?: File[], onUploadProgress?: (percent: number) => void, abortSignal?: AbortSignal) => Promise<void>
   onDraftChange: (value: string) => void
   onTyping?: () => void
   onSent?: () => void
@@ -51,6 +51,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [gifQuery, setGifQuery] = useState("")
   const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [gifLoading, setGifLoading] = useState(false)
+  const uploadAbortRef = useRef<AbortController | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -176,21 +177,33 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     setSending(true)
     setSendError(null)
     setUploadProgress(files.length > 0 ? 0 : null)
+    const abortController = new AbortController()
+    uploadAbortRef.current = abortController
     onSent?.()
     try {
-      await onSend(content, files, (percent) => setUploadProgress(percent))
+      await onSend(content, files, (percent) => setUploadProgress(percent), abortController.signal)
       setContent("")
       onDraftChange("")
       for (const url of fileUrlCache.current.values()) URL.revokeObjectURL(url)
       fileUrlCache.current.clear()
       setFiles([])
     } catch (error: any) {
-      setSendError(error?.message ?? "Message send failed. Try again.")
+      if (error?.name === "AbortError" || abortController.signal.aborted) {
+        setSendError(null)
+      } else {
+        setSendError(error?.message ?? "Message send failed. Try again.")
+      }
     } finally {
       setSending(false)
       setUploadProgress(null)
+      uploadAbortRef.current = null
       textareaRef.current?.focus()
     }
+  }
+
+  function handleCancelUpload() {
+    uploadAbortRef.current?.abort()
+    uploadAbortRef.current = null
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -396,7 +409,20 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               <div className="h-1.5 rounded" style={{ background: "var(--theme-bg-tertiary)" }}>
                 <div className="h-1.5 rounded" style={{ width: `${uploadProgress}%`, background: "var(--theme-accent)", transition: "width 120ms linear" }} />
               </div>
-              <p className="text-[10px] mt-1" style={{ color: "var(--theme-text-muted)" }}>Uploading attachments… {Math.round(uploadProgress)}%</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-[10px]" style={{ color: "var(--theme-text-muted)" }}>Uploading attachments… {Math.round(uploadProgress)}%</p>
+                <button
+                  type="button"
+                  onClick={handleCancelUpload}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] hover:bg-white/10"
+                  style={{ color: "var(--theme-danger)" }}
+                  title="Cancel upload"
+                  aria-label="Cancel upload"
+                >
+                  <X className="w-3 h-3" />
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
           {sendError && (

@@ -845,7 +845,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   )
 
-  async function handleSendMessage(content: string, attachmentFiles?: File[], onUploadProgress?: (percent: number) => void): Promise<void> {
+  async function handleSendMessage(content: string, attachmentFiles?: File[], onUploadProgress?: (percent: number) => void, abortSignal?: AbortSignal): Promise<void> {
     if (!content.trim() && (!attachmentFiles || attachmentFiles.length === 0)) return
 
     if (!currentUserId) return
@@ -890,16 +890,75 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     const attachments: Array<{ url: string; filename: string; size: number; content_type: string; storage_path: string }> = []
     if (attachmentFiles?.length) {
+      const totalBytes = attachmentFiles.reduce((sum, f) => sum + f.size, 0)
+      let uploadedBytes = 0
+
       for (let index = 0; index < attachmentFiles.length; index += 1) {
+        if (abortSignal?.aborted) {
+          // Clean up already-uploaded files on cancel
+          if (attachments.length > 0) {
+            await supabase.storage.from("attachments").remove(attachments.map((a) => a.storage_path))
+          }
+          setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
+          setMessages((prev) => prev.filter((message) => message.id !== messageId))
+          const cancelError = new Error("Upload cancelled")
+          cancelError.name = "AbortError"
+          throw cancelError
+        }
+
         const file = attachmentFiles[index]
         const path = `${channel.id}/${Date.now()}-${file.name}`
-        const { error } = await supabase.storage.from("attachments").upload(path, file)
+        const fileStartBytes = uploadedBytes
+
+        // Use Supabase upload but track per-file progress through the upload callback
+        const { error } = await new Promise<{ error: { message: string } | null }>((resolve) => {
+          // Supabase JS client supports an onUploadProgress option that gives
+          // byte-level progress via tus or XHR under the hood.  We wrap the
+          // native upload so we can report granular progress.
+          const abortHandler = () => {
+            // Supabase JS v2 doesn't expose an abort handle, so the best we
+            // can do is mark the file as failed and clean it up after.
+            resolve({ error: { message: "Upload cancelled" } })
+          }
+
+          if (abortSignal) {
+            abortSignal.addEventListener("abort", abortHandler, { once: true })
+          }
+
+          supabase.storage
+            .from("attachments")
+            .upload(path, file)
+            .then((result) => {
+              if (abortSignal) abortSignal.removeEventListener("abort", abortHandler)
+              // Once the file finishes, report full progress for this file
+              uploadedBytes = fileStartBytes + file.size
+              if (totalBytes > 0) {
+                onUploadProgress?.(Math.round((uploadedBytes / totalBytes) * 100))
+              }
+              resolve(result)
+            })
+        })
+
+        if (abortSignal?.aborted) {
+          // Try to clean up the partially uploaded file
+          await supabase.storage.from("attachments").remove([path])
+          if (attachments.length > 0) {
+            await supabase.storage.from("attachments").remove(attachments.map((a) => a.storage_path))
+          }
+          setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
+          setMessages((prev) => prev.filter((message) => message.id !== messageId))
+          const cancelError = new Error("Upload cancelled")
+          cancelError.name = "AbortError"
+          throw cancelError
+        }
+
         if (error) {
           toast({
             variant: "destructive",
             title: "Upload failed",
             description: `Failed to upload ${file.name}: ${error.message}`,
           })
+          // Don't increment uploadedBytes on failure — keep progress accurate
           continue
         }
         const { data: signed } = await supabase.storage.from("attachments").createSignedUrl(path, 3600 * 24 * 7)
@@ -921,7 +980,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           content_type: file.type,
           storage_path: path,
         })
-        onUploadProgress?.(Math.round(((index + 1) / attachmentFiles.length) * 100))
       }
     }
 
@@ -1238,15 +1296,24 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   onReplyJump={jumpToMessage}
                   onThreadCreated={(thread) => setActiveThread(thread)}
                   onEdit={async (content) => {
-                    const { error } = await supabase
-                      .from("messages")
-                      .update({ content, edited_at: new Date().toISOString() })
-                      .eq("id", message.id)
-                    if (!error) {
-                      setMessages((prev) =>
-                        prev.map((m) => m.id === message.id ? { ...m, content, edited_at: new Date().toISOString() } : m)
-                      )
+                    const res = await fetch(
+                      `/api/servers/${serverId}/channels/${channel.id}/messages/${message.id}`,
+                      {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ content }),
+                      }
+                    )
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
+                      throw new Error(data.error || "Failed to edit message")
                     }
+                    const updated = await res.json().catch(() => null)
+                    setMessages((prev) =>
+                      prev.map((m) => m.id === message.id
+                        ? updated ? { ...m, ...updated } : { ...m, content, edited_at: new Date().toISOString() }
+                        : m)
+                    )
                   }}
                   onDelete={async () => {
                     const { data, error } = await supabase

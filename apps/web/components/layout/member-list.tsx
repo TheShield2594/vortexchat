@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle } from "lucide-react"
+import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle, Flag } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
@@ -16,6 +16,7 @@ import type { RoleRow } from "@/types/database"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { Skeleton } from "@/components/ui/skeleton"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
+import { ReportModal } from "@/components/modals/report-modal"
 
 interface Props {
   serverId: string
@@ -263,6 +264,7 @@ export function MemberList({ serverId }: Props) {
                 currentUserId={currentUser?.id}
                 onViewProfile={() => setSelectedMemberId(member.user_id)}
                 recentlyActive={recentlyActiveUserIds.has(member.user_id)}
+                serverId={serverId}
               />
             ))}
           </div>
@@ -286,6 +288,7 @@ export function MemberList({ serverId }: Props) {
                 onViewProfile={() => setSelectedMemberId(member.user_id)}
                 recentlyActive={recentlyActiveUserIds.has(member.user_id)}
                 offline
+                serverId={serverId}
               />
             ))}
           </div>
@@ -303,6 +306,7 @@ function MemberItem({
   onViewProfile,
   offline,
   recentlyActive,
+  serverId,
 }: {
   member: MemberData
   presence?: { status: string; speaking?: boolean; voice_channel_id?: string }
@@ -310,6 +314,7 @@ function MemberItem({
   onViewProfile: () => void
   offline?: boolean
   recentlyActive?: boolean
+  serverId: string
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -321,6 +326,7 @@ function MemberItem({
   const initials = displayName.slice(0, 2).toUpperCase()
   const isOtherUser = currentUserId && member.user_id !== currentUserId
   const [actionLoading, setActionLoading] = useState<"message" | "friend" | null>(null)
+  const [showReportModal, setShowReportModal] = useState(false)
 
   // Get highest colored role
   const coloredRole = member.roles
@@ -362,6 +368,7 @@ function MemberItem({
   }
 
   return (
+    <>
     <ContextMenu>
       <UserProfilePopover
         user={member.user}
@@ -450,7 +457,26 @@ function MemberItem({
         }}>
           <Clipboard className="w-4 h-4 mr-2" /> Copy User ID
         </ContextMenuItem>
+        {isOtherUser && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={() => setShowReportModal(true)}>
+              <Flag className="w-4 h-4 mr-2" /> Report User
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
+
+    {isOtherUser && (
+      <ReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedUserId={member.user_id}
+        reportedUsername={displayName}
+        serverId={serverId}
+      />
+    )}
+    </>
   )
 }

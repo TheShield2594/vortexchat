@@ -1,0 +1,150 @@
+import { NextRequest, NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { computePermissions, hasPermission } from "@vortex/shared"
+import type { Json } from "@/types/database"
+
+// PATCH /api/channels/[channelId] — update channel settings
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ channelId: string }> }
+) {
+  const { channelId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Fetch channel to get server_id
+  const { data: channel, error: channelError } = await supabase
+    .from("channels")
+    .select("id, server_id, type, name, topic, nsfw, slowmode_delay, forum_guidelines")
+    .eq("id", channelId)
+    .single()
+
+  if (channelError || !channel) {
+    return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+  }
+
+  // Permission check: must be server owner or have MANAGE_CHANNELS
+  const { data: server } = await supabase
+    .from("servers")
+    .select("owner_id")
+    .eq("id", channel.server_id)
+    .single()
+
+  if (!server) {
+    return NextResponse.json({ error: "Server not found" }, { status: 404 })
+  }
+
+  const isOwner = server.owner_id === user.id
+
+  if (!isOwner) {
+    // Check role permissions
+    const { data: memberRoles } = await supabase
+      .from("member_roles")
+      .select("role_id, roles(permissions)")
+      .eq("server_id", channel.server_id)
+      .eq("user_id", user.id)
+
+    // Also get @everyone role permissions
+    const { data: defaultRole } = await supabase
+      .from("roles")
+      .select("permissions")
+      .eq("server_id", channel.server_id)
+      .eq("is_default", true)
+      .single()
+
+    const roleBitmasks = [
+      ...(memberRoles ?? []).map((r) => (r.roles as unknown as { permissions: number })?.permissions ?? 0),
+      defaultRole?.permissions ?? 0,
+    ]
+
+    const permissions = computePermissions(roleBitmasks)
+
+    if (!hasPermission(permissions, "MANAGE_CHANNELS")) {
+      return NextResponse.json({ error: "Missing MANAGE_CHANNELS permission" }, { status: 403 })
+    }
+  }
+
+  let body: Record<string, unknown>
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  // Build the update payload with validation
+  const update: Record<string, unknown> = {}
+
+  if (typeof body.name === "string") {
+    const name = body.name.trim()
+    if (!name || name.length > 100) {
+      return NextResponse.json({ error: "Channel name must be 1-100 characters" }, { status: 400 })
+    }
+    update.name = name
+  }
+
+  if (typeof body.topic === "string" || body.topic === null) {
+    const topic = typeof body.topic === "string" ? body.topic.trim() : null
+    if (topic && topic.length > 1024) {
+      return NextResponse.json({ error: "Topic must be 1024 characters or fewer" }, { status: 400 })
+    }
+    update.topic = topic || null
+  }
+
+  if (typeof body.nsfw === "boolean") {
+    update.nsfw = body.nsfw
+  }
+
+  if (typeof body.slowmode_delay === "number") {
+    if (body.slowmode_delay < 0 || body.slowmode_delay > 21600) {
+      return NextResponse.json({ error: "Slowmode delay must be 0-21600 seconds" }, { status: 400 })
+    }
+    update.slowmode_delay = Math.floor(body.slowmode_delay)
+  }
+
+  if (typeof body.forum_guidelines === "string" || body.forum_guidelines === null) {
+    if (channel.type !== "forum") {
+      return NextResponse.json({ error: "Guidelines are only available for forum channels" }, { status: 400 })
+    }
+    const guidelines = typeof body.forum_guidelines === "string" ? body.forum_guidelines.trim() : null
+    if (guidelines && guidelines.length > 2000) {
+      return NextResponse.json({ error: "Guidelines must be 2000 characters or fewer" }, { status: 400 })
+    }
+    update.forum_guidelines = guidelines || null
+  }
+
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("channels")
+    .update(update)
+    .eq("id", channelId)
+    .select("*")
+    .single()
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  }
+
+  // Build before/after diff for audit log
+  const changes: Record<string, { old: unknown; new: unknown }> = {}
+  for (const key of Object.keys(update)) {
+    changes[key] = {
+      old: channel[key as keyof typeof channel],
+      new: updated[key as keyof typeof updated],
+    }
+  }
+
+  await supabase.from("audit_logs").insert({
+    server_id: channel.server_id,
+    actor_id: user.id,
+    action: "channel_updated",
+    target_id: channelId,
+    target_type: "channel",
+    changes: changes as unknown as Json,
+  })
+
+  return NextResponse.json(updated)
+}
