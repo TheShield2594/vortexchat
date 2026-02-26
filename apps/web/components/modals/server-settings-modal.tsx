@@ -1276,6 +1276,13 @@ function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
   }
 }
 
+function upsertAutomodRule(rules: AutoModRuleRow[], editingId: string | "new", saved: AutoModRuleRow): AutoModRuleRow[] {
+  if (editingId === "new") {
+    return [...rules, saved]
+  }
+  return rules.map((r) => (r.id === editingId ? saved : r))
+}
+
 /** AutoMod rules tab — create, edit, test, and toggle automated moderation rules with configurable triggers and actions. */
 export function AutoModTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
   const { toast } = useToast()
@@ -1310,7 +1317,7 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
   }
 
   async function handleSave() {
-    if (!form.name.trim()) return
+    if (!form.name.trim() || !editingId) return
     setSaving(true)
     const payload = formToPayload(form)
     let res: Response
@@ -1329,11 +1336,7 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
     }
     if (res.ok) {
       const saved = await res.json()
-      if (editingId === "new") {
-        setRules((prev) => [...prev, saved])
-      } else {
-        setRules((prev) => prev.map((r) => (r.id === editingId ? saved : r)))
-      }
+      setRules((prev) => upsertAutomodRule(prev, editingId, saved))
       setEditingId(null)
       toast({ title: editingId === "new" ? "Rule created" : "Rule updated" })
     } else {

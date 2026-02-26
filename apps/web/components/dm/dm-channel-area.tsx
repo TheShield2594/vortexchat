@@ -167,6 +167,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
 
+  const sendDmPayload = useCallback(async (payload: { content: string; reply_to_id?: string }) => {
+    const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) return null
+    return await res.json()
+  }, [channelId])
+
   const syncDeviceRegistration = useCallback(async (deviceId: string, publicKey: string) => {
     const registrationKey = `${currentUserId}:${deviceId}:${publicKey}`
     if (registeredDeviceKeys.has(registrationKey)) return
@@ -430,13 +440,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       if (currentReplyTo) {
         payload.reply_to_id = currentReplyTo.id
       }
-      const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (res.ok) {
-        const msg = await res.json()
+      const msg = await sendDmPayload(payload)
+      if (msg) {
         setMessages((prev) => [...prev, msg])
       } else {
         // Restore so user can retry
@@ -520,13 +525,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         if (!key) throw new Error("Missing encryption key")
         outbound = JSON.stringify(await encryptDmContent(fileContent, key, channel.encryption_key_version ?? 1))
       }
-      const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: outbound }),
-      })
-      if (res.ok) {
-        const msg = await res.json()
+      const msg = await sendDmPayload({ content: outbound })
+      if (msg) {
         setMessages((prev) => [...prev, msg])
       } else {
         toast({ variant: "destructive", title: "Failed to send file" })

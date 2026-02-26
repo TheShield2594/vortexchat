@@ -141,6 +141,23 @@ function mergeItemsPreservingOrder(
   return merged
 }
 
+function normalizeVoiceParticipants(rows: any[]): VoiceParticipant[] {
+  return rows.map((d: any) => ({
+    user_id: d.user_id,
+    channel_id: d.channel_id,
+    muted: d.muted,
+    deafened: d.deafened,
+    user: d.users ?? null,
+  }))
+}
+
+async function fetchThreadCounts(serverId: string, signal: AbortSignal) {
+  const response = await fetch(`/api/threads/counts?serverId=${serverId}`, { signal })
+  if (!response.ok) return null
+  const data = await response.json()
+  return data && typeof data === "object" ? data as Record<string, number> : null
+}
+
 /** Server channel sidebar with drag-and-drop reordering, category grouping, voice state indicators, and unread tracking. */
 export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
   const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel } = useAppStore(
@@ -188,11 +205,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
     async function loadThreadCounts() {
       try {
-        const response = await fetch(`/api/threads/counts?serverId=${server.id}`, { signal: controller.signal })
-        if (!response.ok) return
-        const data = await response.json()
-        if (!controller.signal.aborted && data && typeof data === "object") {
-          setActiveThreadCounts(data as Record<string, number>)
+        const data = await fetchThreadCounts(server.id, controller.signal)
+        if (!controller.signal.aborted && data) {
+          setActiveThreadCounts(data)
         }
       } catch (error: any) {
         if (error?.name !== "AbortError") console.error("Failed to load thread counts", error)
@@ -259,15 +274,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         .select("user_id, channel_id, muted, deafened, users(id, username, display_name, avatar_url)")
         .eq("server_id", server.id)
       if (cancelled) return
-      setVoiceParticipants(
-        (data ?? []).map((d: any) => ({
-          user_id: d.user_id,
-          channel_id: d.channel_id,
-          muted: d.muted,
-          deafened: d.deafened,
-          user: d.users ?? null,
-        }))
-      )
+      setVoiceParticipants(normalizeVoiceParticipants(data ?? []))
     }
 
     function debouncedFetch() {
