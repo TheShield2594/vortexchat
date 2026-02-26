@@ -49,6 +49,7 @@ function sleep(ms: number): Promise<void> {
 
 const MESSAGE_SELECT = `*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`
 const REPLY_SELECT   = `*, author:users!messages_author_id_fkey(*)`
+const RECENTLY_ACTIVE_DECAY_MS = 12_000
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()
@@ -82,6 +83,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [isPaginating, setIsPaginating] = useState(false)
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
+  const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -1042,6 +1044,50 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }, {})
   }, [outbox])
 
+  useEffect(() => {
+    if (typingUsers.length === 0) return
+
+    const now = Date.now()
+    setRecentlyActiveTimestamps((prev) => {
+      const next = { ...prev }
+      for (const user of typingUsers) {
+        next[user.userId] = now
+      }
+      return next
+    })
+  }, [typingUsers])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      setRecentlyActiveTimestamps((prev) => {
+        let changed = false
+        const next: Record<string, number> = {}
+        for (const [userId, timestamp] of Object.entries(prev)) {
+          if (now - timestamp <= RECENTLY_ACTIVE_DECAY_MS) {
+            next[userId] = timestamp
+          } else {
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    }, 1_000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const recentlyActiveUserIds = useMemo(() => {
+    const now = Date.now()
+    const active = new Set<string>()
+    for (const [userId, timestamp] of Object.entries(recentlyActiveTimestamps)) {
+      if (now - timestamp <= RECENTLY_ACTIVE_DECAY_MS) {
+        active.add(userId)
+      }
+    }
+    return active
+  }, [recentlyActiveTimestamps])
+
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
@@ -1187,6 +1233,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   currentUserId={currentUserId}
                   sendState={outboxStateByMessageId[message.id]}
                   onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
+                  recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
                   onReply={() => setReplyTo(message)}
                   onReplyJump={jumpToMessage}
                   onThreadCreated={(thread) => setActiveThread(thread)}

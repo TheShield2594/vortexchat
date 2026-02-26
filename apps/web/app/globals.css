@@ -218,6 +218,20 @@
   .panel-surface-motion[data-state="closed"] {
     animation-name: none !important;
   }
+
+  .typing-dot,
+  .speaking-ring,
+  .composer-presence-rail,
+  .recent-activity-halo,
+  .message-state-morph {
+    animation: none !important;
+    transition-duration: 0ms !important;
+    transform: none !important;
+  }
+
+  .message-state-morph:active {
+    transform: none !important;
+  }
 }
 
 /* Discord-like message formatting */
@@ -502,3 +516,54 @@
 }
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes composer-presence-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(88, 101, 242, 0.14); }
+  50% { box-shadow: inset 0 0 0 1px rgba(88, 101, 242, 0.28); }
+}
+
+.composer-presence-rail {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: linear-gradient(90deg, rgba(88, 101, 242, 0.04), rgba(88, 101, 242, 0.01));
+  animation: composer-presence-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes recent-activity-halo {
+  0% { box-shadow: 0 0 0 0 rgba(93, 179, 255, 0.28); }
+  100% { box-shadow: 0 0 0 6px rgba(93, 179, 255, 0); }
+}
+
+.recent-activity-halo {
+  animation: recent-activity-halo 1.8s ease-out infinite;
+}
+
+.message-state-morph {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+  transition: color var(--motion-duration-standard) var(--motion-ease-standard),
+    background-color var(--motion-duration-standard) var(--motion-ease-standard),
+    border-color var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.message-state-morph.is-queued {
+  color: var(--theme-warning);
+  background: rgba(209, 156, 76, 0.12);
+  border-color: rgba(209, 156, 76, 0.25);
+}
+
+.message-state-morph.is-sending {
+  color: var(--theme-text-muted);
+  background: rgba(152, 160, 171, 0.1);
+  border-color: rgba(152, 160, 171, 0.22);
+}
+
+.message-state-morph.is-failed {
+  color: var(--theme-danger);
+  background: rgba(214, 82, 87, 0.12);
+  border-color: rgba(214, 82, 87, 0.24);
+}

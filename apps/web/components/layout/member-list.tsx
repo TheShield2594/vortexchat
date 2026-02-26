@@ -59,6 +59,9 @@ export function MemberList({ serverId }: Props) {
   )
   const [members, setMembers] = useState<MemberData[]>([])
   const [presence, setPresence] = useState<PresenceState>({})
+  const [recentlyActiveUserIds, setRecentlyActiveUserIds] = useState<Set<string>>(new Set())
+  const recentActivityTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const previousPresenceRef = useRef<PresenceState>({})
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
@@ -123,13 +126,40 @@ export function MemberList({ serverId }: Props) {
         const presenceMap: PresenceState = {}
         for (const presences of Object.values(state)) {
           for (const p of presences) {
-            presenceMap[p.user_id] = {
+            const nextPresence = {
               status: p.status,
               speaking: p.speaking,
               voice_channel_id: p.voice_channel_id,
             }
+            presenceMap[p.user_id] = nextPresence
+
+            const previousPresence = previousPresenceRef.current[p.user_id]
+            const statusChanged = previousPresence?.status !== nextPresence.status
+            const speakingBecameActive = Boolean(nextPresence.speaking) && !Boolean(previousPresence?.speaking)
+            const voiceChannelChanged = previousPresence?.voice_channel_id !== nextPresence.voice_channel_id
+            if (!previousPresence || statusChanged || speakingBecameActive || voiceChannelChanged) {
+              const existingTimer = recentActivityTimersRef.current.get(p.user_id)
+              if (existingTimer) clearTimeout(existingTimer)
+
+              setRecentlyActiveUserIds((prev) => {
+                const next = new Set(prev)
+                next.add(p.user_id)
+                return next
+              })
+
+              const timer = setTimeout(() => {
+                setRecentlyActiveUserIds((prev) => {
+                  const next = new Set(prev)
+                  next.delete(p.user_id)
+                  return next
+                })
+                recentActivityTimersRef.current.delete(p.user_id)
+              }, 12_000)
+              recentActivityTimersRef.current.set(p.user_id, timer)
+            }
           }
         }
+        previousPresenceRef.current = presenceMap
         setPresence(presenceMap)
       })
       .subscribe(async (status) => {
@@ -153,6 +183,12 @@ export function MemberList({ serverId }: Props) {
     return () => {
       channelRef.current = null
       supabase.removeChannel(channel)
+      for (const timer of recentActivityTimersRef.current.values()) {
+        clearTimeout(timer)
+      }
+      recentActivityTimersRef.current.clear()
+      previousPresenceRef.current = {}
+      setRecentlyActiveUserIds(new Set())
     }
   }, [serverId, supabase])
 
@@ -226,6 +262,7 @@ export function MemberList({ serverId }: Props) {
                 presence={presence[member.user_id]}
                 currentUserId={currentUser?.id}
                 onViewProfile={() => setSelectedMemberId(member.user_id)}
+                recentlyActive={recentlyActiveUserIds.has(member.user_id)}
               />
             ))}
           </div>
@@ -247,6 +284,7 @@ export function MemberList({ serverId }: Props) {
                 presence={presence[member.user_id]}
                 currentUserId={currentUser?.id}
                 onViewProfile={() => setSelectedMemberId(member.user_id)}
+                recentlyActive={recentlyActiveUserIds.has(member.user_id)}
                 offline
               />
             ))}
@@ -264,12 +302,14 @@ function MemberItem({
   currentUserId,
   onViewProfile,
   offline,
+  recentlyActive,
 }: {
   member: MemberData
   presence?: { status: string; speaking?: boolean; voice_channel_id?: string }
   currentUserId?: string
   onViewProfile: () => void
   offline?: boolean
+  recentlyActive?: boolean
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -340,7 +380,7 @@ function MemberItem({
               onViewProfile()
             }}
           >
-            <div className="relative flex-shrink-0">
+            <div className={`relative flex-shrink-0 rounded-full ${recentlyActive ? "recent-activity-halo" : ""}`}>
               <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
                 {member.user?.avatar_url && <AvatarImage src={member.user.avatar_url} />}
                 <AvatarFallback
