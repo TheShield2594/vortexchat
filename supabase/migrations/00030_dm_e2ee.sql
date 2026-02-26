@@ -126,8 +126,15 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS dm_channel_keys_prune_after_write ON public.dm_channel_keys;
-CREATE TRIGGER dm_channel_keys_prune_after_write
-  AFTER INSERT OR UPDATE ON public.dm_channel_keys
+DROP TRIGGER IF EXISTS dm_channel_keys_prune_after_insert ON public.dm_channel_keys;
+CREATE TRIGGER dm_channel_keys_prune_after_insert
+  AFTER INSERT ON public.dm_channel_keys
+  REFERENCING NEW TABLE AS new_rows
+  FOR EACH STATEMENT EXECUTE FUNCTION public.dm_channel_keys_prune_trigger();
+
+DROP TRIGGER IF EXISTS dm_channel_keys_prune_after_update ON public.dm_channel_keys;
+CREATE TRIGGER dm_channel_keys_prune_after_update
+  AFTER UPDATE ON public.dm_channel_keys
   REFERENCING NEW TABLE AS new_rows
   FOR EACH STATEMENT EXECUTE FUNCTION public.dm_channel_keys_prune_trigger();
 
