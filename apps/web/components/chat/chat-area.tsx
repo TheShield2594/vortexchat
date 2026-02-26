@@ -1042,6 +1042,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }, {})
   }, [outbox])
 
+  const recentlyActiveUserIds = useMemo(() => new Set(typingUsers.map((user) => user.userId)), [typingUsers])
+
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
@@ -1187,6 +1189,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   currentUserId={currentUserId}
                   sendState={outboxStateByMessageId[message.id]}
                   onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
+                  recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
                   onReply={() => setReplyTo(message)}
                   onReplyJump={jumpToMessage}
                   onThreadCreated={(thread) => setActiveThread(thread)}

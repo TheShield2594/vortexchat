@@ -2,7 +2,7 @@
 
 import { memo, useId, useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, AlertCircle, Clock3, Loader2, RefreshCcw, CheckSquare } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
@@ -35,6 +35,7 @@ interface Props {
   onThreadCreated?: (thread: ThreadRow) => void
   sendState?: "queued" | "sending" | "failed"
   onRetry?: () => void
+  recentlyActive?: boolean
 }
 
 function extractPoll(content: string | null): { question: string; options: string[]; sanitizedContent: string | null } | null {
@@ -70,6 +71,7 @@ export const MessageItem = memo(function MessageItem({
   onThreadCreated,
   sendState,
   onRetry,
+  recentlyActive = false,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
@@ -106,6 +108,9 @@ export const MessageItem = memo(function MessageItem({
     : message.content
   const parsedPoll = extractPoll(renderedContent)
   const messageBodyContent = parsedPoll ? parsedPoll.sanitizedContent : renderedContent
+
+  const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "sending" ? "Sending" : sendState === "failed" ? "Failed" : null
+
 
   // Group reactions by emoji
   const reactionGroups = message.reactions.reduce(
@@ -301,7 +306,7 @@ export const MessageItem = memo(function MessageItem({
                   align="start"
                 >
                   <div className="cursor-pointer">
-                    <Avatar className="w-10 h-10">
+                    <Avatar className={cn("w-10 h-10", recentlyActive && "recent-activity-halo")}>
                       {message.author?.avatar_url && (
                         <AvatarImage src={message.author.avatar_url} />
                       )}
@@ -322,14 +327,8 @@ export const MessageItem = memo(function MessageItem({
                   >
                     {format(timestamp, "HH:mm")}
                   </span>
-                  {sendState === "queued" && (
-                    <Clock3 className="w-3 h-3" style={{ color: "var(--theme-warning)" }} />
-                  )}
-                  {sendState === "sending" && (
-                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: "var(--theme-text-muted)" }} />
-                  )}
-                  {sendState === "failed" && (
-                    <AlertCircle className="w-3 h-3" style={{ color: "var(--theme-danger)" }} />
+                  {sendStateLabel && (
+                    <span className={cn("message-state-morph text-[10px]", sendState && `is-${sendState}`)}>{sendStateLabel}</span>
                   )}
                 </div>
               )}
@@ -355,20 +354,8 @@ export const MessageItem = memo(function MessageItem({
                   <span id={messageMetaId} className="text-xs tertiary-metadata">
                     {format(timestamp, "MM/dd/yyyy h:mm a")}
                   </span>
-                  {sendState === "queued" && (
-                    <span className="text-xs flex items-center gap-1" style={{ color: "var(--theme-warning)" }}>
-                      <Clock3 className="w-3 h-3" /> queued
-                    </span>
-                  )}
-                  {sendState === "sending" && (
-                    <span className="text-xs flex items-center gap-1" style={{ color: "var(--theme-text-muted)" }}>
-                      <Loader2 className="w-3 h-3 animate-spin" /> sending
-                    </span>
-                  )}
-                  {sendState === "failed" && (
-                    <span className="text-xs flex items-center gap-1" style={{ color: "var(--theme-danger)" }}>
-                      <AlertCircle className="w-3 h-3" /> failed
-                    </span>
+                  {sendStateLabel && (
+                    <span className={cn("message-state-morph", sendState && `is-${sendState}`)}>{sendStateLabel}</span>
                   )}
                   {message.edited_at && (
                     <span className="text-xs tertiary-metadata">

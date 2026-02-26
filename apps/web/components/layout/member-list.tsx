@@ -59,6 +59,8 @@ export function MemberList({ serverId }: Props) {
   )
   const [members, setMembers] = useState<MemberData[]>([])
   const [presence, setPresence] = useState<PresenceState>({})
+  const [recentlyActiveUserIds, setRecentlyActiveUserIds] = useState<Set<string>>(new Set())
+  const recentActivityTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
@@ -128,6 +130,25 @@ export function MemberList({ serverId }: Props) {
               speaking: p.speaking,
               voice_channel_id: p.voice_channel_id,
             }
+
+            const existingTimer = recentActivityTimersRef.current.get(p.user_id)
+            if (existingTimer) clearTimeout(existingTimer)
+
+            setRecentlyActiveUserIds((prev) => {
+              const next = new Set(prev)
+              next.add(p.user_id)
+              return next
+            })
+
+            const timer = setTimeout(() => {
+              setRecentlyActiveUserIds((prev) => {
+                const next = new Set(prev)
+                next.delete(p.user_id)
+                return next
+              })
+              recentActivityTimersRef.current.delete(p.user_id)
+            }, 12000)
+            recentActivityTimersRef.current.set(p.user_id, timer)
           }
         }
         setPresence(presenceMap)
@@ -153,6 +174,8 @@ export function MemberList({ serverId }: Props) {
     return () => {
       channelRef.current = null
       supabase.removeChannel(channel)
+      recentActivityTimersRef.current.forEach((timer) => clearTimeout(timer))
+      recentActivityTimersRef.current.clear()
     }
   }, [serverId, supabase])
 
@@ -226,6 +249,7 @@ export function MemberList({ serverId }: Props) {
                 presence={presence[member.user_id]}
                 currentUserId={currentUser?.id}
                 onViewProfile={() => setSelectedMemberId(member.user_id)}
+                recentlyActive={recentlyActiveUserIds.has(member.user_id)}
               />
             ))}
           </div>
@@ -247,6 +271,7 @@ export function MemberList({ serverId }: Props) {
                 presence={presence[member.user_id]}
                 currentUserId={currentUser?.id}
                 onViewProfile={() => setSelectedMemberId(member.user_id)}
+                recentlyActive={recentlyActiveUserIds.has(member.user_id)}
                 offline
               />
             ))}
@@ -264,12 +289,14 @@ function MemberItem({
   currentUserId,
   onViewProfile,
   offline,
+  recentlyActive,
 }: {
   member: MemberData
   presence?: { status: string; speaking?: boolean; voice_channel_id?: string }
   currentUserId?: string
   onViewProfile: () => void
   offline?: boolean
+  recentlyActive?: boolean
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -341,7 +368,7 @@ function MemberItem({
             }}
           >
             <div className="relative flex-shrink-0">
-              <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
+              <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""} ${recentlyActive ? "recent-activity-halo" : ""}`}>
                 {member.user?.avatar_url && <AvatarImage src={member.user.avatar_url} />}
                 <AvatarFallback
                   style={{
