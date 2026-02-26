@@ -117,13 +117,18 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
     }
   }, [onClose])
 
-  const handleImageClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleImageClick = useCallback((e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
     e.stopPropagation()
     if (zoom === 1) {
-      const rect = e.currentTarget.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      setPanOrigin({ x, y })
+      // Keyboard events don't have clientX/clientY — zoom to center
+      if ("clientX" in e && typeof e.clientX === "number") {
+        const rect = e.currentTarget.getBoundingClientRect()
+        const x = ((e.clientX - rect.left) / rect.width) * 100
+        const y = ((e.clientY - rect.top) / rect.height) * 100
+        setPanOrigin({ x, y })
+      } else {
+        setPanOrigin({ x: 50, y: 50 })
+      }
       setZoom(2)
     } else {
       resetZoom()
@@ -201,11 +206,15 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
 
       {/* Image */}
       <div
+        role="button"
+        tabIndex={0}
         className="max-w-[90vw] max-h-[85vh] overflow-hidden"
         style={{ cursor: zoom > 1 ? "zoom-out" : "zoom-in" }}
         onClick={handleImageClick}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleImageClick(e) } }}
         onMouseMove={handleMouseMove}
         onWheel={handleWheel}
+        aria-label={zoom > 1 ? "Zoom out" : "Zoom in"}
       >
         <img
           src={current.src}

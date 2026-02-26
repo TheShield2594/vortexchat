@@ -876,7 +876,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 ? (decryptedContent[replyTo.id]?.text ?? "Encrypted message")
                 : replyTo.content}
             </span>
-            <button onClick={() => setReplyTo(null)} style={{ color: "var(--theme-text-muted)" }}>
+            <button type="button" onClick={() => setReplyTo(null)} style={{ color: "var(--theme-text-muted)" }}>
               <X className="w-3 h-3 hover:text-white" />
             </button>
           </div>

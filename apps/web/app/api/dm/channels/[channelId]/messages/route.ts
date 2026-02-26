@@ -82,7 +82,8 @@ export async function POST(
     return NextResponse.json({ error: "Unable to verify channel encryption" }, { status: 500 })
   }
   const channelInfo = channel as { is_encrypted: boolean; encryption_key_version: number }
-  const content = body.content?.trim()
+  if (typeof body.content !== "string") return NextResponse.json({ error: "Content required" }, { status: 400 })
+  const content = body.content.trim()
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 })
 
   if (channelInfo?.is_encrypted) {

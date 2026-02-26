@@ -433,7 +433,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         statsTimerRef.current = null
       }
     }
-  }, [peers]) // re-create when peers change
+  }, []) // stable interval — pollStats reads live state from refs
 
   useEffect(() => {
     let mounted = true
@@ -929,7 +929,6 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     async function init() {
       try {
         setAudioInitError(null)
-        setConnectionState("connected")
         const audioConstraints: MediaTrackConstraints = {
           echoCancellation: true,
           noiseSuppression: true,

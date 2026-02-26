@@ -63,7 +63,7 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
       })
 
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({ error: "Failed to update channel" }))
         throw new Error(err.error || "Failed to update channel")
       }
 

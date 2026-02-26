@@ -38,8 +38,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
-  // Sign out the temp session immediately
-  await tempClient.auth.signOut()
+  // Sign out the temp session immediately (best-effort)
+  try {
+    await tempClient.auth.signOut()
+  } catch {
+    // Non-critical — temp session will expire on its own
+  }
 
   const authUser = signInData.user
 
@@ -68,14 +72,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
-  // Mark the code as consumed
-  const { error: consumeError } = await adminDb
+  // Atomically mark the code as consumed (used_at IS NULL guard prevents double-use race)
+  const { data: consumed, error: consumeError } = await adminDb
     .from("recovery_codes")
     .update({ used_at: new Date().toISOString() })
     .eq("id", matchedCodeId)
+    .is("used_at", null)
+    .select("id")
+    .single()
 
-  if (consumeError) {
-    return NextResponse.json({ error: "Failed to consume recovery code" }, { status: 500 })
+  if (consumeError || !consumed) {
+    return NextResponse.json({ error: "Recovery code already used" }, { status: 409 })
   }
 
   // Generate a session link for the user (same pattern as passkey login verify)

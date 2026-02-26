@@ -5,6 +5,7 @@ import { Loader2, CheckCircle, XCircle, Clock, ExternalLink } from "lucide-react
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { REPORT_REASONS } from "@/lib/report-reasons"
 
 interface ReportUser {
   id: string
@@ -39,12 +40,9 @@ const STATUS_FILTERS = [
   { value: "dismissed", label: "Dismissed" },
 ] as const
 
-const REASON_LABELS: Record<string, string> = {
-  spam: "Spam",
-  harassment: "Harassment",
-  inappropriate_content: "Inappropriate Content",
-  other: "Other",
-}
+const REASON_LABELS: Record<string, string> = Object.fromEntries(
+  REPORT_REASONS.map((r) => [r.value, r.label])
+)
 
 function getStatusIcon(status: string) {
   switch (status) {

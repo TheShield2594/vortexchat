@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { hasPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import type { Json } from "@/types/database"
+import { detectMimeFromBytes } from "@/lib/attachment-validation"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -23,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { data: server } = await supabase
     .from("servers")
-    .select("owner_id, icon_url")
+    .select("owner_id, name, description, icon_url")
     .eq("id", serverId)
     .single()
 
@@ -77,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "name must be 1–100 characters" }, { status: 400 })
     }
     updates.name = trimmed
-    changes.name = { old: undefined, new: trimmed }
+    changes.name = { old: server.name, new: trimmed }
   }
 
   // Validate description
@@ -87,7 +88,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "description must be 0–1024 characters" }, { status: 400 })
     }
     updates.description = trimmed || null
-    changes.description = { old: undefined, new: trimmed || null }
+    changes.description = { old: server.description, new: trimmed || null }
   }
 
   // Handle icon upload
@@ -105,6 +106,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     if (iconFile.size > MAX_ICON_SIZE) {
       return NextResponse.json({ error: "Icon must be 2 MB or smaller" }, { status: 400 })
+    }
+
+    // Verify magic bytes match claimed type
+    const headerSlice = iconFile.slice(0, 16)
+    const headerBytes = new Uint8Array(await headerSlice.arrayBuffer())
+    const detectedMime = detectMimeFromBytes(headerBytes)
+    if (detectedMime && !ALLOWED_ICON_TYPES.includes(detectedMime)) {
+      return NextResponse.json({ error: "Icon file content does not match an allowed image type" }, { status: 400 })
     }
 
     const ext = rawExt || "png"

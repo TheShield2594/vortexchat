@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { computePermissions, hasPermission } from "@vortex/shared"
+import type { Json } from "@/types/database"
 
 // PATCH /api/channels/[channelId] — update channel settings
 export async function PATCH(
@@ -126,6 +127,24 @@ export async function PATCH(
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
+
+  // Build before/after diff for audit log
+  const changes: Record<string, { old: unknown; new: unknown }> = {}
+  for (const key of Object.keys(update)) {
+    changes[key] = {
+      old: channel[key as keyof typeof channel],
+      new: updated[key as keyof typeof updated],
+    }
+  }
+
+  await supabase.from("audit_logs").insert({
+    server_id: channel.server_id,
+    actor_id: user.id,
+    action: "channel_updated",
+    target_id: channelId,
+    target_type: "channel",
+    changes: changes as unknown as Json,
+  })
 
   return NextResponse.json(updated)
 }

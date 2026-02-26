@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   if (reported_message_id) {
     const { data: message } = await supabase
       .from("messages")
-      .select("id, author_id")
+      .select("id, author_id, channel_id, channels!inner(server_id)")
       .eq("id", reported_message_id)
       .maybeSingle()
 
@@ -102,6 +102,14 @@ export async function POST(req: NextRequest) {
 
     if (message.author_id !== reported_user_id) {
       return NextResponse.json({ error: "Reported user does not match message author" }, { status: 400 })
+    }
+
+    // Verify the message belongs to the reported server
+    if (server_id) {
+      const msgServerId = (message as any).channels?.server_id
+      if (msgServerId && msgServerId !== server_id) {
+        return NextResponse.json({ error: "Message does not belong to this server" }, { status: 400 })
+      }
     }
   }
 
@@ -238,14 +246,18 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Fetch current status before updating for accurate audit trail
-  const { data: existingReport } = await (supabase as any)
+  const { data: existingReport, error: lookupError } = await (supabase as any)
     .from("reports")
     .select("status")
     .eq("id", report_id)
     .eq("server_id", server_id)
     .single()
 
-  const previousStatus = (existingReport as any)?.status ?? "pending"
+  if (lookupError || !existingReport) {
+    return NextResponse.json({ error: "Report not found" }, { status: 404 })
+  }
+
+  const previousStatus = (existingReport as any).status
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: report, error } = await (supabase as any)

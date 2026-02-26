@@ -32,6 +32,12 @@ export async function PATCH(
     return NextResponse.json({ error: "roleIds must be a non-empty array" }, { status: 400 })
   }
 
+  // Validate no duplicate IDs
+  const uniqueIds = new Set(roleIds)
+  if (uniqueIds.size !== roleIds.length) {
+    return NextResponse.json({ error: "roleIds must not contain duplicates" }, { status: 400 })
+  }
+
   // Fetch all roles for this server to validate the reorder
   const { data: serverRoles, error: fetchError } = await supabase
     .from("roles")

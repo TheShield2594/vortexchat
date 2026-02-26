@@ -111,11 +111,13 @@ export function ReportModal({
             >
               Reason <span className="text-red-500">*</span>
             </Label>
-            <div className="space-y-2">
+            <div className="space-y-2" role="radiogroup" aria-label="Report reason">
               {REPORT_REASONS.map((r) => (
                 <button
                   key={r.value}
                   type="button"
+                  role="radio"
+                  aria-checked={reason === r.value}
                   onClick={() => setReason(r.value)}
                   className="w-full flex items-start gap-3 p-3 rounded text-left transition-colors"
                   style={{

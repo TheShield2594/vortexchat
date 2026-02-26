@@ -145,26 +145,22 @@ export async function validateAttachmentContent(
 ): Promise<{ valid: boolean; error?: string; failedFilename?: string }> {
   for (const attachment of attachments) {
     try {
-      // Fetch first 16 bytes — enough for all magic byte signatures
+      const HEADER_SIZE = 16
+      const abortController = new AbortController()
+
+      // Attempt range request first for efficiency
       const response = await fetch(attachment.url, {
         headers: { Range: "bytes=0-15" },
+        signal: abortController.signal,
       })
 
-      if (!response.ok) {
-        // If range requests are not supported, stream only the header bytes
-        const abortController = new AbortController()
-        const fallbackResponse = await fetch(attachment.url, { signal: abortController.signal })
-        if (!fallbackResponse.ok || !fallbackResponse.body) {
-          return {
-            valid: false,
-            error: `Unable to verify attachment content: ${attachment.filename}`,
-            failedFilename: attachment.filename,
-          }
-        }
-        const reader = fallbackResponse.body.getReader()
+      let headerBytes: Uint8Array
+
+      if (response.ok && response.body) {
+        // Whether the server returned 206 (partial) or 200 (full), stream only the header
+        const reader = response.body.getReader()
         const chunks: Uint8Array[] = []
         let totalRead = 0
-        const HEADER_SIZE = 16
         try {
           while (totalRead < HEADER_SIZE) {
             const { done, value } = await reader.read()
@@ -176,20 +172,56 @@ export async function validateAttachmentContent(
           reader.cancel()
           abortController.abort()
         }
-        const headerBytes = new Uint8Array(HEADER_SIZE)
+        headerBytes = new Uint8Array(HEADER_SIZE)
         let offset = 0
         for (const chunk of chunks) {
           const toCopy = Math.min(chunk.length, HEADER_SIZE - offset)
           headerBytes.set(chunk.subarray(0, toCopy), offset)
           offset += toCopy
         }
-        const result = checkBytes(headerBytes, attachment)
-        if (!result.valid) return result
-        continue
+      } else if (!response.ok) {
+        // Range request rejected — retry without Range header
+        abortController.abort()
+        const fallbackController = new AbortController()
+        const fallbackResponse = await fetch(attachment.url, { signal: fallbackController.signal })
+        if (!fallbackResponse.ok || !fallbackResponse.body) {
+          return {
+            valid: false,
+            error: `Unable to verify attachment content: ${attachment.filename}`,
+            failedFilename: attachment.filename,
+          }
+        }
+        const reader = fallbackResponse.body.getReader()
+        const chunks: Uint8Array[] = []
+        let totalRead = 0
+        try {
+          while (totalRead < HEADER_SIZE) {
+            const { done, value } = await reader.read()
+            if (done || !value) break
+            chunks.push(value)
+            totalRead += value.length
+          }
+        } finally {
+          reader.cancel()
+          fallbackController.abort()
+        }
+        headerBytes = new Uint8Array(HEADER_SIZE)
+        let offset = 0
+        for (const chunk of chunks) {
+          const toCopy = Math.min(chunk.length, HEADER_SIZE - offset)
+          headerBytes.set(chunk.subarray(0, toCopy), offset)
+          offset += toCopy
+        }
+      } else {
+        // response.ok but no body — cannot verify
+        return {
+          valid: false,
+          error: `Unable to verify attachment content: ${attachment.filename}`,
+          failedFilename: attachment.filename,
+        }
       }
 
-      const buffer = new Uint8Array(await response.arrayBuffer())
-      const result = checkBytes(buffer, attachment)
+      const result = checkBytes(headerBytes, attachment)
       if (!result.valid) return result
     } catch (err) {
       return {

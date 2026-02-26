@@ -746,12 +746,16 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
     setPanOrigin({ x: 50, y: 50 })
   }, [currentImageListIndex, imageIndexes])
 
-  const handleImageClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleImageClick = useCallback((e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
     if (zoom === 1) {
-      const rect = e.currentTarget.getBoundingClientRect()
-      const x = ((e.clientX - rect.left) / rect.width) * 100
-      const y = ((e.clientY - rect.top) / rect.height) * 100
-      setPanOrigin({ x, y })
+      if ("clientX" in e && typeof e.clientX === "number") {
+        const rect = e.currentTarget.getBoundingClientRect()
+        const x = ((e.clientX - rect.left) / rect.width) * 100
+        const y = ((e.clientY - rect.top) / rect.height) * 100
+        setPanOrigin({ x, y })
+      } else {
+        setPanOrigin({ x: 50, y: 50 })
+      }
       setZoom(2)
     } else {
       setZoom(1)

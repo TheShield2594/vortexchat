@@ -958,10 +958,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             title: "Upload failed",
             description: `Failed to upload ${file.name}: ${error.message}`,
           })
-          uploadedBytes = fileStartBytes + file.size
-          if (totalBytes > 0) {
-            onUploadProgress?.(Math.round((uploadedBytes / totalBytes) * 100))
-          }
+          // Don't increment uploadedBytes on failure — keep progress accurate
           continue
         }
         const { data: signed } = await supabase.storage.from("attachments").createSignedUrl(path, 3600 * 24 * 7)
@@ -1311,8 +1308,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                       const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
                       throw new Error(data.error || "Failed to edit message")
                     }
+                    const updated = await res.json().catch(() => null)
                     setMessages((prev) =>
-                      prev.map((m) => m.id === message.id ? { ...m, content, edited_at: new Date().toISOString() } : m)
+                      prev.map((m) => m.id === message.id
+                        ? updated ? { ...m, ...updated } : { ...m, content, edited_at: new Date().toISOString() }
+                        : m)
                     )
                   }}
                   onDelete={async () => {

@@ -47,9 +47,23 @@ export async function PATCH(
   if (msgError || !message)
     return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
-  // Permission check: message author can always edit their own messages.
+  // Permission check: message author can edit their own messages if still a member.
   // Users with MANAGE_MESSAGES (or ADMINISTRATOR) can edit any message.
   const isAuthor = message.author_id === user.id
+
+  if (isAuthor) {
+    // Verify the author is still a server member
+    const { data: membership } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    if (!membership) {
+      return NextResponse.json({ error: "You are no longer a member of this server" }, { status: 403 })
+    }
+  }
 
   if (!isAuthor) {
     const { isAdmin, permissions } = await getChannelPermissions(
@@ -72,6 +86,7 @@ export async function PATCH(
     .update({ content: content.trim(), edited_at: new Date().toISOString() })
     .eq("id", messageId)
     .eq("channel_id", channelId)
+    .is("deleted_at", null)
     .select()
     .single()
 

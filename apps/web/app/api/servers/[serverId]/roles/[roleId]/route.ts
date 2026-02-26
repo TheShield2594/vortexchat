@@ -58,14 +58,29 @@ export async function PATCH(
     }
   }
 
-  // Build update payload from allowed fields
+  // Build update payload from allowed fields with explicit type validation
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: Record<string, any> = {}
-  if (body.name !== undefined) updates.name = String(body.name)
-  if (body.color !== undefined) updates.color = String(body.color)
-  if (body.permissions !== undefined) updates.permissions = Number(body.permissions)
-  if (body.is_hoisted !== undefined) updates.is_hoisted = Boolean(body.is_hoisted)
-  if (body.mentionable !== undefined) updates.mentionable = Boolean(body.mentionable)
+  if (body.name !== undefined) {
+    if (typeof body.name !== "string") return NextResponse.json({ error: "name must be a string" }, { status: 400 })
+    updates.name = body.name.trim()
+  }
+  if (body.color !== undefined) {
+    if (typeof body.color !== "string") return NextResponse.json({ error: "color must be a string" }, { status: 400 })
+    updates.color = body.color
+  }
+  if (body.permissions !== undefined) {
+    if (typeof body.permissions !== "number" || !Number.isFinite(body.permissions)) return NextResponse.json({ error: "permissions must be a number" }, { status: 400 })
+    updates.permissions = body.permissions
+  }
+  if (body.is_hoisted !== undefined) {
+    if (typeof body.is_hoisted !== "boolean") return NextResponse.json({ error: "is_hoisted must be a boolean" }, { status: 400 })
+    updates.is_hoisted = body.is_hoisted
+  }
+  if (body.mentionable !== undefined) {
+    if (typeof body.mentionable !== "boolean") return NextResponse.json({ error: "mentionable must be a boolean" }, { status: 400 })
+    updates.mentionable = body.mentionable
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })

@@ -58,8 +58,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 })
   }
 
-  // Sign out the temp client session immediately
-  await tempClient.auth.signOut()
+  // Sign out the temp client session immediately (best-effort)
+  try {
+    await tempClient.auth.signOut()
+  } catch {
+    // Non-critical — the temp session will expire on its own
+  }
 
   // Update the password using the admin client
   const { error: updateError } = await admin.auth.admin.updateUserById(auth.user.id, {
