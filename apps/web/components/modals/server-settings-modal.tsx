@@ -51,13 +51,14 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
   }, [liveServer.name, liveServer.description])
 
   // Revoke blob URL on unmount
+  const iconPreviewRef = useRef(iconPreview)
+  iconPreviewRef.current = iconPreview
   useEffect(() => {
     return () => {
-      if (iconPreview && iconPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(iconPreview)
+      if (iconPreviewRef.current && iconPreviewRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(iconPreviewRef.current)
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function handleIconFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -191,7 +192,11 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                   </Label>
                   <div className="flex items-center gap-4">
                     <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Upload server icon"
                       onClick={() => iconFileRef.current?.click()}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); iconFileRef.current?.click() } }}
                       className="w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-white/50 transition-colors overflow-hidden relative"
                       style={{ borderColor: 'var(--theme-text-faint)' }}
                     >
@@ -210,6 +215,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
                     </div>
                     {iconPreview && (
                       <button
+                        type="button"
                         onClick={clearIcon}
                         className="p-1.5 rounded hover:bg-white/10 transition-colors"
                         style={{ color: 'var(--theme-text-muted)' }}
@@ -1900,7 +1906,7 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
                     </span>
                   </div>
                 </div>
-                {(isOwner || true) && (
+                {isOwner && (
                   <button
                     onClick={() => handleRevoke(inv.code)}
                     className="p-1.5 rounded hover:bg-red-500/20 transition-colors flex-shrink-0"

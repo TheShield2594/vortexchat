@@ -30,13 +30,13 @@ const MAGIC_BYTES: Array<{ bytes: number[]; offset: number; mime: string }> = [
   { bytes: [0xFF, 0xD8, 0xFF], offset: 0, mime: "image/jpeg" },
   { bytes: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], offset: 0, mime: "image/png" },
   { bytes: [0x47, 0x49, 0x46, 0x38], offset: 0, mime: "image/gif" },
-  { bytes: [0x52, 0x49, 0x46, 0x46], offset: 0, mime: "image/webp" }, // RIFF header (WebP)
+  { bytes: [0x57, 0x45, 0x42, 0x50], offset: 8, mime: "image/webp" }, // "WEBP" at offset 8 in RIFF container
   // PDF
   { bytes: [0x25, 0x50, 0x44, 0x46], offset: 0, mime: "application/pdf" },
   // ZIP (also covers docx, xlsx, etc.)
   { bytes: [0x50, 0x4B, 0x03, 0x04], offset: 0, mime: "application/zip" },
   // Video
-  { bytes: [0x00, 0x00, 0x00], offset: 0, mime: "video/mp4" }, // ftyp box (partial)
+  { bytes: [0x66, 0x74, 0x79, 0x70], offset: 4, mime: "video/mp4" }, // "ftyp" box at offset 4
   { bytes: [0x1A, 0x45, 0xDF, 0xA3], offset: 0, mime: "video/webm" },
   // Audio
   { bytes: [0x49, 0x44, 0x33], offset: 0, mime: "audio/mpeg" }, // ID3 tag
@@ -151,17 +151,38 @@ export async function validateAttachmentContent(
       })
 
       if (!response.ok) {
-        // If range requests are not supported, try a full fetch with abort
-        const fallbackResponse = await fetch(attachment.url)
-        if (!fallbackResponse.ok) {
+        // If range requests are not supported, stream only the header bytes
+        const abortController = new AbortController()
+        const fallbackResponse = await fetch(attachment.url, { signal: abortController.signal })
+        if (!fallbackResponse.ok || !fallbackResponse.body) {
           return {
             valid: false,
             error: `Unable to verify attachment content: ${attachment.filename}`,
             failedFilename: attachment.filename,
           }
         }
-        const fullBuffer = new Uint8Array(await fallbackResponse.arrayBuffer())
-        const headerBytes = fullBuffer.slice(0, 16)
+        const reader = fallbackResponse.body.getReader()
+        const chunks: Uint8Array[] = []
+        let totalRead = 0
+        const HEADER_SIZE = 16
+        try {
+          while (totalRead < HEADER_SIZE) {
+            const { done, value } = await reader.read()
+            if (done || !value) break
+            chunks.push(value)
+            totalRead += value.length
+          }
+        } finally {
+          reader.cancel()
+          abortController.abort()
+        }
+        const headerBytes = new Uint8Array(HEADER_SIZE)
+        let offset = 0
+        for (const chunk of chunks) {
+          const toCopy = Math.min(chunk.length, HEADER_SIZE - offset)
+          headerBytes.set(chunk.subarray(0, toCopy), offset)
+          offset += toCopy
+        }
         const result = checkBytes(headerBytes, attachment)
         if (!result.valid) return result
         continue
@@ -170,10 +191,12 @@ export async function validateAttachmentContent(
       const buffer = new Uint8Array(await response.arrayBuffer())
       const result = checkBytes(buffer, attachment)
       if (!result.valid) return result
-    } catch {
-      // If we can't fetch the file, skip content validation rather than blocking
-      // (the client-side validation already ran)
-      console.warn("Attachment content validation skipped (fetch failed):", attachment.filename)
+    } catch (err) {
+      return {
+        valid: false,
+        error: `Unable to verify attachment content: ${attachment.filename}${err instanceof Error ? ` (${err.message})` : ""}`,
+        failedFilename: attachment.filename,
+      }
     }
   }
 

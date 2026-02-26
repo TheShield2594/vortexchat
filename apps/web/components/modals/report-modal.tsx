@@ -14,16 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 
-const REPORT_REASONS = [
-  { value: "spam", label: "Spam", description: "Unwanted or repetitive content" },
-  { value: "harassment", label: "Harassment", description: "Targeting or bullying a user" },
-  {
-    value: "inappropriate_content",
-    label: "Inappropriate Content",
-    description: "NSFW, violent, or otherwise inappropriate material",
-  },
-  { value: "other", label: "Other", description: "A reason not listed above" },
-] as const
+import { REPORT_REASONS } from "@/lib/report-reasons"
 
 interface Props {
   open: boolean

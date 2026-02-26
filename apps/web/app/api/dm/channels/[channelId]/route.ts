@@ -86,6 +86,8 @@ export async function GET(
       .from("direct_messages")
       .select("id, content, sender_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
       .in("id", uniqueReplyIds)
+      .eq("dm_channel_id", channelId)
+      .is("deleted_at", null)
     if (replyMessages) {
       replyMap = Object.fromEntries(replyMessages.map((m) => [m.id, m]))
     }

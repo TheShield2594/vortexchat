@@ -208,6 +208,16 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
     return () => { supabase.removeChannel(channel) }
   }, [channelId])
 
+  // Refs for latest voice state values (used in reconnect effect to avoid stale closures)
+  const mutedRef = useRef(muted)
+  const deafenedRef = useRef(deafened)
+  const speakingRef = useRef(speaking)
+  const screenSharingRef = useRef(screenSharing)
+  mutedRef.current = muted
+  deafenedRef.current = deafened
+  speakingRef.current = speaking
+  screenSharingRef.current = screenSharing
+
   // Network recovery and voice state re-sync on reconnect
   useEffect(() => {
     if (reconnectInfo.state !== "connected") return
@@ -218,10 +228,10 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
         user_id: currentUserId,
         channel_id: channelId,
         server_id: serverId,
-        muted,
-        deafened,
-        speaking,
-        self_stream: screenSharing,
+        muted: mutedRef.current,
+        deafened: deafenedRef.current,
+        speaking: speakingRef.current,
+        self_stream: screenSharingRef.current,
       })
       .then(undefined, () => {})
   // Only run when connection state transitions to "connected"

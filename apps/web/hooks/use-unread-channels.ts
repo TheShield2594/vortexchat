@@ -138,9 +138,10 @@ export function useUnreadChannels(
             if (prev.has(msg.channel_id)) return prev
             const next = new Set(prev)
             next.add(msg.channel_id)
+            // Only fire notification on read→unread transition
+            onNewUnreadRef.current?.()
             return next
           })
-          onNewUnreadRef.current?.()
         }
       )
       .subscribe()

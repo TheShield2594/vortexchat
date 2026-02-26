@@ -19,13 +19,14 @@ interface ImageLightboxProps {
  * left/right arrow navigation between images, and Escape to close.
  */
 export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: ImageLightboxProps) {
-  const imageList = images ?? [{ src, alt }]
-  const [currentIndex, setCurrentIndex] = useState(initialIndex)
+  const imageList = images && images.length > 0 ? images : [{ src, alt }]
+  const [currentIndex, setCurrentIndex] = useState(Math.min(initialIndex, imageList.length - 1))
   const [zoom, setZoom] = useState(1)
   const [panOrigin, setPanOrigin] = useState({ x: 50, y: 50 })
   const backdropRef = useRef<HTMLDivElement>(null)
 
-  const current = imageList[currentIndex] ?? imageList[0]
+  const safeIndex = Math.min(currentIndex, imageList.length - 1)
+  const current = imageList[safeIndex]
 
   const resetZoom = useCallback(() => {
     setZoom(1)
@@ -37,8 +38,46 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
     resetZoom()
   }, [imageList.length, resetZoom])
 
+  // Focus management: trap focus inside lightbox and restore on close
+  const previousFocusRef = useRef<Element | null>(null)
+
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement
+    // Focus the backdrop container
+    backdropRef.current?.focus()
+
+    return () => {
+      if (previousFocusRef.current instanceof HTMLElement) {
+        previousFocusRef.current.focus()
+      }
+    }
+  }, [])
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Tab trap
+      if (e.key === "Tab") {
+        const container = backdropRef.current
+        if (!container) return
+        const focusable = container.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable.length === 0) {
+          e.preventDefault()
+          return
+        }
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+        return
+      }
+
       switch (e.key) {
         case "Escape":
           e.preventDefault()
@@ -110,7 +149,8 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
   const lightbox = (
     <div
       ref={backdropRef}
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      tabIndex={-1}
+      className="fixed inset-0 z-[9999] flex items-center justify-center outline-none"
       style={{ background: "rgba(0, 0, 0, 0.85)" }}
       onClick={handleBackdropClick}
       role="dialog"

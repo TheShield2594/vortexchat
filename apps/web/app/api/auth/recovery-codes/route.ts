@@ -41,7 +41,10 @@ export async function POST() {
   const adminDb = admin as any
 
   // Delete all existing recovery codes for this user
-  await adminDb.from("recovery_codes").delete().eq("user_id", auth.user.id)
+  const { error: deleteError } = await adminDb.from("recovery_codes").delete().eq("user_id", auth.user.id)
+  if (deleteError) {
+    return NextResponse.json({ error: "Failed to clear existing recovery codes" }, { status: 500 })
+  }
 
   // Generate new codes
   const plaintextCodes = generateRecoveryCodes()

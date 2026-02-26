@@ -195,16 +195,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
   }
 
-  // --- Server-side MIME type verification using magic bytes ---
-  // Detects mismatched extensions (e.g., .jpg that is actually an executable)
-  // TODO: AV scanning requires external service integration
-  if (attachments.length > 0) {
-    const contentValidation = await validateAttachmentContent(attachments)
-    if (!contentValidation.valid) {
-      return NextResponse.json({ error: contentValidation.error }, { status: 400 })
-    }
-  }
-
   // --- Fetch channel for server context and basic validation ---
   const { data: channel } = await supabase
     .from("channels")
@@ -243,6 +233,15 @@ export async function POST(request: Request) {
         },
       }
     )
+  }
+
+  // --- Server-side MIME type verification using magic bytes ---
+  // Runs after auth and rate-limit to avoid unnecessary work for rejected requests
+  if (attachments.length > 0) {
+    const contentValidation = await validateAttachmentContent(attachments)
+    if (!contentValidation.valid) {
+      return NextResponse.json({ error: contentValidation.error }, { status: 400 })
+    }
   }
 
   let safeMentions: string[]

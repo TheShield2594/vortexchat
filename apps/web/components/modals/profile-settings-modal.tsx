@@ -720,9 +720,10 @@ function PasswordChangeSection() {
       </div>
       <form onSubmit={handleSubmit} className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
         <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Current Password</label>
+          <label htmlFor="current-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Current Password</label>
           <div className="relative">
             <input
+              id="current-password"
               type={showCurrent ? "text" : "password"}
               value={form.currentPassword}
               onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
@@ -736,9 +737,10 @@ function PasswordChangeSection() {
           </div>
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>New Password</label>
+          <label htmlFor="new-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>New Password</label>
           <div className="relative">
             <input
+              id="new-password"
               type={showNew ? "text" : "password"}
               value={form.newPassword}
               onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
@@ -756,8 +758,9 @@ function PasswordChangeSection() {
           )}
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Confirm New Password</label>
+          <label htmlFor="confirm-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Confirm New Password</label>
           <input
+            id="confirm-password"
             type="password"
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
@@ -879,7 +882,7 @@ function RecoveryCodesSection() {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleCopyCodes} className="flex items-center gap-1 px-3 py-1.5 rounded text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }}>
+            <button type="button" onClick={handleCopyCodes} className="flex items-center gap-1 px-3 py-1.5 rounded text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }}>
               {copied ? <Check className="w-4 h-4" style={{ color: "var(--theme-success)" }} /> : <Copy className="w-4 h-4" />}
               {copied ? "Copied" : "Copy all"}
             </button>

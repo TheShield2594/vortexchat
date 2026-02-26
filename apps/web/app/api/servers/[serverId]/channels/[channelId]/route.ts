@@ -4,7 +4,7 @@ import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string; channelId: string }> }
 
-const VALID_SLOWMODE_VALUES = [0, 5, 10, 15, 30, 60]
+const MAX_SLOWMODE_SECONDS = 21600
 
 /**
  * PATCH /api/servers/[serverId]/channels/[channelId]
@@ -76,9 +76,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Validate slowmode_delay
   if ("slowmode_delay" in body) {
     const slowmode = body.slowmode_delay
-    if (typeof slowmode !== "number" || !VALID_SLOWMODE_VALUES.includes(slowmode)) {
+    if (typeof slowmode !== "number" || !Number.isInteger(slowmode) || slowmode < 0 || slowmode > MAX_SLOWMODE_SECONDS) {
       return NextResponse.json(
-        { error: `slowmode_delay must be one of: ${VALID_SLOWMODE_VALUES.join(", ")}` },
+        { error: `slowmode_delay must be an integer between 0 and ${MAX_SLOWMODE_SECONDS}` },
         { status: 400 }
       )
     }
@@ -100,7 +100,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: dbErr.message }, { status: 500 })
 
   // Audit log
-  await supabase.from("audit_logs").insert({
+  const { error: auditError } = await supabase.from("audit_logs").insert({
     server_id: serverId,
     actor_id: user!.id,
     action: "channel_update",
@@ -108,6 +108,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     target_type: "channel",
     changes: changes as unknown as Json,
   })
+
+  if (auditError) {
+    console.error(`Audit log failed for channel_update server=${serverId} channel=${channelId} actor=${user!.id}:`, auditError.message)
+  }
 
   return NextResponse.json(updated)
 }

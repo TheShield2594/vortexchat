@@ -130,7 +130,12 @@ export const MessageItem = memo(function MessageItem({
 
   async function handleEditSubmit() {
     if (editContent.trim() && editContent !== message.content) {
-      await onEdit(editContent.trim())
+      try {
+        await onEdit(editContent.trim())
+      } catch (error: any) {
+        toast({ variant: "destructive", title: "Failed to edit message", description: error?.message ?? "Please try again." })
+        return
+      }
     }
     setIsEditing(false)
   }
@@ -395,6 +400,7 @@ export const MessageItem = memo(function MessageItem({
                     <span>ESC to cancel</span>
                     <span>·</span>
                     <button
+                      type="button"
                       onClick={handleEditSubmit}
                       className="focus-ring rounded"
                       style={{ color: "var(--theme-link)" }}
@@ -804,8 +810,17 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
               <div
                 ref={imageContainerRef}
                 className="overflow-hidden rounded"
+                role="button"
+                tabIndex={0}
+                aria-label={zoom > 1 ? "Zoom out" : "Zoom in"}
                 style={{ cursor: zoom > 1 ? "zoom-out" : "zoom-in" }}
                 onClick={handleImageClick}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleImageClick(e as unknown as React.MouseEvent<HTMLDivElement>)
+                  }
+                }}
                 onMouseMove={handleMouseMove}
                 onWheel={handleWheel}
               >

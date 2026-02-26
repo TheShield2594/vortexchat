@@ -22,19 +22,26 @@ export async function POST(request: Request) {
   const admin = await createServiceRoleClient()
   const adminDb = admin as any
 
-  // First, verify password by attempting sign-in via admin
-  // We use admin to look up the user, then verify password
-  const { data: usersData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 })
-  const authUser = usersData?.users.find(
-    (u) => u.email?.toLowerCase() === body.email!.toLowerCase()
+  // Verify password by attempting sign-in via a throwaway client
+  const { createClient } = await import("@supabase/supabase-js")
+  const tempClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  if (!authUser) {
+  const { data: signInData, error: signInError } = await tempClient.auth.signInWithPassword({
+    email: body.email!,
+    password: body.password!,
+  })
+
+  if (signInError || !signInData.user) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
-  // Verify the password is correct by attempting signInWithPassword via a temporary client
-  // We generate a magic link for the user if recovery code is valid (same pattern as passkey login)
+  // Sign out the temp session immediately
+  await tempClient.auth.signOut()
+
+  const authUser = signInData.user
 
   // Fetch all unused recovery codes for this user
   const { data: codes, error: codesError } = await adminDb
@@ -62,10 +69,14 @@ export async function POST(request: Request) {
   }
 
   // Mark the code as consumed
-  await adminDb
+  const { error: consumeError } = await adminDb
     .from("recovery_codes")
     .update({ used_at: new Date().toISOString() })
     .eq("id", matchedCodeId)
+
+  if (consumeError) {
+    return NextResponse.json({ error: "Failed to consume recovery code" }, { status: 500 })
+  }
 
   // Generate a session link for the user (same pattern as passkey login verify)
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email: body.email! })

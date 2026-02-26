@@ -10,9 +10,26 @@ const STORAGE_KEY = "vortexchat:notification-sound-enabled"
 
 const listeners = new Set<() => void>()
 
+function notifyListeners() {
+  listeners.forEach((cb) => cb())
+}
+
+// Cross-tab sync: listen for storage events from other tabs
+function onStorageEvent(e: StorageEvent) {
+  if (e.key === STORAGE_KEY || e.key === null) notifyListeners()
+}
+
 function subscribe(cb: () => void) {
+  if (listeners.size === 0 && typeof window !== "undefined") {
+    window.addEventListener("storage", onStorageEvent)
+  }
   listeners.add(cb)
-  return () => listeners.delete(cb)
+  return () => {
+    listeners.delete(cb)
+    if (listeners.size === 0 && typeof window !== "undefined") {
+      window.removeEventListener("storage", onStorageEvent)
+    }
+  }
 }
 
 function getSnapshot(): boolean {
@@ -26,7 +43,7 @@ function getServerSnapshot(): boolean {
 
 function setNotificationSoundEnabled(enabled: boolean) {
   localStorage.setItem(STORAGE_KEY, String(enabled))
-  listeners.forEach((cb) => cb())
+  notifyListeners()
 }
 
 // ---------------------------------------------------------------------------

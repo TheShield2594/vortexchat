@@ -393,6 +393,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     .from("direct_messages")
                     .select("id, content, sender_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
                     .eq("id", data.reply_to_id)
+                    .eq("dm_channel_id", channelId)
+                    .is("deleted_at", null)
                     .single()
                   replyToMsg = replyData ?? null
                 }
@@ -773,6 +775,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   )}
                   {isEditing ? (
                     <div className="flex gap-2 items-center">
+                      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
                       <input
                         autoFocus
                         value={editContent}
@@ -784,8 +787,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                         className="flex-1 bg-transparent border-b text-sm focus:outline-none"
                         style={{ color: "var(--theme-text-normal)", borderColor: "var(--theme-accent)" }}
                       />
-                      <button onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--theme-accent)", color: "white" }}>Save</button>
-                      <button onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
+                      <button type="button" onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--theme-accent)", color: "white" }}>Save</button>
+                      <button type="button" onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
                     </div>
                   ) : imageMatch ? (
                     <div className="mt-1">
@@ -813,6 +816,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-opacity">
                     {/* Reply button — available for all messages */}
                     <button
+                      type="button"
                       onClick={() => { setReplyTo(msg); inputRef.current?.focus() }}
                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
                       style={{ color: "var(--theme-text-muted)" }}
@@ -823,6 +827,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     {isOwn && !channel.is_encrypted && (
                       <>
                         <button
+                          type="button"
                           onClick={() => { setEditingId(msg.id); setEditContent(renderedContent) }}
                           className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
                           style={{ color: "var(--theme-text-muted)" }}
@@ -831,6 +836,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleDelete(msg.id)}
                           className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20"
                           style={{ color: "var(--theme-text-muted)" }}

@@ -1307,11 +1307,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                         body: JSON.stringify({ content }),
                       }
                     )
-                    if (res.ok) {
-                      setMessages((prev) =>
-                        prev.map((m) => m.id === message.id ? { ...m, content, edited_at: new Date().toISOString() } : m)
-                      )
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
+                      throw new Error(data.error || "Failed to edit message")
                     }
+                    setMessages((prev) =>
+                      prev.map((m) => m.id === message.id ? { ...m, content, edited_at: new Date().toISOString() } : m)
+                    )
                   }}
                   onDelete={async () => {
                     const { data, error } = await supabase

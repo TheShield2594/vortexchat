@@ -14,9 +14,26 @@ export async function PATCH(
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { content } = await req.json()
-  if (!content?.trim())
+  let content: unknown
+  try {
+    const body = await req.json()
+    content = body.content
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+  if (typeof content !== "string" || !content.trim())
     return NextResponse.json({ error: "Content required" }, { status: 400 })
+
+  // Verify the channel belongs to this server
+  const { data: channelRow } = await supabase
+    .from("channels")
+    .select("id")
+    .eq("id", channelId)
+    .eq("server_id", serverId)
+    .single()
+
+  if (!channelRow)
+    return NextResponse.json({ error: "Channel not found" }, { status: 404 })
 
   // Verify the message exists and belongs to this channel
   const { data: message, error: msgError } = await supabase

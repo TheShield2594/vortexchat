@@ -130,13 +130,15 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Fetch reply_to message info if this is a reply
+  // Fetch reply_to message info if this is a reply (use replyToId since reply_to_id is not in generated types yet)
   let replyToMessage = null
   if (replyToId) {
     const { data: replyMsg } = await supabase
       .from("direct_messages")
       .select("id, content, sender_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
       .eq("id", replyToId)
+      .eq("dm_channel_id", channelId)
+      .is("deleted_at", null)
       .single()
     replyToMessage = replyMsg ?? null
   }

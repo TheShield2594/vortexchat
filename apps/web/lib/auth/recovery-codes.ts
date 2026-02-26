@@ -1,18 +1,18 @@
 import crypto from "node:crypto"
 
 const RECOVERY_CODE_COUNT = 10
-const RECOVERY_CODE_LENGTH = 8 // 8 hex chars = 4 bytes of entropy per code
+const RECOVERY_CODE_LENGTH = 16 // 16 hex chars = 8 bytes (64 bits) of entropy per code
 
 /**
  * Generate a set of plaintext recovery codes.
- * Format: XXXX-XXXX (hex, grouped for readability)
+ * Format: XXXX-XXXX-XXXX-XXXX (hex, grouped for readability)
  */
 export function generateRecoveryCodes(): string[] {
   const codes: string[] = []
   for (let i = 0; i < RECOVERY_CODE_COUNT; i++) {
-    const raw = crypto.randomBytes(4).toString("hex").toUpperCase()
-    // Format as XXXX-XXXX for readability
-    codes.push(`${raw.slice(0, 4)}-${raw.slice(4)}`)
+    const raw = crypto.randomBytes(RECOVERY_CODE_LENGTH / 2).toString("hex").toUpperCase()
+    // Format as XXXX-XXXX-XXXX-XXXX for readability
+    codes.push(`${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}-${raw.slice(12)}`)
   }
   return codes
 }
@@ -41,8 +41,15 @@ export async function verifyRecoveryCode(code: string, storedHash: string): Prom
   if (!salt || !hash) return false
   return new Promise((resolve, reject) => {
     crypto.scrypt(normalized, salt, 32, (err, derivedKey) => {
-      if (err) reject(err)
-      else resolve(crypto.timingSafeEqual(Buffer.from(hash, "hex"), derivedKey))
+      if (err) return reject(err)
+      let storedBuf: Buffer
+      try {
+        storedBuf = Buffer.from(hash, "hex")
+      } catch {
+        return resolve(false)
+      }
+      if (storedBuf.length !== derivedKey.length) return resolve(false)
+      resolve(crypto.timingSafeEqual(storedBuf, derivedKey))
     })
   })
 }

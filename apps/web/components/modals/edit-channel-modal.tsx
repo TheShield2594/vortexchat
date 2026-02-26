@@ -31,14 +31,15 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
   const [slowmodeDelay, setSlowmodeDelay] = useState(channel.slowmode_delay)
   const [forumGuidelines, setForumGuidelines] = useState(channel.forum_guidelines ?? "")
 
-  // Reset form when channel changes
+  // Reset form when channel changes or modal opens
   useEffect(() => {
+    if (!open) return
     setName(channel.name)
     setTopic(channel.topic ?? "")
     setNsfw(channel.nsfw)
     setSlowmodeDelay(channel.slowmode_delay)
     setForumGuidelines(channel.forum_guidelines ?? "")
-  }, [channel])
+  }, [channel, open])
 
   async function handleSave() {
     if (!name.trim()) return

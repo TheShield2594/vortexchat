@@ -30,7 +30,11 @@ export async function PATCH(
     .eq("id", channel.server_id)
     .single()
 
-  const isOwner = server?.owner_id === user.id
+  if (!server) {
+    return NextResponse.json({ error: "Server not found" }, { status: 404 })
+  }
+
+  const isOwner = server.owner_id === user.id
 
   if (!isOwner) {
     // Check role permissions

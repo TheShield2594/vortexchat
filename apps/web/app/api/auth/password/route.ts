@@ -70,14 +70,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: updateError.message || "Failed to update password" }, { status: 500 })
   }
 
-  // Optionally revoke all other sessions
+  // Optionally revoke all other sessions (keeps the current one active)
   if (body.revokeOtherSessions) {
-    const adminDb = admin as any
-    await adminDb
-      .from("auth_sessions")
-      .update({ revoked_at: new Date().toISOString() })
-      .eq("user_id", auth.user.id)
-      .is("revoked_at", null)
+    const { error: signOutError } = await supabase.auth.signOut({ scope: "others" })
+    if (signOutError) {
+      // Password was changed successfully but session revocation failed
+      return NextResponse.json({ ok: true, warning: "Password changed but failed to revoke other sessions" })
+    }
   }
 
   return NextResponse.json({ ok: true })

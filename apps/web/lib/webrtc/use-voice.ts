@@ -141,6 +141,8 @@ function reconnectDelay(attempt: number): number {
 /** Manages WebRTC peer connections, media streams, audio processing, and signaling for a voice channel. */
 export function useVoice(channelId: string, userId: string, serverId?: string | null): UseVoiceReturn {
   const [peers, setPeers] = useState<Map<string, PeerState>>(new Map())
+  const peersRef = useRef<Map<string, PeerState>>(new Map())
+  peersRef.current = peers
   const [muted, setMuted] = useState(false)
   const [deafened, setDeafened] = useState(false)
   const [speaking, setSpeaking] = useState(false)
@@ -352,20 +354,28 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
             if (report.type === "outbound-rtp" && report.kind === "audio") {
               const prevEntry = prevStatsRef.current.get(peerId)
               const packetsSent = report.packetsSent ?? 0
-              const packetsLost = (report as Record<string, unknown>).packetsLost as number ?? 0
               if (prevEntry) {
                 const deltaPackets = packetsSent - prevEntry.packetsSent
-                const deltaLost = packetsLost - prevEntry.packetsLost
                 if (deltaPackets > 0) {
                   totalPacketsSent += deltaPackets
-                  totalPacketsLost += Math.max(0, deltaLost)
                 }
               }
               prevStatsRef.current.set(peerId, {
                 timestamp: report.timestamp,
                 packetsSent,
-                packetsLost,
+                packetsLost: prevStatsRef.current.get(peerId)?.packetsLost ?? 0,
               })
+            }
+            if (report.type === "remote-inbound-rtp" && report.kind === "audio") {
+              const packetsLost = report.packetsLost ?? 0
+              const prevEntry = prevStatsRef.current.get(peerId)
+              if (prevEntry) {
+                const deltaLost = packetsLost - prevEntry.packetsLost
+                totalPacketsLost += Math.max(0, deltaLost)
+              }
+              if (prevEntry) {
+                prevStatsRef.current.set(peerId, { ...prevEntry, packetsLost })
+              }
             }
             if (report.type === "inbound-rtp" && report.kind === "audio") {
               const jitter = report.jitter
@@ -495,13 +505,8 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       const oldPc = peerConnections.current.get(peerId)
       const peerUserId = Array.from(peerConnections.current.entries())
         .find(([id]) => id === peerId)?.[0]
-      // Get userId from peers state
-      let resolvedUserId = ""
-      setPeers((prev) => {
-        const peer = prev.get(peerId)
-        if (peer) resolvedUserId = peer.userId
-        return prev
-      })
+      // Get userId from peers ref
+      const resolvedUserId = peersRef.current.get(peerId)?.userId ?? ""
 
       if (oldPc) {
         oldPc.close()
@@ -836,10 +841,14 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       })
 
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error("Realtime subscription timeout")), 10000)
+        const timeout = setTimeout(() => {
+          if (!mounted) return resolve()
+          reject(new Error("Realtime subscription timeout"))
+        }, 10000)
         rtChannel.subscribe(async (status) => {
           if (status === "SUBSCRIBED") {
             clearTimeout(timeout)
+            if (!mounted) return resolve()
             await rtChannel.track({ client_id: myClientId, user_id: userId })
 
             channelRef.current?.send({

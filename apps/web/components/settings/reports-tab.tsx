@@ -93,7 +93,8 @@ export function ReportsTab({ serverId }: Props) {
       }
     }
     fetchReports()
-  }, [serverId, statusFilter, toast])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverId, statusFilter])
 
   async function updateReportStatus(reportId: string, newStatus: string) {
     setUpdatingId(reportId)
@@ -136,6 +137,7 @@ export function ReportsTab({ serverId }: Props) {
         <div className="flex gap-1">
           {STATUS_FILTERS.map((f) => (
             <button
+              type="button"
               key={f.value}
               onClick={() => setStatusFilter(f.value)}
               className="px-2.5 py-1 rounded text-xs font-medium transition-colors"

@@ -182,6 +182,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleMfaVerify} className="space-y-4">
           <div className="flex justify-center">
+            {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
             <input
               type="text"
               inputMode="numeric"

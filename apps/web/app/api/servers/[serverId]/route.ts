@@ -92,7 +92,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // Handle icon upload
   if (iconFile) {
-    const ext = iconFile.name.split(".").pop() ?? "png"
+    const ALLOWED_ICON_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"]
+    const ALLOWED_ICON_EXTS = ["png", "jpg", "jpeg", "gif", "webp"]
+    const MAX_ICON_SIZE = 2 * 1024 * 1024 // 2 MB
+
+    if (!ALLOWED_ICON_TYPES.includes(iconFile.type)) {
+      return NextResponse.json({ error: "Icon must be PNG, JPEG, GIF, or WebP" }, { status: 400 })
+    }
+    const rawExt = (iconFile.name.split(".").pop() ?? "").toLowerCase()
+    if (!ALLOWED_ICON_EXTS.includes(rawExt)) {
+      return NextResponse.json({ error: "Icon file extension not allowed" }, { status: 400 })
+    }
+    if (iconFile.size > MAX_ICON_SIZE) {
+      return NextResponse.json({ error: "Icon must be 2 MB or smaller" }, { status: 400 })
+    }
+
+    const ext = rawExt || "png"
     const path = `${crypto.randomUUID()}.${ext}`
     const { error: uploadError } = await supabase.storage
       .from("server-icons")

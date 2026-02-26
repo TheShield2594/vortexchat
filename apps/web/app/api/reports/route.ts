@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+import { REPORT_REASON_VALUES, type ReportReason } from "@/lib/report-reasons"
 
-const VALID_REASONS = ["spam", "harassment", "inappropriate_content", "other"] as const
-type ReportReason = (typeof VALID_REASONS)[number]
+const VALID_REASONS = REPORT_REASON_VALUES
 
 const VALID_STATUSES = ["pending", "reviewed", "resolved", "dismissed"] as const
 type ReportStatus = (typeof VALID_STATUSES)[number]
@@ -98,6 +98,10 @@ export async function POST(req: NextRequest) {
 
     if (!message) {
       return NextResponse.json({ error: "Reported message not found" }, { status: 404 })
+    }
+
+    if (message.author_id !== reported_user_id) {
+      return NextResponse.json({ error: "Reported user does not match message author" }, { status: 400 })
     }
   }
 
@@ -233,6 +237,16 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
+  // Fetch current status before updating for accurate audit trail
+  const { data: existingReport } = await (supabase as any)
+    .from("reports")
+    .select("status")
+    .eq("id", report_id)
+    .eq("server_id", server_id)
+    .single()
+
+  const previousStatus = (existingReport as any)?.status ?? "pending"
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: report, error } = await (supabase as any)
     .from("reports")
@@ -259,7 +273,7 @@ export async function PATCH(req: NextRequest) {
     target_type: "user",
     changes: {
       report_id,
-      previous_status: "pending",
+      previous_status: previousStatus,
       new_status: status,
       reason: (report as any).reason,
     },
