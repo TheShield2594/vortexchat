@@ -66,6 +66,7 @@ export function MemberList({ serverId }: Props) {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const memberFetchControllerRef = useRef<AbortController | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
@@ -74,12 +75,18 @@ export function MemberList({ serverId }: Props) {
 
   useEffect(() => {
     async function fetchMembers() {
+      memberFetchControllerRef.current?.abort()
+      const controller = new AbortController()
+      memberFetchControllerRef.current = controller
+      const encodedServerId = encodeURIComponent(serverId)
+
       setLoadingMembers(true)
       try {
-        const response = await fetch(`/api/servers/${serverId}/members`, {
+        const response = await fetch(`/api/servers/${encodedServerId}/members`, {
           method: "GET",
           credentials: "include",
           cache: "no-store",
+          signal: controller.signal,
         })
 
         if (!response.ok) {
@@ -89,6 +96,8 @@ export function MemberList({ serverId }: Props) {
         type ApiRoleEntry = { role_id: string; roles: RoleRow | null }
         type ApiMember = Omit<MemberData, "roles"> & { roles?: ApiRoleEntry[] }
         const rawMembers = (await response.json()) as ApiMember[]
+        if (controller.signal.aborted) return
+
         const merged: MemberData[] = rawMembers.map((member) => ({
           ...member,
           roles: (member.roles ?? [])
@@ -107,11 +116,16 @@ export function MemberList({ serverId }: Props) {
           nickname: m.nickname,
         })))
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return
+
         console.error("Failed to fetch members:", error)
         setMembers([])
         useAppStore.getState().setMembers(serverId, [])
       } finally {
-        setLoadingMembers(false)
+        if (memberFetchControllerRef.current === controller) {
+          memberFetchControllerRef.current = null
+          setLoadingMembers(false)
+        }
       }
     }
 
@@ -180,6 +194,8 @@ export function MemberList({ serverId }: Props) {
       })
 
     return () => {
+      memberFetchControllerRef.current?.abort()
+      memberFetchControllerRef.current = null
       channelRef.current = null
       supabase.removeChannel(channel)
       for (const timer of recentActivityTimersRef.current.values()) {
