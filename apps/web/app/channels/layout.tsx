@@ -28,7 +28,7 @@ export default async function ChannelsLayout({
   if (profileError || !profile) redirect("/login")
 
   if (serverMembersError) {
-    console.error("Failed to load server memberships", serverMembersError)
+    throw new Error(`Failed to load server memberships: ${serverMembersError.message}`)
   }
 
   const membershipIds = (serverMembers ?? []).map((membership) => membership.server_id)
@@ -37,7 +37,7 @@ export default async function ChannelsLayout({
     : { data: [], error: null }
 
   if (serversError) {
-    console.error("Failed to load server rows", serversError)
+    throw new Error(`Failed to load servers for membershipIds (${membershipIds.join(", ")}): ${serversError.message}`)
   }
 
   const serversById = new Map((serverRows ?? []).map((server) => [server.id, server]))
