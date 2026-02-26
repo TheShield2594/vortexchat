@@ -75,46 +75,44 @@ export function MemberList({ serverId }: Props) {
   useEffect(() => {
     async function fetchMembers() {
       setLoadingMembers(true)
-      // Fetch members and roles separately — no FK between server_members and member_roles
-      const [membersRes, rolesRes] = await Promise.all([
-        supabase
-          .from("server_members")
-          .select("*, user:users(*)")
-          .eq("server_id", serverId),
-        supabase
-          .from("member_roles")
-          .select("user_id, roles(*)")
-          .eq("server_id", serverId),
-      ])
+      try {
+        const response = await fetch(`/api/servers/${serverId}/members`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        })
 
-      if (membersRes.error) console.error("Failed to fetch members:", membersRes.error)
-      if (rolesRes.error) console.error("Failed to fetch member roles:", rolesRes.error)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch members (${response.status})`)
+        }
 
-      // Build a map of user_id -> roles
-      type MemberRoleRow = { user_id: string; roles: RoleRow | null }
-      const rolesByUser: Record<string, RoleRow[]> = {}
-      for (const mr of ((rolesRes.data ?? []) as unknown as MemberRoleRow[])) {
-        if (!rolesByUser[mr.user_id]) rolesByUser[mr.user_id] = []
-        if (mr.roles) rolesByUser[mr.user_id].push(mr.roles)
+        type ApiRoleEntry = { role_id: string; roles: RoleRow | null }
+        type ApiMember = Omit<MemberData, "roles"> & { roles?: ApiRoleEntry[] }
+        const rawMembers = (await response.json()) as ApiMember[]
+        const merged: MemberData[] = rawMembers.map((member) => ({
+          ...member,
+          roles: (member.roles ?? [])
+            .map((entry) => entry.roles)
+            .filter((role): role is RoleRow => Boolean(role)),
+        }))
+
+        setMembers(merged)
+
+        // Push lightweight member data to store for mention autocomplete
+        useAppStore.getState().setMembers(serverId, merged.map((m) => ({
+          user_id: m.user_id,
+          username: m.user?.username ?? "",
+          display_name: m.user?.display_name ?? null,
+          avatar_url: m.user?.avatar_url ?? null,
+          nickname: m.nickname,
+        })))
+      } catch (error) {
+        console.error("Failed to fetch members:", error)
+        setMembers([])
+        useAppStore.getState().setMembers(serverId, [])
+      } finally {
+        setLoadingMembers(false)
       }
-
-      type RawMember = Omit<MemberData, "roles"> & { roles?: unknown }
-      const merged: MemberData[] = ((membersRes.data ?? []) as unknown as RawMember[]).map((m) => ({
-        ...m,
-        roles: rolesByUser[m.user_id] ?? [],
-      }))
-
-      setMembers(merged)
-      setLoadingMembers(false)
-
-      // Push lightweight member data to store for mention autocomplete
-      useAppStore.getState().setMembers(serverId, merged.map((m) => ({
-        user_id: m.user_id,
-        username: m.user?.username ?? "",
-        display_name: m.user?.display_name ?? null,
-        avatar_url: m.user?.avatar_url ?? null,
-        nickname: m.nickname,
-      })))
     }
 
     fetchMembers()
