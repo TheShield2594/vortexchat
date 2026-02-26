@@ -12,7 +12,7 @@ export async function createWebhook(serverId: string, channelId: string, name: s
 }
 
 export async function deleteWebhook(serverId: string, webhookId: string) {
-  return fetch(`/api/servers/${serverId}/webhooks?webhookId=${webhookId}`, { method: "DELETE" })
+  return fetch(`/api/servers/${serverId}/webhooks?webhookId=${encodeURIComponent(webhookId)}`, { method: "DELETE" })
 }
 
 export function copyToClipboard(text: string) {

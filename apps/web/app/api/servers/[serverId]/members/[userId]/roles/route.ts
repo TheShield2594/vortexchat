@@ -15,14 +15,25 @@ async function assertRoleMutationAllowed(
     return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
   }
 
-  if (isAdmin) return null
+  const { data: targetRole, error: roleError } = await supabase
+    .from("roles")
+    .select("position")
+    .eq("id", roleId)
+    .eq("server_id", serverId)
+    .single()
 
-  const [{ data: targetRole }, actorMaxPosition] = await Promise.all([
-    supabase.from("roles").select("position").eq("id", roleId).eq("server_id", serverId).single(),
-    getActorMaxRolePosition(supabase, serverId, actorUserId),
-  ])
+  if (roleError) {
+    if (roleError.code === "PGRST116") {
+      return NextResponse.json({ error: "Role not found" }, { status: 404 })
+    }
+    return NextResponse.json({ error: roleError.message }, { status: 500 })
+  }
 
   if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 404 })
+
+  if (isAdmin) return null
+
+  const actorMaxPosition = await getActorMaxRolePosition(supabase, serverId, actorUserId)
 
   if (targetRole.position >= actorMaxPosition) {
     return NextResponse.json({ error: denyMessage }, { status: 403 })

@@ -522,6 +522,7 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
   const [newName, setNewName] = useState("Webhook")
   const [newChannelId, setNewChannelId] = useState(channels[0]?.id ?? "")
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -540,30 +541,50 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
   async function handleCreate() {
     if (!newChannelId) return
     setCreating(true)
-    const res = await createWebhook(serverId, newChannelId, newName)
-    if (res.ok) {
-      const wh = await res.json()
-      setWebhooks((prev) => [...prev, wh])
-      setNewName("Webhook")
-      toast({ title: "Webhook created" })
-    } else {
-      toast({ variant: "destructive", title: "Failed to create webhook" })
+    try {
+      const res = await createWebhook(serverId, newChannelId, newName)
+      if (res.ok) {
+        const wh = await res.json()
+        setWebhooks((prev) => [...prev, wh])
+        setNewName("Webhook")
+        toast({ title: "Webhook created" })
+      } else {
+        const data = await res.json().catch(() => ({ error: "Failed to create webhook" }))
+        toast({ variant: "destructive", title: "Failed to create webhook", description: data.error })
+      }
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to create webhook", description: error?.message })
+    } finally {
+      setCreating(false)
     }
-    setCreating(false)
   }
 
   async function handleDelete(id: string) {
-    const res = await deleteWebhook(serverId, id)
-    if (res.ok) {
-      setWebhooks((prev) => prev.filter((w) => w.id !== id))
-      toast({ title: "Webhook deleted" })
+    setDeletingId(id)
+    try {
+      const res = await deleteWebhook(serverId, id)
+      if (res.ok) {
+        setWebhooks((prev) => prev.filter((w) => w.id !== id))
+        toast({ title: "Webhook deleted" })
+      } else {
+        const data = await res.json().catch(() => ({ error: "Failed to delete webhook" }))
+        toast({ variant: "destructive", title: "Failed to delete webhook", description: data.error })
+      }
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to delete webhook", description: error?.message })
+    } finally {
+      setDeletingId(null)
     }
   }
 
-  function copyUrl(id: string, url: string) {
-    copyToClipboard(url)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
+  async function copyUrl(id: string, url: string) {
+    try {
+      await copyToClipboard(url)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch {
+      // Clipboard write failed; avoid showing copied state
+    }
   }
 
   function channelName(channelId: string) {
@@ -634,7 +655,8 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
                 </div>
                 <button
                   onClick={() => handleDelete(wh.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors"
+                  disabled={deletingId === wh.id}
+                  className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors disabled:opacity-50"
                   style={{ color: 'var(--theme-text-faint)' }}
                   title="Delete"
                 >

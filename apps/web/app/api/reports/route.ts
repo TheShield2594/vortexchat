@@ -171,7 +171,10 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(100)
 
-    if (statusFilter && REPORT_STATUSES.includes(statusFilter as ReportStatus)) {
+    if (statusFilter) {
+      if (!REPORT_STATUSES.includes(statusFilter as ReportStatus)) {
+        return NextResponse.json({ error: "Invalid status filter" }, { status: 400 })
+      }
       query = query.eq("status", statusFilter)
     }
 
