@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Loader2, Plus, Trash2, Copy, Check, Webhook } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
+import { copyToClipboard, createWebhook, deleteWebhook, formatChannelName } from "@/lib/webhooks"
 
 interface Channel {
   id: string
@@ -33,6 +34,7 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
   const [newName, setNewName] = useState("Webhook")
   const [newChannelId, setNewChannelId] = useState(channels[0]?.id ?? "")
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -46,38 +48,54 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
   async function handleCreate() {
     if (!newChannelId) return
     setCreating(true)
-    const res = await fetch(`/api/servers/${serverId}/webhooks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelId: newChannelId, name: newName.trim() || "Webhook" }),
-    })
-    if (res.ok) {
-      const wh = await res.json()
-      setWebhooks((prev) => [...prev, wh])
-      setNewName("Webhook")
-      toast({ title: "Webhook created" })
-    } else {
-      toast({ variant: "destructive", title: "Failed to create webhook" })
+    try {
+      const res = await createWebhook(serverId, newChannelId, newName)
+      if (res.ok) {
+        const wh = await res.json()
+        setWebhooks((prev) => [...prev, wh])
+        setNewName("Webhook")
+        toast({ title: "Webhook created" })
+      } else {
+        const data = await res.json().catch(() => ({ error: "Failed to create webhook" }))
+        toast({ variant: "destructive", title: "Failed to create webhook", description: data.error })
+      }
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to create webhook", description: error?.message })
+    } finally {
+      setCreating(false)
     }
-    setCreating(false)
   }
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/servers/${serverId}/webhooks?webhookId=${id}`, { method: "DELETE" })
-    if (res.ok) {
-      setWebhooks((prev) => prev.filter((w) => w.id !== id))
-      toast({ title: "Webhook deleted" })
+    setDeletingId(id)
+    try {
+      const res = await deleteWebhook(serverId, id)
+      if (res.ok) {
+        setWebhooks((prev) => prev.filter((w) => w.id !== id))
+        toast({ title: "Webhook deleted" })
+      } else {
+        const data = await res.json().catch(() => ({ error: "Failed to delete webhook" }))
+        toast({ variant: "destructive", title: "Failed to delete webhook", description: data.error })
+      }
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to delete webhook", description: error?.message })
+    } finally {
+      setDeletingId(null)
     }
   }
 
-  function copyUrl(id: string, url: string) {
-    navigator.clipboard.writeText(url)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
+  async function copyUrl(id: string, url: string) {
+    try {
+      await copyToClipboard(url)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch {
+      // Clipboard write failed; avoid showing copied state
+    }
   }
 
   function channelName(channelId: string) {
-    return channels.find((c) => c.id === channelId)?.name ?? "Unknown"
+    return formatChannelName(channelId, channels)
   }
 
   return (
@@ -143,7 +161,7 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
                     <p className="text-sm font-medium text-white">{wh.name}</p>
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>#{channelName(wh.channel_id)}</p>
                   </div>
-                  <button onClick={() => handleDelete(wh.id)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors" style={{ color: "var(--theme-text-faint)" }} title="Delete">
+                  <button onClick={() => handleDelete(wh.id)} disabled={deletingId === wh.id} className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors disabled:opacity-50" style={{ color: "var(--theme-text-faint)" }} title="Delete">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

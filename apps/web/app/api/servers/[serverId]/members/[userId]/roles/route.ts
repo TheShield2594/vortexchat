@@ -3,6 +3,45 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
 
+async function assertRoleMutationAllowed(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  serverId: string,
+  actorUserId: string,
+  roleId: string,
+  denyMessage: string,
+) {
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, actorUserId)
+  if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
+    return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
+  }
+
+  const { data: targetRole, error: roleError } = await supabase
+    .from("roles")
+    .select("position")
+    .eq("id", roleId)
+    .eq("server_id", serverId)
+    .single()
+
+  if (roleError) {
+    if (roleError.code === "PGRST116") {
+      return NextResponse.json({ error: "Role not found" }, { status: 404 })
+    }
+    return NextResponse.json({ error: roleError.message }, { status: 500 })
+  }
+
+  if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 404 })
+
+  if (isAdmin) return null
+
+  const actorMaxPosition = await getActorMaxRolePosition(supabase, serverId, actorUserId)
+
+  if (targetRole.position >= actorMaxPosition) {
+    return NextResponse.json({ error: denyMessage }, { status: 403 })
+  }
+
+  return null
+}
+
 // POST /api/servers/[serverId]/members/[userId]/roles — assign a role to a member
 export async function POST(
   req: NextRequest,
@@ -13,31 +52,17 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Verify caller is owner or has MANAGE_ROLES permission
-  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
-  if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
-    return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
-  }
-
   const { roleId } = await req.json()
   if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
 
-  // Role-hierarchy check: non-admins cannot assign roles at or above their own highest role.
-  if (!isAdmin) {
-    const [{ data: targetRole }, actorMaxPosition] = await Promise.all([
-      supabase.from("roles").select("position").eq("id", roleId).eq("server_id", serverId).single(),
-      getActorMaxRolePosition(supabase, serverId, user.id),
-    ])
-
-    if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 404 })
-
-    if (targetRole.position >= actorMaxPosition) {
-      return NextResponse.json(
-        { error: "Cannot assign a role at or above your own highest role" },
-        { status: 403 }
-      )
-    }
-  }
+  const permissionError = await assertRoleMutationAllowed(
+    supabase,
+    serverId,
+    user.id,
+    roleId,
+    "Cannot assign a role at or above your own highest role"
+  )
+  if (permissionError) return permissionError
 
   const { data: roleData } = await supabase
     .from("roles")
@@ -82,31 +107,18 @@ export async function DELETE(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
-  if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
-    return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
-  }
-
   const { searchParams } = new URL(req.url)
   const roleId = searchParams.get("roleId")
   if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
 
-  // Role-hierarchy check: non-admins cannot remove roles at or above their own highest role.
-  if (!isAdmin) {
-    const [{ data: targetRole }, actorMaxPosition] = await Promise.all([
-      supabase.from("roles").select("position").eq("id", roleId).eq("server_id", serverId).single(),
-      getActorMaxRolePosition(supabase, serverId, user.id),
-    ])
-
-    if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 404 })
-
-    if (targetRole.position >= actorMaxPosition) {
-      return NextResponse.json(
-        { error: "Cannot remove a role at or above your own highest role" },
-        { status: 403 }
-      )
-    }
-  }
+  const permissionError = await assertRoleMutationAllowed(
+    supabase,
+    serverId,
+    user.id,
+    roleId,
+    "Cannot remove a role at or above your own highest role"
+  )
+  if (permissionError) return permissionError
 
   const { error } = await supabase
     .from("member_roles")

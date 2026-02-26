@@ -15,6 +15,7 @@ import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, Loader2, X } from "lucid
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils/cn"
+import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
 
 interface Participant {
   id: string
@@ -145,15 +146,22 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
     onHangUp()
   }
 
-  function toggleMute() {
-    localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = muted })
-    setMuted((m) => !m)
-  }
-
-  function toggleVideo() {
-    localStreamRef.current?.getVideoTracks().forEach((t) => { t.enabled = videoOff })
-    setVideoOff((v) => !v)
-  }
+  const { toggleMute, toggleVideo } = useCallMediaToggles({
+    muted,
+    videoOff,
+    setMuted,
+    setVideoOff,
+    onToggleMute: (isMuted) => {
+      localStreamRef.current?.getAudioTracks().forEach((track) => {
+        track.enabled = isMuted
+      })
+    },
+    onToggleVideo: (isVideoOff) => {
+      localStreamRef.current?.getVideoTracks().forEach((track) => {
+        track.enabled = isVideoOff
+      })
+    },
+  })
 
   const partnerName = partner.display_name || partner.username
   const initials = partnerName.slice(0, 2).toUpperCase()
