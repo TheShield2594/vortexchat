@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission, PERMISSIONS } from "@/lib/permissions"
 
 export async function GET(
@@ -26,14 +26,51 @@ export async function GET(
     return NextResponse.json({ error: "Not a member of this server" }, { status: 403 })
   }
 
-  const { data: members, error } = await supabase
+  // Use service role for the full member list payload because RLS policies can
+  // legitimately scope user-token reads down to only the requester row.
+  let adminSupabase
+  try {
+    adminSupabase = await createServiceRoleClient()
+  } catch (error) {
+    const errorId = crypto.randomUUID()
+    const errorName = error instanceof Error ? error.name : "UnknownError"
+    console.error(`[${errorId}] Failed to initialize service-role Supabase client for member list (${errorName})`)
+    return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
+  }
+
+  const { data: members, error } = await adminSupabase
     .from("server_members")
     .select(`
-      *,
-      user:users(*),
-      roles:member_roles(role_id, roles(*))
+      server_id,
+      user_id,
+      nickname,
+      user:users(
+        id,
+        username,
+        display_name,
+        avatar_url,
+        status_message,
+        bio,
+        banner_color,
+        custom_tag,
+        created_at
+      ),
+      roles:member_roles(
+        role_id,
+        roles(
+          id,
+          server_id,
+          name,
+          color,
+          permissions,
+          position,
+          created_at
+        )
+      )
     `)
     .eq("server_id", params.serverId)
+    .order("nickname", { ascending: true, nullsFirst: false })
+    .order("user_id", { ascending: true })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
