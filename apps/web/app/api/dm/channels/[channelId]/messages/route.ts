@@ -75,13 +75,13 @@ export async function POST(
   }
   const { data: channel, error: channelError } = await (supabase as any)
     .from("dm_channels")
-    .select("is_encrypted")
+    .select("is_encrypted, encryption_key_version")
     .eq("id", channelId)
     .maybeSingle()
   if (channelError || !channel) {
     return NextResponse.json({ error: "Unable to verify channel encryption" }, { status: 500 })
   }
-  const channelInfo = channel as { is_encrypted: boolean }
+  const channelInfo = channel as { is_encrypted: boolean; encryption_key_version: number }
   const content = body.content?.trim()
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 })
 
@@ -90,6 +90,9 @@ export async function POST(
       const parsed = JSON.parse(content)
       if (!isValidDmE2eeEnvelope(parsed)) {
         return NextResponse.json({ error: "Encrypted channels require encrypted payload" }, { status: 400 })
+      }
+      if (parsed.keyVersion !== channelInfo.encryption_key_version) {
+        return NextResponse.json({ error: "Encrypted channels require current keyVersion" }, { status: 400 })
       }
     } catch {
       return NextResponse.json({ error: "Encrypted channels require encrypted payload" }, { status: 400 })

@@ -89,6 +89,8 @@ CREATE POLICY "dm members can update recipient key envelopes"
 CREATE OR REPLACE FUNCTION public.prune_dm_channel_keys(p_dm_channel_id UUID, p_keep_versions INTEGER DEFAULT 5)
 RETURNS VOID
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_max_version INTEGER;
@@ -128,6 +130,44 @@ CREATE TRIGGER dm_channel_keys_prune_after_write
   AFTER INSERT OR UPDATE ON public.dm_channel_keys
   REFERENCING NEW TABLE AS new_rows
   FOR EACH STATEMENT EXECUTE FUNCTION public.dm_channel_keys_prune_trigger();
+
+
+CREATE OR REPLACE FUNCTION public.upsert_user_device_key(
+  p_device_id TEXT,
+  p_public_key TEXT,
+  p_device_limit INTEGER DEFAULT 20
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'unauthorized';
+  END IF;
+
+  SELECT COUNT(*) INTO v_count
+  FROM public.user_device_keys
+  WHERE user_id = auth.uid()
+    AND device_id <> p_device_id;
+
+  IF v_count >= GREATEST(p_device_limit, 1) THEN
+    RAISE EXCEPTION 'device_limit_reached';
+  END IF;
+
+  INSERT INTO public.user_device_keys (user_id, device_id, public_key, updated_at)
+  VALUES (auth.uid(), p_device_id, p_public_key, NOW())
+  ON CONFLICT (user_id, device_id)
+  DO UPDATE SET
+    public_key = EXCLUDED.public_key,
+    updated_at = NOW();
+
+  RETURN TRUE;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.dm_channel_rotate_on_member_change()
 RETURNS TRIGGER

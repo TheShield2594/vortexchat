@@ -52,7 +52,7 @@ const DEVICE_STORAGE_KEY = "dm-device-key-v1"
 const DEVICE_KEY_DB = "vortexchat-e2ee"
 const DEVICE_KEY_STORE = "device-private-keys"
 const CONVERSATION_KEY_STORE = "conversation-keys"
-let deviceKeyRegistered = false
+const registeredDeviceKeys = new Set<string>()
 
 function openDeviceKeyDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -153,7 +153,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
 
   const syncDeviceRegistration = useCallback(async (deviceId: string, publicKey: string) => {
-    if (deviceKeyRegistered) return
+    const registrationKey = `${currentUserId}:${deviceId}:${publicKey}`
+    if (registeredDeviceKeys.has(registrationKey)) return
+
     const res = await fetch("/api/dm/keys/device", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -162,8 +164,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     if (!res.ok) {
       throw new Error("Failed to register device key")
     }
-    deviceKeyRegistered = true
-  }, [])
+
+    registeredDeviceKeys.add(registrationKey)
+  }, [currentUserId])
 
   const ensureDeviceIdentity = useCallback(async () => {
     const existing = localStorage.getItem(DEVICE_STORAGE_KEY)
@@ -326,7 +329,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         }
 
         try {
-          next[msg.id] = { text: await decryptDmContent(envelope, conversationKey), failed: false }
+          const versionKey = await getConversationKey(`dm-conversation-key:${channel.id}:${envelope.keyVersion}`)
+          if (!versionKey) {
+            next[msg.id] = { text: "Unable to decrypt this message", failed: true }
+          } else {
+            next[msg.id] = { text: await decryptDmContent(envelope, versionKey), failed: false }
+          }
         } catch {
           next[msg.id] = { text: "Unable to decrypt this message", failed: true }
         }
@@ -339,7 +347,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     })()
 
     return () => { cancelled = true }
-  }, [channel?.is_encrypted, conversationKey, messages])
+  }, [channel?.id, channel?.is_encrypted, conversationKey, messages])
 
   useEffect(() => {
     const ch = supabase

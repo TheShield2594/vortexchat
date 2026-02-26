@@ -124,6 +124,20 @@ export async function POST(
     return NextResponse.json({ error: "Invalid keyVersion" }, { status: 400 })
   }
 
+  const { count: memberCount, error: memberCountError } = await supabase
+    .from("dm_channel_members")
+    .select("user_id", { count: "exact", head: true })
+    .eq("dm_channel_id", channelId)
+
+  if (memberCountError) {
+    return NextResponse.json({ error: memberCountError.message }, { status: 500 })
+  }
+
+  const maxAllowed = Math.max((memberCount ?? 0) * PER_USER_DEVICE_LIMIT, PER_USER_DEVICE_LIMIT)
+  if (wrappedKeys.length > maxAllowed) {
+    return NextResponse.json({ error: "Too many wrappedKeys" }, { status: 400 })
+  }
+
   for (let index = 0; index < wrappedKeys.length; index += 1) {
     const entryError = validateWrappedKeyEntry(wrappedKeys[index], index)
     if (entryError) return NextResponse.json({ error: entryError }, { status: 400 })

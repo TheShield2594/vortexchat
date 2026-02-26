@@ -70,24 +70,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid device public key" }, { status: 400 })
   }
 
-  const { count, error: countError } = await (supabase as any)
-    .from("user_device_keys")
-    .select("device_id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .neq("device_id", deviceId)
-
-  if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
-  if ((count ?? 0) >= DEVICE_LIMIT) {
-    return NextResponse.json({ error: `Device limit reached (${DEVICE_LIMIT})` }, { status: 409 })
-  }
-
-  const { error } = await (supabase as any).from("user_device_keys").upsert({
-    user_id: user.id,
-    device_id: deviceId,
-    public_key: publicKey,
-    updated_at: new Date().toISOString(),
+  const { data, error } = await (supabase as any).rpc("upsert_user_device_key", {
+    p_device_id: deviceId,
+    p_public_key: publicKey,
+    p_device_limit: DEVICE_LIMIT,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.message?.includes("device_limit_reached")) {
+      return NextResponse.json({ error: `Device limit reached (${DEVICE_LIMIT})` }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (data !== true) {
+    return NextResponse.json({ error: "Device key upsert failed" }, { status: 500 })
+  }
+
   return NextResponse.json({ ok: true })
 }
