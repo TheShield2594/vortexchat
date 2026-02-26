@@ -16,10 +16,12 @@ CREATE INDEX IF NOT EXISTS idx_recovery_codes_user_unused ON public.recovery_cod
 ALTER TABLE public.recovery_codes ENABLE ROW LEVEL SECURITY;
 
 -- Users can read their own codes (to see count remaining) but service role handles insert/update
+DROP POLICY IF EXISTS "Users can view own recovery codes" ON public.recovery_codes;
 CREATE POLICY "Users can view own recovery codes"
   ON public.recovery_codes FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can manage own recovery codes" ON public.recovery_codes;
 CREATE POLICY "Users can manage own recovery codes"
   ON public.recovery_codes FOR ALL
   USING (user_id = auth.uid())
