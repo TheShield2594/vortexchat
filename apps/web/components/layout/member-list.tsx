@@ -66,6 +66,7 @@ export function MemberList({ serverId }: Props) {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const memberFetchControllerRef = useRef<AbortController | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
@@ -74,47 +75,58 @@ export function MemberList({ serverId }: Props) {
 
   useEffect(() => {
     async function fetchMembers() {
+      memberFetchControllerRef.current?.abort()
+      const controller = new AbortController()
+      memberFetchControllerRef.current = controller
+      const encodedServerId = encodeURIComponent(serverId)
+
       setLoadingMembers(true)
-      // Fetch members and roles separately — no FK between server_members and member_roles
-      const [membersRes, rolesRes] = await Promise.all([
-        supabase
-          .from("server_members")
-          .select("*, user:users(*)")
-          .eq("server_id", serverId),
-        supabase
-          .from("member_roles")
-          .select("user_id, roles(*)")
-          .eq("server_id", serverId),
-      ])
+      try {
+        const response = await fetch(`/api/servers/${encodedServerId}/members`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        })
 
-      if (membersRes.error) console.error("Failed to fetch members:", membersRes.error)
-      if (rolesRes.error) console.error("Failed to fetch member roles:", rolesRes.error)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch members (${response.status})`)
+        }
 
-      // Build a map of user_id -> roles
-      type MemberRoleRow = { user_id: string; roles: RoleRow | null }
-      const rolesByUser: Record<string, RoleRow[]> = {}
-      for (const mr of ((rolesRes.data ?? []) as unknown as MemberRoleRow[])) {
-        if (!rolesByUser[mr.user_id]) rolesByUser[mr.user_id] = []
-        if (mr.roles) rolesByUser[mr.user_id].push(mr.roles)
+        type ApiRoleEntry = { role_id: string; roles: RoleRow | null }
+        type ApiMember = Omit<MemberData, "roles"> & { roles?: ApiRoleEntry[] }
+        const rawMembers = (await response.json()) as ApiMember[]
+        if (controller.signal.aborted) return
+
+        const merged: MemberData[] = rawMembers.map((member) => ({
+          ...member,
+          roles: (member.roles ?? [])
+            .map((entry) => entry.roles)
+            .filter((role): role is RoleRow => Boolean(role)),
+        }))
+
+        setMembers(merged)
+
+        // Push lightweight member data to store for mention autocomplete
+        useAppStore.getState().setMembers(serverId, merged.map((m) => ({
+          user_id: m.user_id,
+          username: m.user?.username ?? "",
+          display_name: m.user?.display_name ?? null,
+          avatar_url: m.user?.avatar_url ?? null,
+          nickname: m.nickname,
+        })))
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return
+
+        console.error("Failed to fetch members:", error)
+        setMembers([])
+        useAppStore.getState().setMembers(serverId, [])
+      } finally {
+        if (memberFetchControllerRef.current === controller) {
+          memberFetchControllerRef.current = null
+          setLoadingMembers(false)
+        }
       }
-
-      type RawMember = Omit<MemberData, "roles"> & { roles?: unknown }
-      const merged: MemberData[] = ((membersRes.data ?? []) as unknown as RawMember[]).map((m) => ({
-        ...m,
-        roles: rolesByUser[m.user_id] ?? [],
-      }))
-
-      setMembers(merged)
-      setLoadingMembers(false)
-
-      // Push lightweight member data to store for mention autocomplete
-      useAppStore.getState().setMembers(serverId, merged.map((m) => ({
-        user_id: m.user_id,
-        username: m.user?.username ?? "",
-        display_name: m.user?.display_name ?? null,
-        avatar_url: m.user?.avatar_url ?? null,
-        nickname: m.nickname,
-      })))
     }
 
     fetchMembers()
@@ -182,6 +194,8 @@ export function MemberList({ serverId }: Props) {
       })
 
     return () => {
+      memberFetchControllerRef.current?.abort()
+      memberFetchControllerRef.current = null
       channelRef.current = null
       supabase.removeChannel(channel)
       for (const timer of recentActivityTimersRef.current.values()) {
