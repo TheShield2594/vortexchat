@@ -19,18 +19,31 @@ export default async function ChannelsLayout({
     redirect("/login")
   }
 
-  // Fetch user profile and servers in parallel
-  const [{ data: profile, error: profileError }, { data: serverMembers }] = await Promise.all([
+  // Fetch user profile and server memberships in parallel
+  const [{ data: profile, error: profileError }, { data: serverMembers, error: serverMembersError }] = await Promise.all([
     supabase.from("users").select("*").eq("id", user.id).single(),
-    supabase.from("server_members").select("server_id, servers(*)").eq("user_id", user.id).order("joined_at", { ascending: true }),
+    supabase.from("server_members").select("server_id, joined_at").eq("user_id", user.id).order("joined_at", { ascending: true }),
   ])
 
   if (profileError || !profile) redirect("/login")
 
-  type ServerMemberWithServer = { server_id: string; servers: ServerRow | null }
-  const servers = ((serverMembers ?? []) as unknown as ServerMemberWithServer[])
-    .map((m) => m.servers)
-    .filter((s): s is ServerRow => s !== null)
+  if (serverMembersError) {
+    throw new Error(`Failed to load server memberships: ${serverMembersError.message}`)
+  }
+
+  const membershipIds = (serverMembers ?? []).map((membership) => membership.server_id)
+  const { data: serverRows, error: serversError } = membershipIds.length
+    ? await supabase.from("servers").select("*").in("id", membershipIds)
+    : { data: [], error: null }
+
+  if (serversError) {
+    throw new Error(`Failed to load servers for membershipIds (${membershipIds.join(", ")}): ${serversError.message}`)
+  }
+
+  const serversById = new Map((serverRows ?? []).map((server) => [server.id, server]))
+  const servers = membershipIds
+    .map((serverId) => serversById.get(serverId))
+    .filter((server): server is ServerRow => Boolean(server))
 
   return (
     <AppProvider user={profile} servers={servers}>
