@@ -3,6 +3,22 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendPushToChannel } from "@/lib/push"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
 
+function isValidDmE2eeEnvelope(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false
+  const envelope = value as Record<string, unknown>
+  return envelope.kind === "dm-e2ee"
+    && envelope.version === 1
+    && envelope.algorithm === "AES-GCM"
+    && typeof envelope.iv === "string"
+    && envelope.iv.length > 0
+    && typeof envelope.ciphertext === "string"
+    && envelope.ciphertext.length > 0
+    && typeof envelope.keyVersion === "number"
+    && Number.isInteger(envelope.keyVersion)
+    && envelope.keyVersion >= 0
+}
+
+
 // POST /api/dm/channels/[channelId]/messages — send a message
 export async function POST(
   req: NextRequest,
@@ -57,8 +73,31 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
+  const { data: channel, error: channelError } = await (supabase as any)
+    .from("dm_channels")
+    .select("is_encrypted, encryption_key_version")
+    .eq("id", channelId)
+    .maybeSingle()
+  if (channelError || !channel) {
+    return NextResponse.json({ error: "Unable to verify channel encryption" }, { status: 500 })
+  }
+  const channelInfo = channel as { is_encrypted: boolean; encryption_key_version: number }
   const content = body.content?.trim()
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 })
+
+  if (channelInfo?.is_encrypted) {
+    try {
+      const parsed = JSON.parse(content)
+      if (!isValidDmE2eeEnvelope(parsed)) {
+        return NextResponse.json({ error: "Encrypted channels require encrypted payload" }, { status: 400 })
+      }
+      if (parsed.keyVersion !== channelInfo.encryption_key_version) {
+        return NextResponse.json({ error: "Encrypted channels require current keyVersion" }, { status: 400 })
+      }
+    } catch {
+      return NextResponse.json({ error: "Encrypted channels require encrypted payload" }, { status: 400 })
+    }
+  }
 
   const { data: message, error } = await supabase
     .from("direct_messages")
@@ -77,7 +116,7 @@ export async function POST(
   sendPushToChannel({
     dmChannelId: channelId,
     senderName,
-    content,
+    content: channelInfo?.is_encrypted ? "Encrypted message" : content,
     excludeUserId: user.id,
   }).catch(() => {})
 

@@ -26,7 +26,7 @@ export async function GET(
   // Fetch channel info (flat, no joins)
   const { data: channel, error: channelError } = await supabase
     .from("dm_channels")
-    .select("id, name, icon_url, is_group, owner_id, updated_at")
+    .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
     .eq("id", channelId)
     .maybeSingle()
   if (channelError) return NextResponse.json({ error: channelError.message }, { status: 500 })

@@ -18,6 +18,7 @@ interface DMChannel {
   is_group: boolean
   updated_at: string
   is_unread: boolean
+  is_encrypted?: boolean
   latest_message: { content: string; created_at: string } | null
   partner: {
     id: string
@@ -228,7 +229,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
                   <span
                     className={cn("text-sm font-medium truncate", ch.is_unread && !isActive ? "text-white" : "")}
                   >
-                    {displayName}
+                    {displayName}{ch.is_encrypted ? " 🔒" : ""}
                   </span>
                   {ch.latest_message && (
                     <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-faint)" }}>

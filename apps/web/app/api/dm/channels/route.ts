@@ -21,7 +21,7 @@ export async function GET() {
   // 2. Fetch channel metadata
   const { data: channelRows, error: channelRowsError } = await supabase
     .from("dm_channels")
-    .select("id, name, icon_url, is_group, owner_id, updated_at")
+    .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
     .in("id", channelIds)
   if (channelRowsError) return NextResponse.json({ error: channelRowsError.message }, { status: 500 })
 
@@ -97,9 +97,10 @@ export async function GET() {
       is_group: ch.is_group,
       owner_id: ch.owner_id,
       updated_at: ch.updated_at,
+      is_encrypted: ch.is_encrypted,
       members,
       partner,
-      latest_message: latest,
+      latest_message: latest ? { ...latest, content: ch.is_encrypted ? "Encrypted message" : latest.content } : null,
       is_unread: isUnread,
     }
   })
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let parsedBody: { userIds?: string[]; name?: string }
+  let parsedBody: { userIds?: string[]; name?: string; encrypted?: boolean }
   try {
     parsedBody = await req.json()
   } catch {
@@ -124,6 +125,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { userIds, name } = parsedBody
+  const encrypted = parsedBody.encrypted === true
   if (!userIds?.length) return NextResponse.json({ error: "userIds required" }, { status: 400 })
 
   const allMembers = Array.from(new Set([user.id, ...userIds])) as string[]
@@ -154,9 +156,10 @@ export async function POST(req: NextRequest) {
       // Get non-group channels from those IDs
       const { data: nonGroupChannels, error: nonGroupChannelsError } = await supabase
         .from("dm_channels")
-        .select("id")
+        .select("id, is_encrypted")
         .in("id", sharedChannelIds)
         .eq("is_group", false)
+        .eq("is_encrypted", encrypted)
       if (nonGroupChannelsError) return NextResponse.json({ error: nonGroupChannelsError.message }, { status: 500 })
 
       const existingChannel = (nonGroupChannels ?? [])[0]
@@ -169,7 +172,7 @@ export async function POST(req: NextRequest) {
   // Create new channel
   const { data: channel, error: chanErr } = await supabase
     .from("dm_channels")
-    .insert({ name: name ?? null, is_group: isGroup, owner_id: user.id })
+    .insert({ name: name ?? null, is_group: isGroup, owner_id: user.id, is_encrypted: encrypted })
     .select()
     .single()
 

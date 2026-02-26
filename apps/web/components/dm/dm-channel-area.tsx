@@ -12,6 +12,7 @@ import { useTyping } from "@/hooks/use-typing"
 import { useAppStore } from "@/lib/stores/app-store"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useShallow } from "zustand/react/shallow"
+import { decryptDmContent, encryptDmContent, exportPublicKey, fingerprintFromPublicKey, generateConversationKey, generateDeviceKeyPair, importPublicKey, parseEncryptedEnvelope, unwrapConversationKey, wrapConversationKey } from "@/lib/dm-encryption"
 
 interface User {
   id: string
@@ -35,6 +36,8 @@ interface Channel {
   name: string | null
   is_group: boolean
   owner_id: string | null
+  is_encrypted?: boolean
+  encryption_key_version?: number
   members: User[]
   partner: User | null
 }
@@ -42,6 +45,81 @@ interface Channel {
 interface Props {
   channelId: string
   currentUserId: string
+}
+
+
+const DEVICE_STORAGE_KEY = "dm-device-key-v1"
+const DEVICE_KEY_DB = "vortexchat-e2ee"
+const DEVICE_KEY_STORE = "device-private-keys"
+const CONVERSATION_KEY_STORE = "conversation-keys"
+const registeredDeviceKeys = new Set<string>()
+
+function openDeviceKeyDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DEVICE_KEY_DB, 1)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains(DEVICE_KEY_STORE)) {
+        db.createObjectStore(DEVICE_KEY_STORE)
+      }
+      if (!db.objectStoreNames.contains(CONVERSATION_KEY_STORE)) {
+        db.createObjectStore(CONVERSATION_KEY_STORE)
+      }
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function putDevicePrivateKey(deviceId: string, privateKey: CryptoKey) {
+  const db = await openDeviceKeyDb()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(DEVICE_KEY_STORE, "readwrite")
+    tx.objectStore(DEVICE_KEY_STORE).put(privateKey, deviceId)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+  db.close()
+}
+
+async function getDevicePrivateKey(deviceId: string): Promise<CryptoKey | null> {
+  const db = await openDeviceKeyDb()
+  const key = await new Promise<CryptoKey | null>((resolve, reject) => {
+    const tx = db.transaction(DEVICE_KEY_STORE, "readonly")
+    const req = tx.objectStore(DEVICE_KEY_STORE).get(deviceId)
+    req.onsuccess = () => resolve((req.result as CryptoKey | undefined) ?? null)
+    req.onerror = () => reject(req.error)
+  })
+  db.close()
+  return key
+}
+
+async function putConversationKey(cacheKey: string, keyBytes: Uint8Array) {
+  const db = await openDeviceKeyDb()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(CONVERSATION_KEY_STORE, "readwrite")
+    tx.objectStore(CONVERSATION_KEY_STORE).put(keyBytes, cacheKey)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+  db.close()
+}
+
+async function getConversationKey(cacheKey: string): Promise<Uint8Array | null> {
+  const db = await openDeviceKeyDb()
+  const value = await new Promise<Uint8Array | null>((resolve, reject) => {
+    const tx = db.transaction(CONVERSATION_KEY_STORE, "readonly")
+    const req = tx.objectStore(CONVERSATION_KEY_STORE).get(cacheKey)
+    req.onsuccess = () => {
+      const result = req.result
+      if (result instanceof Uint8Array) return resolve(result)
+      if (result instanceof ArrayBuffer) return resolve(new Uint8Array(result))
+      resolve(null)
+    }
+    req.onerror = () => reject(req.error)
+  })
+  db.close()
+  return value
 }
 
 /** Channel-based DM view with message history, file uploads, voice/video calling, typing indicators, and real-time updates. */
@@ -52,6 +130,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const [content, setContent] = useState("")
+  const [decryptedContent, setDecryptedContent] = useState<Record<string, { text: string; failed: boolean }>>({})
+  const decryptedRef = useRef<Record<string, { text: string; failed: boolean }>>({})
+  const [conversationKey, setConversationKey] = useState<Uint8Array | null>(null)
+  const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
+  const [deviceId, setDeviceId] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [inCall, setInCall] = useState(false)
   const [callWithVideo, setCallWithVideo] = useState(false)
@@ -68,6 +151,117 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   )
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
+
+  const syncDeviceRegistration = useCallback(async (deviceId: string, publicKey: string) => {
+    const registrationKey = `${currentUserId}:${deviceId}:${publicKey}`
+    if (registeredDeviceKeys.has(registrationKey)) return
+
+    const res = await fetch("/api/dm/keys/device", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, publicKey }),
+    })
+    if (!res.ok) {
+      throw new Error("Failed to register device key")
+    }
+
+    registeredDeviceKeys.add(registrationKey)
+  }, [currentUserId])
+
+  const ensureDeviceIdentity = useCallback(async () => {
+    const existing = localStorage.getItem(DEVICE_STORAGE_KEY)
+    if (existing) {
+      try {
+        const parsed = JSON.parse(existing) as { deviceId?: string; publicKey?: string }
+        if (typeof parsed.deviceId === "string" && parsed.deviceId && typeof parsed.publicKey === "string" && parsed.publicKey) {
+          const privateKey = await getDevicePrivateKey(parsed.deviceId)
+          if (privateKey) {
+            await syncDeviceRegistration(parsed.deviceId, parsed.publicKey)
+            setDeviceId(parsed.deviceId)
+            setDeviceFingerprint(await fingerprintFromPublicKey(parsed.publicKey))
+            return { deviceId: parsed.deviceId, publicKey: parsed.publicKey, privateKey }
+          }
+        }
+        localStorage.removeItem(DEVICE_STORAGE_KEY)
+      } catch {
+        localStorage.removeItem(DEVICE_STORAGE_KEY)
+      }
+    }
+
+    const pair = await generateDeviceKeyPair()
+    const publicKey = await exportPublicKey(pair.publicKey)
+    const privateKey = pair.privateKey
+    const newDeviceId = crypto.randomUUID()
+
+    await putDevicePrivateKey(newDeviceId, privateKey)
+    localStorage.setItem(DEVICE_STORAGE_KEY, JSON.stringify({ deviceId: newDeviceId, publicKey }))
+
+    setDeviceId(newDeviceId)
+    setDeviceFingerprint(await fingerprintFromPublicKey(publicKey))
+
+    await syncDeviceRegistration(newDeviceId, publicKey)
+
+    return { deviceId: newDeviceId, publicKey, privateKey }
+  }, [syncDeviceRegistration])
+
+  const ensureConversationKey = useCallback(async (channelInfo: Channel) => {
+    if (!channelInfo?.is_encrypted) {
+      setConversationKey(null)
+      return null
+    }
+
+    const identity = await ensureDeviceIdentity()
+    const version = channelInfo.encryption_key_version ?? 1
+    const cacheKey = `dm-conversation-key:${channelInfo.id}:${version}`
+    const cached = await getConversationKey(cacheKey)
+    if (cached) {
+      setConversationKey(cached)
+      return cached
+    }
+
+    const legacyCached = localStorage.getItem(cacheKey)
+    if (legacyCached) localStorage.removeItem(cacheKey)
+
+    const keyRes = await fetch(`/api/dm/channels/${channelInfo.id}/keys`)
+    if (!keyRes.ok) return null
+    const payload = await keyRes.json()
+    const privateKey = identity.privateKey
+
+    const existingWrapped = (payload.wrappedKeys ?? []).find((row: any) => row.key_version === version && row.target_device_id === identity.deviceId)
+    if (existingWrapped) {
+      const senderPublic = await importPublicKey(existingWrapped.sender_public_key)
+      const unwrapped = await unwrapConversationKey(existingWrapped.wrapped_key, privateKey, senderPublic)
+      await putConversationKey(cacheKey, unwrapped)
+      setConversationKey(unwrapped)
+      return unwrapped
+    }
+
+    if (channelInfo.owner_id !== currentUserId) return null
+
+    const nextKey = generateConversationKey()
+    const wrappedKeys = await Promise.all((payload.memberDeviceKeys ?? []).map(async (row: any) => ({
+      targetUserId: row.user_id,
+      targetDeviceId: row.device_id,
+      wrappedKey: await wrapConversationKey(nextKey, privateKey, await importPublicKey(row.public_key)),
+      wrappedByDeviceId: identity.deviceId,
+      senderPublicKey: identity.publicKey,
+    })))
+
+    const uploadRes = await fetch(`/api/dm/channels/${channelInfo.id}/keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keyVersion: version, wrappedKeys }),
+    })
+
+    if (!uploadRes.ok) {
+      throw new Error("Failed to upload wrapped conversation keys")
+    }
+
+    await putConversationKey(cacheKey, nextKey)
+    setConversationKey(nextKey)
+    return nextKey
+  }, [currentUserId, ensureDeviceIdentity])
+
   const { typingUsers, onKeystroke, onSent } = useTyping(channelId, currentUserId, currentDisplayName)
 
   const loadMessages = useCallback(async (before?: string) => {
@@ -81,6 +275,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       }
       const data = await res.json()
       setChannel(data.channel)
+      if (data.channel?.is_encrypted) await ensureConversationKey(data.channel)
       if (before) {
         setMessages((prev) => [...(data.messages ?? []), ...prev])
       } else {
@@ -90,7 +285,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     } catch {
       if (!before) setLoadError(true)
     }
-  }, [channelId])
+  }, [channelId, ensureConversationKey])
 
   useEffect(() => {
     loadMessages()
@@ -110,6 +305,50 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   }, [messages.length])
 
   // Realtime subscription
+  useEffect(() => {
+    if (!channel?.is_encrypted || !conversationKey) {
+      decryptedRef.current = {}
+      setDecryptedContent({})
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      const next = { ...decryptedRef.current }
+      let changed = false
+
+      for (const msg of messages) {
+        const cached = next[msg.id]
+        if (cached && !cached.failed) continue
+
+        const envelope = parseEncryptedEnvelope(msg.content)
+        if (!envelope) {
+          next[msg.id] = { text: "Unable to decrypt this message", failed: true }
+          changed = true
+          continue
+        }
+
+        try {
+          const versionKey = await getConversationKey(`dm-conversation-key:${channel.id}:${envelope.keyVersion}`)
+          if (!versionKey) {
+            next[msg.id] = { text: "Unable to decrypt this message", failed: true }
+          } else {
+            next[msg.id] = { text: await decryptDmContent(envelope, versionKey), failed: false }
+          }
+        } catch {
+          next[msg.id] = { text: "Unable to decrypt this message", failed: true }
+        }
+        changed = true
+      }
+
+      if (!changed || cancelled) return
+      decryptedRef.current = next
+      setDecryptedContent(next)
+    })()
+
+    return () => { cancelled = true }
+  }, [channel?.id, channel?.is_encrypted, conversationKey, messages])
+
   useEffect(() => {
     const ch = supabase
       .channel(`dm-channel:${channelId}`)
@@ -149,10 +388,17 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     onSent()
 
     try {
+      let outbound = text
+      if (channel?.is_encrypted) {
+        const key = conversationKey ?? await ensureConversationKey(channel)
+        if (!key) throw new Error("Missing encryption key")
+        const envelope = await encryptDmContent(text, key, channel.encryption_key_version ?? 1)
+        outbound = JSON.stringify(envelope)
+      }
       const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ content: outbound }),
       })
       if (res.ok) {
         const msg = await res.json()
@@ -187,6 +433,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   async function handleEditSave(messageId: string) {
     if (!editContent.trim()) return
+    if (channel?.is_encrypted) {
+      toast({ variant: "destructive", title: "Editing encrypted messages is currently disabled" })
+      setEditingId(null)
+      return
+    }
+
     const res = await fetch(`/api/dm/channels/${channelId}/messages/${messageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -225,10 +477,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
       const { data: { publicUrl } } = supabase.storage.from("attachments").getPublicUrl(path)
       const fileContent = `[${file.name}](${publicUrl})`
+      let outbound = fileContent
+      if (channel?.is_encrypted) {
+        const key = conversationKey ?? await ensureConversationKey(channel)
+        if (!key) throw new Error("Missing encryption key")
+        outbound = JSON.stringify(await encryptDmContent(fileContent, key, channel.encryption_key_version ?? 1))
+      }
       const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: fileContent }),
+        body: JSON.stringify({ content: outbound }),
       })
       if (res.ok) {
         const msg = await res.json()
@@ -254,7 +512,15 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   }
 
   function handleSearchClick() {
-    toast({ title: "Search is coming soon", description: "Conversation search isn’t wired up yet." })
+    if (!channel?.is_encrypted) {
+      toast({ title: "Search is coming soon", description: "Conversation search isn’t wired up yet." })
+      return
+    }
+
+    const query = window.prompt("Local encrypted search", "")?.trim().toLowerCase()
+    if (!query) return
+    const hits = Object.values(decryptedContent).filter((entry) => !entry.failed && entry.text.toLowerCase().includes(query)).length
+    toast({ title: "Local encrypted search", description: `${hits} matching message${hits === 1 ? "" : "s"} found on this device.` })
   }
 
   function handlePinClick() {
@@ -306,7 +572,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             </AvatarFallback>
           </Avatar>
         )}
-        <span className="font-semibold text-white flex-1">{displayName}</span>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-white truncate">{displayName}</div>
+          {channel.is_encrypted && (
+            <div className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
+              End-to-end encrypted • Device fingerprint: {deviceFingerprint ?? "verifying…"}
+            </div>
+          )}
+        </div>
 
         <button
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
@@ -417,8 +690,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const senderInitials = senderName.slice(0, 2).toUpperCase()
           const isEditing = editingId === msg.id
 
+          const renderedContent = channel.is_encrypted ? (decryptedContent[msg.id]?.text ?? "Decrypting…") : msg.content
+          const decryptFailed = channel.is_encrypted ? Boolean(decryptedContent[msg.id]?.failed) : false
+
           // Render image attachments inline (markdown-style links to images)
-          const imageMatch = msg.content?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
+          const imageMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
 
           return (
             <div key={msg.id} className={cn("group flex items-start gap-3 hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
@@ -470,8 +746,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{imageMatch[1]}</span>
                   </div>
                 ) : (
-                  <p className="text-sm break-words" style={{ color: "var(--theme-text-normal)" }}>
-                    {msg.content}
+                  <p className="text-sm break-words" style={{ color: decryptFailed ? "var(--theme-warning)" : "var(--theme-text-normal)" }}>
+                    {renderedContent}
                   </p>
                 )}
                 {msg.edited_at && !isEditing && (
@@ -479,10 +755,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 )}
               </div>
               {/* Hover actions — own messages only */}
-              {isOwn && !isEditing && (
+              {isOwn && !isEditing && !channel.is_encrypted && (
                 <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-opacity">
                   <button
-                    onClick={() => { setEditingId(msg.id); setEditContent(msg.content) }}
+                    onClick={() => { setEditingId(msg.id); setEditContent(renderedContent) }}
                     className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
                     style={{ color: "var(--theme-text-muted)" }}
                     title="Edit"
