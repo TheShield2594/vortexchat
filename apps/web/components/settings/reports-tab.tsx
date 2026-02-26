@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { REPORT_REASONS } from "@/lib/report-reasons"
+import { REPORT_STATUSES, type ReportStatus } from "@/lib/report-status"
 
 interface ReportUser {
   id: string
@@ -22,7 +23,7 @@ interface Report {
   server_id: string
   reason: string
   description: string | null
-  status: string
+  status: ReportStatus
   reviewed_by: string | null
   reviewed_at: string | null
   created_at: string
@@ -32,19 +33,19 @@ interface Report {
   reviewer: { id: string; username: string; display_name: string | null } | null
 }
 
-const STATUS_FILTERS = [
+const STATUS_FILTERS: ReadonlyArray<{ value: "" | ReportStatus; label: string }> = [
   { value: "", label: "All" },
-  { value: "pending", label: "Pending" },
-  { value: "reviewed", label: "Reviewed" },
-  { value: "resolved", label: "Resolved" },
-  { value: "dismissed", label: "Dismissed" },
-] as const
+  ...REPORT_STATUSES.map((status) => ({
+    value: status,
+    label: status.charAt(0).toUpperCase() + status.slice(1),
+  })),
+]
 
 const REASON_LABELS: Record<string, string> = Object.fromEntries(
   REPORT_REASONS.map((r) => [r.value, r.label])
 )
 
-function getStatusIcon(status: string) {
+function getStatusIcon(status: ReportStatus) {
   switch (status) {
     case "pending":
       return <Clock className="w-3.5 h-3.5" style={{ color: "var(--theme-warning)" }} />
@@ -67,7 +68,7 @@ export function ReportsTab({ serverId }: Props) {
   const { toast } = useToast()
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"" | ReportStatus>("")
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export function ReportsTab({ serverId }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverId, statusFilter])
 
-  async function updateReportStatus(reportId: string, newStatus: string) {
+  async function updateReportStatus(reportId: string, newStatus: ReportStatus) {
     setUpdatingId(reportId)
     try {
       const res = await fetch("/api/reports", {

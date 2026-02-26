@@ -4,7 +4,7 @@ Date: 2026-02-26
 
 Scope reviewed: `apps/web`, `apps/signal`, `packages/shared`, `supabase/migrations`.
 
-> Note: Automated third-party duplication scanner (`jscpd`) could not be installed in this environment due npm registry policy (`403 Forbidden`), so this audit uses repository-local static inspection and targeted function-level matching.
+> Note: The automated third-party duplication scanner (`jscpd`) could not be installed in this environment due to npm registry policy (`403 Forbidden`), so this audit uses repository-local static inspection and targeted function-level matching.
 
 ## Findings
 
@@ -74,7 +74,7 @@ export function useCallMediaToggles(setMuted: (v: boolean) => void, setVideoOff:
 
 ---
 
-### 3) NEAR DUPLICATE (remediated) — presence/status mapping helpers across profile/member UI
+### 3) EXACT DUPLICATE (remediated) — presence/status mapping helpers across profile/member UI
 
 **Previously duplicated locations**
 - `getStatusColor` in:
@@ -93,7 +93,7 @@ export function useCallMediaToggles(setMuted: (v: boolean) => void, setVideoOff:
 
 **Extraction method**: shared utility module.
 
-**Implemented DRY fix (this change)**
+**Implemented DRY fix**
 - Added `apps/web/lib/presence-status.ts` and migrated all three components to import shared helpers.
 
 **Estimated effort**: **Completed (S, <30 minutes)**.
@@ -160,7 +160,7 @@ async function assertRoleMutationAllowed(
 
 **Importance**: **7/10**
 
-**Extraction method**: shared constant/type module in `apps/web/lib/reports-status.ts`.
+**Extraction method**: shared constant/type module in `apps/web/lib/report-status.ts`.
 
 **Drop-in DRY remediation**
 ```ts
@@ -176,7 +176,7 @@ Use this constant in both API (`includes`) and UI filters/icon mapping.
 
 ## Unable to verify
 
-- Full-file clone detection for SQL migrations and all TS/TSX blocks with token-level thresholds was **unable to verify** using external scanner due package install restriction in this environment.
+- Full-file clone detection for SQL migrations and all TS/TSX blocks with token-level thresholds was **unable to verify** using an external scanner due to package install restrictions in this environment.
 - Evidence that would improve confidence: successful run of `jscpd`/Sonar clone report in CI.
 
 ## Summary recommendations (priority order)

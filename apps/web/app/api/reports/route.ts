@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { REPORT_REASON_VALUES, type ReportReason } from "@/lib/report-reasons"
+import { REPORT_STATUSES, REPORT_STATUS_TRANSITIONS, type ReportStatus } from "@/lib/report-status"
 
 const VALID_REASONS = REPORT_REASON_VALUES
 
-const VALID_STATUSES = ["pending", "reviewed", "resolved", "dismissed"] as const
-type ReportStatus = (typeof VALID_STATUSES)[number]
 
 // The reports table is defined in migration 00035_reports.sql but is not yet
 // reflected in the generated Supabase types.  We cast through `any` for
@@ -172,7 +171,7 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(100)
 
-    if (statusFilter && VALID_STATUSES.includes(statusFilter as ReportStatus)) {
+    if (statusFilter && REPORT_STATUSES.includes(statusFilter as ReportStatus)) {
       query = query.eq("status", statusFilter)
     }
 
@@ -226,10 +225,9 @@ export async function PATCH(req: NextRequest) {
     )
   }
 
-  const validTransitions: ReportStatus[] = ["reviewed", "resolved", "dismissed"]
-  if (!validTransitions.includes(status as ReportStatus)) {
+  if (!REPORT_STATUS_TRANSITIONS.includes(status as ReportStatus)) {
     return NextResponse.json(
-      { error: `status must be one of: ${validTransitions.join(", ")}` },
+      { error: `status must be one of: ${REPORT_STATUS_TRANSITIONS.join(", ")}` },
       { status: 400 }
     )
   }

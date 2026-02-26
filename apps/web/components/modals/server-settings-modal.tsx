@@ -14,6 +14,7 @@ import { evaluateRule } from "@/lib/automod"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import type { ServerRow, AutoModRuleRow, AutoModAction, ScreeningConfigRow } from "@/types/database"
+import { copyToClipboard, createWebhook, deleteWebhook, formatChannelName } from "@/lib/webhooks"
 
 interface Channel {
   id: string
@@ -539,11 +540,7 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
   async function handleCreate() {
     if (!newChannelId) return
     setCreating(true)
-    const res = await fetch(`/api/servers/${serverId}/webhooks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelId: newChannelId, name: newName.trim() || "Webhook" }),
-    })
+    const res = await createWebhook(serverId, newChannelId, newName)
     if (res.ok) {
       const wh = await res.json()
       setWebhooks((prev) => [...prev, wh])
@@ -556,7 +553,7 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
   }
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/servers/${serverId}/webhooks?webhookId=${id}`, { method: "DELETE" })
+    const res = await deleteWebhook(serverId, id)
     if (res.ok) {
       setWebhooks((prev) => prev.filter((w) => w.id !== id))
       toast({ title: "Webhook deleted" })
@@ -564,13 +561,13 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
   }
 
   function copyUrl(id: string, url: string) {
-    navigator.clipboard.writeText(url)
+    copyToClipboard(url)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
   }
 
   function channelName(channelId: string) {
-    return channels.find((c) => c.id === channelId)?.name ?? "Unknown"
+    return formatChannelName(channelId, channels)
   }
 
   return (
@@ -745,7 +742,7 @@ export function SocialAlertsTab({ serverId, channels, open }: { serverId: string
   }
 
   function channelName(channelId: string) {
-    return channels.find((c) => c.id === channelId)?.name ?? "Unknown"
+    return formatChannelName(channelId, channels)
   }
 
   return (

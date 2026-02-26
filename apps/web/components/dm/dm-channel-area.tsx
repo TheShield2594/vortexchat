@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus, Reply, X } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
+import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
 import { useToast } from "@/components/ui/use-toast"
 import { useTyping } from "@/hooks/use-typing"
@@ -1075,15 +1076,22 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, currentUserId, withVideo])
 
-  function toggleMute() {
-    localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = muted })
-    setMuted((m) => !m)
-  }
-
-  function toggleVideo() {
-    localStreamRef.current?.getVideoTracks().forEach((t) => { t.enabled = videoOff })
-    setVideoOff((v) => !v)
-  }
+  const { toggleMute, toggleVideo } = useCallMediaToggles({
+    muted,
+    videoOff,
+    setMuted,
+    setVideoOff,
+    onToggleMute: (isMuted) => {
+      localStreamRef.current?.getAudioTracks().forEach((track) => {
+        track.enabled = isMuted
+      })
+    },
+    onToggleVideo: (isVideoOff) => {
+      localStreamRef.current?.getVideoTracks().forEach((track) => {
+        track.enabled = isVideoOff
+      })
+    },
+  })
 
   async function hangup() {
     if (sigChannelRef.current) {
