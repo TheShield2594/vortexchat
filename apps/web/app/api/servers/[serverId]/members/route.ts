@@ -32,7 +32,9 @@ export async function GET(
   try {
     adminSupabase = await createServiceRoleClient()
   } catch (error) {
-    console.error("Failed to initialize service-role Supabase client for member list", error)
+    const errorId = crypto.randomUUID()
+    const errorName = error instanceof Error ? error.name : "UnknownError"
+    console.error(`[${errorId}] Failed to initialize service-role Supabase client for member list (${errorName})`)
     return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
   }
 
@@ -67,6 +69,8 @@ export async function GET(
       )
     `)
     .eq("server_id", params.serverId)
+    .order("nickname", { ascending: true, nullsFirst: false })
+    .order("user_id", { ascending: true })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
