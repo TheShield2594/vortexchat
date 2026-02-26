@@ -61,6 +61,7 @@ export function MemberList({ serverId }: Props) {
   const [presence, setPresence] = useState<PresenceState>({})
   const [recentlyActiveUserIds, setRecentlyActiveUserIds] = useState<Set<string>>(new Set())
   const recentActivityTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const previousPresenceRef = useRef<PresenceState>({})
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
@@ -125,32 +126,40 @@ export function MemberList({ serverId }: Props) {
         const presenceMap: PresenceState = {}
         for (const presences of Object.values(state)) {
           for (const p of presences) {
-            presenceMap[p.user_id] = {
+            const nextPresence = {
               status: p.status,
               speaking: p.speaking,
               voice_channel_id: p.voice_channel_id,
             }
+            presenceMap[p.user_id] = nextPresence
 
-            const existingTimer = recentActivityTimersRef.current.get(p.user_id)
-            if (existingTimer) clearTimeout(existingTimer)
+            const previousPresence = previousPresenceRef.current[p.user_id]
+            const statusChanged = previousPresence?.status !== nextPresence.status
+            const speakingBecameActive = Boolean(nextPresence.speaking) && !Boolean(previousPresence?.speaking)
+            const voiceChannelChanged = previousPresence?.voice_channel_id !== nextPresence.voice_channel_id
+            if (!previousPresence || statusChanged || speakingBecameActive || voiceChannelChanged) {
+              const existingTimer = recentActivityTimersRef.current.get(p.user_id)
+              if (existingTimer) clearTimeout(existingTimer)
 
-            setRecentlyActiveUserIds((prev) => {
-              const next = new Set(prev)
-              next.add(p.user_id)
-              return next
-            })
-
-            const timer = setTimeout(() => {
               setRecentlyActiveUserIds((prev) => {
                 const next = new Set(prev)
-                next.delete(p.user_id)
+                next.add(p.user_id)
                 return next
               })
-              recentActivityTimersRef.current.delete(p.user_id)
-            }, 12000)
-            recentActivityTimersRef.current.set(p.user_id, timer)
+
+              const timer = setTimeout(() => {
+                setRecentlyActiveUserIds((prev) => {
+                  const next = new Set(prev)
+                  next.delete(p.user_id)
+                  return next
+                })
+                recentActivityTimersRef.current.delete(p.user_id)
+              }, 12_000)
+              recentActivityTimersRef.current.set(p.user_id, timer)
+            }
           }
         }
+        previousPresenceRef.current = presenceMap
         setPresence(presenceMap)
       })
       .subscribe(async (status) => {
@@ -174,8 +183,12 @@ export function MemberList({ serverId }: Props) {
     return () => {
       channelRef.current = null
       supabase.removeChannel(channel)
-      recentActivityTimersRef.current.forEach((timer) => clearTimeout(timer))
+      for (const timer of recentActivityTimersRef.current.values()) {
+        clearTimeout(timer)
+      }
       recentActivityTimersRef.current.clear()
+      previousPresenceRef.current = {}
+      setRecentlyActiveUserIds(new Set())
     }
   }, [serverId, supabase])
 
@@ -367,8 +380,8 @@ function MemberItem({
               onViewProfile()
             }}
           >
-            <div className="relative flex-shrink-0">
-              <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""} ${recentlyActive ? "recent-activity-halo" : ""}`}>
+            <div className={`relative flex-shrink-0 ${recentlyActive ? "recent-activity-halo" : ""}`}>
+              <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
                 {member.user?.avatar_url && <AvatarImage src={member.user.avatar_url} />}
                 <AvatarFallback
                   style={{

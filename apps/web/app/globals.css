@@ -222,8 +222,15 @@
   .typing-dot,
   .speaking-ring,
   .composer-presence-rail,
-  .recent-activity-halo {
+  .recent-activity-halo,
+  .message-state-morph {
     animation: none !important;
+    transition-duration: 0ms !important;
+    transform: none !important;
+  }
+
+  .message-state-morph:active {
+    transform: none !important;
   }
 }
 
