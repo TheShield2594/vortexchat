@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission, PERMISSIONS } from "@/lib/permissions"
 
 export async function GET(
@@ -26,7 +26,10 @@ export async function GET(
     return NextResponse.json({ error: "Not a member of this server" }, { status: 403 })
   }
 
-  const { data: members, error } = await supabase
+  // Use service role for the full member list payload because RLS policies can
+  // legitimately scope user-token reads down to only the requester row.
+  const adminSupabase = await createServiceRoleClient()
+  const { data: members, error } = await adminSupabase
     .from("server_members")
     .select(`
       *,
