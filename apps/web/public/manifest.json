@@ -1,11 +1,11 @@
 {
   "name": "VortexChat",
   "short_name": "Vortex",
-  "description": "A Discord-style chat platform — chat, hang out, belong.",
+  "description": "The chat platform for focused teams and creative communities.",
   "start_url": "/channels/@me",
   "display": "standalone",
   "background_color": "#313338",
-  "theme_color": "#5865f2",
+  "theme_color": "#00e5ff",
   "orientation": "portrait-primary",
   "icons": [
     {

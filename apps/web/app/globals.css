@@ -4,55 +4,56 @@
 
 @layer base {
   :root {
-    --background: 223 7% 20%;
-    --foreground: 220 9% 95%;
-    --card: 220 7% 18%;
-    --card-foreground: 220 9% 95%;
-    --popover: 220 7% 14%;
-    --popover-foreground: 220 9% 95%;
-    --primary: 235 86% 65%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 6% 18%;
-    --secondary-foreground: 215 8% 73%;
-    --muted: 220 5% 30%;
-    --muted-foreground: 215 8% 60%;
-    --accent: 235 86% 65%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 359 87% 57%;
+    /* ── Midnight Neon — Vortex default brand theme ─────────────────────── */
+    --background: 236 30% 9%;
+    --foreground: 210 40% 98%;
+    --card: 236 27% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 236 30% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 186 100% 50%;
+    --primary-foreground: 230 40% 8%;
+    --secondary: 234 19% 18%;
+    --secondary-foreground: 217 24% 76%;
+    --muted: 234 19% 24%;
+    --muted-foreground: 217 24% 76%;
+    --accent: 186 100% 50%;
+    --accent-foreground: 230 40% 8%;
+    --destructive: 357 85% 62%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 6% 25%;
-    --input: 220 6% 18%;
-    --ring: 235 86% 65%;
-    --color-tertiary-metadata: #a3aab5;
+    --border: 234 22% 22%;
+    --input: 234 19% 14%;
+    --ring: 186 100% 50%;
+    --color-tertiary-metadata: #8f9bbf;
     --radius: 0.5rem;
     --motion-duration-fast: 120ms;
     --motion-duration-standard: 180ms;
     --motion-duration-panel: 220ms;
     --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
-    --app-bg-primary: #313338;
-    --app-bg-secondary: #2b2d31;
-    --app-bg-tertiary: #1e1f22;
-    --app-accent-color: #5865f2;
+    --app-bg-primary: #1b1f31;
+    --app-bg-secondary: #151829;
+    --app-bg-tertiary: #0f1120;
+    --app-accent-color: #00e5ff;
     /* Global semantic tokens for full custom themes */
-    --theme-bg-primary: #313338;
-    --theme-bg-secondary: #2b2d31;
-    --theme-bg-tertiary: #1e1f22;
-    --theme-surface-elevated: #3f4147;
-    --theme-surface-input: #383a40;
-    --theme-text-primary: #f2f3f5;
-    --theme-text-normal: #dcddde;
-    --theme-text-secondary: #b5bac1;
-    --theme-text-muted: #949ba4;
-    --theme-text-faint: #4e5058;
-    --theme-text-bright: #dbdee1;
-    --theme-accent: #5865f2;
-    --theme-link: #00a8fc;
-    --theme-success: #23a55a;
-    --theme-positive: #3ba55c;
-    --theme-warning: #f0b132;
-    --theme-danger: #f23f43;
-    --theme-presence-offline: #80848e;
+    --theme-bg-primary: #1b1f31;
+    --theme-bg-secondary: #151829;
+    --theme-bg-tertiary: #0f1120;
+    --theme-surface-elevated: #252a42;
+    --theme-surface-input: #2a2f48;
+    --theme-text-primary: #e6ecff;
+    --theme-text-normal: #d6defc;
+    --theme-text-secondary: #b6c0dd;
+    --theme-text-muted: #8f9bbf;
+    --theme-text-faint: #6b7392;
+    --theme-text-bright: #f4f7ff;
+    --theme-accent: #00e5ff;
+    --theme-link: #6fd8ff;
+    --theme-success: #3ddc97;
+    --theme-positive: #6ee7b7;
+    --theme-warning: #ffb84d;
+    --theme-danger: #ff5d73;
+    --theme-presence-offline: #6f7898;
     --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 60%, white);
     --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
     --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
@@ -128,7 +129,7 @@
   }
 
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865f2] focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[var(--theme-accent)];
   }
 
   .tertiary-metadata {
@@ -159,8 +160,8 @@
 
   /* Mention highlight */
   .mention-highlight {
-    background-color: rgba(88, 101, 242, 0.1);
-    border-left: 2px solid #5865f2;
+    background-color: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+    border-left: 2px solid var(--theme-accent);
   }
 
   /* No scrollbar class */
@@ -518,14 +519,73 @@
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes composer-presence-pulse {
-  0%, 100% { box-shadow: inset 0 0 0 1px rgba(88, 101, 242, 0.14); }
-  50% { box-shadow: inset 0 0 0 1px rgba(88, 101, 242, 0.28); }
+  0%, 100% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-accent) 14%, transparent); }
+  50% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-accent) 28%, transparent); }
 }
 
 .composer-presence-rail {
   border-top: 1px solid rgba(255, 255, 255, 0.04);
-  background: linear-gradient(90deg, rgba(88, 101, 242, 0.04), rgba(88, 101, 242, 0.01));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--theme-accent) 4%, transparent), color-mix(in srgb, var(--theme-accent) 1%, transparent));
   animation: composer-presence-pulse 2.4s ease-in-out infinite;
+}
+
+/* ── Vortex animation utilities ───────────────────────────────────────────── */
+
+@keyframes vortex-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes vortex-glow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(1.1); }
+}
+
+.vortex-orbit { animation: vortex-orbit 8s linear infinite; }
+.vortex-orbit-slow { animation: vortex-orbit 12s linear infinite; }
+.vortex-orbit-rev { animation: vortex-orbit 5s linear infinite reverse; }
+.vortex-glow { animation: vortex-glow 4s ease-in-out infinite; }
+
+/* Display / heading font */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display, sans-serif);
+}
+
+/* Auth surface token utilities */
+.auth-surface {
+  background: color-mix(in srgb, var(--theme-bg-secondary) 85%, transparent);
+  color: var(--theme-text-primary);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.auth-input {
+  background: var(--theme-surface-input);
+  color: var(--theme-text-primary);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.auth-input::placeholder {
+  color: var(--theme-text-faint);
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--theme-accent);
+}
+
+.auth-btn-accent {
+  background: var(--theme-accent);
+  color: var(--theme-bg-tertiary);
+  font-weight: 600;
+}
+
+.auth-btn-accent:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--theme-accent) 85%, white);
+}
+
+.auth-btn-accent:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @keyframes recent-activity-halo {

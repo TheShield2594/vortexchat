@@ -1,6 +1,6 @@
-# Vortex — Discord Clone
+# VortexChat
 
-A full-featured Discord clone built with Next.js 14, Supabase, and WebRTC.
+A full-featured real-time chat platform built with Next.js 14, Supabase, and WebRTC.
 
 ## Features
 
