@@ -4,6 +4,16 @@ import { ArrowRight, FileJson2, KeyRound, ShieldCheck, Inbox, ClipboardList } fr
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 
+/** Convert a 3- or 6-char hex color to `rgba(r, g, b, alpha)`. */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "")
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 // ── Feature differentiators unique to VortexChat ────────────────────────────
 
 const features = [
@@ -159,7 +169,7 @@ export default async function HomePage() {
                 style={{
                   inset: 56,
                   borderRadius: "50%",
-                  border: "2px solid #f92aad",
+                  border: "2px solid var(--theme-accent-secondary)",
                   borderBottomColor: "transparent",
                   borderLeftColor: "transparent",
                   opacity: 0.45,
@@ -276,23 +286,23 @@ export default async function HomePage() {
                   className="flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-medium"
                   style={{
                     background: theme.bg,
-                    borderColor: theme.accent + "40",
+                    borderColor: hexToRgba(theme.accent, 0.25),
                     color: "#e6ecff",
                   }}
                 >
                   {/* Accent swatch */}
                   <span
-                    className="inline-block h-3 w-3 rounded-full flex-shrink-0"
-                    style={{ background: theme.accent, boxShadow: `0 0 6px ${theme.accent}80` }}
+                    className="inline-block h-3 w-3 flex-shrink-0 rounded-full"
+                    style={{ background: theme.accent, boxShadow: `0 0 6px ${hexToRgba(theme.accent, 0.5)}` }}
                   />
                   <span>{theme.name}</span>
                   {theme.label && (
                     <span
                       className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
                       style={{
-                        background: theme.accent + "22",
+                        background: hexToRgba(theme.accent, 0.13),
                         color: theme.accent,
-                        border: `1px solid ${theme.accent}44`,
+                        border: `1px solid ${hexToRgba(theme.accent, 0.27)}`,
                       }}
                     >
                       {theme.label}

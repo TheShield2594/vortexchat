@@ -4,7 +4,7 @@
   "description": "The chat platform for focused teams and creative communities.",
   "start_url": "/channels/@me",
   "display": "standalone",
-  "background_color": "#313338",
+  "background_color": "#1b1f31",
   "theme_color": "#00e5ff",
   "orientation": "portrait-primary",
   "icons": [

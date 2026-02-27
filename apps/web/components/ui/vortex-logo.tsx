@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react"
-import { cn } from "@/lib/utils/cn"
 
 interface VortexLogoProps {
   /** Pixel size for width and height. Default 32. */
@@ -21,7 +20,7 @@ export function VortexLogo({ size = 32, className, style }: VortexLogoProps) {
       viewBox="0 0 32 32"
       fill="none"
       aria-hidden="true"
-      className={cn(className)}
+      className={className}
       style={style}
     >
       {/* Outer arc — 270° clockwise, opens at top (12 o'clock) */}

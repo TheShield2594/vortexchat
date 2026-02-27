@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Plus, Compass, MessageSquare, Clipboard, LogOut, UserPlus } from "lucide-react"
+import { Plus, Compass, Clipboard, LogOut, UserPlus } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -78,13 +78,13 @@ export function ServerSidebar() {
         className="flex flex-col items-center w-[72px] py-3 gap-2 flex-shrink-0 overflow-y-auto no-scrollbar"
         style={{ background: 'var(--theme-bg-tertiary)' }}
       >
-        {/* VortexChat wordmark / home button */}
+        {/* VortexChat home / Direct Messages */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Link
               href="/channels/me"
               onClick={() => setActiveServer(null)}
-              aria-label="VortexChat home"
+              aria-label="Direct Messages"
               className={cn(
                 "w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-200",
                 activeServerId === null
@@ -100,31 +100,6 @@ export function ServerSidebar() {
               <VortexLogo
                 size={24}
                 style={{ color: activeServerId === null ? 'var(--theme-accent)' : 'var(--theme-text-muted)' } as React.CSSProperties}
-              />
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right">VortexChat Home</TooltipContent>
-        </Tooltip>
-
-        {/* DMs / Home */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              href="/channels/me"
-              onClick={() => setActiveServer(null)}
-              className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 group",
-                activeServerId === null
-                  ? "rounded-2xl"
-                  : "hover:rounded-2xl"
-              )}
-              style={{
-                background: activeServerId === null ? 'var(--theme-accent)' : 'var(--theme-bg-primary)',
-              }}
-            >
-              <MessageSquare
-                className="w-6 h-6 transition-colors"
-                style={{ color: activeServerId === null ? 'var(--theme-bg-tertiary)' : 'var(--theme-text-muted)' }}
               />
             </Link>
           </TooltipTrigger>

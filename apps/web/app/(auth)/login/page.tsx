@@ -20,15 +20,22 @@ const cardStyle: React.CSSProperties = {
   borderColor: "rgba(255,255,255,0.08)",
 }
 
-// Accent badge style (replaces border-indigo-400/40 bg-indigo-500/10 text-indigo-200)
-function AccentBadge({ children }: { children: React.ReactNode }) {
+// Reusable accent badge — variant drives which CSS variable is used for color
+function AccentBadge({
+  children,
+  variant = "accent",
+}: {
+  children: React.ReactNode
+  variant?: "accent" | "warning"
+}) {
+  const colorVar = variant === "warning" ? "--theme-warning" : "--theme-accent"
   return (
     <div
       className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium"
       style={{
-        border: "1px solid color-mix(in srgb, var(--theme-accent) 40%, transparent)",
-        background: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
-        color: "color-mix(in srgb, var(--theme-accent) 80%, white)",
+        border: `1px solid color-mix(in srgb, var(${colorVar}) 40%, transparent)`,
+        background: `color-mix(in srgb, var(${colorVar}) 10%, transparent)`,
+        color: `color-mix(in srgb, var(${colorVar}) 80%, white)`,
       }}
     >
       {children}
@@ -228,10 +235,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => setStep("recovery-code")}
-            className="flex w-full items-center justify-center gap-2 text-sm transition-colors"
-            style={{ color: "var(--theme-text-muted)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--theme-text-primary)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--theme-text-muted)")}
+            className="text-muted-interactive flex w-full items-center justify-center gap-2 text-sm"
           >
             <KeyRound className="h-4 w-4" /> Use a recovery code instead
           </button>
@@ -240,10 +244,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => { setStep("credentials"); setTotpCode(""); setMfaFactorId(null) }}
-          className="mt-3 w-full text-center text-sm transition-colors"
-          style={{ color: "var(--theme-text-muted)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--theme-text-primary)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--theme-text-muted)")}
+          className="text-muted-interactive mt-3 w-full text-center text-sm"
         >
           Back to login
         </button>
@@ -257,16 +258,9 @@ export default function LoginPage() {
       <div className="rounded-2xl border p-8 shadow-2xl backdrop-blur" style={cardStyle}>
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
-            <div
-              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium"
-              style={{
-                border: "1px solid color-mix(in srgb, var(--theme-warning) 40%, transparent)",
-                background: "color-mix(in srgb, var(--theme-warning) 10%, transparent)",
-                color: "color-mix(in srgb, var(--theme-warning) 80%, white)",
-              }}
-            >
+            <AccentBadge variant="warning">
               <KeyRound className="h-3.5 w-3.5" /> Account recovery
-            </div>
+            </AccentBadge>
           </div>
           <h1 className="text-2xl font-bold font-display" style={{ color: "var(--theme-text-bright)" }}>
             Use a recovery code
@@ -308,10 +302,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => { setStep("mfa-challenge"); setRecoveryCode("") }}
-          className="mt-4 w-full text-center text-sm transition-colors"
-          style={{ color: "var(--theme-text-muted)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--theme-text-primary)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--theme-text-muted)")}
+          className="text-muted-interactive mt-4 w-full text-center text-sm"
         >
           Back to 2FA code entry
         </button>
@@ -319,10 +310,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => { setStep("credentials"); setRecoveryCode(""); setTotpCode(""); setMfaFactorId(null) }}
-          className="mt-2 w-full text-center text-sm transition-colors"
-          style={{ color: "var(--theme-text-muted)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--theme-text-primary)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--theme-text-muted)")}
+          className="text-muted-interactive mt-2 w-full text-center text-sm"
         >
           Back to login
         </button>

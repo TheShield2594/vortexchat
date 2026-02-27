@@ -48,6 +48,7 @@
     --theme-text-faint: #6b7392;
     --theme-text-bright: #f4f7ff;
     --theme-accent: #00e5ff;
+    --theme-accent-secondary: #f92aad;
     --theme-link: #6fd8ff;
     --theme-success: #3ddc97;
     --theme-positive: #6ee7b7;
@@ -332,6 +333,7 @@
   --theme-text-faint: #4e5058;
   --theme-text-bright: #dbdee1;
   --theme-accent: #5865f2;
+  --theme-accent-secondary: #eb459e;
   --theme-link: #00a8fc;
   --theme-success: #23a55a;
   --theme-positive: #3ba55c;
@@ -381,6 +383,7 @@
   --theme-text-faint: #6b7392;
   --theme-text-bright: #f4f7ff;
   --theme-accent: #00e5ff;
+  --theme-accent-secondary: #f92aad;
   --theme-link: #6fd8ff;
   --theme-success: #3ddc97;
   --theme-positive: #6ee7b7;
@@ -430,6 +433,7 @@
   --theme-text-faint: #7f6aa8;
   --theme-text-bright: #fff7ff;
   --theme-accent: #f92aad;
+  --theme-accent-secondary: #00e5ff;
   --theme-link: #50e5ff;
   --theme-success: #5ae6a9;
   --theme-positive: #65d17a;
@@ -479,6 +483,7 @@
   --theme-text-faint: #6b737f;
   --theme-text-bright: #f5f7fa;
   --theme-accent: #3ba55c;
+  --theme-accent-secondary: #5db3ff;
   --theme-link: #5db3ff;
   --theme-success: #3ba55c;
   --theme-positive: #64c184;
@@ -549,6 +554,16 @@
 /* Display / heading font */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display, sans-serif);
+}
+
+/* Muted text with hover transition — replaces inline onMouseEnter/onMouseLeave handlers */
+.text-muted-interactive {
+  color: var(--theme-text-muted);
+  transition: color var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.text-muted-interactive:hover {
+  color: var(--theme-text-primary);
 }
 
 /* Auth surface token utilities */
