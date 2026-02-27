@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Plus, Send, X, Smile, Reply, Keyboard, FileUp, BarChart3 } from "lucide-react"
+import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Sticker } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -33,7 +33,6 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [showComposerMenu, setShowComposerMenu] = useState(false)
   const [showPollCreator, setShowPollCreator] = useState(false)
   const [pollQuestion, setPollQuestion] = useState("")
   const [pollOptions, setPollOptions] = useState(["", ""])
@@ -46,9 +45,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
-  const composerMenuRef = useRef<HTMLDivElement>(null)
   const pollCreatorRef = useRef<HTMLDivElement>(null)
-  const composerMenuButtonRef = useRef<HTMLButtonElement>(null)
   const fileUrlCache = useRef(new Map<File, string>())
 
   // Mention autocomplete
@@ -105,25 +102,20 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   }, [showEmojiPicker])
 
   useEffect(() => {
-    if (!showComposerMenu && !showPollCreator) return
+    if (!showPollCreator) return
 
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Node
-      const clickedInsideMenu = composerMenuRef.current?.contains(target)
       const clickedInsidePollCreator = pollCreatorRef.current?.contains(target)
-      const clickedToggleButton = composerMenuButtonRef.current?.contains(target)
-      if (!clickedInsideMenu && !clickedInsidePollCreator && !clickedToggleButton) {
-        setShowComposerMenu(false)
-        if (showPollCreator) {
-          setShowPollCreator(false)
-          resetPollDraftToBlank()
-        }
+      if (!clickedInsidePollCreator) {
+        setShowPollCreator(false)
+        resetPollDraftToBlank()
       }
     }
 
     document.addEventListener("mousedown", handlePointerDown)
     return () => document.removeEventListener("mousedown", handlePointerDown)
-  }, [showComposerMenu, showPollCreator])
+  }, [showPollCreator])
 
   useEffect(() => {
     if (!showEmojiPicker || pickerTab !== "gif") return
@@ -313,7 +305,6 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     setContent(next)
     onDraftChange(next)
     setCursorPosition(next.length)
-    setShowComposerMenu(false)
     setShowPollCreator(false)
     setPollQuestion("")
     setPollOptions(["", ""])
@@ -498,61 +489,62 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       {/* Input area */}
       <div
         className={cn(
-          "flex items-end gap-2 rounded-lg px-3 py-2",
+          "relative flex items-end gap-2 rounded-lg px-3 py-2",
           replyTo || files.length > 0 || uploadProgress !== null || Boolean(sendError) ? "rounded-t-none" : ""
         )}
         style={{ background: "var(--theme-surface-input)" }}
       >
-        <div className="relative mb-1">
+        <div className="mb-1 flex items-center gap-1.5">
           <button
             type="button"
-            ref={composerMenuButtonRef}
-            onClick={() => {
-              setShowComposerMenu((prev) => !prev)
-              if (showPollCreator) {
-                setShowPollCreator(false)
-                resetPollDraftToBlank()
-              }
-            }}
+            onClick={() => fileRef.current?.click()}
             className="motion-interactive motion-press flex-shrink-0 hover:text-white"
             style={{ color: "var(--theme-text-secondary)" }}
-            title="Add to message"
+            title="Attach"
+            aria-label="Attach file"
           >
-            <Plus className="w-5 h-5" />
+            <FileUp className="w-4 h-4" />
           </button>
-          {showComposerMenu && (
-            <div
-              ref={composerMenuRef}
-              className="absolute bottom-8 left-0 rounded-lg p-1.5 shadow-xl z-50 min-w-44"
-              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  fileRef.current?.click()
-                  setShowComposerMenu(false)
-                }}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-white/10"
-                style={{ color: "var(--theme-text-primary)" }}
-              >
-                <FileUp className="w-3.5 h-3.5" /> Attach file
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowComposerMenu(false)
-                  if (pollOptions.length === 0) {
-                    setPollOptions(["", ""])
-                  }
-                  setShowPollCreator(true)
-                }}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-white/10"
-                style={{ color: "var(--theme-text-primary)" }}
-              >
-                <BarChart3 className="w-3.5 h-3.5" /> Create poll
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (pollOptions.length === 0) {
+                setPollOptions(["", ""])
+              }
+              setShowPollCreator((prev) => !prev)
+            }}
+            className="motion-interactive motion-press flex-shrink-0 hover:text-white"
+            style={{ color: showPollCreator ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+            title="Poll"
+            aria-label="Create poll"
+          >
+            <BarChart3 className="w-4 h-4" />
+          </button>
+          <button
+            ref={emojiButtonRef}
+            onClick={() => {
+              setPickerTab("emoji")
+              setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
+            }}
+            className="motion-interactive motion-press hover:text-white"
+            style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+            title="Emoji"
+            aria-label="Insert emoji"
+          >
+            <Smile className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              setPickerTab("gif")
+              setShowEmojiPicker(true)
+            }}
+            className="motion-interactive motion-press hover:text-white"
+            style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+            title="GIF"
+            aria-label="Insert GIF"
+          >
+            <Sticker className="w-4 h-4" />
+          </button>
         </div>
         <input
           ref={fileRef}
@@ -596,25 +588,13 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           />
         </div>
 
-        {/* Emoji picker toggle */}
-        <div className="relative flex-shrink-0 mb-1">
-          <button
-            ref={emojiButtonRef}
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="motion-interactive motion-press hover:text-white"
-            style={{ color: "var(--theme-text-secondary)" }}
-            title="Emoji"
+        {showEmojiPicker && (
+          <div
+            ref={emojiPickerRef}
+            data-state="open"
+            className="panel-surface-motion absolute bottom-14 right-4 p-2 rounded-lg shadow-xl z-50"
+            style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", width: "320px" }}
           >
-            <Smile className="w-5 h-5" />
-          </button>
-
-          {showEmojiPicker && (
-            <div
-              ref={emojiPickerRef}
-              data-state="open"
-              className="panel-surface-motion absolute bottom-8 right-0 p-2 rounded-lg shadow-xl z-50"
-              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", width: "320px" }}
-            >
               <div className="mb-2 flex items-center gap-2">
                 <button
                   onClick={() => setPickerTab("emoji")}
@@ -780,9 +760,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   )}
                 </div>
               )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Send button */}
         {(content.trim() || files.length > 0) && (

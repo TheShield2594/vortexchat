@@ -8,7 +8,7 @@ import { useShallow } from "zustand/react/shallow"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 import { CreateServerModal } from "@/components/modals/create-server-modal"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -16,6 +16,7 @@ import { useState, useMemo, useCallback } from "react"
 import { cn } from "@/lib/utils/cn"
 import type { ServerRow } from "@/types/database"
 import { VortexLogo } from "@/components/ui/vortex-logo"
+import { Skeleton } from "@/components/ui/skeleton"
 
 /** Vertical icon strip listing joined servers, DM shortcut, and create/discover actions. */
 export function ServerSidebar() {
@@ -109,6 +110,14 @@ export function ServerSidebar() {
         <Separator className="w-8 my-1" style={{ background: 'var(--theme-surface-elevated)' }} />
 
         {/* Server list */}
+        {servers.length === 0 && !currentUser && (
+          <div className="w-full flex flex-col items-center gap-2 py-1">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-12 w-12 rounded-2xl" />
+            ))}
+          </div>
+        )}
+
         {servers.map((server) => (
           <ServerIcon
             key={server.id}
@@ -200,7 +209,12 @@ function ServerIcon({
                   "w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden",
                   isActive ? "rounded-2xl" : "rounded-full hover:rounded-2xl"
                 )}
-                style={{ background: server.icon_url ? 'transparent' : 'var(--theme-surface-elevated)' }}
+                style={{
+                  background: server.icon_url ? 'transparent' : 'var(--theme-surface-elevated)',
+                  boxShadow: isActive
+                    ? "0 0 18px color-mix(in srgb, var(--theme-accent) 50%, transparent)"
+                    : "none",
+                }}
               >
                 {server.icon_url ? (
                   <img
@@ -224,18 +238,21 @@ function ServerIcon({
           toast({ title: "Invite code copied!" })
         }}>
           <UserPlus className="w-4 h-4 mr-2" /> Invite People
+          <ContextMenuShortcut>I</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem onClick={() => {
           navigator.clipboard.writeText(server.id)
           toast({ title: "Server ID copied!" })
         }}>
           <Clipboard className="w-4 h-4 mr-2" /> Copy Server ID
+          <ContextMenuShortcut>⌘C</ContextMenuShortcut>
         </ContextMenuItem>
         {!isOwner && (
           <>
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={onLeave}>
               <LogOut className="w-4 h-4 mr-2" /> Leave Server
+              <ContextMenuShortcut>⌫</ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}

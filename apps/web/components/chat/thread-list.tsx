@@ -7,6 +7,7 @@ import type { ThreadRow } from "@/types/database"
 import { useRealtimeThreads } from "@/hooks/use-realtime-threads"
 import { cn } from "@/lib/utils/cn"
 import { Skeleton } from "@/components/ui/skeleton"
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 
 interface Props {
   channelId: string
@@ -97,7 +98,16 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
   const shouldAllowArchivedToggle = filter !== "active"
 
   if (visibleThreads.length === 0 && !shouldShowArchived) {
-    return null
+    return (
+      <div className="px-4 py-4">
+        <BrandedEmptyState
+          icon={MessageSquare}
+          title="No threads yet"
+          description="Start a thread from any message to keep side conversations organized."
+          hint="Tip: Hover a message and click the thread icon."
+        />
+      </div>
+    )
   }
 
   return (

@@ -79,6 +79,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [isPaginating, setIsPaginating] = useState(false)
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
+  const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -167,9 +168,18 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         )
       })
 
-      const next = existingIndex === -1
+      const isNewMessage = existingIndex === -1
+      const next = isNewMessage
         ? [...prev, incoming]
         : prev.map((message, idx) => (idx === existingIndex ? { ...prev[existingIndex], ...incoming } : message))
+
+      if (isNewMessage) {
+        setAnimatedMessageIds((current) => {
+          const nextIds = new Set(current)
+          nextIds.add(incoming.id)
+          return nextIds
+        })
+      }
 
       return sortMessagesChronologically(next)
     })
@@ -357,6 +367,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     previousLastMessageIdRef.current = initialMessages[initialMessages.length - 1]?.id ?? null
     setPendingNewMessageCount(0)
     setHasMoreHistory(initialMessages.length >= 50)
+    setAnimatedMessageIds(new Set())
     setIsPaginating(false)
     paginationRequestRef.current = null
   }, [initialMessages])
@@ -1204,6 +1215,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   sendState={outboxStateByMessageId[message.id]}
                   onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
                   recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
+                  animateOnMount={animatedMessageIds.has(message.id)}
                   onReply={() => setReplyTo(message)}
                   onReplyJump={jumpToMessage}
                   onThreadCreated={(thread) => setActiveThread(thread)}

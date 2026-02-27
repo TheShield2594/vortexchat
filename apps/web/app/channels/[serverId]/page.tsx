@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
+import { Hash } from "lucide-react"
 
 interface Props {
   params: Promise<{ serverId: string }>
@@ -24,14 +26,14 @@ export default async function ServerHomePage({ params: paramsPromise }: Props) {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--theme-bg-primary)' }}>
-      <div className="text-center">
-        <h2 className="text-xl font-semibold text-white mb-2">
-          No channels yet
-        </h2>
-        <p style={{ color: 'var(--theme-text-secondary)' }} className="text-sm">
-          Create a channel to get started
-        </p>
+    <div className="flex-1 flex items-center justify-center px-6" style={{ background: 'var(--theme-bg-primary)' }}>
+      <div className="w-full max-w-md">
+        <BrandedEmptyState
+          icon={Hash}
+          title="Your server is ready"
+          description="Create your first channel to start chatting with your team."
+          hint="Tip: Open server settings or right-click the sidebar to add channels quickly."
+        />
       </div>
     </div>
   )
