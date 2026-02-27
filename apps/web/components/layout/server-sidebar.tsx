@@ -200,7 +200,7 @@ function ServerIcon({
                   "w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden",
                   isActive ? "rounded-2xl" : "rounded-full hover:rounded-2xl"
                 )}
-                style={{ background: server.icon_url ? 'transparent' : '#36393f' }}
+                style={{ background: server.icon_url ? 'transparent' : 'var(--theme-surface-elevated)' }}
               >
                 {server.icon_url ? (
                   <img

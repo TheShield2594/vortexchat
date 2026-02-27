@@ -99,7 +99,7 @@ export function UserPanel() {
   return (
     <div
       className="flex items-center gap-2 p-2 border-t"
-      style={{ background: '#232428', borderColor: 'var(--theme-bg-tertiary)' }}
+      style={{ background: 'var(--theme-bg-secondary)', borderColor: 'var(--theme-bg-tertiary)' }}
     >
       <ContextMenu>
         <ContextMenuTrigger asChild>
@@ -116,7 +116,7 @@ export function UserPanel() {
                 className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
                 style={{
                   background: getStatusColor(currentUser.status),
-                  borderColor: '#232428',
+                  borderColor: 'var(--theme-bg-secondary)',
                 }}
               />
             </div>
