@@ -103,7 +103,9 @@ export function DmLocalSearchModal({
       role="dialog"
       aria-modal="true"
       aria-label={channelLabel ? `Search in ${channelLabel}` : "Search messages"}
+      tabIndex={0}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) onClose() }}
     >
       <div
         className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col"

@@ -1013,6 +1013,25 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
               const el = document.querySelector(`[data-message-id="${mid}"]`)
               if (el) {
                 el.scrollIntoView({ behavior: "smooth", block: "center" })
+                return
+              }
+              // Message not in the DOM yet — try fetching older history and
+              // retry the scroll once loading completes.
+              if (hasMore) {
+                toast({ title: "Loading history…", description: "Fetching older messages to find this one." })
+                loadMore().then(() => {
+                  requestAnimationFrame(() => {
+                    const elRetry = document.querySelector(`[data-message-id="${mid}"]`)
+                    if (elRetry) {
+                      elRetry.scrollIntoView({ behavior: "smooth", block: "center" })
+                    } else {
+                      toast({ title: "Message not in current view", description: "Keep loading older messages to find it." })
+                      topRef.current?.scrollIntoView({ behavior: "smooth" })
+                    }
+                  })
+                })
+              } else {
+                toast({ title: "Message not found", description: `Message ${mid} is not in the current view.` })
               }
             })
           }}

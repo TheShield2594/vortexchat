@@ -60,7 +60,8 @@ describe("tokenise", () => {
 
   it("handles unicode letters", () => {
     const tokens = tokenise("Ünïcödé text")
-    expect(tokens.some((t) => t.includes("nïc") || t.includes("nïcödé"))).toBe(true)
+    expect(tokens).toContain("ünïcödé")
+    expect(tokens).toContain("text")
   })
 })
 
