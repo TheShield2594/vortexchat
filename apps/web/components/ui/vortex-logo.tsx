@@ -1,9 +1,11 @@
+import type { CSSProperties } from "react"
 import { cn } from "@/lib/utils/cn"
 
 interface VortexLogoProps {
   /** Pixel size for width and height. Default 32. */
   size?: number
   className?: string
+  style?: CSSProperties
 }
 
 /**
@@ -11,7 +13,7 @@ interface VortexLogoProps {
  * open at the top, creating the visual sense of a rotating vortex pulling
  * inward. Color inherits from `currentColor`.
  */
-export function VortexLogo({ size = 32, className }: VortexLogoProps) {
+export function VortexLogo({ size = 32, className, style }: VortexLogoProps) {
   return (
     <svg
       width={size}
@@ -20,6 +22,7 @@ export function VortexLogo({ size = 32, className }: VortexLogoProps) {
       fill="none"
       aria-hidden="true"
       className={cn(className)}
+      style={style}
     >
       {/* Outer arc — 270° clockwise, opens at top (12 o'clock) */}
       <path
