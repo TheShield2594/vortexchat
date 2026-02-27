@@ -1148,7 +1148,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
         <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
-        <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative" style={{ overflowAnchor: "none" }}>
+        <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
           {messages.length === 0 && (
             <div className="px-4 py-8">
               <div
@@ -1182,7 +1182,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000
 
               return (
-                <div key={message.id}>
+                <div key={message.id} style={{ overflowAnchor: "none" }}>
                 {unreadDividerMessageId === message.id && (
                   <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
                     <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />

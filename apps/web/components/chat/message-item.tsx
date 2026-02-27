@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useCallback, useId, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useId, useRef, useState } from "react"
 import { format } from "date-fns"
 import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check } from "lucide-react"
 import { Highlight, themes } from "prism-react-renderer"
@@ -59,17 +59,34 @@ function extractPoll(content: string | null): { question: string; options: strin
   }
 }
 
+const SUPPORTED_PRISM_LANGUAGES = new Set([
+  "markup", "html", "xml", "svg", "mathml", "css", "clike",
+  "javascript", "js", "jsx", "typescript", "ts", "tsx",
+  "bash", "shell", "python", "py", "ruby", "rb", "go",
+  "java", "kotlin", "swift", "c", "cpp", "csharp", "cs",
+  "json", "yaml", "markdown", "md", "sql", "graphql",
+  "diff", "git", "rust", "php", "r", "scala", "dart",
+  "haskell", "erlang", "elixir", "clojure", "groovy",
+  "objectivec", "perl", "lua", "coffeescript", "sass",
+  "scss", "less", "stylus", "toml", "ini", "dockerfile",
+  "nginx", "regex", "wasm", "text",
+])
+
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [copied, setCopied] = useState(false)
 
-  function copyCode() {
-    navigator.clipboard.writeText(code).then(() => {
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(code)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    })
+    } catch (error) {
+      console.error("Failed to copy code:", error)
+    }
   }
 
-  const language = lang || "text"
+  const langKey = lang ? lang.toLowerCase() : ""
+  const language = langKey && SUPPORTED_PRISM_LANGUAGES.has(langKey) ? langKey : "text"
 
   return (
     <div className="relative my-1 group/code rounded overflow-hidden" style={{ border: "1px solid var(--theme-surface-elevated)" }}>
@@ -85,9 +102,9 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
         <button
           type="button"
           onClick={copyCode}
-          className="flex items-center gap-1 text-xs opacity-0 group-hover/code:opacity-100 transition-opacity motion-interactive"
+          aria-label="Copy code"
+          className="flex items-center gap-1 text-xs opacity-0 group-hover/code:opacity-100 focus-visible:opacity-100 transition-opacity motion-interactive"
           style={{ color: copied ? "var(--theme-success)" : "var(--theme-text-muted)" }}
-          title="Copy code"
         >
           {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
           {copied ? "Copied!" : "Copy"}
@@ -121,6 +138,7 @@ function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => 
     >
       <div style={{ padding: "8px 8px 4px" }}>
         <EmojiPicker.Search
+          aria-label="Search emoji"
           style={{
             all: "unset",
             display: "block",
@@ -180,7 +198,7 @@ function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => 
                   borderRadius: "4px",
                   cursor: "pointer",
                   border: "none",
-                  background: emoji.isActive ? "rgba(255,255,255,0.12)" : "transparent",
+                  background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
                   fontFamily: "var(--frimousse-emoji-font)",
                 }}
               >
@@ -233,6 +251,32 @@ export const MessageItem = memo(function MessageItem({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
   const { toast } = useToast()
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showActions && !showEmojiPicker) return
+
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowActions(false)
+        setShowEmojiPicker(false)
+      }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setShowActions(false)
+        setShowEmojiPicker(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [showActions, showEmojiPicker])
   const isOwn = message.author_id === currentUserId
   const { activeServerId, membersByServer } = useAppStore(
     useShallow((s) => ({ activeServerId: s.activeServerId, membersByServer: s.members }))
@@ -403,6 +447,7 @@ export const MessageItem = memo(function MessageItem({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          ref={containerRef}
           id={containerId}
           className={cn(
             "relative group px-4 message-hover motion-interactive",

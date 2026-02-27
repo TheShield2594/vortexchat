@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-27T21:39:18.924Z",
+  "generatedAt": "2026-02-27T21:59:25.543Z",
   "rules": [
     {
       "id": "inline-style-color",
@@ -1216,46 +1216,40 @@
       "line": 629
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:656",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:658",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 656
+      "line": 658
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:672",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:675",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 672
+      "line": 675
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:676",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:679",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 676
+      "line": 679
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:686",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:689",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 686
+      "line": 689
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:705",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:708",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 705
+      "line": 708
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:727",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:730",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 727
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:747",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/message-input.tsx",
-      "line": 747
+      "line": 730
     },
     {
       "key": "inline-style-color:apps/web/components/chat/message-input.tsx:750",
@@ -1264,202 +1258,214 @@
       "line": 750
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:754",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:753",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 754
+      "line": 753
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:773",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:757",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 773
+      "line": 757
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:790",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:776",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 790
+      "line": 776
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:799",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:793",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 799
+      "line": 793
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1026",
+      "key": "inline-style-color:apps/web/components/chat/message-input.tsx:802",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/message-item.tsx",
-      "line": 1026
+      "file": "apps/web/components/chat/message-input.tsx",
+      "line": 802
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1038",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1037",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 1038
+      "line": 1037
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1042",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1041",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 1042
+      "line": 1041
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1052",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:107",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 1052
+      "line": 107
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1066",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1071",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 1066
+      "line": 1071
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:124",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1083",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 124
+      "line": 1083
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:140",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1087",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 140
+      "line": 1087
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:144",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1097",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 144
+      "line": 1097
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:154",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:1111",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 154
+      "line": 1111
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:173",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:142",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 173
+      "line": 142
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:195",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:158",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 195
+      "line": 158
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:306",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:162",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 306
+      "line": 162
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:316",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:172",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 316
+      "line": 172
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:323",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:191",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 323
+      "line": 191
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:357",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:213",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 357
+      "line": 213
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:432",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:350",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 432
+      "line": 350
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:442",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:360",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 442
+      "line": 360
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:469",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:367",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 469
+      "line": 367
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:539",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:401",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 539
+      "line": 401
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:554",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:477",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 554
+      "line": 477
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:563",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:487",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 563
+      "line": 487
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:564",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:514",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 564
+      "line": 514
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:565",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:584",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 565
+      "line": 584
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:576",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:599",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 576
+      "line": 599
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:579",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:608",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 579
+      "line": 608
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:590",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:609",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 590
+      "line": 609
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:601",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:610",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 601
+      "line": 610
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:639",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:621",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 639
+      "line": 621
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:665",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:624",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 665
+      "line": 624
+    },
+    {
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:635",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/chat/message-item.tsx",
+      "line": 635
+    },
+    {
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:646",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/chat/message-item.tsx",
+      "line": 646
     },
     {
       "key": "inline-style-color:apps/web/components/chat/message-item.tsx:684",
@@ -1468,88 +1474,82 @@
       "line": 684
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:689",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:710",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 689
+      "line": 710
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:701",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:729",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 701
+      "line": 729
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:714",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:734",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 714
+      "line": 734
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:728",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:746",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 728
+      "line": 746
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:742",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:759",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 742
+      "line": 759
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:756",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:773",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 756
+      "line": 773
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:78",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:787",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 78
+      "line": 787
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:81",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:801",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 81
+      "line": 801
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:853",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:898",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 853
+      "line": 898
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:856",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:901",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 856
+      "line": 901
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:89",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:95",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 89
+      "line": 95
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:940",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:98",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 940
+      "line": 98
     },
     {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:992",
+      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:985",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 992
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/message-item.tsx:996",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/message-item.tsx",
-      "line": 996
+      "line": 985
     },
     {
       "key": "inline-style-color:apps/web/components/chat/thread-list.tsx:106",
@@ -6364,40 +6364,40 @@
       "line": 296
     },
     {
-      "key": "inline-style-radius-shadow:apps/web/components/chat/message-input.tsx:656",
+      "key": "inline-style-radius-shadow:apps/web/components/chat/message-input.tsx:658",
       "ruleId": "inline-style-radius-shadow",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 656
+      "line": 658
     },
     {
-      "key": "inline-style-radius-shadow:apps/web/components/chat/message-input.tsx:705",
+      "key": "inline-style-radius-shadow:apps/web/components/chat/message-input.tsx:708",
       "ruleId": "inline-style-radius-shadow",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 705
+      "line": 708
     },
     {
-      "key": "inline-style-radius-shadow:apps/web/components/chat/message-input.tsx:727",
+      "key": "inline-style-radius-shadow:apps/web/components/chat/message-input.tsx:730",
       "ruleId": "inline-style-radius-shadow",
       "file": "apps/web/components/chat/message-input.tsx",
-      "line": 727
+      "line": 730
     },
     {
-      "key": "inline-style-radius-shadow:apps/web/components/chat/message-item.tsx:124",
+      "key": "inline-style-radius-shadow:apps/web/components/chat/message-item.tsx:142",
       "ruleId": "inline-style-radius-shadow",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 124
+      "line": 142
     },
     {
-      "key": "inline-style-radius-shadow:apps/web/components/chat/message-item.tsx:173",
+      "key": "inline-style-radius-shadow:apps/web/components/chat/message-item.tsx:191",
       "ruleId": "inline-style-radius-shadow",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 173
+      "line": 191
     },
     {
-      "key": "inline-style-radius-shadow:apps/web/components/chat/message-item.tsx:195",
+      "key": "inline-style-radius-shadow:apps/web/components/chat/message-item.tsx:213",
       "ruleId": "inline-style-radius-shadow",
       "file": "apps/web/components/chat/message-item.tsx",
-      "line": 195
+      "line": 213
     },
     {
       "key": "tailwind-arbitrary-surface-token:apps/web/app/page.tsx:203",

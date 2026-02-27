@@ -636,16 +636,17 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 <EmojiPicker.Root
                   onEmojiSelect={({ emoji }) => {
                     const textarea = textareaRef.current
-                    const insertAt = textarea ? textarea.selectionStart ?? content.length : content.length
-                    const next = content.slice(0, insertAt) + emoji + content.slice(insertAt)
+                    const start = textarea ? textarea.selectionStart ?? content.length : content.length
+                    const end = textarea ? textarea.selectionEnd ?? start : start
+                    const next = content.slice(0, start) + emoji + content.slice(end)
                     setContent(next)
-                    setCursorPosition(insertAt + emoji.length)
+                    setCursorPosition(start + emoji.length)
                     onDraftChange(next)
                     setShowEmojiPicker(false)
                     requestAnimationFrame(() => {
                       if (textarea) {
                         textarea.focus()
-                        textarea.setSelectionRange(insertAt + emoji.length, insertAt + emoji.length)
+                        textarea.setSelectionRange(start + emoji.length, start + emoji.length)
                       }
                     })
                   }}
@@ -653,8 +654,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 >
                   <div style={{ padding: "6px 6px 4px" }}>
                     <EmojiPicker.Search
+                      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
                       style={{
-                        all: "unset",
                         display: "block",
                         width: "100%",
                         padding: "5px 10px",
@@ -663,6 +664,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                         boxSizing: "border-box",
                         background: "var(--theme-bg-tertiary)",
                         color: "var(--theme-text-normal)",
+                        border: "none",
+                        outline: "none",
                       }}
                       placeholder="Search emoji…"
                     />
@@ -712,7 +715,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                               borderRadius: "4px",
                               cursor: "pointer",
                               border: "none",
-                              background: emoji.isActive ? "rgba(255,255,255,0.12)" : "transparent",
+                              background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
                               fontFamily: "var(--frimousse-emoji-font)",
                             }}
                           >
