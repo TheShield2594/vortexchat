@@ -20,8 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 /** Vertical icon strip listing joined servers, DM shortcut, and create/discover actions. */
 export function ServerSidebar() {
-  const { servers, activeServerId, setActiveServer, removeServer, currentUser, channels } = useAppStore(
-    useShallow((s) => ({ servers: s.servers, activeServerId: s.activeServerId, setActiveServer: s.setActiveServer, removeServer: s.removeServer, currentUser: s.currentUser, channels: s.channels }))
+  const { servers, isLoadingServers, activeServerId, setActiveServer, removeServer, currentUser, channels } = useAppStore(
+    useShallow((s) => ({ servers: s.servers, isLoadingServers: s.isLoadingServers, activeServerId: s.activeServerId, setActiveServer: s.setActiveServer, removeServer: s.removeServer, currentUser: s.currentUser, channels: s.channels }))
   )
   const [showCreateServer, setShowCreateServer] = useState(false)
   const { toast } = useToast()
@@ -110,7 +110,7 @@ export function ServerSidebar() {
         <Separator className="w-8 my-1" style={{ background: 'var(--theme-surface-elevated)' }} />
 
         {/* Server list */}
-        {servers.length === 0 && !currentUser && (
+        {servers.length === 0 && isLoadingServers && (
           <div className="w-full flex flex-col items-center gap-2 py-1">
             {Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} className="h-12 w-12 rounded-2xl" />

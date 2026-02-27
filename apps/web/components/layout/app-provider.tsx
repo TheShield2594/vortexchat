@@ -17,8 +17,8 @@ interface AppProviderProps {
 
 /** Root client-side provider that seeds Zustand stores, syncs presence, applies appearance settings, and registers push notifications. */
 export function AppProvider({ user, servers, children }: AppProviderProps) {
-  const { setCurrentUser, setServers } = useAppStore(
-    useShallow((s) => ({ setCurrentUser: s.setCurrentUser, setServers: s.setServers }))
+  const { setCurrentUser, setServers, setIsLoadingServers } = useAppStore(
+    useShallow((s) => ({ setCurrentUser: s.setCurrentUser, setServers: s.setServers, setIsLoadingServers: s.setIsLoadingServers }))
   )
   const { messageDisplay, fontScale, saturation, themePreset, customCss, hydrateFromSettings } = useAppearanceStore(
     useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, themePreset: s.themePreset, customCss: s.customCss, hydrateFromSettings: s.hydrateFromSettings }))
@@ -27,8 +27,9 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
   useEffect(() => {
     setCurrentUser(user)
     setServers(servers)
+    setIsLoadingServers(false)
     hydrateFromSettings(user?.appearance_settings as Parameters<typeof hydrateFromSettings>[0], user?.id ?? null)
-  }, [user, servers, setCurrentUser, setServers, hydrateFromSettings])
+  }, [user, servers, setCurrentUser, setServers, setIsLoadingServers, hydrateFromSettings])
 
   // Apply appearance data-attributes to <html> so CSS selectors can pick them up
   useEffect(() => {
