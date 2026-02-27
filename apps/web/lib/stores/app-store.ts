@@ -58,6 +58,8 @@ interface AppState {
 
   // Servers
   servers: ServerRow[]
+  isLoadingServers: boolean
+  setIsLoadingServers: (isLoading: boolean) => void
   setServers: (servers: ServerRow[]) => void
   addServer: (server: ServerRow) => void
   updateServer: (id: string, updates: Partial<ServerRow>) => void
@@ -101,6 +103,8 @@ export const useAppStore = create<AppState>((set) => ({
   setCurrentUser: (user) => set({ currentUser: user }),
 
   servers: [],
+  isLoadingServers: true,
+  setIsLoadingServers: (isLoadingServers) => set({ isLoadingServers }),
   setServers: (servers) => set({ servers }),
   addServer: (server) => set((state) => ({ servers: [...state.servers, server] })),
   updateServer: (id, updates) =>
