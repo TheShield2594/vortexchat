@@ -20,7 +20,10 @@ export async function GET(request: Request) {
     .eq("archived", archived)
     .order("updated_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[threads] GET query failed", { channelId, code: error.code, message: error.message, details: error.details })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   return NextResponse.json(threads ?? [], {
     headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },

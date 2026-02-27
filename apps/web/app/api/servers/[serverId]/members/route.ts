@@ -44,7 +44,7 @@ export async function GET(
       server_id,
       user_id,
       nickname,
-      user:users(
+      user:users!server_members_user_id_fkey(
         id,
         username,
         display_name,
@@ -73,6 +73,7 @@ export async function GET(
     .order("user_id", { ascending: true })
 
   if (error) {
+    console.error("[members] GET query failed", { serverId: params.serverId, code: error.code, message: error.message, details: error.details })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

@@ -517,6 +517,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [channel.id])
 
+  const onReachedBottom = useCallback(() => {
+    setPendingNewMessageCount(0)
+    setUnreadAnchorMessageId(null)
+  }, [])
+
   const { isAtBottom } = useChatScroll({
     hasMoreHistory,
     loadOlderMessages,
@@ -524,10 +529,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     paginationRequestRef,
     scrollStorageKey,
     unreadAnchorStorageKey,
-    onReachedBottom: () => {
-      setPendingNewMessageCount(0)
-      setUnreadAnchorMessageId(null)
-    },
+    onReachedBottom,
   })
 
   useEffect(() => {

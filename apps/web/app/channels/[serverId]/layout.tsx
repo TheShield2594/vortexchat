@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { ChannelSidebar } from "@/components/layout/channel-sidebar"
+import { MemberList } from "@/components/layout/member-list"
 import { ServerEmojiProvider } from "@/components/chat/server-emoji-context"
 import type { RoleRow } from "@/types/database"
 
@@ -47,6 +48,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
           userRoles={userRoles}
         />
         {children}
+        <MemberList serverId={params.serverId} />
       </div>
     </ServerEmojiProvider>
   )
