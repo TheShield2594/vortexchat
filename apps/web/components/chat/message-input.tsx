@@ -521,6 +521,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             <BarChart3 className="w-4 h-4" />
           </button>
           <button
+            type="button"
             ref={emojiButtonRef}
             onClick={() => {
               setPickerTab("emoji")
@@ -534,6 +535,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             <Smile className="w-4 h-4" />
           </button>
           <button
+            type="button"
             onClick={() => {
               setPickerTab("gif")
               setShowEmojiPicker(true)

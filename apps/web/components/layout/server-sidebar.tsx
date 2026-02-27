@@ -12,7 +12,7 @@ import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, C
 import { useToast } from "@/components/ui/use-toast"
 import { CreateServerModal } from "@/components/modals/create-server-modal"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { cn } from "@/lib/utils/cn"
 import type { ServerRow } from "@/types/database"
 import { VortexLogo } from "@/components/ui/vortex-logo"
@@ -188,6 +188,14 @@ function ServerIcon({
     .slice(0, 2)
     .toUpperCase()
 
+  const [copyShortcutLabel, setCopyShortcutLabel] = useState("Ctrl+C")
+
+  useEffect(() => {
+    const platform = navigator.platform || navigator.userAgent || ""
+    const isApple = /Mac|iPhone|iPad|iPod/i.test(platform)
+    setCopyShortcutLabel(isApple ? "⌘C" : "Ctrl+C")
+  }, [])
+
   return (
     <ContextMenu>
       <Tooltip>
@@ -245,7 +253,7 @@ function ServerIcon({
           toast({ title: "Server ID copied!" })
         }}>
           <Clipboard className="w-4 h-4 mr-2" /> Copy Server ID
-          <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+          <ContextMenuShortcut>{copyShortcutLabel}</ContextMenuShortcut>
         </ContextMenuItem>
         {!isOwner && (
           <>

@@ -250,6 +250,9 @@
 
   .typing-dot,
   .speaking-ring,
+  .speaking-waveform,
+  .message-arrival,
+  .reaction-chip-pop,
   .composer-presence-rail,
   .recent-activity-halo,
   .message-state-morph {

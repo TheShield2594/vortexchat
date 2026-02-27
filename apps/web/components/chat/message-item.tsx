@@ -40,6 +40,7 @@ interface Props {
   onRetry?: () => void
   recentlyActive?: boolean
   animateOnMount?: boolean
+  onMountAnimationComplete?: () => void
 }
 
 function extractPoll(content: string | null): { question: string; options: string[]; sanitizedContent: string | null } | null {
@@ -244,6 +245,7 @@ export const MessageItem = memo(function MessageItem({
   onRetry,
   recentlyActive = false,
   animateOnMount = false,
+  onMountAnimationComplete,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
@@ -256,6 +258,7 @@ export const MessageItem = memo(function MessageItem({
   const containerRef = useRef<HTMLDivElement>(null)
   const reactionCountsRef = useRef<Record<string, number>>({})
   const [poppingReactions, setPoppingReactions] = useState<Record<string, number>>({})
+  const popReactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
 
   useEffect(() => {
@@ -297,12 +300,32 @@ export const MessageItem = memo(function MessageItem({
         const next = { ...prev }
         for (const emoji of changed) {
           next[emoji] = (next[emoji] ?? 0) + 1
+
+          const existingTimer = popReactionTimersRef.current.get(emoji)
+          if (existingTimer) clearTimeout(existingTimer)
+          const timer = setTimeout(() => {
+            setPoppingReactions((current) => {
+              if (!(emoji in current)) return current
+              const updated = { ...current }
+              delete updated[emoji]
+              return updated
+            })
+            popReactionTimersRef.current.delete(emoji)
+          }, 180)
+          popReactionTimersRef.current.set(emoji, timer)
         }
         return next
       })
     }
 
     reactionCountsRef.current = nextCounts
+
+    return () => {
+      for (const timer of popReactionTimersRef.current.values()) {
+        clearTimeout(timer)
+      }
+      popReactionTimersRef.current.clear()
+    }
   }, [message.reactions])
 
   const { activeServerId, membersByServer } = useAppStore(
@@ -482,6 +505,9 @@ export const MessageItem = memo(function MessageItem({
             animateOnMount && "message-arrival",
             isGrouped ? "py-0.5" : "pt-4 pb-0.5"
           )}
+          onAnimationEnd={() => {
+            if (animateOnMount) onMountAnimationComplete?.()
+          }}
           onMouseEnter={() => setShowActions(true)}
           onMouseLeave={() => { setShowActions(false) }}
           onFocus={() => setShowActions(true)}

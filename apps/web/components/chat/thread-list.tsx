@@ -97,19 +97,6 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
   const visibleArchivedThreads = filter === "active" ? [] : archivedThreads
   const shouldAllowArchivedToggle = filter !== "active"
 
-  if (visibleThreads.length === 0 && !shouldShowArchived) {
-    return (
-      <div className="px-4 py-4">
-        <BrandedEmptyState
-          icon={MessageSquare}
-          title="No threads yet"
-          description="Start a thread from any message to keep side conversations organized."
-          hint="Tip: Hover a message and click the thread icon."
-        />
-      </div>
-    )
-  }
-
   return (
     <div
       className="border-t mx-0"
@@ -141,14 +128,25 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
           <div className="px-4 pb-1 text-[11px]" style={{ color: "#6d6f78" }}>
             Each thread belongs to this channel and re-opens in the thread panel.
           </div>
-          {visibleThreads.map((thread) => (
-            <ThreadListItem
-              key={thread.id}
-              thread={thread}
-              isActive={thread.id === activeThreadId}
-              onClick={() => onSelectThread(thread)}
-            />
-          ))}
+          {visibleThreads.length === 0 && !shouldShowArchived ? (
+            <div className="px-4 py-4">
+              <BrandedEmptyState
+                icon={MessageSquare}
+                title="No threads yet"
+                description="Start a thread from any message to keep side conversations organized."
+                hint="Tip: Hover a message and click the thread icon."
+              />
+            </div>
+          ) : (
+            visibleThreads.map((thread) => (
+              <ThreadListItem
+                key={thread.id}
+                thread={thread}
+                isActive={thread.id === activeThreadId}
+                onClick={() => onSelectThread(thread)}
+              />
+            ))
+          )}
 
           {shouldAllowArchivedToggle && (
             <button
