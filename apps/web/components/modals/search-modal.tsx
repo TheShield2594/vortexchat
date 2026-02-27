@@ -63,6 +63,9 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
             <div className="px-4 py-1 text-[11px]" style={{ color: "var(--theme-text-muted)" }}>
               Filters: <code className="px-1 py-0.5 rounded bg-black/20">from:user-id</code> <code className="px-1 py-0.5 rounded bg-black/20">has:link</code> <code className="px-1 py-0.5 rounded bg-black/20">has:image</code> <code className="px-1 py-0.5 rounded bg-black/20">before:YYYY-MM-DD</code>
             </div>
+            <div className="px-4 py-1 text-[11px]" style={{ color: "var(--theme-text-muted)" }}>
+              Note: encrypted DMs are excluded — use the in-conversation search (<kbd className="px-1 py-0.5 rounded bg-black/20 font-mono">🔍</kbd>) for end-to-end encrypted channels.
+            </div>
 
         <div className="flex-1 overflow-y-auto">
           {!query.trim() ? <div className="px-4 py-10"><BrandedEmptyState icon={Search} title="Search workspace" description="Find messages, tasks, and docs in one place." /></div>

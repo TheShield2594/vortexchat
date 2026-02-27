@@ -15,6 +15,9 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useShallow } from "zustand/react/shallow"
 import { decryptDmContent, encryptDmContent, exportPublicKey, fingerprintFromPublicKey, generateConversationKey, generateDeviceKeyPair, importPublicKey, parseEncryptedEnvelope, unwrapConversationKey, wrapConversationKey } from "@/lib/dm-encryption"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
+import { useLocalSearch } from "@/hooks/use-local-search"
+import { DmLocalSearchModal } from "@/components/modals/dm-local-search-modal"
+import type { IndexedDocument } from "@/lib/local-search-index"
 
 interface User {
   id: string
@@ -164,6 +167,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   )
 
   const { playNotification } = useNotificationSound()
+  const { indexMessages, addMessage: addMessageToIndex, removeMessage: removeMessageFromIndex, search: searchLocal, clearChannel: clearLocalChannel } = useLocalSearch()
+  const [showLocalSearch, setShowLocalSearch] = useState(false)
+  // Track which message IDs have already been fed into the local index so the
+  // indexing effect only processes newly-decrypted messages, not the full set.
+  const indexedIdsRef = useRef<Set<string>>(new Set())
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
 
@@ -374,6 +382,44 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     return () => { cancelled = true }
   }, [channel?.id, channel?.is_encrypted, conversationKey, messages])
 
+  // Reset the indexed-IDs tracker whenever the active channel changes so that
+  // the new channel's messages are fully re-indexed from scratch.
+  useEffect(() => {
+    indexedIdsRef.current = new Set()
+  }, [channel?.id])
+
+  // Feed newly-decrypted messages into the local search index incrementally.
+  // Only messages whose IDs are not already tracked in indexedIdsRef are
+  // added; this prevents the full corpus from being re-submitted on every
+  // decryptedContent update.
+  useEffect(() => {
+    if (!channel?.is_encrypted) return
+    const toIndex: IndexedDocument[] = []
+    for (const msg of messages) {
+      if (indexedIdsRef.current.has(msg.id)) continue
+      const dec = decryptedContent[msg.id]
+      if (!dec || dec.failed) continue
+      toIndex.push({
+        id: msg.id,
+        channelId: channel.id,
+        authorId: msg.sender_id,
+        authorName: msg.sender?.display_name || msg.sender?.username || "Unknown",
+        avatarUrl: msg.sender?.avatar_url ?? null,
+        text: dec.text,
+        createdAt: msg.created_at,
+      })
+      indexedIdsRef.current.add(msg.id)
+    }
+    if (toIndex.length > 0) indexMessages(channel.id, toIndex)
+  }, [channel?.id, channel?.is_encrypted, decryptedContent, messages, indexMessages])
+
+  // Wipe the channel's local index when the user navigates away.
+  useEffect(() => {
+    return () => {
+      clearLocalChannel(channelId)
+    }
+  }, [channelId, clearLocalChannel])
+
   useEffect(() => {
     const ch = supabase
       .channel(`dm-channel:${channelId}`)
@@ -409,7 +455,31 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     .single()
                   replyToMsg = replyData ?? null
                 }
-                setMessages((prev) => [...prev, { ...data, reply_to: replyToMsg } as Message])
+                const newMsg: Message = { ...data, reply_to: replyToMsg }
+                setMessages((prev) => [...prev, newMsg])
+
+                // Incrementally index the new message if the channel is encrypted
+                // and we can decrypt it.
+                if (channel?.is_encrypted && conversationKey) {
+                  const envelope = parseEncryptedEnvelope(newMsg.content)
+                  if (envelope) {
+                    getConversationKey(`dm-conversation-key:${channelId}:${envelope.keyVersion}`)
+                      .then(async (vk) => {
+                        if (!vk) return
+                        const text = await decryptDmContent(envelope, vk)
+                        addMessageToIndex(channelId, {
+                          id: newMsg.id,
+                          channelId,
+                          authorId: newMsg.sender_id,
+                          authorName: newMsg.sender?.display_name || newMsg.sender?.username || "Unknown",
+                          avatarUrl: newMsg.sender?.avatar_url ?? null,
+                          text,
+                          createdAt: newMsg.created_at,
+                        })
+                      })
+                      .catch(() => {/* best-effort */})
+                  }
+                }
               })
           }
         }
@@ -417,7 +487,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       .subscribe()
 
     return () => { supabase.removeChannel(ch) }
-  }, [channelId, currentUserId, supabase])
+  }, [channelId, currentUserId, supabase, channel, conversationKey])
 
   async function handleSend() {
     if (!content.trim() || sending) return
@@ -500,6 +570,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     const res = await fetch(`/api/dm/channels/${channelId}/messages/${messageId}`, { method: "DELETE" })
     if (res.ok) {
       setMessages((prev) => prev.filter((m) => m.id !== messageId))
+      removeMessageFromIndex(messageId)
+      indexedIdsRef.current.delete(messageId)
     } else {
       toast({ variant: "destructive", title: "Failed to delete message" })
     }
@@ -549,15 +621,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   }
 
   function handleSearchClick() {
-    if (!channel?.is_encrypted) {
-      toast({ title: "Search is coming soon", description: "Conversation search isn’t wired up yet." })
+    if (channel?.is_encrypted) {
+      setShowLocalSearch(true)
       return
     }
-
-    const query = window.prompt("Local encrypted search", "")?.trim().toLowerCase()
-    if (!query) return
-    const hits = Object.values(decryptedContent).filter((entry) => !entry.failed && entry.text.toLowerCase().includes(query)).length
-    toast({ title: "Local encrypted search", description: `${hits} matching message${hits === 1 ? "" : "s"} found on this device.` })
+    toast({ title: "Search is coming soon", description: "Conversation search isn’t wired up yet." })
   }
 
   function handlePinClick() {
@@ -735,7 +803,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const imageMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
 
           return (
-            <div key={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
+            <div key={msg.id} data-message-id={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
               {/* Reply reference */}
               {msg.reply_to_id && msg.reply_to && (
                 <div
@@ -931,6 +999,46 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           )}
         </div>
       </div>
+
+      {/* Local search modal for encrypted DM channels */}
+      {showLocalSearch && channel?.is_encrypted && (
+        <DmLocalSearchModal
+          channelId={channel.id}
+          channelLabel={displayName}
+          onClose={() => setShowLocalSearch(false)}
+          onJumpToMessage={(_cid, mid) => {
+            setShowLocalSearch(false)
+            // Give React a tick to close the modal, then scroll to the message.
+            requestAnimationFrame(() => {
+              const el = document.querySelector(`[data-message-id="${mid}"]`)
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" })
+                return
+              }
+              // Message not in the DOM yet — try fetching older history and
+              // retry the scroll once loading completes.
+              if (hasMore) {
+                toast({ title: "Loading history…", description: "Fetching older messages to find this one." })
+                loadMore().then(() => {
+                  requestAnimationFrame(() => {
+                    const elRetry = document.querySelector(`[data-message-id="${mid}"]`)
+                    if (elRetry) {
+                      elRetry.scrollIntoView({ behavior: "smooth", block: "center" })
+                    } else {
+                      toast({ title: "Message not in current view", description: "Keep loading older messages to find it." })
+                      topRef.current?.scrollIntoView({ behavior: "smooth" })
+                    }
+                  })
+                })
+              } else {
+                toast({ title: "Message not found", description: `Message ${mid} is not in the current view.` })
+              }
+            })
+          }}
+          searchFn={searchLocal}
+          indexedCount={Object.values(decryptedContent).filter((d) => !d.failed).length}
+        />
+      )}
     </div>
   )
 }
