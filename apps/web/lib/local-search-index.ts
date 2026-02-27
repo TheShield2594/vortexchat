@@ -44,8 +44,8 @@ export interface LocalSearchFilters {
 // Constants
 // --------------------------------------------------------------------------
 
-const MAX_DOCS_PER_CHANNEL = 2_000
-const MAX_DOCS_GLOBAL = 10_000
+export const MAX_DOCS_PER_CHANNEL = 2_000
+export const MAX_DOCS_GLOBAL = 10_000
 
 // Common English stop-words to skip during tokenisation.
 const STOP_WORDS = new Set([

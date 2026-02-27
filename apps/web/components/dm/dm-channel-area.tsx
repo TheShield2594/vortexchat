@@ -167,8 +167,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   )
 
   const { playNotification } = useNotificationSound()
-  const { indexMessages, addMessage: addMessageToIndex, search: searchLocal, clearChannel: clearLocalChannel } = useLocalSearch()
+  const { indexMessages, addMessage: addMessageToIndex, removeMessage: removeMessageFromIndex, search: searchLocal, clearChannel: clearLocalChannel } = useLocalSearch()
   const [showLocalSearch, setShowLocalSearch] = useState(false)
+  // Track which message IDs have already been fed into the local index so the
+  // indexing effect only processes newly-decrypted messages, not the full set.
+  const indexedIdsRef = useRef<Set<string>>(new Set())
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
 
@@ -379,24 +382,34 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     return () => { cancelled = true }
   }, [channel?.id, channel?.is_encrypted, conversationKey, messages])
 
-  // Feed successfully-decrypted messages into the local search index.
-  // This runs after the decryption effect above updates decryptedContent.
+  // Reset the indexed-IDs tracker whenever the active channel changes so that
+  // the new channel's messages are fully re-indexed from scratch.
+  useEffect(() => {
+    indexedIdsRef.current = new Set()
+  }, [channel?.id])
+
+  // Feed newly-decrypted messages into the local search index incrementally.
+  // Only messages whose IDs are not already tracked in indexedIdsRef are
+  // added; this prevents the full corpus from being re-submitted on every
+  // decryptedContent update.
   useEffect(() => {
     if (!channel?.is_encrypted) return
-    const toIndex: IndexedDocument[] = messages
-      .filter((msg) => {
-        const dec = decryptedContent[msg.id]
-        return dec && !dec.failed
-      })
-      .map((msg) => ({
+    const toIndex: IndexedDocument[] = []
+    for (const msg of messages) {
+      if (indexedIdsRef.current.has(msg.id)) continue
+      const dec = decryptedContent[msg.id]
+      if (!dec || dec.failed) continue
+      toIndex.push({
         id: msg.id,
         channelId: channel.id,
         authorId: msg.sender_id,
         authorName: msg.sender?.display_name || msg.sender?.username || "Unknown",
         avatarUrl: msg.sender?.avatar_url ?? null,
-        text: decryptedContent[msg.id]!.text,
+        text: dec.text,
         createdAt: msg.created_at,
-      }))
+      })
+      indexedIdsRef.current.add(msg.id)
+    }
     if (toIndex.length > 0) indexMessages(channel.id, toIndex)
   }, [channel?.id, channel?.is_encrypted, decryptedContent, messages, indexMessages])
 
@@ -474,7 +487,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       .subscribe()
 
     return () => { supabase.removeChannel(ch) }
-  }, [channelId, currentUserId, supabase])
+  }, [channelId, currentUserId, supabase, channel, conversationKey])
 
   async function handleSend() {
     if (!content.trim() || sending) return
@@ -557,6 +570,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     const res = await fetch(`/api/dm/channels/${channelId}/messages/${messageId}`, { method: "DELETE" })
     if (res.ok) {
       setMessages((prev) => prev.filter((m) => m.id !== messageId))
+      removeMessageFromIndex(messageId)
+      indexedIdsRef.current.delete(messageId)
     } else {
       toast({ variant: "destructive", title: "Failed to delete message" })
     }
@@ -788,7 +803,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const imageMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
 
           return (
-            <div key={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
+            <div key={msg.id} data-message-id={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
               {/* Reply reference */}
               {msg.reply_to_id && msg.reply_to && (
                 <div
@@ -991,9 +1006,15 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           channelId={channel.id}
           channelLabel={displayName}
           onClose={() => setShowLocalSearch(false)}
-          onJumpToMessage={(_cid, _mid) => {
-            // Future: scroll to the specific message by ID
+          onJumpToMessage={(_cid, mid) => {
             setShowLocalSearch(false)
+            // Give React a tick to close the modal, then scroll to the message.
+            requestAnimationFrame(() => {
+              const el = document.querySelector(`[data-message-id="${mid}"]`)
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" })
+              }
+            })
           }}
           searchFn={searchLocal}
           indexedCount={Object.values(decryptedContent).filter((d) => !d.failed).length}

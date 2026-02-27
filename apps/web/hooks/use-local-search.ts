@@ -63,16 +63,17 @@ export interface UseLocalSearchReturn {
 
   /**
    * Schedule lazy background indexing of historical message pages.
-   * Pass a loader function that accepts a `before` cursor and returns
-   * decrypted docs.  The hook will call it repeatedly until it returns
-   * an empty array or the memory cap for the channel is reached.
+   * Pass a loader function that accepts a `before` cursor and an
+   * AbortSignal (for cancellation) and returns decrypted docs.
+   * The hook will call it repeatedly until it returns an empty array
+   * or the memory cap for the channel is reached.
    *
    * The loading runs in the background and does NOT update React state,
    * so it will not cause re-renders.
    */
   startLazyIndexing: (
     channelId: string,
-    loader: (before: string | null) => Promise<IndexedDocument[]>
+    loader: (before: string | null, signal: AbortSignal) => Promise<IndexedDocument[]>
   ) => void
 
   /**
@@ -127,7 +128,7 @@ export function useLocalSearch(): UseLocalSearchReturn {
   const startLazyIndexing = useCallback(
     (
       channelId: string,
-      loader: (before: string | null) => Promise<IndexedDocument[]>
+      loader: (before: string | null, signal: AbortSignal) => Promise<IndexedDocument[]>
     ) => {
       // Abort any existing run for this channel.
       lazyAbortRefs.current.get(channelId)?.abort()
@@ -141,7 +142,7 @@ export function useLocalSearch(): UseLocalSearchReturn {
         while (!controller.signal.aborted) {
           let batch: IndexedDocument[]
           try {
-            batch = await loader(before)
+            batch = await loader(before, controller.signal)
           } catch {
             break
           }
@@ -156,6 +157,11 @@ export function useLocalSearch(): UseLocalSearchReturn {
             if (min === null || d.createdAt < min) return d.createdAt
             return min
           }, null)
+
+          // No-progress guard: if the cursor didn't advance, stop to avoid
+          // an infinite loop when the loader keeps returning the same page.
+          if (earliest !== null && earliest === before) break
+
           before = earliest
 
           // Small pause to avoid starving the UI thread.

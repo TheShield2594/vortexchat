@@ -25,7 +25,7 @@ gap, the architectural decisions made, and the tradeoffs involved.
 
 ### Routing Logic
 
-```
+```text
 User opens search
        │
        ├─ Server channel (plaintext)
@@ -53,7 +53,7 @@ function handleSearchClick() {
 
 ### Data structures
 
-```
+```text
 invertedIndex : Map<token, Set<messageId>>   ← posting lists
 docs          : Map<messageId, IndexedDocument>  ← document store
 channelDocs   : Map<channelId, Set<messageId>>   ← membership for eviction
@@ -76,7 +76,7 @@ search.
 The same `from:<authorId>` and `before:<YYYY-MM-DD>` filter syntax supported
 by the server search is also supported locally:
 
-```
+```text
 hello from:user-abc before:2026-01-01
 ```
 

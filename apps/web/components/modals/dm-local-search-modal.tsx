@@ -46,6 +46,17 @@ export function DmLocalSearchModal({
   const [searching, setSearching] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clean up pending timers on unmount to prevent state updates after destroy.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+      debounceRef.current = null
+      searchTimerRef.current = null
+    }
+  }, [])
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -66,10 +77,11 @@ export function DmLocalSearchModal({
       setSearching(true)
       // The local index is synchronous; wrap in setTimeout so the spinner
       // appears before the (potentially large) search executes.
-      setTimeout(() => {
+      searchTimerRef.current = setTimeout(() => {
         const found = searchFn(q, channelId, 40)
         setResults(found)
         setSearching(false)
+        searchTimerRef.current = null
       }, 0)
     },
     [searchFn, channelId]
@@ -88,6 +100,9 @@ export function DmLocalSearchModal({
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-24"
       style={{ background: "rgba(0,0,0,0.7)" }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={channelLabel ? `Search in ${channelLabel}` : "Search messages"}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
@@ -175,6 +190,7 @@ export function DmLocalSearchModal({
                 return (
                   <button
                     key={result.id}
+                    type="button"
                     onClick={() => {
                       onJumpToMessage?.(result.channelId, result.id)
                       onClose()

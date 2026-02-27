@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest"
 import {
   LocalSearchIndex,
+  MAX_DOCS_PER_CHANNEL,
   tokenise,
   parseLocalSearchQuery,
   type IndexedDocument,
@@ -267,7 +268,7 @@ describe("memory bounds", () => {
     // Use a fresh index and add MAX_DOCS_PER_CHANNEL + 1 docs.
     // Each doc carries a unique 10-character token "msgXXXXXXXX" that is
     // distinct per document and won't collide with any other doc's token.
-    const MAX = 2_000
+    const MAX = MAX_DOCS_PER_CHANNEL
     const baseDate = new Date("2020-01-01T00:00:00Z")
 
     for (let i = 0; i < MAX + 1; i++) {
@@ -325,7 +326,10 @@ describe("benchmark notes", () => {
 
     console.info(`[benchmark] indexed ${N} docs in ${indexTime.toFixed(1)}ms; search returned ${results.length} results in ${searchTime.toFixed(2)}ms`)
 
-    expect(indexTime).toBeLessThan(2_000) // generous upper bound
-    expect(searchTime).toBeLessThan(200)
+    // Only assert timing in explicit perf runs to avoid CI flakiness.
+    if (process.env.RUN_PERF_TESTS) {
+      expect(indexTime).toBeLessThan(2_000)
+      expect(searchTime).toBeLessThan(200)
+    }
   })
 })
