@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { ChatArea } from "@/components/chat/chat-area"
 import { VoiceChannel } from "@/components/voice/voice-channel"
-import { MemberList } from "@/components/layout/member-list"
 import { AnnouncementChannel } from "@/components/channels/announcement-channel"
 import { ForumChannel } from "@/components/channels/forum-channel"
 import { MediaChannel } from "@/components/channels/media-channel"
@@ -85,7 +84,6 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
           currentUserId={user.id}
           serverId={params.serverId}
         />
-        <MemberList serverId={params.serverId} />
       </div>
     )
   }
@@ -100,7 +98,6 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
           currentUserId={user.id}
           serverId={params.serverId}
         />
-        <MemberList serverId={params.serverId} />
       </div>
     )
   }
@@ -115,7 +112,6 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
           currentUserId={user.id}
           serverId={params.serverId}
         />
-        <MemberList serverId={params.serverId} />
       </div>
     )
   }
@@ -133,7 +129,6 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
         serverId={params.serverId}
         initialLastReadAt={initialLastReadAt}
       />
-      <MemberList serverId={params.serverId} />
     </div>
   )
 }
