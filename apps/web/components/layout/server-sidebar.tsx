@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Plus, Compass, MessageSquare, Clipboard, LogOut, UserPlus } from "lucide-react"
+import { Plus, Compass, Clipboard, LogOut, UserPlus } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -15,6 +15,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useState, useMemo, useCallback } from "react"
 import { cn } from "@/lib/utils/cn"
 import type { ServerRow } from "@/types/database"
+import { VortexLogo } from "@/components/ui/vortex-logo"
 
 /** Vertical icon strip listing joined servers, DM shortcut, and create/discover actions. */
 export function ServerSidebar() {
@@ -77,25 +78,28 @@ export function ServerSidebar() {
         className="flex flex-col items-center w-[72px] py-3 gap-2 flex-shrink-0 overflow-y-auto no-scrollbar"
         style={{ background: 'var(--theme-bg-tertiary)' }}
       >
-        {/* DMs / Home */}
+        {/* VortexChat home / Direct Messages */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Link
               href="/channels/me"
               onClick={() => setActiveServer(null)}
+              aria-label="Direct Messages"
               className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 group",
+                "w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-200",
                 activeServerId === null
                   ? "rounded-2xl"
-                  : "hover:rounded-2xl"
+                  : "rounded-full hover:rounded-2xl"
               )}
               style={{
-                background: activeServerId === null ? 'var(--theme-accent)' : 'var(--theme-bg-primary)',
+                background: activeServerId === null
+                  ? 'color-mix(in srgb, var(--theme-accent) 20%, var(--theme-bg-primary))'
+                  : 'var(--theme-bg-primary)',
               }}
             >
-              <MessageSquare
-                className="w-6 h-6 transition-colors"
-                style={{ color: activeServerId === null ? 'white' : 'var(--theme-text-muted)' }}
+              <VortexLogo
+                size={24}
+                style={{ color: activeServerId === null ? 'var(--theme-accent)' : 'var(--theme-text-muted)' } as React.CSSProperties}
               />
             </Link>
           </TooltipTrigger>

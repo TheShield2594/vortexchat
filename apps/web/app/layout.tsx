@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Space_Grotesk } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"], variable: "--font-body" })
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" })
 
 export const metadata: Metadata = {
   title: "VortexChat — Chat, Hang Out, Belong",
-  description: "A modern chat platform for communities and teams",
+  description: "The chat platform for focused teams and creative communities",
   icons: {
     icon: "/favicon.ico",
   },
@@ -24,10 +25,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#5865f2",
+  themeColor: "#00e5ff",
 }
 
-/** Top-level HTML shell that applies the Inter font, dark theme, and global toast notifications. */
+/** Top-level HTML shell — applies Inter (body) + Space Grotesk (display/headings), dark theme, and global toast notifications. */
 export default function RootLayout({
   children,
 }: {
@@ -35,7 +36,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={inter.className} style={{ background: 'var(--app-bg-primary)' }}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`} style={{ background: 'var(--theme-bg-primary)' }}>
         {children}
         <Toaster />
       </body>

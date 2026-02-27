@@ -6,8 +6,18 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 px-6">
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-indigo-500/30 blur-3xl" />
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden px-6"
+      style={{
+        background:
+          "radial-gradient(ellipse 80% 60% at 50% -10%, color-mix(in srgb, var(--theme-accent) 10%, transparent), transparent 70%), var(--theme-bg-tertiary)",
+      }}
+    >
+      {/* Accent glow blob */}
+      <div
+        className="pointer-events-none absolute -top-24 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full blur-3xl vortex-glow"
+        style={{ background: "var(--theme-accent)", opacity: 0.18 }}
+      />
       <div className="relative w-full max-w-md">
         {children}
       </div>

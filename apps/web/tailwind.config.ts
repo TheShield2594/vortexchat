@@ -18,26 +18,30 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        display: ["var(--font-display)", "sans-serif"],
+        sans: ["var(--font-body)", "sans-serif"],
+      },
       colors: {
-        // Discord-like dark theme
+        // Vortex Midnight Neon brand palette
         'vortex': {
-          'bg-primary': '#313338',    // main content bg
-          'bg-secondary': '#2b2d31',  // channel list bg
-          'bg-tertiary': '#1e1f22',   // server list bg
-          'bg-overlay': '#232428',    // modals, overlays
-          'interactive': '#949ba4',   // icons, inactive
-          'interactive-hover': '#dbdee1', // hover state
-          'text-primary': '#f2f3f5',
-          'text-secondary': '#b5bac1',
-          'text-muted': '#4e5058',
-          'accent': '#5865f2',        // blurple
-          'accent-hover': '#4752c4',
-          'success': '#23a55a',
-          'warning': '#f0b132',
-          'danger': '#f23f43',
-          'link': '#00a8fc',
-          'mention': '#5865f233',
-          'mention-border': '#5865f2',
+          'bg-primary': '#1b1f31',    // main content bg
+          'bg-secondary': '#151829',  // channel list bg
+          'bg-tertiary': '#0f1120',   // server list bg
+          'bg-overlay': '#252a42',    // modals, overlays
+          'interactive': '#8f9bbf',   // icons, inactive
+          'interactive-hover': '#e6ecff', // hover state
+          'text-primary': '#e6ecff',
+          'text-secondary': '#b6c0dd',
+          'text-muted': '#6b7392',
+          'accent': '#00e5ff',        // Midnight Neon
+          'accent-hover': '#00c8e0',
+          'success': '#3ddc97',
+          'warning': '#ffb84d',
+          'danger': '#ff5d73',
+          'link': '#6fd8ff',
+          'mention': '#00e5ff1a',
+          'mention-border': '#00e5ff',
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

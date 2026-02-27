@@ -13,6 +13,36 @@ import { startPasskeyLogin, supportsPasskeys } from "@/lib/auth/passkeys-client"
 
 type LoginStep = "credentials" | "mfa-challenge" | "recovery-code"
 
+// Shared wrapper style for all auth card surfaces
+const cardStyle: React.CSSProperties = {
+  background: "color-mix(in srgb, var(--theme-bg-secondary) 85%, transparent)",
+  color: "var(--theme-text-primary)",
+  borderColor: "rgba(255,255,255,0.08)",
+}
+
+// Reusable accent badge — variant drives which CSS variable is used for color
+function AccentBadge({
+  children,
+  variant = "accent",
+}: {
+  children: React.ReactNode
+  variant?: "accent" | "warning"
+}) {
+  const colorVar = variant === "warning" ? "--theme-warning" : "--theme-accent"
+  return (
+    <div
+      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium"
+      style={{
+        border: `1px solid color-mix(in srgb, var(${colorVar}) 40%, transparent)`,
+        background: `color-mix(in srgb, var(${colorVar}) 10%, transparent)`,
+        color: `color-mix(in srgb, var(${colorVar}) 80%, white)`,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -34,7 +64,6 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      // Use the server-side login endpoint with brute-force protection
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -47,14 +76,12 @@ export default function LoginPage() {
         return
       }
 
-      // Check if MFA challenge is needed
       if (data.requiresMfa && data.factorId) {
         setMfaFactorId(data.factorId)
         setStep("mfa-challenge")
         return
       }
 
-      // Login succeeded without MFA — set user online and redirect
       await supabase.from("users").update({ status: "online" }).eq("id", data.userId)
       router.push("/channels/me")
       router.refresh()
@@ -83,7 +110,6 @@ export default function LoginPage() {
         return
       }
 
-      // MFA verified — redirect
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         await supabase.from("users").update({ status: "online" }).eq("id", user.id)
@@ -115,7 +141,6 @@ export default function LoginPage() {
         return
       }
 
-      // Recovery code redeemed — follow the magic link to establish session
       if (data.actionLink) {
         window.location.href = data.actionLink
       }
@@ -164,18 +189,20 @@ export default function LoginPage() {
 
   const showFallbacks = !policy.enforce_passkey
 
-  // MFA Challenge Screen
+  // ── MFA Challenge Screen ────────────────────────────────────────────────
   if (step === "mfa-challenge") {
     return (
-      <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 text-slate-100 shadow-2xl backdrop-blur">
+      <div className="rounded-2xl border p-8 shadow-2xl backdrop-blur" style={cardStyle}>
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/40 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-200">
+            <AccentBadge>
               <ShieldCheck className="h-3.5 w-3.5" /> Two-factor authentication
-            </div>
+            </AccentBadge>
           </div>
-          <h1 className="text-2xl font-bold text-white">Enter your 2FA code</h1>
-          <p className="mt-1 text-sm text-slate-300">
+          <h1 className="text-2xl font-bold font-display" style={{ color: "var(--theme-text-bright)" }}>
+            Enter your 2FA code
+          </h1>
+          <p className="mt-1 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
             Open your authenticator app and enter the 6-digit code.
           </p>
         </div>
@@ -191,19 +218,24 @@ export default function LoginPage() {
               onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
               placeholder="000000"
               autoFocus
-              className="w-48 rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-center text-2xl tracking-[0.3em] text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+              className="auth-input w-48 rounded-lg border px-4 py-3 text-center text-2xl tracking-[0.3em]"
             />
           </div>
-          <Button type="submit" disabled={totpCode.length !== 6 || mfaLoading} className="h-11 w-full bg-indigo-500 font-medium text-white transition hover:bg-indigo-400">
+          <Button
+            type="submit"
+            disabled={totpCode.length !== 6 || mfaLoading}
+            className="auth-btn-accent h-11 w-full border-0"
+            style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
+          >
             {mfaLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Verify
           </Button>
         </form>
 
-        <div className="mt-6 border-t border-white/10 pt-4">
+        <div className="mt-6 border-t pt-4" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           <button
             type="button"
             onClick={() => setStep("recovery-code")}
-            className="flex w-full items-center justify-center gap-2 text-sm text-slate-400 transition hover:text-slate-200"
+            className="text-muted-interactive flex w-full items-center justify-center gap-2 text-sm"
           >
             <KeyRound className="h-4 w-4" /> Use a recovery code instead
           </button>
@@ -212,7 +244,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => { setStep("credentials"); setTotpCode(""); setMfaFactorId(null) }}
-          className="mt-3 w-full text-center text-sm text-slate-400 transition hover:text-slate-200"
+          className="text-muted-interactive mt-3 w-full text-center text-sm"
         >
           Back to login
         </button>
@@ -220,25 +252,31 @@ export default function LoginPage() {
     )
   }
 
-  // Recovery Code Screen
+  // ── Recovery Code Screen ────────────────────────────────────────────────
   if (step === "recovery-code") {
     return (
-      <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 text-slate-100 shadow-2xl backdrop-blur">
+      <div className="rounded-2xl border p-8 shadow-2xl backdrop-blur" style={cardStyle}>
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-200">
+            <AccentBadge variant="warning">
               <KeyRound className="h-3.5 w-3.5" /> Account recovery
-            </div>
+            </AccentBadge>
           </div>
-          <h1 className="text-2xl font-bold text-white">Use a recovery code</h1>
-          <p className="mt-1 text-sm text-slate-300">
+          <h1 className="text-2xl font-bold font-display" style={{ color: "var(--theme-text-bright)" }}>
+            Use a recovery code
+          </h1>
+          <p className="mt-1 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
             Enter one of the recovery codes you saved during 2FA setup. Each code can only be used once.
           </p>
         </div>
 
         <form onSubmit={handleRecoveryCodeRedeem} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="recovery-code" className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+            <Label
+              htmlFor="recovery-code"
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--theme-text-secondary)" }}
+            >
               Recovery Code
             </Label>
             <Input
@@ -248,10 +286,15 @@ export default function LoginPage() {
               onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
               placeholder="XXXX-XXXX"
               autoFocus
-              className="h-10 border-white/10 bg-slate-800 text-center font-mono text-lg tracking-wider text-slate-100 placeholder:text-slate-500"
+              className="auth-input h-10 border text-center font-mono text-lg tracking-wider"
             />
           </div>
-          <Button type="submit" disabled={!recoveryCode.trim() || mfaLoading} className="h-11 w-full bg-amber-600 font-medium text-white transition hover:bg-amber-500">
+          <Button
+            type="submit"
+            disabled={!recoveryCode.trim() || mfaLoading}
+            className="h-11 w-full font-medium"
+            style={{ background: "var(--theme-warning)", color: "#1a1000" }}
+          >
             {mfaLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Redeem Recovery Code
           </Button>
         </form>
@@ -259,7 +302,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => { setStep("mfa-challenge"); setRecoveryCode("") }}
-          className="mt-4 w-full text-center text-sm text-slate-400 transition hover:text-slate-200"
+          className="text-muted-interactive mt-4 w-full text-center text-sm"
         >
           Back to 2FA code entry
         </button>
@@ -267,7 +310,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => { setStep("credentials"); setRecoveryCode(""); setTotpCode(""); setMfaFactorId(null) }}
-          className="mt-2 w-full text-center text-sm text-slate-400 transition hover:text-slate-200"
+          className="text-muted-interactive mt-2 w-full text-center text-sm"
         >
           Back to login
         </button>
@@ -275,23 +318,35 @@ export default function LoginPage() {
     )
   }
 
-  // Credentials Screen (default)
+  // ── Credentials Screen (default) ────────────────────────────────────────
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 text-slate-100 shadow-2xl backdrop-blur">
+    <div className="rounded-2xl border p-8 shadow-2xl backdrop-blur" style={cardStyle}>
       <div className="mb-8 text-center">
         <div className="mb-4 flex justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/40 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-200">
+          <AccentBadge>
             <Sparkles className="h-3.5 w-3.5" /> Secure sign in
-          </div>
+          </AccentBadge>
         </div>
-        <h1 className="text-2xl font-bold text-white">{isNewUser ? "Verify your email" : "Welcome back!"}</h1>
-        <p className="mt-1 text-sm text-slate-300">
+        <h1 className="text-2xl font-bold font-display" style={{ color: "var(--theme-text-bright)" }}>
+          {isNewUser ? "Verify your email" : "Welcome back!"}
+        </h1>
+        <p className="mt-1 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
           {isNewUser ? "Check your inbox for a verification link, then log in below." : "We're so excited to see you again!"}
         </p>
       </div>
 
-      <div className="mb-4 rounded-lg border border-white/10 bg-slate-950/60 p-3 text-sm text-slate-300">
-        <p className="mb-1 flex items-center gap-2 font-medium text-white"><ShieldCheck className="h-4 w-4 text-emerald-400" />Passkey-first security</p>
+      <div
+        className="mb-4 rounded-lg border p-3 text-sm"
+        style={{
+          borderColor: "rgba(255,255,255,0.08)",
+          background: "var(--theme-bg-tertiary)",
+          color: "var(--theme-text-secondary)",
+        }}
+      >
+        <p className="mb-1 flex items-center gap-2 font-medium" style={{ color: "var(--theme-text-primary)" }}>
+          <ShieldCheck className="h-4 w-4" style={{ color: "var(--theme-success)" }} />
+          Passkey-first security
+        </p>
         <p>Use your device passkey for phishing-resistant sign in. If your policy allows it, password and magic link remain available as backups.</p>
       </div>
 
@@ -299,7 +354,8 @@ export default function LoginPage() {
         type="button"
         disabled={passkeyLoading}
         onClick={handlePasskeyLogin}
-        className="mb-4 h-11 w-full bg-indigo-500 font-medium text-white transition hover:bg-indigo-400"
+        className="mb-4 h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
+        style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
       >
         {passkeyLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Continue with Passkey
       </Button>
@@ -308,28 +364,45 @@ export default function LoginPage() {
         <>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-slate-300">Email <span className="text-red-400">*</span></Label>
+              <Label
+                htmlFor="email"
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--theme-text-secondary)" }}
+              >
+                Email <span style={{ color: "var(--theme-danger)" }}>*</span>
+              </Label>
               <Input
                 id="email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
-                className="h-10 border-white/10 bg-slate-800 text-slate-100 placeholder:text-slate-500"
+                className="auth-input h-10 border"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-slate-300">Password <span className="text-red-400">*</span></Label>
+              <Label
+                htmlFor="password"
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--theme-text-secondary)" }}
+              >
+                Password <span style={{ color: "var(--theme-danger)" }}>*</span>
+              </Label>
               <Input
                 id="password"
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
-                className="h-10 border-white/10 bg-slate-800 text-slate-100 placeholder:text-slate-500"
+                className="auth-input h-10 border"
               />
             </div>
-            <Button type="submit" disabled={loading} className="h-11 w-full bg-indigo-500 font-medium text-white transition hover:bg-indigo-400">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
+              style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
+            >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Log In with Password
             </Button>
           </form>
@@ -339,17 +412,29 @@ export default function LoginPage() {
             variant="outline"
             disabled={magicLinkLoading}
             onClick={handleMagicLink}
-            className="mt-4 h-10 w-full border-white/20 bg-white/5 text-slate-200 hover:bg-white/10"
+            className="mt-4 h-10 w-full transition-colors"
+            style={{
+              borderColor: "rgba(255,255,255,0.15)",
+              background: "rgba(255,255,255,0.04)",
+              color: "var(--theme-text-secondary)",
+            }}
           >
             {magicLinkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send Magic Link
           </Button>
         </>
       )}
 
-      {!showFallbacks && <p className="mt-3 text-xs text-amber-300">Your account policy requires passkey login. Contact an owner/admin if you need recovery help.</p>}
+      {!showFallbacks && (
+        <p className="mt-3 text-xs" style={{ color: "var(--theme-warning)" }}>
+          Your account policy requires passkey login. Contact an owner/admin if you need recovery help.
+        </p>
+      )}
 
-      <p className="mt-6 text-center text-sm text-slate-300">
-        Need an account? <Link href="/register" className="text-indigo-300 hover:underline">Register</Link>
+      <p className="mt-6 text-center text-sm" style={{ color: "var(--theme-text-secondary)" }}>
+        Need an account?{" "}
+        <Link href="/register" className="hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Register
+        </Link>
       </p>
     </div>
   )
