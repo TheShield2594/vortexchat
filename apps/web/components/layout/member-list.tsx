@@ -10,7 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ProfilePanel } from "@/components/profile/profile-panel"
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 import type { RealtimeChannel } from "@supabase/supabase-js"
@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 import { ReportModal } from "@/components/modals/report-modal"
 import { getStatusColor } from "@/lib/presence-status"
+import { cn } from "@/lib/utils/cn"
 
 interface Props {
   serverId: string
@@ -431,6 +432,25 @@ function MemberItem({
                   {member.user.status_message}
                 </div>
               )}
+              {presence?.voice_channel_id && (
+                <div
+                  className={cn(
+                    "mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] transition-all duration-200",
+                    presence?.speaking ? "bg-green-500/15 text-green-300" : "bg-white/10 text-[var(--theme-text-muted)]"
+                  )}
+                >
+                  {presence?.speaking ? (
+                    <span className="speaking-waveform" aria-hidden>
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  ) : (
+                    <span className="h-2 w-2 rounded-full bg-white/40" aria-hidden />
+                  )}
+                  {presence?.speaking ? "Speaking" : "Connected"}
+                </div>
+              )}
             </div>
           </div>
         </ContextMenuTrigger>
@@ -441,6 +461,7 @@ function MemberItem({
           <>
             <ContextMenuItem onClick={handleMessage} disabled={actionLoading === "message"}>
               <MessageSquare className="w-4 h-4 mr-2" /> Message
+              <ContextMenuShortcut>M</ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem onClick={handleAddFriend} disabled={actionLoading === "friend"}>
               <UserPlus className="w-4 h-4 mr-2" /> Add Friend
@@ -450,6 +471,7 @@ function MemberItem({
         )}
         <ContextMenuItem onClick={onViewProfile}>
           <UserCircle className="w-4 h-4 mr-2" /> View Profile
+          <ContextMenuShortcut>P</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => {
@@ -469,6 +491,7 @@ function MemberItem({
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={() => setShowReportModal(true)}>
               <Flag className="w-4 h-4 mr-2" /> Report User
+              <ContextMenuShortcut>⇧R</ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}

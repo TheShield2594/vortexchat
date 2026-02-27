@@ -974,7 +974,7 @@ function SortableChannelItem({
             }}
             aria-label={`${channel.type} channel ${channel.name}`}
             className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring",
+              "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring",
               isActive || isVoiceActive
                 ? "bg-white/10 text-white"
                 : isUnread
@@ -982,6 +982,16 @@ function SortableChannelItem({
                 : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
             )}
           >
+            <span
+              aria-hidden
+              className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-200",
+                isActive || isVoiceActive
+                  ? "opacity-100 h-5 w-1"
+                  : "opacity-0 h-4 w-0 group-hover/channel:opacity-60 group-hover/channel:w-0.5"
+              )}
+              style={{ background: "var(--theme-accent)" }}
+            />
             {canManageChannels && (
               <span
                 {...attributes}

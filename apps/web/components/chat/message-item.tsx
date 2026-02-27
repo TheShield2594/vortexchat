@@ -7,7 +7,7 @@ import { Highlight, themes } from "prism-react-renderer"
 import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut } from "@/components/ui/context-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
@@ -39,6 +39,8 @@ interface Props {
   sendState?: "queued" | "sending" | "failed"
   onRetry?: () => void
   recentlyActive?: boolean
+  animateOnMount?: boolean
+  onMountAnimationComplete?: () => void
 }
 
 function extractPoll(content: string | null): { question: string; options: string[]; sanitizedContent: string | null } | null {
@@ -242,6 +244,8 @@ export const MessageItem = memo(function MessageItem({
   sendState,
   onRetry,
   recentlyActive = false,
+  animateOnMount = false,
+  onMountAnimationComplete,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
@@ -252,6 +256,10 @@ export const MessageItem = memo(function MessageItem({
   const [showReportModal, setShowReportModal] = useState(false)
   const { toast } = useToast()
   const containerRef = useRef<HTMLDivElement>(null)
+  const reactionCountsRef = useRef<Record<string, number>>({})
+  const [poppingReactions, setPoppingReactions] = useState<Record<string, number>>({})
+  const popReactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
 
   useEffect(() => {
     if (!showActions && !showEmojiPicker) return
@@ -278,6 +286,48 @@ export const MessageItem = memo(function MessageItem({
     }
   }, [showActions, showEmojiPicker])
   const isOwn = message.author_id === currentUserId
+
+  useEffect(() => {
+    const nextCounts: Record<string, number> = {}
+    for (const reaction of message.reactions) {
+      nextCounts[reaction.emoji] = (nextCounts[reaction.emoji] ?? 0) + 1
+    }
+
+    const previous = reactionCountsRef.current
+    const changed = Object.keys(nextCounts).filter((emoji) => previous[emoji] !== undefined && previous[emoji] !== nextCounts[emoji])
+    if (changed.length > 0) {
+      setPoppingReactions((prev) => {
+        const next = { ...prev }
+        for (const emoji of changed) {
+          next[emoji] = (next[emoji] ?? 0) + 1
+
+          const existingTimer = popReactionTimersRef.current.get(emoji)
+          if (existingTimer) clearTimeout(existingTimer)
+          const timer = setTimeout(() => {
+            setPoppingReactions((current) => {
+              if (!(emoji in current)) return current
+              const updated = { ...current }
+              delete updated[emoji]
+              return updated
+            })
+            popReactionTimersRef.current.delete(emoji)
+          }, 180)
+          popReactionTimersRef.current.set(emoji, timer)
+        }
+        return next
+      })
+    }
+
+    reactionCountsRef.current = nextCounts
+
+    return () => {
+      for (const timer of popReactionTimersRef.current.values()) {
+        clearTimeout(timer)
+      }
+      popReactionTimersRef.current.clear()
+    }
+  }, [message.reactions])
+
   const { activeServerId, membersByServer } = useAppStore(
     useShallow((s) => ({ activeServerId: s.activeServerId, membersByServer: s.members }))
   )
@@ -452,8 +502,12 @@ export const MessageItem = memo(function MessageItem({
           className={cn(
             "relative group px-4 message-hover motion-interactive",
             highlighted && "mention-highlight",
+            animateOnMount && "message-arrival",
             isGrouped ? "py-0.5" : "pt-4 pb-0.5"
           )}
+          onAnimationEnd={() => {
+            if (animateOnMount) onMountAnimationComplete?.()
+          }}
           onMouseEnter={() => setShowActions(true)}
           onMouseLeave={() => { setShowActions(false) }}
           onFocus={() => setShowActions(true)}
@@ -670,7 +724,7 @@ export const MessageItem = memo(function MessageItem({
                     <div className="flex flex-wrap gap-1 mt-2">
                       {genericReactionEntries.map(([emoji, { count, hasOwn, users }]) => (
                         <button
-                          key={emoji}
+                          key={`${emoji}-${poppingReactions[emoji] ?? 0}`}
                           onClick={() => onReaction(emoji)}
                           title={users
                             .map((id) => {
@@ -679,7 +733,7 @@ export const MessageItem = memo(function MessageItem({
                               return member?.nickname || member?.display_name || member?.username || "Unknown user"
                             })
                             .join(", ")}
-                          className="motion-interactive motion-press flex items-center gap-1 px-2 py-0.5 rounded-full text-sm hover:-translate-y-px"
+                          className={cn("motion-interactive motion-press flex items-center gap-1 px-2 py-0.5 rounded-full text-sm hover:-translate-y-px", poppingReactions[emoji] && "reaction-chip-pop")}
                           aria-label={`Toggle ${emoji} reaction`}
                           style={{
                             background: hasOwn
@@ -815,6 +869,7 @@ export const MessageItem = memo(function MessageItem({
       <ContextMenuContent className="w-52" aria-label={`Message actions for ${displayName}`}>
         <ContextMenuItem onClick={onReply}>
           <Reply className="w-4 h-4 mr-2" /> Reply
+          <ContextMenuShortcut>R</ContextMenuShortcut>
         </ContextMenuItem>
         {onThreadCreated && (
           <ContextMenuItem onClick={() => setShowCreateThread(true)}>
@@ -824,6 +879,7 @@ export const MessageItem = memo(function MessageItem({
         {isOwn && (
           <ContextMenuItem onClick={() => setIsEditing(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit Message
+            <ContextMenuShortcut>E</ContextMenuShortcut>
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
@@ -857,6 +913,7 @@ export const MessageItem = memo(function MessageItem({
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={() => setShowReportModal(true)}>
               <Flag className="w-4 h-4 mr-2" /> Report Message
+              <ContextMenuShortcut>⇧R</ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}
@@ -865,6 +922,7 @@ export const MessageItem = memo(function MessageItem({
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="w-4 h-4 mr-2" /> Delete Message
+              <ContextMenuShortcut>Del</ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}

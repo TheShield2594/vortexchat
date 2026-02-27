@@ -79,6 +79,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [isPaginating, setIsPaginating] = useState(false)
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
+  const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -90,6 +91,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const reconnectCycleRef = useRef(0)
   const liveAnnouncementCounterRef = useRef(0)
   const unreadAnchorCycleRef = useRef<number | null>(null)
+  const animatedMessageTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -167,9 +169,31 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         )
       })
 
-      const next = existingIndex === -1
+      const isNewMessage = existingIndex === -1
+      const next = isNewMessage
         ? [...prev, incoming]
         : prev.map((message, idx) => (idx === existingIndex ? { ...prev[existingIndex], ...incoming } : message))
+
+      if (isNewMessage) {
+        setAnimatedMessageIds((current) => {
+          const nextIds = new Set(current)
+          nextIds.add(incoming.id)
+          return nextIds
+        })
+
+        const existingTimer = animatedMessageTimersRef.current.get(incoming.id)
+        if (existingTimer) clearTimeout(existingTimer)
+        const timer = setTimeout(() => {
+          setAnimatedMessageIds((current) => {
+            if (!current.has(incoming.id)) return current
+            const nextIds = new Set(current)
+            nextIds.delete(incoming.id)
+            return nextIds
+          })
+          animatedMessageTimersRef.current.delete(incoming.id)
+        }, 220)
+        animatedMessageTimersRef.current.set(incoming.id, timer)
+      }
 
       return sortMessagesChronologically(next)
     })
@@ -357,9 +381,23 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     previousLastMessageIdRef.current = initialMessages[initialMessages.length - 1]?.id ?? null
     setPendingNewMessageCount(0)
     setHasMoreHistory(initialMessages.length >= 50)
+    for (const timer of animatedMessageTimersRef.current.values()) {
+      clearTimeout(timer)
+    }
+    animatedMessageTimersRef.current.clear()
+    setAnimatedMessageIds(new Set())
     setIsPaginating(false)
     paginationRequestRef.current = null
   }, [initialMessages])
+
+  useEffect(() => {
+    return () => {
+      for (const timer of animatedMessageTimersRef.current.values()) {
+        clearTimeout(timer)
+      }
+      animatedMessageTimersRef.current.clear()
+    }
+  }, [])
 
   const loadOlderMessages = useCallback(async () => {
     const container = messageScrollerRef.current
@@ -1204,6 +1242,22 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   sendState={outboxStateByMessageId[message.id]}
                   onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
                   recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
+                  animateOnMount={animatedMessageIds.has(message.id)}
+                  onMountAnimationComplete={animatedMessageIds.has(message.id)
+                    ? () => {
+                      const timer = animatedMessageTimersRef.current.get(message.id)
+                      if (timer) {
+                        clearTimeout(timer)
+                        animatedMessageTimersRef.current.delete(message.id)
+                      }
+                      setAnimatedMessageIds((current) => {
+                        if (!current.has(message.id)) return current
+                        const next = new Set(current)
+                        next.delete(message.id)
+                        return next
+                      })
+                    }
+                    : undefined}
                   onReply={() => setReplyTo(message)}
                   onReplyJump={jumpToMessage}
                   onThreadCreated={(thread) => setActiveThread(thread)}
