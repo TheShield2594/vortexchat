@@ -9,6 +9,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useMentionAutocomplete } from "@/hooks/use-mention-autocomplete"
 import { MentionSuggestions } from "@/components/chat/mention-suggestions"
 import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
+import { EmojiPicker } from "frimousse"
 
 interface Props {
   channelName: string
@@ -20,17 +21,6 @@ interface Props {
   onTyping?: () => void
   onSent?: () => void
 }
-
-const EMOJI_CATEGORIES = {
-  People: ["😀", "😂", "😍", "🤔", "😭", "😎", "🥳", "😴", "🤯", "🫶", "👍", "👎"],
-  Nature: ["🌱", "🌸", "🌳", "🍀", "🌊", "🔥", "☀️", "🌙", "⚡", "❄️", "🐶", "🦊"],
-  Food: ["🍕", "🍔", "🌮", "🍣", "🍜", "🍩", "🍪", "🍎", "🍉", "☕", "🍺", "🍿"],
-  Activities: ["⚽", "🏀", "🎮", "🎯", "🎸", "🎤", "🎨", "🧩", "♟️", "🏓", "🏆", "🎉"],
-  Travel: ["🚗", "🚕", "✈️", "🚆", "🛳️", "🚀", "🗺️", "🏝️", "🏔️", "🏕️", "🏙️", "🧳"],
-  Objects: ["📱", "💻", "⌚", "🎧", "📷", "💡", "🔑", "🧠", "💎", "🛠️", "📌", "📦"],
-  Symbols: ["❤️", "✅", "❌", "⚠️", "🔔", "⭐", "💯", "♻️", "☮️", "☑️", "➕", "➖"],
-  Flags: ["🏳️", "🏴", "🏁", "🇺🇸", "🇬🇧", "🇨🇦", "🇫🇷", "🇩🇪", "🇯🇵", "🇰🇷", "🇮🇳", "🇧🇷"],
-} as const
 
 const GIPHY_API_BASE = "https://api.giphy.com/v1/gifs"
 
@@ -643,31 +633,110 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               </div>
 
               {pickerTab === "emoji" ? (
-                <div className="max-h-72 overflow-y-auto pr-1 space-y-2">
-                  {Object.entries(EMOJI_CATEGORIES).map(([category, emojis]) => (
-                    <div key={category}>
-                      <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--theme-text-muted)" }}>{category}</p>
-                      <div className="grid grid-cols-8 gap-1">
-                        {emojis.map((emoji) => (
-                          <button
-                            key={`${category}-${emoji}`}
-                            onClick={() => {
-                              const next = content + emoji
-                              setContent(next)
-                              setCursorPosition(next.length)
-                              onDraftChange(next)
-                              setShowEmojiPicker(false)
-                              textareaRef.current?.focus()
+                <EmojiPicker.Root
+                  onEmojiSelect={({ emoji }) => {
+                    const textarea = textareaRef.current
+                    const insertAt = textarea ? textarea.selectionStart ?? content.length : content.length
+                    const next = content.slice(0, insertAt) + emoji + content.slice(insertAt)
+                    setContent(next)
+                    setCursorPosition(insertAt + emoji.length)
+                    onDraftChange(next)
+                    setShowEmojiPicker(false)
+                    requestAnimationFrame(() => {
+                      if (textarea) {
+                        textarea.focus()
+                        textarea.setSelectionRange(insertAt + emoji.length, insertAt + emoji.length)
+                      }
+                    })
+                  }}
+                  style={{ display: "flex", flexDirection: "column", height: "320px" }}
+                >
+                  <div style={{ padding: "6px 6px 4px" }}>
+                    <EmojiPicker.Search
+                      style={{
+                        all: "unset",
+                        display: "block",
+                        width: "100%",
+                        padding: "5px 10px",
+                        borderRadius: "6px",
+                        fontSize: "13px",
+                        boxSizing: "border-box",
+                        background: "var(--theme-bg-tertiary)",
+                        color: "var(--theme-text-normal)",
+                      }}
+                      placeholder="Search emoji…"
+                    />
+                  </div>
+                  <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+                    <EmojiPicker.Loading>
+                      <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>Loading…</div>
+                    </EmojiPicker.Loading>
+                    <EmojiPicker.Empty>
+                      {({ search }) => (
+                        <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>
+                          No emoji found for &ldquo;{search}&rdquo;
+                        </div>
+                      )}
+                    </EmojiPicker.Empty>
+                    <EmojiPicker.List
+                      components={{
+                        CategoryHeader: ({ category, ...props }) => (
+                          <div
+                            {...props}
+                            style={{
+                              padding: "3px 8px",
+                              fontSize: "10px",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              color: "var(--theme-text-muted)",
+                              background: "var(--theme-bg-secondary)",
+                              position: "sticky",
+                              top: 0,
                             }}
-                            className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-lg"
                           >
-                            {emoji}
+                            {category.label}
+                          </div>
+                        ),
+                        Emoji: ({ emoji, ...props }) => (
+                          <button
+                            type="button"
+                            {...props}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "18px",
+                              width: "100%",
+                              aspectRatio: "1",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              border: "none",
+                              background: emoji.isActive ? "rgba(255,255,255,0.12)" : "transparent",
+                              fontFamily: "var(--frimousse-emoji-font)",
+                            }}
+                          >
+                            {emoji.emoji}
                           </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        ),
+                      }}
+                    />
+                  </EmojiPicker.Viewport>
+                  <div style={{ padding: "4px 8px 6px", display: "flex", alignItems: "center", justifyContent: "flex-end", borderTop: "1px solid var(--theme-bg-tertiary)" }}>
+                    <EmojiPicker.SkinToneSelector
+                      style={{
+                        all: "unset",
+                        cursor: "pointer",
+                        fontSize: "16px",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        border: "1px solid var(--theme-bg-tertiary)",
+                        background: "var(--theme-bg-tertiary)",
+                      }}
+                      aria-label="Change skin tone"
+                    />
+                  </div>
+                </EmojiPicker.Root>
               ) : (
                 <div className="space-y-2">
                   <input

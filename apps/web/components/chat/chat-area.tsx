@@ -1148,7 +1148,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
         <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
-        <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
+        <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative" style={{ overflowAnchor: "none" }}>
           {messages.length === 0 && (
             <div className="px-4 py-8">
               <div
@@ -1184,15 +1184,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               return (
                 <div key={message.id}>
                 {unreadDividerMessageId === message.id && (
-                  <div className="px-4 py-2.5 flex items-center gap-2" role="separator" aria-label="New since last read">
-                    <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, var(--theme-danger) 0%, #f87171 100%)" }} />
+                  <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
+                    <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />
                     <span
-                      className="text-[11px] font-bold uppercase tracking-[0.08em] px-2 py-1 rounded-full"
-                      style={{ color: "#ffe3e3", background: "color-mix(in srgb, var(--theme-danger) 20%, transparent)", border: "1px solid color-mix(in srgb, var(--theme-danger) 60%, transparent)" }}
+                      className="text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-0.5 rounded-full flex-shrink-0"
+                      style={{ color: "var(--theme-danger)", background: "color-mix(in srgb, var(--theme-danger) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--theme-danger) 40%, transparent)" }}
                     >
-                      New since last read
+                      NEW MESSAGES
                     </span>
-                    <div className="h-0.5 flex-1 rounded-full" style={{ background: "linear-gradient(90deg, #f87171 0%, var(--theme-danger) 100%)" }} />
+                    <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />
                   </div>
                 )}
                 <MessageItem
@@ -1275,17 +1275,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 </div>
               )
             })}
-            <div ref={bottomRef} />
+            <div ref={bottomRef} style={{ overflowAnchor: "auto", height: 1 }} />
           </div>
 
           {!isAtBottom && (
-            <div className="sticky bottom-3 px-4 flex justify-end">
+            <div className="sticky bottom-3 px-4 flex justify-center pointer-events-none">
               <button
                 onClick={jumpToLatest}
-                className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg"
-                style={{ background: "var(--theme-accent)", color: "white" }}
+                className="motion-interactive motion-press px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 pointer-events-auto"
+                style={{ background: "var(--theme-accent)", color: "var(--theme-bg-primary)" }}
               >
-                Jump to present {pendingNewMessageCount > 0 ? `(${pendingNewMessageCount})` : ""}
+                ↓ {pendingNewMessageCount > 0 ? `${pendingNewMessageCount} new message${pendingNewMessageCount > 1 ? "s" : ""}` : "Jump to latest"}
               </button>
             </div>
           )}

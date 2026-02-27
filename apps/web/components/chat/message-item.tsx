@@ -2,7 +2,9 @@
 
 import { memo, useCallback, useId, useRef, useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check } from "lucide-react"
+import { Highlight, themes } from "prism-react-renderer"
+import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
@@ -55,6 +57,155 @@ function extractPoll(content: string | null): { question: string; options: strin
     options: options.slice(0, POLL_NUMBER_EMOJIS.length),
     sanitizedContent: sanitized.length > 0 ? sanitized : null,
   }
+}
+
+function CodeBlock({ lang, code }: { lang: string; code: string }) {
+  const [copied, setCopied] = useState(false)
+
+  function copyCode() {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const language = lang || "text"
+
+  return (
+    <div className="relative my-1 group/code rounded overflow-hidden" style={{ border: "1px solid var(--theme-surface-elevated)" }}>
+      <div
+        className="flex items-center justify-between px-3 py-1"
+        style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-surface-elevated)" }}
+      >
+        {lang ? (
+          <span className="text-xs font-mono" style={{ color: "var(--theme-accent)" }}>{lang}</span>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          onClick={copyCode}
+          className="flex items-center gap-1 text-xs opacity-0 group-hover/code:opacity-100 transition-opacity motion-interactive"
+          style={{ color: copied ? "var(--theme-success)" : "var(--theme-text-muted)" }}
+          title="Copy code"
+        >
+          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+      <Highlight code={code} language={language} theme={themes.nightOwl}>
+        {({ style, tokens, getLineProps, getTokenProps }) => (
+          <pre
+            className="overflow-x-auto text-sm p-3"
+            style={{ ...style, margin: 0, fontFamily: "monospace" }}
+          >
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })}>
+                {line.map((token, key) => (
+                  <span key={key} {...getTokenProps({ token })} />
+                ))}
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
+    </div>
+  )
+}
+
+function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => void; onClose: () => void }) {
+  return (
+    <EmojiPicker.Root
+      onEmojiSelect={({ emoji }) => { onSelect(emoji); onClose() }}
+      style={{ display: "flex", flexDirection: "column", width: "320px", height: "380px" }}
+    >
+      <div style={{ padding: "8px 8px 4px" }}>
+        <EmojiPicker.Search
+          style={{
+            all: "unset",
+            display: "block",
+            width: "100%",
+            padding: "6px 10px",
+            borderRadius: "6px",
+            fontSize: "13px",
+            boxSizing: "border-box",
+            background: "var(--theme-bg-tertiary)",
+            color: "var(--theme-text-normal)",
+          }}
+          placeholder="Search emoji…"
+        />
+      </div>
+      <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+        <EmojiPicker.Loading>
+          <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>Loading…</div>
+        </EmojiPicker.Loading>
+        <EmojiPicker.Empty>
+          {({ search }) => (
+            <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>
+              No emoji found for &ldquo;{search}&rdquo;
+            </div>
+          )}
+        </EmojiPicker.Empty>
+        <EmojiPicker.List
+          components={{
+            CategoryHeader: ({ category, ...props }) => (
+              <div
+                {...props}
+                style={{
+                  padding: "4px 8px",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  color: "var(--theme-text-muted)",
+                  background: "var(--theme-bg-secondary)",
+                  position: "sticky",
+                  top: 0,
+                }}
+              >
+                {category.label}
+              </div>
+            ),
+            Emoji: ({ emoji, ...props }) => (
+              <button
+                type="button"
+                {...props}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
+                  width: "100%",
+                  aspectRatio: "1",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  border: "none",
+                  background: emoji.isActive ? "rgba(255,255,255,0.12)" : "transparent",
+                  fontFamily: "var(--frimousse-emoji-font)",
+                }}
+              >
+                {emoji.emoji}
+              </button>
+            ),
+          }}
+        />
+      </EmojiPicker.Viewport>
+      <div style={{ padding: "4px 8px 8px", display: "flex", justifyContent: "flex-end" }}>
+        <EmojiPicker.SkinToneSelector
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            fontSize: "16px",
+            padding: "2px 4px",
+            borderRadius: "4px",
+            border: "1px solid var(--theme-bg-tertiary)",
+            background: "var(--theme-bg-tertiary)",
+          }}
+          aria-label="Change skin tone"
+        />
+      </div>
+    </EmojiPicker.Root>
+  )
 }
 
 /** Memoized message bubble with author info, attachments, reactions, inline editing, thread creation, and context menu actions. */
@@ -236,10 +387,7 @@ export const MessageItem = memo(function MessageItem({
       const lang = cbMatch[1] || ""
       const code = cbMatch[2]
       segments.push(
-        <pre key={`cb-${keyCounter++}`} className="my-1 p-3 rounded overflow-x-auto text-sm" style={{ background: "var(--theme-bg-tertiary)", fontFamily: "monospace", color: "var(--theme-text-normal)", border: "1px solid #232428" }}>
-          {lang && <div className="text-xs mb-1" style={{ color: "var(--theme-accent)", fontFamily: "sans-serif" }}>{lang}</div>}
-          <code>{code}</code>
-        </pre>
+        <CodeBlock key={`cb-${keyCounter++}`} lang={lang} code={code} />
       )
       lastEnd = cbMatch.index + cbMatch[0].length
     }
@@ -262,7 +410,7 @@ export const MessageItem = memo(function MessageItem({
             isGrouped ? "py-0.5" : "pt-4 pb-0.5"
           )}
           onMouseEnter={() => setShowActions(true)}
-          onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false) }}
+          onMouseLeave={() => { setShowActions(false) }}
           onFocus={() => setShowActions(true)}
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
@@ -506,6 +654,24 @@ export const MessageItem = memo(function MessageItem({
             </div>
           </div>
 
+          {/* Emoji picker popup — positioned above the action rail */}
+          {showEmojiPicker && (
+            <div
+              className="absolute z-50"
+              style={{ right: 0, bottom: "calc(100% + 8px)" }}
+            >
+              <div
+                className="rounded-lg shadow-xl overflow-hidden"
+                style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+              >
+                <EmojiPickerPopup
+                  onSelect={(emoji) => onReaction(emoji)}
+                  onClose={() => setShowEmojiPicker(false)}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           {!isEditing && (
             <div
@@ -517,27 +683,10 @@ export const MessageItem = memo(function MessageItem({
               )}
               style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
             >
-              {/* Quick reactions */}
-              {showEmojiPicker && (
-                <div className="flex items-center px-1">
-                  {QUICK_REACTIONS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => { onReaction(emoji); setShowEmojiPicker(false) }}
-                      className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded text-sm focus-ring"
-                      tabIndex={showActions ? 0 : -1}
-                      aria-label={`Add ${emoji} reaction`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
-                style={{ color: "var(--theme-text-secondary)" }}
+                style={{ color: showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
                 title="Add Reaction"
                 aria-label="Add reaction"
                 aria-describedby={messageMetaId}
