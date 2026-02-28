@@ -845,7 +845,7 @@ const ParticipantTile = memo(function ParticipantTile({
       <div className="flex items-center gap-2 px-3 py-2" style={{ background: "rgba(0,0,0,0.5)" }}>
         <span className={cn("font-medium text-white flex-1 truncate", compact ? "text-xs" : "text-sm")}>{displayName}</span>
         {speaking && !muted && (
-          <span className="flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(35,165,90,0.2)", color: "#9ae6b4" }}>
+          <span role="status" aria-label="Speaking" className="flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(35,165,90,0.2)", color: "#9ae6b4" }}>
             <span className="speaking-waveform" aria-hidden>
               <span />
               <span />

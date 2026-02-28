@@ -1209,6 +1209,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           <div className="pb-4">
             {isPaginating && (
               <div className="px-4 py-3 space-y-3">
+                <span className="sr-only" role="status" aria-live="polite">Loading older messages…</span>
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
