@@ -847,11 +847,11 @@ function CategoryHeader({
   return (
     <div
       ref={sortable.setNodeRef}
-      style={style}
-      className={cn(
-        "flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive",
-        isDragOver && "bg-white/5"
-      )}
+      style={{
+        ...style,
+        ...(isDragOver ? { background: "color-mix(in srgb, var(--theme-text-primary) 5%, transparent)" } : {}),
+      }}
+      className="flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive"
     >
       <button
         ref={setNodeRef}
@@ -884,7 +884,7 @@ function CategoryHeader({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onAddChannel() }}
-                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-white motion-interactive focus-ring rounded-sm tertiary-metadata" aria-label={`Create channel in ${category.name}`}
+                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-interactive motion-interactive focus-ring rounded-sm" aria-label={`Create channel in ${category.name}`}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -1025,12 +1025,12 @@ function SortableChannelItem({
                 </Tooltip>
               )}
               {isVoiceActive && (
-                <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse" />
+                <span className="w-2 h-2 rounded-full inline-block animate-pulse" style={{ background: "var(--theme-success)" }} />
               )}
               {showBadge && (mentionCount ?? 0) > 0 ? (
                 <span
-                  className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold text-white px-1"
-                  style={{ background: "var(--theme-danger)" }}
+                  className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold px-1"
+                  style={{ background: "var(--theme-danger)", color: "var(--theme-text-bright)" }}
                 >
                   {(mentionCount ?? 0) > 99 ? "99+" : mentionCount}
                 </span>
@@ -1081,7 +1081,7 @@ function SortableChannelItem({
             return (
               <div
                 key={participant.user_id}
-                className="flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-white/5"
+                className="flex items-center gap-2 px-2 py-1 rounded text-xs surface-hover"
                 style={{ color: "var(--theme-text-secondary)" }}
               >
                 <Avatar className="w-5 h-5 flex-shrink-0">

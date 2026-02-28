@@ -525,7 +525,7 @@ export const MessageItem = memo(function MessageItem({
               <button
                 type="button"
                 onClick={() => onReplyJump(message.reply_to_id!)}
-                className="w-full text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--theme-accent)]"
+                className="w-full text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5 surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--theme-accent)]"
                 aria-label="Jump to replied message"
               >
                 <Reply className="w-3 h-3 -scale-x-100" />
@@ -602,7 +602,7 @@ export const MessageItem = memo(function MessageItem({
                     side="right"
                     align="start"
                   >
-                    <span className="font-semibold text-white hover:underline cursor-pointer">
+                    <span className="font-semibold hover:underline cursor-pointer" style={{ color: "var(--theme-text-bright)" }}>
                       {displayName}
                     </span>
                   </UserProfilePopover>
@@ -672,7 +672,7 @@ export const MessageItem = memo(function MessageItem({
                               type="button"
                               key={`poll-option-${message.id}-${index}`}
                               onClick={() => onReaction(emoji)}
-                              className="w-full flex items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-white/5"
+                              className="w-full flex items-center justify-between rounded px-2 py-1.5 text-sm surface-hover"
                               style={{ border: "1px solid var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                             >
                               <span className="truncate text-left">{emoji} {option}</span>
@@ -785,7 +785,7 @@ export const MessageItem = memo(function MessageItem({
             >
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
+                className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
                 style={{ color: showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
                 title="Add Reaction"
                 aria-label="Add reaction"
@@ -797,7 +797,7 @@ export const MessageItem = memo(function MessageItem({
 
               <button
                 onClick={onReply}
-                className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
+                className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
                 style={{ color: "var(--theme-text-secondary)" }}
                 title="Reply"
                 aria-label="Reply to message"
@@ -810,7 +810,7 @@ export const MessageItem = memo(function MessageItem({
               {onThreadCreated && (
                 <button
                   onClick={() => setShowCreateThread(true)}
-                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
                   style={{ color: "var(--theme-text-secondary)" }}
                   title="Create Thread"
                   aria-label="Create thread from message"
@@ -824,7 +824,7 @@ export const MessageItem = memo(function MessageItem({
               {isOwn && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
                   style={{ color: "var(--theme-text-secondary)" }}
                   title="Edit"
                   aria-label="Edit message"
@@ -838,7 +838,7 @@ export const MessageItem = memo(function MessageItem({
               {sendState === "failed" && onRetry && (
                 <button
                   onClick={onRetry}
-                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-white/10 focus-ring"
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
                   style={{ color: "var(--theme-warning)" }}
                   title="Retry send"
                   aria-label="Retry sending message"
@@ -1110,8 +1110,8 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
                   )}
                   {imageIndexes.length > 1 && (
                     <span>
-                      <button type="button" className="px-2 py-1 rounded hover:bg-white/10" onClick={() => move(-1)} aria-label="Previous image">← Prev</button>
-                      <button type="button" className="px-2 py-1 rounded hover:bg-white/10 ml-2" onClick={() => move(1)} aria-label="Next image">Next →</button>
+                      <button type="button" className="px-2 py-1 rounded surface-hover-md" onClick={() => move(-1)} aria-label="Previous image">← Prev</button>
+                      <button type="button" className="px-2 py-1 rounded surface-hover-md ml-2" onClick={() => move(1)} aria-label="Next image">Next →</button>
                     </span>
                   )}
                 </div>
@@ -1147,19 +1147,19 @@ function AttachmentDisplay({ attachment, onOpenImage }: { attachment: Attachment
       href={attachment.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="motion-interactive flex items-center gap-3 p-3 rounded max-w-sm hover:bg-white/5"
+      className="motion-interactive flex items-center gap-3 p-3 rounded max-w-sm surface-hover"
       style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
     >
       <div
         className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
         style={{ background: "var(--theme-accent)" }}
       >
-        <span className="text-white text-xs font-bold">
+        <span className="text-xs font-bold" style={{ color: "var(--theme-text-bright)" }}>
           {attachment.filename.split(".").pop()?.toUpperCase().slice(0, 4)}
         </span>
       </div>
       <div className="min-w-0">
-        <div className="text-sm font-medium text-white truncate">
+        <div className="text-sm font-medium truncate" style={{ color: "var(--theme-text-bright)" }}>
           {attachment.filename}
         </div>
         <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
