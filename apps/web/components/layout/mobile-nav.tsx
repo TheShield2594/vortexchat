@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, createContext, useContext } from "react"
-import { Menu, X, ArrowLeft } from "lucide-react"
+import { X } from "lucide-react"
+import { useSwipe } from "@/hooks/use-swipe"
 
 interface MobileNavCtx {
   sidebarOpen: boolean
@@ -29,14 +30,16 @@ export function useMobileNav() {
 // Hamburger button shown in the mobile header
 export function MobileMenuButton() {
   const { sidebarOpen, setSidebarOpen } = useMobileNav()
+  if (!sidebarOpen) return <div className="md:hidden w-8 h-8" aria-hidden="true" />
+
   return (
     <button
       className="md:hidden w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-white/10"
       style={{ color: "var(--theme-text-secondary)" }}
-      onClick={() => setSidebarOpen(!sidebarOpen)}
-      aria-label="Toggle sidebar"
+      onClick={() => setSidebarOpen(false)}
+      aria-label="Close sidebar"
     >
-      {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+      <X className="w-5 h-5" />
     </button>
   )
 }
@@ -44,11 +47,29 @@ export function MobileMenuButton() {
 // Overlay backdrop for mobile
 export function MobileOverlay() {
   const { sidebarOpen, setSidebarOpen } = useMobileNav()
+  const swipe = useSwipe({ onSwipeLeft: () => setSidebarOpen(false) })
   if (!sidebarOpen) return null
   return (
     <div
       className="md:hidden fixed inset-0 z-40 bg-black/60"
       onClick={() => setSidebarOpen(false)}
+      {...swipe}
+    />
+  )
+}
+
+export function MobileSwipeArea() {
+  const { sidebarOpen, setSidebarOpen } = useMobileNav()
+  const swipe = useSwipe({
+    onSwipeRight: () => setSidebarOpen(true),
+    onSwipeLeft: () => sidebarOpen && setSidebarOpen(false),
+  })
+
+  return (
+    <div
+      className="md:hidden fixed inset-y-0 left-0 z-30 w-5"
+      aria-hidden="true"
+      {...swipe}
     />
   )
 }

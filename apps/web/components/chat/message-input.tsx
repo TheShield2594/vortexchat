@@ -656,8 +656,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <div
             ref={emojiPickerRef}
             data-state="open"
-            className="panel-surface-motion absolute bottom-14 right-4 p-2 rounded-lg shadow-xl z-50"
-            style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", width: "320px" }}
+            className="panel-surface-motion fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[320px] md:rounded-lg md:border"
+            style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)" }}
           >
               <div className="mb-2 flex items-center gap-2" role="tablist" aria-label="Picker type">
                 <button

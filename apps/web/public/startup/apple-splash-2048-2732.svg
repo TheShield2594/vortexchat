@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2732" viewBox="0 0 2048 2732">
+  <rect width="100%" height="100%" fill="#1b1f31"/>
+  <circle cx="2048" cy="2732" r="1" fill="none"/>
+  <circle cx="1024" cy="1326" r="256" fill="#00e5ff" opacity="0.2"/>
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#00e5ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="204" font-weight="700">V</text>
+  <text x="50%" y="1546" dominant-baseline="middle" text-anchor="middle" fill="#e2e8f0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="102" font-weight="600">VortexChat</text>
+</svg>
