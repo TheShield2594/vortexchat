@@ -33,6 +33,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiGridRef = useRef<HTMLDivElement>(null)
   const [showPollCreator, setShowPollCreator] = useState(false)
   const [pollQuestion, setPollQuestion] = useState("")
   const [pollOptions, setPollOptions] = useState(["", ""])
@@ -275,6 +276,64 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     setCursorPosition(e.currentTarget.selectionStart)
   }
 
+  function handleEmojiGridKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const arrows = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]
+    if (!arrows.includes(e.key)) return
+    const gridEl = emojiGridRef.current
+    if (!gridEl) return
+    const buttons = Array.from(gridEl.querySelectorAll<HTMLButtonElement>("[data-emoji-btn]"))
+    if (buttons.length === 0) return
+    const activeEl = document.activeElement as HTMLButtonElement
+    let currentIdx = buttons.indexOf(activeEl)
+    if (currentIdx === -1) {
+      e.preventDefault()
+      buttons[0].focus()
+      return
+    }
+    e.preventDefault()
+    let cols = 9
+    if (buttons.length >= 2) {
+      const r0 = buttons[0].getBoundingClientRect()
+      let c = 1
+      for (let i = 1; i < buttons.length; i++) {
+        if (buttons[i].getBoundingClientRect().top > r0.bottom) break
+        c++
+      }
+      if (c > 0) cols = c
+    }
+    let nextIdx = currentIdx
+    if (e.key === "ArrowRight") nextIdx = Math.min(buttons.length - 1, currentIdx + 1)
+    else if (e.key === "ArrowLeft") nextIdx = Math.max(0, currentIdx - 1)
+    else if (e.key === "ArrowDown") nextIdx = Math.min(buttons.length - 1, currentIdx + cols)
+    else if (e.key === "ArrowUp") nextIdx = Math.max(0, currentIdx - cols)
+    if (nextIdx !== currentIdx) {
+      buttons[nextIdx].focus()
+      buttons[nextIdx].scrollIntoView({ block: "nearest" })
+    }
+  }
+
+  function handleGifGridKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const arrows = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]
+    if (!arrows.includes(e.key)) return
+    e.preventDefault()
+    const grid = e.currentTarget
+    const buttons = Array.from(grid.querySelectorAll<HTMLButtonElement>("button"))
+    if (buttons.length === 0) return
+    const activeEl = document.activeElement as HTMLButtonElement
+    const currentIdx = buttons.indexOf(activeEl)
+    if (currentIdx === -1) return
+    const cols = 3
+    let nextIdx = currentIdx
+    if (e.key === "ArrowRight") nextIdx = Math.min(buttons.length - 1, currentIdx + 1)
+    else if (e.key === "ArrowLeft") nextIdx = Math.max(0, currentIdx - 1)
+    else if (e.key === "ArrowDown") nextIdx = Math.min(buttons.length - 1, currentIdx + cols)
+    else if (e.key === "ArrowUp") nextIdx = Math.max(0, currentIdx - cols)
+    if (nextIdx !== currentIdx) {
+      buttons[nextIdx].focus()
+      buttons[nextIdx].scrollIntoView({ block: "nearest" })
+    }
+  }
+
   const canInsertPoll = pollQuestion.trim().length > 0 && pollOptions.filter((option) => option.trim().length > 0).length >= 2
 
   function resetPollDraftToBlank() {
@@ -333,7 +392,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <span className="truncate flex-1" style={{ color: "var(--theme-text-muted)" }}>
             {replyTo.content}
           </span>
-          <button onClick={onCancelReply} style={{ color: "var(--theme-text-muted)" }}>
+          <button onClick={onCancelReply} aria-label="Cancel reply" className="focus-ring rounded" style={{ color: "var(--theme-text-muted)" }}>
             <X className="w-3 h-3 hover:text-white" />
           </button>
         </div>
@@ -420,7 +479,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         >
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold" style={{ color: "var(--theme-text-primary)" }}>Create poll</p>
-            <button type="button" onClick={() => {
+            <button type="button" aria-label="Close poll creator" className="focus-ring rounded" onClick={() => {
               setShowPollCreator(false)
               resetPollDraftToBlank()
             }} style={{ color: "var(--theme-text-muted)" }}>
@@ -454,7 +513,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   type="button"
                   onClick={() => removePollOption(index)}
                   disabled={pollOptions.length <= 2}
-                  className="px-2 py-1 rounded text-xs disabled:opacity-50"
+                  className="px-2 py-1 rounded text-xs disabled:opacity-50 focus-ring"
                   style={{ color: "var(--theme-text-muted)", border: "1px solid var(--theme-bg-tertiary)" }}
                   aria-label={`Remove option ${index + 1}`}
                 >
@@ -498,7 +557,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="motion-interactive motion-press flex-shrink-0 hover:text-white"
+            className="motion-interactive motion-press flex-shrink-0 hover:text-white focus-ring rounded"
             style={{ color: "var(--theme-text-secondary)" }}
             title="Attach"
             aria-label="Attach file"
@@ -513,10 +572,11 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               }
               setShowPollCreator((prev) => !prev)
             }}
-            className="motion-interactive motion-press flex-shrink-0 hover:text-white"
+            className="motion-interactive motion-press flex-shrink-0 hover:text-white focus-ring rounded"
             style={{ color: showPollCreator ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             title="Poll"
             aria-label="Create poll"
+            aria-pressed={showPollCreator}
           >
             <BarChart3 className="w-4 h-4" />
           </button>
@@ -527,10 +587,11 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               setPickerTab("emoji")
               setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
             }}
-            className="motion-interactive motion-press hover:text-white"
+            className="motion-interactive motion-press hover:text-white focus-ring rounded"
             style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             title="Emoji"
             aria-label="Insert emoji"
+            aria-pressed={pickerTab === "emoji" && showEmojiPicker}
           >
             <Smile className="w-4 h-4" />
           </button>
@@ -540,10 +601,11 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               setPickerTab("gif")
               setShowEmojiPicker(true)
             }}
-            className="motion-interactive motion-press hover:text-white"
+            className="motion-interactive motion-press hover:text-white focus-ring rounded"
             style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             title="GIF"
             aria-label="Insert GIF"
+            aria-pressed={pickerTab === "gif" && showEmojiPicker}
           >
             <Sticker className="w-4 h-4" />
           </button>
@@ -597,17 +659,23 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             className="panel-surface-motion absolute bottom-14 right-4 p-2 rounded-lg shadow-xl z-50"
             style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", width: "320px" }}
           >
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-2 flex items-center gap-2" role="tablist" aria-label="Picker type">
                 <button
+                  role="tab"
+                  aria-selected={pickerTab === "emoji"}
+                  aria-controls="emoji-tab-panel"
                   onClick={() => setPickerTab("emoji")}
-                  className="px-2 py-1 rounded text-xs font-medium"
+                  className="px-2 py-1 rounded text-xs font-medium focus-ring"
                   style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
                 >
                   Emoji
                 </button>
                 <button
+                  role="tab"
+                  aria-selected={pickerTab === "gif"}
+                  aria-controls="gif-tab-panel"
                   onClick={() => setPickerTab("gif")}
-                  className="px-2 py-1 rounded text-xs font-medium"
+                  className="px-2 py-1 rounded text-xs font-medium focus-ring"
                   style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
                 >
                   GIFs
@@ -615,120 +683,140 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               </div>
 
               {pickerTab === "emoji" ? (
-                <EmojiPicker.Root
-                  onEmojiSelect={({ emoji }) => {
-                    const textarea = textareaRef.current
-                    const start = textarea ? textarea.selectionStart ?? content.length : content.length
-                    const end = textarea ? textarea.selectionEnd ?? start : start
-                    const next = content.slice(0, start) + emoji + content.slice(end)
-                    setContent(next)
-                    setCursorPosition(start + emoji.length)
-                    onDraftChange(next)
-                    setShowEmojiPicker(false)
-                    requestAnimationFrame(() => {
-                      if (textarea) {
-                        textarea.focus()
-                        textarea.setSelectionRange(start + emoji.length, start + emoji.length)
-                      }
-                    })
-                  }}
-                  style={{ display: "flex", flexDirection: "column", height: "320px" }}
+                <div
+                  id="emoji-tab-panel"
+                  role="tabpanel"
+                  ref={emojiGridRef}
+                  onKeyDown={handleEmojiGridKeyDown}
+                  style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}
                 >
-                  <div style={{ padding: "6px 6px 4px" }}>
-                    <EmojiPicker.Search
-                      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        padding: "5px 10px",
-                        borderRadius: "6px",
-                        fontSize: "13px",
-                        boxSizing: "border-box",
-                        background: "var(--theme-bg-tertiary)",
-                        color: "var(--theme-text-normal)",
-                        border: "none",
-                        outline: "none",
-                      }}
-                      placeholder="Search emoji…"
-                    />
-                  </div>
-                  <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
-                    <EmojiPicker.Loading>
-                      <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>Loading…</div>
-                    </EmojiPicker.Loading>
-                    <EmojiPicker.Empty>
-                      {({ search }) => (
-                        <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>
-                          No emoji found for &ldquo;{search}&rdquo;
-                        </div>
-                      )}
-                    </EmojiPicker.Empty>
-                    <EmojiPicker.List
-                      components={{
-                        CategoryHeader: ({ category, ...props }) => (
-                          <div
-                            {...props}
-                            style={{
-                              padding: "3px 8px",
-                              fontSize: "10px",
-                              fontWeight: 600,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.06em",
-                              color: "var(--theme-text-muted)",
-                              background: "var(--theme-bg-secondary)",
-                              position: "sticky",
-                              top: 0,
-                            }}
-                          >
-                            {category.label}
+                  <EmojiPicker.Root
+                    onEmojiSelect={({ emoji }) => {
+                      const textarea = textareaRef.current
+                      const start = textarea ? textarea.selectionStart ?? content.length : content.length
+                      const end = textarea ? textarea.selectionEnd ?? start : start
+                      const next = content.slice(0, start) + emoji + content.slice(end)
+                      setContent(next)
+                      setCursorPosition(start + emoji.length)
+                      onDraftChange(next)
+                      setShowEmojiPicker(false)
+                      requestAnimationFrame(() => {
+                        if (textarea) {
+                          textarea.focus()
+                          textarea.setSelectionRange(start + emoji.length, start + emoji.length)
+                        }
+                      })
+                    }}
+                    style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}
+                  >
+                    <div style={{ padding: "6px 6px 4px" }}>
+                      <EmojiPicker.Search
+                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          padding: "5px 10px",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          boxSizing: "border-box",
+                          background: "var(--theme-bg-tertiary)",
+                          color: "var(--theme-text-normal)",
+                          border: "none",
+                          outline: "none",
+                        }}
+                        placeholder="Search emoji…"
+                        onKeyDown={(e) => {
+                          if ((e.key === "Tab" && !e.shiftKey) || e.key === "ArrowDown") {
+                            const firstBtn = emojiGridRef.current?.querySelector<HTMLButtonElement>("[data-emoji-btn]")
+                            if (firstBtn) {
+                              e.preventDefault()
+                              firstBtn.focus()
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+                      <EmojiPicker.Loading>
+                        <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>Loading…</div>
+                      </EmojiPicker.Loading>
+                      <EmojiPicker.Empty>
+                        {({ search }) => (
+                          <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>
+                            No emoji found for &ldquo;{search}&rdquo;
                           </div>
-                        ),
-                        Emoji: ({ emoji, ...props }) => (
-                          <button
-                            type="button"
-                            {...props}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "18px",
-                              width: "100%",
-                              aspectRatio: "1",
-                              borderRadius: "4px",
-                              cursor: "pointer",
-                              border: "none",
-                              background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
-                              fontFamily: "var(--frimousse-emoji-font)",
-                            }}
-                          >
-                            {emoji.emoji}
-                          </button>
-                        ),
-                      }}
-                    />
-                  </EmojiPicker.Viewport>
-                  <div style={{ padding: "4px 8px 6px", display: "flex", alignItems: "center", justifyContent: "flex-end", borderTop: "1px solid var(--theme-bg-tertiary)" }}>
-                    <EmojiPicker.SkinToneSelector
-                      style={{
-                        all: "unset",
-                        cursor: "pointer",
-                        fontSize: "16px",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        border: "1px solid var(--theme-bg-tertiary)",
-                        background: "var(--theme-bg-tertiary)",
-                      }}
-                      aria-label="Change skin tone"
-                    />
-                  </div>
-                </EmojiPicker.Root>
+                        )}
+                      </EmojiPicker.Empty>
+                      <EmojiPicker.List
+                        components={{
+                          CategoryHeader: ({ category, ...props }) => (
+                            <div
+                              {...props}
+                              style={{
+                                padding: "3px 8px",
+                                fontSize: "10px",
+                                fontWeight: 600,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                color: "var(--theme-text-muted)",
+                                background: "var(--theme-bg-secondary)",
+                                position: "sticky",
+                                top: 0,
+                              }}
+                            >
+                              {category.label}
+                            </div>
+                          ),
+                          Emoji: ({ emoji, ...props }) => (
+                            <button
+                              type="button"
+                              {...props}
+                              data-emoji-btn=""
+                              tabIndex={-1}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "18px",
+                                width: "100%",
+                                aspectRatio: "1",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                border: "none",
+                                background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
+                                fontFamily: "var(--frimousse-emoji-font)",
+                              }}
+                            >
+                              {emoji.emoji}
+                            </button>
+                          ),
+                        }}
+                      />
+                    </EmojiPicker.Viewport>
+                    <div style={{ padding: "4px 8px 6px", display: "flex", alignItems: "center", justifyContent: "flex-end", borderTop: "1px solid var(--theme-bg-tertiary)" }}>
+                      <EmojiPicker.SkinToneSelector
+                        style={{
+                          all: "unset",
+                          cursor: "pointer",
+                          fontSize: "16px",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid var(--theme-bg-tertiary)",
+                          background: "var(--theme-bg-tertiary)",
+                        }}
+                        aria-label="Change skin tone"
+                      />
+                    </div>
+                  </EmojiPicker.Root>
+                </div>
               ) : (
-                <div className="space-y-2">
+                <div id="gif-tab-panel" role="tabpanel" className="space-y-2">
                   <input
                     value={gifQuery}
                     onChange={(e) => setGifQuery(e.target.value)}
                     placeholder="Search GIFs"
-                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none"
+                    aria-label="Search GIFs"
+                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
                     style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   />
                   {!process.env.NEXT_PUBLIC_GIPHY_API_KEY ? (
@@ -738,7 +826,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   ) : gifLoading ? (
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
                   ) : (
-                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                    <div
+                      className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto"
+                      onKeyDown={handleGifGridKeyDown}
+                    >
                       {gifResults.map((gif) => (
                         <button
                           key={gif.id}
@@ -751,8 +842,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                             setShowEmojiPicker(false)
                             textareaRef.current?.focus()
                           }}
-                          className="rounded overflow-hidden hover:opacity-90"
+                          className="rounded overflow-hidden hover:opacity-90 focus-ring"
                           title={gif.title}
+                          aria-label={gif.title}
                         >
                           <img src={gif.previewUrl} alt={gif.title} className="w-full h-16 object-cover" />
                           <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
@@ -770,7 +862,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <button
             onClick={handleSend}
             disabled={sending}
-            className="motion-interactive motion-press flex-shrink-0 mb-1 hover:text-white"
+            aria-label="Send message"
+            className="motion-interactive motion-press flex-shrink-0 mb-1 hover:text-white focus-ring rounded"
             style={{ color: "var(--theme-accent)" }}
             title="Send Message"
           >

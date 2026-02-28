@@ -45,7 +45,7 @@
     --theme-text-normal: #d6defc;
     --theme-text-secondary: #b6c0dd;
     --theme-text-muted: #8f9bbf;
-    --theme-text-faint: #6b7392;
+    --theme-text-faint: #8690b2;
     --theme-text-bright: #f4f7ff;
     --theme-accent: #00e5ff;
     --theme-accent-secondary: #f92aad;
@@ -92,6 +92,28 @@
 }
 
 @layer utilities {
+  .skip-nav-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 9999;
+    padding: 8px 16px;
+    background: var(--theme-accent);
+    color: var(--theme-bg-primary);
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    border-radius: 0 0 4px 4px;
+    white-space: nowrap;
+  }
+
+  .skip-nav-link:focus {
+    left: 50%;
+    transform: translateX(-50%);
+    outline: 2px solid var(--theme-bg-primary);
+    outline-offset: 2px;
+  }
+
   .motion-interactive {
     transition-property: background-color, color, border-color, opacity, transform, box-shadow;
     transition-duration: var(--motion-duration-standard);
@@ -360,7 +382,7 @@
   --theme-text-normal: #dcddde;
   --theme-text-secondary: #b5bac1;
   --theme-text-muted: #949ba4;
-  --theme-text-faint: #4e5058;
+  --theme-text-faint: #959ca6;
   --theme-text-bright: #dbdee1;
   --theme-accent: #5865f2;
   --theme-accent-secondary: #eb459e;
@@ -410,7 +432,7 @@
   --theme-text-normal: #d6defc;
   --theme-text-secondary: #b6c0dd;
   --theme-text-muted: #8f9bbf;
-  --theme-text-faint: #6b7392;
+  --theme-text-faint: #8690b2;
   --theme-text-bright: #f4f7ff;
   --theme-accent: #00e5ff;
   --theme-accent-secondary: #f92aad;
@@ -460,7 +482,7 @@
   --theme-text-normal: #e9dcff;
   --theme-text-secondary: #cab7e8;
   --theme-text-muted: #a990d0;
-  --theme-text-faint: #7f6aa8;
+  --theme-text-faint: #a088c8;
   --theme-text-bright: #fff7ff;
   --theme-accent: #f92aad;
   --theme-accent-secondary: #00e5ff;
@@ -510,7 +532,7 @@
   --theme-text-normal: #d5d9df;
   --theme-text-secondary: #b5bcc6;
   --theme-text-muted: #98a0ab;
-  --theme-text-faint: #6b737f;
+  --theme-text-faint: #858c99;
   --theme-text-bright: #f5f7fa;
   --theme-accent: #3ba55c;
   --theme-accent-secondary: #5db3ff;

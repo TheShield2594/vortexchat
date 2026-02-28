@@ -37,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`} style={{ background: 'var(--theme-bg-primary)' }}>
+        <a href="#main-content" className="skip-nav-link">Skip to main content</a>
         {children}
         <Toaster />
       </body>

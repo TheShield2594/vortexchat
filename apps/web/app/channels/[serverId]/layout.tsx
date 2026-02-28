@@ -47,7 +47,9 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
           isOwner={server.owner_id === user.id}
           userRoles={userRoles}
         />
-        {children}
+        <main id="main-content" className="flex flex-1 overflow-hidden">
+          {children}
+        </main>
         <MemberList serverId={params.serverId} />
       </div>
     </ServerEmojiProvider>
