@@ -21,6 +21,7 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   type OutboxEntry,
   removeOutboxEntry,
@@ -1207,8 +1208,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
           <div className="pb-4">
             {isPaginating && (
-              <div className="px-4 py-2 text-[11px]" style={{ color: "var(--theme-text-muted)" }}>
-                Loading earlier messages…
+              <div className="px-4 py-3 space-y-3">
+                <span className="sr-only" role="status" aria-live="polite">Loading older messages…</span>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
+                    <div className="flex-1 space-y-1.5 pt-0.5">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-2.5 w-12 opacity-50" />
+                      </div>
+                      <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
+                      {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
             {messages.map((message, i) => {
