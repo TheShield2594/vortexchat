@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { ServerSidebar } from "@/components/layout/server-sidebar"
 import { AppProvider } from "@/components/layout/app-provider"
+import { MobileBottomTabBar } from "@/components/layout/mobile-bottom-tab-bar"
 import type { ServerRow } from "@/types/database"
 
 /** Root layout for all /channels routes — authenticates the user, loads profile and server list, wraps children in AppProvider. */
@@ -47,10 +48,13 @@ export default async function ChannelsLayout({
 
   return (
     <AppProvider user={profile} servers={servers}>
-      <div className="flex h-screen overflow-hidden" style={{ background: 'var(--app-bg-primary)' }}>
-        <ServerSidebar />
-        {children}
+      <div className="flex h-screen overflow-hidden pb-16 md:pb-0" style={{ background: "var(--app-bg-primary)" }}>
+        <div className="hidden md:flex">
+          <ServerSidebar />
+        </div>
+        <div className="flex flex-1 min-w-0 overflow-hidden">{children}</div>
       </div>
+      <MobileBottomTabBar />
     </AppProvider>
   )
 }

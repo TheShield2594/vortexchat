@@ -2,7 +2,7 @@
   "name": "VortexChat",
   "short_name": "Vortex",
   "description": "The chat platform for focused teams and creative communities.",
-  "start_url": "/channels/@me",
+  "start_url": "/channels/me",
   "display": "standalone",
   "background_color": "#1b1f31",
   "theme_color": "#00e5ff",
@@ -21,13 +21,22 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["social", "communication"],
+  "categories": [
+    "social",
+    "communication"
+  ],
   "shortcuts": [
     {
       "name": "Friends",
       "short_name": "Friends",
       "url": "/channels/@me",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
-  ]
+  ],
+  "scope": "/channels"
 }
