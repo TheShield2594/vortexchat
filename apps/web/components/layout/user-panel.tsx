@@ -123,7 +123,7 @@ export function UserPanel() {
 
             {/* Username */}
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-white truncate">{displayName}</div>
+              <div className="text-xs font-semibold truncate" style={{ color: 'var(--theme-text-bright)' }}>{displayName}</div>
               {customStatusText ? (
                 <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
                   {customStatusText}
@@ -194,7 +194,7 @@ export function UserPanel() {
                   }
                 }}
                 aria-label="Disconnect from voice"
-                className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors focus-ring"
+                className="w-7 h-7 rounded flex items-center justify-center surface-hover-danger motion-interactive focus-ring"
                 style={{ color: 'var(--theme-danger)' }}
               >
                 <PhoneOff className="w-4 h-4" />
@@ -210,7 +210,7 @@ export function UserPanel() {
               onClick={() => setMuted(!muted)}
               aria-label={muted ? "Unmute microphone" : "Mute microphone"}
               aria-pressed={muted}
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
+              className="w-7 h-7 rounded flex items-center justify-center surface-hover-md motion-interactive focus-ring"
               style={{ color: muted ? 'var(--theme-danger)' : 'var(--theme-text-muted)' }}
             >
               {muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -225,7 +225,7 @@ export function UserPanel() {
               onClick={() => setDeafened(!deafened)}
               aria-label={deafened ? "Undeafen" : "Deafen"}
               aria-pressed={deafened}
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
+              className="w-7 h-7 rounded flex items-center justify-center surface-hover-md motion-interactive focus-ring"
               style={{ color: deafened ? 'var(--theme-danger)' : 'var(--theme-text-muted)' }}
             >
               <Headphones className="w-4 h-4" />
@@ -239,7 +239,7 @@ export function UserPanel() {
             <button
               onClick={() => setShowProfileSettings(true)}
               aria-label="User Settings"
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
+              className="w-7 h-7 rounded flex items-center justify-center surface-hover-md motion-interactive focus-ring"
               style={{ color: 'var(--theme-text-muted)' }}
             >
               <Settings className="w-4 h-4" />
