@@ -35,9 +35,9 @@ export function MeShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 overflow-hidden">
         <DMListPanel />
         <MobileOverlay />
-        <div className="flex flex-1 overflow-hidden min-w-0">
+        <main id="main-content" className="flex flex-1 overflow-hidden min-w-0">
           {children}
-        </div>
+        </main>
       </div>
     </MobileNavProvider>
   )

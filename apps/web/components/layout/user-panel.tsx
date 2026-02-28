@@ -103,7 +103,7 @@ export function UserPanel() {
     >
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <div className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer" role="button" tabIndex={0} onClick={() => setShowProfileSettings(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowProfileSettings(true) }}>
+          <div className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer focus-ring rounded" role="button" tabIndex={0} aria-label="Open profile settings" onClick={() => setShowProfileSettings(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowProfileSettings(true) }}>
             {/* Avatar with status */}
             <div className="relative flex-shrink-0">
               <Avatar className="w-8 h-8">
@@ -193,7 +193,8 @@ export function UserPanel() {
                     toast({ variant: "destructive", title: "Failed to disconnect", description: error.message })
                   }
                 }}
-                className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                aria-label="Disconnect from voice"
+                className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors focus-ring"
                 style={{ color: 'var(--theme-danger)' }}
               >
                 <PhoneOff className="w-4 h-4" />
@@ -207,7 +208,9 @@ export function UserPanel() {
           <TooltipTrigger asChild>
             <button
               onClick={() => setMuted(!muted)}
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
+              aria-label={muted ? "Unmute microphone" : "Mute microphone"}
+              aria-pressed={muted}
+              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
               style={{ color: muted ? 'var(--theme-danger)' : 'var(--theme-text-muted)' }}
             >
               {muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -220,7 +223,9 @@ export function UserPanel() {
           <TooltipTrigger asChild>
             <button
               onClick={() => setDeafened(!deafened)}
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
+              aria-label={deafened ? "Undeafen" : "Deafen"}
+              aria-pressed={deafened}
+              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
               style={{ color: deafened ? 'var(--theme-danger)' : 'var(--theme-text-muted)' }}
             >
               <Headphones className="w-4 h-4" />
@@ -233,7 +238,8 @@ export function UserPanel() {
           <TooltipTrigger asChild>
             <button
               onClick={() => setShowProfileSettings(true)}
-              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors"
+              aria-label="User Settings"
+              className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/10 transition-colors focus-ring"
               style={{ color: 'var(--theme-text-muted)' }}
             >
               <Settings className="w-4 h-4" />

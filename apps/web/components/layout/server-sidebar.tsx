@@ -87,7 +87,7 @@ export function ServerSidebar() {
               onClick={() => setActiveServer(null)}
               aria-label="Direct Messages"
               className={cn(
-                "w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-200",
+                "w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring",
                 activeServerId === null
                   ? "rounded-2xl"
                   : "rounded-full hover:rounded-2xl"
@@ -136,7 +136,8 @@ export function ServerSidebar() {
           <TooltipTrigger asChild>
             <button
               onClick={() => setShowCreateServer(true)}
-              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group"
+              aria-label="Add a Server"
+              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}
             >
               <Plus className="w-6 h-6 transition-colors" style={{ color: 'var(--theme-success)' }} />
@@ -149,7 +150,8 @@ export function ServerSidebar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200"
+              aria-label="Explore Public Servers"
+              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}
             >
               <Compass className="w-6 h-6" style={{ color: 'var(--theme-success)' }} />
@@ -201,7 +203,7 @@ function ServerIcon({
       <Tooltip>
         <TooltipTrigger asChild>
           <ContextMenuTrigger asChild>
-            <div className="relative group cursor-pointer" role="button" tabIndex={0} onClick={onClick} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick() }}>
+            <div className="relative group cursor-pointer focus-ring rounded-full" role="button" tabIndex={0} aria-label={server.name} onClick={onClick} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick() }}>
               {/* Active indicator */}
               <div
                 className={cn(
