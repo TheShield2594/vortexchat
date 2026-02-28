@@ -194,18 +194,31 @@
 
   /* Message hover bg */
   .message-hover:hover {
-    background-color: rgba(0, 0, 0, 0.06);
+    background-color: color-mix(in srgb, var(--theme-text-primary) 4%, transparent);
   }
 
   /* Channel hover */
   .channel-hover:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    color: #dbdee1;
+    background-color: color-mix(in srgb, var(--theme-text-primary) 6%, transparent);
+    color: var(--theme-text-normal);
   }
 
   .channel-active {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #f2f3f5;
+    background-color: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-elevated));
+    color: var(--theme-text-bright);
+  }
+
+  /* Theme-aware surface hover utilities — replaces hardcoded bg-white/5 and bg-white/10 */
+  .surface-hover:hover {
+    background-color: color-mix(in srgb, var(--theme-text-primary) 5%, transparent);
+  }
+
+  .surface-hover-md:hover {
+    background-color: color-mix(in srgb, var(--theme-text-primary) 8%, transparent);
+  }
+
+  .surface-hover-danger:hover {
+    background-color: color-mix(in srgb, var(--theme-danger) 15%, transparent);
   }
 
   /* Mention highlight */

@@ -132,7 +132,7 @@ export function ServerSidebar() {
 
         <Separator className="w-8 my-1" style={{ background: 'var(--theme-surface-elevated)' }} />
 
-        {/* Add server */}
+        {/* Add server — primary action: accent color */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -141,13 +141,13 @@ export function ServerSidebar() {
               className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}
             >
-              <Plus className="w-6 h-6 transition-colors" style={{ color: 'var(--theme-success)' }} />
+              <Plus className="w-6 h-6 transition-colors" style={{ color: 'var(--theme-accent)' }} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Add a Server</TooltipContent>
         </Tooltip>
 
-        {/* Explore */}
+        {/* Explore — secondary action: muted color */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -155,7 +155,7 @@ export function ServerSidebar() {
               className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}
             >
-              <Compass className="w-6 h-6" style={{ color: 'var(--theme-success)' }} />
+              <Compass className="w-6 h-6" style={{ color: 'var(--theme-text-muted)' }} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Explore Public Servers</TooltipContent>
@@ -236,7 +236,7 @@ function ServerIcon({
                     className="object-cover"
                   />
                 ) : (
-                  <span className="text-sm font-semibold text-white">{initials}</span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--theme-text-bright)' }}>{initials}</span>
                 )}
               </div>
             </div>

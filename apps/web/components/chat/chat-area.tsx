@@ -1105,7 +1105,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           style={{ borderColor: 'var(--theme-bg-tertiary)' }}
         >
           <Hash className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
-          <span className="font-semibold text-white">{channel.name}</span>
+          <span className="font-semibold" style={{ color: 'var(--theme-text-bright)' }}>{channel.name}</span>
           {!isOnline && (
             <span className="text-xs px-2 py-0.5 rounded" style={{ background: "color-mix(in srgb, var(--theme-warning) 13%, transparent)", color: "var(--theme-warning)" }}>
               Offline
@@ -1125,7 +1125,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={toggleWorkspacePanel}
-              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
+              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="Workspace"
               aria-label="Workspace"
             >
@@ -1134,7 +1134,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={() => setShowSearchModal(true)}
-              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
+              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="Search messages"
               aria-label="Search messages"
             >
@@ -1143,7 +1143,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={() => toast({ title: "Pinned view", description: "Pinned message view is queued for a follow-up pass." })}
-              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
+              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="Pinned messages"
               aria-label="Pinned messages"
             >
@@ -1152,7 +1152,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={() => toast({ title: "Help", description: "Shortcuts: Ctrl/Cmd+K (Quick Switcher), Ctrl/Cmd+F (Search)." })}
-              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
+              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="Help"
               aria-label="Help"
             >
@@ -1161,7 +1161,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={toggleMemberList}
-              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
+              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title={memberListOpen ? "Hide Member List" : "Show Member List"}
             >
               <Users className="w-4 h-4" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
@@ -1169,7 +1169,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             <button
               onClick={toggleThreadPanel}
-              className="motion-interactive motion-press p-1.5 rounded hover:bg-white/10"
+              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
             >
               <MessageSquareText className="w-4 h-4" style={{ color: threadPanelOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
@@ -1192,11 +1192,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div className="px-4 py-8">
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                style={{ background: 'var(--theme-text-faint)' }}
+                style={{ background: 'var(--theme-surface-elevated)' }}
               >
-                <Hash className="w-8 h-8 text-white" />
+                <Hash className="w-8 h-8" style={{ color: 'var(--theme-accent)' }} />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">
+              <h2 className="text-2xl font-bold font-display mb-2" style={{ color: 'var(--theme-text-bright)' }}>
                 Welcome to #{channel.name}!
               </h2>
               <p style={{ color: 'var(--theme-text-secondary)' }}>

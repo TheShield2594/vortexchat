@@ -581,16 +581,17 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         {/* Server header */}
         <button
           onClick={() => setShowServerSettings(true)}
-          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-white/5 motion-interactive motion-press group focus-ring" aria-label="Open server settings"
+          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer surface-hover motion-interactive motion-press group focus-ring" aria-label="Open server settings"
           style={{ borderColor: 'var(--theme-bg-tertiary)' }}
         >
-          <span className="font-semibold text-white truncate text-sm">{server.name}</span>
-          <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400 group-hover:text-white motion-interactive" />
+          <span className="font-semibold truncate text-sm" style={{ color: 'var(--theme-text-bright)' }}>{server.name}</span>
+          <ChevronDown className="w-4 h-4 flex-shrink-0 motion-interactive text-muted-interactive" />
         </button>
 
         <button
           onClick={() => router.push(`/channels/${server.id}/events`)}
-          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-200 motion-interactive motion-press hover:bg-white/10 focus-ring" aria-label="Open server events"
+          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm surface-hover-md motion-interactive motion-press focus-ring" aria-label="Open server events"
+          style={{ color: 'var(--theme-text-normal)' }}
         >
           <CalendarDays className="h-4 w-4" />
           Events
@@ -668,7 +669,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
                         {/* Drop hint for empty categories */}
                         {categoryChannels.length === 0 && activeId && (
-                          <div className="h-8 rounded border border-dashed border-white/20 flex items-center justify-center">
+                          <div className="h-8 rounded flex items-center justify-center" style={{ border: '1px dashed color-mix(in srgb, var(--theme-text-primary) 20%, transparent)' }}>
                             <span className="text-xs tertiary-metadata">Drop here</span>
                           </div>
                         )}
@@ -683,16 +684,16 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             <DragOverlay dropAnimation={null}>
               {activeChannel ? (
                 <div
-                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-white shadow-lg opacity-90"
-                  style={{ background: 'var(--theme-bg-primary)', width: '208px' }}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm shadow-lg opacity-90"
+                  style={{ background: 'var(--theme-bg-primary)', color: 'var(--theme-text-bright)', width: '208px' }}
                 >
                   <ChannelIcon channel={activeChannel} isVoiceActive={false} />
                   <span className="truncate">{activeChannel.name}</span>
                 </div>
               ) : activeCategory ? (
                 <div
-                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-white shadow-lg opacity-90"
-                  style={{ background: 'var(--theme-bg-primary)', width: '208px' }}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm shadow-lg opacity-90"
+                  style={{ background: 'var(--theme-bg-primary)', color: 'var(--theme-text-bright)', width: '208px' }}
                 >
                   <ChevronDown className="w-3 h-3 tertiary-metadata" />
                   <span className="truncate uppercase text-xs font-semibold tracking-wider">{activeCategory.name}</span>
@@ -709,7 +710,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                   setCreateChannelCategoryId(undefined)
                   setShowCreateChannel(true)
                 }}
-                className="flex items-center gap-1 px-2 py-1 rounded w-full hover:bg-white/5 motion-interactive motion-press focus-ring tertiary-metadata" aria-label="Add channel"
+                className="flex items-center gap-1 px-2 py-1 rounded w-full surface-hover motion-interactive motion-press focus-ring tertiary-metadata" aria-label="Add channel"
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-sm">Add Channel</span>
@@ -763,17 +764,17 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
           <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}>
             <DialogHeader>
-              <DialogTitle className="text-white">Delete Channel</DialogTitle>
+              <DialogTitle style={{ color: 'var(--theme-text-bright)' }}>Delete Channel</DialogTitle>
               <DialogDescription style={{ color: 'var(--theme-text-secondary)' }}>
                 Are you sure you want to delete{" "}
-                <span className="font-semibold text-white">#{deleteTarget?.name}</span>?
+                <span className="font-semibold" style={{ color: 'var(--theme-text-bright)' }}>#{deleteTarget?.name}</span>?
                 {" "}This cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press hover:bg-white/10 focus-ring"
+                className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press surface-hover-md focus-ring"
                 style={{ color: 'var(--theme-text-secondary)' }}
               >
                 Cancel
@@ -975,13 +976,12 @@ function SortableChannelItem({
             aria-label={`${channel.type} channel ${channel.name}`}
             className={cn(
               "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring",
-              isActive || isVoiceActive
-                ? "text-white"
-                : isUnread
-                ? "text-white hover:bg-white/5"
-                : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
+              isActive || isVoiceActive ? "" : "surface-hover text-muted-interactive"
             )}
-            style={isActive || isVoiceActive ? { background: "color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-elevated))" } : undefined}
+            style={{
+              ...(isActive || isVoiceActive ? { background: "color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-elevated))" } : {}),
+              ...(isActive || isVoiceActive ? { color: "var(--theme-text-bright)" } : isUnread ? { color: "var(--theme-text-primary)" } : {}),
+            }}
           >
             <span
               aria-hidden
