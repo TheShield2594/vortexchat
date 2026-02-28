@@ -134,7 +134,7 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
               {!isGrouped && (
                 <Avatar className="w-8 h-8 flex-shrink-0 mt-0.5">
                   {isOwn ? null : (partner.avatar_url && <AvatarImage src={partner.avatar_url} />)}
-                  <AvatarFallback style={{ background: isOwn ? "var(--theme-accent)" : "#36393f", color: "white", fontSize: "12px" }}>
+                  <AvatarFallback style={{ background: isOwn ? "var(--theme-accent)" : "var(--theme-bg-secondary)", color: "var(--theme-text-bright)", fontSize: "12px" }}>
                     {isOwn ? "ME" : partnerInitials}
                   </AvatarFallback>
                 </Avatar>

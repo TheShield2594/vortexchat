@@ -125,7 +125,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
 
       {expanded && (
         <>
-          <div className="px-4 pb-1 text-[11px]" style={{ color: "#6d6f78" }}>
+          <div className="px-4 pb-1 text-[11px]" style={{ color: "var(--theme-text-muted)" }}>
             Each thread belongs to this channel and re-opens in the thread panel.
           </div>
           {visibleThreads.length === 0 && !shouldShowArchived ? (
@@ -153,7 +153,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
               type="button"
               onClick={() => setShowArchived((s) => !s)}
               className="flex items-center gap-2 w-full px-4 py-1.5 text-xs hover:bg-white/5 transition-colors"
-              style={{ color: "#6d6f78" }}
+              style={{ color: "var(--theme-text-muted)" }}
             >
               <Archive className="w-3 h-3" />
               {showArchived ? "Hide archived" : "Show archived threads"}
@@ -211,7 +211,7 @@ function ThreadListItem({
         {thread.name}
       </span>
       {thread.locked && <Lock className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-danger)" }} />}
-      {thread.archived && <Archive className="w-3 h-3 flex-shrink-0" style={{ color: "#ed9c28" }} />}
+      {thread.archived && <Archive className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-warning)" }} />}
       <span
         className="text-xs flex-shrink-0 ml-auto"
         style={{ color: "var(--theme-text-faint)" }}

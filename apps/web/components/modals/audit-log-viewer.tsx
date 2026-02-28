@@ -88,7 +88,7 @@ export function AuditLogViewer({ serverId }: { serverId: string }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-white">
-                <span className="font-semibold" style={{ color: "#00b0f4" }}>{actorName}</span>
+                <span className="font-semibold" style={{ color: "var(--theme-link)" }}>{actorName}</span>
                 {" "}{label}{" "}
                 <span className="font-semibold text-white">{targetName}</span>
               </p>

@@ -359,7 +359,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
         {thread.archived && (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "#ed9c28", color: "#fff" }}
+              style={{ background: "var(--theme-warning)", color: "var(--theme-bg-tertiary)" }}
             >
               <Archive className="w-3 h-3" /> Archived
             </span>
@@ -367,7 +367,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
           {thread.locked && (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "var(--theme-danger)", color: "#fff" }}
+              style={{ background: "var(--theme-danger)", color: "var(--theme-text-bright)" }}
             >
               <Lock className="w-3 h-3" /> Locked
             </span>

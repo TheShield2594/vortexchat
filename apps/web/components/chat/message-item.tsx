@@ -20,6 +20,7 @@ import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
 import { CreateThreadModal } from "@/components/modals/create-thread-modal"
 import { ReportModal } from "@/components/modals/report-modal"
+import Image from "next/image"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 const POLL_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"]
@@ -1081,12 +1082,18 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
                 onMouseMove={handleMouseMove}
                 onWheel={handleWheel}
               >
-                <img
+                <Image
                   src={currentAttachment.url}
                   alt={currentAttachment.filename}
-                  className="w-full max-h-[75vh] object-contain"
+                  width={1200}
+                  height={900}
+                  className="object-contain"
                   draggable={false}
                   style={{
+                    width: "auto",
+                    maxWidth: "100%",
+                    height: "auto",
+                    maxHeight: "75vh",
                     transform: `scale(${zoom})`,
                     transformOrigin: `${panOrigin.x}% ${panOrigin.y}%`,
                     transition: zoom === 1 ? "transform 0.2s ease-out" : "none",
@@ -1122,12 +1129,14 @@ function AttachmentDisplay({ attachment, onOpenImage }: { attachment: Attachment
 
   if (isImage) {
     return (
-      <button type="button" className="max-w-sm" onClick={onOpenImage}>
-        <img
+      <button type="button" className="max-w-sm block" onClick={onOpenImage}>
+        <Image
           src={attachment.url}
           alt={attachment.filename}
-          className="rounded max-h-80 object-contain"
-          style={{ background: "var(--theme-bg-tertiary)" }}
+          width={384}
+          height={320}
+          className="rounded object-contain"
+          style={{ width: "auto", maxWidth: "100%", height: "auto", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
         />
       </button>
     )

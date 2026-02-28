@@ -307,13 +307,13 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
               {sessionState.label}
             </span>
             {reconnectInfo.state === "reconnecting" && (
-              <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "rgba(240,177,50,0.2)", color: "#ffd58a" }} role="status" aria-live="polite" aria-atomic="true">
+              <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "color-mix(in srgb, var(--theme-warning) 20%, transparent)", color: "var(--theme-warning)" }} role="status" aria-live="polite" aria-atomic="true">
                 <RefreshCw className="w-3 h-3 animate-spin" />
                 Reconnecting... ({reconnectInfo.attempt}/{reconnectInfo.maxAttempts})
               </span>
             )}
             {reconnectInfo.state === "disconnected" && (
-              <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "rgba(237,66,69,0.2)", color: "#f38ba8" }} role="status" aria-live="assertive" aria-atomic="true">
+              <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "color-mix(in srgb, var(--theme-danger) 20%, transparent)", color: "var(--theme-danger)" }} role="status" aria-live="assertive" aria-atomic="true">
                 <WifiOff className="w-3 h-3" />
                 Connection lost
                 <button
@@ -845,7 +845,7 @@ const ParticipantTile = memo(function ParticipantTile({
       <div className="flex items-center gap-2 px-3 py-2" style={{ background: "rgba(0,0,0,0.5)" }}>
         <span className={cn("font-medium text-white flex-1 truncate", compact ? "text-xs" : "text-sm")}>{displayName}</span>
         {speaking && !muted && (
-          <span role="status" aria-label="Speaking" className="flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(35,165,90,0.2)", color: "#9ae6b4" }}>
+          <span role="status" aria-label="Speaking" className="flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--theme-success) 20%, transparent)", color: "var(--theme-positive)" }}>
             <span className="speaking-waveform" aria-hidden>
               <span />
               <span />

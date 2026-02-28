@@ -452,7 +452,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                       {body.slice(0, 120)}{body.length > 120 ? "…" : ""}
                     </p>
                   )}
-                  <div className="flex items-center gap-3 mt-1.5 text-xs" style={{ color: '#6d6f78' }}>
+                  <div className="flex items-center gap-3 mt-1.5 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
                     <span>{post.author.display_name ?? post.author.username}</span>
                     <span>·</span>
                     <span>{new Date(post.created_at).toLocaleDateString()}</span>

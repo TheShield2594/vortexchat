@@ -13,12 +13,6 @@ import { startPasskeyLogin, supportsPasskeys } from "@/lib/auth/passkeys-client"
 
 type LoginStep = "credentials" | "mfa-challenge" | "recovery-code"
 
-// Shared wrapper style for all auth card surfaces
-const cardStyle: React.CSSProperties = {
-  background: "color-mix(in srgb, var(--theme-bg-secondary) 85%, transparent)",
-  color: "var(--theme-text-primary)",
-  borderColor: "rgba(255,255,255,0.08)",
-}
 
 // Reusable accent badge — variant drives which CSS variable is used for color
 function AccentBadge({
@@ -192,7 +186,7 @@ export default function LoginPage() {
   // ── MFA Challenge Screen ────────────────────────────────────────────────
   if (step === "mfa-challenge") {
     return (
-      <div className="rounded-2xl border p-8 shadow-2xl backdrop-blur" style={cardStyle}>
+      <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
             <AccentBadge>
@@ -225,7 +219,6 @@ export default function LoginPage() {
             type="submit"
             disabled={totpCode.length !== 6 || mfaLoading}
             className="auth-btn-accent h-11 w-full border-0"
-            style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
           >
             {mfaLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Verify
           </Button>
@@ -255,7 +248,7 @@ export default function LoginPage() {
   // ── Recovery Code Screen ────────────────────────────────────────────────
   if (step === "recovery-code") {
     return (
-      <div className="rounded-2xl border p-8 shadow-2xl backdrop-blur" style={cardStyle}>
+      <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
             <AccentBadge variant="warning">
@@ -293,7 +286,7 @@ export default function LoginPage() {
             type="submit"
             disabled={!recoveryCode.trim() || mfaLoading}
             className="h-11 w-full font-medium"
-            style={{ background: "var(--theme-warning)", color: "#1a1000" }}
+            style={{ background: "var(--theme-warning)", color: "var(--theme-bg-tertiary)" }}
           >
             {mfaLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Redeem Recovery Code
           </Button>
@@ -320,7 +313,7 @@ export default function LoginPage() {
 
   // ── Credentials Screen (default) ────────────────────────────────────────
   return (
-    <div className="rounded-2xl border p-8 shadow-2xl backdrop-blur" style={cardStyle}>
+    <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
       <div className="mb-8 text-center">
         <div className="mb-4 flex justify-center">
           <AccentBadge>
@@ -354,8 +347,7 @@ export default function LoginPage() {
         type="button"
         disabled={passkeyLoading}
         onClick={handlePasskeyLogin}
-        className="mb-4 h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
-        style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
+        className="auth-btn-accent mb-4 h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
       >
         {passkeyLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Continue with Passkey
       </Button>
@@ -400,8 +392,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
-              style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
+              className="auth-btn-accent h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Log In with Password
             </Button>
