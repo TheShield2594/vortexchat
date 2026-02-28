@@ -314,7 +314,16 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                       <div className="relative inline-block -mt-8 mb-3">
                         <div
                           className="cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Upload avatar"
                           onClick={() => avatarRef.current?.click()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault()
+                              avatarRef.current?.click()
+                            }
+                          }}
                         >
                           <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "var(--theme-bg-secondary)" } as React.CSSProperties}>
                             {avatarPreview && <AvatarImage src={avatarPreview} />}

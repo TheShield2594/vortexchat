@@ -126,7 +126,7 @@ export function UserProfilePopover({
               className="absolute bottom-0 right-0 w-4 h-4 rounded-full border-[3px]"
               style={{
                 background: getStatusColor(status),
-                borderColor: "#232428",
+                borderColor: "var(--theme-bg-secondary)",
               }}
             />
           </div>
