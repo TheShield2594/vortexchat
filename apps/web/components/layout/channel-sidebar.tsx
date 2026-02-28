@@ -976,21 +976,22 @@ function SortableChannelItem({
             className={cn(
               "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring",
               isActive || isVoiceActive
-                ? "bg-white/10 text-white"
+                ? "text-white"
                 : isUnread
                 ? "text-white hover:bg-white/5"
                 : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
             )}
+            style={isActive || isVoiceActive ? { background: "color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-elevated))" } : undefined}
           >
             <span
               aria-hidden
               className={cn(
-                "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-200",
+                "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-300",
                 isActive || isVoiceActive
-                  ? "opacity-100 h-5 w-1"
-                  : "opacity-0 h-4 w-0 group-hover/channel:opacity-60 group-hover/channel:w-0.5"
+                  ? "opacity-100 h-8 w-1"
+                  : "opacity-0 h-5 w-0 group-hover/channel:opacity-60 group-hover/channel:w-0.5 group-hover/channel:h-5"
               )}
-              style={{ background: "var(--theme-accent)" }}
+              style={{ background: "var(--theme-accent)", boxShadow: isActive || isVoiceActive ? "2px 0 8px color-mix(in srgb, var(--theme-accent) 60%, transparent)" : undefined }}
             />
             {canManageChannels && (
               <span

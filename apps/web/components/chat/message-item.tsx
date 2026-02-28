@@ -874,6 +874,7 @@ export const MessageItem = memo(function MessageItem({
         {onThreadCreated && (
           <ContextMenuItem onClick={() => setShowCreateThread(true)}>
             <MessageSquare className="w-4 h-4 mr-2" /> Create Thread
+            <ContextMenuShortcut>T</ContextMenuShortcut>
           </ContextMenuItem>
         )}
         {isOwn && (
