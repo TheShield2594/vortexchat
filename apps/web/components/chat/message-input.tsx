@@ -386,14 +386,14 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         >
           <Reply className="w-3 h-3 -scale-x-100" style={{ color: "var(--theme-text-muted)" }} />
           <span style={{ color: "var(--theme-text-muted)" }}>Replying to</span>
-          <span className="font-semibold text-white">
+          <span className="font-semibold" style={{ color: "var(--theme-text-bright)" }}>
             {replyTo.author?.display_name || replyTo.author?.username}
           </span>
           <span className="truncate flex-1" style={{ color: "var(--theme-text-muted)" }}>
             {replyTo.content}
           </span>
           <button onClick={onCancelReply} aria-label="Cancel reply" className="focus-ring rounded" style={{ color: "var(--theme-text-muted)" }}>
-            <X className="w-3 h-3 hover:text-white" />
+            <X className="w-3 h-3" />
           </button>
         </div>
       )}
@@ -435,7 +435,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 style={{ background: "var(--theme-danger)" }}
                 aria-label={`Remove ${file.name}`}
               >
-                <X className="w-3 h-3 text-white" />
+                <X className="w-3 h-3" style={{ color: "var(--theme-text-bright)" }} />
               </button>
             </div>
           ))}
@@ -454,7 +454,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 <button
                   type="button"
                   onClick={handleCancelUpload}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] hover:bg-white/10"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] surface-hover-md"
                   style={{ color: "var(--theme-danger)" }}
                   title="Cancel upload"
                   aria-label="Cancel upload"
@@ -557,8 +557,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="motion-interactive motion-press flex-shrink-0 hover:text-white focus-ring rounded"
-            style={{ color: "var(--theme-text-secondary)" }}
+            className="motion-interactive motion-press flex-shrink-0 text-muted-interactive focus-ring rounded"
             title="Attach"
             aria-label="Attach file"
           >
@@ -572,7 +571,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               }
               setShowPollCreator((prev) => !prev)
             }}
-            className="motion-interactive motion-press flex-shrink-0 hover:text-white focus-ring rounded"
+            className="motion-interactive motion-press flex-shrink-0 focus-ring rounded"
             style={{ color: showPollCreator ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             title="Poll"
             aria-label="Create poll"
@@ -587,7 +586,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               setPickerTab("emoji")
               setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
             }}
-            className="motion-interactive motion-press hover:text-white focus-ring rounded"
+            className="motion-interactive motion-press focus-ring rounded"
             style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             title="Emoji"
             aria-label="Insert emoji"
@@ -601,7 +600,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               setPickerTab("gif")
               setShowEmojiPicker(true)
             }}
-            className="motion-interactive motion-press hover:text-white focus-ring rounded"
+            className="motion-interactive motion-press focus-ring rounded"
             style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             title="GIF"
             aria-label="Insert GIF"
@@ -863,7 +862,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onClick={handleSend}
             disabled={sending}
             aria-label="Send message"
-            className="motion-interactive motion-press flex-shrink-0 mb-1 hover:text-white focus-ring rounded"
+            className="motion-interactive motion-press flex-shrink-0 mb-1 focus-ring rounded"
             style={{ color: "var(--theme-accent)" }}
             title="Send Message"
           >
