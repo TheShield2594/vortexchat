@@ -416,7 +416,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               ) : (
                 <div
                   className="w-24 h-24 rounded-md border flex items-center justify-center text-xs text-center p-2"
-                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)", borderColor: "#111214" }}
+                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)", borderColor: "var(--theme-bg-tertiary)" }}
                 >
                   {file.name}
                 </div>

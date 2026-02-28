@@ -103,7 +103,7 @@ export function UserProfilePopover({
         align={align}
         sideOffset={8}
         className="w-72 p-0 overflow-hidden"
-        style={{ background: "#232428", borderColor: "var(--theme-bg-tertiary)" }}
+        style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)" }}
       >
         {/* Banner */}
         <div
@@ -114,7 +114,7 @@ export function UserProfilePopover({
         {/* Avatar + Info */}
         <div className="px-3 pb-3">
           <div className="relative -mt-6 mb-2">
-            <Avatar className="w-14 h-14 ring-4" style={{ "--tw-ring-color": "#232428" } as React.CSSProperties}>
+            <Avatar className="w-14 h-14 ring-4" style={{ "--tw-ring-color": "var(--theme-bg-secondary)" } as React.CSSProperties}>
               {user?.avatar_url && <AvatarImage src={user.avatar_url} />}
               <AvatarFallback
                 style={{ background: "var(--theme-accent)", color: "white", fontSize: "18px" }}

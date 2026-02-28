@@ -125,7 +125,7 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
       )}
 
       {warnings.length > 0 && (
-        <div className="text-xs rounded p-2" style={{ background: '#3f2e00', color: '#f1c40f' }}>
+        <div className="text-xs rounded p-2" style={{ background: 'color-mix(in srgb, var(--theme-warning) 15%, transparent)', color: 'var(--theme-warning)' }}>
           {warnings.slice(0, 6).map((warning) => <div key={warning}>• {warning}</div>)}
         </div>
       )}

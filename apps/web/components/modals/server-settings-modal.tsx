@@ -275,7 +275,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
               {isOwner && (
                 <div className="mt-6 rounded-md border p-4" style={{ borderColor: "rgba(242,63,67,0.45)", background: "rgba(242,63,67,0.08)" }}>
                   <p className="text-sm font-semibold text-white">Danger Zone</p>
-                  <p className="mt-1 text-xs" style={{ color: "#fca5a5" }}>
+                  <p className="mt-1 text-xs" style={{ color: "color-mix(in srgb, var(--theme-danger) 70%, white)" }}>
                     Deleting this server permanently removes all channels and messages.
                   </p>
                   <Button
@@ -1143,7 +1143,7 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
           Save Rules
         </Button>
         {config && (
-          <Button variant="ghost" onClick={handleDelete} style={{ color: '#ed4245' }}>
+          <Button variant="ghost" onClick={handleDelete} style={{ color: 'var(--theme-danger)' }}>
             Remove
           </Button>
         )}
@@ -1467,7 +1467,7 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
               <button
                 onClick={() => setDeleteTarget(rule)}
                 className="text-xs px-2 py-1 rounded hover:bg-red-500/20 transition-colors"
-                style={{ color: '#ed4245' }}
+                style={{ color: 'var(--theme-danger)' }}
               >
                 Delete
               </button>
@@ -1681,9 +1681,9 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
               onChange={(e) => setSampleMessage(e.target.value)}
               placeholder="Type a sample message to test this rule"
               className="w-full px-3 py-1.5 rounded text-sm focus:outline-none"
-              style={{ background: '#111214', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
+              style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
             />
-            <p className="text-xs" style={{ color: sampleMessage ? (sampleViolation ? 'var(--theme-warning)' : '#57f287') : 'var(--theme-text-muted)' }}>
+            <p className="text-xs" style={{ color: sampleMessage ? (sampleViolation ? 'var(--theme-warning)' : 'var(--theme-positive)') : 'var(--theme-text-muted)' }}>
               {sampleMessage
                 ? sampleViolation
                   ? `Triggered: ${sampleViolation.reason}`

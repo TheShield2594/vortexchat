@@ -310,13 +310,13 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     />
 
                     {/* Avatar */}
-                    <div className="px-4 pb-4" style={{ background: "#232428" }}>
+                    <div className="px-4 pb-4" style={{ background: "var(--theme-bg-secondary)" }}>
                       <div className="relative inline-block -mt-8 mb-3">
                         <div
                           className="cursor-pointer"
                           onClick={() => avatarRef.current?.click()}
                         >
-                          <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "#232428" } as React.CSSProperties}>
+                          <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "var(--theme-bg-secondary)" } as React.CSSProperties}>
                             {avatarPreview && <AvatarImage src={avatarPreview} />}
                             <AvatarFallback
                               style={{ background: "var(--theme-accent)", color: "white", fontSize: "24px" }}
@@ -517,8 +517,8 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
 
       <div className="rounded-lg p-4 space-y-3" style={{ background: "rgba(242,63,67,0.08)", border: "1px solid rgba(242,63,67,0.35)" }}>
                     <div>
-                      <h4 className="text-sm font-semibold" style={{ color: "#ffb3b6" }}>Danger Zone</h4>
-                      <p className="text-xs mt-1" style={{ color: "#b98f92" }}>Signing out will end your current session on this device.</p>
+                      <h4 className="text-sm font-semibold" style={{ color: "color-mix(in srgb, var(--theme-danger) 70%, white)" }}>Danger Zone</h4>
+                      <p className="text-xs mt-1" style={{ color: "var(--theme-text-muted)" }}>Signing out will end your current session on this device.</p>
                     </div>
                     <Button
                       variant="ghost"
@@ -869,8 +869,8 @@ function RecoveryCodesSection() {
       {codes && (
         <div className="rounded-lg p-4 space-y-4" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
           <div className="rounded-lg p-3" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.3)" }}>
-            <p className="text-sm font-medium" style={{ color: "#faa61a" }}>Save these codes now</p>
-            <p className="text-xs mt-1" style={{ color: "#c4882e" }}>
+            <p className="text-sm font-medium" style={{ color: "var(--theme-warning)" }}>Save these codes now</p>
+            <p className="text-xs mt-1" style={{ color: "var(--theme-warning)" }}>
               These codes will not be shown again. Store them somewhere safe and accessible — like a password manager or printed copy.
             </p>
           </div>
@@ -928,7 +928,7 @@ function RecoveryCodesSection() {
 
       {total > 0 && remaining <= 2 && remaining > 0 && !codes && (
         <div className="rounded p-3" style={{ background: "rgba(250,166,26,0.08)", border: "1px solid rgba(250,166,26,0.3)" }}>
-          <p className="text-xs" style={{ color: "#c4882e" }}>
+          <p className="text-xs" style={{ color: "var(--theme-warning)" }}>
             You are running low on recovery codes. Consider regenerating a new set.
           </p>
         </div>
@@ -1018,7 +1018,7 @@ function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Pr
         ))}
       </div>
       <div className="rounded-lg p-4 space-y-3" style={{ background: "rgba(242,63,67,0.08)", border: "1px solid rgba(242,63,67,0.35)" }}>
-        <p className="text-xs" style={{ color: "#b98f92" }}>This action signs out all active sessions and removes trusted devices.</p>
+        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>This action signs out all active sessions and removes trusted devices.</p>
         <Button variant="outline" onClick={revokeAll} disabled={loading} style={{ borderColor: "var(--theme-danger)", color: "var(--theme-danger)", background: "rgba(242,63,67,0.1)" }}>
           {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Revoke All Sessions
         </Button>
@@ -1089,7 +1089,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
                   ))}
                 </div>
               </div>
-              <span className="text-xs" style={{ color: "#72767d" }}>{preset.desc}</span>
+              <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{preset.desc}</span>
             </button>
           ))}
         </div>
@@ -1129,7 +1129,7 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
                       <div key={i} className="flex items-center gap-1.5 h-2.5">
                         <div className="w-5 h-1.5 rounded flex-shrink-0" style={{ background: "var(--theme-text-faint)" }} />
                         <div className="h-1.5 rounded" style={{ background: "var(--theme-text-muted)", width: `${w}px` }} />
-                        <div className="h-1.5 rounded flex-1" style={{ background: "#72767d" }} />
+                        <div className="h-1.5 rounded flex-1" style={{ background: "var(--theme-text-muted)" }} />
                       </div>
                     ))}
                   </>
@@ -1456,8 +1456,8 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
       {recoveryCodes && (
         <div className="rounded-lg p-4 space-y-4" style={{ background: "var(--theme-bg-secondary)", border: "1px solid rgba(250,166,26,0.4)" }}>
           <div className="rounded-lg p-3" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.3)" }}>
-            <p className="text-sm font-medium" style={{ color: "#faa61a" }}>Save your recovery codes</p>
-            <p className="text-xs mt-1" style={{ color: "#c4882e" }}>
+            <p className="text-sm font-medium" style={{ color: "var(--theme-warning)" }}>Save your recovery codes</p>
+            <p className="text-xs mt-1" style={{ color: "var(--theme-warning)" }}>
               2FA is now active. Save these backup codes — they will not be shown again. Use them if you lose access to your authenticator app.
             </p>
           </div>

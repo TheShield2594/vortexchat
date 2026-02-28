@@ -834,7 +834,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 <div className="min-w-0 flex-1">
                   {!isGrouped && (
                     <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="text-sm font-semibold" style={{ color: isOwn ? "#00b0f4" : "white" }}>
+                      <span className="text-sm font-semibold" style={{ color: isOwn ? "var(--theme-link)" : "var(--theme-text-bright)" }}>
                         {isOwn ? "You" : senderName}
                       </span>
                       <span className="text-xs" style={{ color: "var(--theme-text-faint)" }}>
@@ -1259,7 +1259,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           <p className="text-white font-semibold text-lg">{displayName}</p>
           <div className="text-sm px-3 py-1 rounded-full" style={{ color: statusMeta[status].tone, background: statusMeta[status].bg }}>
             <span className="font-medium">{statusMeta[status].label}</span>
-            <span className="ml-2" style={{ color: "#c9ccd1" }}>{statusMeta[status].detail}</span>
+            <span className="ml-2" style={{ color: "var(--theme-text-secondary)" }}>{statusMeta[status].detail}</span>
           </div>
           {status === "connecting" && (
             <div className="flex items-center gap-2 text-xs" style={{ color: "var(--theme-text-muted)" }}>

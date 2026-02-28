@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils/cn"
 import type { ServerRow } from "@/types/database"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 import { Skeleton } from "@/components/ui/skeleton"
+import Image from "next/image"
 
 /** Vertical icon strip listing joined servers, DM shortcut, and create/discover actions. */
 export function ServerSidebar() {
@@ -216,7 +217,7 @@ function ServerIcon({
               />
               <div
                 className={cn(
-                  "w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden",
+                  "relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden",
                   isActive ? "rounded-2xl" : "rounded-full hover:rounded-2xl"
                 )}
                 style={{
@@ -227,10 +228,12 @@ function ServerIcon({
                 }}
               >
                 {server.icon_url ? (
-                  <img
+                  <Image
                     src={server.icon_url}
                     alt={server.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="48px"
+                    className="object-cover"
                   />
                 ) : (
                   <span className="text-sm font-semibold text-white">{initials}</span>

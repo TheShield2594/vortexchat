@@ -78,14 +78,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="rounded-lg p-8 shadow-2xl" style={{ background: 'var(--theme-bg-primary)' }}>
+    <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'var(--theme-accent)' }}>
-            <Zap className="w-7 h-7 text-white" />
+          <div className="auth-btn-accent w-12 h-12 rounded-full flex items-center justify-center">
+            <Zap className="w-7 h-7" />
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-white">Create an account</h1>
+        <h1 className="text-2xl font-bold font-display" style={{ color: 'var(--theme-text-bright)' }}>Create an account</h1>
         <p style={{ color: 'var(--theme-text-secondary)' }} className="text-sm mt-1">
           Join Vortex — then add a passkey in Security settings for passkey-first login.
         </p>
@@ -94,21 +94,20 @@ export default function RegisterPage() {
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
           <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
-            Email <span className="text-red-500">*</span>
+            Email <span style={{ color: 'var(--theme-danger)' }}>*</span>
           </Label>
           <Input
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required
-            className="h-10"
-            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
+            className="auth-input h-10 border"
           />
         </div>
 
         <div className="space-y-2">
           <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
-            Username <span className="text-red-500">*</span>
+            Username <span style={{ color: 'var(--theme-danger)' }}>*</span>
           </Label>
           <Input
             type="text"
@@ -116,8 +115,7 @@ export default function RegisterPage() {
             onChange={(e) => setForm({ ...form, username: e.target.value })}
             placeholder="cooluser123"
             required
-            className="h-10"
-            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
+            className="auth-input h-10 border"
           />
         </div>
 
@@ -130,44 +128,40 @@ export default function RegisterPage() {
             value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
             placeholder="How others see you"
-            className="h-10"
-            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
+            className="auth-input h-10 border"
           />
         </div>
 
         <div className="space-y-2">
           <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
-            Password <span className="text-red-500">*</span>
+            Password <span style={{ color: 'var(--theme-danger)' }}>*</span>
           </Label>
           <Input
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
-            className="h-10"
-            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
+            className="auth-input h-10 border"
           />
         </div>
 
         <div className="space-y-2">
           <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
-            Confirm Password <span className="text-red-500">*</span>
+            Confirm Password <span style={{ color: 'var(--theme-danger)' }}>*</span>
           </Label>
           <Input
             type="password"
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             required
-            className="h-10"
-            style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
+            className="auth-input h-10 border"
           />
         </div>
 
         <Button
           type="submit"
           disabled={loading}
-          className="w-full h-11 font-medium mt-2"
-          style={{ background: 'var(--theme-accent)' }}
+          className="auth-btn-accent w-full h-11 font-medium mt-2 border-0"
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Continue

@@ -1013,7 +1013,7 @@ function SortableChannelItem({
                   <TooltipTrigger asChild>
                     <span
                       className="flex items-center gap-0.5 text-[10px] font-medium px-1 py-0.5 rounded"
-                      style={{ background: 'rgba(250,166,26,0.15)', color: '#faa61a' }}
+                      style={{ background: 'color-mix(in srgb, var(--theme-warning) 15%, transparent)', color: 'var(--theme-warning)' }}
                     >
                       <Clock className="w-2.5 h-2.5" />
                       {timeRemaining}
@@ -1040,7 +1040,7 @@ function SortableChannelItem({
               {(activeThreadCount ?? 0) > 0 && (
                 <span
                   className="inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold"
-                  style={{ background: "rgba(88,101,242,0.22)", color: "#c7d2ff" }}
+                  style={{ background: "color-mix(in srgb, var(--theme-accent) 22%, transparent)", color: "color-mix(in srgb, var(--theme-accent) 80%, white)" }}
                   title={`${activeThreadCount} active ${activeThreadCount === 1 ? "thread" : "threads"} in #${channel.name}`}
                 >
                   <MessageCircle className="h-2.5 w-2.5" />
