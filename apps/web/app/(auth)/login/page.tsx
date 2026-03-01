@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, ShieldCheck, Sparkles, KeyRound } from "lucide-react"
 import { startPasskeyLogin, supportsPasskeys } from "@/lib/auth/passkeys-client"
+import { VortexLogo } from "@/components/ui/vortex-logo"
 
 type LoginStep = "credentials" | "mfa-challenge" | "recovery-code"
 
@@ -189,6 +190,9 @@ export default function LoginPage() {
       <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
+            <VortexLogo size={48} style={{ color: 'var(--theme-accent)' } as React.CSSProperties} />
+          </div>
+          <div className="mb-3 flex justify-center">
             <AccentBadge>
               <ShieldCheck className="h-3.5 w-3.5" /> Two-factor authentication
             </AccentBadge>
@@ -251,6 +255,9 @@ export default function LoginPage() {
       <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
+            <VortexLogo size={48} style={{ color: 'var(--theme-accent)' } as React.CSSProperties} />
+          </div>
+          <div className="mb-3 flex justify-center">
             <AccentBadge variant="warning">
               <KeyRound className="h-3.5 w-3.5" /> Account recovery
             </AccentBadge>
@@ -316,6 +323,9 @@ export default function LoginPage() {
     <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
       <div className="mb-8 text-center">
         <div className="mb-4 flex justify-center">
+          <VortexLogo size={48} style={{ color: 'var(--theme-accent)' } as React.CSSProperties} />
+        </div>
+        <div className="mb-3 flex justify-center">
           <AccentBadge>
             <Sparkles className="h-3.5 w-3.5" /> Secure sign in
           </AccentBadge>

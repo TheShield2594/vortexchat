@@ -582,7 +582,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         <button
           onClick={() => setShowServerSettings(true)}
           className="flex items-center justify-between px-4 py-3 border-b cursor-pointer surface-hover motion-interactive motion-press group focus-ring" aria-label="Open server settings"
-          style={{ borderColor: 'var(--theme-bg-tertiary)' }}
+          style={{ borderColor: 'var(--theme-bg-tertiary)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
         >
           <span className="font-semibold truncate text-sm" style={{ color: 'var(--theme-text-bright)' }}>{server.name}</span>
           <ChevronDown className="w-4 h-4 flex-shrink-0 motion-interactive text-muted-interactive" />
