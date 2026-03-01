@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Zap } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import { VortexLogo } from "@/components/ui/vortex-logo"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -81,9 +82,7 @@ export default function RegisterPage() {
     <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
-          <div className="auth-btn-accent w-12 h-12 rounded-full flex items-center justify-center">
-            <Zap className="w-7 h-7" />
-          </div>
+          <VortexLogo size={48} style={{ color: 'var(--theme-accent)' } as React.CSSProperties} />
         </div>
         <h1 className="text-2xl font-bold font-display" style={{ color: 'var(--theme-text-bright)' }}>Create an account</h1>
         <p style={{ color: 'var(--theme-text-secondary)' }} className="text-sm mt-1">

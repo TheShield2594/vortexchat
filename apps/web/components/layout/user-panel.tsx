@@ -98,8 +98,11 @@ export function UserPanel() {
 
   return (
     <div
-      className="flex items-center gap-2 p-2 border-t"
-      style={{ background: 'var(--theme-bg-secondary)', borderColor: 'var(--theme-bg-tertiary)' }}
+      className="flex items-center gap-2 p-2"
+      style={{
+        background: 'var(--theme-bg-secondary)',
+        boxShadow: '0 -1px 0 var(--theme-bg-tertiary), inset 0 1px 0 color-mix(in srgb, var(--theme-accent) 7%, transparent)',
+      }}
     >
       <ContextMenu>
         <ContextMenuTrigger asChild>

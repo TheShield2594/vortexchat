@@ -78,7 +78,9 @@ export function ServerSidebar() {
     <TooltipProvider delayDuration={200}>
       <div
         className="flex flex-col items-center w-[72px] py-3 gap-2 flex-shrink-0 overflow-y-auto no-scrollbar"
-        style={{ background: 'var(--theme-bg-tertiary)' }}
+        style={{
+          background: 'linear-gradient(to bottom, color-mix(in srgb, var(--theme-accent) 8%, var(--theme-bg-tertiary)) 0%, var(--theme-bg-tertiary) 30%)',
+        }}
       >
         {/* VortexChat home / Direct Messages */}
         <Tooltip>

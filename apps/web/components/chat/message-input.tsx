@@ -32,6 +32,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [sending, setSending] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
+  const [inputFocused, setInputFocused] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiGridRef = useRef<HTMLDivElement>(null)
   const [showPollCreator, setShowPollCreator] = useState(false)
@@ -551,7 +552,11 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           "relative flex items-end gap-2 rounded-lg px-3 py-2",
           replyTo || files.length > 0 || uploadProgress !== null || Boolean(sendError) ? "rounded-t-none" : ""
         )}
-        style={{ background: "var(--theme-surface-input)" }}
+        style={{
+          background: "var(--theme-surface-input)",
+          boxShadow: inputFocused ? '0 0 0 2px color-mix(in srgb, var(--theme-accent) 55%, transparent)' : '0 0 0 2px transparent',
+          transition: 'box-shadow var(--motion-duration-fast) var(--motion-ease-standard)',
+        }}
       >
         <div className="mb-1 flex items-center gap-1.5">
           <button
@@ -641,6 +646,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             onSelect={handleSelect}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
             placeholder={replyTo
               ? `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`
               : `Message #${channelName} — use @ to mention teammates`
