@@ -1101,10 +1101,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     <div className="flex flex-1 overflow-hidden">
       <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
         <div
-          className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
-          style={{ borderColor: 'var(--theme-bg-tertiary)' }}
+          className="flex items-center gap-2 px-4 py-2.5 border-b flex-shrink-0"
+          style={{
+            background: 'linear-gradient(135deg, color-mix(in srgb, var(--theme-accent) 5%, var(--theme-bg-primary)) 0%, var(--theme-bg-primary) 55%)',
+            borderColor: 'color-mix(in srgb, var(--theme-accent) 18%, var(--theme-bg-tertiary))',
+          }}
         >
-          <Hash className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
+          <Hash className="w-5 h-5 flex-shrink-0" style={{ color: 'color-mix(in srgb, var(--theme-accent) 60%, var(--theme-text-muted))' }} />
           <span className="font-semibold" style={{ color: 'var(--theme-text-bright)' }}>{channel.name}</span>
           {!isOnline && (
             <span className="text-xs px-2 py-0.5 rounded" style={{ background: "color-mix(in srgb, var(--theme-warning) 13%, transparent)", color: "var(--theme-warning)" }}>

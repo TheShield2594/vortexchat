@@ -92,6 +92,10 @@ interface AppState {
   toggleWorkspacePanel: () => void
   setWorkspaceOpen: (open: boolean) => void
 
+  // Per-server unread indicator (true = at least one unread channel in this server)
+  serverHasUnread: Record<string, boolean>
+  setServerHasUnread: (serverId: string, hasUnread: boolean) => void
+
   // Voice state
   voiceChannelId: string | null
   voiceServerId: string | null
@@ -182,6 +186,12 @@ export const useAppStore = create<AppState>((set) => ({
     persistBooleanStorage(WORKSPACE_PANEL_STORAGE_KEY, open)
     return { workspaceOpen: open }
   }),
+
+  serverHasUnread: {},
+  setServerHasUnread: (serverId, hasUnread) =>
+    set((state) => ({
+      serverHasUnread: { ...state.serverHasUnread, [serverId]: hasUnread },
+    })),
 
   voiceChannelId: null,
   voiceServerId: null,

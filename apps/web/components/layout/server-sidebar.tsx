@@ -21,8 +21,8 @@ import Image from "next/image"
 
 /** Vertical icon strip listing joined servers, DM shortcut, and create/discover actions. */
 export function ServerSidebar() {
-  const { servers, isLoadingServers, activeServerId, setActiveServer, removeServer, currentUser, channels } = useAppStore(
-    useShallow((s) => ({ servers: s.servers, isLoadingServers: s.isLoadingServers, activeServerId: s.activeServerId, setActiveServer: s.setActiveServer, removeServer: s.removeServer, currentUser: s.currentUser, channels: s.channels }))
+  const { servers, isLoadingServers, activeServerId, setActiveServer, removeServer, currentUser, channels, serverHasUnread } = useAppStore(
+    useShallow((s) => ({ servers: s.servers, isLoadingServers: s.isLoadingServers, activeServerId: s.activeServerId, setActiveServer: s.setActiveServer, removeServer: s.removeServer, currentUser: s.currentUser, channels: s.channels, serverHasUnread: s.serverHasUnread }))
   )
   const [showCreateServer, setShowCreateServer] = useState(false)
   const { toast } = useToast()
@@ -127,6 +127,7 @@ export function ServerSidebar() {
             server={server}
             isActive={activeServerId === server.id}
             isOwner={currentUser?.id === server.owner_id}
+            hasUnread={serverHasUnread[server.id] ?? false}
             onClick={() => navigateToServer(server.id)}
             onLeave={() => handleLeaveServer(server)}
           />
@@ -153,6 +154,7 @@ export function ServerSidebar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
+              onClick={() => router.push("/discover")}
               aria-label="Explore Public Servers"
               className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}
@@ -176,12 +178,14 @@ function ServerIcon({
   server,
   isActive,
   isOwner,
+  hasUnread,
   onClick,
   onLeave,
 }: {
   server: ServerRow
   isActive: boolean
   isOwner: boolean
+  hasUnread: boolean
   onClick: () => void
   onLeave: () => void
 }) {
@@ -241,6 +245,14 @@ function ServerIcon({
                   <span className="text-sm font-semibold" style={{ color: 'var(--theme-text-bright)' }}>{initials}</span>
                 )}
               </div>
+
+              {/* Unread pip — shown when the server has unread channels and is not active */}
+              {hasUnread && !isActive && (
+                <div
+                  className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 pointer-events-none"
+                  style={{ background: 'var(--theme-accent)', borderColor: 'var(--theme-bg-tertiary)' }}
+                />
+              )}
             </div>
           </ContextMenuTrigger>
         </TooltipTrigger>
