@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useId, useRef, useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check, Pin, PinOff } from "lucide-react"
 import { Highlight, themes } from "prism-react-renderer"
 import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -37,6 +37,8 @@ interface Props {
   onReaction: (emoji: string) => Promise<void>
   onReplyJump?: (messageId: string) => void
   onThreadCreated?: (thread: ThreadRow) => void
+  onPinToggle?: (pinned: boolean) => void
+  canManageMessages?: boolean
   sendState?: "queued" | "sending" | "failed"
   onRetry?: () => void
   recentlyActive?: boolean
@@ -133,11 +135,47 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   )
 }
 
+const EMOJI_RECENTS_KEY = "vortexchat:emoji-recents"
+const EMOJI_RECENTS_MAX = 18
+
+function getEmojiRecents(): string[] {
+  if (typeof window === "undefined") return []
+  try {
+    return JSON.parse(localStorage.getItem(EMOJI_RECENTS_KEY) ?? "[]")
+  } catch {
+    return []
+  }
+}
+
+function addEmojiRecent(emoji: string) {
+  if (typeof window === "undefined") return
+  try {
+    const current = getEmojiRecents().filter((e) => e !== emoji)
+    localStorage.setItem(EMOJI_RECENTS_KEY, JSON.stringify([emoji, ...current].slice(0, EMOJI_RECENTS_MAX)))
+  } catch {
+    // localStorage unavailable — no-op
+  }
+}
+
 function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => void; onClose: () => void }) {
+  const [recents, setRecents] = useState<string[]>([])
+  const [searchActive, setSearchActive] = useState(false)
+
+  useEffect(() => {
+    setRecents(getEmojiRecents())
+  }, [])
+
+  function handleSelect(emoji: string) {
+    addEmojiRecent(emoji)
+    setRecents(getEmojiRecents())
+    onSelect(emoji)
+    onClose()
+  }
+
   return (
     <EmojiPicker.Root
-      onEmojiSelect={({ emoji }) => { onSelect(emoji); onClose() }}
-      style={{ display: "flex", flexDirection: "column", width: "320px", height: "380px" }}
+      onEmojiSelect={({ emoji }) => handleSelect(emoji)}
+      style={{ display: "flex", flexDirection: "column", width: "320px", height: "400px" }}
     >
       <div style={{ padding: "8px 8px 4px" }}>
         <EmojiPicker.Search
@@ -154,8 +192,56 @@ function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => 
             color: "var(--theme-text-normal)",
           }}
           placeholder="Search emoji…"
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchActive(e.target.value.length > 0)}
         />
       </div>
+
+      {/* Recently used row — hidden while the search field has input */}
+      {recents.length > 0 && !searchActive && (
+        <div style={{ padding: "4px 8px 0" }}>
+          <div
+            style={{
+              padding: "4px 0 2px",
+              fontSize: "10px",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--theme-text-muted)",
+            }}
+          >
+            Recently used
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "2px" }}>
+            {recents.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handleSelect(emoji)}
+                title={emoji}
+                style={{
+                  fontSize: "20px",
+                  width: "34px",
+                  height: "34px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "4px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: "transparent",
+                  fontFamily: "var(--frimousse-emoji-font)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--theme-surface-elevated)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <div style={{ height: "1px", background: "var(--theme-bg-tertiary)", margin: "6px 0 2px" }} />
+        </div>
+      )}
+
       <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
         <EmojiPicker.Loading>
           <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>Loading…</div>
@@ -242,6 +328,8 @@ export const MessageItem = memo(function MessageItem({
   onReaction,
   onReplyJump,
   onThreadCreated,
+  onPinToggle,
+  canManageMessages = false,
   sendState,
   onRetry,
   recentlyActive = false,
@@ -910,6 +998,27 @@ export const MessageItem = memo(function MessageItem({
         }}>
           <Hash className="w-4 h-4 mr-2" /> Copy Message ID
         </ContextMenuItem>
+        {canManageMessages && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={async () => {
+              const pinned = !message.pinned
+              onPinToggle?.(pinned)
+              const res = await fetch(`/api/messages/${message.id}/pin`, { method: pinned ? "PUT" : "DELETE" })
+              if (!res.ok) {
+                onPinToggle?.(!pinned)
+                const data = await res.json().catch(() => ({}))
+                toast({ variant: "destructive", title: pinned ? "Failed to pin message" : "Failed to unpin message", description: data.error })
+              }
+            }}>
+              {message.pinned
+                ? <><PinOff className="w-4 h-4 mr-2" /> Unpin Message</>
+                : <><Pin className="w-4 h-4 mr-2" /> Pin Message</>
+              }
+              <ContextMenuShortcut>P</ContextMenuShortcut>
+            </ContextMenuItem>
+          </>
+        )}
         {!isOwn && (
           <>
             <ContextMenuSeparator />

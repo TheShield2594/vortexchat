@@ -6,6 +6,7 @@ interface SearchFilters {
   fromUserId?: string
   has?: "link" | "image" | "file"
   before?: string
+  after?: string
 }
 
 function parseSearchQuery(raw: string): { query: string; filters: SearchFilters } {
@@ -32,6 +33,15 @@ function parseSearchQuery(raw: string): { query: string; filters: SearchFilters 
       filters.before = candidate.toISOString()
     }
     query = query.replace(beforeMatch[0], " ")
+  }
+
+  const afterMatch = query.match(/(?:^|\s)after:([^\s]+)/i)
+  if (afterMatch?.[1]) {
+    const candidate = new Date(afterMatch[1].trim())
+    if (!Number.isNaN(candidate.getTime())) {
+      filters.after = candidate.toISOString()
+    }
+    query = query.replace(afterMatch[0], " ")
   }
 
   return { query: query.replace(/\s+/g, " ").trim(), filters }
@@ -137,6 +147,9 @@ export async function GET(req: NextRequest) {
   }
   if (filters.before) {
     messageQuery = messageQuery.lt("created_at", filters.before)
+  }
+  if (filters.after) {
+    messageQuery = messageQuery.gt("created_at", filters.after)
   }
   if (filters.has === "link") {
     messageQuery = messageQuery.ilike("content", "%http%")

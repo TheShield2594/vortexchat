@@ -246,7 +246,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
 
               {/* Unread dot */}
               {ch.is_unread && !isActive && (
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "white" }} />
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--theme-accent)" }} aria-label="Unread messages" />
               )}
             </button>
           )

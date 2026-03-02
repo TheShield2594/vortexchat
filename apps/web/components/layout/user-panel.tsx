@@ -153,6 +153,10 @@ export function UserPanel() {
           <ContextMenuItem onClick={() => setShowProfileSettings(true)}>
             <UserRound className="w-4 h-4 mr-2" /> Edit Profile
           </ContextMenuItem>
+          <ContextMenuItem onClick={() => setShowProfileSettings(true)}>
+            <Circle className="w-4 h-4 mr-2" style={{ color: "var(--theme-text-muted)" }} />
+            {customStatusText ? "Edit Custom Status…" : "Set Custom Status…"}
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuSub>
             <ContextMenuSubTrigger>
