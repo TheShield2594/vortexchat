@@ -4,8 +4,6 @@ import Anthropic from "@anthropic-ai/sdk"
 
 type Params = { params: Promise<{ serverId: string; channelId: string }> }
 
-const client = new Anthropic()
-
 /**
  * POST /api/servers/[serverId]/channels/[channelId]/summarize
  *
@@ -68,7 +66,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({
       summary: "No new messages to summarize.",
       highlights: [],
+      topics: [],
       messageCount: 0,
+      since: since ?? null,
     })
   }
 
@@ -89,6 +89,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!apiKey) {
     return NextResponse.json({ error: "AI summarization is not configured (missing ANTHROPIC_API_KEY)" }, { status: 503 })
   }
+
+  const client = new Anthropic({ apiKey })
 
   try {
     const response = await client.messages.create({

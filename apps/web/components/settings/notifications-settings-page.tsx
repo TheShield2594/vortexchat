@@ -94,6 +94,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
           </p>
         </div>
         <button
+          type="button"
           onClick={muteAll}
           className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all"
           style={{
@@ -134,6 +135,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
 
               {/* Toggle switch */}
               <button
+                type="button"
                 onClick={() => handleToggle(key)}
                 className="relative w-10 h-6 rounded-full transition-all focus-ring"
                 style={{ background: enabled ? "var(--theme-accent)" : "var(--theme-bg-tertiary)" }}

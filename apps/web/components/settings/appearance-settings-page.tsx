@@ -76,6 +76,7 @@ export function AppearanceSettingsPage() {
           {FONT_SCALE_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
+              type="button"
               onClick={() => setFontScale(value)}
               className="flex-1 py-2 rounded text-sm transition-all"
               style={{
@@ -105,6 +106,7 @@ export function AppearanceSettingsPage() {
           {SATURATION_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
+              type="button"
               onClick={() => setSaturation(value)}
               className="flex-1 py-2 rounded text-sm transition-all"
               style={{

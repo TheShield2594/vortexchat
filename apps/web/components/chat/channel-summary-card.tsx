@@ -51,6 +51,7 @@ export function ChannelSummaryCard({ serverId, channelId, lastReadAt }: Props) {
   if (!open) {
     return (
       <button
+        type="button"
         onClick={fetchSummary}
         className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all motion-interactive motion-press"
         style={{
@@ -98,6 +99,7 @@ export function ChannelSummaryCard({ serverId, channelId, lastReadAt }: Props) {
         <div className="flex items-center gap-1">
           {data && (
             <button
+              type="button"
               onClick={() => setExpanded((v) => !v)}
               className="p-1 rounded hover:bg-white/10 transition-colors"
               style={{ color: "var(--theme-text-muted)" }}
@@ -107,6 +109,7 @@ export function ChannelSummaryCard({ serverId, channelId, lastReadAt }: Props) {
             </button>
           )}
           <button
+            type="button"
             onClick={() => { setOpen(false); setData(null); setError(null) }}
             className="p-1 rounded hover:bg-white/10 transition-colors"
             style={{ color: "var(--theme-text-muted)" }}
@@ -178,6 +181,7 @@ export function ChannelSummaryCard({ serverId, channelId, lastReadAt }: Props) {
           )}
 
           <button
+            type="button"
             onClick={fetchSummary}
             className="text-xs transition-colors hover:underline"
             style={{ color: "var(--theme-text-muted)" }}

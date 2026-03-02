@@ -51,7 +51,7 @@ export interface LivekitVoiceReturn {
   deafened: boolean
   speaking: boolean
   videoEnabled: boolean
-  toggleMute: () => void
+  toggleMute: () => Promise<void>
   toggleDeafen: () => void
   toggleVideo: () => Promise<void>
   leave: () => void
@@ -92,6 +92,7 @@ export function useLivekitVoice({
   enabled,
 }: UseLivekitVoiceArgs): LivekitVoiceReturn {
   const roomRef = useRef<Room | null>(null)
+  const isDeafRef = useRef(false)
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -186,7 +187,12 @@ export function useLivekitVoice({
         refreshParticipants(room)
         console.log(`[Livekit] participant left: ${p.identity}`)
       })
-      .on(RoomEvent.TrackSubscribed, () => refreshParticipants(room))
+      .on(RoomEvent.TrackSubscribed, (track, pub) => {
+        if (isDeafRef.current && track.kind === Track.Kind.Audio) {
+          pub.setSubscribed(false)
+        }
+        refreshParticipants(room)
+      })
       .on(RoomEvent.TrackUnsubscribed, () => refreshParticipants(room))
       .on(RoomEvent.TrackPublished, () => refreshParticipants(room))
       .on(RoomEvent.TrackUnpublished, () => refreshParticipants(room))
@@ -227,22 +233,27 @@ export function useLivekitVoice({
     }
   }, [enabled, channelId, serverId, refreshParticipants])
 
-  const toggleMute = useCallback(() => {
+  const toggleMute = useCallback(async () => {
     const room = roomRef.current
     if (!room) return
     const nextMuted = !muted
-    room.localParticipant.setMicrophoneEnabled(!nextMuted)
-    setMuted(nextMuted)
+    try {
+      await room.localParticipant.setMicrophoneEnabled(!nextMuted)
+      setMuted(nextMuted)
+    } catch (err) {
+      console.error("[Livekit] Failed to toggle microphone", err)
+    }
   }, [muted])
 
   const toggleDeafen = useCallback(() => {
     const room = roomRef.current
     if (!room) return
     const nextDeafened = !deafened
-    // Mute all remote audio tracks
+    isDeafRef.current = nextDeafened
+    // Subscribe/unsubscribe all remote audio tracks
     for (const [, participant] of room.remoteParticipants) {
       for (const pub of participant.getTrackPublications()) {
-        if (pub.track?.kind === Track.Kind.Audio) {
+        if (pub.kind === Track.Kind.Audio) {
           ;(pub as RemoteTrackPublication).setSubscribed(!nextDeafened)
         }
       }

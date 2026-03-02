@@ -87,6 +87,7 @@ export function PinnedMessagesPanel({ channelId, channelName, onClose, onJumpToM
           </span>
         </div>
         <button
+          type="button"
           onClick={onClose}
           className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition-colors focus-ring"
           style={{ color: "var(--theme-text-muted)" }}
@@ -108,6 +109,7 @@ export function PinnedMessagesPanel({ channelId, channelName, onClose, onJumpToM
           <div className="px-4 py-6 text-center">
             <p className="text-sm" style={{ color: "var(--theme-danger)" }}>{error}</p>
             <button
+              type="button"
               onClick={loadPinnedMessages}
               className="mt-2 text-xs underline"
               style={{ color: "var(--theme-accent)" }}
@@ -145,6 +147,7 @@ export function PinnedMessagesPanel({ channelId, channelName, onClose, onJumpToM
                     </span>
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        type="button"
                         onClick={() => {
                           onJumpToMessage(message.id)
                           onClose()

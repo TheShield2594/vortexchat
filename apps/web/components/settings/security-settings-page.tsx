@@ -12,7 +12,8 @@ interface Props {
   userEmail: string
 }
 
-export function SecuritySettingsPage({ userId, hasTOTP, userEmail }: Props) {
+// userId is reserved for future audit-log queries; not used in current UI
+export function SecuritySettingsPage({ userId: _userId, hasTOTP, userEmail }: Props) {
   const { toast } = useToast()
   const router = useRouter()
   const [supabase] = useState(() => createClientSupabaseClient())
@@ -126,11 +127,12 @@ export function SecuritySettingsPage({ userId, hasTOTP, userEmail }: Props) {
         </h2>
         <form onSubmit={handlePasswordChange} className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+            <label htmlFor="current-password" className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
               Current Password
             </label>
             <div className="relative">
               <input
+                id="current-password"
                 type={showOld ? "text" : "password"}
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
@@ -155,11 +157,12 @@ export function SecuritySettingsPage({ userId, hasTOTP, userEmail }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+            <label htmlFor="new-password" className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
               New Password
             </label>
             <div className="relative">
               <input
+                id="new-password"
                 type={showNew ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -185,10 +188,11 @@ export function SecuritySettingsPage({ userId, hasTOTP, userEmail }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+            <label htmlFor="confirm-password" className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
               Confirm New Password
             </label>
             <input
+              id="confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -235,6 +239,7 @@ export function SecuritySettingsPage({ userId, hasTOTP, userEmail }: Props) {
             </p>
           </div>
           <button
+            type="button"
             onClick={revokeAllSessions}
             disabled={revokingAll}
             className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-semibold transition-all"

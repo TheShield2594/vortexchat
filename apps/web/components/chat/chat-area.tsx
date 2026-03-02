@@ -457,11 +457,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         return
       }
 
-      let addedCount = 0
+      // Capture scroll height before state update for the fallback path
+      const prevScrollHeight = messageScrollerRef.current?.scrollHeight ?? 0
+      const prevScrollTop = messageScrollerRef.current?.scrollTop ?? 0
+
       setMessages((prev) => {
         const known = new Set(prev.map((message) => message.id))
         const newItems = older.filter((message) => !known.has(message.id))
-        addedCount = newItems.length
         const merged = [...newItems, ...prev]
         return sortMessagesChronologically(merged)
       })
@@ -471,7 +473,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       }
 
       // Restore scroll: jump to where the anchor message ended up in the
-      // updated list (its index has shifted by addedCount).
+      // updated list (its index has shifted by the number of prepended messages).
       requestAnimationFrame(() => {
         if (!anchorId) return
         const updatedMessages = messagesRef.current
@@ -479,11 +481,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         if (newAnchorIndex !== -1) {
           virtualizer.scrollToIndex(newAnchorIndex, { align: "start", behavior: "auto" })
         } else if (messageScrollerRef.current) {
-          // Fallback: maintain scroll delta via scrollHeight difference
+          // Fallback: shift by the measured scrollHeight delta
           const scroller = messageScrollerRef.current
-          const newHeight = scroller.scrollHeight
-          const prevHeight = newHeight - (addedCount * 72)
-          scroller.scrollTop = scroller.scrollTop + (newHeight - prevHeight)
+          scroller.scrollTop = prevScrollTop + (scroller.scrollHeight - prevScrollHeight)
         }
       })
     })()
@@ -780,7 +780,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       if (rafId !== null) window.cancelAnimationFrame(rafId)
       if (timerId) window.clearTimeout(timerId)
     }
-  }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, openThreadId, returnScrollStorageKey])
+  }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, messageIndexMap, openThreadId, returnScrollStorageKey])
 
   const jumpToLatest = useCallback(() => {
     if (messages.length > 0) {
@@ -1495,6 +1495,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           onClose={() => setShowPinnedPanel(false)}
           onJumpToMessage={(messageId) => {
             const params = new URLSearchParams(searchParams.toString())
+            params.delete("thread")
             params.set("message", messageId)
             router.replace(`/channels/${serverId}/${channel.id}?${params.toString()}`)
           }}

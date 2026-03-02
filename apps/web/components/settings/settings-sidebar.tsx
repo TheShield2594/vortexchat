@@ -129,6 +129,7 @@ export function SettingsSidebar({ user }: Props) {
       {/* Logout */}
       <div className="px-3 pb-4">
         <button
+          type="button"
           onClick={handleLogout}
           className="flex w-full items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/10 focus-ring"
           style={{ color: "var(--theme-danger)" }}

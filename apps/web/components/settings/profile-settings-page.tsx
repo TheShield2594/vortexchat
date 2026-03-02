@@ -137,6 +137,7 @@ export function ProfileSettingsPage({ user }: Props) {
               </AvatarFallback>
             </Avatar>
             <button
+              type="button"
               onClick={() => fileRef.current?.click()}
               className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ background: "rgba(0,0,0,0.6)" }}
@@ -147,6 +148,7 @@ export function ProfileSettingsPage({ user }: Props) {
           </div>
           <div className="space-y-1.5">
             <button
+              type="button"
               onClick={() => fileRef.current?.click()}
               className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors hover:brightness-110"
               style={{ background: "var(--theme-accent)", color: "white" }}
@@ -173,10 +175,11 @@ export function ProfileSettingsPage({ user }: Props) {
         </h2>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+          <label htmlFor="profile-display-name" className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
             Display Name
           </label>
           <input
+            id="profile-display-name"
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -195,10 +198,11 @@ export function ProfileSettingsPage({ user }: Props) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+          <label htmlFor="profile-custom-tag" className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
             Custom Tag
           </label>
           <input
+            id="profile-custom-tag"
             type="text"
             value={customTag}
             onChange={(e) => setCustomTag(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
@@ -214,10 +218,11 @@ export function ProfileSettingsPage({ user }: Props) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+          <label htmlFor="profile-about-me" className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
             About Me
           </label>
           <textarea
+            id="profile-about-me"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             maxLength={190}
@@ -243,6 +248,7 @@ export function ProfileSettingsPage({ user }: Props) {
           {BANNER_PRESETS.map((color) => (
             <button
               key={color}
+              type="button"
               onClick={() => setBannerColor(color)}
               className="w-8 h-8 rounded-full transition-transform hover:scale-110 focus-ring"
               style={{
@@ -275,6 +281,7 @@ export function ProfileSettingsPage({ user }: Props) {
           {STATUS_OPTIONS.map(({ value, label, color }) => (
             <button
               key={value}
+              type="button"
               onClick={() => setStatus(value)}
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-all focus-ring"
               style={{
@@ -291,10 +298,11 @@ export function ProfileSettingsPage({ user }: Props) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+          <label htmlFor="profile-status-message" className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
             Status Message
           </label>
           <input
+            id="profile-status-message"
             type="text"
             value={statusMessage}
             onChange={(e) => setStatusMessage(e.target.value)}
@@ -313,6 +321,7 @@ export function ProfileSettingsPage({ user }: Props) {
       {/* Save */}
       <div className="flex items-center gap-3 pt-2">
         <button
+          type="button"
           onClick={handleSave}
           disabled={saving}
           className="flex items-center gap-2 px-5 py-2 rounded-md font-semibold text-sm transition-all hover:brightness-110 disabled:opacity-60"
