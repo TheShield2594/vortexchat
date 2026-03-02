@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
-import Anthropic from "@anthropic-ai/sdk"
 
 type Params = { params: Promise<{ serverId: string; channelId: string }> }
+
+type GeminiResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string
+      }>
+    }
+  }>
+}
 
 /**
  * POST /api/servers/[serverId]/channels/[channelId]/summarize
  *
  * AI-powered channel catch-up summary.
- * Fetches recent messages and summarises them with Claude.
+ * Fetches recent messages and summarises them with Gemini.
  * Requires VIEW_CHANNELS permission.
  */
 export async function POST(req: NextRequest, { params }: Params) {
@@ -89,18 +98,20 @@ export async function POST(req: NextRequest, { params }: Params) {
     })
     .join("\n")
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    return NextResponse.json({ error: "AI summarization is not configured (missing ANTHROPIC_API_KEY)" }, { status: 503 })
+    return NextResponse.json({ error: "AI summarization is not configured (missing GEMINI_API_KEY)" }, { status: 503 })
   }
 
-  const client = new Anthropic({ apiKey })
-
   try {
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 512,
-      system: `You are a helpful assistant that summarizes chat channel conversations.
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [
+            {
+              text: `You are a helpful assistant that summarizes chat channel conversations.
 Return your response as JSON with this exact shape:
 {
   "summary": "2-4 sentence overview of what was discussed",
@@ -108,15 +119,35 @@ Return your response as JSON with this exact shape:
   "topics": ["topic1", "topic2"]
 }
 Be concise and factual. Only include information from the conversation.`,
-      messages: [
-        {
-          role: "user",
-          content: `Summarize this conversation from the #${channel.name} channel (${chronological.length} messages):\n\n${transcript}`,
+            },
+          ],
         },
-      ],
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Summarize this conversation from the #${channel.name} channel (${chronological.length} messages):\n\n${transcript}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          maxOutputTokens: 512,
+          responseMimeType: "application/json",
+        },
+      }),
     })
 
-    const text = response.content[0]?.type === "text" ? response.content[0].text : "{}"
+    if (!response.ok) {
+      const errorBody = await response.text()
+      console.error("Gemini API request failed", response.status, errorBody)
+      return NextResponse.json({ error: "AI summarization failed" }, { status: 500 })
+    }
+
+    const result = await response.json() as GeminiResponse
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}"
+
     let parsed: { summary: string; highlights: string[]; topics: string[] }
     try {
       parsed = JSON.parse(text)
