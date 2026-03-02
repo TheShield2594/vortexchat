@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Sticker } from "lucide-react"
+import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Sticker, Plus, MessageSquare } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -20,12 +20,13 @@ interface Props {
   onDraftChange: (value: string) => void
   onTyping?: () => void
   onSent?: () => void
+  onCreateThread?: () => void
 }
 
 const GIPHY_API_BASE = "https://api.giphy.com/v1/gifs"
 
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
-export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent }: Props) {
+export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread }: Props) {
   const [content, setContent] = useState(draft)
   const [cursorPosition, setCursorPosition] = useState(0)
   const [files, setFiles] = useState<File[]>([])
@@ -38,6 +39,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [showPollCreator, setShowPollCreator] = useState(false)
   const [pollQuestion, setPollQuestion] = useState("")
   const [pollOptions, setPollOptions] = useState(["", ""])
+  const [showPlusMenu, setShowPlusMenu] = useState(false)
   const [pickerTab, setPickerTab] = useState<"emoji" | "gif">("emoji")
   const [gifQuery, setGifQuery] = useState("")
   const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
@@ -48,6 +50,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
   const pollCreatorRef = useRef<HTMLDivElement>(null)
+  const plusMenuRef = useRef<HTMLDivElement>(null)
+  const plusButtonRef = useRef<HTMLButtonElement>(null)
   const fileUrlCache = useRef(new Map<File, string>())
 
   // Mention autocomplete
@@ -118,6 +122,22 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     document.addEventListener("mousedown", handlePointerDown)
     return () => document.removeEventListener("mousedown", handlePointerDown)
   }, [showPollCreator])
+
+  useEffect(() => {
+    if (!showPlusMenu) return
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node
+      const clickedInsideMenu = plusMenuRef.current?.contains(target)
+      const clickedButton = plusButtonRef.current?.contains(target)
+      if (!clickedInsideMenu && !clickedButton) {
+        setShowPlusMenu(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    return () => document.removeEventListener("mousedown", handlePointerDown)
+  }, [showPlusMenu])
 
   useEffect(() => {
     if (!showEmojiPicker || pickerTab !== "gif") return
@@ -558,61 +578,65 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           transition: 'box-shadow var(--motion-duration-fast) var(--motion-ease-standard)',
         }}
       >
-        <div className="mb-1 flex items-center gap-1.5">
+        {/* + button with dropdown menu (left side) */}
+        <div className="mb-1 relative flex-shrink-0">
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
-            className="motion-interactive motion-press flex-shrink-0 text-muted-interactive focus-ring rounded"
-            title="Attach"
-            aria-label="Attach file"
-          >
-            <FileUp className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (pollOptions.length === 0) {
-                setPollOptions(["", ""])
-              }
-              setShowPollCreator((prev) => !prev)
+            ref={plusButtonRef}
+            onClick={() => setShowPlusMenu((v) => !v)}
+            className="motion-interactive motion-press flex-shrink-0 w-7 h-7 flex items-center justify-center focus-ring rounded-full"
+            style={{
+              background: showPlusMenu ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
+              color: showPlusMenu ? "white" : "var(--theme-text-secondary)",
             }}
-            className="motion-interactive motion-press flex-shrink-0 focus-ring rounded"
-            style={{ color: showPollCreator ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
-            title="Poll"
-            aria-label="Create poll"
-            aria-pressed={showPollCreator}
+            title="More options"
+            aria-label="More options"
+            aria-expanded={showPlusMenu}
           >
-            <BarChart3 className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
           </button>
-          <button
-            type="button"
-            ref={emojiButtonRef}
-            onClick={() => {
-              setPickerTab("emoji")
-              setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
-            }}
-            className="motion-interactive motion-press focus-ring rounded"
-            style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
-            title="Emoji"
-            aria-label="Insert emoji"
-            aria-pressed={pickerTab === "emoji" && showEmojiPicker}
-          >
-            <Smile className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setPickerTab("gif")
-              setShowEmojiPicker(true)
-            }}
-            className="motion-interactive motion-press focus-ring rounded"
-            style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
-            title="GIF"
-            aria-label="Insert GIF"
-            aria-pressed={pickerTab === "gif" && showEmojiPicker}
-          >
-            <Sticker className="w-4 h-4" />
-          </button>
+
+          {showPlusMenu && (
+            <div
+              ref={plusMenuRef}
+              className="absolute bottom-full mb-2 left-0 z-50 rounded-lg shadow-xl overflow-hidden"
+              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", minWidth: "200px" }}
+            >
+              <button
+                type="button"
+                onClick={() => { setShowPlusMenu(false); fileRef.current?.click() }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
+                style={{ color: "var(--theme-text-primary)" }}
+              >
+                <FileUp className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
+                Upload a File
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPlusMenu(false)
+                  if (pollOptions.length === 0) setPollOptions(["", ""])
+                  setShowPollCreator(true)
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
+                style={{ color: "var(--theme-text-primary)" }}
+              >
+                <BarChart3 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
+                Create Poll
+              </button>
+              {onCreateThread && (
+                <button
+                  type="button"
+                  onClick={() => { setShowPlusMenu(false); onCreateThread() }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
+                  style={{ color: "var(--theme-text-primary)" }}
+                >
+                  <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
+                  Create Thread
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <input
           ref={fileRef}
@@ -862,6 +886,37 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               )}
           </div>
         )}
+
+        {/* GIF & Emoji buttons (right side, Discord style) */}
+        <button
+          type="button"
+          onClick={() => {
+            setPickerTab("gif")
+            setShowEmojiPicker((prev) => !prev || pickerTab !== "gif")
+          }}
+          className="motion-interactive motion-press flex-shrink-0 mb-1 focus-ring rounded"
+          style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+          title="GIF"
+          aria-label="Insert GIF"
+          aria-pressed={pickerTab === "gif" && showEmojiPicker}
+        >
+          <Sticker className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          ref={emojiButtonRef}
+          onClick={() => {
+            setPickerTab("emoji")
+            setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
+          }}
+          className="motion-interactive motion-press flex-shrink-0 mb-1 focus-ring rounded"
+          style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+          title="Emoji"
+          aria-label="Insert emoji"
+          aria-pressed={pickerTab === "emoji" && showEmojiPicker}
+        >
+          <Smile className="w-5 h-5" />
+        </button>
 
         {/* Send button */}
         {(content.trim() || files.length > 0) && (

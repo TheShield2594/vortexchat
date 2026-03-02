@@ -937,6 +937,29 @@ export const MessageItem = memo(function MessageItem({
                 </button>
               )}
 
+              {canManageMessages && onPinToggle && (
+                <button
+                  onClick={async () => {
+                    const pinned = !message.pinned
+                    onPinToggle(pinned)
+                    const res = await fetch(`/api/messages/${message.id}/pin`, { method: pinned ? "PUT" : "DELETE" })
+                    if (!res.ok) {
+                      onPinToggle(!pinned)
+                      const data = await res.json().catch(() => ({}))
+                      toast({ variant: "destructive", title: pinned ? "Failed to pin message" : "Failed to unpin message", description: data.error })
+                    }
+                  }}
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
+                  style={{ color: message.pinned ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+                  title={message.pinned ? "Unpin Message" : "Pin Message"}
+                  aria-label={message.pinned ? "Unpin message" : "Pin message"}
+                  aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
+                >
+                  {message.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                </button>
+              )}
+
               {isOwn && (
                 <button
                   onClick={() => setShowDeleteDialog(true)}
