@@ -189,9 +189,10 @@ export const useAppStore = create<AppState>((set) => ({
 
   serverHasUnread: {},
   setServerHasUnread: (serverId, hasUnread) =>
-    set((state) => ({
-      serverHasUnread: { ...state.serverHasUnread, [serverId]: hasUnread },
-    })),
+    set((state) => {
+      if (state.serverHasUnread[serverId] === hasUnread) return state
+      return { serverHasUnread: { ...state.serverHasUnread, [serverId]: hasUnread } }
+    }),
 
   voiceChannelId: null,
   voiceServerId: null,

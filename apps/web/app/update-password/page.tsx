@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, ShieldCheck } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -17,7 +17,26 @@ export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [loading, setLoading] = useState(false)
-  const supabase = createClientSupabaseClient()
+  const [checkingSession, setCheckingSession] = useState(true)
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
+
+  // Verify that a recovery session actually exists before showing the form.
+  // Without this guard, anyone who navigates directly to /update-password would
+  // see the form and get a confusing "not authenticated" error on submit.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        toast({
+          variant: "destructive",
+          title: "Invalid or expired link",
+          description: "Please request a new password reset.",
+        })
+        router.push("/login")
+      } else {
+        setCheckingSession(false)
+      }
+    })
+  }, [supabase, router, toast])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,12 +54,15 @@ export default function UpdatePasswordPage() {
       if (error) throw error
       toast({ title: "Password updated!", description: "You can now sign in with your new password." })
       router.push("/login")
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Update failed", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      toast({ variant: "destructive", title: "Update failed", description: message })
     } finally {
       setLoading(false)
     }
   }
+
+  if (checkingSession) return null
 
   return (
     <div

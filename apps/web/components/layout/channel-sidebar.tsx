@@ -328,6 +328,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
   // Keep the server-level unread indicator in the app store in sync so the
   // server sidebar can show a pip badge without needing its own subscription.
+  //
+  // Scope note: this effect only runs while ChannelSidebar is mounted (i.e.
+  // while the user is looking at a specific server). Badges for other servers
+  // are therefore only populated after the user visits them during a session.
+  // A future BackgroundUnreadSync component could subscribe to all servers
+  // up-front and call setServerHasUnread centrally, but that would multiply
+  // Supabase realtime subscriptions. The current trade-off is intentional.
   useEffect(() => {
     setServerHasUnread(server.id, unreadChannelIds.size > 0)
   }, [server.id, unreadChannelIds, setServerHasUnread])

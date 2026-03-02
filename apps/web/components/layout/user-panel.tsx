@@ -82,12 +82,12 @@ export function UserPanel() {
   const customStatusText = !isStatusExpired ? [currentUser.status_emoji, currentUser.status_message].filter(Boolean).join(" ").trim() : ""
 
   async function handleLogout() {
-    try {
-      await supabase.auth.signOut()
-      router.push("/login")
-    } catch (error: any) {
+    const { error } = await supabase.auth.signOut()
+    if (error) {
       toast({ variant: "destructive", title: "Sign out failed", description: error.message })
+      return
     }
+    router.push("/login")
   }
 
   async function handleSetStatus(status: UserRow["status"]) {
