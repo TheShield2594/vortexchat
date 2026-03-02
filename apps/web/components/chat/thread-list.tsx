@@ -101,7 +101,7 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
 
     // Persist read state via RPC (fire-and-forget)
     const supabase = createClientSupabaseClient()
-    supabase.rpc("mark_thread_read", { p_thread_id: thread.id }).catch(() => undefined)
+    void Promise.resolve(supabase.rpc("mark_thread_read", { p_thread_id: thread.id }))
 
     onSelectThread(thread)
   }, [onSelectThread])
