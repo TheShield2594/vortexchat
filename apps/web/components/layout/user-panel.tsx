@@ -257,7 +257,7 @@ export function UserPanel() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={() => setShowProfileSettings(true)}
+              onClick={() => router.push("/settings")}
               aria-label="User Settings"
               className="w-7 h-7 rounded flex items-center justify-center surface-hover-md motion-interactive focus-ring"
               style={{ color: 'var(--theme-text-muted)' }}

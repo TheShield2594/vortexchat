@@ -1,8 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase } from "lucide-react"
+import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -21,6 +22,8 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
+import { ChannelSummaryCard } from "@/components/chat/channel-summary-card"
+import { PinnedMessagesPanel } from "@/components/chat/pinned-messages-panel"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   type OutboxEntry,
@@ -81,6 +84,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
   const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
+  const [showSummary, setShowSummary] = useState(false)
+  const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -101,6 +106,22 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
   const jumpToMessageId = searchParams.get("message")
   const openThreadId = searchParams.get("thread")
+
+  // ── Virtual list ──────────────────────────────────────────────────────────
+  // O(1) lookup of message index by ID for virtualizer scrollToIndex
+  const messageIndexMap = useMemo(
+    () => new Map(messages.map((m, i) => [m.id, i])),
+    [messages]
+  )
+
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => messageScrollerRef.current,
+    estimateSize: () => 72,
+    overscan: 8,
+    // Measure actual rendered heights for accurate positioning
+    measureElement: (el) => el?.getBoundingClientRect().height ?? 72,
+  })
 
   const jumpToMessage = useCallback((messageId: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -411,11 +432,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     setIsPaginating(true)
-    const previousHeight = container.scrollHeight
-    const previousTop = container.scrollTop
-    const firstVisible = Array.from(container.querySelectorAll<HTMLElement>("[id^='message-']")).find((el) => el.offsetTop >= previousTop)
-    const firstVisibleId = firstVisible?.id ?? null
-    const firstVisibleOffset = firstVisible ? firstVisible.offsetTop - previousTop : null
+    // Capture the ID of the top-most currently visible message so we can
+    // restore scroll position after prepending older messages.
+    const firstVisibleRange = virtualizer.range
+    const anchorIndex = firstVisibleRange?.startIndex ?? 0
+    const anchorId = currentMessages[anchorIndex]?.id ?? null
 
     const paginationPromise = (async () => {
       const oldest = currentMessages[0]
@@ -436,9 +457,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         return
       }
 
+      let addedCount = 0
       setMessages((prev) => {
         const known = new Set(prev.map((message) => message.id))
-        const merged = [...older.filter((message) => !known.has(message.id)), ...prev]
+        const newItems = older.filter((message) => !known.has(message.id))
+        addedCount = newItems.length
+        const merged = [...newItems, ...prev]
         return sortMessagesChronologically(merged)
       })
 
@@ -446,18 +470,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         setHasMoreHistory(false)
       }
 
+      // Restore scroll: jump to where the anchor message ended up in the
+      // updated list (its index has shifted by addedCount).
       requestAnimationFrame(() => {
-        if (!messageScrollerRef.current) return
-        const scroller = messageScrollerRef.current
-        if (firstVisibleId && firstVisibleOffset !== null) {
-          const anchor = document.getElementById(firstVisibleId)
-          if (anchor) {
-            scroller.scrollTop = anchor.offsetTop - firstVisibleOffset
-            return
-          }
+        if (!anchorId) return
+        const updatedMessages = messagesRef.current
+        const newAnchorIndex = updatedMessages.findIndex((m) => m.id === anchorId)
+        if (newAnchorIndex !== -1) {
+          virtualizer.scrollToIndex(newAnchorIndex, { align: "start", behavior: "auto" })
+        } else if (messageScrollerRef.current) {
+          // Fallback: maintain scroll delta via scrollHeight difference
+          const scroller = messageScrollerRef.current
+          const newHeight = scroller.scrollHeight
+          const prevHeight = newHeight - (addedCount * 72)
+          scroller.scrollTop = scroller.scrollTop + (newHeight - prevHeight)
         }
-        const nextHeight = scroller.scrollHeight
-        scroller.scrollTop = previousTop + (nextHeight - previousHeight)
       })
     })()
 
@@ -625,7 +652,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   useEffect(() => {
     if (jumpToMessageId || openThreadId) return
     requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "auto" })
+      if (messages.length > 0) {
+        virtualizer.scrollToIndex(messages.length - 1, { align: "end", behavior: "auto" })
+      } else {
+        bottomRef.current?.scrollIntoView({ behavior: "auto" })
+      }
     })
   }, [channel.id])
 
@@ -637,7 +668,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!hasNewMessages || !newestMessage) return
 
     if (isAtBottom || newestMessage.author_id === currentUserId) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+      virtualizer.scrollToIndex(messages.length - 1, { align: "end", behavior: "smooth" })
       return
     }
 
@@ -724,9 +755,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       rafId = window.requestAnimationFrame(() => {
         if (cancelled) return
-        const target = document.getElementById(`message-${jumpToMessageId}`)
-        if (!target) return
-        target.scrollIntoView({ block: "center", behavior: "auto" })
+        // Use the virtualizer index for scroll (works even if item is off-screen)
+        const targetIndex = messageIndexMap.get(jumpToMessageId)
+        if (targetIndex !== undefined) {
+          virtualizer.scrollToIndex(targetIndex, { align: "center", behavior: "auto" })
+        } else {
+          // Fallback to DOM for edge cases (e.g. outbox messages not yet in virtualizer)
+          const target = document.getElementById(`message-${jumpToMessageId}`)
+          if (target) target.scrollIntoView({ block: "center", behavior: "auto" })
+        }
         if (cancelled) return
         setHighlightedMessageId(jumpToMessageId)
         jumpedRef.current = true
@@ -746,13 +783,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, openThreadId, returnScrollStorageKey])
 
   const jumpToLatest = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (messages.length > 0) {
+      virtualizer.scrollToIndex(messages.length - 1, { align: "end", behavior: "smooth" })
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
     setPendingNewMessageCount(0)
     setUnreadAnchorMessageId(null)
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem(unreadAnchorStorageKey)
     }
-  }, [unreadAnchorStorageKey])
+  }, [messages.length, unreadAnchorStorageKey, virtualizer])
 
   const returnToContext = useCallback(() => {
     const container = messageScrollerRef.current
@@ -1124,6 +1165,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           )}
 
           <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={() => setShowSummary((v) => !v)}
+              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
+              title="AI catch-up summary"
+              aria-label="Toggle AI channel summary"
+            >
+              <Sparkles className="w-4 h-4" style={{ color: showSummary ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
+            </button>
+
             <NotificationBell userId={currentUserId} />
 
             <button
@@ -1145,12 +1195,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </button>
 
             <button
-              onClick={() => toast({ title: "Pinned view", description: "Pinned message view is queued for a follow-up pass." })}
+              onClick={() => setShowPinnedPanel((v) => !v)}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
-              title="Pinned messages"
-              aria-label="Pinned messages"
+              title={showPinnedPanel ? "Hide Pinned Messages" : "Pinned Messages"}
+              aria-label={showPinnedPanel ? "Hide Pinned Messages" : "Show Pinned Messages"}
             >
-              <Pin className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
+              <Pin className="w-4 h-4" style={{ color: showPinnedPanel ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
             </button>
 
             <button
@@ -1190,6 +1240,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
         <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
+
+        {showSummary && (
+          <ChannelSummaryCard
+            serverId={serverId}
+            channelId={channel.id}
+            lastReadAt={initialLastReadAt}
+          />
+        )}
+
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
           {messages.length === 0 && (
             <div className="px-4 py-8">
@@ -1228,125 +1287,144 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 ))}
               </div>
             )}
-            {messages.map((message, i) => {
-              const prevMessage = messages[i - 1]
-              const isGrouped =
-                prevMessage &&
-                prevMessage.author_id === message.author_id &&
-                new Date(message.created_at).getTime() -
-                  new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000
 
-              return (
-                <div key={message.id} style={{ overflowAnchor: "none" }}>
-                {unreadDividerMessageId === message.id && (
-                  <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
-                    <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-0.5 rounded-full flex-shrink-0"
-                      style={{ color: "var(--theme-danger)", background: "color-mix(in srgb, var(--theme-danger) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--theme-danger) 40%, transparent)" }}
-                    >
-                      NEW MESSAGES
-                    </span>
-                    <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />
-                  </div>
-                )}
-                <MessageItem
-                  containerId={`message-${message.id}`}
-                  highlighted={highlightedMessageId === message.id}
-                  message={message}
-                  isGrouped={!!isGrouped}
-                  currentUserId={currentUserId}
-                  sendState={outboxStateByMessageId[message.id]}
-                  onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
-                  recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
-                  animateOnMount={animatedMessageIds.has(message.id)}
-                  onMountAnimationComplete={animatedMessageIds.has(message.id)
-                    ? () => {
-                      const timer = animatedMessageTimersRef.current.get(message.id)
-                      if (timer) {
-                        clearTimeout(timer)
-                        animatedMessageTimersRef.current.delete(message.id)
-                      }
-                      setAnimatedMessageIds((current) => {
-                        if (!current.has(message.id)) return current
-                        const next = new Set(current)
-                        next.delete(message.id)
-                        return next
-                      })
-                    }
-                    : undefined}
-                  onReply={() => setReplyTo(message)}
-                  onReplyJump={jumpToMessage}
-                  onThreadCreated={(thread) => setActiveThread(thread)}
-                  onEdit={async (content) => {
-                    const res = await fetch(
-                      `/api/servers/${serverId}/channels/${channel.id}/messages/${message.id}`,
-                      {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ content }),
-                      }
-                    )
-                    if (!res.ok) {
-                      const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
-                      throw new Error(data.error || "Failed to edit message")
-                    }
-                    const updated = await res.json().catch(() => null)
-                    setMessages((prev) =>
-                      prev.map((m) => m.id === message.id
-                        ? updated ? { ...m, ...updated } : { ...m, content, edited_at: new Date().toISOString() }
-                        : m)
-                    )
-                  }}
-                  onDelete={async () => {
-                    const { data, error } = await supabase
-                      .from("messages")
-                      .update({ deleted_at: new Date().toISOString() })
-                      .eq("id", message.id)
-                      .eq("author_id", currentUserId)
-                      .select("id")
-                    if (error) throw error
-                    if (!data || data.length === 0) {
-                      throw new Error("Message could not be deleted. It may have already been removed.")
-                    }
-                    setMessages((prev) => prev.filter((m) => m.id !== message.id))
-                    setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
-                  }}
-                  onReaction={async (emoji) => {
-                    const previousMessage = messagesRef.current.find((m) => m.id === message.id)
-                    const touched = Boolean(previousMessage)
-                    const remove = previousMessage
-                      ? previousMessage.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
-                      : false
+            {/* Virtualized message list — only renders items near the viewport */}
+            <div
+              style={{ height: `${virtualizer.getTotalSize()}px`, width: "100%", position: "relative" }}
+            >
+              {virtualizer.getVirtualItems().map((virtualItem) => {
+                const message = messages[virtualItem.index]
+                if (!message) return null
+                const prevMessage = messages[virtualItem.index - 1]
+                const isGrouped =
+                  prevMessage &&
+                  prevMessage.author_id === message.author_id &&
+                  new Date(message.created_at).getTime() -
+                    new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000
 
-                    if (!touched) return
-
-                    setMessages((prev) =>
-                      prev.map((m) => {
-                        if (m.id !== message.id) return m
-                        return {
-                          ...m,
-                          reactions: remove
-                            ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
-                            : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                return (
+                  <div
+                    key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                  >
+                    {unreadDividerMessageId === message.id && (
+                      <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
+                        <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-0.5 rounded-full flex-shrink-0"
+                          style={{ color: "var(--theme-danger)", background: "color-mix(in srgb, var(--theme-danger) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--theme-danger) 40%, transparent)" }}
+                        >
+                          NEW MESSAGES
+                        </span>
+                        <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />
+                      </div>
+                    )}
+                    <MessageItem
+                      containerId={`message-${message.id}`}
+                      highlighted={highlightedMessageId === message.id}
+                      message={message}
+                      isGrouped={!!isGrouped}
+                      currentUserId={currentUserId}
+                      sendState={outboxStateByMessageId[message.id]}
+                      onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
+                      recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
+                      animateOnMount={animatedMessageIds.has(message.id)}
+                      onMountAnimationComplete={animatedMessageIds.has(message.id)
+                        ? () => {
+                          const timer = animatedMessageTimersRef.current.get(message.id)
+                          if (timer) {
+                            clearTimeout(timer)
+                            animatedMessageTimersRef.current.delete(message.id)
+                          }
+                          setAnimatedMessageIds((current) => {
+                            if (!current.has(message.id)) return current
+                            const next = new Set(current)
+                            next.delete(message.id)
+                            return next
+                          })
                         }
-                      })
-                    )
+                        : undefined}
+                      onReply={() => setReplyTo(message)}
+                      onReplyJump={jumpToMessage}
+                      onThreadCreated={(thread) => setActiveThread(thread)}
+                      onEdit={async (content) => {
+                        const res = await fetch(
+                          `/api/servers/${serverId}/channels/${channel.id}/messages/${message.id}`,
+                          {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ content }),
+                          }
+                        )
+                        if (!res.ok) {
+                          const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
+                          throw new Error(data.error || "Failed to edit message")
+                        }
+                        const updated = await res.json().catch(() => null)
+                        setMessages((prev) =>
+                          prev.map((m) => m.id === message.id
+                            ? updated ? { ...m, ...updated } : { ...m, content, edited_at: new Date().toISOString() }
+                            : m)
+                        )
+                      }}
+                      onDelete={async () => {
+                        const { data, error } = await supabase
+                          .from("messages")
+                          .update({ deleted_at: new Date().toISOString() })
+                          .eq("id", message.id)
+                          .eq("author_id", currentUserId)
+                          .select("id")
+                        if (error) throw error
+                        if (!data || data.length === 0) {
+                          throw new Error("Message could not be deleted. It may have already been removed.")
+                        }
+                        setMessages((prev) => prev.filter((m) => m.id !== message.id))
+                        setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
+                      }}
+                      onReaction={async (emoji) => {
+                        const previousMessage = messagesRef.current.find((m) => m.id === message.id)
+                        const touched = Boolean(previousMessage)
+                        const remove = previousMessage
+                          ? previousMessage.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+                          : false
 
-                    try {
-                      await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
-                    } catch {
-                      if (!previousMessage) return
-                      setMessages((prev) =>
-                        prev.map((m) => (m.id === message.id ? { ...m, ...previousMessage } : m))
-                      )
-                    }
-                  }}
-                />
-                </div>
-              )
-            })}
-            <div ref={bottomRef} style={{ overflowAnchor: "auto", height: 1 }} />
+                        if (!touched) return
+
+                        setMessages((prev) =>
+                          prev.map((m) => {
+                            if (m.id !== message.id) return m
+                            return {
+                              ...m,
+                              reactions: remove
+                                ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+                                : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+                            }
+                          })
+                        )
+
+                        try {
+                          await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
+                        } catch {
+                          if (!previousMessage) return
+                          setMessages((prev) =>
+                            prev.map((m) => (m.id === message.id ? { ...m, ...previousMessage } : m))
+                          )
+                        }
+                      }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+            <div ref={bottomRef} style={{ height: 1 }} />
           </div>
 
           {!isAtBottom && (
@@ -1408,6 +1486,19 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             focusMessageId={openThreadId ? jumpToMessageId : null}
           />
         </div>
+      )}
+
+      {showPinnedPanel && (
+        <PinnedMessagesPanel
+          channelId={channel.id}
+          channelName={channel.name}
+          onClose={() => setShowPinnedPanel(false)}
+          onJumpToMessage={(messageId) => {
+            const params = new URLSearchParams(searchParams.toString())
+            params.set("message", messageId)
+            router.replace(`/channels/${serverId}/${channel.id}?${params.toString()}`)
+          }}
+        />
       )}
 
       <WorkspacePanel channelId={channel.id} open={workspaceOpen} />
