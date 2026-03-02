@@ -1166,6 +1166,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
           <div className="ml-auto flex items-center gap-1">
             <button
+              type="button"
               onClick={() => setShowSummary((v) => !v)}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="AI catch-up summary"
@@ -1177,6 +1178,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <NotificationBell userId={currentUserId} />
 
             <button
+              type="button"
               onClick={toggleWorkspacePanel}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="Workspace"
@@ -1186,6 +1188,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </button>
 
             <button
+              type="button"
               onClick={() => setShowSearchModal(true)}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="Search messages"
@@ -1195,6 +1198,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </button>
 
             <button
+              type="button"
               onClick={() => setShowPinnedPanel((v) => !v)}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title={showPinnedPanel ? "Hide Pinned Messages" : "Pinned Messages"}
@@ -1204,6 +1208,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </button>
 
             <button
+              type="button"
               onClick={() => toast({ title: "Help", description: "Shortcuts: Ctrl/Cmd+K (Quick Switcher), Ctrl/Cmd+F (Search)." })}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="Help"
@@ -1213,6 +1218,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </button>
 
             <button
+              type="button"
               onClick={toggleMemberList}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title={memberListOpen ? "Hide Member List" : "Show Member List"}
@@ -1221,6 +1227,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </button>
 
             <button
+              type="button"
               onClick={toggleThreadPanel}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}

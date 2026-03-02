@@ -265,9 +265,13 @@ export function useLivekitVoice({
     const room = roomRef.current
     if (!room) return
     const nextEnabled = !videoEnabled
-    await room.localParticipant.setCameraEnabled(nextEnabled)
-    setVideoEnabled(nextEnabled)
-    refreshParticipants(room)
+    try {
+      await room.localParticipant.setCameraEnabled(nextEnabled)
+      setVideoEnabled(nextEnabled)
+      refreshParticipants(room)
+    } catch (err) {
+      console.error("[Livekit] Failed to toggle camera", err)
+    }
   }, [videoEnabled, refreshParticipants])
 
   const leave = useCallback(() => {

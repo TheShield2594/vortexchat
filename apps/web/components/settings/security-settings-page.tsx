@@ -63,11 +63,15 @@ export function SecuritySettingsPage({ userId: _userId, hasTOTP, userEmail }: Pr
   async function revokeAllSessions() {
     setRevokingAll(true)
     try {
-      await supabase.auth.signOut({ scope: "global" })
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "global" })
+      if (signOutError) {
+        toast({ variant: "destructive", title: "Failed to revoke sessions", description: signOutError.message })
+        setRevokingAll(false)
+        return
+      }
       router.replace("/login")
     } catch (err: unknown) {
-      toast({ variant: "destructive", title: "Failed to revoke sessions" })
-    } finally {
+      toast({ variant: "destructive", title: "Failed to revoke sessions", description: err instanceof Error ? err.message : undefined })
       setRevokingAll(false)
     }
   }
@@ -150,6 +154,7 @@ export function SecuritySettingsPage({ userId: _userId, hasTOTP, userEmail }: Pr
                 onClick={() => setShowOld((v) => !v)}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2"
                 style={{ color: "var(--theme-text-muted)" }}
+                aria-label={showOld ? "Hide current password" : "Show current password"}
               >
                 {showOld ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -181,6 +186,7 @@ export function SecuritySettingsPage({ userId: _userId, hasTOTP, userEmail }: Pr
                 onClick={() => setShowNew((v) => !v)}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2"
                 style={{ color: "var(--theme-text-muted)" }}
+                aria-label={showNew ? "Hide new password" : "Show new password"}
               >
                 {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>

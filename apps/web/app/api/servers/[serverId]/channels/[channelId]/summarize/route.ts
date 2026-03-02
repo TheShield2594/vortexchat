@@ -26,12 +26,16 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // Verify channel belongs to this server
-  const { data: channel } = await supabase
+  const { data: channel, error: channelError } = await supabase
     .from("channels")
     .select("id, name, server_id")
     .eq("id", channelId)
     .eq("server_id", serverId)
     .single()
+
+  if (channelError) {
+    return NextResponse.json({ error: channelError.message }, { status: 500 })
+  }
 
   if (!channel) {
     return NextResponse.json({ error: "Channel not found" }, { status: 404 })

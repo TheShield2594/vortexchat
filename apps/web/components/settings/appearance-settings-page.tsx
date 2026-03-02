@@ -77,6 +77,7 @@ export function AppearanceSettingsPage() {
             <button
               key={value}
               type="button"
+              aria-pressed={fontScale === value}
               onClick={() => setFontScale(value)}
               className="flex-1 py-2 rounded text-sm transition-all"
               style={{
@@ -107,6 +108,7 @@ export function AppearanceSettingsPage() {
             <button
               key={value}
               type="button"
+              aria-pressed={saturation === value}
               onClick={() => setSaturation(value)}
               className="flex-1 py-2 rounded text-sm transition-all"
               style={{

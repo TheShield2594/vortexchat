@@ -40,21 +40,45 @@ export function NotificationsSettingsPage({ userId }: Props) {
 
   const STORAGE_KEY = `vortexchat:notif-prefs:${userId}`
 
+  const DEFAULT_SETTINGS: NotificationSettingsRow = {
+    mention_notifications: true,
+    reply_notifications: true,
+    friend_request_notifications: true,
+    server_invite_notifications: true,
+    system_notifications: true,
+    sound_enabled: true,
+  }
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
         const stored = window.localStorage.getItem(STORAGE_KEY)
-        if (stored) setSettings(JSON.parse(stored) as NotificationSettingsRow)
+        if (stored) {
+          const parsed = JSON.parse(stored) as Record<string, unknown>
+          // Merge parsed values with defaults, accepting only boolean fields
+          const validated: NotificationSettingsRow = { ...DEFAULT_SETTINGS }
+          for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof NotificationSettingsRow)[]) {
+            if (typeof parsed[key] === "boolean") {
+              validated[key] = parsed[key] as boolean
+            }
+          }
+          setSettings(validated)
+        }
       } catch {
-        // ignore parse errors
+        // ignore parse/storage errors
       }
     }
     setLoading(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [STORAGE_KEY])
 
   function saveToStorage(next: NotificationSettingsRow) {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // ignore quota / privacy-mode failures
+      }
     }
   }
 

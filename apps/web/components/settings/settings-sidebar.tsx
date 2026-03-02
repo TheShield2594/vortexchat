@@ -16,6 +16,7 @@ import type { UserRow } from "@/types/database"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useState, useMemo } from "react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Props {
   user: UserRow
@@ -38,6 +39,7 @@ const NAV_SECTIONS = [
 export function SettingsSidebar({ user }: Props) {
   const pathname = usePathname()
   const router = useRouter()
+  const { toast } = useToast()
   const [supabase] = useState(() => createClientSupabaseClient())
   const initials = useMemo(() => {
     const name = user.display_name || user.username || "?"
@@ -45,7 +47,11 @@ export function SettingsSidebar({ user }: Props) {
   }, [user])
 
   async function handleLogout() {
-    await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      toast({ variant: "destructive", title: "Sign out failed", description: error.message })
+      return
+    }
     router.replace("/login")
   }
 
@@ -75,7 +81,7 @@ export function SettingsSidebar({ user }: Props) {
         style={{ background: "var(--theme-bg-tertiary)" }}
       >
         <Avatar className="w-8 h-8 flex-shrink-0">
-          {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.display_name ?? user.username} />}
+          {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.display_name ?? user.username ?? "User avatar"} />}
           <AvatarFallback
             className="text-xs font-bold"
             style={{ background: user.banner_color ?? "var(--theme-accent)", color: "white" }}

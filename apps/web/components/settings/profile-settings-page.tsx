@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Upload, Camera } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -44,6 +44,13 @@ export function ProfileSettingsPage({ user }: Props) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Revoke object URLs when preview changes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+    }
+  }, [avatarPreview])
+
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -51,6 +58,7 @@ export function ProfileSettingsPage({ user }: Props) {
       toast({ variant: "destructive", title: "Image too large", description: "Max 5MB." })
       return
     }
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview)
     setAvatarFile(file)
     setAvatarPreview(URL.createObjectURL(file))
   }
@@ -61,7 +69,9 @@ export function ProfileSettingsPage({ user }: Props) {
       let avatarUrl = user.avatar_url
 
       if (avatarFile) {
-        const ext = avatarFile.name.split(".").pop() ?? "jpg"
+        const ALLOWED_EXTS = new Set(["jpg", "jpeg", "png", "gif", "webp"])
+        const rawExt = avatarFile.name.split(".").pop()?.toLowerCase() ?? ""
+        const ext = ALLOWED_EXTS.has(rawExt) ? rawExt : "jpg"
         const path = `avatars/${user.id}.${ext}`
         const { error: uploadError } = await supabase.storage
           .from("avatars")
@@ -265,7 +275,8 @@ export function ProfileSettingsPage({ user }: Props) {
               value={bannerColor}
               onChange={(e) => setBannerColor(e.target.value)}
               className="w-8 h-8 rounded-full cursor-pointer border-0 bg-transparent"
-              title="Custom color"
+              title="Custom banner color"
+              aria-label="Custom banner color"
             />
             <span className="text-xs font-mono" style={{ color: "var(--theme-text-muted)" }}>{bannerColor}</span>
           </div>
