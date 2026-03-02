@@ -25,7 +25,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(threads ?? [], {
+  const threadList = threads ?? []
+
+  // Attach is_unread by joining thread_read_states for the current user
+  if (threadList.length > 0) {
+    const { data: readStates } = await supabase
+      .from("thread_read_states")
+      .select("thread_id, last_read_at")
+      .eq("user_id", user.id)
+      .in("thread_id", threadList.map((t) => t.id))
+
+    const readMap = new Map((readStates ?? []).map((rs) => [rs.thread_id, rs.last_read_at]))
+
+    const withUnread = threadList.map((t) => {
+      const lastRead = readMap.get(t.id)
+      return { ...t, is_unread: lastRead ? t.updated_at > lastRead : true }
+    })
+
+    return NextResponse.json(withUnread, {
+      headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
+    })
+  }
+
+  return NextResponse.json(threadList, {
     headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
   })
 }

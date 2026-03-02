@@ -133,11 +133,47 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   )
 }
 
+const EMOJI_RECENTS_KEY = "vortexchat:emoji-recents"
+const EMOJI_RECENTS_MAX = 18
+
+function getEmojiRecents(): string[] {
+  if (typeof window === "undefined") return []
+  try {
+    return JSON.parse(localStorage.getItem(EMOJI_RECENTS_KEY) ?? "[]")
+  } catch {
+    return []
+  }
+}
+
+function addEmojiRecent(emoji: string) {
+  if (typeof window === "undefined") return
+  try {
+    const current = getEmojiRecents().filter((e) => e !== emoji)
+    localStorage.setItem(EMOJI_RECENTS_KEY, JSON.stringify([emoji, ...current].slice(0, EMOJI_RECENTS_MAX)))
+  } catch {
+    // localStorage unavailable — no-op
+  }
+}
+
 function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => void; onClose: () => void }) {
+  const [recents, setRecents] = useState<string[]>([])
+  const [searchActive, setSearchActive] = useState(false)
+
+  useEffect(() => {
+    setRecents(getEmojiRecents())
+  }, [])
+
+  function handleSelect(emoji: string) {
+    addEmojiRecent(emoji)
+    setRecents(getEmojiRecents())
+    onSelect(emoji)
+    onClose()
+  }
+
   return (
     <EmojiPicker.Root
-      onEmojiSelect={({ emoji }) => { onSelect(emoji); onClose() }}
-      style={{ display: "flex", flexDirection: "column", width: "320px", height: "380px" }}
+      onEmojiSelect={({ emoji }) => handleSelect(emoji)}
+      style={{ display: "flex", flexDirection: "column", width: "320px", height: "400px" }}
     >
       <div style={{ padding: "8px 8px 4px" }}>
         <EmojiPicker.Search
@@ -154,8 +190,56 @@ function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => 
             color: "var(--theme-text-normal)",
           }}
           placeholder="Search emoji…"
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchActive(e.target.value.length > 0)}
         />
       </div>
+
+      {/* Recently used row — hidden while the search field has input */}
+      {recents.length > 0 && !searchActive && (
+        <div style={{ padding: "4px 8px 0" }}>
+          <div
+            style={{
+              padding: "4px 0 2px",
+              fontSize: "10px",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--theme-text-muted)",
+            }}
+          >
+            Recently used
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "2px" }}>
+            {recents.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handleSelect(emoji)}
+                title={emoji}
+                style={{
+                  fontSize: "20px",
+                  width: "34px",
+                  height: "34px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "4px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: "transparent",
+                  fontFamily: "var(--frimousse-emoji-font)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--theme-surface-elevated)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <div style={{ height: "1px", background: "var(--theme-bg-tertiary)", margin: "6px 0 2px" }} />
+        </div>
+      )}
+
       <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
         <EmojiPicker.Loading>
           <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>Loading…</div>
