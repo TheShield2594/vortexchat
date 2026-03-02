@@ -773,12 +773,12 @@ export const MessageItem = memo(function MessageItem({
                   )}
 
                   {messageBodyContent && (
-                    <p
+                    <div
                       className="text-sm leading-relaxed message-content break-words"
                       style={{ color: "var(--theme-text-normal)" }}
                     >
                       {renderContent(messageBodyContent)}
-                    </p>
+                    </div>
                   )}
 
                   {embeddableGiphyUrl && (
