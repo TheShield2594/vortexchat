@@ -116,16 +116,18 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     let cancelled = false
     ;(async () => {
       try {
-        const [{ data: serverRow }, { data: memberRow }] = await Promise.all([
-          supabase.from("servers").select("owner_id").eq("id", serverId).single(),
-          supabase
-            .from("server_members")
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .select("member_roles(roles(permissions))" as any)
-            .eq("server_id", serverId)
-            .eq("user_id", currentUserId)
-            .maybeSingle(),
-        ])
+        const { data: serverRow } = await supabase
+          .from("servers")
+          .select("owner_id")
+          .eq("id", serverId)
+          .single()
+        const { data: memberRow } = await (supabase
+          .from("server_members")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .select("member_roles(roles(permissions))" as any)
+          .eq("server_id", serverId)
+          .eq("user_id", currentUserId)
+          .maybeSingle() as any)
         if (cancelled) return
         const isOwner = serverRow?.owner_id === currentUserId
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
