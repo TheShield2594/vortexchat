@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useId, useRef, useState } from "react"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check, Pin, PinOff } from "lucide-react"
 import { Highlight, themes } from "prism-react-renderer"
 import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -37,6 +37,8 @@ interface Props {
   onReaction: (emoji: string) => Promise<void>
   onReplyJump?: (messageId: string) => void
   onThreadCreated?: (thread: ThreadRow) => void
+  onPinToggle?: (pinned: boolean) => void
+  canManageMessages?: boolean
   sendState?: "queued" | "sending" | "failed"
   onRetry?: () => void
   recentlyActive?: boolean
@@ -326,6 +328,8 @@ export const MessageItem = memo(function MessageItem({
   onReaction,
   onReplyJump,
   onThreadCreated,
+  onPinToggle,
+  canManageMessages = false,
   sendState,
   onRetry,
   recentlyActive = false,
@@ -994,6 +998,27 @@ export const MessageItem = memo(function MessageItem({
         }}>
           <Hash className="w-4 h-4 mr-2" /> Copy Message ID
         </ContextMenuItem>
+        {canManageMessages && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={async () => {
+              const pinned = !message.pinned
+              onPinToggle?.(pinned)
+              const res = await fetch(`/api/messages/${message.id}/pin`, { method: pinned ? "PUT" : "DELETE" })
+              if (!res.ok) {
+                onPinToggle?.(!pinned)
+                const data = await res.json().catch(() => ({}))
+                toast({ variant: "destructive", title: pinned ? "Failed to pin message" : "Failed to unpin message", description: data.error })
+              }
+            }}>
+              {message.pinned
+                ? <><PinOff className="w-4 h-4 mr-2" /> Unpin Message</>
+                : <><Pin className="w-4 h-4 mr-2" /> Pin Message</>
+              }
+              <ContextMenuShortcut>P</ContextMenuShortcut>
+            </ContextMenuItem>
+          </>
+        )}
         {!isOwn && (
           <>
             <ContextMenuSeparator />

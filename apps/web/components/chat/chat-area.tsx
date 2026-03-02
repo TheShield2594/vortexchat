@@ -88,6 +88,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
+  const [canManageMessages, setCanManageMessages] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -108,6 +109,40 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
   const jumpToMessageId = searchParams.get("message")
   const openThreadId = searchParams.get("thread")
+
+  // ── Permission check ──────────────────────────────────────────────────────
+  // Determine once if the current user can manage messages in this channel
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [{ data: serverRow }, { data: memberRow }] = await Promise.all([
+          supabase.from("servers").select("owner_id").eq("id", serverId).single(),
+          supabase
+            .from("server_members")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .select("member_roles(roles(permissions))" as any)
+            .eq("server_id", serverId)
+            .eq("user_id", currentUserId)
+            .maybeSingle(),
+        ])
+        if (cancelled) return
+        const isOwner = serverRow?.owner_id === currentUserId
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const perms: number = (memberRow as any)?.member_roles?.reduce(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (acc: number, mr: any) => acc | (mr?.roles?.permissions ?? 0),
+          0
+        ) ?? 0
+        const ADMINISTRATOR = 1 << 7
+        const MANAGE_MESSAGES = 1 << 2
+        setCanManageMessages(isOwner || !!(perms & ADMINISTRATOR) || !!(perms & MANAGE_MESSAGES))
+      } catch {
+        // Non-critical: default stays false
+      }
+    })()
+    return () => { cancelled = true }
+  }, [supabase, serverId, currentUserId])
 
   // ── Virtual list ──────────────────────────────────────────────────────────
   // O(1) lookup of message index by ID for virtualizer scrollToIndex
@@ -1362,6 +1397,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                       message={message}
                       isGrouped={!!isGrouped}
                       currentUserId={currentUserId}
+                      canManageMessages={canManageMessages}
                       sendState={outboxStateByMessageId[message.id]}
                       onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
                       recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
@@ -1417,6 +1453,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                         }
                         setMessages((prev) => prev.filter((m) => m.id !== message.id))
                         setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
+                      }}
+                      onPinToggle={(pinned) => {
+                        setMessages((prev) =>
+                          prev.map((m) => m.id === message.id ? { ...m, pinned } : m)
+                        )
                       }}
                       onReaction={async (emoji) => {
                         const previousMessage = messagesRef.current.find((m) => m.id === message.id)
@@ -1522,6 +1563,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         <PinnedMessagesPanel
           channelId={channel.id}
           channelName={channel.name}
+          canManageMessages={canManageMessages}
           onClose={() => setShowPinnedPanel(false)}
           onJumpToMessage={(messageId) => {
             const params = new URLSearchParams(searchParams.toString())

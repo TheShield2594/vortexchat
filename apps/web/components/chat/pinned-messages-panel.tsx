@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Pin, X, Loader2, Hash, ExternalLink } from "lucide-react"
+import { Pin, PinOff, X, Loader2, ExternalLink } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { format } from "date-fns"
 
@@ -20,11 +20,12 @@ interface PinnedMessage {
 interface Props {
   channelId: string
   channelName: string
+  canManageMessages?: boolean
   onClose: () => void
   onJumpToMessage: (messageId: string) => void
 }
 
-export function PinnedMessagesPanel({ channelId, channelName, onClose, onJumpToMessage }: Props) {
+export function PinnedMessagesPanel({ channelId, channelName, canManageMessages = false, onClose, onJumpToMessage }: Props) {
   const [supabase] = useState(() => createClientSupabaseClient())
   const [messages, setMessages] = useState<PinnedMessage[]>([])
   const [loading, setLoading] = useState(true)
@@ -146,6 +147,25 @@ export function PinnedMessagesPanel({ channelId, channelName, onClose, onJumpToM
                       {authorName}
                     </span>
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {canManageMessages && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setMessages((prev) => prev.filter((m) => m.id !== message.id))
+                            const res = await fetch(`/api/messages/${message.id}/pin`, { method: "DELETE" })
+                            if (!res.ok) {
+                              loadPinnedMessages()
+                            }
+                          }}
+                          className="flex items-center gap-1 text-xs transition-colors hover:underline"
+                          style={{ color: "var(--theme-text-muted)" }}
+                          title="Unpin message"
+                          aria-label={`Unpin message from ${authorName}`}
+                        >
+                          <PinOff className="w-3 h-3" />
+                          Unpin
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {

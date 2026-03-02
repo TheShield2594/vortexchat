@@ -249,6 +249,16 @@ function ThreadListItem({
           aria-label="Unread activity"
         />
       )}
+      {thread.message_count > 0 && (
+        <span
+          className="text-xs flex-shrink-0"
+          style={{ color: "var(--theme-text-faint)" }}
+          aria-label={`${thread.message_count} ${thread.message_count === 1 ? "reply" : "replies"}`}
+          title={`${thread.message_count} ${thread.message_count === 1 ? "reply" : "replies"}`}
+        >
+          {thread.message_count}
+        </span>
+      )}
       <span
         className="text-xs flex-shrink-0 ml-auto"
         style={{ color: "var(--theme-text-faint)" }}
