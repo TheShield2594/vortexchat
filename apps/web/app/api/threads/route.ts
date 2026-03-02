@@ -52,29 +52,42 @@ export async function GET(request: Request) {
   })
 }
 
-/** POST /api/threads — Creates a new thread from an existing message via the `create_thread_from_message` RPC. */
+/** POST /api/threads — Creates a new thread, either from an existing message or directly from a channel. */
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: { messageId: string; name: string }
+  let body: { messageId?: string; channelId?: string; name: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { messageId, name } = body
-  if (!messageId) return NextResponse.json({ error: "messageId required" }, { status: 400 })
+  const { messageId, channelId, name } = body
   if (!name?.trim()) return NextResponse.json({ error: "name required" }, { status: 400 })
 
-  const { data: thread, error } = await supabase.rpc("create_thread_from_message", {
-    p_message_id: messageId,
-    p_name: name.trim(),
-  })
+  if (messageId) {
+    // Create thread from an existing message
+    const { data: thread, error } = await supabase.rpc("create_thread_from_message", {
+      p_message_id: messageId,
+      p_name: name.trim(),
+    })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(thread, { status: 201 })
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (channelId) {
+    // Create standalone thread in a channel (no starter message)
+    const { data: thread, error } = await supabase
+      .from("threads")
+      .insert({ parent_channel_id: channelId, owner_id: user.id, name: name.trim() })
+      .select("*")
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(thread, { status: 201 })
+  }
 
-  return NextResponse.json(thread, { status: 201 })
+  return NextResponse.json({ error: "messageId or channelId required" }, { status: 400 })
 }

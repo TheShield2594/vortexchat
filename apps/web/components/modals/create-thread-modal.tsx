@@ -12,12 +12,15 @@ import type { ThreadRow } from "@/types/database"
 interface Props {
   open: boolean
   onClose: () => void
-  messageId: string
+  /** Create thread from a specific message (message action) */
+  messageId?: string | null
+  /** Create standalone thread in a channel (from + menu) */
+  channelId?: string | null
   /** Called with the newly created thread so the parent can open the thread panel */
   onCreated: (thread: ThreadRow) => void
 }
 
-export function CreateThreadModal({ open, onClose, messageId, onCreated }: Props) {
+export function CreateThreadModal({ open, onClose, messageId, channelId, onCreated }: Props) {
   const [name, setName] = useState("")
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
@@ -26,10 +29,13 @@ export function CreateThreadModal({ open, onClose, messageId, onCreated }: Props
     if (!name.trim()) return
     setLoading(true)
     try {
+      const body = messageId
+        ? { messageId, name: name.trim() }
+        : { channelId, name: name.trim() }
       const res = await fetch("/api/threads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId, name: name.trim() }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Failed to create thread")

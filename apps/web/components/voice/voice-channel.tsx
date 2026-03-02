@@ -109,6 +109,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
 
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
   const outputAudioContextRef = useRef<AudioContext | null>(null)
+  const settingsButtonRef = useRef<HTMLButtonElement>(null)
   const closeDeviceMenu = useCallback(() => setDeviceMenuOpen(false), [])
   const {
     peers,
@@ -439,7 +440,19 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
           <Tooltip><TooltipTrigger asChild><button onClick={toggleScreenShare} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: screenSharing ? "var(--theme-success)" : "var(--theme-text-faint)" }}>{screenSharing ? <MonitorOff className="w-5 h-5 text-white" /> : <Monitor className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{screenSharing ? "Stop Sharing" : "Share Screen"}</TooltipContent></Tooltip>
 
           <div className="relative">
-            <Tooltip><TooltipTrigger asChild><button onClick={() => setDeviceMenuOpen((v) => !v)} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: deviceMenuOpen ? "var(--theme-accent)" : "var(--theme-text-faint)" }}><Settings className="w-5 h-5 text-white" /></button></TooltipTrigger><TooltipContent>Audio Settings</TooltipContent></Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  ref={settingsButtonRef}
+                  onClick={() => setDeviceMenuOpen((v) => !v)}
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+                  style={{ background: deviceMenuOpen ? "var(--theme-accent)" : "var(--theme-text-faint)" }}
+                >
+                  <Settings className="w-5 h-5 text-white" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Audio Settings</TooltipContent>
+            </Tooltip>
             {deviceMenuOpen && (
               <VoiceSettingsPanel
                 audioInputDevices={audioInputDevices}
@@ -451,6 +464,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
                 settings={audioSettings}
                 setSettings={setAudioSettings}
                 onClose={closeDeviceMenu}
+                settingsButtonRef={settingsButtonRef}
               />
             )}
           </div>
@@ -546,6 +560,7 @@ function VoiceSettingsPanel({
   settings,
   setSettings,
   onClose,
+  settingsButtonRef,
 }: {
   audioInputDevices: MediaDeviceInfo[]
   audioOutputDevices: MediaDeviceInfo[]
@@ -556,6 +571,7 @@ function VoiceSettingsPanel({
   settings: VoiceAudioSettings
   setSettings: (settings: VoiceAudioSettings) => void
   onClose: () => void
+  settingsButtonRef?: React.RefObject<HTMLButtonElement | null>
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
 
@@ -563,6 +579,8 @@ function VoiceSettingsPanel({
     function handlePointerDown(event: MouseEvent | TouchEvent) {
       const target = event.target as Node | null
       if (!panelRef.current || !target) return
+      // If click was on the settings button, let the button's onClick handle the toggle
+      if (settingsButtonRef?.current?.contains(target)) return
       if (!panelRef.current.contains(target)) onClose()
     }
 
@@ -579,7 +597,7 @@ function VoiceSettingsPanel({
       document.removeEventListener("touchstart", handlePointerDown)
       document.removeEventListener("keydown", handleKeyDown)
     }
-  }, [onClose])
+  }, [onClose, settingsButtonRef])
 
   return (
     <div ref={panelRef} className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-[360px] rounded-xl shadow-2xl p-4 space-y-4 z-50" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>

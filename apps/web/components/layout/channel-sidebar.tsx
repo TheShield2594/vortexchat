@@ -172,6 +172,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [overContainerId, setOverContainerId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [editTarget, setEditTarget] = useState<ChannelRow | null>(null)
+  const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<{ id: string; name: string } | null>(null)
+  const [editCategoryTarget, setEditCategoryTarget] = useState<ChannelRow | null>(null)
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
@@ -414,6 +416,21 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     }
   }
 
+  async function confirmDeleteCategory() {
+    if (!deleteCategoryTarget) return
+    const { id: categoryId } = deleteCategoryTarget
+    setDeleteCategoryTarget(null)
+    const supabase = createClientSupabaseClient()
+    try {
+      const { error } = await supabase.from("channels").delete().eq("id", categoryId)
+      if (error) throw error
+      removeChannel(categoryId)
+      toast({ title: "Category deleted" })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to delete category", description: error.message })
+    }
+  }
+
   function findContainer(channelId: string): string | null {
     for (const [containerId, channelIds] of Object.entries(itemsRef.current)) {
       if (channelIds.includes(channelId)) return containerId
@@ -435,8 +452,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       return
     }
     const overId = over.id as string
+    // If hovering over a category sortable (id prefixed "category:"), resolve to the raw category id
+    const resolvedOverId = getCategoryIdFromDragId(overId) ?? overId
 
-    const targetContainer = itemsRef.current[overId] !== undefined ? overId : findContainer(overId)
+    const targetContainer = itemsRef.current[resolvedOverId] !== undefined ? resolvedOverId : findContainer(resolvedOverId)
     setOverContainerId(targetContainer)
 
     const sourceContainer = findContainer(draggedId)
@@ -451,7 +470,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       if (sourceIndex === -1) return prev
       sourceItems.splice(sourceIndex, 1)
 
-      const overIndex = targetItems.indexOf(overId)
+      const overIndex = targetItems.indexOf(resolvedOverId)
       if (overIndex === -1) {
         targetItems.push(draggedId)
       } else {
@@ -485,16 +504,18 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     // Read from ref to get the latest state (avoids stale closure from batched updates)
     const latestItems = itemsRef.current
     const sourceContainer = findContainer(draggedId)
-    const targetContainer = latestItems[overId] !== undefined ? overId : findContainer(overId)
+    // Resolve category drag IDs (prefixed "category:") to raw category IDs for container lookup
+    const resolvedOverId = getCategoryIdFromDragId(overId) ?? overId
+    const targetContainer = latestItems[resolvedOverId] !== undefined ? resolvedOverId : findContainer(resolvedOverId)
 
     if (!sourceContainer || !targetContainer) return
 
-    if (sourceContainer === targetContainer && draggedId !== overId) {
+    if (sourceContainer === targetContainer && draggedId !== resolvedOverId) {
       // Compute the reordered array first, then update state and persist — no side
       // effects inside the functional updater
       const containerItems = [...(latestItems[sourceContainer] ?? [])]
       const oldIndex = containerItems.indexOf(draggedId)
-      const newIndex = containerItems.indexOf(overId)
+      const newIndex = containerItems.indexOf(resolvedOverId)
       if (oldIndex === -1 || newIndex === -1) return
       const reordered = arrayMove(containerItems, oldIndex, newIndex)
       setItems((prev) => ({ ...prev, [sourceContainer]: reordered }))
@@ -641,6 +662,12 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                         setCreateChannelCategoryId(category.id)
                         setShowCreateChannel(true)
                       }}
+                      onEdit={() => setEditCategoryTarget(category)}
+                      onDelete={() => setDeleteCategoryTarget({ id: category.id, name: category.name })}
+                      onCopyId={() => {
+                        navigator.clipboard.writeText(category.id)
+                        toast({ title: "Category ID copied!" })
+                      }}
                     />
                   )}
 
@@ -677,6 +704,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                             }}
                             onEdit={() => setEditTarget(channel)}
                             onDelete={() => setDeleteTarget({ id: channel.id, name: channel.name })}
+                            onCreateThread={() => {
+                              router.push(`/channels/${server.id}/${channel.id}?createThread=1`)
+                            }}
                           />
                         ))}
 
@@ -801,6 +831,44 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete category confirmation */}
+        <Dialog open={!!deleteCategoryTarget} onOpenChange={(open) => { if (!open) setDeleteCategoryTarget(null) }}>
+          <DialogContent style={{ background: 'var(--theme-bg-primary)', border: '1px solid var(--theme-bg-tertiary)' }}>
+            <DialogHeader>
+              <DialogTitle style={{ color: 'var(--theme-text-bright)' }}>Delete Category</DialogTitle>
+              <DialogDescription style={{ color: 'var(--theme-text-secondary)' }}>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold" style={{ color: 'var(--theme-text-bright)' }}>{deleteCategoryTarget?.name}</span>?
+                {" "}Channels inside will be moved to uncategorized. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <button
+                onClick={() => setDeleteCategoryTarget(null)}
+                className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press surface-hover-md focus-ring"
+                style={{ color: 'var(--theme-text-secondary)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteCategory}
+                className="px-4 py-2 rounded text-sm font-medium bg-red-600 hover:bg-red-500 text-white motion-interactive motion-press focus-ring"
+              >
+                Delete Category
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit category (reuse EditChannelModal) */}
+        {editCategoryTarget && (
+          <EditChannelModal
+            channel={editCategoryTarget}
+            open={!!editCategoryTarget}
+            onClose={() => setEditCategoryTarget(null)}
+          />
+        )}
       </div>
     </TooltipProvider>
   )
@@ -840,6 +908,9 @@ function CategoryHeader({
   isDragOver,
   onToggle,
   onAddChannel,
+  onEdit,
+  onDelete,
+  onCopyId,
 }: {
   category: ChannelRow
   containerId: string
@@ -848,6 +919,9 @@ function CategoryHeader({
   isDragOver: boolean
   onToggle: () => void
   onAddChannel: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+  onCopyId?: () => void
 }) {
   const { setNodeRef } = useDroppable({ id: containerId })
   const sortable = useSortable({ id: getCategoryDragId(category.id), disabled: !canManageChannels })
@@ -858,55 +932,86 @@ function CategoryHeader({
   }
 
   return (
-    <div
-      ref={sortable.setNodeRef}
-      style={{
-        ...style,
-        ...(isDragOver ? { background: "color-mix(in srgb, var(--theme-text-primary) 5%, transparent)" } : {}),
-      }}
-      className="flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive"
-    >
-      <button
-        ref={setNodeRef}
-        type="button"
-        onClick={onToggle}
-        className="flex items-center gap-1 flex-1 min-w-0 text-left focus-ring rounded-sm"
-        aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
-      >
-        {isCollapsed ? (
-          <ChevronRight className="w-3 h-3 tertiary-metadata" />
-        ) : (
-          <ChevronDown className="w-3 h-3 tertiary-metadata" />
-        )}
-        <span className="text-xs font-semibold uppercase tracking-wider tertiary-metadata truncate">
-          {category.name}
-        </span>
-      </button>
-      {canManageChannels && (
-        <div className="flex items-center">
-          <span
-            {...sortable.attributes}
-            {...sortable.listeners}
-            className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing tertiary-metadata"
-            onClick={(event) => event.stopPropagation()}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          ref={sortable.setNodeRef}
+          style={{
+            ...style,
+            ...(isDragOver ? { background: "color-mix(in srgb, var(--theme-text-primary) 5%, transparent)" } : {}),
+          }}
+          className="flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive"
+        >
+          <button
+            ref={setNodeRef}
+            type="button"
+            onClick={onToggle}
+            className="flex items-center gap-1 flex-1 min-w-0 text-left focus-ring rounded-sm"
+            aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
           >
-            <GripVertical className="w-3 h-3" />
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onAddChannel() }}
-                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-interactive motion-interactive focus-ring rounded-sm" aria-label={`Create channel in ${category.name}`}
+            {isCollapsed ? (
+              <ChevronRight className="w-3 h-3 tertiary-metadata" />
+            ) : (
+              <ChevronDown className="w-3 h-3 tertiary-metadata" />
+            )}
+            <span className="text-xs font-semibold uppercase tracking-wider tertiary-metadata truncate">
+              {category.name}
+            </span>
+          </button>
+          {canManageChannels && (
+            <div className="flex items-center">
+              <span
+                {...sortable.attributes}
+                {...sortable.listeners}
+                className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing tertiary-metadata"
+                onClick={(event) => event.stopPropagation()}
               >
-                <Plus className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Create Channel</TooltipContent>
-          </Tooltip>
+                <GripVertical className="w-3 h-3" />
+              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onAddChannel() }}
+                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-interactive motion-interactive focus-ring rounded-sm" aria-label={`Create channel in ${category.name}`}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Create Channel</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </ContextMenuTrigger>
+
+      <ContextMenuContent className="w-56" aria-label={`Category actions for ${category.name}`}>
+        {canManageChannels && (
+          <ContextMenuItem onClick={onAddChannel}>
+            <Plus className="w-4 h-4 mr-2" /> Create Channel
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        {canManageChannels && onEdit && (
+          <ContextMenuItem onClick={onEdit}>
+            <Pencil className="w-4 h-4 mr-2" /> Edit Category
+          </ContextMenuItem>
+        )}
+        {onCopyId && (
+          <ContextMenuItem onClick={onCopyId}>
+            <Clipboard className="w-4 h-4 mr-2" /> Copy Category ID
+          </ContextMenuItem>
+        )}
+        {canManageChannels && onDelete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 className="w-4 h-4 mr-2" /> Delete Category
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -928,6 +1033,7 @@ function SortableChannelItem({
   onClick,
   onEdit,
   onDelete,
+  onCreateThread,
 }: {
   channel: ChannelRow
   isActive: boolean
@@ -941,6 +1047,7 @@ function SortableChannelItem({
   onClick: () => void
   onEdit: () => void
   onDelete: () => void
+  onCreateThread?: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: channel.id })
   const { toast } = useToast()
@@ -1064,7 +1171,15 @@ function SortableChannelItem({
           </div>
         </ContextMenuTrigger>
 
-        <ContextMenuContent className="w-48" aria-label={`Channel actions for #${channel.name}`}>
+        <ContextMenuContent className="w-56" aria-label={`Channel actions for #${channel.name}`}>
+          {onCreateThread && channel.type === "text" && (
+            <>
+              <ContextMenuItem onClick={onCreateThread}>
+                <MessageSquare className="w-4 h-4 mr-2" /> Create Thread
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
           <ContextMenuItem onClick={() => {
             navigator.clipboard.writeText(channel.id)
             toast({ title: "Channel ID copied!" })

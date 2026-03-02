@@ -15,8 +15,8 @@ import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
 import { useTyping } from "@/hooks/use-typing"
 import { useToast } from "@/components/ui/use-toast"
 import { ThreadPanel } from "@/components/chat/thread-panel"
-import { ThreadList } from "@/components/chat/thread-list"
 import { SearchModal } from "@/components/modals/search-modal"
+import { CreateThreadModal } from "@/components/modals/create-thread-modal"
 import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal"
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
@@ -82,6 +82,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showReturnToContext, setShowReturnToContext] = useState(false)
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
+  const [showCreateChannelThread, setShowCreateChannelThread] = useState(false)
   const [isPaginating, setIsPaginating] = useState(false)
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
@@ -110,6 +111,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
   const jumpToMessageId = searchParams.get("message")
   const openThreadId = searchParams.get("thread")
+  const createThreadParam = searchParams.get("createThread")
 
   // ── Permission check ──────────────────────────────────────────────────────
   // Determine once if the current user can manage messages in this channel
@@ -169,6 +171,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     params.delete("thread")
     router.replace(`/channels/${serverId}/${channel.id}?${params.toString()}`)
   }, [channel.id, router, searchParams, serverId])
+
+  // Auto-open create thread modal when navigated from channel right-click
+  useEffect(() => {
+    if (createThreadParam === "1") {
+      setShowCreateChannelThread(true)
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete("createThread")
+      router.replace(`/channels/${serverId}/${channel.id}?${params.toString()}`)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createThreadParam])
 
   const unreadAnchorStorageKey = useMemo(
     () => `vortexchat:unread-anchor:${currentUserId}:${channel.id}`,
@@ -1539,15 +1552,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </div>
           )}
 
-          <ThreadList
-            channelId={channel.id}
-            activeThreadId={activeThread?.id ?? null}
-            filter="all"
-            onSelectThread={(thread) => {
-              setActiveThread(thread)
-              setThreadPanelOpen(true)
-            }}
-          />
         </div>
 
         <TypingIndicator users={typingUsers.map((user) => user.displayName)} />
@@ -1561,6 +1565,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           onDraftChange={handleDraftChange}
           onTyping={onKeystroke}
           onSent={onSent}
+          onCreateThread={() => setShowCreateChannelThread(true)}
         />
       </div>
 
@@ -1592,6 +1597,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       )}
 
       <WorkspacePanel channelId={channel.id} open={workspaceOpen} />
+
+      <CreateThreadModal
+        open={showCreateChannelThread}
+        onClose={() => setShowCreateChannelThread(false)}
+        channelId={channel.id}
+        onCreated={(thread) => {
+          setActiveThread(thread)
+          setThreadPanelOpen(true)
+          setShowCreateChannelThread(false)
+        }}
+      />
     </div>
   )
 }

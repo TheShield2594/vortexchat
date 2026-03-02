@@ -1,7 +1,7 @@
 "use client"
 
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
-import type { MessageDisplay, FontScale, Saturation } from "@/lib/stores/appearance-store"
+import type { MessageDisplay, FontScale, Saturation, ThemePreset } from "@/lib/stores/appearance-store"
 
 const MESSAGE_DISPLAY_OPTIONS: { value: MessageDisplay; label: string; description: string }[] = [
   { value: "cozy", label: "Cozy", description: "Avatars shown — comfortable reading" },
@@ -19,8 +19,50 @@ const SATURATION_OPTIONS: { value: Saturation; label: string }[] = [
   { value: "normal", label: "Normal" },
 ]
 
+const THEME_PRESET_OPTIONS: {
+  value: ThemePreset
+  label: string
+  description: string
+  accent: string
+  bg: string
+  surface: string
+}[] = [
+  {
+    value: "discord",
+    label: "Discord",
+    description: "Classic dark theme with blue accent",
+    accent: "#5865F2",
+    bg: "#313338",
+    surface: "#2b2d31",
+  },
+  {
+    value: "midnight-neon",
+    label: "Midnight Neon",
+    description: "Deep dark with vibrant neon purple",
+    accent: "#a78bfa",
+    bg: "#0f0f14",
+    surface: "#1a1a24",
+  },
+  {
+    value: "synthwave",
+    label: "Synthwave",
+    description: "Retro 80s vibes with pink & cyan",
+    accent: "#f472b6",
+    bg: "#1a0a2e",
+    surface: "#21143d",
+  },
+  {
+    value: "carbon",
+    label: "Carbon",
+    description: "Minimal dark gray with teal accent",
+    accent: "#2dd4bf",
+    bg: "#171717",
+    surface: "#1f1f1f",
+  },
+]
+
 export function AppearanceSettingsPage() {
-  const { messageDisplay, fontScale, saturation, setMessageDisplay, setFontScale, setSaturation } = useAppearanceStore()
+  const { messageDisplay, fontScale, saturation, themePreset, setMessageDisplay, setFontScale, setSaturation, setThemePreset } = useAppearanceStore()
 
   return (
     <div className="space-y-8">
@@ -32,6 +74,57 @@ export function AppearanceSettingsPage() {
           Customize how VortexChat looks and feels for you.
         </p>
       </div>
+
+      {/* Theme Presets */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+          Theme
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          {THEME_PRESET_OPTIONS.map(({ value, label, description, accent, bg, surface }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={themePreset === value}
+              onClick={() => setThemePreset(value)}
+              className="relative text-left p-3 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2"
+              style={{
+                background: themePreset === value
+                  ? "color-mix(in srgb, var(--theme-accent) 12%, var(--theme-bg-secondary))"
+                  : "var(--theme-bg-secondary)",
+                border: `2px solid ${themePreset === value ? "var(--theme-accent)" : "var(--theme-bg-tertiary)"}`,
+              }}
+            >
+              {/* Color preview */}
+              <div
+                className="w-full h-10 rounded-md mb-2 overflow-hidden flex"
+                style={{ background: bg }}
+              >
+                <div className="w-1/3 h-full" style={{ background: surface }} />
+                <div className="flex-1 h-full flex items-center px-2 gap-1.5">
+                  <div className="h-2 w-2 rounded-full" style={{ background: accent }} />
+                  <div className="h-1.5 flex-1 rounded-full opacity-40" style={{ background: accent }} />
+                </div>
+              </div>
+              <p className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>{label}</p>
+              <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{description}</p>
+              {themePreset === value && (
+                <div
+                  className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: "var(--theme-accent)" }}
+                >
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                    <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+          For advanced customization, use Custom CSS in Profile → Appearance.
+        </p>
+      </section>
 
       {/* Message Display */}
       <section className="space-y-3">
