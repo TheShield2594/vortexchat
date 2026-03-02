@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { ThreadPanel } from "@/components/chat/thread-panel"
 import { ThreadList } from "@/components/chat/thread-list"
 import { SearchModal } from "@/components/modals/search-modal"
+import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal"
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
@@ -80,6 +81,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showReturnToContext, setShowReturnToContext] = useState(false)
   const [showSearchModal, setShowSearchModal] = useState(false)
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
   const [isPaginating, setIsPaginating] = useState(false)
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
@@ -1170,7 +1172,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               onClick={() => setShowSummary((v) => !v)}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="AI catch-up summary"
-              aria-label="Toggle AI channel summary"
+              aria-label={showSummary ? "Hide AI channel summary" : "Show AI channel summary"}
+              aria-pressed={showSummary}
             >
               <Sparkles className="w-4 h-4" style={{ color: showSummary ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
             </button>
@@ -1182,7 +1185,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               onClick={toggleWorkspacePanel}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="Workspace"
-              aria-label="Workspace"
+              aria-label={workspaceOpen ? "Hide Workspace" : "Show Workspace"}
+              aria-pressed={workspaceOpen}
             >
               <Briefcase className="w-4 h-4" style={{ color: workspaceOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
             </button>
@@ -1203,16 +1207,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title={showPinnedPanel ? "Hide Pinned Messages" : "Pinned Messages"}
               aria-label={showPinnedPanel ? "Hide Pinned Messages" : "Show Pinned Messages"}
+              aria-pressed={showPinnedPanel}
             >
               <Pin className="w-4 h-4" style={{ color: showPinnedPanel ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
             </button>
 
             <button
               type="button"
-              onClick={() => toast({ title: "Help", description: "Shortcuts: Ctrl/Cmd+K (Quick Switcher), Ctrl/Cmd+F (Search)." })}
+              onClick={() => setShowKeyboardShortcuts(true)}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
-              title="Help"
-              aria-label="Help"
+              title="Keyboard shortcuts"
+              aria-label="Show keyboard shortcuts"
             >
               <CircleHelp className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
             </button>
@@ -1222,6 +1227,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               onClick={toggleMemberList}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title={memberListOpen ? "Hide Member List" : "Show Member List"}
+              aria-label={memberListOpen ? "Hide Member List" : "Show Member List"}
+              aria-pressed={memberListOpen}
             >
               <Users className="w-4 h-4" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
             </button>
@@ -1231,6 +1238,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               onClick={toggleThreadPanel}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
+              aria-label={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
+              aria-pressed={threadPanelOpen}
             >
               <MessageSquareText className="w-4 h-4" style={{ color: threadPanelOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
             </button>
@@ -1244,6 +1253,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             onJumpToMessage={(channelId, messageId) => router.push(`/channels/${serverId}/${channelId}?message=${messageId}`)}
           />
         )}
+
+        <KeyboardShortcutsModal open={showKeyboardShortcuts} onOpenChange={setShowKeyboardShortcuts} />
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
         <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
@@ -1440,6 +1451,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 onClick={jumpToLatest}
                 className="motion-interactive motion-press px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 pointer-events-auto"
                 style={{ background: "var(--theme-accent)", color: "var(--theme-bg-primary)" }}
+                aria-label={pendingNewMessageCount > 0 ? `Jump to latest — ${pendingNewMessageCount} new message${pendingNewMessageCount > 1 ? "s" : ""}` : "Jump to latest message"}
               >
                 ↓ {pendingNewMessageCount > 0 ? `${pendingNewMessageCount} new message${pendingNewMessageCount > 1 ? "s" : ""}` : "Jump to latest"}
               </button>

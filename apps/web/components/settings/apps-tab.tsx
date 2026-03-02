@@ -4,6 +4,11 @@ import { useEffect, useState } from "react"
 import { BadgeCheck, Shield, Star, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface InstalledApp {
   id: string
@@ -56,6 +61,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
   const [market, setMarket] = useState<DiscoverApp[]>([])
   const [loading, setLoading] = useState(true)
   const [busyAppId, setBusyAppId] = useState<string | null>(null)
+  const [pendingUninstallId, setPendingUninstallId] = useState<string | null>(null)
 
   async function refresh() {
     setLoading(true)
@@ -105,10 +111,10 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
     }
   }
 
-  async function uninstall(appId: string) {
-    const confirmed = window.confirm("Uninstall this app from the server?")
-    if (!confirmed) return
-
+  async function confirmUninstall() {
+    const appId = pendingUninstallId
+    if (!appId) return
+    setPendingUninstallId(null)
     setBusyAppId(appId)
     try {
       const res = await fetch(`/api/servers/${serverId}/apps?appId=${appId}`, { method: "DELETE" })
@@ -126,66 +132,96 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
     }
   }
 
+  const pendingAppName = pendingUninstallId
+    ? (installed.find((a) => a.app_id === pendingUninstallId)?.app_catalog?.name ?? pendingUninstallId)
+    : null
+
   const installedIds = new Set(installed.map((app) => app.app_id))
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-white">Installed Apps</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Install apps with scoped permissions. Webhooks continue to work unchanged.</p>
-      </div>
+    <>
+      <AlertDialog open={!!pendingUninstallId} onOpenChange={(open) => { if (!open) setPendingUninstallId(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Uninstall {pendingAppName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the app and revoke all its permissions from your server. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmUninstall}
+              className="motion-interactive"
+              style={{ background: "var(--theme-danger)", color: "#fff" }}
+            >
+              Uninstall
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {loading ? <p style={{ color: "var(--theme-text-muted)" }}>Loading apps…</p> : (
-        <div className="grid gap-3">
-          {installed.length === 0 && <p style={{ color: "var(--theme-text-muted)" }}>No apps installed on this server.</p>}
-          {installed.map((entry) => (
-            <div key={entry.id} className="rounded border p-3" style={{ borderColor: "var(--theme-surface-elevated)" }}>
-              <div className="flex items-center justify-between">
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold" style={{ color: "var(--theme-text-bright)" }}>Installed Apps</h3>
+          <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Install apps with scoped permissions. Webhooks continue to work unchanged.</p>
+        </div>
+
+        {loading ? <p style={{ color: "var(--theme-text-muted)" }}>Loading apps…</p> : (
+          <div className="grid gap-3">
+            {installed.length === 0 && <p style={{ color: "var(--theme-text-muted)" }}>No apps installed on this server.</p>}
+            {installed.map((entry) => (
+              <div key={entry.id} className="rounded border p-3" style={{ borderColor: "var(--theme-surface-elevated)" }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium" style={{ color: "var(--theme-text-bright)" }}>{entry.app_catalog?.name ?? entry.app_id}</p>
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                      Scopes: {entry.install_scopes.join(", ")} · Permissions: {entry.granted_permissions.join(", ")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={!canManageApps || busyAppId === entry.app_id}
+                    aria-label={`Uninstall ${entry.app_catalog?.name ?? entry.app_id}`}
+                    onClick={() => setPendingUninstallId(entry.app_id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div>
+          <h4 className="text-md font-semibold mb-2" style={{ color: "var(--theme-text-bright)" }}>Marketplace quick install</h4>
+          <div className="grid gap-3">
+            {market.slice(0, 6).map((app) => (
+              <div key={app.id} className="rounded border p-3 flex items-center justify-between" style={{ borderColor: "var(--theme-surface-elevated)" }}>
                 <div>
-                  <p className="text-white font-medium">{entry.app_catalog?.name ?? entry.app_id}</p>
+                  <div className="flex items-center gap-2">
+                    <p style={{ color: "var(--theme-text-bright)" }}>{app.name}</p>
+                    {app.trust_badge && (
+                      <BadgeCheck className="w-4 h-4" style={{ color: "var(--theme-success)" }} aria-label="Verified app" />
+                    )}
+                  </div>
                   <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-                    Scopes: {entry.install_scopes.join(", ")} · Permissions: {entry.granted_permissions.join(", ")}
+                    <Shield className="w-3 h-3 inline mr-1" />{app.category} · <Star className="w-3 h-3 inline mr-1" />{app.average_rating.toFixed(1)} ({app.review_count})
                   </p>
                 </div>
                 <Button
-                  variant="ghost"
                   size="sm"
-                  disabled={!canManageApps || busyAppId === entry.app_id}
-                  onClick={() => uninstall(entry.app_id)}
+                  disabled={!canManageApps || installedIds.has(app.id) || busyAppId === app.id}
+                  onClick={() => install(app.id)}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {installedIds.has(app.id) ? "Installed" : "Install"}
                 </Button>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div>
-        <h4 className="text-md font-semibold text-white mb-2">Marketplace quick install</h4>
-        <div className="grid gap-3">
-          {market.slice(0, 6).map((app) => (
-            <div key={app.id} className="rounded border p-3 flex items-center justify-between" style={{ borderColor: "var(--theme-surface-elevated)" }}>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-white">{app.name}</p>
-                  {app.trust_badge && <BadgeCheck className="w-4 h-4 text-emerald-400" />}
-                </div>
-                <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-                  <Shield className="w-3 h-3 inline mr-1" />{app.category} · <Star className="w-3 h-3 inline mr-1" />{app.average_rating.toFixed(1)} ({app.review_count})
-                </p>
-              </div>
-              <Button
-                size="sm"
-                disabled={!canManageApps || installedIds.has(app.id) || busyAppId === app.id}
-                onClick={() => install(app.id)}
-              >
-                {installedIds.has(app.id) ? "Installed" : "Install"}
-              </Button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
