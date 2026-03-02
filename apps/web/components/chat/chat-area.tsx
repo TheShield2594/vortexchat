@@ -1254,7 +1254,18 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           />
         )}
 
-        <KeyboardShortcutsModal open={showKeyboardShortcuts} onOpenChange={setShowKeyboardShortcuts} />
+        <KeyboardShortcutsModal
+          open={showKeyboardShortcuts}
+          onOpenChange={setShowKeyboardShortcuts}
+          handlers={{
+            onSearch: () => setShowSearchModal(true),
+            onSearchInChannel: () => setShowSearchModal(true),
+            onToggleMemberList: toggleMemberList,
+            onToggleThreadPanel: toggleThreadPanel,
+            onToggleWorkspacePanel: toggleWorkspacePanel,
+            onOpenShortcutHelp: () => setShowKeyboardShortcuts(true),
+          }}
+        />
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
         <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
