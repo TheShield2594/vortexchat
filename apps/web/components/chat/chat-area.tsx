@@ -96,6 +96,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const lastJumpMessageIdRef = useRef<string | null>(null)
   const jumpSignatureRef = useRef<string | null>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
+  const shouldAutoScrollToLatestRef = useRef(true)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
   const liveAnnouncementCounterRef = useRef(0)
@@ -449,7 +450,29 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setAnimatedMessageIds(new Set())
     setIsPaginating(false)
     paginationRequestRef.current = null
+    shouldAutoScrollToLatestRef.current = true
   }, [initialMessages])
+
+  const scrollToLatest = useCallback((behavior: "auto" | "smooth" = "auto") => {
+    const container = messageScrollerRef.current
+    if (!container) return
+
+    const lastIndex = messagesRef.current.length - 1
+    if (lastIndex >= 0) {
+      virtualizer.scrollToIndex(lastIndex, { align: "end", behavior })
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior })
+    }
+
+    requestAnimationFrame(() => {
+      const scroller = messageScrollerRef.current
+      if (!scroller) return
+      const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+      if (maxScrollTop - scroller.scrollTop > 2) {
+        scroller.scrollTop = maxScrollTop
+      }
+    })
+  }, [virtualizer])
 
   useEffect(() => {
     return () => {
@@ -687,17 +710,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     flushOutbox()
   }, [isOnline, channel.id, flushOutbox])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!shouldAutoScrollToLatestRef.current) return
     if (jumpToMessageId || openThreadId) return
-    requestAnimationFrame(() => {
-      if (messages.length > 0) {
-        virtualizer.scrollToIndex(messages.length - 1, { align: "end", behavior: "auto" })
-      } else {
-        bottomRef.current?.scrollIntoView({ behavior: "auto" })
-      }
-    })
-  }, [channel.id])
+    if (messages.length === 0) return
+    shouldAutoScrollToLatestRef.current = false
+    scrollToLatest("auto")
+  }, [jumpToMessageId, messages.length, openThreadId, scrollToLatest])
 
   useEffect(() => {
     const newestMessage = messages[messages.length - 1]
@@ -707,7 +726,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!hasNewMessages || !newestMessage) return
 
     if (isAtBottom || newestMessage.author_id === currentUserId) {
-      virtualizer.scrollToIndex(messages.length - 1, { align: "end", behavior: "smooth" })
+      scrollToLatest("smooth")
       return
     }
 
@@ -822,17 +841,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, messageIndexMap, openThreadId, returnScrollStorageKey])
 
   const jumpToLatest = useCallback(() => {
-    if (messages.length > 0) {
-      virtualizer.scrollToIndex(messages.length - 1, { align: "end", behavior: "smooth" })
-    } else {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-    }
+    scrollToLatest("smooth")
     setPendingNewMessageCount(0)
     setUnreadAnchorMessageId(null)
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem(unreadAnchorStorageKey)
     }
-  }, [messages.length, unreadAnchorStorageKey, virtualizer])
+  }, [scrollToLatest, unreadAnchorStorageKey])
 
   const returnToContext = useCallback(() => {
     const container = messageScrollerRef.current
