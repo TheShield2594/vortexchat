@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle } from "lucide-react"
+import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle, LogOut, UserRound } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -81,6 +81,15 @@ export function UserPanel() {
   const initials = displayName.slice(0, 2).toUpperCase()
   const customStatusText = !isStatusExpired ? [currentUser.status_emoji, currentUser.status_message].filter(Boolean).join(" ").trim() : ""
 
+  async function handleLogout() {
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      toast({ variant: "destructive", title: "Sign out failed", description: error.message })
+      return
+    }
+    router.push("/login")
+  }
+
   async function handleSetStatus(status: UserRow["status"]) {
     try {
       const latestUser = useAppStore.getState().currentUser
@@ -141,6 +150,10 @@ export function UserPanel() {
         </ContextMenuTrigger>
 
         <ContextMenuContent className="w-48">
+          <ContextMenuItem onClick={() => setShowProfileSettings(true)}>
+            <UserRound className="w-4 h-4 mr-2" /> Edit Profile
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuSub>
             <ContextMenuSubTrigger>
               <Circle className="w-4 h-4 mr-2 fill-current" style={{ color: getStatusColor(currentUser.status) }} /> Set Status
@@ -161,6 +174,10 @@ export function UserPanel() {
             toast({ title: "Username copied!" })
           }}>
             <Clipboard className="w-4 h-4 mr-2" /> Copy Username
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem variant="destructive" onClick={handleLogout}>
+            <LogOut className="w-4 h-4 mr-2" /> Log Out
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

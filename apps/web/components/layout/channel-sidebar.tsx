@@ -160,8 +160,8 @@ async function fetchThreadCounts(serverId: string, signal: AbortSignal) {
 
 /** Server channel sidebar with drag-and-drop reordering, category grouping, voice state indicators, and unread tracking. */
 export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
-  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel } = useAppStore(
-    useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList, toggleThreadPanel: s.toggleThreadPanel, toggleWorkspacePanel: s.toggleWorkspacePanel }))
+  const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel, setServerHasUnread } = useAppStore(
+    useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList, toggleThreadPanel: s.toggleThreadPanel, toggleWorkspacePanel: s.toggleWorkspacePanel, setServerHasUnread: s.setServerHasUnread }))
   )
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -325,6 +325,19 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     activeChannelId,
     playNotification
   )
+
+  // Keep the server-level unread indicator in the app store in sync so the
+  // server sidebar can show a pip badge without needing its own subscription.
+  //
+  // Scope note: this effect only runs while ChannelSidebar is mounted (i.e.
+  // while the user is looking at a specific server). Badges for other servers
+  // are therefore only populated after the user visits them during a session.
+  // A future BackgroundUnreadSync component could subscribe to all servers
+  // up-front and call setServerHasUnread centrally, but that would multiply
+  // Supabase realtime subscriptions. The current trade-off is intentional.
+  useEffect(() => {
+    setServerHasUnread(server.id, unreadChannelIds.size > 0)
+  }, [server.id, unreadChannelIds, setServerHasUnread])
 
   const navigableChannelIds = useMemo(
     () => channels.filter((channel) => channel.type !== "category").sort((a, b) => a.position - b.position).map((channel) => channel.id),

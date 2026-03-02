@@ -301,9 +301,9 @@
   }
 }
 
-/* Discord-like message formatting */
+/* Theme-aware message formatting */
 .message-content code {
-  background: #1e1f22;
+  background: var(--theme-bg-tertiary);
   border-radius: 3px;
   padding: 0 4px;
   font-family: 'Courier New', monospace;
@@ -311,7 +311,7 @@
 }
 
 .message-content pre {
-  background: #1e1f22;
+  background: var(--theme-bg-tertiary);
   border-radius: 4px;
   padding: 8px 12px;
   overflow-x: auto;
@@ -335,7 +335,7 @@
 }
 
 .message-content a {
-  color: #00a8fc;
+  color: var(--theme-link);
   text-decoration: none;
 }
 
@@ -345,10 +345,10 @@
 
 /* Blockquote */
 .message-content blockquote {
-  border-left: 4px solid #4e5058;
+  border-left: 4px solid color-mix(in srgb, var(--theme-text-muted) 60%, transparent);
   padding-left: 12px;
   margin: 4px 0;
-  color: #b5bac1;
+  color: var(--theme-text-secondary);
 }
 
 /* ─── Appearance settings ─────────────────────────────────────────────────── */
@@ -582,7 +582,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #b5bac1;
+  background: var(--theme-text-secondary);
   animation: typing-dot 1.2s infinite;
 }
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }

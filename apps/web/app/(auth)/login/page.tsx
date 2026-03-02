@@ -46,6 +46,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [magicLinkLoading, setMagicLinkLoading] = useState(false)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
   const [policy, setPolicy] = useState<{ passkey_first?: boolean; enforce_passkey?: boolean; fallback_password?: boolean; fallback_magic_link?: boolean }>({})
   const [form, setForm] = useState({ email: "", password: "" })
   const [step, setStep] = useState<LoginStep>("credentials")
@@ -163,6 +164,25 @@ export default function LoginPage() {
       toast({ variant: "destructive", title: "Failed to send magic link", description: error.message })
     } finally {
       setMagicLinkLoading(false)
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!form.email) {
+      toast({ variant: "destructive", title: "Enter your email first" })
+      return
+    }
+    setForgotLoading(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(form.email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      })
+      if (error) throw error
+      toast({ title: "Reset link sent!", description: `Check ${form.email} for a password reset link.` })
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to send reset link", description: error.message })
+    } finally {
+      setForgotLoading(false)
     }
   }
 
@@ -383,13 +403,24 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label
-                htmlFor="password"
-                className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: "var(--theme-text-secondary)" }}
-              >
-                Password <span style={{ color: "var(--theme-danger)" }}>*</span>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="password"
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: "var(--theme-text-secondary)" }}
+                >
+                  Password <span style={{ color: "var(--theme-danger)" }}>*</span>
+                </Label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={forgotLoading}
+                  className="text-xs transition-colors hover:underline disabled:opacity-60"
+                  style={{ color: "var(--theme-accent)" }}
+                >
+                  {forgotLoading ? "Sending…" : "Forgot password?"}
+                </button>
+              </div>
               <Input
                 id="password"
                 type="password"

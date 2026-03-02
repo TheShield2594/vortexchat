@@ -217,7 +217,11 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      toast({ variant: "destructive", title: "Sign out failed", description: error.message })
+      return
+    }
     router.push("/login")
     router.refresh()
   }
