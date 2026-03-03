@@ -36,13 +36,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
-import { CreateChannelModal } from "@/components/modals/create-channel-modal"
-import { EditChannelModal } from "@/components/modals/edit-channel-modal"
-import { ServerSettingsModal } from "@/components/modals/server-settings-modal"
+import dynamic from "next/dynamic"
 import { UserPanel } from "@/components/layout/user-panel"
-import { QuickSwitcherModal } from "@/components/modals/quickswitcher-modal"
-import { SearchModal } from "@/components/modals/search-modal"
-import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal"
+
+const CreateChannelModal = dynamic(() => import("@/components/modals/create-channel-modal").then((m) => ({ default: m.CreateChannelModal })))
+const EditChannelModal = dynamic(() => import("@/components/modals/edit-channel-modal").then((m) => ({ default: m.EditChannelModal })))
+const ServerSettingsModal = dynamic(() => import("@/components/modals/server-settings-modal").then((m) => ({ default: m.ServerSettingsModal })))
+const QuickSwitcherModal = dynamic(() => import("@/components/modals/quickswitcher-modal").then((m) => ({ default: m.QuickSwitcherModal })))
+const SearchModal = dynamic(() => import("@/components/modals/search-modal").then((m) => ({ default: m.SearchModal })))
+const KeyboardShortcutsModal = dynamic(() => import("@/components/modals/keyboard-shortcuts-modal").then((m) => ({ default: m.KeyboardShortcutsModal })))
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
 import { useUnreadChannels } from "@/hooks/use-unread-channels"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
@@ -50,7 +52,7 @@ import { useKeyboardShortcuts, type ShortcutHandlers } from "@/hooks/use-keyboar
 
 const NO_CATEGORY = "__no_category__"
 
-interface VoiceParticipant {
+export interface VoiceParticipant {
   user_id: string
   channel_id: string
   muted: boolean
@@ -70,6 +72,10 @@ interface Props {
   currentUserId: string
   isOwner: boolean
   userRoles: RoleRow[]
+  initialThreadCounts?: Record<string, number>
+  initialVoiceParticipants?: VoiceParticipant[]
+  initialUnreadChannelIds?: string[]
+  initialMentionCounts?: Record<string, number>
 }
 
 type GroupedChannels = {
@@ -141,7 +147,7 @@ function mergeItemsPreservingOrder(
   return merged
 }
 
-function normalizeVoiceParticipants(rows: any[]): VoiceParticipant[] {
+export function normalizeVoiceParticipants(rows: any[]): VoiceParticipant[] {
   return rows.map((d: any) => ({
     user_id: d.user_id,
     channel_id: d.channel_id,
@@ -159,7 +165,7 @@ async function fetchThreadCounts(serverId: string, signal: AbortSignal) {
 }
 
 /** Server channel sidebar with drag-and-drop reordering, category grouping, voice state indicators, and unread tracking. */
-export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles }: Props) {
+export function ChannelSidebar({ server, channels: initialChannels, currentUserId, isOwner, userRoles, initialThreadCounts, initialVoiceParticipants, initialUnreadChannelIds, initialMentionCounts }: Props) {
   const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel, setServerHasUnread } = useAppStore(
     useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList, toggleThreadPanel: s.toggleThreadPanel, toggleWorkspacePanel: s.toggleWorkspacePanel, setServerHasUnread: s.setServerHasUnread }))
   )
@@ -177,7 +183,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
-  const [activeThreadCounts, setActiveThreadCounts] = useState<Record<string, number>>({})
+  const [activeThreadCounts, setActiveThreadCounts] = useState<Record<string, number>>(initialThreadCounts ?? {})
   const router = useRouter()
   const { toast } = useToast()
 
@@ -216,7 +222,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       }
     }
 
-    void loadThreadCounts()
+    // Skip the immediate fetch if SSR data was provided — the 30s poll will pick up changes
+    if (!initialThreadCounts) {
+      void loadThreadCounts()
+    }
     const interval = window.setInterval(() => {
       void loadThreadCounts()
     }, 30000)
@@ -224,7 +233,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       controller.abort()
       window.clearInterval(interval)
     }
-  }, [server.id])
+  }, [server.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync items on channel changes.
   // During an active drag, merge instead of replacing so realtime inserts/deletes
@@ -263,7 +272,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }, [server.id, addChannel, updateChannel, removeChannel])
 
   // Voice participants per channel
-  const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipant[]>([])
+  const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipant[]>(initialVoiceParticipants ?? [])
 
   useEffect(() => {
     const supabase = createClientSupabaseClient()
@@ -284,7 +293,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       debounceTimer = setTimeout(fetchVoiceParticipants, 300)
     }
 
-    fetchVoiceParticipants()
+    // Skip initial fetch if SSR data was provided — real-time subscription handles updates
+    if (!initialVoiceParticipants) {
+      fetchVoiceParticipants()
+    }
 
     const subscription = supabase
       .channel(`voice-states:${server.id}`)
@@ -300,7 +312,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       if (debounceTimer) clearTimeout(debounceTimer)
       supabase.removeChannel(subscription)
     }
-  }, [server.id])
+  }, [server.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pre-group voice participants by channel to avoid per-item filtering
   const voiceParticipantsByChannel = useMemo(() => {
@@ -320,12 +332,16 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   // Track unread state for all text channels in this server
   const textChannelIds = useMemo(() => channels.filter((c) => c.type === "text").map((c) => c.id), [channels])
   const { playNotification } = useNotificationSound()
+  const unreadInitialData = initialUnreadChannelIds
+    ? { unreadChannelIds: initialUnreadChannelIds, mentionCounts: initialMentionCounts ?? {} }
+    : undefined
   const { unreadChannelIds, mentionCounts, markRead } = useUnreadChannels(
     server.id,
     textChannelIds,
     currentUserId,
     activeChannelId,
-    playNotification
+    playNotification,
+    unreadInitialData
   )
 
   // Keep the server-level unread indicator in the app store in sync so the

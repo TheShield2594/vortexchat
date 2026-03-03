@@ -18,15 +18,21 @@ export function useUnreadChannels(
   channelIds: string[],
   currentUserId: string,
   activeChannelId: string | null,
-  onNewUnread?: () => void
+  onNewUnread?: () => void,
+  initialData?: { unreadChannelIds: string[]; mentionCounts: Record<string, number> }
 ) {
   const onNewUnreadRef = useRef(onNewUnread)
   onNewUnreadRef.current = onNewUnread
   const supabase = useMemo(() => createClientSupabaseClient(), [])
-  const [unreadChannelIds, setUnreadChannelIds] = useState<Set<string>>(new Set())
-  const [mentionCounts, setMentionCounts] = useState<Record<string, number>>({})
+  const [unreadChannelIds, setUnreadChannelIds] = useState<Set<string>>(
+    () => new Set(initialData?.unreadChannelIds ?? [])
+  )
+  const [mentionCounts, setMentionCounts] = useState<Record<string, number>>(
+    initialData?.mentionCounts ?? {}
+  )
   const activeChannelRef = useRef(activeChannelId)
   activeChannelRef.current = activeChannelId
+  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Mark active channel as read in DB + clear local unread
   const markRead = useCallback(
@@ -52,6 +58,7 @@ export function useUnreadChannels(
   // Load initial unread state
   useEffect(() => {
     if (channelIds.length === 0) return
+    if (initialData) return
 
     async function loadInitialUnread() {
       // 1. Fetch this user's read_states for these channels
@@ -104,10 +111,23 @@ export function useUnreadChannels(
     loadInitialUnread()
   }, [serverId, currentUserId])
 
-  // Mark currently active channel as read on activation
+  // Mark currently active channel as read after 500ms debounce (avoids rapid-switch RPC calls)
   useEffect(() => {
+    if (markReadTimerRef.current) {
+      clearTimeout(markReadTimerRef.current)
+      markReadTimerRef.current = null
+    }
     if (activeChannelId) {
-      markRead(activeChannelId)
+      markReadTimerRef.current = setTimeout(() => {
+        markRead(activeChannelId)
+        markReadTimerRef.current = null
+      }, 500)
+    }
+    return () => {
+      if (markReadTimerRef.current) {
+        clearTimeout(markReadTimerRef.current)
+        markReadTimerRef.current = null
+      }
     }
   }, [activeChannelId, markRead])
 
@@ -123,12 +143,10 @@ export function useUnreadChannels(
           event: "INSERT",
           schema: "public",
           table: "messages",
+          filter: `channel_id=in.(${channelIds.join(",")})`,
         },
         (payload) => {
           const msg = payload.new as { channel_id: string; author_id: string }
-
-          // Only care about channels in this server
-          if (!channelIds.includes(msg.channel_id)) return
 
           // Don't mark as unread if it's own message or if channel is active
           if (msg.author_id === currentUserId) return

@@ -22,13 +22,14 @@ import { cn } from "@/lib/utils/cn"
 
 interface Props {
   serverId: string
+  initialMembers?: MemberData[]
 }
 
 interface PresenceState {
   [userId: string]: { status: string; speaking?: boolean; voice_channel_id?: string }
 }
 
-interface MemberData {
+export interface MemberData {
   server_id: string
   user_id: string
   nickname: string | null
@@ -48,26 +49,42 @@ interface MemberData {
 
 
 /** Collapsible member list panel showing server members grouped by role with real-time presence indicators. */
-export function MemberList({ serverId }: Props) {
+export function MemberList({ serverId, initialMembers }: Props) {
   const { memberListOpen, currentUser } = useAppStore(
     useShallow((s) => ({ memberListOpen: s.memberListOpen, currentUser: s.currentUser }))
   )
-  const [members, setMembers] = useState<MemberData[]>([])
+  const [members, setMembers] = useState<MemberData[]>(initialMembers ?? [])
   const [presence, setPresence] = useState<PresenceState>({})
   const [recentlyActiveUserIds, setRecentlyActiveUserIds] = useState<Set<string>>(new Set())
   const recentActivityTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const previousPresenceRef = useRef<PresenceState>({})
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
-  const [loadingMembers, setLoadingMembers] = useState(true)
+  const [loadingMembers, setLoadingMembers] = useState(!initialMembers?.length)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const memberFetchControllerRef = useRef<AbortController | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+
+  // Sync SSR-provided members to the app store for mention autocomplete
+  useEffect(() => {
+    if (initialMembers?.length) {
+      useAppStore.getState().setMembers(serverId, initialMembers.map((m) => ({
+        user_id: m.user_id,
+        username: m.user?.username ?? "",
+        display_name: m.user?.display_name ?? null,
+        avatar_url: m.user?.avatar_url ?? null,
+        nickname: m.nickname,
+      })))
+    }
+  }, [serverId, initialMembers])
 
   useEffect(() => {
     setSelectedMemberId(null)
   }, [serverId])
 
+  // Fetch members from API (skipped when SSR data provided)
   useEffect(() => {
+    if (initialMembers) return
+
     async function fetchMembers() {
       memberFetchControllerRef.current?.abort()
       const controller = new AbortController()
@@ -79,7 +96,6 @@ export function MemberList({ serverId }: Props) {
         const response = await fetch(`/api/servers/${encodedServerId}/members`, {
           method: "GET",
           credentials: "include",
-          cache: "no-store",
           signal: controller.signal,
         })
 
@@ -125,6 +141,14 @@ export function MemberList({ serverId }: Props) {
 
     fetchMembers()
 
+    return () => {
+      memberFetchControllerRef.current?.abort()
+      memberFetchControllerRef.current = null
+    }
+  }, [serverId, initialMembers])
+
+  // Presence subscription (always runs regardless of SSR data)
+  useEffect(() => {
     const channel = supabase.channel(`presence:${serverId}`)
     channelRef.current = channel
     channel
@@ -188,8 +212,6 @@ export function MemberList({ serverId }: Props) {
       })
 
     return () => {
-      memberFetchControllerRef.current?.abort()
-      memberFetchControllerRef.current = null
       channelRef.current = null
       supabase.removeChannel(channel)
       for (const timer of recentActivityTimersRef.current.values()) {

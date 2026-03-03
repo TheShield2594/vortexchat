@@ -18,7 +18,7 @@ export async function GET(
 
   let query = db
     .from("events")
-    .select("*, event_hosts(user_id), event_rsvps(user_id,status,waitlist_position)")
+    .select("id, server_id, title, description, linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status)")
     .eq("server_id", params.serverId)
     .order("start_at", { ascending: true })
 

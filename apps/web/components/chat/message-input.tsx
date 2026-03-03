@@ -154,7 +154,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         const endpoint = gifQuery.trim()
           ? `${GIPHY_API_BASE}/search?api_key=${apiKey}&q=${encodeURIComponent(gifQuery)}&limit=12&rating=pg-13`
           : `${GIPHY_API_BASE}/trending?api_key=${apiKey}&limit=12&rating=pg-13`
-        const res = await fetch(endpoint, { signal: controller.signal })
+        const res = await fetch(endpoint, { signal: controller.signal, keepalive: true })
         const json = await res.json()
         setGifResults((json.data ?? []).map((gif: any) => ({
           id: gif.id,
@@ -168,7 +168,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       } finally {
         setGifLoading(false)
       }
-    }, 250)
+    }, 400)
 
     return () => {
       clearTimeout(timeout)

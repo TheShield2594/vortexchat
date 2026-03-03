@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   const { data: threads, error } = await supabase
     .from("threads")
-    .select("*")
+    .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, message_count, created_at, updated_at")
     .eq("parent_channel_id", channelId)
     .eq("archived", archived)
     .order("updated_at", { ascending: false })
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     const { data: thread, error } = await supabase
       .from("threads")
       .insert({ parent_channel_id: channelId, owner_id: user.id, name: name.trim() })
-      .select("*")
+      .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, message_count, created_at, updated_at")
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(thread, { status: 201 })

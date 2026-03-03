@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cha
   }
   if (!payload.title) return NextResponse.json({ error: "title required" }, { status: 400 })
 
-  const { data, error } = await supabase.from("channel_tasks").insert(payload).select("*").single()
+  const { data, error } = await supabase.from("channel_tasks").insert(payload).select("id, title, description, status, due_date, assignee_id, channel_id, server_id, source_message_id, created_by, updated_by, created_at, updated_at").single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ task: data }, { status: 201 })
 }

@@ -16,7 +16,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ channe
 
   const { data, error } = await supabase
     .from("channel_docs")
-    .select("*")
+    .select("id, title, content, channel_id, server_id, created_by, updated_by, created_at, updated_at")
     .eq("channel_id", channelId)
     .order("updated_at", { ascending: false })
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cha
     content: body.content || "",
     created_by: user.id,
     updated_by: user.id,
-  }).select("*").single()
+  }).select("id, title, content, channel_id, server_id, created_by, updated_by, created_at, updated_at").single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ doc: data }, { status: 201 })

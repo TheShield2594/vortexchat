@@ -25,12 +25,26 @@ export async function PATCH(
   }
 
   // Permission check: must be server owner or have MANAGE_CHANNELS
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", channel.server_id)
-    .single()
+  const [serverResult, memberRolesResult, defaultRoleResult] = await Promise.all([
+    supabase
+      .from("servers")
+      .select("owner_id")
+      .eq("id", channel.server_id)
+      .single(),
+    supabase
+      .from("member_roles")
+      .select("role_id, roles(permissions)")
+      .eq("server_id", channel.server_id)
+      .eq("user_id", user.id),
+    supabase
+      .from("roles")
+      .select("permissions")
+      .eq("server_id", channel.server_id)
+      .eq("is_default", true)
+      .single(),
+  ])
 
+  const server = serverResult.data
   if (!server) {
     return NextResponse.json({ error: "Server not found" }, { status: 404 })
   }
@@ -38,20 +52,8 @@ export async function PATCH(
   const isOwner = server.owner_id === user.id
 
   if (!isOwner) {
-    // Check role permissions
-    const { data: memberRoles } = await supabase
-      .from("member_roles")
-      .select("role_id, roles(permissions)")
-      .eq("server_id", channel.server_id)
-      .eq("user_id", user.id)
-
-    // Also get @everyone role permissions
-    const { data: defaultRole } = await supabase
-      .from("roles")
-      .select("permissions")
-      .eq("server_id", channel.server_id)
-      .eq("is_default", true)
-      .single()
+    const memberRoles = memberRolesResult.data
+    const defaultRole = defaultRoleResult.data
 
     const roleBitmasks = [
       ...(memberRoles ?? []).map((r) => (r.roles as unknown as { permissions: number })?.permissions ?? 0),

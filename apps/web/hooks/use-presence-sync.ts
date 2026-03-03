@@ -105,7 +105,12 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
         }
       })
 
+    let lastActivityTime = 0
+    const ACTIVITY_THROTTLE_MS = 3000
     const onActivity = () => {
+      const now = Date.now()
+      if (now - lastActivityTime < ACTIVITY_THROTTLE_MS) return
+      lastActivityTime = now
       if (currentStatusRef.current === "idle" && !isIdleExplicitRef.current) {
         persistStatus("online", { persistUserRecord: false, rememberExplicit: false })
       }

@@ -25,27 +25,17 @@ export function useServerEmojis() {
   return useContext(ServerEmojiContext)
 }
 
+export type { ServerEmoji }
+
 /** Fetches and caches server custom emojis, providing a context for child components to resolve :emoji: tokens. */
-export function ServerEmojiProvider({ serverId, children }: { serverId: string; children: React.ReactNode }) {
-  const [emojis, setEmojis] = useState<ServerEmoji[]>([])
+export function ServerEmojiProvider({ serverId, initialEmojis, children }: { serverId: string; initialEmojis?: ServerEmoji[]; children: React.ReactNode }) {
+  const [emojis, setEmojis] = useState<ServerEmoji[]>(initialEmojis ?? [])
   const controllerRef = useRef<AbortController | null>(null)
 
+  // When serverId changes (navigating between servers), reset to SSR-provided data
   useEffect(() => {
-    controllerRef.current?.abort()
-    const controller = new AbortController()
-    controllerRef.current = controller
-    fetch(`/api/servers/${serverId}/emojis`, { signal: controller.signal })
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => {
-        if (!controller.signal.aborted) {
-          setEmojis(data)
-        }
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") console.error("Failed to load emojis", err)
-      })
-    return () => controller.abort()
-  }, [serverId])
+    setEmojis(initialEmojis ?? [])
+  }, [serverId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const reload = useCallback(async () => {
     controllerRef.current?.abort()

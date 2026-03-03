@@ -48,6 +48,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
   const [total, setTotal] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => {
@@ -59,20 +60,28 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
   const search = useCallback(async (t: string, f: ActiveFilters) => {
     const q = buildQueryString(t, f)
     if (!q.trim()) return setResults([])
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&serverId=${serverId}&limit=40`)
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&serverId=${serverId}&limit=40`, { signal: controller.signal })
       if (res.ok) {
         const data = await res.json()
         setResults(data.results ?? [])
         setTotal(data.total ?? 0)
       }
-    } finally { setLoading(false) }
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return
+      throw e
+    } finally {
+      if (!controller.signal.aborted) setLoading(false)
+    }
   }, [serverId])
 
   const scheduleSearch = useCallback((t: string, f: ActiveFilters) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => search(t, f), 250)
+    debounceRef.current = setTimeout(() => search(t, f), 300)
   }, [search])
 
   function handleTextInput(e: React.ChangeEvent<HTMLInputElement>) {

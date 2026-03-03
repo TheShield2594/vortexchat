@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, X } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { useAppStore } from "@/lib/stores/app-store"
 import { format } from "date-fns"
 
 interface Notification {
@@ -73,6 +74,11 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [userId, supabase])
+
+  // Sync unread count to Zustand store (consumed by useTabUnreadTitle)
+  useEffect(() => {
+    useAppStore.getState().setNotificationUnreadCount(unreadCount)
+  }, [unreadCount])
 
   // Close on outside click
   useEffect(() => {

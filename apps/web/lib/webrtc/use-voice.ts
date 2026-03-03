@@ -336,69 +336,70 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       let availableBitrate: number | null = null
       let candidatePairCount = 0
 
-      for (const [peerId, pc] of pcs) {
-        if (pc.connectionState === "closed" || pc.connectionState === "failed") continue
-        try {
-          const stats = await pc.getStats()
-          stats.forEach((report) => {
-            if (report.type === "candidate-pair" && report.state === "succeeded") {
-              const rtt = report.currentRoundTripTime
-              if (typeof rtt === "number") {
-                totalRtt += rtt * 1000 // convert seconds to ms
-                candidatePairCount++
-              }
-              if (typeof report.availableOutgoingBitrate === "number") {
-                availableBitrate = (availableBitrate ?? 0) + report.availableOutgoingBitrate / 1000 // bps to kbps
+      const activePcs = pcs.filter(([, pc]) => pc.connectionState !== "closed" && pc.connectionState !== "failed")
+      const statsResults = await Promise.allSettled(
+        activePcs.map(async ([peerId, pc]) => ({ peerId, stats: await pc.getStats() }))
+      )
+
+      for (const result of statsResults) {
+        if (result.status !== "fulfilled") continue
+        const { peerId, stats } = result.value
+        stats.forEach((report) => {
+          if (report.type === "candidate-pair" && report.state === "succeeded") {
+            const rtt = report.currentRoundTripTime
+            if (typeof rtt === "number") {
+              totalRtt += rtt * 1000 // convert seconds to ms
+              candidatePairCount++
+            }
+            if (typeof report.availableOutgoingBitrate === "number") {
+              availableBitrate = (availableBitrate ?? 0) + report.availableOutgoingBitrate / 1000 // bps to kbps
+            }
+          }
+          if (report.type === "outbound-rtp" && report.kind === "audio") {
+            const prevEntry = prevStatsRef.current.get(peerId)
+            const packetsSent = report.packetsSent ?? 0
+            if (prevEntry) {
+              const deltaPackets = packetsSent - prevEntry.packetsSent
+              if (deltaPackets > 0) {
+                totalPacketsSent += deltaPackets
               }
             }
-            if (report.type === "outbound-rtp" && report.kind === "audio") {
-              const prevEntry = prevStatsRef.current.get(peerId)
-              const packetsSent = report.packetsSent ?? 0
-              if (prevEntry) {
-                const deltaPackets = packetsSent - prevEntry.packetsSent
-                if (deltaPackets > 0) {
-                  totalPacketsSent += deltaPackets
-                }
-              }
-              prevStatsRef.current.set(peerId, {
-                timestamp: report.timestamp,
-                packetsSent,
-                packetsLost: prevStatsRef.current.get(peerId)?.packetsLost ?? 0,
-              })
+            prevStatsRef.current.set(peerId, {
+              timestamp: report.timestamp,
+              packetsSent,
+              packetsLost: prevStatsRef.current.get(peerId)?.packetsLost ?? 0,
+            })
+          }
+          if (report.type === "remote-inbound-rtp" && report.kind === "audio") {
+            const packetsLost = report.packetsLost ?? 0
+            const prevEntry = prevStatsRef.current.get(peerId)
+            if (prevEntry) {
+              const deltaLost = packetsLost - prevEntry.packetsLost
+              totalPacketsLost += Math.max(0, deltaLost)
             }
-            if (report.type === "remote-inbound-rtp" && report.kind === "audio") {
-              const packetsLost = report.packetsLost ?? 0
-              const prevEntry = prevStatsRef.current.get(peerId)
-              if (prevEntry) {
-                const deltaLost = packetsLost - prevEntry.packetsLost
-                totalPacketsLost += Math.max(0, deltaLost)
-              }
-              if (prevEntry) {
-                prevStatsRef.current.set(peerId, { ...prevEntry, packetsLost })
-              }
+            if (prevEntry) {
+              prevStatsRef.current.set(peerId, { ...prevEntry, packetsLost })
             }
-            if (report.type === "inbound-rtp" && report.kind === "audio") {
-              const jitter = report.jitter
-              if (typeof jitter === "number") {
-                totalJitter = Math.max(totalJitter, jitter * 1000) // worst-case jitter
-              }
-              // Also capture inbound packet loss
-              const lost = report.packetsLost
-              const received = report.packetsReceived
-              if (typeof lost === "number" && typeof received === "number" && received > 0) {
-                const total = lost + received
-                const lossPct = (lost / total) * 100
-                // Use inbound loss if it's worse
-                if (lossPct > (totalPacketsSent > 0 ? (totalPacketsLost / totalPacketsSent) * 100 : 0)) {
-                  totalPacketsLost = lost
-                  totalPacketsSent = total
-                }
+          }
+          if (report.type === "inbound-rtp" && report.kind === "audio") {
+            const jitter = report.jitter
+            if (typeof jitter === "number") {
+              totalJitter = Math.max(totalJitter, jitter * 1000) // worst-case jitter
+            }
+            // Also capture inbound packet loss
+            const lost = report.packetsLost
+            const received = report.packetsReceived
+            if (typeof lost === "number" && typeof received === "number" && received > 0) {
+              const total = lost + received
+              const lossPct = (lost / total) * 100
+              // Use inbound loss if it's worse
+              if (lossPct > (totalPacketsSent > 0 ? (totalPacketsLost / totalPacketsSent) * 100 : 0)) {
+                totalPacketsLost = lost
+                totalPacketsSent = total
               }
             }
-          })
-        } catch {
-          // getStats can fail on closed connections
-        }
+          }
+        })
       }
 
       const rttMs = candidatePairCount > 0 ? Math.round(totalRtt / candidatePairCount) : 0
