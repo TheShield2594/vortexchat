@@ -23,23 +23,25 @@ export async function GET(
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  // Fetch channel info (flat, no joins)
-  const { data: channel, error: channelError } = await supabase
-    .from("dm_channels")
-    .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
-    .eq("id", channelId)
-    .maybeSingle()
-  if (channelError) return NextResponse.json({ error: channelError.message }, { status: 500 })
-  if (!channel) return NextResponse.json({ error: "DM channel not found" }, { status: 404 })
+  // Fetch channel info and member user_ids in parallel
+  const [channelResult, memberRowsResult] = await Promise.all([
+    supabase
+      .from("dm_channels")
+      .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
+      .eq("id", channelId)
+      .maybeSingle(),
+    supabase
+      .from("dm_channel_members")
+      .select("user_id")
+      .eq("dm_channel_id", channelId),
+  ])
 
-  // Fetch member user_ids
-  const { data: memberRows, error: memberRowsError } = await supabase
-    .from("dm_channel_members")
-    .select("user_id")
-    .eq("dm_channel_id", channelId)
-  if (memberRowsError) return NextResponse.json({ error: memberRowsError.message }, { status: 500 })
+  if (channelResult.error) return NextResponse.json({ error: channelResult.error.message }, { status: 500 })
+  if (!channelResult.data) return NextResponse.json({ error: "DM channel not found" }, { status: 404 })
+  if (memberRowsResult.error) return NextResponse.json({ error: memberRowsResult.error.message }, { status: 500 })
 
-  const memberIds = memberRows?.map((r) => r.user_id) ?? []
+  const channel = channelResult.data
+  const memberIds = memberRowsResult.data?.map((r) => r.user_id) ?? []
 
   // Fetch user profiles for members
   const { data: memberUsers, error: memberUsersError } = memberIds.length

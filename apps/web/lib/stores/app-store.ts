@@ -96,6 +96,12 @@ interface AppState {
   serverHasUnread: Record<string, boolean>
   setServerHasUnread: (serverId: string, hasUnread: boolean) => void
 
+  // Notification + DM unread counts (shared between NotificationBell, DMList, and useTabUnreadTitle)
+  notificationUnreadCount: number
+  setNotificationUnreadCount: (count: number) => void
+  dmUnreadCount: number
+  setDmUnreadCount: (count: number) => void
+
   // Voice state
   voiceChannelId: string | null
   voiceServerId: string | null
@@ -193,6 +199,11 @@ export const useAppStore = create<AppState>((set) => ({
       if (state.serverHasUnread[serverId] === hasUnread) return state
       return { serverHasUnread: { ...state.serverHasUnread, [serverId]: hasUnread } }
     }),
+
+  notificationUnreadCount: 0,
+  setNotificationUnreadCount: (count) => set({ notificationUnreadCount: count }),
+  dmUnreadCount: 0,
+  setDmUnreadCount: (count) => set({ dmUnreadCount: count }),
 
   voiceChannelId: null,
   voiceServerId: null,

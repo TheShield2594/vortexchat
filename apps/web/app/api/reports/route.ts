@@ -180,7 +180,9 @@ export async function GET(req: NextRequest) {
 
     const { data: reports, error } = await query
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(reports)
+    return NextResponse.json(reports, {
+      headers: { "Cache-Control": "private, max-age=30" },
+    })
   }
 
   // No server_id — return caller's own reports
@@ -193,7 +195,9 @@ export async function GET(req: NextRequest) {
     .limit(50)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(reports)
+  return NextResponse.json(reports, {
+    headers: { "Cache-Control": "private, max-age=30" },
+  })
 }
 
 /**

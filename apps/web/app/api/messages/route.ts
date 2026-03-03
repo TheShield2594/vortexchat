@@ -326,9 +326,11 @@ async function runServerAutomodChecks({
     },
   })
 
-  for (const violation of violations) {
-    await (supabase as any).rpc("increment_automod_rule_hit", { p_rule_id: violation.rule_id })
-  }
+  await Promise.all(
+    violations.map((violation) =>
+      (supabase as any).rpc("increment_automod_rule_hit", { p_rule_id: violation.rule_id })
+    )
+  )
 
   const timeoutDuration = getTimeoutDuration(violations)
   if (timeoutDuration && !dryRun) {

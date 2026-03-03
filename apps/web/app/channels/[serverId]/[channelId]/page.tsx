@@ -6,6 +6,8 @@ import { AnnouncementChannel } from "@/components/channels/announcement-channel"
 import { ForumChannel } from "@/components/channels/forum-channel"
 import { MediaChannel } from "@/components/channels/media-channel"
 import { hydrateReplyTo, MESSAGE_PROJECTION } from "@/lib/messages/hydration"
+import { computePermissions, hasPermission } from "@vortex/shared"
+import type { RoleRow } from "@/types/database"
 
 interface Props {
   params: Promise<{ serverId: string; channelId: string }>
@@ -28,8 +30,8 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
 
   if (error || !user) redirect("/login")
 
-  // Fetch channel, messages, and read-state in parallel (all inputs known upfront)
-  const [{ data: channel }, { data: messagesData }, { data: readState }] = await Promise.all([
+  // Fetch channel, messages, read-state, server ownership, and member roles in parallel
+  const [{ data: channel }, { data: messagesData }, { data: readState }, { data: server }, { data: memberRoles }] = await Promise.all([
     supabase
       .from("channels")
       .select("*")
@@ -49,9 +51,27 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
       .eq("user_id", user.id)
       .eq("channel_id", params.channelId)
       .maybeSingle(),
+    supabase
+      .from("servers")
+      .select("owner_id")
+      .eq("id", params.serverId)
+      .single(),
+    supabase
+      .from("member_roles")
+      .select("role_id, roles(*)")
+      .eq("server_id", params.serverId)
+      .eq("user_id", user.id),
   ])
 
   if (!channel) notFound()
+
+  // Compute canManageMessages server-side (avoids 2 client-side Supabase queries)
+  const isOwner = server?.owner_id === user.id
+  type MemberRoleWithRole = { role_id: string; roles: RoleRow | null }
+  const roleBitmasks = ((memberRoles ?? []) as unknown as MemberRoleWithRole[])
+    .map((mr) => mr.roles?.permissions ?? 0)
+  const effectivePerms = computePermissions(roleBitmasks)
+  const canManageMessages = isOwner || hasPermission(effectivePerms, "MANAGE_MESSAGES")
 
   // Filter messages to only text-based channel types
   let messages: any[] = []
@@ -128,6 +148,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
         currentUserId={user.id}
         serverId={params.serverId}
         initialLastReadAt={initialLastReadAt}
+        canManageMessages={canManageMessages}
       />
     </div>
   )

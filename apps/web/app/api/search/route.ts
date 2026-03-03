@@ -190,5 +190,7 @@ export async function GET(req: NextRequest) {
     ...(docs ?? []).map((d) => ({ type: "doc", ...d })),
   ]
 
-  return NextResponse.json({ results, total: results.length })
+  return NextResponse.json({ results, total: results.length }, {
+    headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=15" },
+  })
 }

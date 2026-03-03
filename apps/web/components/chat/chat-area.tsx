@@ -41,6 +41,7 @@ interface Props {
   currentUserId: string
   serverId: string
   initialLastReadAt: string | null
+  canManageMessages: boolean
 }
 
 function isDuplicateInsertError(error: { code?: string } | null): boolean {
@@ -68,7 +69,7 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 }
 
 /** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
-export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt }: Props) {
+export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen } = useAppStore(
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen }))
   )
@@ -89,7 +90,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
-  const [canManageMessages, setCanManageMessages] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -112,42 +112,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const jumpToMessageId = searchParams.get("message")
   const openThreadId = searchParams.get("thread")
   const createThreadParam = searchParams.get("createThread")
-
-  // ── Permission check ──────────────────────────────────────────────────────
-  // Determine once if the current user can manage messages in this channel
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data: serverRow } = await supabase
-          .from("servers")
-          .select("owner_id")
-          .eq("id", serverId)
-          .single()
-        const { data: memberRow } = await (supabase
-          .from("server_members")
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .select("member_roles(roles(permissions))" as any)
-          .eq("server_id", serverId)
-          .eq("user_id", currentUserId)
-          .maybeSingle() as any)
-        if (cancelled) return
-        const isOwner = serverRow?.owner_id === currentUserId
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const perms: number = (memberRow as any)?.member_roles?.reduce(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (acc: number, mr: any) => acc | (mr?.roles?.permissions ?? 0),
-          0
-        ) ?? 0
-        const ADMINISTRATOR = 1 << 7
-        const MANAGE_MESSAGES = 1 << 2
-        setCanManageMessages(isOwner || !!(perms & ADMINISTRATOR) || !!(perms & MANAGE_MESSAGES))
-      } catch {
-        // Non-critical: default stays false
-      }
-    })()
-    return () => { cancelled = true }
-  }, [supabase, serverId, currentUserId])
 
   // ── Virtual list ──────────────────────────────────────────────────────────
   // O(1) lookup of message index by ID for virtualizer scrollToIndex

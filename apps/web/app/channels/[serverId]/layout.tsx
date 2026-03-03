@@ -1,9 +1,11 @@
 import { redirect, notFound } from "next/navigation"
-import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient, getAuthUser } from "@/lib/supabase/server"
 import { ChannelSidebar } from "@/components/layout/channel-sidebar"
+import type { VoiceParticipant } from "@/components/layout/channel-sidebar"
 import { MemberList } from "@/components/layout/member-list"
 import { ServerEmojiProvider } from "@/components/chat/server-emoji-context"
 import type { RoleRow } from "@/types/database"
+import type { MemberData } from "@/components/layout/member-list"
 
 interface Props {
   children: React.ReactNode
@@ -37,20 +39,158 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
     .map((mr) => mr.roles)
     .filter((r): r is RoleRow => r !== null)
 
+  // Compute text channel IDs for unread queries
+  const allChannels = channels ?? []
+  const textChannelIds = allChannels
+    .filter((c) => c.type === "text")
+    .map((c) => c.id)
+
+  // Fetch 5 additional data sources in parallel for SSR hydration
+  const adminSupabase = await createServiceRoleClient()
+
+  const [
+    { data: rawMembers },
+    { data: emojis },
+    { data: threadCountRows },
+    { data: voiceStateRows },
+    { data: readStates },
+    { data: latestMessages },
+  ] = await Promise.all([
+    // Members (via service role to bypass RLS)
+    adminSupabase
+      .from("server_members")
+      .select(`
+        server_id,
+        user_id,
+        nickname,
+        user:users!server_members_user_id_fkey(
+          id,
+          username,
+          display_name,
+          avatar_url,
+          status_message,
+          bio,
+          banner_color,
+          custom_tag,
+          created_at
+        ),
+        roles:member_roles(
+          role_id,
+          roles(
+            id,
+            server_id,
+            name,
+            color,
+            permissions,
+            position,
+            created_at
+          )
+        )
+      `)
+      .eq("server_id", params.serverId)
+      .order("nickname", { ascending: true, nullsFirst: false })
+      .order("user_id", { ascending: true }),
+    // Emojis
+    supabase
+      .from("server_emojis")
+      .select("id, name, image_url")
+      .eq("server_id", params.serverId)
+      .order("name"),
+    // Thread counts
+    supabase.rpc("get_thread_counts_by_channel", { p_server_id: params.serverId }),
+    // Voice states
+    supabase
+      .from("voice_states")
+      .select("user_id, channel_id, muted, deafened, users(id, username, display_name, avatar_url)")
+      .eq("server_id", params.serverId),
+    // Read states
+    textChannelIds.length > 0
+      ? supabase
+          .from("read_states")
+          .select("channel_id, last_read_at, mention_count")
+          .eq("user_id", user.id)
+          .in("channel_id", textChannelIds)
+      : Promise.resolve({ data: [] as { channel_id: string; last_read_at: string; mention_count: number }[] }),
+    // Latest messages per text channel
+    textChannelIds.length > 0
+      ? supabase
+          .from("messages")
+          .select("channel_id, created_at")
+          .in("channel_id", textChannelIds)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as { channel_id: string; created_at: string }[] }),
+  ])
+
+  // Normalize members: flatten nested roles
+  type ApiRoleEntry = { role_id: string; roles: RoleRow | null }
+  type ApiMember = Omit<MemberData, "roles"> & { roles?: ApiRoleEntry[] }
+  const initialMembers: MemberData[] = ((rawMembers ?? []) as unknown as ApiMember[]).map((m) => ({
+    ...m,
+    roles: (m.roles ?? [])
+      .map((entry) => entry.roles)
+      .filter((role): role is RoleRow => Boolean(role)),
+  }))
+
+  // Normalize thread counts: RPC returns { parent_channel_id, count }[]
+  const initialThreadCounts: Record<string, number> = {}
+  for (const row of (threadCountRows ?? []) as { parent_channel_id: string; count: number }[]) {
+    initialThreadCounts[row.parent_channel_id] = Number(row.count)
+  }
+
+  // Normalize voice states
+  const initialVoiceParticipants: VoiceParticipant[] = (voiceStateRows ?? []).map((d: any) => ({
+    user_id: d.user_id,
+    channel_id: d.channel_id,
+    muted: d.muted,
+    deafened: d.deafened,
+    user: d.users ?? null,
+  }))
+
+  // Compute unread channels and mention counts
+  const readMap: Record<string, string> = {}
+  const initialMentionCounts: Record<string, number> = {}
+  for (const rs of (readStates ?? []) as { channel_id: string; last_read_at: string; mention_count: number }[]) {
+    readMap[rs.channel_id] = rs.last_read_at
+    if (rs.mention_count > 0) initialMentionCounts[rs.channel_id] = rs.mention_count
+  }
+
+  const initialUnreadChannelIds: string[] = []
+  if (Object.keys(readMap).length > 0) {
+    const latestPerChannel: Record<string, string> = {}
+    for (const msg of (latestMessages ?? []) as { channel_id: string; created_at: string }[]) {
+      if (!latestPerChannel[msg.channel_id]) {
+        latestPerChannel[msg.channel_id] = msg.created_at
+      }
+    }
+    for (const channelId of Object.keys(readMap)) {
+      const latest = latestPerChannel[channelId]
+      const lastRead = readMap[channelId]
+      if (latest && latest > lastRead) {
+        initialUnreadChannelIds.push(channelId)
+      }
+    }
+  }
+
   return (
-    <ServerEmojiProvider serverId={params.serverId}>
+    <ServerEmojiProvider serverId={params.serverId} initialEmojis={emojis ?? []}>
       <div className="flex flex-1 overflow-hidden">
         <ChannelSidebar
+          key={`sidebar-${params.serverId}`}
           server={server}
-          channels={channels ?? []}
+          channels={allChannels}
           currentUserId={user.id}
           isOwner={server.owner_id === user.id}
           userRoles={userRoles}
+          initialThreadCounts={initialThreadCounts}
+          initialVoiceParticipants={initialVoiceParticipants}
+          initialUnreadChannelIds={initialUnreadChannelIds}
+          initialMentionCounts={initialMentionCounts}
         />
         <main id="main-content" className="flex flex-1 overflow-hidden">
           {children}
         </main>
-        <MemberList serverId={params.serverId} />
+        <MemberList key={`members-${params.serverId}`} serverId={params.serverId} initialMembers={initialMembers} />
       </div>
     </ServerEmojiProvider>
   )

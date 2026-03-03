@@ -18,21 +18,38 @@ export async function GET() {
   const channelIds = memberships?.map((m) => m.dm_channel_id) ?? []
   if (!channelIds.length) return NextResponse.json([])
 
-  // 2. Fetch channel metadata
-  const { data: channelRows, error: channelRowsError } = await supabase
-    .from("dm_channels")
-    .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
-    .in("id", channelIds)
-  if (channelRowsError) return NextResponse.json({ error: channelRowsError.message }, { status: 500 })
+  // 2-6. Fetch channel metadata, members, latest messages, and read states in parallel
+  const [channelResult, memberResult, latestResult, readsResult] = await Promise.all([
+    supabase
+      .from("dm_channels")
+      .select("id, name, icon_url, is_group, owner_id, updated_at, is_encrypted, encryption_key_version, encryption_membership_epoch")
+      .in("id", channelIds),
+    supabase
+      .from("dm_channel_members")
+      .select("dm_channel_id, user_id")
+      .in("dm_channel_id", channelIds),
+    supabase
+      .from("direct_messages")
+      .select("dm_channel_id, content, created_at, sender_id")
+      .in("dm_channel_id", channelIds)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("dm_read_states")
+      .select("dm_channel_id, last_read_at")
+      .eq("user_id", user.id)
+      .in("dm_channel_id", channelIds),
+  ])
 
-  // 3. Fetch all members across these channels
-  const { data: allMemberRows, error: allMemberRowsError } = await supabase
-    .from("dm_channel_members")
-    .select("dm_channel_id, user_id")
-    .in("dm_channel_id", channelIds)
-  if (allMemberRowsError) return NextResponse.json({ error: allMemberRowsError.message }, { status: 500 })
+  if (channelResult.error) return NextResponse.json({ error: channelResult.error.message }, { status: 500 })
+  if (memberResult.error) return NextResponse.json({ error: memberResult.error.message }, { status: 500 })
+  if (latestResult.error) return NextResponse.json({ error: latestResult.error.message }, { status: 500 })
+  if (readsResult.error) return NextResponse.json({ error: readsResult.error.message }, { status: 500 })
 
-  // 4. Fetch user profiles for all unique member IDs
+  const channelRows = channelResult.data
+  const allMemberRows = memberResult.data
+
+  // Fetch user profiles for all unique member IDs
   const allUserIds = Array.from(new Set((allMemberRows ?? []).map((m) => m.user_id)))
   const userRowsQuery = allUserIds.length
     ? await supabase
@@ -53,32 +70,15 @@ export async function GET() {
     if (u) membersByChannel[row.dm_channel_id]!.push(u)
   }
 
-  // 5. Get latest message per channel
-  const { data: latest, error: latestError } = await supabase
-    .from("direct_messages")
-    .select("dm_channel_id, content, created_at, sender_id")
-    .in("dm_channel_id", channelIds)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-  if (latestError) return NextResponse.json({ error: latestError.message }, { status: 500 })
-
   const latestMessages: Record<string, any> = {}
-  for (const msg of latest ?? []) {
+  for (const msg of latestResult.data ?? []) {
     if (msg.dm_channel_id && !latestMessages[msg.dm_channel_id]) {
       latestMessages[msg.dm_channel_id] = msg
     }
   }
 
-  // 6. Get read states
-  const { data: reads, error: readsError } = await supabase
-    .from("dm_read_states")
-    .select("dm_channel_id, last_read_at")
-    .eq("user_id", user.id)
-    .in("dm_channel_id", channelIds)
-  if (readsError) return NextResponse.json({ error: readsError.message }, { status: 500 })
-
   const readStates: Record<string, string> = {}
-  for (const r of reads ?? []) {
+  for (const r of readsResult.data ?? []) {
     readStates[r.dm_channel_id] = r.last_read_at
   }
 
@@ -107,7 +107,9 @@ export async function GET() {
 
   channels.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
 
-  return NextResponse.json(channels)
+  return NextResponse.json(channels, {
+    headers: { "Cache-Control": "private, max-age=5" },
+  })
 }
 
 // POST /api/dm/channels — open/create a DM channel

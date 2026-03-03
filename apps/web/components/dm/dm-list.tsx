@@ -71,6 +71,9 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
     if (res.ok) {
       const data = await res.json()
       setChannels(data)
+      // Push DM unread count to store (consumed by useTabUnreadTitle)
+      const unread = (data as DMChannel[]).filter((ch) => ch.is_unread).length
+      useAppStore.getState().setDmUnreadCount(unread)
     }
     setLoading(false)
   }, [])
