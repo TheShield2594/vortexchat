@@ -1,24 +1,57 @@
 /**
- * Simple in-memory sliding window rate limiter.
- * For multi-instance deployments, replace with Redis (e.g. @upstash/ratelimit).
+ * Rate limiter with Redis backend (Upstash) for multi-instance deployments.
+ *
+ * When UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set, uses
+ * Upstash's sliding window algorithm — safe across Vercel serverless replicas.
+ *
+ * Falls back to an in-memory sliding window when Redis is not configured
+ * (local dev or single-instance deployments).
  *
  * Usage:
- *   const result = rateLimiter.check(userId, { limit: 5, windowMs: 10_000 })
+ *   const result = await rateLimiter.check(userId, { limit: 5, windowMs: 10_000 })
  *   if (!result.allowed) return 429
  */
+
+type RateLimitResult = {
+  allowed: boolean
+  remaining: number
+  resetAt: number
+}
+
+// ─── Upstash Redis rate limiter ──────────────────────────────────────────────
+
+async function checkUpstash(
+  key: string,
+  opts: { limit: number; windowMs: number }
+): Promise<RateLimitResult> {
+  const { Ratelimit } = await import("@upstash/ratelimit")
+  const { Redis } = await import("@upstash/redis")
+
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  })
+
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(opts.limit, `${opts.windowMs}ms`),
+    prefix: "vortex:rl",
+  })
+
+  const { success, remaining, reset } = await limiter.limit(key)
+  return { allowed: success, remaining, resetAt: reset }
+}
+
+// ─── In-memory fallback ──────────────────────────────────────────────────────
 
 interface WindowEntry {
   timestamps: number[]
 }
 
-class RateLimiter {
+class InMemoryRateLimiter {
   private windows = new Map<string, WindowEntry>()
 
-  check(key: string, opts: { limit: number; windowMs: number }): {
-    allowed: boolean
-    remaining: number
-    resetAt: number
-  } {
+  check(key: string, opts: { limit: number; windowMs: number }): RateLimitResult {
     const now = Date.now()
     const cutoff = now - opts.windowMs
 
@@ -28,7 +61,6 @@ class RateLimiter {
       this.windows.set(key, entry)
     }
 
-    // Evict expired timestamps
     entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
 
     const remaining = Math.max(0, opts.limit - entry.timestamps.length)
@@ -42,7 +74,6 @@ class RateLimiter {
     return { allowed: true, remaining: remaining - 1, resetAt }
   }
 
-  // Periodically clean up stale keys (call from a setInterval if needed)
   cleanup(maxAgeMs = 60_000) {
     const cutoff = Date.now() - maxAgeMs
     this.windows.forEach((entry, key) => {
@@ -53,10 +84,24 @@ class RateLimiter {
   }
 }
 
-// Singleton — shared across all requests in the same Node.js process
-export const rateLimiter = new RateLimiter()
+const inMemory = new InMemoryRateLimiter()
 
-// Clean up every 5 minutes
 if (typeof setInterval !== "undefined") {
-  setInterval(() => rateLimiter.cleanup(), 5 * 60 * 1000)
+  setInterval(() => inMemory.cleanup(), 5 * 60 * 1000)
+}
+
+// ─── Unified interface ───────────────────────────────────────────────────────
+
+const useRedis =
+  typeof process !== "undefined" &&
+  !!process.env.UPSTASH_REDIS_REST_URL &&
+  !!process.env.UPSTASH_REDIS_REST_TOKEN
+
+export const rateLimiter = {
+  async check(key: string, opts: { limit: number; windowMs: number }): Promise<RateLimitResult> {
+    if (useRedis) {
+      return checkUpstash(key, opts)
+    }
+    return inMemory.check(key, opts)
+  },
 }
