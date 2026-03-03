@@ -111,7 +111,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
           .eq("user_id", user.id)
           .in("channel_id", textChannelIds)
       : Promise.resolve({ data: [] as { channel_id: string; last_read_at: string; mention_count: number }[] }),
-    // Latest messages per text channel
+    // Latest messages per text channel — limit to avoid fetching entire history
     textChannelIds.length > 0
       ? supabase
           .from("messages")
@@ -119,6 +119,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
           .in("channel_id", textChannelIds)
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
+          .limit(textChannelIds.length * 5)
       : Promise.resolve({ data: [] as { channel_id: string; created_at: string }[] }),
   ])
 
