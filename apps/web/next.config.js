@@ -25,7 +25,8 @@ const nextConfig = {
 module.exports = withSentryConfig(nextConfig, {
   silent: true,
   // Only upload source maps in CI to avoid leaking them in local builds
-  disableServerWebpackPlugin: !process.env.CI,
-  disableClientWebpackPlugin: !process.env.CI,
+  sourcemaps: {
+    disable: !process.env.CI,
+  },
   autoInstrumentServerFunctions: true,
 })

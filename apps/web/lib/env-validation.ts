@@ -17,11 +17,11 @@ const REQUIRED: EnvVar[] = [
   { name: "NEXT_PUBLIC_SUPABASE_URL", required: true, description: "Supabase project URL" },
   { name: "NEXT_PUBLIC_SUPABASE_ANON_KEY", required: true, description: "Supabase anon key" },
   { name: "SUPABASE_SERVICE_ROLE_KEY", required: true, description: "Supabase service role key (server-side)" },
-  { name: "NEXT_PUBLIC_APP_URL", required: true, description: "Public app URL (e.g. https://your-app.vercel.app)" },
-  { name: "CRON_SECRET", required: true, description: "Secret for authenticating cron job requests" },
 ]
 
 const OPTIONAL: EnvVar[] = [
+  { name: "NEXT_PUBLIC_APP_URL", required: false, description: "Public app URL (e.g. https://your-app.vercel.app) — used in web push payloads" },
+  { name: "CRON_SECRET", required: false, description: "Secret for authenticating cron job requests — required for cleanup/poll cron endpoints" },
   { name: "NEXT_PUBLIC_SENTRY_DSN", required: false, description: "Sentry DSN for error monitoring (highly recommended in production)" },
   { name: "UPSTASH_REDIS_REST_URL", required: false, description: "Upstash Redis URL for distributed rate limiting (required for multi-instance deployments)" },
   { name: "UPSTASH_REDIS_REST_TOKEN", required: false, description: "Upstash Redis token" },
