@@ -66,7 +66,7 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Rate limit
-  const rl = rateLimiter.check(`thread_msg:${user.id}`, { limit: 5, windowMs: 10_000 })
+  const rl = await rateLimiter.check(`thread_msg:${user.id}`, { limit: 5, windowMs: 10_000 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "You are sending messages too fast. Slow down." },

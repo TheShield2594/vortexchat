@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import * as Sentry from "@sentry/nextjs"
 
 export default function GlobalError({
   error,
@@ -10,7 +11,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    // TODO: replace with error monitoring service (e.g. Sentry.captureException(error))
+    Sentry.captureException(error)
     if (process.env.NODE_ENV !== "production") {
       console.error("Global unhandled error:", error)
     }

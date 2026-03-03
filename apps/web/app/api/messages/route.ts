@@ -539,7 +539,7 @@ export async function POST(request: Request) {
   }
 
   // --- Rate limit: max 5 messages per 10 seconds per user ---
-  const rl = rateLimiter.check(`msg:${user.id}`, { limit: 5, windowMs: 10_000 })
+  const rl = await rateLimiter.check(`msg:${user.id}`, { limit: 5, windowMs: 10_000 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "You are sending messages too fast. Slow down." },

@@ -1,3 +1,5 @@
+const { withSentryConfig } = require("@sentry/nextjs")
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -20,4 +22,10 @@ const nextConfig = {
   transpilePackages: ['@vortex/shared'],
 }
 
-module.exports = nextConfig
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  // Only upload source maps in CI to avoid leaking them in local builds
+  disableServerWebpackPlugin: !process.env.CI,
+  disableClientWebpackPlugin: !process.env.CI,
+  autoInstrumentServerFunctions: true,
+})

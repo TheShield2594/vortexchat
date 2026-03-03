@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   const evidenceAttachments = sanitizeEvidenceAttachments(body.evidenceAttachments)
 
-  const rate = rateLimiter.check(`appeals:${user.id}:${serverId}`, { limit: 3, windowMs: 60 * 60 * 1000 })
+  const rate = await rateLimiter.check(`appeals:${user.id}:${serverId}`, { limit: 3, windowMs: 60 * 60 * 1000 })
   if (!rate.allowed) {
     return NextResponse.json({ error: "Too many submissions, please try later" }, { status: 429 })
   }

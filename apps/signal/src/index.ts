@@ -2,20 +2,53 @@ import { createServer } from "http"
 import { Server, type Socket } from "socket.io"
 import { createClient } from "@supabase/supabase-js"
 import dotenv from "dotenv"
+import pino from "pino"
 import { RoomManager } from "./rooms"
 import { createVoiceStateSync } from "./voice-state-sync"
 
 dotenv.config()
 
+// ─── Structured logger ───────────────────────────────────────────────────────
+
+const logger = pino({
+  level: process.env.LOG_LEVEL ?? "info",
+  ...(process.env.NODE_ENV !== "production" && {
+    transport: { target: "pino-pretty", options: { colorize: true } },
+  }),
+})
+
+// ─── Env var validation ───────────────────────────────────────────────────────
+
 const PORT = parseInt(process.env.PORT ?? "3001", 10)
 const SUPABASE_URL = process.env.SUPABASE_URL ?? ""
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "*").split(",")
+const rawOrigins = process.env.ALLOWED_ORIGINS ?? ""
 
-// Supabase admin client (for verifying auth tokens + updating voice_states)
+if (!rawOrigins || rawOrigins === "*") {
+  if (process.env.NODE_ENV === "production") {
+    logger.error(
+      "ALLOWED_ORIGINS must be set to a specific origin list in production (not '*'). " +
+      "Set ALLOWED_ORIGINS=https://your-app.vercel.app in your environment."
+    )
+    process.exit(1)
+  } else {
+    logger.warn("ALLOWED_ORIGINS not set — allowing all origins (dev only)")
+  }
+}
+
+const ALLOWED_ORIGINS = rawOrigins ? rawOrigins.split(",") : "*"
+
+// ─── Supabase admin client ────────────────────────────────────────────────────
+
 const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null
+
+if (!supabase) {
+  logger.warn("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — auth verification and voice_states sync disabled")
+}
+
+// ─── HTTP server + Socket.IO ──────────────────────────────────────────────────
 
 const httpServer = createServer((req, res) => {
   if (req.url === "/health") {
@@ -41,7 +74,7 @@ const rooms = new RoomManager()
 const voiceStateSync = supabase ? createVoiceStateSync(supabase) : null
 
 io.on("connection", (socket: Socket) => {
-  console.log(`[connect] ${socket.id}`)
+  logger.info({ socketId: socket.id }, "client connected")
 
   // ─── Join a voice room ──────────────────────────────────────────────────────
   socket.on("join-room", async (data: {
@@ -127,7 +160,7 @@ io.on("connection", (socket: Socket) => {
       }
     }
 
-    console.log(`[join] ${userId} → room ${channelId} (${rooms.getRoomSize(channelId)} peers)`)
+    logger.info({ userId, channelId, peers: rooms.getRoomSize(channelId) }, "user joined room")
   })
 
   // ─── WebRTC Signaling ───────────────────────────────────────────────────────
@@ -199,7 +232,7 @@ io.on("connection", (socket: Socket) => {
 
   // ─── Disconnect ─────────────────────────────────────────────────────────────
   socket.on("disconnect", (reason) => {
-    console.log(`[disconnect] ${socket.id} — ${reason}`)
+    logger.info({ socketId: socket.id, reason }, "client disconnected")
     const left = rooms.leaveAll(socket.id)
 
     for (const { channelId, userId } of left) {
@@ -213,7 +246,6 @@ io.on("connection", (socket: Socket) => {
 
   // ─── Helper ─────────────────────────────────────────────────────────────────
   function findPeerRoom(socketId: string): { channelId: string; userId: string } | null {
-    // We need to search all rooms for this socket (it should only be in one)
     const socketRooms = Array.from(socket.rooms).filter((r) => r !== socket.id)
     for (const channelId of socketRooms) {
       const peer = rooms.getPeer(channelId, socketId)
@@ -234,20 +266,17 @@ io.on("connection", (socket: Socket) => {
       voiceStateSync.enqueueDelete({ userId: peer.userId, channelId })
     }
 
-    console.log(`[leave] ${peer.userId} ← room ${channelId}`)
+    logger.info({ userId: peer.userId, channelId }, "user left room")
   }
 })
 
 httpServer.listen(PORT, () => {
-  console.log(`[signal] Vortex WebRTC signaling server listening on :${PORT}`)
-  if (!supabase) {
-    console.warn("[signal] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — voice_states sync disabled")
-  }
+  logger.info({ port: PORT }, "Vortex WebRTC signaling server listening")
 })
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("[signal] SIGTERM received, shutting down...")
+  logger.info("SIGTERM received, shutting down...")
   io.close()
   httpServer.close()
   process.exit(0)
