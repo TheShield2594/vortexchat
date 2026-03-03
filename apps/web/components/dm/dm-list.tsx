@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Users, Plus } from "lucide-react"
+import { Users, Plus, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { format, isToday } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { useAppStore } from "@/lib/stores/app-store"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import type { FriendWithUser } from "@/types/database"
 
 interface DMChannel {
   id: string
@@ -56,10 +58,78 @@ function StatusDot({ status }: { status: string }) {
   )
 }
 
+interface NewDmDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSelectFriend: (friendId: string) => void
+}
+
+function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
+  const [friends, setFriends] = useState<FriendWithUser[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    fetch("/api/friends")
+      .then((r) => r.json())
+      .then((data) => setFriends(data.accepted ?? []))
+      .finally(() => setLoading(false))
+  }, [open])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>New Direct Message</DialogTitle>
+        </DialogHeader>
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : friends.length === 0 ? (
+          <p className="text-sm text-center py-6 text-muted-foreground">
+            No friends yet. Add friends to start a DM.
+          </p>
+        ) : (
+          <div className="space-y-1 max-h-72 overflow-y-auto">
+            {friends.map((entry) => {
+              const { friend } = entry
+              const displayName = friend.display_name || friend.username
+              const initials = displayName.slice(0, 2).toUpperCase()
+              return (
+                <button
+                  key={entry.id}
+                  onClick={() => { onSelectFriend(friend.id); onOpenChange(false) }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left"
+                >
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    {friend.avatar_url && <AvatarImage src={friend.avatar_url} />}
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{displayName}</p>
+                    {friend.username !== displayName && (
+                      <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 /** Sidebar list of DM conversations with unread indicators, last-message previews, and real-time channel updates. */
 export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const [channels, setChannels] = useState<DMChannel[]>([])
   const [loading, setLoading] = useState(true)
+  const [newDmOpen, setNewDmOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
@@ -160,12 +230,19 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
 
   return (
     <div className="flex flex-col h-full">
+      <NewDmDialog
+        open={newDmOpen}
+        onOpenChange={setNewDmOpen}
+        onSelectFriend={startDM}
+      />
+
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-muted)" }}>
           Direct Messages
         </span>
         <button
+          onClick={() => setNewDmOpen(true)}
           className="w-4 h-4 hover:text-white transition-colors"
           style={{ color: "var(--theme-text-muted)" }}
           title="New DM"
