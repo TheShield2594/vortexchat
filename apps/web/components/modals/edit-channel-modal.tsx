@@ -62,7 +62,7 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
         body.stream_url = streamUrl.trim() || null
       }
 
-      const res = await fetch(`/api/channels/${channel.id}`, {
+      const res = await fetch(`/api/servers/${channel.server_id}/channels/${channel.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
