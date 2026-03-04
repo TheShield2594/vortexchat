@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
-import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff } from "lucide-react"
+import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff, Link2, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -148,7 +148,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [bannerColor, setBannerColor] = useState(user.banner_color ?? "#5865f2")
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
-  const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance">("profile")
+  const [activeTab, setActiveTab] = useState<"profile" | "security" | "connections" | "appearance">("profile")
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const toSettingsPayload = useAppearanceStore((s) => s.toSettingsPayload)
@@ -265,6 +265,10 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
       title: "Security",
       subtitle: "Manage login methods, recovery controls, and high-risk account actions.",
     },
+    connections: {
+      title: "Connections",
+      subtitle: "Link Steam and social profiles to show your gaming and creator identity.",
+    },
     appearance: {
       title: "Appearance",
       subtitle: "Adjust chat readability and visual comfort settings.",
@@ -277,7 +281,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         className="max-w-2xl max-h-[90vh] overflow-hidden p-0"
         style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }}
       >
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "profile" | "security" | "appearance")} orientation="vertical" className="flex h-[80vh]">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "profile" | "security" | "connections" | "appearance")} orientation="vertical" className="flex h-[80vh]">
           {/* Settings nav */}
           <div className="w-52 flex-shrink-0 p-4 flex flex-col" style={{ background: "var(--theme-bg-secondary)" }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>
@@ -288,8 +292,11 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
               <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
                 My Account
               </TabsTrigger>
-                <TabsTrigger value="security" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+              <TabsTrigger value="security" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
                 Security
+              </TabsTrigger>
+              <TabsTrigger value="connections" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                Connections
               </TabsTrigger>
               <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
                 Appearance
@@ -565,6 +572,10 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   <TwoFactorSection supabase={supabase} toast={toast} />
                 </TabsContent>
 
+                <TabsContent value="connections" className="mt-0 space-y-8">
+                  <ConnectionsSection />
+                </TabsContent>
+
                 <TabsContent value="appearance" className="mt-0">
                   <AppearanceTab onSave={handleSave} saving={loading} />
                 </TabsContent>
@@ -572,6 +583,126 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         </Tabs>
       </DialogContent>
     </Dialog>
+  )
+}
+
+type ConnectionRow = {
+  id: string
+  provider: string
+  provider_user_id: string
+  username: string | null
+  display_name: string | null
+  profile_url: string | null
+  created_at: string
+}
+
+function ConnectionsSection() {
+  const { toast } = useToast()
+  const [connections, setConnections] = useState<ConnectionRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [provider, setProvider] = useState("github")
+  const [username, setUsername] = useState("")
+  const [profileUrl, setProfileUrl] = useState("")
+
+  const loadConnections = useCallback(async () => {
+    const res = await fetch("/api/users/connections", { cache: "no-store" })
+    const payload = await res.json().catch(() => ({}))
+    if (res.ok) setConnections(payload.connections ?? [])
+  }, [])
+
+  useEffect(() => {
+    loadConnections()
+  }, [loadConnections])
+
+  async function connectSteam() {
+    const next = window.location.pathname + window.location.search
+    window.location.href = `/api/users/connections/steam/start?next=${encodeURIComponent(next)}`
+  }
+
+  async function addManualConnection(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    const res = await fetch("/api/users/connections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, username, profile_url: profileUrl }),
+    })
+    const payload = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      toast({ variant: "destructive", title: "Failed to add connection", description: payload.error || "Please try again" })
+      setLoading(false)
+      return
+    }
+    setUsername("")
+    setProfileUrl("")
+    setConnections((prev) => {
+      const others = prev.filter((item) => item.provider !== payload.connection.provider)
+      return [...others, payload.connection]
+    })
+    setLoading(false)
+  }
+
+  async function removeConnection(id: string) {
+    const res = await fetch(`/api/users/connections?id=${id}`, { method: "DELETE" })
+    if (!res.ok) {
+      toast({ variant: "destructive", title: "Failed to remove connection" })
+      return
+    }
+    setConnections((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+        <h3 className="text-base font-semibold text-white">Steam</h3>
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Link your Steam account using official OpenID sign-in. We only store your Steam ID and profile URL.</p>
+        <Button type="button" onClick={connectSteam} style={{ background: "var(--theme-accent)" }}>
+          <Link2 className="w-4 h-4 mr-2" /> Connect Steam
+        </Button>
+      </div>
+
+      <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+        <h3 className="text-base font-semibold text-white">Social Links</h3>
+        <form onSubmit={addManualConnection} className="grid grid-cols-1 md:grid-cols-[160px_1fr_1fr_auto] gap-2">
+          <select
+            value={provider}
+            onChange={(e) => setProvider(e.target.value)}
+            className="rounded px-2 py-2 text-sm"
+            style={{ background: "var(--theme-bg-tertiary)", border: "1px solid var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
+          >
+            <option value="github">GitHub</option>
+            <option value="x">X / Twitter</option>
+            <option value="twitch">Twitch</option>
+            <option value="youtube">YouTube</option>
+            <option value="reddit">Reddit</option>
+            <option value="website">Website</option>
+          </select>
+          <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" />
+          <Input value={profileUrl} onChange={(e) => setProfileUrl(e.target.value)} placeholder="https://..." required />
+          <Button type="submit" disabled={loading}>{loading ? "Adding..." : "Add"}</Button>
+        </form>
+      </div>
+
+      <div className="space-y-2">
+        {connections.map((connection) => (
+          <div key={connection.id} className="rounded-lg p-3 flex items-center justify-between gap-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+            <div className="min-w-0">
+              <p className="text-sm text-white capitalize">{connection.provider}</p>
+              <p className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>{connection.display_name || connection.username || connection.provider_user_id}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {connection.profile_url && (
+                <a href={connection.profile_url} target="_blank" rel="noreferrer" className="text-xs px-2 py-1 rounded" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+              <Button type="button" size="sm" variant="ghost" onClick={() => removeConnection(connection.id)} style={{ color: "var(--theme-danger)" }}>Remove</Button>
+            </div>
+          </div>
+        ))}
+        {connections.length === 0 && <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>No connections yet.</p>}
+      </div>
+    </div>
   )
 }
 
