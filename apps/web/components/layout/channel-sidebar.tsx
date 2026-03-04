@@ -535,11 +535,68 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       if (oldIndex === -1 || newIndex === -1) return
       const reordered = arrayMove(containerItems, oldIndex, newIndex)
       setItems((prev) => ({ ...prev, [sourceContainer]: reordered }))
-      persistChannelOrder(sourceContainer, reordered)
+      persistChannelOrder()
     } else if (sourceContainer !== targetContainer) {
       // Cross-container move was already applied in handleDragOver; persist both
-      persistChannelOrder(sourceContainer, latestItems[sourceContainer] ?? [])
-      persistChannelOrder(targetContainer, latestItems[targetContainer] ?? [])
+      persistChannelOrder()
+    }
+  }
+
+  async function persistAllChannelStructure(categoryOrderOverride?: string[]) {
+    const latestItems = itemsRef.current
+    const categories = channels
+      .filter((channel) => channel.type === "category")
+      .sort((a, b) => a.position - b.position)
+    const orderedCategoryIds = categoryOrderOverride ?? categories.map((category) => category.id)
+
+    const orderedIds: string[] = [
+      ...(latestItems[NO_CATEGORY] ?? []),
+      ...orderedCategoryIds.flatMap((categoryId) => [categoryId, ...(latestItems[categoryId] ?? [])]),
+    ]
+
+    if (orderedIds.length === 0) return
+
+    const channelById = new Map(channels.map((channel) => [channel.id, channel]))
+    const updates = orderedIds
+      .map((id, position) => {
+        const channel = channelById.get(id)
+        if (!channel) return null
+        const parent_id = channel.type === "category"
+          ? null
+          : (findContainer(id) === NO_CATEGORY ? null : findContainer(id))
+        return { id, position, parent_id }
+      })
+      .filter((update): update is { id: string; position: number; parent_id: string | null } => !!update)
+
+    if (updates.length === 0) return
+
+    const previous = updates.map(({ id }) => {
+      const channel = channelById.get(id)
+      return {
+        id,
+        position: channel?.position ?? 0,
+        parent_id: channel?.parent_id ?? null,
+      }
+    })
+
+    updates.forEach(({ id, position, parent_id }) => {
+      updateChannel(id, { position, parent_id })
+    })
+
+    const supabase = createClientSupabaseClient()
+    try {
+      const results = await Promise.all(
+        updates.map(({ id, position, parent_id }) =>
+          supabase.from("channels").update({ position, parent_id }).eq("id", id)
+        )
+      )
+      const failed = results.find(({ error }) => error)
+      if (failed?.error) throw failed.error
+    } catch (error: any) {
+      for (const { id, position, parent_id } of previous) {
+        updateChannel(id, { position, parent_id })
+      }
+      toast({ variant: "destructive", title: "Failed to save channel order", description: error.message })
     }
   }
 
@@ -551,56 +608,12 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const newIndex = categories.findIndex((category) => category.id === overCategoryId)
     if (oldIndex === -1 || newIndex === -1) return
 
-    const reordered = arrayMove(categories, oldIndex, newIndex)
-    const updates = reordered.map((category, index) => ({ id: category.id, position: index }))
-    updates.forEach(({ id, position }) => updateChannel(id, { position }))
-
-    const supabase = createClientSupabaseClient()
-    try {
-      const results = await Promise.all(
-        updates.map(({ id, position }) =>
-          supabase.from("channels").update({ position }).eq("id", id)
-        )
-      )
-      const failed = results.find(({ error }) => error)
-      if (failed?.error) throw failed.error
-    } catch (error: any) {
-      categories.forEach((category) => updateChannel(category.id, { position: category.position }))
-      toast({ variant: "destructive", title: "Failed to save category order", description: error.message })
-    }
+    const reorderedCategoryIds = arrayMove(categories, oldIndex, newIndex).map((category) => category.id)
+    await persistAllChannelStructure(reorderedCategoryIds)
   }
 
-  async function persistChannelOrder(containerId: string, orderedIds: string[]) {
-    if (orderedIds.length === 0) return
-    const supabase = createClientSupabaseClient()
-    const newParentId = containerId === NO_CATEGORY ? null : containerId
-
-    // Capture current state for rollback
-    const previous = orderedIds.map((id) => {
-      const ch = channels.find((c) => c.id === id)
-      return { id, position: ch?.position ?? 0, parent_id: ch?.parent_id ?? null }
-    })
-
-    // Optimistic update — both parent_id and position
-    orderedIds.forEach((id, i) => {
-      updateChannel(id, { parent_id: newParentId, position: i })
-    })
-
-    try {
-      const results = await Promise.all(
-        orderedIds.map((id, i) =>
-          supabase.from("channels").update({ position: i, parent_id: newParentId }).eq("id", id)
-        )
-      )
-      const failed = results.find(({ error }) => error)
-      if (failed?.error) throw failed.error
-    } catch (error: any) {
-      // Rollback optimistic update
-      for (const { id, position, parent_id } of previous) {
-        updateChannel(id, { position, parent_id })
-      }
-      toast({ variant: "destructive", title: "Failed to save channel order", description: error.message })
-    }
+  async function persistChannelOrder() {
+    await persistAllChannelStructure()
   }
 
   const activeChannel = activeId ? channels.find((c) => c.id === activeId) : null
