@@ -66,6 +66,53 @@ export type Database = {
         }
         Relationships: []
       }
+      user_connections: {
+        Row: {
+          id: string
+          user_id: string
+          provider: 'steam' | 'github' | 'x' | 'twitch' | 'youtube' | 'reddit' | 'website'
+          provider_user_id: string
+          username: string | null
+          display_name: string | null
+          profile_url: string | null
+          metadata: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          provider: 'steam' | 'github' | 'x' | 'twitch' | 'youtube' | 'reddit' | 'website'
+          provider_user_id: string
+          username?: string | null
+          display_name?: string | null
+          profile_url?: string | null
+          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          provider?: 'steam' | 'github' | 'x' | 'twitch' | 'youtube' | 'reddit' | 'website'
+          provider_user_id?: string
+          username?: string | null
+          display_name?: string | null
+          profile_url?: string | null
+          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_connections_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       servers: {
         Row: {
           id: string

@@ -1,0 +1,87 @@
+import { NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+
+const MANUAL_PROVIDERS = ["github", "x", "twitch", "youtube", "reddit", "website"] as const
+type ManualProvider = (typeof MANUAL_PROVIDERS)[number]
+const MANUAL_PROVIDER_SET = new Set<string>(MANUAL_PROVIDERS)
+
+function normalizeProviderUserId(provider: string, value: string) {
+  return provider === "website" ? value.trim().toLowerCase() : value.trim().toLowerCase().replace(/^@/, "")
+}
+
+export async function GET() {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data, error } = await supabase
+    .from("user_connections")
+    .select("id, provider, provider_user_id, username, display_name, profile_url, metadata, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ connections: data ?? [] })
+}
+
+export async function POST(request: Request) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const body = (await request.json().catch(() => ({}))) as {
+    provider?: string
+    username?: string
+    profile_url?: string
+    display_name?: string
+  }
+
+  const providerRaw = (body.provider ?? "").trim().toLowerCase()
+  if (!MANUAL_PROVIDER_SET.has(providerRaw)) {
+    return NextResponse.json({ error: "Unsupported provider" }, { status: 422 })
+  }
+
+  const provider = providerRaw as ManualProvider
+
+  const profileUrl = (body.profile_url ?? "").trim()
+  if (!profileUrl) return NextResponse.json({ error: "profile_url is required" }, { status: 422 })
+
+  const providerUserId = normalizeProviderUserId(provider, body.username || profileUrl)
+  if (!providerUserId) return NextResponse.json({ error: "username is required" }, { status: 422 })
+
+  const { data, error } = await supabase
+    .from("user_connections")
+    .upsert({
+      user_id: user.id,
+      provider,
+      provider_user_id: providerUserId,
+      username: body.username?.trim() || providerUserId,
+      display_name: body.display_name?.trim() || null,
+      profile_url: profileUrl,
+      metadata: {},
+    }, { onConflict: "user_id,provider" })
+    .select("id, provider, provider_user_id, username, display_name, profile_url, metadata, created_at")
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ connection: data })
+}
+
+export async function DELETE(request: Request) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get("id")
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 422 })
+
+  const { error } = await supabase
+    .from("user_connections")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}
