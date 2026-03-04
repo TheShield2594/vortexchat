@@ -89,6 +89,8 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
           channelName={channel.name}
           serverId={params.serverId}
           currentUserId={user.id}
+          isStage={channel.type === "stage"}
+          stageStreamUrl={channel.stream_url}
         />
       </div>
     )

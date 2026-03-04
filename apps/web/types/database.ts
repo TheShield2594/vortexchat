@@ -407,6 +407,7 @@ export type Database = {
           slowmode_delay: number
           nsfw: boolean
           forum_guidelines: string | null
+          stream_url: string | null
           last_post_at: string | null
           expires_at: string | null
           created_at: string
@@ -422,6 +423,7 @@ export type Database = {
           slowmode_delay?: number
           nsfw?: boolean
           forum_guidelines?: string | null
+          stream_url?: string | null
           last_post_at?: string | null
           expires_at?: string | null
           created_at?: string
@@ -437,6 +439,7 @@ export type Database = {
           slowmode_delay?: number
           nsfw?: boolean
           forum_guidelines?: string | null
+          stream_url?: string | null
           last_post_at?: string | null
           expires_at?: string | null
           created_at?: string

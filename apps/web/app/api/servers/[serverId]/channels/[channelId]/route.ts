@@ -9,7 +9,7 @@ const MAX_SLOWMODE_SECONDS = 21600
 /**
  * PATCH /api/servers/[serverId]/channels/[channelId]
  *
- * Editable fields: name, topic, nsfw, slowmode_delay
+ * Editable fields: name, topic, nsfw, slowmode_delay, stream_url (stage-only)
  * Requires MANAGE_CHANNELS permission.
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Verify the channel belongs to this server
   const { data: channel } = await supabase
     .from("channels")
-    .select("id, server_id, name, topic, nsfw, slowmode_delay")
+    .select("id, server_id, type, name, topic, nsfw, slowmode_delay, stream_url")
     .eq("id", channelId)
     .eq("server_id", serverId)
     .single()
@@ -84,6 +84,35 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     updates.slowmode_delay = slowmode
     changes.slowmode_delay = { old: channel.slowmode_delay, new: slowmode }
+  }
+
+  if ("stream_url" in body) {
+    if (channel.type !== "stage") {
+      return NextResponse.json({ error: "stream_url can only be edited for stage channels" }, { status: 400 })
+    }
+    const raw = body.stream_url
+    if (raw !== null && typeof raw !== "string") {
+      return NextResponse.json({ error: "stream_url must be a string or null" }, { status: 400 })
+    }
+    const sanitized = typeof raw === "string" ? raw.trim() : null
+    if (sanitized && sanitized.length > 2048) {
+      return NextResponse.json({ error: "stream_url must be 2048 characters or fewer" }, { status: 400 })
+    }
+    if (sanitized) {
+      let parsed: URL
+      try {
+        parsed = new URL(sanitized)
+      } catch {
+        return NextResponse.json({ error: "stream_url must be a valid URL" }, { status: 400 })
+      }
+      const host = parsed.hostname.replace(/^www\./, "")
+      const isYouTubeHost = host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be"
+      if (!isYouTubeHost) {
+        return NextResponse.json({ error: "Only YouTube URLs are currently supported" }, { status: 400 })
+      }
+    }
+    updates.stream_url = sanitized
+    changes.stream_url = { old: channel.stream_url, new: sanitized }
   }
 
   if (Object.keys(updates).length === 0)

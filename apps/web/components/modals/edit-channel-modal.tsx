@@ -30,6 +30,7 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
   const [nsfw, setNsfw] = useState(channel.nsfw)
   const [slowmodeDelay, setSlowmodeDelay] = useState(channel.slowmode_delay)
   const [forumGuidelines, setForumGuidelines] = useState(channel.forum_guidelines ?? "")
+  const [streamUrl, setStreamUrl] = useState(channel.stream_url ?? "")
 
   // Reset form when channel changes or modal opens
   useEffect(() => {
@@ -39,6 +40,7 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
     setNsfw(channel.nsfw)
     setSlowmodeDelay(channel.slowmode_delay)
     setForumGuidelines(channel.forum_guidelines ?? "")
+    setStreamUrl(channel.stream_url ?? "")
   }, [channel, open])
 
   async function handleSave() {
@@ -54,6 +56,10 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
 
       if (channel.type === "forum") {
         body.forum_guidelines = forumGuidelines.trim() || null
+      }
+
+      if (channel.type === "stage") {
+        body.stream_url = streamUrl.trim() || null
       }
 
       const res = await fetch(`/api/channels/${channel.id}`, {
@@ -146,6 +152,24 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
               />
               <p className="text-xs mt-1" style={{ color: forumGuidelines.length > 1900 ? "var(--theme-warning)" : "var(--theme-text-faint)" }}>
                 {forumGuidelines.length}/2000
+              </p>
+            </div>
+          )}
+
+          {channel.type === "stage" && (
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
+                YouTube Stream URL
+              </Label>
+              <Input
+                value={streamUrl}
+                onChange={(e) => setStreamUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="mt-1"
+                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "none" }}
+              />
+              <p className="text-xs mt-1" style={{ color: "var(--theme-text-faint)" }}>
+                Members will see this embedded player in the Stage channel.
               </p>
             </div>
           )}
