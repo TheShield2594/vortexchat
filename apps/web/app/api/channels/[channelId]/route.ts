@@ -16,7 +16,7 @@ export async function PATCH(
   // Fetch channel to get server_id
   const { data: channel, error: channelError } = await supabase
     .from("channels")
-    .select("id, server_id, type, name, topic, nsfw, slowmode_delay, forum_guidelines")
+    .select("id, server_id, type, name, topic, nsfw, slowmode_delay, forum_guidelines, stream_url")
     .eq("id", channelId)
     .single()
 
@@ -113,6 +113,30 @@ export async function PATCH(
       return NextResponse.json({ error: "Guidelines must be 2000 characters or fewer" }, { status: 400 })
     }
     update.forum_guidelines = guidelines || null
+  }
+
+  if (typeof body.stream_url === "string" || body.stream_url === null) {
+    if (channel.type !== "stage") {
+      return NextResponse.json({ error: "Stream URL is only available for stage channels" }, { status: 400 })
+    }
+    const streamUrl = typeof body.stream_url === "string" ? body.stream_url.trim() : null
+    if (streamUrl && streamUrl.length > 2048) {
+      return NextResponse.json({ error: "Stream URL must be 2048 characters or fewer" }, { status: 400 })
+    }
+    if (streamUrl) {
+      let parsed: URL
+      try {
+        parsed = new URL(streamUrl)
+      } catch {
+        return NextResponse.json({ error: "Stream URL must be a valid URL" }, { status: 400 })
+      }
+      const host = parsed.hostname.replace(/^www\./, "")
+      const isYouTubeHost = host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be"
+      if (!isYouTubeHost) {
+        return NextResponse.json({ error: "Only YouTube URLs are currently supported" }, { status: 400 })
+      }
+    }
+    update.stream_url = streamUrl || null
   }
 
   if (Object.keys(update).length === 0) {

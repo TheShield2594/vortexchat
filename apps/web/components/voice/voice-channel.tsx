@@ -78,6 +78,33 @@ interface Props {
   channelName: string
   serverId: string
   currentUserId: string
+  isStage?: boolean
+  stageStreamUrl?: string | null
+}
+
+function toYoutubeEmbedUrl(rawUrl: string | null | undefined): string | null {
+  if (!rawUrl) return null
+  const trimmed = rawUrl.trim()
+  if (!trimmed) return null
+
+  try {
+    const parsed = new URL(trimmed)
+    const host = parsed.hostname.replace(/^www\./, "")
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const videoId = parsed.searchParams.get("v")
+      if (!videoId) return null
+      return `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=1&rel=0`
+    }
+    if (host === "youtu.be") {
+      const videoId = parsed.pathname.split("/").filter(Boolean)[0]
+      if (!videoId) return null
+      return `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=1&rel=0`
+    }
+  } catch {
+    return null
+  }
+
+  return null
 }
 
 const MAX_REMOTE_GAIN = 2
@@ -95,7 +122,7 @@ function markCustomSettings(settings: VoiceAudioSettings, partial: Partial<Voice
 }
 
 /** Main voice channel view with participant grid, spotlight mode, and media controls. */
-export function VoiceChannel({ channelId, channelName, serverId, currentUserId }: Props) {
+export function VoiceChannel({ channelId, channelName, serverId, currentUserId, isStage = false, stageStreamUrl = null }: Props) {
   const { currentUser, setVoiceChannel, channels } = useAppStore(
     useShallow((s) => ({ currentUser: s.currentUser, setVoiceChannel: s.setVoiceChannel, channels: s.channels }))
   )
@@ -277,6 +304,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
   }, [spotlightUserId, currentUserId, screenSharing, participantsByUserId, peers])
   const sessionState = getVoiceSessionState(peerArray.length, speaking && !muted, Boolean(audioInitError))
   const activeTone = TONE_STYLES[sessionState.tone]
+  const stageEmbedUrl = useMemo(() => toYoutubeEmbedUrl(stageStreamUrl), [stageStreamUrl])
 
   const isLocalSpotlight = spotlightUserId === currentUserId
   const spotlightPeer = spotlightUserId && !isLocalSpotlight
@@ -334,6 +362,30 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId }
             {audioInitError && <span className="text-xs" style={{ color: "var(--theme-warning)" }}>{audioInitError}</span>}
           </div>
         </div>
+
+        {isStage && (
+          <div className="px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)" }}>
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
+              Stage Stream
+            </p>
+            {stageEmbedUrl ? (
+              <div className="mt-2 rounded-md overflow-hidden border" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+                <iframe
+                  title="Stage YouTube stream"
+                  src={stageEmbedUrl}
+                  className="w-full"
+                  style={{ height: 220 }}
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <p className="text-sm mt-1" style={{ color: "var(--theme-text-muted)" }}>
+                No YouTube stream is configured for this Stage channel yet.
+              </p>
+            )}
+          </div>
+        )}
 
         {inSpotlight ? (
           <div className="flex-1 flex flex-col overflow-hidden">
