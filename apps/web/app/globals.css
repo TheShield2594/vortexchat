@@ -221,6 +221,81 @@
     background-color: color-mix(in srgb, var(--theme-danger) 15%, transparent);
   }
 
+  .channel-sidebar-surface {
+    background: var(--theme-bg-secondary);
+  }
+
+  .channel-sidebar-header {
+    border-color: var(--theme-bg-tertiary);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .channel-sidebar-dialog-content {
+    background: var(--theme-bg-primary);
+    border-color: var(--theme-bg-tertiary);
+  }
+
+  .channel-sidebar-title {
+    color: var(--theme-text-bright);
+  }
+
+  .channel-sidebar-events {
+    color: var(--theme-text-normal);
+  }
+
+  .channel-sidebar-description {
+    color: var(--theme-text-secondary);
+  }
+
+  .channel-sidebar-unread {
+    color: var(--theme-text-primary);
+  }
+
+  .channel-sidebar-accent-bar {
+    background: var(--theme-accent);
+  }
+
+  .channel-sidebar-accent-bar-active {
+    box-shadow: 2px 0 8px color-mix(in srgb, var(--theme-accent) 60%, transparent);
+  }
+
+  .channel-sidebar-warning-chip {
+    background: color-mix(in srgb, var(--theme-warning) 15%, transparent);
+    color: var(--theme-warning);
+  }
+
+  .channel-sidebar-success-dot {
+    background: var(--theme-success);
+  }
+
+  .channel-sidebar-mention-badge {
+    background: var(--theme-danger);
+    color: var(--theme-text-bright);
+  }
+
+  .channel-sidebar-drag-overlay {
+    background: var(--theme-bg-primary);
+    color: var(--theme-text-bright);
+  }
+
+  .channel-sidebar-unread-dot {
+    background: var(--theme-text-primary);
+  }
+
+  .channel-sidebar-thread-pill {
+    background: color-mix(in srgb, var(--theme-accent) 22%, transparent);
+    color: color-mix(in srgb, var(--theme-accent) 80%, white);
+  }
+
+  .channel-sidebar-avatar-fallback {
+    background: var(--theme-accent);
+    color: white;
+  }
+
+  .channel-sidebar-danger-icon {
+    color: var(--theme-danger);
+  }
+
   /* Mention highlight */
   .mention-highlight {
     background-color: color-mix(in srgb, var(--theme-accent) 10%, transparent);
