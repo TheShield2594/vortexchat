@@ -638,23 +638,20 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   return (
     <TooltipProvider delayDuration={200}>
       <div
-        className="w-60 flex flex-col flex-shrink-0"
-        style={{ background: 'var(--theme-bg-secondary)' }}
+        className="w-60 flex flex-col flex-shrink-0 channel-sidebar-surface"
       >
         {/* Server header */}
         <button
           onClick={() => setShowServerSettings(true)}
-          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer surface-hover motion-interactive motion-press group focus-ring" aria-label="Open server settings"
-          style={{ borderColor: 'var(--theme-bg-tertiary)', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}
+          className="flex items-center justify-between px-4 py-3 border-b cursor-pointer surface-hover motion-interactive motion-press group focus-ring channel-sidebar-header" aria-label="Open server settings"
         >
-          <span className="font-semibold truncate text-sm" style={{ color: 'var(--theme-text-bright)' }}>{server.name}</span>
+          <span className="font-semibold truncate text-sm channel-sidebar-title">{server.name}</span>
           <ChevronDown className="w-4 h-4 flex-shrink-0 motion-interactive text-muted-interactive" />
         </button>
 
         <button
           onClick={() => router.push(`/channels/${server.id}/events`)}
-          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm surface-hover-md motion-interactive motion-press focus-ring" aria-label="Open server events"
-          style={{ color: 'var(--theme-text-normal)' }}
+          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm surface-hover-md motion-interactive motion-press focus-ring channel-sidebar-events" aria-label="Open server events"
         >
           <CalendarDays className="h-4 w-4" />
           Events
@@ -756,16 +753,16 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             <DragOverlay dropAnimation={null}>
               {activeChannel ? (
                 <div
-                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm shadow-lg opacity-90"
-                  style={{ background: 'var(--theme-bg-primary)', color: 'var(--theme-text-bright)', width: '208px' }}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm shadow-lg opacity-90 channel-sidebar-drag-overlay"
+                  style={{ width: '208px' }}
                 >
                   <ChannelIcon channel={activeChannel} isVoiceActive={false} />
                   <span className="truncate">{activeChannel.name}</span>
                 </div>
               ) : activeCategory ? (
                 <div
-                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm shadow-lg opacity-90"
-                  style={{ background: 'var(--theme-bg-primary)', color: 'var(--theme-text-bright)', width: '208px' }}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm shadow-lg opacity-90 channel-sidebar-drag-overlay"
+                  style={{ width: '208px' }}
                 >
                   <ChevronDown className="w-3 h-3 tertiary-metadata" />
                   <span className="truncate uppercase text-xs font-semibold tracking-wider">{activeCategory.name}</span>
@@ -834,20 +831,19 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
         {/* Delete channel confirmation dialog */}
         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
-          <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}>
+          <DialogContent className="channel-sidebar-dialog-content">
             <DialogHeader>
-              <DialogTitle style={{ color: 'var(--theme-text-bright)' }}>Delete Channel</DialogTitle>
-              <DialogDescription style={{ color: 'var(--theme-text-secondary)' }}>
+              <DialogTitle className="channel-sidebar-title">Delete Channel</DialogTitle>
+              <DialogDescription className="channel-sidebar-description">
                 Are you sure you want to delete{" "}
-                <span className="font-semibold" style={{ color: 'var(--theme-text-bright)' }}>#{deleteTarget?.name}</span>?
+                <span className="font-semibold channel-sidebar-title">#{deleteTarget?.name}</span>?
                 {" "}This cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press surface-hover-md focus-ring"
-                style={{ color: 'var(--theme-text-secondary)' }}
+                className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press surface-hover-md focus-ring channel-sidebar-description"
               >
                 Cancel
               </button>
@@ -863,20 +859,19 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
         {/* Delete category confirmation */}
         <Dialog open={!!deleteCategoryTarget} onOpenChange={(open) => { if (!open) setDeleteCategoryTarget(null) }}>
-          <DialogContent style={{ background: 'var(--theme-bg-primary)', border: '1px solid var(--theme-bg-tertiary)' }}>
+          <DialogContent className="channel-sidebar-dialog-content">
             <DialogHeader>
-              <DialogTitle style={{ color: 'var(--theme-text-bright)' }}>Delete Category</DialogTitle>
-              <DialogDescription style={{ color: 'var(--theme-text-secondary)' }}>
+              <DialogTitle className="channel-sidebar-title">Delete Category</DialogTitle>
+              <DialogDescription className="channel-sidebar-description">
                 Are you sure you want to delete{" "}
-                <span className="font-semibold" style={{ color: 'var(--theme-text-bright)' }}>{deleteCategoryTarget?.name}</span>?
+                <span className="font-semibold channel-sidebar-title">{deleteCategoryTarget?.name}</span>?
                 {" "}Channels inside will be moved to uncategorized. This cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <button
                 onClick={() => setDeleteCategoryTarget(null)}
-                className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press surface-hover-md focus-ring"
-                style={{ color: 'var(--theme-text-secondary)' }}
+                className="px-4 py-2 rounded text-sm font-medium motion-interactive motion-press surface-hover-md focus-ring channel-sidebar-description"
               >
                 Cancel
               </button>
@@ -965,11 +960,11 @@ function CategoryHeader({
       <ContextMenuTrigger asChild>
         <div
           ref={sortable.setNodeRef}
-          style={{
-            ...style,
-            ...(isDragOver ? { background: "color-mix(in srgb, var(--theme-text-primary) 5%, transparent)" } : {}),
-          }}
-          className="flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive"
+          style={style}
+          className={cn(
+            "flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive",
+            isDragOver && "surface-hover"
+          )}
         >
           <button
             ref={setNodeRef}
@@ -1125,22 +1120,18 @@ function SortableChannelItem({
             aria-label={`${channel.type} channel ${channel.name}`}
             className={cn(
               "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring",
-              isActive || isVoiceActive ? "" : "surface-hover text-muted-interactive"
+              isActive || isVoiceActive ? "channel-active" : "surface-hover text-muted-interactive",
+              isUnread && !isActive && "channel-sidebar-unread"
             )}
-            style={{
-              ...(isActive || isVoiceActive ? { background: "color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-elevated))" } : {}),
-              ...(isActive || isVoiceActive ? { color: "var(--theme-text-bright)" } : isUnread ? { color: "var(--theme-text-primary)" } : {}),
-            }}
           >
             <span
               aria-hidden
               className={cn(
-                "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-300",
+                "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-300 channel-sidebar-accent-bar",
                 isActive || isVoiceActive
-                  ? "opacity-100 h-8 w-1"
+                  ? "opacity-100 h-8 w-1 channel-sidebar-accent-bar-active"
                   : "opacity-0 h-5 w-0 group-hover/channel:opacity-60 group-hover/channel:w-0.5 group-hover/channel:h-5"
               )}
-              style={{ background: "var(--theme-accent)", boxShadow: isActive || isVoiceActive ? "2px 0 8px color-mix(in srgb, var(--theme-accent) 60%, transparent)" : undefined }}
             />
             {canManageChannels && (
               <span
@@ -1160,10 +1151,7 @@ function SortableChannelItem({
               {timeRemaining && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span
-                      className="flex items-center gap-0.5 text-[10px] font-medium px-1 py-0.5 rounded"
-                      style={{ background: 'color-mix(in srgb, var(--theme-warning) 15%, transparent)', color: 'var(--theme-warning)' }}
-                    >
+                    <span className="flex items-center gap-0.5 text-[10px] font-medium px-1 py-0.5 rounded channel-sidebar-warning-chip">
                       <Clock className="w-2.5 h-2.5" />
                       {timeRemaining}
                     </span>
@@ -1174,22 +1162,20 @@ function SortableChannelItem({
                 </Tooltip>
               )}
               {isVoiceActive && (
-                <span className="w-2 h-2 rounded-full inline-block animate-pulse" style={{ background: "var(--theme-success)" }} />
+                <span className="w-2 h-2 rounded-full inline-block animate-pulse channel-sidebar-success-dot" />
               )}
               {showBadge && (mentionCount ?? 0) > 0 ? (
                 <span
-                  className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold px-1"
-                  style={{ background: "var(--theme-danger)", color: "var(--theme-text-bright)" }}
+                  className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold px-1 channel-sidebar-mention-badge"
                 >
                   {(mentionCount ?? 0) > 99 ? "99+" : mentionCount}
                 </span>
               ) : showBadge ? (
-                <span className="w-2 h-2 rounded-full" style={{ background: "var(--theme-text-primary)" }} />
+                <span className="w-2 h-2 rounded-full channel-sidebar-unread-dot" />
               ) : null}
               {(activeThreadCount ?? 0) > 0 && (
                 <span
-                  className="inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold"
-                  style={{ background: "color-mix(in srgb, var(--theme-accent) 22%, transparent)", color: "color-mix(in srgb, var(--theme-accent) 80%, white)" }}
+                  className="inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold channel-sidebar-thread-pill"
                   title={`${activeThreadCount} active ${activeThreadCount === 1 ? "thread" : "threads"} in #${channel.name}`}
                 >
                   <MessageCircle className="h-2.5 w-2.5" />
@@ -1238,25 +1224,22 @@ function SortableChannelItem({
             return (
               <div
                 key={participant.user_id}
-                className="flex items-center gap-2 px-2 py-1 rounded text-xs surface-hover"
-                style={{ color: "var(--theme-text-secondary)" }}
+                className="flex items-center gap-2 px-2 py-1 rounded text-xs surface-hover channel-sidebar-description"
               >
                 <Avatar className="w-5 h-5 flex-shrink-0">
                   {participant.user?.avatar_url && (
                     <AvatarImage src={participant.user.avatar_url} />
                   )}
-                  <AvatarFallback
-                    style={{ background: "var(--theme-accent)", color: "white", fontSize: "8px" }}
-                  >
+                  <AvatarFallback className="channel-sidebar-avatar-fallback" style={{ fontSize: "8px" }}>
                     {initials}
                   </AvatarFallback>
                 </Avatar>
                 <span className="truncate">{name}</span>
                 {participant.muted && (
-                  <MicOff className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-danger)" }} />
+                  <MicOff className="w-3 h-3 flex-shrink-0 channel-sidebar-danger-icon" />
                 )}
                 {participant.deafened && (
-                  <Headphones className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-danger)" }} />
+                  <Headphones className="w-3 h-3 flex-shrink-0 channel-sidebar-danger-icon" />
                 )}
               </div>
             )
