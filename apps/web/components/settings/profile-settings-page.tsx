@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Upload, Camera } from "lucide-react"
+import { Loader2, Upload, Camera, ExternalLink, Link2 } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -43,6 +43,22 @@ export function ProfileSettingsPage({ user }: Props) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
+  const [connections, setConnections] = useState<Array<{ id: string; provider: string; provider_user_id: string; username: string | null; display_name: string | null; profile_url: string | null }>>([])
+  const [connectionLoading, setConnectionLoading] = useState(false)
+  const [provider, setProvider] = useState("github")
+  const [connectionUsername, setConnectionUsername] = useState("")
+  const [connectionProfileUrl, setConnectionProfileUrl] = useState("")
+
+  useEffect(() => {
+    const loadConnections = async () => {
+      const res = await fetch("/api/users/connections", { cache: "no-store" })
+      const payload = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setConnections(payload.connections ?? [])
+      }
+    }
+    loadConnections()
+  }, [])
 
   // Revoke object URLs when preview changes or component unmounts
   useEffect(() => {
@@ -113,6 +129,43 @@ export function ProfileSettingsPage({ user }: Props) {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function connectSteam() {
+    const next = window.location.pathname + window.location.search
+    window.location.href = `/api/users/connections/steam/start?next=${encodeURIComponent(next)}`
+  }
+
+  async function addManualConnection(e: React.FormEvent) {
+    e.preventDefault()
+    setConnectionLoading(true)
+    const res = await fetch("/api/users/connections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, username: connectionUsername, profile_url: connectionProfileUrl }),
+    })
+    const payload = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      toast({ variant: "destructive", title: "Failed to add connection", description: payload.error || "Please try again" })
+      setConnectionLoading(false)
+      return
+    }
+    setConnectionUsername("")
+    setConnectionProfileUrl("")
+    setConnections((prev) => {
+      const others = prev.filter((item) => item.provider !== payload.connection.provider)
+      return [...others, payload.connection]
+    })
+    setConnectionLoading(false)
+  }
+
+  async function removeConnection(id: string) {
+    const res = await fetch(`/api/users/connections?id=${id}`, { method: "DELETE" })
+    if (!res.ok) {
+      toast({ variant: "destructive", title: "Failed to remove connection" })
+      return
+    }
+    setConnections((prev) => prev.filter((item) => item.id !== id))
   }
 
   const initials = (user.display_name || user.username || "?").slice(0, 2).toUpperCase()
@@ -330,6 +383,57 @@ export function ProfileSettingsPage({ user }: Props) {
       </section>
 
       {/* Save */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+          Connections & Social Links
+        </h2>
+
+        <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+          <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>Steam</h3>
+          <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Link your Steam account with OpenID sign-in.</p>
+          <button type="button" onClick={connectSteam} className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium" style={{ background: "var(--theme-accent)", color: "white" }}>
+            <Link2 className="w-4 h-4" /> Connect Steam
+          </button>
+        </div>
+
+        <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+          <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>Social Links</h3>
+          <form onSubmit={addManualConnection} className="grid grid-cols-1 md:grid-cols-[140px_1fr_1fr_auto] gap-2">
+            <select value={provider} onChange={(e) => setProvider(e.target.value)} className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+              <option value="github">GitHub</option>
+              <option value="x">X / Twitter</option>
+              <option value="twitch">Twitch</option>
+              <option value="youtube">YouTube</option>
+              <option value="reddit">Reddit</option>
+              <option value="website">Website</option>
+            </select>
+            <input value={connectionUsername} onChange={(e) => setConnectionUsername(e.target.value)} placeholder="username" className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+            <input value={connectionProfileUrl} onChange={(e) => setConnectionProfileUrl(e.target.value)} placeholder="https://..." required className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+            <button type="submit" disabled={connectionLoading} className="px-4 py-2 rounded-md text-sm font-medium disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>{connectionLoading ? "Adding..." : "Add"}</button>
+          </form>
+        </div>
+
+        <div className="space-y-2">
+          {connections.map((connection) => (
+            <div key={connection.id} className="rounded-lg p-3 flex items-center justify-between gap-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+              <div className="min-w-0">
+                <p className="text-sm capitalize" style={{ color: "var(--theme-text-primary)" }}>{connection.provider}</p>
+                <p className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>{connection.display_name || connection.username || connection.provider_user_id}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {connection.profile_url && (
+                  <a href={connection.profile_url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded p-1.5" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <button type="button" onClick={() => removeConnection(connection.id)} className="text-xs font-medium" style={{ color: "var(--theme-danger)" }}>Remove</button>
+              </div>
+            </div>
+          ))}
+          {connections.length === 0 && <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>No connections yet.</p>}
+        </div>
+      </section>
+
       <div className="flex items-center gap-3 pt-2">
         <button
           type="button"
