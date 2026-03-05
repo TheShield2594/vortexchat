@@ -16,6 +16,7 @@ import { filterMentionsByBlockState } from "@/lib/blocking"
 import { validateAttachments, validateAttachmentContent } from "@/lib/attachment-validation"
 import { MESSAGE_PROJECTION, withReplyTo, type ServerSupabaseClient } from "@/lib/messages/hydration"
 import { parsePostMessageRequestBody, type MessageAttachment, type PostMessageRequestBody } from "@/lib/messages/validators"
+import { enqueueAttachmentScans } from "@/lib/attachment-malware"
 
 async function getChannelForRead(supabase: ServerSupabaseClient, channelId: string, userId: string) {
   const { data: channel, error: channelError } = await supabase
@@ -442,9 +443,14 @@ async function insertMessageWithAttachments({
   }
 
   if (attachments.length > 0 && message) {
-    await supabase.from("attachments").insert(
-      attachments.map((a) => ({ ...a, message_id: message.id }))
-    )
+    const { data: insertedAttachments } = await supabase
+      .from("attachments")
+      .insert(
+        attachments.map((a) => ({ ...a, message_id: message.id, scan_state: "pending_scan" as const }))
+      )
+      .select("id, filename, content_type, message_id")
+
+    await enqueueAttachmentScans(supabase, insertedAttachments ?? [])
   }
 
   return { message, msgError: null }
