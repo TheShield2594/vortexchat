@@ -354,6 +354,35 @@
     color: var(--theme-danger);
   }
 
+  .server-sidebar-active-indicator {
+    background: var(--theme-text-primary);
+  }
+
+  .server-sidebar-unread-indicator {
+    background: var(--theme-accent);
+  }
+
+  .server-sidebar-icon-bg {
+    background: var(--theme-surface-elevated);
+  }
+
+  .server-sidebar-icon-active {
+    box-shadow: 0 0 20px color-mix(in srgb, var(--theme-accent) 56%, transparent);
+  }
+
+  .server-sidebar-icon-unread {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  }
+
+  .server-sidebar-initials {
+    color: var(--theme-text-bright);
+  }
+
+  .server-sidebar-unread-pip {
+    background: var(--theme-accent);
+    border-color: var(--theme-bg-tertiary);
+  }
+
   /* Mention highlight */
   .mention-highlight {
     background-color: color-mix(in srgb, var(--theme-accent) 10%, transparent);
