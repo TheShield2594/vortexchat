@@ -1225,7 +1225,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         groupLabel: "Search",
         priority: 1,
         ariaLabel: "Search messages in this channel",
-        icon: <Search className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />,
+        icon: <Search className="w-4 h-4 text-[var(--theme-text-secondary)]" />,
         onSelect: () => setShowSearchModal(true),
       },
       {
@@ -1235,7 +1235,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         groupLabel: "Pins",
         priority: 2,
         ariaLabel: showPinnedPanel ? "Hide pinned messages" : "Show pinned messages",
-        icon: <Pin className="w-4 h-4" style={{ color: showPinnedPanel ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />,
+        icon: <Pin className={`w-4 h-4 ${showPinnedPanel ? "chat-area-text-accent" : "text-[var(--theme-text-secondary)]"}`} />,
         onSelect: () => setShowPinnedPanel((v) => !v),
       },
       {
@@ -1245,7 +1245,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         groupLabel: "Threads",
         priority: 3,
         ariaLabel: threadPanelOpen ? "Hide thread panel" : "Show thread panel",
-        icon: <MessageSquareText className="w-4 h-4" style={{ color: threadPanelOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />,
+        icon: <MessageSquareText className={`w-4 h-4 ${threadPanelOpen ? "chat-area-text-primary" : "chat-area-text-muted"}`} />,
         onSelect: toggleThreadPanel,
       },
       {
@@ -1256,8 +1256,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         priority: 5,
         ariaLabel: memberListOpen ? "Hide members and voice status" : "Show members and voice status",
         icon: memberListOpen
-          ? <Users className="w-4 h-4" style={{ color: 'var(--theme-text-primary)' }} />
-          : <Volume2 className="w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />,
+          ? <Users className="w-4 h-4 chat-area-text-primary" />
+          : <Volume2 className="w-4 h-4 chat-area-text-muted" />,
         onSelect: toggleMemberList,
       },
       {
@@ -1267,7 +1267,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         groupLabel: "Help",
         priority: 6,
         ariaLabel: "Show keyboard shortcuts and help",
-        icon: <CircleHelp className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />,
+        icon: <CircleHelp className="w-4 h-4 text-[var(--theme-text-secondary)]" />,
         onSelect: () => setShowKeyboardShortcuts(true),
       },
     ]
@@ -1307,25 +1307,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
+      <div className="flex flex-col flex-1 overflow-hidden chat-area-root-surface">
         <div
-          className="flex items-center gap-2 px-4 py-2.5 border-b flex-shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, color-mix(in srgb, var(--theme-accent) 5%, var(--theme-bg-primary)) 0%, var(--theme-bg-primary) 55%)',
-            borderColor: 'color-mix(in srgb, var(--theme-accent) 18%, var(--theme-bg-tertiary))',
-          }}
+          className="flex items-center gap-2 px-4 py-2.5 border-b flex-shrink-0 chat-area-header-surface"
         >
-          <Hash className="w-5 h-5 flex-shrink-0" style={{ color: 'color-mix(in srgb, var(--theme-accent) 60%, var(--theme-text-muted))' }} />
-          <span className="font-semibold" style={{ color: 'var(--theme-text-bright)' }}>{channel.name}</span>
+          <Hash className="w-5 h-5 flex-shrink-0 chat-area-header-hash" />
+          <span className="font-semibold chat-area-text-bright">{channel.name}</span>
           {!isOnline && (
-            <span className="text-xs px-2 py-0.5 rounded" style={{ background: "color-mix(in srgb, var(--theme-warning) 13%, transparent)", color: "var(--theme-warning)" }}>
+            <span className="text-xs px-2 py-0.5 rounded chat-area-offline-pill">
               Offline
             </span>
           )}
           {channel.topic && (
             <>
-              <span style={{ color: 'var(--theme-text-faint)' }}>|</span>
-              <span className="text-sm truncate" style={{ color: 'var(--theme-text-muted)' }}>
+              <span className="chat-area-text-faint">|</span>
+              <span className="text-sm truncate chat-area-text-muted">
                 {channel.topic}
               </span>
             </>
@@ -1340,7 +1336,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               aria-label={showSummary ? "Hide AI channel summary" : "Show AI channel summary"}
               aria-pressed={showSummary}
             >
-              <Sparkles className="w-4 h-4" style={{ color: showSummary ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
+              <Sparkles className={`w-4 h-4 ${showSummary ? "chat-area-text-accent" : "text-[var(--theme-text-secondary)]"}`} />
             </button>
 
             <button
@@ -1351,14 +1347,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               aria-label={workspaceOpen ? "Hide Workspace" : "Show Workspace"}
               aria-pressed={workspaceOpen}
             >
-              <Briefcase className="w-4 h-4" style={{ color: workspaceOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
+              <Briefcase className={`w-4 h-4 ${workspaceOpen ? "chat-area-text-accent" : "text-[var(--theme-text-secondary)]"}`} />
             </button>
 
             <div
               role="toolbar"
               aria-label="Channel command bar"
-              className="flex items-center gap-1 rounded-md px-1 py-0.5"
-              style={{ border: "1px solid color-mix(in srgb, var(--theme-accent) 14%, transparent)" }}
+              className="flex items-center gap-1 rounded-md px-1 py-0.5 border chat-area-command-toolbar-border"
               onKeyDown={handleCommandBarKeydown}
             >
               {visibleActions.map((action, index) => (
@@ -1395,14 +1390,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     aria-expanded={overflowOpen}
                     aria-haspopup="menu"
                   >
-                    <MoreHorizontal className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
+                    <MoreHorizontal className="w-4 h-4 text-[var(--theme-text-secondary)]" />
                   </button>
                   {overflowOpen && (
                     <div
                       role="menu"
                       aria-label="Overflow channel actions"
-                      className="absolute right-0 top-8 z-20 min-w-48 rounded-md border p-1 shadow-xl"
-                      style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-border-primary)" }}
+                      className="absolute right-0 top-8 z-20 min-w-48 rounded-md border chat-area-overflow-menu-surface p-1 shadow-xl"
                     >
                       {layout.overflowActionIds.includes("inbox") && (
                         <div className="px-2 py-1">
@@ -1419,13 +1413,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                             setOverflowOpen(false)
                             trackCommandEvent("action", { actionId: action.id, group: action.group, source: "overflow" })
                           }}
-                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm surface-hover"
-                          style={{ color: "var(--theme-text-primary)" }}
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm chat-area-text-primary surface-hover"
                           aria-label={action.ariaLabel}
                         >
                           {action.icon}
                           <span>{action.label}</span>
-                          <span className="ml-auto text-[10px] uppercase" style={{ color: "var(--theme-text-muted)" }}>{action.groupLabel}</span>
+                          <span className="ml-auto text-[10px] uppercase chat-area-text-muted">{action.groupLabel}</span>
                         </button>
                       ))}
                     </div>
@@ -1472,15 +1465,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           {messages.length === 0 && (
             <div className="px-4 py-8">
               <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                style={{ background: 'var(--theme-surface-elevated)' }}
+                className="w-16 h-16 rounded-full flex items-center justify-center mb-4 chat-area-empty-state-icon-bg"
               >
-                <Hash className="w-8 h-8" style={{ color: 'var(--theme-accent)' }} />
+                <Hash className="w-8 h-8 chat-area-text-accent" />
               </div>
-              <h2 className="text-2xl font-bold font-display mb-2" style={{ color: 'var(--theme-text-bright)' }}>
+              <h2 className="text-2xl font-bold font-display mb-2 chat-area-text-bright">
                 Welcome to #{channel.name}!
               </h2>
-              <p style={{ color: 'var(--theme-text-secondary)' }}>
+              <p className="text-[var(--theme-text-secondary)]">
                 This is the start of the #{channel.name} channel.
                 {channel.topic && ` ${channel.topic}`}
               </p>
@@ -1536,14 +1528,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   >
                     {unreadDividerMessageId === message.id && (
                       <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
-                        <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />
+                        <div className="h-px flex-1 chat-area-danger-bg opacity-50" />
                         <span
-                          className="text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-0.5 rounded-full flex-shrink-0"
-                          style={{ color: "var(--theme-danger)", background: "color-mix(in srgb, var(--theme-danger) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--theme-danger) 40%, transparent)" }}
+                          className="text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-0.5 rounded-full flex-shrink-0 chat-area-new-messages-pill"
                         >
                           NEW MESSAGES
                         </span>
-                        <div className="h-px flex-1" style={{ background: "var(--theme-danger)", opacity: 0.5 }} />
+                        <div className="h-px flex-1 chat-area-danger-bg opacity-50" />
                       </div>
                     )}
                     <MessageItem
@@ -1656,8 +1647,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div className="sticky bottom-3 px-4 flex justify-center pointer-events-none">
               <button
                 onClick={jumpToLatest}
-                className="motion-interactive motion-press px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 pointer-events-auto"
-                style={{ background: "var(--theme-accent)", color: "var(--theme-bg-primary)" }}
+                className="motion-interactive motion-press px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 pointer-events-auto chat-area-jump-latest-button"
                 aria-label={pendingNewMessageCount > 0 ? `Jump to latest — ${pendingNewMessageCount} new message${pendingNewMessageCount > 1 ? "s" : ""}` : "Jump to latest message"}
               >
                 ↓ {pendingNewMessageCount > 0 ? `${pendingNewMessageCount} new message${pendingNewMessageCount > 1 ? "s" : ""}` : "Jump to latest"}
@@ -1669,8 +1659,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div className="sticky bottom-14 px-4 flex justify-end">
               <button
                 onClick={returnToContext}
-                className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{ background: "var(--theme-bg-secondary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold chat-area-return-context-button border"
               >
                 Back to where you were
               </button>
