@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Upload, Camera, ExternalLink, Link2 } from "lucide-react"
+import { Loader2, Upload, Camera, ExternalLink, Link2, Gamepad2, Youtube, Check } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -47,6 +47,7 @@ export function ProfileSettingsPage({ user }: Props) {
   const [connectionLoading, setConnectionLoading] = useState(false)
   const [connectionUsername, setConnectionUsername] = useState("")
   const [connectionProfileUrl, setConnectionProfileUrl] = useState("")
+  const [activeConnectionPrompt, setActiveConnectionPrompt] = useState<"steam" | "youtube" | null>(null)
 
   useEffect(() => {
     const loadConnections = async () => {
@@ -386,25 +387,79 @@ export function ProfileSettingsPage({ user }: Props) {
           Connections & Social Links
         </h2>
 
-        <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-          <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>Steam</h3>
-          <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Link your Steam account with OpenID sign-in.</p>
-          {steamConnection && <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>Connected as {steamConnection.display_name || steamConnection.username || steamConnection.provider_user_id}</p>}
-          <button type="button" onClick={connectSteam} className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium" style={{ background: "var(--theme-accent)", color: "white" }}>
-            <Link2 className="w-4 h-4" /> {steamConnection ? "Reconnect Steam" : "Connect Steam"}
+        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+          Click a service to connect it to your profile.
+        </p>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setActiveConnectionPrompt("steam")}
+            className="h-14 w-14 rounded-lg flex items-center justify-center transition-all hover:brightness-110 focus-ring relative"
+            style={{
+              background: "var(--theme-bg-secondary)",
+              border: `1px solid ${steamConnection ? "var(--theme-success)" : "var(--theme-bg-tertiary)"}`,
+              color: "var(--theme-text-primary)",
+            }}
+            aria-label={steamConnection ? "Manage Steam connection" : "Connect Steam"}
+          >
+            <Gamepad2 className="w-6 h-6" />
+            {steamConnection && (
+              <span className="absolute -top-1 -right-1 rounded-full p-0.5" style={{ background: "var(--theme-success)", color: "white" }}>
+                <Check className="w-3 h-3" />
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveConnectionPrompt("youtube")}
+            className="h-14 w-14 rounded-lg flex items-center justify-center transition-all hover:brightness-110 focus-ring relative"
+            style={{
+              background: "var(--theme-bg-secondary)",
+              border: `1px solid ${youtubeConnection ? "var(--theme-success)" : "var(--theme-bg-tertiary)"}`,
+              color: "var(--theme-text-primary)",
+            }}
+            aria-label={youtubeConnection ? "Manage YouTube connection" : "Connect YouTube"}
+          >
+            <Youtube className="w-6 h-6" />
+            {youtubeConnection && (
+              <span className="absolute -top-1 -right-1 rounded-full p-0.5" style={{ background: "var(--theme-success)", color: "white" }}>
+                <Check className="w-3 h-3" />
+              </span>
+            )}
           </button>
         </div>
 
-        <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-          <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>YouTube</h3>
-          <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Connect your YouTube channel so your creator identity appears next to Steam.</p>
-          {youtubeConnection && <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>Connected as {youtubeConnection.display_name || youtubeConnection.username || youtubeConnection.provider_user_id}</p>}
-          <form onSubmit={connectYouTube} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
-            <input value={connectionUsername} onChange={(e) => setConnectionUsername(e.target.value)} placeholder="YouTube username (optional)" className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
-            <input value={connectionProfileUrl} onChange={(e) => setConnectionProfileUrl(e.target.value)} placeholder="https://youtube.com/@yourchannel" required className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
-            <button type="submit" disabled={connectionLoading} className="px-4 py-2 rounded-md text-sm font-medium disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>{connectionLoading ? "Connecting..." : "Connect YouTube"}</button>
-          </form>
-        </div>
+        {activeConnectionPrompt === "steam" && (
+          <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>Steam</h3>
+              <button type="button" className="text-xs" style={{ color: "var(--theme-text-muted)" }} onClick={() => setActiveConnectionPrompt(null)}>Close</button>
+            </div>
+            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Steam uses OpenID sign-in and does not require entering a username here.</p>
+            {steamConnection && <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>Connected as {steamConnection.display_name || steamConnection.username || steamConnection.provider_user_id}</p>}
+            <button type="button" onClick={connectSteam} className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium" style={{ background: "var(--theme-accent)", color: "white" }}>
+              <Link2 className="w-4 h-4" /> {steamConnection ? "Reconnect Steam" : "Connect Steam"}
+            </button>
+          </div>
+        )}
+
+        {activeConnectionPrompt === "youtube" && (
+          <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>YouTube</h3>
+              <button type="button" className="text-xs" style={{ color: "var(--theme-text-muted)" }} onClick={() => setActiveConnectionPrompt(null)}>Close</button>
+            </div>
+            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Add the channel details needed for your connection.</p>
+            {youtubeConnection && <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>Connected as {youtubeConnection.display_name || youtubeConnection.username || youtubeConnection.provider_user_id}</p>}
+            <form onSubmit={connectYouTube} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
+              <input value={connectionUsername} onChange={(e) => setConnectionUsername(e.target.value)} placeholder="YouTube username (optional)" className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+              <input value={connectionProfileUrl} onChange={(e) => setConnectionProfileUrl(e.target.value)} placeholder="https://youtube.com/@yourchannel" required className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+              <button type="submit" disabled={connectionLoading} className="px-4 py-2 rounded-md text-sm font-medium disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>{connectionLoading ? "Connecting..." : "Connect YouTube"}</button>
+            </form>
+          </div>
+        )}
 
         <div className="space-y-2">
           {connections.map((connection) => (
