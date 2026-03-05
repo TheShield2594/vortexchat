@@ -26,11 +26,26 @@
     --ring: 186 100% 50%;
     --color-tertiary-metadata: #8f9bbf;
     --radius: 0.5rem;
+    /* ── Motion timing tokens ─────────────────────────────────────────────── */
+    --motion-duration-instant: 80ms;
     --motion-duration-fast: 120ms;
     --motion-duration-standard: 180ms;
     --motion-duration-panel: 220ms;
+    --motion-duration-slow: 320ms;
+    --motion-duration-skeleton: 1600ms;
+    /* ── Motion easing tokens ─────────────────────────────────────────────── */
     --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+    --motion-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+    --motion-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* ── Interaction state tokens ─────────────────────────────────────────── */
+    --motion-hover-bg: color-mix(in srgb, var(--theme-text-primary) 5%, transparent);
+    --motion-hover-bg-md: color-mix(in srgb, var(--theme-text-primary) 8%, transparent);
+    --motion-press-scale: 0.97;
+    --motion-select-bg: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-elevated));
+    --motion-skeleton-base: color-mix(in srgb, var(--theme-text-primary) 6%, transparent);
+    --motion-skeleton-shimmer: color-mix(in srgb, var(--theme-text-primary) 12%, transparent);
     --app-bg-primary: #1b1f31;
     --app-bg-secondary: #151829;
     --app-bg-tertiary: #0f1120;
@@ -143,6 +158,85 @@
 
   .motion-press:active {
     transform: scale(0.98);
+  }
+
+  /* ── Hover/press/select interaction state helpers ─────────────────────── */
+
+  /* Generic hover that works with motion tokens */
+  .motion-hover {
+    transition-property: background-color, color, border-color, box-shadow, opacity, transform;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .motion-hover:hover {
+    background-color: var(--motion-hover-bg);
+  }
+
+  .motion-hover-md:hover {
+    background-color: var(--motion-hover-bg-md);
+  }
+
+  /* Press affordance — shrinks slightly on active */
+  .motion-press-sm:active {
+    transform: scale(var(--motion-press-scale));
+    transition-duration: var(--motion-duration-instant);
+  }
+
+  /* Selected/active list-item state */
+  .motion-selected {
+    background-color: var(--motion-select-bg);
+    transition-property: background-color, box-shadow;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  /* Channel/DM row interaction pair — combines hover + fast transition */
+  .interactive-list-item {
+    transition-property: background-color, color, opacity;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .interactive-list-item:active {
+    transform: scale(var(--motion-press-scale));
+    transition-duration: var(--motion-duration-instant);
+  }
+
+  /* ── Token-aware spinner (replaces ad-hoc border/animate-spin divs) ─── */
+  .motion-spinner {
+    border: 2px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
+    border-top-color: var(--theme-accent);
+    animation: motion-spin var(--motion-duration-slow) linear infinite;
+  }
+
+  .motion-spinner-sm {
+    border: 2px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
+    border-top-color: var(--theme-accent);
+    animation: motion-spin var(--motion-duration-slow) linear infinite;
+  }
+
+  /* Input focus transition */
+  .motion-focus-ring {
+    transition-property: box-shadow, border-color;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  /* Icon button that scales up gently on hover */
+  .motion-icon-hover {
+    transition-property: color, opacity, transform;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .motion-icon-hover:hover {
+    transform: scale(1.1);
+  }
+
+  .motion-icon-hover:active {
+    transform: scale(0.95);
+    transition-duration: var(--motion-duration-instant);
   }
 
   .panel-surface-motion {
@@ -331,6 +425,28 @@
     color: var(--theme-text-bright);
   }
 
+  /* ── Skeleton loading choreography utilities ──────────────────────────── */
+
+  /* Shimmer direction variant */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--motion-skeleton-base) 0%,
+      var(--motion-skeleton-shimmer) 45%,
+      var(--motion-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer var(--motion-duration-skeleton) var(--motion-ease-standard) infinite;
+  }
+
+  /* Staggered skeleton items — each direct child gets an incremental delay */
+  .skeleton-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .skeleton-stagger > *:nth-child(2) { animation-delay: 80ms; }
+  .skeleton-stagger > *:nth-child(3) { animation-delay: 160ms; }
+  .skeleton-stagger > *:nth-child(4) { animation-delay: 240ms; }
+  .skeleton-stagger > *:nth-child(5) { animation-delay: 320ms; }
+  .skeleton-stagger > *:nth-child(n+6) { animation-delay: 400ms; }
+
   .channel-sidebar-drag-overlay {
     background: var(--theme-bg-primary);
     color: var(--theme-text-bright);
@@ -400,6 +516,15 @@
   }
 }
 
+@keyframes motion-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
 @keyframes panel-enter {
   from {
     opacity: 0;
@@ -424,12 +549,22 @@
 
 @media (prefers-reduced-motion: reduce) {
   .motion-interactive,
-  .motion-press {
+  .motion-press,
+  .motion-hover,
+  .motion-press-sm,
+  .motion-selected,
+  .interactive-list-item,
+  .motion-focus-ring,
+  .motion-icon-hover {
     transition-duration: 0ms !important;
     transform: none !important;
   }
 
-  .motion-press:active {
+  .motion-press:active,
+  .motion-press-sm:active,
+  .interactive-list-item:active,
+  .motion-icon-hover:active,
+  .motion-icon-hover:hover {
     transform: none !important;
   }
 
@@ -452,10 +587,16 @@
   .reaction-chip-pop,
   .composer-presence-rail,
   .recent-activity-halo,
-  .message-state-morph {
+  .message-state-morph,
+  .skeleton-shimmer,
+  .motion-spinner,
+  .motion-spinner-sm {
     animation: none !important;
     transition-duration: 0ms !important;
     transform: none !important;
+    /* Fallback static appearance for skeleton shimmer */
+    background: var(--motion-skeleton-base) !important;
+    background-position: unset !important;
   }
 
   .message-state-morph:active {
