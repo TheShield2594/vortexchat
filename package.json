@@ -17,7 +17,8 @@
     "type-check": "turbo run type-check",
     "signal": "cd apps/signal && npm run dev",
     "web": "cd apps/web && npm run dev",
-    "dep:cycles:web": "node scripts/dep-cycles-web.mjs"
+    "dep:cycles:web": "node scripts/dep-cycles-web.mjs",
+    "parity:report": "node scripts/parity/generate-weekly-report.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

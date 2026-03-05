@@ -10,7 +10,9 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint:style-guardrails": "node scripts/style-guardrails.mjs"
+    "lint:style-guardrails": "node scripts/style-guardrails.mjs",
+    "test:parity:critical": "mkdir -p .reports && vitest run __tests__/parity-acceptance-critical-flows.test.ts --reporter=json --outputFile=.reports/parity-critical.json",
+    "test:a11y:focus": "mkdir -p .reports && vitest run __tests__/accessibility-focus-order.test.ts __tests__/sidebar-navigation-regression.test.ts __tests__/surface-visual-regression.test.ts --reporter=json --outputFile=.reports/a11y-focus.json"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
