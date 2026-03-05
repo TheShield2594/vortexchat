@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 
 // PUT /api/messages/[messageId]/pin — pin a message
 export async function PUT(
@@ -30,7 +30,14 @@ export async function PUT(
   }
 
   // Check permission: admin or MANAGE_MESSAGES
-  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const channelId: string | undefined = (message as any).channel_id
+
+  if (!channelId) {
+    return NextResponse.json({ error: "Channel context not found" }, { status: 404 })
+  }
+
+  const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, channelId, user.id)
   if (!isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
     return NextResponse.json({ error: "Missing MANAGE_MESSAGES permission" }, { status: 403 })
   }
@@ -66,7 +73,7 @@ export async function DELETE(
 
   const { data: message } = await supabase
     .from("messages")
-    .select("id, channels(server_id)")
+    .select("id, channel_id, channels(server_id)")
     .eq("id", messageId)
     .single()
 
@@ -79,7 +86,14 @@ export async function DELETE(
     return NextResponse.json({ error: "Cannot unpin messages outside of a server channel" }, { status: 400 })
   }
 
-  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const channelId: string | undefined = (message as any).channel_id
+
+  if (!channelId) {
+    return NextResponse.json({ error: "Channel context not found" }, { status: 404 })
+  }
+
+  const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, channelId, user.id)
   if (!isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
     return NextResponse.json({ error: "Missing MANAGE_MESSAGES permission" }, { status: 403 })
   }
