@@ -17,10 +17,12 @@ interface Props {
   initialMessages: MessageWithAuthor[]
   currentUserId: string
   serverId: string
+  canSendMessages: boolean
+  requireMediaAttachments: boolean
 }
 
 /** Media-focused channel view optimized for image and file sharing with gallery-style message display. */
-export function MediaChannel({ channel, initialMessages, currentUserId, serverId }: Props) {
+export function MediaChannel({ channel, initialMessages, currentUserId, serverId, canSendMessages, requireMediaAttachments }: Props) {
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore(
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList }))
   )
@@ -85,6 +87,8 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
   )
 
   async function handleSendMessage(content: string, attachmentFiles?: File[]) {
+    if (!canSendMessages) return
+    if ((!attachmentFiles || attachmentFiles.length === 0) && requireMediaAttachments) return
     if (!content.trim() && (!attachmentFiles || attachmentFiles.length === 0)) return
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -153,6 +157,10 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
             <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>
         </div>
+      </div>
+
+      <div className="px-4 py-2 text-xs border-b" style={{ borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>
+        Media-first mode: attach at least one file to publish. Add optional captions for context.
       </div>
 
       {/* Messages */}
@@ -236,6 +244,10 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
           <div ref={bottomRef} />
         </div>
       </div>
+
+      {!canSendMessages && (
+        <div className="px-4 py-2 text-xs" style={{ color: "var(--theme-warning)" }}>You do not have permission to post in this media channel.</div>
+      )}
 
       {/* Message input */}
       <MessageInput

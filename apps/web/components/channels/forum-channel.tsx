@@ -16,12 +16,13 @@ interface Props {
   initialMessages: MessageWithAuthor[]
   currentUserId: string
   serverId: string
+  canSendMessages: boolean
 }
 
 type ForumView = "list" | "thread"
 
 /** Forum-style channel with a post list view and per-thread conversation drill-down. */
-export function ForumChannel({ channel, initialMessages, currentUserId, serverId }: Props) {
+export function ForumChannel({ channel, initialMessages, currentUserId, serverId, canSendMessages }: Props) {
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore(
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList }))
   )
@@ -33,6 +34,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [threadReplyDraft, setThreadReplyDraft] = useState("")
   const [newPostDraft, setNewPostDraft] = useState("")
+  const [sortMode, setSortMode] = useState<"recent" | "popular" | "unanswered">("recent")
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
@@ -86,6 +88,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
   )
 
   async function handleCreatePost(content: string, attachmentFiles?: File[]) {
+    if (!canSendMessages) return
     if (!content.trim()) return
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -136,6 +139,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
   }
 
   async function handleThreadReply(content: string, attachmentFiles?: File[]) {
+    if (!canSendMessages) return
     if (!content.trim()) return
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -180,6 +184,16 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
 
   // Top-level posts: messages not replying to another message
   const topLevelPosts = messages.filter((m) => !m.reply_to_id)
+  const sortedPosts = [...topLevelPosts].sort((a, b) => {
+    const repliesFor = (id: string) => messages.filter((m) => m.reply_to_id === id).length
+    if (sortMode === "popular") return repliesFor(b.id) - repliesFor(a.id)
+    if (sortMode === "unanswered") {
+      const aReplies = repliesFor(a.id)
+      const bReplies = repliesFor(b.id)
+      if ((aReplies === 0) !== (bReplies === 0)) return aReplies === 0 ? -1 : 1
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
 
   // Replies to the active thread post
   const threadReplies = activeThread
@@ -343,8 +357,9 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
         )}
         <div className="ml-auto flex items-center gap-2">
           <button
+            disabled={!canSendMessages}
             onClick={() => setShowNewPost(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: 'var(--theme-accent)', color: 'white' }}
           >
             <Plus className="w-4 h-4" />
@@ -357,17 +372,39 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
       </div>
 
       {/* Guidelines banner */}
-      {channel.forum_guidelines && (
-        <div
-          className="mx-4 mt-3 px-3 py-2 rounded text-sm"
-          style={{ background: 'rgba(88,101,242,0.1)', border: '1px solid rgba(88,101,242,0.3)', color: 'var(--theme-text-secondary)' }}
-        >
-          <strong className="text-white">Guidelines: </strong>{channel.forum_guidelines}
+      <div
+        className="mx-4 mt-3 px-3 py-2 rounded text-sm"
+        style={{ background: 'rgba(88,101,242,0.1)', border: '1px solid rgba(88,101,242,0.3)', color: 'var(--theme-text-secondary)' }}
+      >
+        <strong className="text-white">Guidelines: </strong>{channel.forum_guidelines || "Use clear titles, add context, and mark solved replies."}
+        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+          {['Question', 'Help', 'Discussion'].map((tag) => (
+            <span key={tag} className="px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>#{tag}</span>
+          ))}
+          <span style={{ color: 'var(--theme-text-muted)' }}>Template: Problem · Steps Tried · Expected Outcome</span>
         </div>
-      )}
+      </div>
+
+      <div className="mx-4 mt-3 flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+        <span>Browse:</span>
+        {([
+          ["recent", "Recent"],
+          ["popular", "Popular"],
+          ["unanswered", "Unanswered"],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            onClick={() => setSortMode(value)}
+            className="px-2 py-1 rounded"
+            style={{ background: sortMode === value ? 'var(--theme-bg-tertiary)' : 'transparent', color: sortMode === value ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* New post form */}
-      {showNewPost && (
+      {showNewPost && canSendMessages && (
         <div
           className="mx-4 mt-3 p-3 rounded border"
           style={{ background: 'var(--theme-bg-secondary)', borderColor: 'var(--theme-bg-tertiary)' }}
@@ -375,7 +412,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           <input
             value={newPostTitle}
             onChange={(e) => setNewPostTitle(e.target.value)}
-            placeholder="Post title (optional)"
+            placeholder="Post title (optional, recommended)"
             className="w-full px-3 py-2 mb-2 rounded text-sm text-white focus:outline-none"
             style={{ background: 'var(--theme-bg-tertiary)' }}
           />
@@ -414,8 +451,9 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
               {channel.forum_guidelines || "Be the first to start a discussion!"}
             </p>
             <button
+              disabled={!canSendMessages}
               onClick={() => setShowNewPost(true)}
-              className="px-4 py-2 rounded font-medium transition-colors"
+              className="px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'var(--theme-accent)', color: 'white' }}
             >
               <Plus className="w-4 h-4 inline mr-1" />
@@ -424,7 +462,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
           </div>
         )}
 
-        {topLevelPosts.map((post) => {
+        {sortedPosts.map((post) => {
           const replyCount = messages.filter((m) => m.reply_to_id === post.id).length
           const firstLine = post.content?.split("\n")[0] ?? ""
           const isTitle = firstLine.startsWith("**") && firstLine.endsWith("**")

@@ -7,6 +7,7 @@ import { ForumChannel } from "@/components/channels/forum-channel"
 import { MediaChannel } from "@/components/channels/media-channel"
 import { hydrateReplyTo, MESSAGE_PROJECTION } from "@/lib/messages/hydration"
 import { computePermissions, hasPermission } from "@vortex/shared"
+import { getChannelPermissions } from "@/lib/permissions"
 import type { RoleRow } from "@/types/database"
 
 interface Props {
@@ -72,6 +73,12 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
     .map((mr) => mr.roles?.permissions ?? 0)
   const effectivePerms = computePermissions(roleBitmasks)
   const canManageMessages = isOwner || hasPermission(effectivePerms, "MANAGE_MESSAGES")
+  const channelPerms = await getChannelPermissions(supabase, params.serverId, params.channelId, user.id)
+  const canSendMessages = channelPerms.isAdmin || hasPermission(channelPerms.permissions, "SEND_MESSAGES")
+  const canAttachMedia = canSendMessages
+  const canConnectVoice = channelPerms.isAdmin || hasPermission(channelPerms.permissions, "CONNECT_VOICE")
+  const canSpeakOnStage = channelPerms.isAdmin || hasPermission(channelPerms.permissions, "SPEAK")
+  const canModerateStage = channelPerms.isAdmin || hasPermission(channelPerms.permissions, "MUTE_MEMBERS")
 
   // Filter messages to only text-based channel types
   let messages: any[] = []
@@ -91,6 +98,9 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
           currentUserId={user.id}
           isStage={channel.type === "stage"}
           stageStreamUrl={channel.stream_url}
+          canConnect={canConnectVoice}
+          canSpeak={canSpeakOnStage}
+          canModerate={canModerateStage}
         />
       </div>
     )
@@ -119,6 +129,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
           initialMessages={messages}
           currentUserId={user.id}
           serverId={params.serverId}
+          canSendMessages={canSendMessages}
         />
       </div>
     )
@@ -133,6 +144,8 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
           initialMessages={messages}
           currentUserId={user.id}
           serverId={params.serverId}
+          canSendMessages={canSendMessages}
+          requireMediaAttachments={canAttachMedia}
         />
       </div>
     )

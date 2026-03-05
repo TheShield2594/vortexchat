@@ -17,7 +17,7 @@ import { validateAttachments, validateAttachmentContent } from "@/lib/attachment
 import { MESSAGE_PROJECTION, withReplyTo, type ServerSupabaseClient } from "@/lib/messages/hydration"
 import { parsePostMessageRequestBody, type MessageAttachment, type PostMessageRequestBody } from "@/lib/messages/validators"
 import { enqueueAttachmentScans } from "@/lib/attachment-malware"
-
+import { validateChannelTypeMessagePolicy, type SupportedMessageChannelType } from "@/lib/messages/channel-type-policy"
 async function getChannelForRead(supabase: ServerSupabaseClient, channelId: string, userId: string) {
   const { data: channel, error: channelError } = await supabase
     .from("channels")
@@ -524,7 +524,7 @@ export async function POST(request: Request) {
   // --- Fetch channel for server context and basic validation ---
   const { data: channel } = await supabase
     .from("channels")
-    .select("slowmode_delay, server_id")
+    .select("slowmode_delay, server_id, type")
     .eq("id", channelId)
     .single()
 
@@ -575,6 +575,31 @@ export async function POST(request: Request) {
   const { safeMentions } = mentionResult
 
   const serverId: string | null = channel.server_id ?? null
+
+  if (channel.type === "voice" || channel.type === "stage" || channel.type === "category") {
+    return NextResponse.json({ error: "This channel type does not support text messages." }, { status: 400 })
+  }
+
+  const channelType = (channel.type ?? "text") as SupportedMessageChannelType
+
+  if (serverId) {
+    const channelPerms = await getChannelPermissions(supabase, serverId, channelId, user.id)
+    const policy = validateChannelTypeMessagePolicy({
+      channelType,
+      hasSendPermission: channelPerms.isAdmin || hasPermission(channelPerms.permissions, "SEND_MESSAGES"),
+      content,
+      attachments,
+    })
+    if (policy.error) return NextResponse.json({ error: policy.error }, { status: policy.status })
+  } else {
+    const policy = validateChannelTypeMessagePolicy({
+      channelType,
+      hasSendPermission: true,
+      content,
+      attachments,
+    })
+    if (policy.error) return NextResponse.json({ error: policy.error }, { status: policy.status })
+  }
 
   if (serverId) {
     const guardResult = await enforceServerMessagingGuards({
