@@ -1501,13 +1501,33 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
   }
 
   async function handleUnenroll(id: string) {
-    const { error } = await supabase.auth.mfa.unenroll({ factorId: id })
-    if (error) {
-      toast({ variant: "destructive", title: "Failed to disable 2FA", description: error.message })
-    } else {
-      toast({ title: "2FA disabled" })
-      loadFactors()
+    const currentPassword = window.prompt("Confirm your password to disable 2FA")
+    if (!currentPassword) return
+
+    const stepRes = await fetch("/api/auth/step-up", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword }),
+    })
+    if (!stepRes.ok) {
+      const data = await stepRes.json().catch(() => ({}))
+      toast({ variant: "destructive", title: "Step-up failed", description: data.error ?? "Could not verify identity" })
+      return
     }
+
+    const res = await fetch("/api/auth/mfa/disable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ factorId: id }),
+    })
+    const payload = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      toast({ variant: "destructive", title: "Failed to disable 2FA", description: payload.error ?? "Unknown error" })
+      return
+    }
+
+    toast({ title: "2FA disabled" })
+    loadFactors()
   }
 
   function copySecret() {

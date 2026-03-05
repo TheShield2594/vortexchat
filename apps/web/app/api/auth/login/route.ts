@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { computeLoginRisk } from "@/lib/auth/risk"
 
 /**
  * POST /api/auth/login
@@ -86,6 +87,51 @@ export async function POST(request: Request) {
     await adminDb.rpc("clear_login_attempts", { target_email: email })
   } catch {
     // Swallow — failing to clear shouldn't block a successful login
+  }
+
+  // Risk telemetry + suspicious login alerts (best effort)
+  try {
+    const db = admin as any
+    const currentIp = ipAddress
+    const currentUa = request.headers.get("user-agent") || null
+    const currentLocation = request.headers.get("x-vercel-ip-country") || request.headers.get("cf-ipcountry") || null
+
+    const { data: prev } = await db
+      .from("login_risk_events")
+      .select("ip_address,user_agent,location_hint")
+      .eq("user_id", data.user.id)
+      .eq("succeeded", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const risk = computeLoginRisk(
+      { userId: data.user.id, ipAddress: currentIp, userAgent: currentUa, locationHint: currentLocation },
+      prev ? { ipAddress: prev.ip_address, userAgent: prev.user_agent, locationHint: prev.location_hint } : null
+    )
+
+    await db.from("login_risk_events").insert({
+      user_id: data.user.id,
+      email,
+      ip_address: currentIp,
+      user_agent: currentUa,
+      location_hint: currentLocation,
+      risk_score: risk.riskScore,
+      reasons: risk.reasons,
+      suspicious: risk.suspicious,
+      succeeded: true,
+    })
+
+    if (risk.suspicious) {
+      await db.from("notifications").insert({
+        user_id: data.user.id,
+        type: "system",
+        title: "Suspicious login detected",
+        body: `We noticed a login from a new device or location (${currentIp || "unknown IP"}). If this wasn't you, reset your password immediately.`,
+      })
+    }
+  } catch {
+    // Do not block successful login on telemetry or alert failures
   }
 
   // Check if user has TOTP enrolled (for MFA challenge redirect)
