@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Pin, PinOff, X, Loader2, ExternalLink } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { format } from "date-fns"
@@ -30,10 +30,27 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
   const [messages, setMessages] = useState<PinnedMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [permissionDenied, setPermissionDenied] = useState(false)
+
+  const upsertPinnedMessage = useCallback((incoming: PinnedMessage) => {
+    setMessages((prev) => {
+      const existingIndex = prev.findIndex((message) => message.id === incoming.id)
+      const next = existingIndex === -1
+        ? [...prev, incoming]
+        : prev.map((message, index) => (index === existingIndex ? incoming : message))
+
+      return next.sort((a, b) => {
+        const aTs = a.pinned_at ? Date.parse(a.pinned_at) : 0
+        const bTs = b.pinned_at ? Date.parse(b.pinned_at) : 0
+        return bTs - aTs
+      })
+    })
+  }, [])
 
   const loadPinnedMessages = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setPermissionDenied(false)
     try {
       const { data, error: dbError } = await supabase
         .from("messages")
@@ -50,7 +67,15 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
         .order("pinned_at", { ascending: false })
         .limit(50)
 
-      if (dbError) throw dbError
+      if (dbError) {
+        const denied = dbError.code === "42501" || /permission denied/i.test(dbError.message ?? "")
+        if (denied) {
+          setPermissionDenied(true)
+          setMessages([])
+          return
+        }
+        throw dbError
+      }
       setMessages((data ?? []) as PinnedMessage[])
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load pinned messages")
@@ -62,6 +87,49 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
   useEffect(() => {
     loadPinnedMessages()
   }, [loadPinnedMessages])
+
+  useEffect(() => {
+    const realtimeChannel = supabase
+      .channel(`pinned-messages:${channelId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "messages",
+        filter: `channel_id=eq.${channelId}`,
+      }, async (payload) => {
+        const next = payload.new as { id: string; pinned?: boolean; pinned_at?: string | null }
+        if (!next.id) return
+        if (!next.pinned) {
+          setMessages((prev) => prev.filter((message) => message.id !== next.id))
+          return
+        }
+        const { data } = await supabase
+          .from("messages")
+          .select(`
+            id,
+            content,
+            created_at,
+            pinned_at,
+            author:users!messages_author_id_fkey(username, display_name, avatar_url)
+          `)
+          .eq("id", next.id)
+          .single()
+
+        if (data) {
+          upsertPinnedMessage(data as PinnedMessage)
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(realtimeChannel)
+    }
+  }, [channelId, supabase, upsertPinnedMessage])
+
+  const showEmptyState = useMemo(
+    () => !loading && !error && !permissionDenied && messages.length === 0,
+    [error, loading, messages.length, permissionDenied]
+  )
 
   function truncateContent(content: string, maxLen = 160): string {
     const clean = content.replace(/\*\*|__|~~|\|\||`{1,3}/g, "")
@@ -120,7 +188,16 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
           </div>
         )}
 
-        {!loading && !error && messages.length === 0 && (
+        {permissionDenied && (
+          <div className="flex flex-col items-center justify-center py-12 px-4 gap-3">
+            <PinOff className="w-8 h-8" style={{ color: "var(--theme-text-faint)" }} />
+            <p className="text-sm text-center" style={{ color: "var(--theme-text-muted)" }}>
+              You don&rsquo;t have permission to view pinned messages in #{channelName}.
+            </p>
+          </div>
+        )}
+
+        {showEmptyState && (
           <div className="flex flex-col items-center justify-center py-12 px-4 gap-3">
             <Pin className="w-8 h-8" style={{ color: "var(--theme-text-faint)" }} />
             <p className="text-sm text-center" style={{ color: "var(--theme-text-muted)" }}>
@@ -132,7 +209,7 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
           </div>
         )}
 
-        {!loading && messages.length > 0 && (
+        {!loading && !permissionDenied && messages.length > 0 && (
           <div className="divide-y" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
             {messages.map((message) => {
               const author = Array.isArray(message.author) ? message.author[0] : message.author
