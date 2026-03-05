@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { UserPlus, Check, X, UserMinus, ShieldOff, Loader2 } from "lucide-react"
+import { UserPlus, Check, X, UserMinus, ShieldOff } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import type { FriendWithUser } from "@/types/database"
+import { MemberSkeleton } from "@/components/ui/skeleton"
 
 type Tab = "online" | "all" | "pending" | "blocked"
 
@@ -246,7 +247,7 @@ export function FriendsSidebar() {
             className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
             style={{ background: "var(--theme-accent)", color: "white" }}
           >
-            {addLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+            {addLoading ? <div className="w-4 h-4 rounded-full motion-spinner" aria-label="Sending…" /> : "Send"}
           </button>
         </div>
         {addStatus && (
@@ -290,8 +291,10 @@ export function FriendsSidebar() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-2 py-2">
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--theme-text-muted)" }} />
+          <div className="skeleton-stagger space-y-1" aria-busy="true" aria-label="Loading friends">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <MemberSkeleton key={i} />
+            ))}
           </div>
         ) : (
           <>

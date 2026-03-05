@@ -18,6 +18,7 @@ import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { useLocalSearch } from "@/hooks/use-local-search"
 import { DmLocalSearchModal } from "@/components/modals/dm-local-search-modal"
 import type { IndexedDocument } from "@/lib/local-search-index"
+import { ChannelRowSkeleton, MessageListSkeleton } from "@/components/ui/skeleton"
 
 interface User {
   id: string
@@ -649,8 +650,13 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   if (!channel) {
     return (
-      <div className="flex-1 flex items-center justify-center" style={{ background: "var(--app-bg-primary)" }}>
-        <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--theme-accent)", borderTopColor: "transparent" }} />
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "var(--app-bg-primary)" }}>
+        {/* Header skeleton */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+          <ChannelRowSkeleton className="flex-1 border-0 px-0 py-0" />
+        </div>
+        {/* Message list skeleton */}
+        <MessageListSkeleton count={8} className="flex-1 px-0 py-2" />
       </div>
     )
   }
@@ -960,7 +966,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             title="Attach file"
           >
             {uploadingFile
-              ? <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--theme-accent)", borderTopColor: "transparent" }} />
+              ? <div className="w-5 h-5 rounded-full motion-spinner" aria-label="Uploading…" />
               : <Paperclip className="w-5 h-5" />}
           </button>
           <input
@@ -1229,7 +1235,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           />
           {status === "connecting" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(0,0,0,0.6)" }}>
-              <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--theme-accent)", borderTopColor: "transparent" }} />
+              <div className="w-6 h-6 rounded-full motion-spinner" aria-label="Connecting…" />
               <p className="text-white text-sm">{statusMeta.connecting.detail}…</p>
             </div>
           )}
@@ -1263,7 +1269,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           </div>
           {status === "connecting" && (
             <div className="flex items-center gap-2 text-xs" style={{ color: "var(--theme-text-muted)" }}>
-              <div className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--theme-accent)", borderTopColor: "transparent" }} />
+              <div className="w-3.5 h-3.5 rounded-full motion-spinner-sm" aria-label="Connecting…" />
               Establishing secure media link…
             </div>
           )}

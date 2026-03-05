@@ -7,7 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Plus, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { format, isToday } from "date-fns"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Skeleton, ChannelRowSkeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -101,7 +101,7 @@ function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
                 <button
                   key={entry.id}
                   onClick={() => { onSelectFriend(friend.id); onOpenChange(false) }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg interactive-list-item surface-hover text-left"
                 >
                   <Avatar className="w-8 h-8 flex-shrink-0">
                     {friend.avatar_url && <AvatarImage src={friend.avatar_url} />}
@@ -211,17 +211,11 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
 
   if (loading) {
     return (
-      <div className="flex h-full flex-col px-2 pt-3">
+      <div className="flex h-full flex-col px-2 pt-3" aria-busy="true" aria-label="Loading direct messages">
         <Skeleton className="mb-3 h-3 w-28" />
-        <div className="space-y-2">
+        <div className="skeleton-stagger space-y-0.5">
           {Array.from({ length: 7 }).map((_, index) => (
-            <div key={index} className="flex items-center gap-3 rounded-md px-2 py-1.5">
-              <Skeleton className="h-8 w-8 rounded-full" />
-              <div className="flex-1 space-y-1">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-2.5 w-32" />
-              </div>
-            </div>
+            <ChannelRowSkeleton key={index} />
           ))}
         </div>
       </div>
@@ -275,10 +269,10 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
               key={ch.id}
               onClick={() => { router.push(`/channels/me/${ch.id}`); onNavigate?.() }}
               className={cn(
-                "w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-left transition-colors",
+                "w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-left interactive-list-item",
                 isActive
-                  ? "bg-white/10 text-white"
-                  : "hover:bg-white/5 text-gray-400 hover:text-gray-200"
+                  ? "motion-selected text-white"
+                  : "surface-hover text-gray-400 hover:text-gray-200"
               )}
             >
               {/* Avatar */}
