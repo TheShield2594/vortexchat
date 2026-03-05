@@ -194,3 +194,162 @@ Purpose: Consolidate prior audit findings into one executable plan with ownershi
 3. Implement unread divider + jump-to-latest in message feed.
 4. Stand up parity KPI dashboard and baseline capture.
 5. Finalize R1 ticket breakdown with owners and due dates.
+
+---
+
+## 10) Missing items pulled in from reviewed docs
+
+The following items were present in the reviewed source documents but were not explicitly captured in this plan as executable work. They are now added as required implementation tracks.
+
+| ID | Item needed/fixed | Source doc(s) | Target release |
+|---|---|---|---|
+| M1 | **Attachment AV scanning pipeline** (post-upload asynchronous malware scan + quarantine + release workflow) | parity eval + MVP core features | R1-R2 |
+| M2 | **Pinned messages parity** (pin/unpin, pinned index, jump-to-message) | parity eval | R1 |
+| M3 | **Reply-reference jump behavior** (click reply quote to navigate to original + return affordance) | parity eval + redesign | R1 |
+| M4 | **Forum/stage/media channel UX depth** (channel-type specific composer/rules/layout behaviors) | parity eval + MVP core features + redesign | R2 |
+| M5 | **Identity security finishers** (step-up auth for sensitive actions, suspicious-login alerting, OAuth/social login) | parity eval | R2-R3 |
+| M6 | **Friend/block consistency hardening** (enforce block-state behavior across search/discovery/suggestions surfaces) | MVP core features | R1 |
+| M7 | **Admin activity timeline + role simulation mode** for safer permission changes | redesign | R2-R3 |
+| M8 | **Next-gen layered depth implementation** (5-level elevation tokens, active/passive surface language, focus-shift treatment) | redesign | R2 |
+| M9 | **Adaptive command bar + smart header grouping** (context-aware controls + power actions) | redesign + parity eval | R2 |
+| M10 | **Sidebar behavior redesign** (predictive expansion, bounded motion, stronger hierarchy cues) | redesign | R2 |
+| M11 | **Micro-interaction and loading choreography standard** (timing/easing tokens + premium skeleton language) | redesign | R2 |
+| M12 | **Parity acceptance suite expansion** (manual and automated checks from parity test matrix) | parity eval | R1-R3 |
+
+---
+
+## 11) Copy/paste AI prompts for each added item
+
+Use these prompts directly with an implementation agent.
+
+1. **M1 — Attachment AV scanning pipeline**
+   ```
+   Implement attachment malware scanning for VortexChat uploads.
+   Requirements:
+   - Add asynchronous scan workflow after upload completion.
+   - Introduce attachment states: pending_scan, clean, quarantined, failed_scan.
+   - Prevent download/render for non-clean files and show clear user-facing status.
+   - Add moderator/admin release-or-delete controls for quarantined files.
+   - Emit audit events and metrics (scan latency, quarantine rate, false-positive overrides).
+   - Add tests for state transitions and blocked download enforcement.
+   Update API routes, DB schema/migrations, and UI surfaces as needed.
+   ```
+
+2. **M2 — Pinned messages parity**
+   ```
+   Build full pinned-message parity in VortexChat channels.
+   Requirements:
+   - Add pin/unpin actions with permission checks.
+   - Add pinned messages panel in channel header.
+   - Support jump-to-message from pinned list.
+   - Add realtime updates for pin state changes.
+   - Add empty, loading, and permission-denied states.
+   - Add unit/integration tests for pin lifecycle.
+   ```
+
+3. **M3 — Reply-reference jump behavior**
+   ```
+   Add reply-reference navigation behavior.
+   Requirements:
+   - Clicking a reply preview scrolls/highlights the original message.
+   - Provide "back to recent position" return affordance.
+   - Handle missing/deleted original message gracefully.
+   - Preserve behavior across pagination/virtualized message lists.
+   - Add keyboard-accessible interaction and tests.
+   ```
+
+4. **M4 — Forum/stage/media UX depth**
+   ```
+   Implement channel-type specific UX depth for forum, stage, and media channels.
+   Requirements:
+   - Forum: posting guidelines visibility, post templates/tags, stronger thread browsing.
+   - Stage: audience vs speaker state clarity, request-to-speak flow, moderation controls.
+   - Media: media-first layout, attachment-centric composer affordances.
+   - Enforce channel-type specific permissions in UI and API.
+   - Add regression tests by channel type.
+   ```
+
+5. **M5 — Identity security finishers**
+   ```
+   Implement remaining identity/security parity features.
+   Requirements:
+   - Step-up authentication before sensitive actions (disable MFA, password change, account delete).
+   - Suspicious login alerting (new device/location/IP heuristic) with user notification.
+   - OAuth/social login providers with secure account linking.
+   - Add audit logging and risk telemetry.
+   - Add tests for step-up gate enforcement and alert triggers.
+   ```
+
+6. **M6 — Friend/block consistency hardening**
+   ```
+   Perform a block-enforcement consistency pass across all social surfaces.
+   Requirements:
+   - Audit and enforce block-state behavior in search, friend suggestions, mentions, and discovery surfaces.
+   - Ensure blocked users do not leak actionable profile/message previews where policy disallows it.
+   - Add a centralized utility/policy module to avoid drift.
+   - Add integration tests covering blocked and unblocked transitions.
+   ```
+
+7. **M7 — Admin activity timeline + role simulation**
+   ```
+   Add advanced admin safety tooling.
+   Requirements:
+   - Admin activity timeline for role/permission/moderation changes with actor + timestamp + diff.
+   - Role simulation mode: preview effective permissions for a selected role/member in a selected channel.
+   - Surface conflict/risk warnings before saving permission changes.
+   - Ensure filtering and pagination for large servers.
+   - Add tests for permission simulation correctness.
+   ```
+
+8. **M8 — Layered depth system rollout**
+   ```
+   Roll out the next-gen layered depth visual system.
+   Requirements:
+   - Implement 5-level semantic elevation tokens.
+   - Add active vs passive surface variants and focus-shift visual treatment.
+   - Replace hardcoded shadows/opacity values with tokens.
+   - Keep dark mode contrast compliant.
+   - Add visual regression snapshots for key surfaces.
+   ```
+
+9. **M9 — Adaptive command bar**
+   ```
+   Redesign the channel header into an adaptive command bar.
+   Requirements:
+   - Context-aware grouping for search, pins, threads, inbox/mentions, voice, and help.
+   - Priority overflow behavior by viewport width.
+   - Keyboard-first navigation and explicit aria labels.
+   - Add telemetry for action usage and discoverability.
+   - Add responsive tests across desktop breakpoints.
+   ```
+
+10. **M10 — Sidebar behavior redesign**
+    ```
+    Upgrade server/channel sidebar behavior for hierarchy clarity and controlled motion.
+    Requirements:
+    - Improve active server/channel emphasis and unread hierarchy.
+    - Add predictable expansion/collapse rules with bounded animation.
+    - Preserve user context while navigating between dense channel trees.
+    - Validate performance on large server/channel counts.
+    - Add UX regression tests for navigation flows.
+    ```
+
+11. **M11 — Micro-interaction/loading choreography**
+    ```
+    Standardize micro-interaction and loading choreography across core chat surfaces.
+    Requirements:
+    - Define timing/easing tokens and apply to hover, press, select, and transition states.
+    - Replace generic spinners with skeleton/loading choreography patterns where appropriate.
+    - Ensure reduced-motion accessibility support.
+    - Add visual + interaction regression coverage.
+    ```
+
+12. **M12 — Parity acceptance suite expansion**
+    ```
+    Build and operationalize a parity acceptance suite from the parity evaluation matrix.
+    Requirements:
+    - Convert high-priority manual checks into a tracked checklist with owners.
+    - Automate critical flows (message lifecycle, permissions, voice join/reconnect, moderation).
+    - Add CI gating for accessibility, focus order, and high-risk regressions.
+    - Publish weekly pass/fail trend reporting tied to parity score.
+    ```
