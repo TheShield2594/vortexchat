@@ -33,7 +33,7 @@ const ContextMenuSubContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ContextMenuPrimitive.SubContent
     ref={ref}
-    className={cn("panel-surface-motion z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg", className)}
+    className={cn("panel-surface-motion z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground elevation-4 surface-active surface-focus-shift", className)}
     {...props}
   />
 ))
@@ -46,7 +46,7 @@ const ContextMenuContent = React.forwardRef<
   <ContextMenuPrimitive.Portal>
     <ContextMenuPrimitive.Content
       ref={ref}
-      className={cn("panel-surface-motion z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md", className)}
+      className={cn("panel-surface-motion z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground elevation-3 surface-passive surface-focus-shift", className)}
       {...props}
     />
   </ContextMenuPrimitive.Portal>
@@ -98,7 +98,7 @@ const ContextMenuSeparator = React.forwardRef<
 ContextMenuSeparator.displayName = ContextMenuPrimitive.Separator.displayName
 
 const ContextMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => (
-  <span className={cn("ml-auto text-xs tracking-widest opacity-60", className)} {...props} />
+  <span className={cn("ml-auto text-xs tracking-widest surface-muted-opacity", className)} {...props} />
 )
 ContextMenuShortcut.displayName = "ContextMenuShortcut"
 
