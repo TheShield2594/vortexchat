@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { validateChannelTypeMessagePolicy } from "@/app/api/messages/route"
+import { validateChannelTypeMessagePolicy } from "@/lib/messages/channel-type-policy"
 
 describe("message channel-type policy", () => {
   it("requires attachments in media channels", () => {
