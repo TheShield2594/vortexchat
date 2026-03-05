@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { hasValidStepUpToken } from "@/lib/auth/step-up"
 
 const MIN_PASSWORD_LENGTH = 12
 
@@ -12,6 +13,10 @@ export async function PATCH(request: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  if (!(await hasValidStepUpToken(auth.user.id))) {
+    return NextResponse.json({ error: "Step-up authentication required" }, { status: 403 })
+  }
 
   const body = (await request.json().catch(() => ({}))) as {
     currentPassword?: string

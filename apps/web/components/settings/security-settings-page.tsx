@@ -42,8 +42,18 @@ export function SecuritySettingsPage({ userId: _userId, hasTOTP, userEmail }: Pr
 
     setChangingPassword(true)
     try {
-      const res = await fetch("/api/auth/change-password", {
+      const stepUp = await fetch("/api/auth/step-up", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: oldPassword }),
+      })
+      if (!stepUp.ok) {
+        const step = await stepUp.json().catch(() => ({}))
+        throw new Error(step.error ?? "Step-up verification failed")
+      }
+
+      const res = await fetch("/api/auth/password", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword: oldPassword, newPassword }),
       })
