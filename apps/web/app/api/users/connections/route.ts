@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { isUserConnectionsTableMissing, USER_CONNECTIONS_SETUP_HINT } from "@/lib/supabase/user-connections-errors"
 
 const MANUAL_PROVIDERS = ["github", "x", "twitch", "youtube", "reddit", "website"] as const
 type ManualProvider = (typeof MANUAL_PROVIDERS)[number]
@@ -20,7 +21,12 @@ export async function GET() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (isUserConnectionsTableMissing(error)) {
+      return NextResponse.json({ error: USER_CONNECTIONS_SETUP_HINT }, { status: 503 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ connections: data ?? [] })
 }
 
@@ -63,7 +69,12 @@ export async function POST(request: Request) {
     .select("id, provider, provider_user_id, username, display_name, profile_url, metadata, created_at")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (isUserConnectionsTableMissing(error)) {
+      return NextResponse.json({ error: USER_CONNECTIONS_SETUP_HINT }, { status: 503 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ connection: data })
 }
 
@@ -82,6 +93,11 @@ export async function DELETE(request: Request) {
     .eq("id", id)
     .eq("user_id", user.id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (isUserConnectionsTableMissing(error)) {
+      return NextResponse.json({ error: USER_CONNECTIONS_SETUP_HINT }, { status: 503 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

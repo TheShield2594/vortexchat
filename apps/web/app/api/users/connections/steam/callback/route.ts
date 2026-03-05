@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { isUserConnectionsTableMissing } from "@/lib/supabase/user-connections-errors"
 
 async function verifySteamAssertion(searchParams: URLSearchParams) {
   const verificationParams = new URLSearchParams(searchParams)
@@ -71,7 +72,8 @@ export async function GET(request: Request) {
       metadata: { linked_via: "openid" },
     }, { onConflict: "user_id,provider" })
 
-  const response = NextResponse.redirect(buildRedirect(url, nextPath, error ? "steam_save_failed" : "steam_linked"))
+  const status = !error ? "steam_linked" : isUserConnectionsTableMissing(error) ? "connections_storage_unavailable" : "steam_save_failed"
+  const response = NextResponse.redirect(buildRedirect(url, nextPath, status))
   response.cookies.delete("steam_oauth_state")
   return response
 }
