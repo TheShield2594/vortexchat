@@ -214,24 +214,26 @@ function ServerIcon({
               {/* Active indicator */}
               <div
                 className={cn(
-                  "absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-200",
+                  "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-200",
                   isActive
-                    ? "h-10 -left-3"
-                    : "h-5 -left-3 opacity-0 group-hover:opacity-100 group-hover:h-5"
+                    ? "h-10 w-1.5 -left-3"
+                    : hasUnread
+                      ? "h-7 w-1 -left-3 opacity-90"
+                      : "h-5 w-1 -left-3 opacity-0 group-hover:opacity-100 group-hover:h-5",
+                  isActive ? "server-sidebar-active-indicator" : "server-sidebar-unread-indicator"
                 )}
-                style={{ background: 'var(--theme-text-primary)' }}
               />
               <div
                 className={cn(
                   "relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden",
-                  isActive ? "rounded-2xl" : "rounded-full hover:rounded-2xl"
+                  isActive ? "rounded-2xl" : "rounded-full hover:rounded-2xl",
+                  server.icon_url ? "bg-transparent" : "server-sidebar-icon-bg",
+                  isActive
+                    ? "server-sidebar-icon-active"
+                    : hasUnread
+                      ? "server-sidebar-icon-unread"
+                      : ""
                 )}
-                style={{
-                  background: server.icon_url ? 'transparent' : 'var(--theme-surface-elevated)',
-                  boxShadow: isActive
-                    ? "0 0 18px color-mix(in srgb, var(--theme-accent) 50%, transparent)"
-                    : "none",
-                }}
               >
                 {server.icon_url ? (
                   <Image
@@ -242,15 +244,14 @@ function ServerIcon({
                     className="object-cover"
                   />
                 ) : (
-                  <span className="text-sm font-semibold" style={{ color: 'var(--theme-text-bright)' }}>{initials}</span>
+                  <span className="text-sm font-semibold server-sidebar-initials">{initials}</span>
                 )}
               </div>
 
               {/* Unread pip — shown when the server has unread channels and is not active */}
               {hasUnread && !isActive && (
                 <div
-                  className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 pointer-events-none"
-                  style={{ background: 'var(--theme-accent)', borderColor: 'var(--theme-bg-tertiary)' }}
+                  className="absolute -bottom-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full border-2 pointer-events-none server-sidebar-unread-pip"
                 />
               )}
             </div>
