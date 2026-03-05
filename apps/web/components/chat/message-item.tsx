@@ -610,19 +610,19 @@ export const MessageItem = memo(function MessageItem({
           }}
         >
           {/* Reply reference */}
-          {message.reply_to_id && message.reply_to && (
+          {message.reply_to_id && (
             onReplyJump ? (
               <button
                 type="button"
                 onClick={() => onReplyJump(message.reply_to_id!)}
                 className="w-full text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5 surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--theme-accent)]"
-                aria-label="Jump to replied message"
+                aria-label={message.reply_to ? "Jump to replied message" : "Jump to original message"}
               >
                 <Reply className="w-3 h-3 -scale-x-100" />
                 <span className="font-medium" style={{ color: 'var(--theme-text-secondary)' }}>
-                  {message.reply_to.author?.display_name || message.reply_to.author?.username}
+                  {message.reply_to?.author?.display_name || message.reply_to?.author?.username || "Original message"}
                 </span>
-                <span className="truncate">{message.reply_to.content}</span>
+                <span className="truncate">{message.reply_to?.content || "Message unavailable"}</span>
               </button>
             ) : (
               <div
@@ -630,9 +630,9 @@ export const MessageItem = memo(function MessageItem({
               >
                 <Reply className="w-3 h-3 -scale-x-100" />
                 <span className="font-medium" style={{ color: 'var(--theme-text-secondary)' }}>
-                  {message.reply_to.author?.display_name || message.reply_to.author?.username}
+                  {message.reply_to?.author?.display_name || message.reply_to?.author?.username || "Original message"}
                 </span>
-                <span className="truncate">{message.reply_to.content}</span>
+                <span className="truncate">{message.reply_to?.content || "Message unavailable"}</span>
               </div>
             )
           )}

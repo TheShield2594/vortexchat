@@ -34,6 +34,7 @@ import {
   updateOutboxStatus,
   upsertOutboxEntry,
 } from "@/lib/chat-outbox"
+import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/reply-navigation"
 
 interface Props {
   channel: ChannelRow
@@ -130,10 +131,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   })
 
   const jumpToMessage = useCallback((messageId: string) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("message", messageId)
-    params.delete("thread")
-    router.replace(`/channels/${serverId}/${channel.id}?${params.toString()}`)
+    router.replace(buildReplyJumpPath(`/channels/${serverId}/${channel.id}`, searchParams.toString(), messageId))
   }, [channel.id, router, searchParams, serverId])
 
   // Auto-open create thread modal when navigated from channel right-click
@@ -786,7 +784,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     void (async () => {
       const loadedFromContext = await loadMessageContextWindow(jumpToMessageId)
       const loaded = loadedFromContext || await ensureMessageLoaded(jumpToMessageId)
-      if (!loaded || cancelled) return
+      if (!loaded || cancelled) {
+        if (!cancelled) {
+          jumpedRef.current = true
+          toast({
+            title: "Original message unavailable",
+            description: "This reply target was deleted or can no longer be loaded.",
+          })
+        }
+        return
+      }
 
       rafId = window.requestAnimationFrame(() => {
         if (cancelled) return
@@ -815,7 +822,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       if (rafId !== null) window.cancelAnimationFrame(rafId)
       if (timerId) window.clearTimeout(timerId)
     }
-  }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, messageIndexMap, openThreadId, returnScrollStorageKey])
+  }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, messageIndexMap, openThreadId, returnScrollStorageKey, toast, virtualizer])
 
   const jumpToLatest = useCallback(() => {
     scrollToLatest("smooth")
@@ -837,6 +844,19 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     router.replace(`/channels/${serverId}/${channel.id}`)
     setShowReturnToContext(false)
   }, [channel.id, returnScrollStorageKey, router, serverId])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!shouldHandleReturnToContextShortcut(showReturnToContext, event)) return
+      event.preventDefault()
+      returnToContext()
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => {
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [returnToContext, showReturnToContext])
 
   useRealtimeMessages(
     channel.id,
