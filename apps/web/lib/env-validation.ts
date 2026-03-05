@@ -31,7 +31,7 @@ const OPTIONAL: EnvVar[] = [
   { name: "LIVEKIT_API_KEY", required: false, description: "LiveKit API key for voice channels" },
   { name: "LIVEKIT_API_SECRET", required: false, description: "LiveKit API secret for voice channels" },
   { name: "NEXT_PUBLIC_LIVEKIT_URL", required: false, description: "LiveKit server URL" },
-  { name: "GEMINI_API_KEY", required: false, description: "Gemini API key for AI channel summarization" },
+  { name: "GEMINI_API_KEY", required: false, description: "Gemini API key for AI channel summarization and voice post-call summaries" },
   { name: "NEXT_PUBLIC_GIPHY_API_KEY", required: false, description: "Giphy API key for GIF picker" },
 ]
 
