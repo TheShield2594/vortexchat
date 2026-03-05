@@ -1,12 +1,14 @@
 "use client"
 
-import { Shield, ShieldCheck, Zap, Flag } from "lucide-react"
+import { Activity, Eye, Shield, ShieldCheck, Zap, Flag } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleManager } from "@/components/roles/role-manager"
 import { TemplateManager } from "@/components/modals/template-manager"
 import { AutoModTab, EmojisTab, ModerationTab, ScreeningTab, SocialAlertsTab, WebhooksTab } from "@/components/modals/server-settings-modal"
 import { AppsTab } from "@/components/settings/apps-tab"
 import { ReportsTab } from "@/components/settings/reports-tab"
+import { AdminActivityTimeline } from "@/components/admin/admin-activity-timeline"
+import { PermissionSimulator } from "@/components/admin/permission-simulator"
 
 interface Channel {
   id: string
@@ -55,6 +57,17 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
                 Reports
               </TabsTrigger>
               <TabsTrigger value="templates" className="w-full justify-start">Templates</TabsTrigger>
+              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                Safety Tools
+              </div>
+              <TabsTrigger value="admin-activity" className="w-full justify-start">
+                <Activity className="mr-1.5 h-3.5 w-3.5" />
+                Activity Log
+              </TabsTrigger>
+              <TabsTrigger value="permission-simulator" className="w-full justify-start">
+                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                Perm Simulator
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -88,6 +101,12 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
             </TabsContent>
             <TabsContent value="templates" className="mt-0">
               {isOwner ? <TemplateManager serverId={serverId} /> : <p style={{ color: "var(--theme-text-secondary)" }}>Only the owner can import/export templates.</p>}
+            </TabsContent>
+            <TabsContent value="admin-activity" className="mt-0">
+              <AdminActivityTimeline serverId={serverId} />
+            </TabsContent>
+            <TabsContent value="permission-simulator" className="mt-0">
+              <PermissionSimulator serverId={serverId} channels={channels} />
             </TabsContent>
           </div>
         </Tabs>

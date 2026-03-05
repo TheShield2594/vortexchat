@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { PERMISSIONS, type Permission } from "@vortex/shared"
+import { detectChannelOverwriteRisks, type PermissionRisk } from "@/lib/permission-simulation"
 
 interface Role {
   id: string
@@ -35,6 +36,8 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
   const [selected, setSelected] = useState<ChannelPerm | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [overwriteRisks, setOverwriteRisks] = useState<PermissionRisk[]>([])
+  const [riskDismissed, setRiskDismissed] = useState(false)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
@@ -50,10 +53,31 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
     load()
   }, [channelId, serverId])
 
+  function selectOverwrite(perm: ChannelPerm) {
+    setSelected(perm)
+    setOverwriteRisks([])
+    setRiskDismissed(false)
+  }
+
+  function computeOverwriteRisks(perm: ChannelPerm) {
+    const isDefault = roles.find((r) => r.id === perm.role_id) as (Role & { is_default?: boolean }) | undefined
+    // We track is_default via the perms list which may have an is_default on the joined role object
+    // If unavailable, fall back to false (safe default)
+    const isDefaultRole = !!(isDefault as unknown as { is_default?: boolean })?.is_default
+    const original = perms.find((p) => p.role_id === perm.role_id)
+    return detectChannelOverwriteRisks(
+      isDefaultRole,
+      perm.allow_permissions,
+      perm.deny_permissions,
+      original?.allow_permissions ?? 0,
+      original?.deny_permissions ?? 0,
+    )
+  }
+
   function addRole(role: Role) {
     const override: ChannelPerm = { role_id: role.id, allow_permissions: 0, deny_permissions: 0, role }
     setPerms((prev) => [...prev, override])
-    setSelected(override)
+    selectOverwrite(override)
   }
 
   function toggleAllow(key: Permission) {
@@ -64,6 +88,8 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
     const updated = { ...selected, allow_permissions: newAllow, deny_permissions: newDeny }
     setSelected(updated)
     setPerms((prev) => prev.map((p) => p.role_id === selected.role_id ? updated : p))
+    setOverwriteRisks(computeOverwriteRisks(updated))
+    setRiskDismissed(false)
   }
 
   function toggleDeny(key: Permission) {
@@ -74,6 +100,8 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
     const updated = { ...selected, deny_permissions: newDeny, allow_permissions: newAllow }
     setSelected(updated)
     setPerms((prev) => prev.map((p) => p.role_id === selected.role_id ? updated : p))
+    setOverwriteRisks(computeOverwriteRisks(updated))
+    setRiskDismissed(false)
   }
 
   async function save() {
@@ -90,7 +118,7 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
   async function remove(roleId: string) {
     await fetch(`/api/channels/${channelId}/permissions?roleId=${roleId}`, { method: "DELETE" })
     setPerms((prev) => prev.filter((p) => p.role_id !== roleId))
-    if (selected?.role_id === roleId) setSelected(null)
+    if (selected?.role_id === roleId) { setSelected(null); setOverwriteRisks([]) }
   }
 
   const unusedRoles = roles.filter((r) => !perms.find((p) => p.role_id === r.id))
@@ -105,7 +133,7 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
         {perms.map((p) => (
           <button
             key={p.role_id}
-            onClick={() => setSelected(p)}
+            onClick={() => selectOverwrite(p)}
             className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left"
             style={{ background: selected?.role_id === p.role_id ? "rgba(255,255,255,0.1)" : "transparent", color: "var(--theme-text-primary)" }}
           >
@@ -160,10 +188,34 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
               </>
             ))}
           </div>
+          {/* Risk / conflict warnings */}
+          {overwriteRisks.length > 0 && !riskDismissed && (
+            <div className="mt-2 rounded border border-yellow-700 bg-yellow-900/20 p-2 space-y-1.5">
+              <p className="text-xs font-semibold text-yellow-300 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Permission warnings
+              </p>
+              {overwriteRisks.map((risk) => (
+                <div key={risk.code} className="text-xs text-zinc-300 leading-snug">
+                  <span className={`inline-block px-1 py-0.5 rounded font-semibold mr-1 text-[10px] ${
+                    risk.severity === "critical" ? "bg-red-900/50 text-red-300"
+                    : risk.severity === "high" ? "bg-orange-900/50 text-orange-300"
+                    : "bg-yellow-900/50 text-yellow-300"
+                  }`}>{risk.severity.toUpperCase()}</span>
+                  {risk.message}
+                </div>
+              ))}
+              <button
+                className="text-xs text-yellow-400 underline"
+                onClick={() => setRiskDismissed(true)}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           <button
             onClick={save}
-            disabled={saving}
-            className="mt-3 px-3 py-1.5 rounded text-sm font-semibold"
+            disabled={saving || (overwriteRisks.some((r) => r.severity === "critical" || r.severity === "high") && !riskDismissed)}
+            className="mt-3 px-3 py-1.5 rounded text-sm font-semibold disabled:opacity-50"
             style={{ background: "var(--theme-accent)", color: "white" }}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}

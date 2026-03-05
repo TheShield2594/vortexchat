@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-05T18:21:01.483Z",
+  "generatedAt": "2026-03-05T21:13:15.251Z",
   "rules": [
     {
       "id": "inline-style-color",
@@ -664,6 +664,12 @@
       "line": 99
     },
     {
+      "key": "inline-style-color:apps/web/components/admin/admin-activity-timeline.tsx:354",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/admin-activity-timeline.tsx",
+      "line": 354
+    },
+    {
       "key": "inline-style-color:apps/web/components/channels/announcement-channel.tsx:136",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/channels/announcement-channel.tsx",
@@ -1046,144 +1052,6 @@
       "ruleId": "inline-style-color",
       "file": "apps/web/components/chat/channel-summary-card.tsx",
       "line": 89
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1194",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1194
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1197",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1197
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1202",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1202
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1203",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1203
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1205",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1205
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1211",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1211
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1212",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1212
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1227",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1227
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1240",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1240
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1250",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1250
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1261",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1261
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1271",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1271
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1282",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1282
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1293",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1293
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1335",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1335
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1337",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1337
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1339",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1339
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1342",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1342
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1398",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1398
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1401",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1401
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1405",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1405
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1519",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1519
-    },
-    {
-      "key": "inline-style-color:apps/web/components/chat/chat-area.tsx:1532",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/chat/chat-area.tsx",
-      "line": 1532
     },
     {
       "key": "inline-style-color:apps/web/components/chat/image-lightbox.tsx:159",
@@ -3010,30 +2878,6 @@
       "line": 162
     },
     {
-      "key": "inline-style-color:apps/web/components/layout/server-sidebar.tsx:222",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/layout/server-sidebar.tsx",
-      "line": 222
-    },
-    {
-      "key": "inline-style-color:apps/web/components/layout/server-sidebar.tsx:229",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/layout/server-sidebar.tsx",
-      "line": 229
-    },
-    {
-      "key": "inline-style-color:apps/web/components/layout/server-sidebar.tsx:245",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/layout/server-sidebar.tsx",
-      "line": 245
-    },
-    {
-      "key": "inline-style-color:apps/web/components/layout/server-sidebar.tsx:253",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/layout/server-sidebar.tsx",
-      "line": 253
-    },
-    {
       "key": "inline-style-color:apps/web/components/layout/server-sidebar.tsx:81",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/layout/server-sidebar.tsx",
@@ -3190,46 +3034,22 @@
       "line": 99
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:104",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:126",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 104
+      "line": 126
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:110",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:132",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 110
+      "line": 132
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:112",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:138",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 112
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:114",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 114
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:120",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 120
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:121",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 121
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:127",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 127
+      "line": 138
     },
     {
       "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:140",
@@ -3238,34 +3058,46 @@
       "line": 140
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:141",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:142",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 141
+      "line": 142
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:144",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:148",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 144
+      "line": 148
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:145",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:149",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 145
+      "line": 149
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:146",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:155",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 146
+      "line": 155
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:167",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:168",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 167
+      "line": 168
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:169",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/channel-permissions-editor.tsx",
+      "line": 169
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:172",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/channel-permissions-editor.tsx",
+      "line": 172
     },
     {
       "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:173",
@@ -3274,10 +3106,22 @@
       "line": 173
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:98",
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:174",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/channel-permissions-editor.tsx",
-      "line": 98
+      "line": 174
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:219",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/channel-permissions-editor.tsx",
+      "line": 219
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/channel-permissions-editor.tsx:225",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/channel-permissions-editor.tsx",
+      "line": 225
     },
     {
       "key": "inline-style-color:apps/web/components/modals/create-channel-modal.tsx:156",
@@ -6244,100 +6088,88 @@
       "line": 336
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:255",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 255
-    },
-    {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:263",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 263
-    },
-    {
       "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:265",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
       "line": 265
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:277",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:273",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 277
+      "line": 273
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:282",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:275",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 282
+      "line": 275
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:285",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:287",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 285
+      "line": 287
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:296",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:292",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 296
+      "line": 292
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:305",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:295",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 305
+      "line": 295
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:313",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:306",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 313
+      "line": 306
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:331",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:315",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 331
+      "line": 315
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:337",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:323",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 337
+      "line": 323
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:345",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:341",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 345
+      "line": 341
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:364",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:347",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 364
+      "line": 347
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:371",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:355",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 371
+      "line": 355
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:382",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:374",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 382
+      "line": 374
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:388",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:381",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 388
+      "line": 381
     },
     {
       "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:392",
@@ -6346,52 +6178,64 @@
       "line": 392
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:400",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:398",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 400
+      "line": 398
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:411",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:402",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 411
+      "line": 402
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:415",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:410",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 415
+      "line": 410
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:424",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:421",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 424
+      "line": 421
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:432",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:425",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 432
+      "line": 425
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:444",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:434",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 444
+      "line": 434
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:454",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:442",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 454
+      "line": 442
     },
     {
-      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:463",
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:486",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/roles/role-manager.tsx",
-      "line": 463
+      "line": 486
+    },
+    {
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:496",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/roles/role-manager.tsx",
+      "line": 496
+    },
+    {
+      "key": "inline-style-color:apps/web/components/roles/role-manager.tsx:505",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/roles/role-manager.tsx",
+      "line": 505
     },
     {
       "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:101",
@@ -7366,34 +7210,40 @@
       "line": 95
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:25",
+      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:103",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/server-settings-admin.tsx",
-      "line": 25
+      "line": 103
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:28",
+      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:27",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/server-settings-admin.tsx",
-      "line": 28
+      "line": 27
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:38",
+      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:30",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/server-settings-admin.tsx",
-      "line": 38
+      "line": 30
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:61",
+      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:40",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/server-settings-admin.tsx",
-      "line": 61
+      "line": 40
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:90",
+      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:60",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/server-settings-admin.tsx",
-      "line": 90
+      "line": 60
+    },
+    {
+      "key": "inline-style-color:apps/web/components/settings/server-settings-admin.tsx:74",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/settings/server-settings-admin.tsx",
+      "line": 74
     },
     {
       "key": "inline-style-color:apps/web/components/settings/settings-sidebar.tsx:109",
@@ -8120,12 +7970,6 @@
       "ruleId": "inline-style-radius-shadow",
       "file": "apps/web/components/chat/message-item.tsx",
       "line": 304
-    },
-    {
-      "key": "inline-style-radius-shadow:apps/web/components/layout/server-sidebar.tsx:229",
-      "ruleId": "inline-style-radius-shadow",
-      "file": "apps/web/components/layout/server-sidebar.tsx",
-      "line": 229
     },
     {
       "key": "inline-style-radius-shadow:apps/web/components/layout/user-panel.tsx:111",

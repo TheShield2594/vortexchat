@@ -59,6 +59,11 @@ const ACTION_TYPE_MAP: Record<string, TimelineActionType> = {
   appeal_status_changed: "appeal",
   role_assigned: "role_change",
   role_removed: "role_change",
+  role_created: "role_change",
+  role_updated: "role_change",
+  role_deleted: "role_change",
+  channel_permissions_updated: "settings",
+  channel_permissions_deleted: "settings",
   moderation_settings_updated: "settings",
   message_pin: "message_action",
 }

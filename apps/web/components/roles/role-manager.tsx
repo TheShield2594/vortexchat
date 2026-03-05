@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Trash2, Loader2, X } from "lucide-react"
+import { AlertTriangle, Plus, Trash2, Loader2, X } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { RoleRow, UserRow } from "@/types/database"
 import { PERMISSIONS, type Permission } from "@vortex/shared"
+import { detectRolePermissionRisks, type PermissionRisk } from "@/lib/permission-simulation"
 
 interface PermissionEntry {
   key: Permission
@@ -89,6 +90,8 @@ export function RoleManager({ serverId, isOwner }: Props) {
   const [roleMembers, setRoleMembers] = useState<UserRow[]>([])
   const [allMembers, setAllMembers] = useState<(UserRow & { user_id: string })[]>([])
   const [showAddMember, setShowAddMember] = useState(false)
+  const [permRisks, setPermRisks] = useState<PermissionRisk[]>([])
+  const [riskDismissed, setRiskDismissed] = useState(false)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
@@ -142,6 +145,8 @@ export function RoleManager({ serverId, isOwner }: Props) {
     setEditHoisted(role.is_hoisted)
     setEditMentionable(role.mentionable)
     setShowAddMember(false)
+    setPermRisks([])
+    setRiskDismissed(false)
     if (!role.is_default) {
       fetchRoleMembers(role.id)
     } else {
@@ -183,7 +188,12 @@ export function RoleManager({ serverId, isOwner }: Props) {
 
   function togglePermission(permission: Permission) {
     const bit = PERMISSIONS[permission]
-    setEditPermissions((prev) => (prev & bit ? prev & ~bit : prev | bit))
+    setEditPermissions((prev) => {
+      const next = prev & bit ? prev & ~bit : prev | bit
+      setPermRisks(detectRolePermissionRisks(next, selectedRole?.permissions ?? 0, selectedRole?.is_default ?? false))
+      setRiskDismissed(false)
+      return next
+    })
   }
 
   async function handleCreateRole() {
@@ -435,6 +445,38 @@ export function RoleManager({ serverId, isOwner }: Props) {
             </div>
           )}
 
+          {/* Risk / conflict warnings */}
+          {permRisks.length > 0 && !riskDismissed && (
+            <div className="rounded-md border border-yellow-700 bg-yellow-900/20 p-3 space-y-2">
+              <p className="text-xs font-semibold text-yellow-300 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4" />
+                Permission warnings — review before saving
+              </p>
+              {permRisks.map((risk) => (
+                <div key={risk.code} className="text-xs space-y-0.5">
+                  <span className={`inline-block px-1.5 py-0.5 rounded font-semibold mr-1.5 ${
+                    risk.severity === "critical"
+                      ? "bg-red-900/50 text-red-300"
+                      : risk.severity === "high"
+                        ? "bg-orange-900/50 text-orange-300"
+                        : "bg-yellow-900/50 text-yellow-300"
+                  }`}>
+                    {risk.severity.toUpperCase()}
+                  </span>
+                  <span className="text-zinc-300">{risk.message}</span>
+                </div>
+              ))}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-yellow-400 text-xs"
+                onClick={() => setRiskDismissed(true)}
+              >
+                I understand — dismiss warnings
+              </Button>
+            </div>
+          )}
+
           <div className="flex gap-2 pt-2">
             {!selectedRole.is_default && (
               <Button
@@ -450,7 +492,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
             <Button
               size="sm"
               onClick={handleSaveRole}
-              disabled={saving}
+              disabled={saving || (permRisks.some((r) => r.severity === "critical" || r.severity === "high") && !riskDismissed)}
               style={{ background: 'var(--theme-accent)' }}
               className="ml-auto"
             >
