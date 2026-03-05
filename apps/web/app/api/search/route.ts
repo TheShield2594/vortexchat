@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { filterBlockedUserIds, getBlockedUserIdsForViewer } from "@/lib/social-block-policy"
 
 interface SearchFilters {
   fromUserId?: string
@@ -184,8 +185,11 @@ export async function GET(req: NextRequest) {
       .limit(limit),
   ])
 
+  const blockedUserIds = await getBlockedUserIdsForViewer(supabase as any, user.id)
+  const visibleMessages = filterBlockedUserIds(messages ?? [], (message) => message.author_id, blockedUserIds)
+
   const results = [
-    ...(messages ?? []).map((m) => ({ type: "message", ...m })),
+    ...visibleMessages.map((m) => ({ type: "message", ...m })),
     ...(tasks ?? []).map((t) => ({ type: "task", ...t })),
     ...(docs ?? []).map((d) => ({ type: "doc", ...d })),
   ]
