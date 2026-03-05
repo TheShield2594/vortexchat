@@ -41,6 +41,21 @@
     --theme-bg-tertiary: #0f1120;
     --theme-surface-elevated: #252a42;
     --theme-surface-input: #2a2f48;
+    --theme-surface-elevation-1: #20243a;
+    --theme-surface-elevation-2: #252a42;
+    --theme-surface-elevation-3: #2a304b;
+    --theme-surface-elevation-4: #303654;
+    --theme-surface-elevation-5: #363d5c;
+    --theme-surface-passive: var(--theme-surface-elevation-1);
+    --theme-surface-active: var(--theme-surface-elevation-3);
+    --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+    --theme-opacity-overlay: 0.72;
+    --theme-opacity-muted: 0.7;
+    --theme-shadow-elevation-1: 0 1px 2px color-mix(in srgb, black 22%, transparent), 0 0 0 1px color-mix(in srgb, white 4%, transparent) inset;
+    --theme-shadow-elevation-2: 0 4px 12px color-mix(in srgb, black 28%, transparent), 0 1px 0 color-mix(in srgb, white 6%, transparent) inset;
+    --theme-shadow-elevation-3: 0 8px 24px color-mix(in srgb, black 34%, transparent), 0 1px 0 color-mix(in srgb, white 8%, transparent) inset;
+    --theme-shadow-elevation-4: 0 14px 32px color-mix(in srgb, black 38%, transparent), 0 1px 0 color-mix(in srgb, white 10%, transparent) inset;
+    --theme-shadow-elevation-5: 0 24px 42px color-mix(in srgb, black 45%, transparent), 0 1px 0 color-mix(in srgb, white 12%, transparent) inset;
     --theme-text-primary: #e6ecff;
     --theme-text-normal: #d6defc;
     --theme-text-secondary: #b6c0dd;
@@ -151,9 +166,44 @@
     will-change: opacity, transform;
   }
 
+
+
+  .dialog-overlay {
+    background: color-mix(in srgb, black calc(var(--theme-opacity-overlay) * 100%), transparent);
+  }
+
+  .surface-muted-fg {
+    color: color-mix(in srgb, var(--theme-text-secondary) calc(var(--theme-opacity-muted) * 100%), transparent);
+  }
+
+  .surface-muted-opacity {
+    opacity: var(--theme-opacity-muted);
+  }
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[var(--theme-accent)];
   }
+
+  .surface-passive {
+    background: var(--theme-surface-passive);
+    box-shadow: var(--theme-shadow-elevation-1);
+  }
+
+  .surface-active {
+    background: var(--theme-surface-active);
+    box-shadow: var(--theme-shadow-elevation-3);
+  }
+
+  .surface-focus-shift:focus-visible,
+  .surface-focus-shift[data-focus-shift="true"] {
+    box-shadow: 0 0 0 1px var(--theme-focus-shift), var(--theme-shadow-elevation-4);
+    border-color: color-mix(in srgb, var(--theme-accent) 45%, var(--theme-bg-tertiary));
+  }
+
+  .elevation-1 { box-shadow: var(--theme-shadow-elevation-1); }
+  .elevation-2 { box-shadow: var(--theme-shadow-elevation-2); }
+  .elevation-3 { box-shadow: var(--theme-shadow-elevation-3); }
+  .elevation-4 { box-shadow: var(--theme-shadow-elevation-4); }
+  .elevation-5 { box-shadow: var(--theme-shadow-elevation-5); }
 
   .tertiary-metadata {
     color: var(--color-tertiary-metadata);
@@ -227,7 +277,7 @@
 
   .channel-sidebar-header {
     border-color: var(--theme-bg-tertiary);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--theme-shadow-elevation-1);
   }
 
   .channel-sidebar-dialog-content {
@@ -466,6 +516,14 @@
   --theme-bg-tertiary: #1e1f22;
   --theme-surface-elevated: #3f4147;
   --theme-surface-input: #383a40;
+  --theme-surface-elevation-1: #32353a;
+  --theme-surface-elevation-2: #3a3d44;
+  --theme-surface-elevation-3: #42464d;
+  --theme-surface-elevation-4: #4b4f57;
+  --theme-surface-elevation-5: #545963;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 35%, transparent);
   --theme-text-primary: #f2f3f5;
   --theme-text-normal: #dcddde;
   --theme-text-secondary: #b5bac1;
@@ -516,6 +574,14 @@
   --theme-bg-tertiary: #0f1120;
   --theme-surface-elevated: #252a42;
   --theme-surface-input: #2a2f48;
+  --theme-surface-elevation-1: #20243a;
+  --theme-surface-elevation-2: #252a42;
+  --theme-surface-elevation-3: #2a304b;
+  --theme-surface-elevation-4: #303654;
+  --theme-surface-elevation-5: #363d5c;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
   --theme-text-primary: #e6ecff;
   --theme-text-normal: #d6defc;
   --theme-text-secondary: #b6c0dd;
@@ -566,6 +632,14 @@
   --theme-bg-tertiary: #1a1030;
   --theme-surface-elevated: #35255a;
   --theme-surface-input: #3f2d67;
+  --theme-surface-elevation-1: #2d1f4f;
+  --theme-surface-elevation-2: #35255a;
+  --theme-surface-elevation-3: #3d2b66;
+  --theme-surface-elevation-4: #463172;
+  --theme-surface-elevation-5: #4f387e;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent-secondary) 35%, transparent);
   --theme-text-primary: #f5edff;
   --theme-text-normal: #e9dcff;
   --theme-text-secondary: #cab7e8;
@@ -616,6 +690,14 @@
   --theme-bg-tertiary: #141618;
   --theme-surface-elevated: #2a2d31;
   --theme-surface-input: #30343a;
+  --theme-surface-elevation-1: #25282c;
+  --theme-surface-elevation-2: #2a2d31;
+  --theme-surface-elevation-3: #30343a;
+  --theme-surface-elevation-4: #373b42;
+  --theme-surface-elevation-5: #3e444c;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-link) 34%, transparent);
   --theme-text-primary: #e7eaee;
   --theme-text-normal: #d5d9df;
   --theme-text-secondary: #b5bcc6;
