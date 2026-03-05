@@ -45,7 +45,6 @@ export function ProfileSettingsPage({ user }: Props) {
   const [saving, setSaving] = useState(false)
   const [connections, setConnections] = useState<Array<{ id: string; provider: string; provider_user_id: string; username: string | null; display_name: string | null; profile_url: string | null }>>([])
   const [connectionLoading, setConnectionLoading] = useState(false)
-  const [provider, setProvider] = useState("github")
   const [connectionUsername, setConnectionUsername] = useState("")
   const [connectionProfileUrl, setConnectionProfileUrl] = useState("")
 
@@ -136,26 +135,23 @@ export function ProfileSettingsPage({ user }: Props) {
     window.location.href = `/api/users/connections/steam/start?next=${encodeURIComponent(next)}`
   }
 
-  async function addManualConnection(e: React.FormEvent) {
+  async function connectYouTube(e: React.FormEvent) {
     e.preventDefault()
     setConnectionLoading(true)
     const res = await fetch("/api/users/connections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider, username: connectionUsername, profile_url: connectionProfileUrl }),
+      body: JSON.stringify({ provider: "youtube", username: connectionUsername, profile_url: connectionProfileUrl }),
     })
     const payload = await res.json().catch(() => ({}))
     if (!res.ok) {
-      toast({ variant: "destructive", title: "Failed to add connection", description: payload.error || "Please try again" })
+      toast({ variant: "destructive", title: "Failed to connect YouTube", description: payload.error || "Please try again" })
       setConnectionLoading(false)
       return
     }
     setConnectionUsername("")
     setConnectionProfileUrl("")
-    setConnections((prev) => {
-      const others = prev.filter((item) => item.provider !== payload.connection.provider)
-      return [...others, payload.connection]
-    })
+    setConnections((prev) => [...prev.filter((item) => item.provider !== "youtube"), payload.connection])
     setConnectionLoading(false)
   }
 
@@ -168,6 +164,8 @@ export function ProfileSettingsPage({ user }: Props) {
     setConnections((prev) => prev.filter((item) => item.id !== id))
   }
 
+  const steamConnection = connections.find((item) => item.provider === "steam")
+  const youtubeConnection = connections.find((item) => item.provider === "youtube")
   const initials = (user.display_name || user.username || "?").slice(0, 2).toUpperCase()
 
   return (
@@ -391,25 +389,20 @@ export function ProfileSettingsPage({ user }: Props) {
         <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
           <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>Steam</h3>
           <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Link your Steam account with OpenID sign-in.</p>
+          {steamConnection && <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>Connected as {steamConnection.display_name || steamConnection.username || steamConnection.provider_user_id}</p>}
           <button type="button" onClick={connectSteam} className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium" style={{ background: "var(--theme-accent)", color: "white" }}>
-            <Link2 className="w-4 h-4" /> Connect Steam
+            <Link2 className="w-4 h-4" /> {steamConnection ? "Reconnect Steam" : "Connect Steam"}
           </button>
         </div>
 
         <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-          <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>Social Links</h3>
-          <form onSubmit={addManualConnection} className="grid grid-cols-1 md:grid-cols-[140px_1fr_1fr_auto] gap-2">
-            <select value={provider} onChange={(e) => setProvider(e.target.value)} className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-              <option value="github">GitHub</option>
-              <option value="x">X / Twitter</option>
-              <option value="twitch">Twitch</option>
-              <option value="youtube">YouTube</option>
-              <option value="reddit">Reddit</option>
-              <option value="website">Website</option>
-            </select>
-            <input value={connectionUsername} onChange={(e) => setConnectionUsername(e.target.value)} placeholder="username" className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
-            <input value={connectionProfileUrl} onChange={(e) => setConnectionProfileUrl(e.target.value)} placeholder="https://..." required className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
-            <button type="submit" disabled={connectionLoading} className="px-4 py-2 rounded-md text-sm font-medium disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>{connectionLoading ? "Adding..." : "Add"}</button>
+          <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>YouTube</h3>
+          <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Connect your YouTube channel so your creator identity appears next to Steam.</p>
+          {youtubeConnection && <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>Connected as {youtubeConnection.display_name || youtubeConnection.username || youtubeConnection.provider_user_id}</p>}
+          <form onSubmit={connectYouTube} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
+            <input value={connectionUsername} onChange={(e) => setConnectionUsername(e.target.value)} placeholder="YouTube username (optional)" className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+            <input value={connectionProfileUrl} onChange={(e) => setConnectionProfileUrl(e.target.value)} placeholder="https://youtube.com/@yourchannel" required className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+            <button type="submit" disabled={connectionLoading} className="px-4 py-2 rounded-md text-sm font-medium disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>{connectionLoading ? "Connecting..." : "Connect YouTube"}</button>
           </form>
         </div>
 
