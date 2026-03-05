@@ -80,6 +80,9 @@ interface Props {
   currentUserId: string
   isStage?: boolean
   stageStreamUrl?: string | null
+  canConnect?: boolean
+  canSpeak?: boolean
+  canModerate?: boolean
 }
 
 function toYoutubeEmbedUrl(rawUrl: string | null | undefined): string | null {
@@ -122,7 +125,7 @@ function markCustomSettings(settings: VoiceAudioSettings, partial: Partial<Voice
 }
 
 /** Main voice channel view with participant grid, spotlight mode, and media controls. */
-export function VoiceChannel({ channelId, channelName, serverId, currentUserId, isStage = false, stageStreamUrl = null }: Props) {
+export function VoiceChannel({ channelId, channelName, serverId, currentUserId, isStage = false, stageStreamUrl = null, canConnect = true, canSpeak = true, canModerate = false }: Props) {
   const { currentUser, setVoiceChannel, channels } = useAppStore(
     useShallow((s) => ({ currentUser: s.currentUser, setVoiceChannel: s.setVoiceChannel, channels: s.channels }))
   )
@@ -365,6 +368,26 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
 
         {isStage && (
           <div className="px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)" }}>
+            <div className="mb-2 flex flex-wrap gap-2 text-xs">
+              <span className="px-2 py-0.5 rounded-full" style={{ background: canSpeak ? "rgba(35,165,90,0.2)" : "rgba(128,132,142,0.2)", color: canSpeak ? "#9ae6b4" : "#c9ccd1" }}>
+                {canSpeak ? "Speaker" : "Audience"}
+              </span>
+              {!canSpeak && (
+                <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(88,101,242,0.2)", color: "#dbe2ff" }}>Request to speak available</span>
+              )}
+              {canModerate && (
+                <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(240,177,50,0.2)", color: "#ffd58a" }}>Stage moderator controls enabled</span>
+              )}
+            </div>
+            {!canSpeak && (
+              <button
+                type="button"
+                className="mb-2 text-xs px-2 py-1 rounded"
+                style={{ background: "var(--theme-accent)", color: "white" }}
+              >
+                Request to Speak
+              </button>
+            )}
             <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
               Stage Stream
             </p>
@@ -485,11 +508,11 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
         )}
 
         <div className="h-20 border-t px-6 flex items-center justify-center gap-3" style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)" }}>
-          <Tooltip><TooltipTrigger asChild><button onClick={toggleMute} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: muted ? "var(--theme-danger)" : "var(--theme-text-faint)" }}>{muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{muted ? "Unmute" : "Mute"}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><button onClick={toggleMute} disabled={!canConnect || (isStage && !canSpeak)} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: muted ? "var(--theme-danger)" : "var(--theme-text-faint)" }}>{muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{muted ? "Unmute" : "Mute"}</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><button onClick={toggleDeafen} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: deafened ? "var(--theme-danger)" : "var(--theme-text-faint)" }}><Headphones className="w-5 h-5 text-white" /></button></TooltipTrigger><TooltipContent>{deafened ? "Undeafen" : "Deafen"}</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><button onClick={() => setPttEnabled((v) => !v)} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: pttEnabled ? "var(--theme-accent)" : "var(--theme-text-faint)" }} title="Push-to-Talk (Space)"><Radio className="w-5 h-5 text-white" /></button></TooltipTrigger><TooltipContent>{pttEnabled ? "Disable PTT" : "Enable Push-to-Talk (Space)"}</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><button onClick={toggleVideo} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: videoEnabled ? "var(--theme-success)" : "var(--theme-text-faint)" }}>{videoEnabled ? <Video className="w-5 h-5 text-white" /> : <VideoOff className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{videoEnabled ? "Turn Off Camera" : "Turn On Camera"}</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><button onClick={toggleScreenShare} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: screenSharing ? "var(--theme-success)" : "var(--theme-text-faint)" }}>{screenSharing ? <MonitorOff className="w-5 h-5 text-white" /> : <Monitor className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{screenSharing ? "Stop Sharing" : "Share Screen"}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><button onClick={toggleVideo} disabled={!canConnect || (isStage && !canSpeak)} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: videoEnabled ? "var(--theme-success)" : "var(--theme-text-faint)" }}>{videoEnabled ? <Video className="w-5 h-5 text-white" /> : <VideoOff className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{videoEnabled ? "Turn Off Camera" : "Turn On Camera"}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><button onClick={toggleScreenShare} disabled={!canConnect || (isStage && !canSpeak)} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: screenSharing ? "var(--theme-success)" : "var(--theme-text-faint)" }}>{screenSharing ? <MonitorOff className="w-5 h-5 text-white" /> : <Monitor className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{screenSharing ? "Stop Sharing" : "Share Screen"}</TooltipContent></Tooltip>
 
           <div className="relative">
             <Tooltip>

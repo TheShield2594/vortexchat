@@ -18,6 +18,36 @@ import { MESSAGE_PROJECTION, withReplyTo, type ServerSupabaseClient } from "@/li
 import { parsePostMessageRequestBody, type MessageAttachment, type PostMessageRequestBody } from "@/lib/messages/validators"
 import { enqueueAttachmentScans } from "@/lib/attachment-malware"
 
+
+
+type SupportedMessageChannelType = "text" | "announcement" | "forum" | "media"
+
+export function validateChannelTypeMessagePolicy({
+  channelType,
+  hasSendPermission,
+  content,
+  attachments,
+}: {
+  channelType: SupportedMessageChannelType
+  hasSendPermission: boolean
+  content?: string
+  attachments: MessageAttachment[]
+}) {
+  if (!hasSendPermission) {
+    return { error: "Missing SEND_MESSAGES permission", status: 403 }
+  }
+
+
+  if (channelType === "media" && attachments.length === 0) {
+    return { error: "Media channels require at least one attachment.", status: 400 }
+  }
+
+  if (!content?.trim() && attachments.length === 0) {
+    return { error: "Message must include content or an attachment.", status: 400 }
+  }
+
+  return { error: null as string | null, status: 200 }
+}
 async function getChannelForRead(supabase: ServerSupabaseClient, channelId: string, userId: string) {
   const { data: channel, error: channelError } = await supabase
     .from("channels")
@@ -524,7 +554,7 @@ export async function POST(request: Request) {
   // --- Fetch channel for server context and basic validation ---
   const { data: channel } = await supabase
     .from("channels")
-    .select("slowmode_delay, server_id")
+    .select("slowmode_delay, server_id, type")
     .eq("id", channelId)
     .single()
 
@@ -575,6 +605,31 @@ export async function POST(request: Request) {
   const { safeMentions } = mentionResult
 
   const serverId: string | null = channel.server_id ?? null
+
+  if (channel.type === "voice" || channel.type === "stage" || channel.type === "category") {
+    return NextResponse.json({ error: "This channel type does not support text messages." }, { status: 400 })
+  }
+
+  const channelType = (channel.type ?? "text") as SupportedMessageChannelType
+
+  if (serverId) {
+    const channelPerms = await getChannelPermissions(supabase, serverId, channelId, user.id)
+    const policy = validateChannelTypeMessagePolicy({
+      channelType,
+      hasSendPermission: channelPerms.isAdmin || hasPermission(channelPerms.permissions, "SEND_MESSAGES"),
+      content,
+      attachments,
+    })
+    if (policy.error) return NextResponse.json({ error: policy.error }, { status: policy.status })
+  } else {
+    const policy = validateChannelTypeMessagePolicy({
+      channelType,
+      hasSendPermission: true,
+      content,
+      attachments,
+    })
+    if (policy.error) return NextResponse.json({ error: policy.error }, { status: policy.status })
+  }
 
   if (serverId) {
     const guardResult = await enforceServerMessagingGuards({
