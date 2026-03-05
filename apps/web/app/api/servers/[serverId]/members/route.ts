@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission, PERMISSIONS } from "@/lib/permissions"
+import { filterBlockedUserIds, getBlockedUserIdsForViewer } from "@/lib/social-block-policy"
 
 export async function GET(
   request: Request,
@@ -77,7 +78,10 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(members, {
+  const blockedUserIds = await getBlockedUserIdsForViewer(supabase as any, user.id)
+  const visibleMembers = filterBlockedUserIds(members ?? [], (member) => member.user_id, blockedUserIds)
+
+  return NextResponse.json(visibleMembers, {
     headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
   })
 }
