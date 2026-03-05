@@ -21,6 +21,8 @@ import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
 import { CreateThreadModal } from "@/components/modals/create-thread-modal"
 import { ReportModal } from "@/components/modals/report-modal"
 import Image from "next/image"
+import { useParams } from "next/navigation"
+import { isAttachmentDownloadAllowed } from "@/lib/attachment-access"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 const POLL_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"]
@@ -804,7 +806,7 @@ export const MessageItem = memo(function MessageItem({
                   {/* Attachments */}
                   {message.attachments?.length > 0 && (
                     <div className="mt-2 space-y-2">
-                      <AttachmentGallery attachments={message.attachments} />
+                      <AttachmentGallery attachments={message.attachments} canManageMessages={canManageMessages} />
                     </div>
                   )}
 
@@ -1108,10 +1110,12 @@ export const MessageItem = memo(function MessageItem({
   )
 })
 
-function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
+function AttachmentGallery({ attachments, canManageMessages }: { attachments: AttachmentRow[]; canManageMessages: boolean }) {
+  const params = useParams<{ serverId?: string }>()
+  const serverId = params?.serverId
   const imageIndexes = attachments
     .map((attachment, index) => ({ attachment, index }))
-    .filter((entry) => entry.attachment.content_type?.startsWith("image/"))
+    .filter((entry) => entry.attachment.content_type?.startsWith("image/") && ((entry.attachment as AttachmentRow & { scan_state?: string | null }).scan_state ?? "pending_scan") === "clean")
     .map((entry) => entry.index)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -1168,7 +1172,7 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
   return (
     <>
       {attachments.map((attachment, index) => (
-        <AttachmentDisplay key={attachment.id} attachment={attachment} onOpenImage={() => openImage(index)} />
+        <AttachmentDisplay key={attachment.id} attachment={attachment} onOpenImage={() => openImage(index)} canManageMessages={canManageMessages} serverId={serverId} />
       ))}
 
       <Dialog open={lightboxIndex !== null} onOpenChange={(open) => { if (!open) closeImage() }}>
@@ -1215,7 +1219,7 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
                 onWheel={handleWheel}
               >
                 <Image
-                  src={currentAttachment.url}
+                  src={`/api/attachments/${currentAttachment.id}/download`}
                   alt={currentAttachment.filename}
                   width={1200}
                   height={900}
@@ -1256,14 +1260,32 @@ function AttachmentGallery({ attachments }: { attachments: AttachmentRow[] }) {
   )
 }
 
-function AttachmentDisplay({ attachment, onOpenImage }: { attachment: AttachmentRow; onOpenImage?: () => void }) {
-  const isImage = attachment.content_type?.startsWith("image/")
 
-  if (isImage) {
+function getAttachmentStatusCopy(scanState: string | null | undefined) {
+  switch (scanState) {
+    case "pending_scan":
+      return "Scanning for malware…"
+    case "quarantined":
+      return "Quarantined by malware scanner"
+    case "failed_scan":
+      return "Scan failed — file unavailable"
+    default:
+      return null
+  }
+}
+
+function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverId }: { attachment: AttachmentRow; onOpenImage?: () => void; canManageMessages: boolean; serverId?: string }) {
+  const [moderationBusy, setModerationBusy] = useState<"release" | "delete" | null>(null)
+  const isImage = attachment.content_type?.startsWith("image/")
+  const statusCopy = getAttachmentStatusCopy((attachment as AttachmentRow & { scan_state?: string | null }).scan_state)
+  const isDownloadable = isAttachmentDownloadAllowed((attachment as AttachmentRow & { scan_state?: "pending_scan" | "clean" | "quarantined" | "failed_scan" | null }).scan_state)
+  const downloadUrl = `/api/attachments/${attachment.id}/download`
+
+  if (isImage && isDownloadable) {
     return (
       <button type="button" className="max-w-sm block" onClick={onOpenImage}>
         <Image
-          src={attachment.url}
+          src={downloadUrl}
           alt={attachment.filename}
           width={384}
           height={320}
@@ -1274,9 +1296,40 @@ function AttachmentDisplay({ attachment, onOpenImage }: { attachment: Attachment
     )
   }
 
+  if (!isDownloadable) {
+    return (
+      <div
+        className="flex items-center gap-3 p-3 rounded max-w-sm"
+        style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", opacity: 0.8 }}
+      >
+        <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: "#b45309" }}>
+          <span className="text-xs font-bold" style={{ color: "var(--theme-text-bright)" }}>SCAN</span>
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-medium truncate" style={{ color: "var(--theme-text-bright)" }}>{attachment.filename}</div>
+          <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{statusCopy}</div>
+          {canManageMessages && serverId && ((attachment as AttachmentRow & { scan_state?: string | null }).scan_state === "quarantined") && (
+            <div className="mt-2 flex gap-2">
+              <button type="button" disabled={moderationBusy !== null} className="px-2 py-1 text-xs rounded" style={{ background: "#166534", color: "white" }} onClick={async () => {
+                setModerationBusy("release")
+                await fetch(`/api/servers/${serverId}/attachments/${attachment.id}/moderate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release" }) })
+                setModerationBusy(null)
+              }}>Release</button>
+              <button type="button" disabled={moderationBusy !== null} className="px-2 py-1 text-xs rounded" style={{ background: "#991b1b", color: "white" }} onClick={async () => {
+                setModerationBusy("delete")
+                await fetch(`/api/servers/${serverId}/attachments/${attachment.id}/moderate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete" }) })
+                setModerationBusy(null)
+              }}>Delete</button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <a
-      href={attachment.url}
+      href={downloadUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="motion-interactive flex items-center gap-3 p-3 rounded max-w-sm surface-hover"

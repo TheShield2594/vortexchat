@@ -525,6 +525,16 @@ export type Database = {
           content_type: string
           width: number | null
           height: number | null
+          storage_path: string | null
+          scan_state: "pending_scan" | "clean" | "quarantined" | "failed_scan"
+          scan_result: Json | null
+          scan_started_at: string | null
+          scanned_at: string | null
+          quarantined_at: string | null
+          quarantined_reason: string | null
+          scan_failure_reason: string | null
+          released_by: string | null
+          released_at: string | null
           created_at: string
         }
         Insert: {
@@ -536,6 +546,16 @@ export type Database = {
           content_type: string
           width?: number | null
           height?: number | null
+          storage_path?: string | null
+          scan_state?: "pending_scan" | "clean" | "quarantined" | "failed_scan"
+          scan_result?: Json | null
+          scan_started_at?: string | null
+          scanned_at?: string | null
+          quarantined_at?: string | null
+          quarantined_reason?: string | null
+          scan_failure_reason?: string | null
+          released_by?: string | null
+          released_at?: string | null
           created_at?: string
         }
         Update: {
@@ -547,6 +567,16 @@ export type Database = {
           content_type?: string
           width?: number | null
           height?: number | null
+          storage_path?: string | null
+          scan_state?: "pending_scan" | "clean" | "quarantined" | "failed_scan"
+          scan_result?: Json | null
+          scan_started_at?: string | null
+          scanned_at?: string | null
+          quarantined_at?: string | null
+          quarantined_reason?: string | null
+          scan_failure_reason?: string | null
+          released_by?: string | null
+          released_at?: string | null
           created_at?: string
         }
         Relationships: [
@@ -555,6 +585,51 @@ export type Database = {
             columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "messages"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      attachment_scan_metrics: {
+        Row: {
+          id: string
+          attachment_id: string
+          server_id: string | null
+          metric_key: string
+          metric_value: number
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          attachment_id: string
+          server_id?: string | null
+          metric_key: string
+          metric_value: number
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          attachment_id?: string
+          server_id?: string | null
+          metric_key?: string
+          metric_value?: number
+          metadata?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachment_scan_metrics_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "attachments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachment_scan_metrics_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
             referencedColumns: ["id"]
           }
         ]
