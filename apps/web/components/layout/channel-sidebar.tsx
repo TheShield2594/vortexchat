@@ -51,6 +51,8 @@ import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { useKeyboardShortcuts, type ShortcutHandlers } from "@/hooks/use-keyboard-shortcuts"
 
 const NO_CATEGORY = "__no_category__"
+const MAX_AUTO_EXPANDED_CATEGORIES = 18
+const CATEGORY_COLLAPSE_ANIMATION_MAX_HEIGHT = 520
 
 export interface VoiceParticipant {
   user_id: string
@@ -123,6 +125,59 @@ function buildItems(grouped: GroupedChannels): Record<string, string[]> {
   return items
 }
 
+function buildContainerIndex(items: Record<string, string[]>): Record<string, string> {
+  const index: Record<string, string> = {}
+  for (const [containerId, channelIds] of Object.entries(items)) {
+    for (const channelId of channelIds) {
+      index[channelId] = containerId
+    }
+  }
+  return index
+}
+
+export function getAutoExpandedCategoryIds(
+  channels: ChannelRow[],
+  activeChannelId: string | null,
+  unreadChannelIds: Set<string>,
+  voiceChannelId: string | null
+): Set<string> {
+  const ranked = new Set<string>()
+
+  const addCategoryId = (channelId: string | null | undefined) => {
+    if (!channelId) return
+    const channel = channels.find((item) => item.id === channelId)
+    if (!channel?.parent_id) return
+    ranked.add(channel.parent_id)
+  }
+
+  addCategoryId(activeChannelId)
+  addCategoryId(voiceChannelId)
+
+  for (const channelId of unreadChannelIds) {
+    addCategoryId(channelId)
+    if (ranked.size >= MAX_AUTO_EXPANDED_CATEGORIES) break
+  }
+
+  return new Set(Array.from(ranked).slice(0, MAX_AUTO_EXPANDED_CATEGORIES))
+}
+
+export function resolveExpandedCategoryIds(
+  categoryIds: string[],
+  autoExpandedCategoryIds: Set<string>,
+  manualOverrides: Record<string, boolean>
+): Set<string> {
+  const expanded = new Set<string>()
+
+  for (const categoryId of categoryIds) {
+    if (manualOverrides[categoryId] === false) continue
+    if (manualOverrides[categoryId] === true || autoExpandedCategoryIds.has(categoryId)) {
+      expanded.add(categoryId)
+    }
+  }
+
+  return expanded
+}
+
 /**
  * Merge incoming channel data into the current drag-ordered items.
  * - Preserves the existing display order within each container.
@@ -169,7 +224,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel, setServerHasUnread } = useAppStore(
     useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList, toggleThreadPanel: s.toggleThreadPanel, toggleWorkspacePanel: s.toggleWorkspacePanel, setServerHasUnread: s.setServerHasUnread }))
   )
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
+  const [categoryExpansionOverrides, setCategoryExpansionOverrides] = useState<Record<string, boolean>>({})
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showServerSettings, setShowServerSettings] = useState(false)
   const [createChannelCategoryId, setCreateChannelCategoryId] = useState<string | undefined>()
@@ -190,6 +245,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   // Always reflects the latest committed items — used in drag handlers to avoid stale closures
   const itemsRef = useRef<Record<string, string[]>>({})
   itemsRef.current = items
+  const containerIndexRef = useRef<Record<string, string>>({})
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -207,6 +263,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
   const channels = storeChannels[server.id] ?? initialChannels
   const grouped = useMemo(() => groupChannels(channels), [channels])
+  const categoryIds = useMemo(
+    () => grouped.map((entry) => entry.category?.id).filter((id): id is string => !!id),
+    [grouped]
+  )
+  const channelById = useMemo(() => new Map(channels.map((channel) => [channel.id, channel])), [channels])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -246,6 +307,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channels, activeId])
+
+  useEffect(() => {
+    containerIndexRef.current = buildContainerIndex(items)
+  }, [items])
 
   // Subscribe to realtime channel changes (INSERT / UPDATE / DELETE)
   useEffect(() => {
@@ -357,6 +422,24 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     setServerHasUnread(server.id, unreadChannelIds.size > 0)
   }, [server.id, unreadChannelIds, setServerHasUnread])
 
+  useEffect(() => {
+    setCategoryExpansionOverrides((prev) => {
+      const allowed = new Set(categoryIds)
+      const cleaned = Object.entries(prev).filter(([key]) => allowed.has(key))
+      return cleaned.length === Object.keys(prev).length ? prev : Object.fromEntries(cleaned)
+    })
+  }, [categoryIds])
+
+  const autoExpandedCategoryIds = useMemo(
+    () => getAutoExpandedCategoryIds(channels, activeChannelId, unreadChannelIds, voiceChannelId),
+    [channels, activeChannelId, unreadChannelIds, voiceChannelId]
+  )
+
+  const expandedCategoryIds = useMemo(
+    () => resolveExpandedCategoryIds(categoryIds, autoExpandedCategoryIds, categoryExpansionOverrides),
+    [categoryIds, autoExpandedCategoryIds, categoryExpansionOverrides]
+  )
+
   const navigableChannelIds = useMemo(
     () => channels.filter((channel) => channel.type !== "category").sort((a, b) => a.position - b.position).map((channel) => channel.id),
     [channels]
@@ -406,12 +489,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   useKeyboardShortcuts(shortcutHandlers)
 
   function toggleCategory(id: string) {
-    setCollapsedCategories((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    setCategoryExpansionOverrides((prev) => ({
+      ...prev,
+      [id]: !expandedCategoryIds.has(id),
+    }))
   }
 
   async function confirmDeleteChannel() {
@@ -448,10 +529,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }
 
   function findContainer(channelId: string): string | null {
-    for (const [containerId, channelIds] of Object.entries(itemsRef.current)) {
-      if (channelIds.includes(channelId)) return containerId
-    }
-    return null
+    return containerIndexRef.current[channelId] ?? null
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -495,6 +573,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
       const next = { ...prev, [sourceContainer]: sourceItems, [targetContainer]: targetItems }
       itemsRef.current = next
+      containerIndexRef.current = buildContainerIndex(next)
       return next
     })
   }
@@ -625,7 +704,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const key = category?.id ?? NO_CATEGORY
     const channelIds = items[key] ?? []
     const categoryChannels = channelIds
-      .map((id) => channels.find((c) => c.id === id))
+      .map((id) => channelById.get(id))
       .filter((c): c is ChannelRow => !!c)
     return { category, channels: categoryChannels }
   })
@@ -672,7 +751,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             >
             {liveGrouped.map(({ category, channels: categoryChannels }) => {
               const containerId = category?.id ?? NO_CATEGORY
-              const isCollapsed = category ? collapsedCategories.has(category.id) : false
+              const isCollapsed = category ? !expandedCategoryIds.has(category.id) : false
 
               return (
                 <div key={containerId} className="mb-2">
@@ -699,13 +778,18 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
                   {!category && <DropContainer id={containerId} />}
 
-                  {!isCollapsed && (
-                    <SortableContext
-                      id={containerId}
-                      items={items[containerId] ?? []}
-                      strategy={verticalListSortingStrategy}
+                  <SortableContext
+                    id={containerId}
+                    items={items[containerId] ?? []}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div
+                      className={cn(
+                        "space-y-0.5 px-2 min-h-[4px] overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                        isCollapsed ? "max-h-0 opacity-0 -translate-y-1 pointer-events-none" : "opacity-100 translate-y-0"
+                      )}
+                      style={{ maxHeight: isCollapsed ? 0 : Math.min(CATEGORY_COLLAPSE_ANIMATION_MAX_HEIGHT, Math.max(32, categoryChannels.length * 36)) }}
                     >
-                      <div className="space-y-0.5 px-2 min-h-[4px]">
                         {categoryChannels.map((channel) => (
                           <SortableChannelItem
                             key={channel.id}
@@ -723,6 +807,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                                 : undefined
                             }
                             onClick={() => {
+                              if (channel.parent_id) {
+                                setCategoryExpansionOverrides((prev) => ({ ...prev, [channel.parent_id!]: true }))
+                              }
                               if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
                                 setVoiceChannel(channel.id, server.id)
                               }
@@ -742,9 +829,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                             <span className="text-xs tertiary-metadata">Drop here</span>
                           </div>
                         )}
-                      </div>
-                    </SortableContext>
-                  )}
+                    </div>
+                  </SortableContext>
                 </div>
               )
             })}
@@ -1120,8 +1206,8 @@ function SortableChannelItem({
             aria-label={`${channel.type} channel ${channel.name}`}
             className={cn(
               "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring",
-              isActive || isVoiceActive ? "channel-active" : "surface-hover text-muted-interactive",
-              isUnread && !isActive && "channel-sidebar-unread"
+              isActive || isVoiceActive ? "channel-active channel-sidebar-active-elevated" : "surface-hover text-muted-interactive",
+              isUnread && !isActive && "channel-sidebar-unread channel-sidebar-unread-elevated"
             )}
           >
             <span

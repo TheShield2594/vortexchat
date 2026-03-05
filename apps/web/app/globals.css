@@ -301,6 +301,14 @@
     color: var(--theme-text-primary);
   }
 
+  .channel-sidebar-unread-elevated {
+    background: color-mix(in srgb, var(--theme-accent) 7%, transparent);
+  }
+
+  .channel-sidebar-active-elevated {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-accent) 45%, transparent);
+  }
+
   .channel-sidebar-accent-bar {
     background: var(--theme-accent);
   }
