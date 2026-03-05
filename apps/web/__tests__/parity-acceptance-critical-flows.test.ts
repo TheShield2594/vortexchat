@@ -15,7 +15,12 @@ describe("parity acceptance critical flows", () => {
       channelType: "media",
       hasSendPermission: true,
       content: "release notes",
-      attachments: [{ url: "https://cdn.test/asset.png" }],
+      attachments: [{
+        url: "https://cdn.test/asset.png",
+        filename: "asset.png",
+        size: 1024,
+        content_type: "image/png",
+      }],
     })
 
     expect(blocked.status).toBe(400)
