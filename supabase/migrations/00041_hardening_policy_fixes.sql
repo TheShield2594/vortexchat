@@ -6,6 +6,7 @@
 -- ============================================================
 
 DROP POLICY IF EXISTS "Users can manage own recovery codes" ON public.recovery_codes;
+DROP POLICY IF EXISTS "Users can delete own recovery codes" ON public.recovery_codes;
 
 -- Separate SELECT already exists; add targeted DELETE (insert via service role)
 CREATE POLICY "Users can delete own recovery codes"
