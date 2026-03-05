@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles } from "lucide-react"
+import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, Volume2, MoreHorizontal } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -35,6 +35,7 @@ import {
   upsertOutboxEntry,
 } from "@/lib/chat-outbox"
 import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/reply-navigation"
+import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
 
 interface Props {
   channel: ChannelRow
@@ -91,6 +92,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
+  const [viewportWidth, setViewportWidth] = useState(1280)
+  const [overflowOpen, setOverflowOpen] = useState(false)
+  const [focusedActionIndex, setFocusedActionIndex] = useState(0)
+  const commandActionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const overflowRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
@@ -113,6 +119,26 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const jumpToMessageId = searchParams.get("message")
   const openThreadId = searchParams.get("thread")
   const createThreadParam = searchParams.get("createThread")
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth)
+    onResize()
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [])
+
+  const trackCommandEvent = useCallback((eventType: "action" | "discoverability", payload: Record<string, string | number | boolean>) => {
+    const body = JSON.stringify({ eventType, payload, channelId: channel.id, serverId, timestamp: Date.now() })
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon("/api/telemetry/channel-command-bar", body)
+      } else {
+        fetch("/api/telemetry/channel-command-bar", { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {})
+      }
+    } catch {
+      // best-effort telemetry only
+    }
+  }, [channel.id, serverId])
 
   // ── Virtual list ──────────────────────────────────────────────────────────
   // O(1) lookup of message index by ID for virtualizer scrollToIndex
@@ -1189,6 +1215,96 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     return active
   }, [recentlyActiveTimestamps])
 
+  type CommandAction = { id: string; label: string; group: "search" | "pins" | "threads" | "voice" | "help"; groupLabel: string; priority: number; ariaLabel: string; icon: ReactNode; onSelect: () => void }
+  const commandActions = useMemo<CommandAction[]>(() => {
+    const actions: CommandAction[] = [
+      {
+        id: "search",
+        label: "Search",
+        group: "search",
+        groupLabel: "Search",
+        priority: 1,
+        ariaLabel: "Search messages in this channel",
+        icon: <Search className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />,
+        onSelect: () => setShowSearchModal(true),
+      },
+      {
+        id: "pins",
+        label: showPinnedPanel ? "Hide Pins" : "Pins",
+        group: "pins",
+        groupLabel: "Pins",
+        priority: 2,
+        ariaLabel: showPinnedPanel ? "Hide pinned messages" : "Show pinned messages",
+        icon: <Pin className="w-4 h-4" style={{ color: showPinnedPanel ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />,
+        onSelect: () => setShowPinnedPanel((v) => !v),
+      },
+      {
+        id: "threads",
+        label: threadPanelOpen ? "Hide Threads" : "Threads",
+        group: "threads",
+        groupLabel: "Threads",
+        priority: 3,
+        ariaLabel: threadPanelOpen ? "Hide thread panel" : "Show thread panel",
+        icon: <MessageSquareText className="w-4 h-4" style={{ color: threadPanelOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />,
+        onSelect: toggleThreadPanel,
+      },
+      {
+        id: "voice",
+        label: memberListOpen ? "Members" : "Voice & Members",
+        group: "voice",
+        groupLabel: "Voice",
+        priority: 5,
+        ariaLabel: memberListOpen ? "Hide members and voice status" : "Show members and voice status",
+        icon: memberListOpen
+          ? <Users className="w-4 h-4" style={{ color: 'var(--theme-text-primary)' }} />
+          : <Volume2 className="w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />,
+        onSelect: toggleMemberList,
+      },
+      {
+        id: "help",
+        label: "Help",
+        group: "help",
+        groupLabel: "Help",
+        priority: 6,
+        ariaLabel: "Show keyboard shortcuts and help",
+        icon: <CircleHelp className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />,
+        onSelect: () => setShowKeyboardShortcuts(true),
+      },
+    ]
+    return actions
+  }, [memberListOpen, showPinnedPanel, threadPanelOpen, toggleMemberList, toggleThreadPanel])
+
+  const layout = useMemo(
+    () => resolveCommandBarLayout(viewportWidth, [...commandActions, { id: "inbox", group: "inbox", priority: 4 }]),
+    [commandActions, viewportWidth]
+  )
+
+  useEffect(() => {
+    if (layout.overflowActionIds.length > 0) {
+      trackCommandEvent("discoverability", {
+        overflowCount: layout.overflowActionIds.length,
+        viewportWidth,
+      })
+    }
+  }, [layout.overflowActionIds.length, trackCommandEvent, viewportWidth])
+
+  const visibleActions = commandActions.filter((action) => layout.visibleActionIds.includes(action.id))
+  const overflowActions = commandActions.filter((action) => layout.overflowActionIds.includes(action.id))
+
+  const handleCommandBarKeydown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!visibleActions.length) return
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return
+    event.preventDefault()
+    const maxIndex = visibleActions.length - 1
+    const nextIndex =
+      event.key === "Home" ? 0
+      : event.key === "End" ? maxIndex
+      : event.key === "ArrowRight" ? (focusedActionIndex + 1) % (maxIndex + 1)
+      : (focusedActionIndex - 1 + maxIndex + 1) % (maxIndex + 1)
+    setFocusedActionIndex(nextIndex)
+    commandActionRefs.current[nextIndex]?.focus()
+  }
+
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
@@ -1215,7 +1331,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </>
           )}
 
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowSummary((v) => !v)}
@@ -1226,8 +1342,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             >
               <Sparkles className="w-4 h-4" style={{ color: showSummary ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
             </button>
-
-            <NotificationBell userId={currentUserId} />
 
             <button
               type="button"
@@ -1240,58 +1354,85 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               <Briefcase className="w-4 h-4" style={{ color: workspaceOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
             </button>
 
-            <button
-              type="button"
-              onClick={() => setShowSearchModal(true)}
-              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
-              title="Search messages"
-              aria-label="Search messages"
+            <div
+              role="toolbar"
+              aria-label="Channel command bar"
+              className="flex items-center gap-1 rounded-md px-1 py-0.5"
+              style={{ border: "1px solid color-mix(in srgb, var(--theme-accent) 14%, transparent)" }}
+              onKeyDown={handleCommandBarKeydown}
             >
-              <Search className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
-            </button>
+              {visibleActions.map((action, index) => (
+                <button
+                  key={action.id}
+                  ref={(node) => { commandActionRefs.current[index] = node }}
+                  type="button"
+                  onClick={() => {
+                    action.onSelect()
+                    trackCommandEvent("action", { actionId: action.id, group: action.group, source: "toolbar" })
+                  }}
+                  className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
+                  title={`${action.groupLabel}: ${action.label}`}
+                  aria-label={action.ariaLabel}
+                  tabIndex={index === focusedActionIndex ? 0 : -1}
+                >
+                  {action.icon}
+                </button>
+              ))}
 
-            <button
-              type="button"
-              onClick={() => setShowPinnedPanel((v) => !v)}
-              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
-              title={showPinnedPanel ? "Hide Pinned Messages" : "Pinned Messages"}
-              aria-label={showPinnedPanel ? "Hide Pinned Messages" : "Show Pinned Messages"}
-              aria-pressed={showPinnedPanel}
-            >
-              <Pin className="w-4 h-4" style={{ color: showPinnedPanel ? "var(--theme-accent)" : "var(--theme-text-secondary)" }} />
-            </button>
+              {layout.visibleActionIds.includes("inbox") && <NotificationBell userId={currentUserId} />}
 
-            <button
-              type="button"
-              onClick={() => setShowKeyboardShortcuts(true)}
-              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
-              title="Keyboard shortcuts"
-              aria-label="Show keyboard shortcuts"
-            >
-              <CircleHelp className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleMemberList}
-              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
-              title={memberListOpen ? "Hide Member List" : "Show Member List"}
-              aria-label={memberListOpen ? "Hide Member List" : "Show Member List"}
-              aria-pressed={memberListOpen}
-            >
-              <Users className="w-4 h-4" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleThreadPanel}
-              className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
-              title={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
-              aria-label={threadPanelOpen ? "Hide Thread Panel" : "Show Thread Panel"}
-              aria-pressed={threadPanelOpen}
-            >
-              <MessageSquareText className="w-4 h-4" style={{ color: threadPanelOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
-            </button>
+              {overflowActions.length > 0 && (
+                <div className="relative" ref={overflowRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOverflowOpen((v) => !v)
+                      trackCommandEvent("discoverability", { actionId: "overflow", source: "toolbar" })
+                    }}
+                    className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
+                    title="More channel actions"
+                    aria-label="Show overflow channel actions"
+                    aria-expanded={overflowOpen}
+                    aria-haspopup="menu"
+                  >
+                    <MoreHorizontal className="w-4 h-4" style={{ color: "var(--theme-text-secondary)" }} />
+                  </button>
+                  {overflowOpen && (
+                    <div
+                      role="menu"
+                      aria-label="Overflow channel actions"
+                      className="absolute right-0 top-8 z-20 min-w-48 rounded-md border p-1 shadow-xl"
+                      style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-border-primary)" }}
+                    >
+                      {layout.overflowActionIds.includes("inbox") && (
+                        <div className="px-2 py-1">
+                          <NotificationBell userId={currentUserId} />
+                        </div>
+                      )}
+                      {overflowActions.map((action) => (
+                        <button
+                          key={action.id}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            action.onSelect()
+                            setOverflowOpen(false)
+                            trackCommandEvent("action", { actionId: action.id, group: action.group, source: "overflow" })
+                          }}
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm surface-hover"
+                          style={{ color: "var(--theme-text-primary)" }}
+                          aria-label={action.ariaLabel}
+                        >
+                          {action.icon}
+                          <span>{action.label}</span>
+                          <span className="ml-auto text-[10px] uppercase" style={{ color: "var(--theme-text-muted)" }}>{action.groupLabel}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
