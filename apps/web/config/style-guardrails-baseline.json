@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-06T17:20:21.096Z",
+  "generatedAt": "2026-03-06T17:43:42.623Z",
   "rules": [
     {
       "id": "inline-style-color",
@@ -6406,40 +6406,22 @@
       "line": 505
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:101",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 101
-    },
-    {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:103",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 103
-    },
-    {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:105",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 105
-    },
-    {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:106",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 106
-    },
-    {
       "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:109",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
       "line": 109
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:110",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:111",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 110
+      "line": 111
+    },
+    {
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:113",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/settings/appearance-settings-page.tsx",
+      "line": 113
     },
     {
       "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:114",
@@ -6448,16 +6430,28 @@
       "line": 114
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:124",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:117",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 124
+      "line": 117
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:131",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:118",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 131
+      "line": 118
+    },
+    {
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:122",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/settings/appearance-settings-page.tsx",
+      "line": 122
+    },
+    {
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:132",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/settings/appearance-settings-page.tsx",
+      "line": 132
     },
     {
       "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:139",
@@ -6472,70 +6466,76 @@
       "line": 147
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:148",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:155",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 148
+      "line": 155
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:165",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:156",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 165
+      "line": 156
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:176",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:173",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 176
+      "line": 173
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:189",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:184",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 189
+      "line": 184
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:196",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:197",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 196
+      "line": 197
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:207",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:204",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 207
+      "line": 204
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:222",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:215",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 222
+      "line": 215
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:70",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:230",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 70
+      "line": 230
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:73",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:78",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 73
+      "line": 78
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:80",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:81",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 80
+      "line": 81
     },
     {
-      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:91",
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:88",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/settings/appearance-settings-page.tsx",
-      "line": 91
+      "line": 88
+    },
+    {
+      "key": "inline-style-color:apps/web/components/settings/appearance-settings-page.tsx:99",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/settings/appearance-settings-page.tsx",
+      "line": 99
     },
     {
       "key": "inline-style-color:apps/web/components/settings/apps-tab.tsx:156",
