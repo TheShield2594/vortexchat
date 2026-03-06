@@ -120,8 +120,8 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
       <Highlight code={code} language={language} theme={themes.nightOwl}>
         {({ style, tokens, getLineProps, getTokenProps }) => (
           <pre
-            className="overflow-x-auto text-sm p-3"
-            style={{ ...style, margin: 0, fontFamily: "monospace" }}
+            className="overflow-x-auto text-sm p-3 font-mono"
+            style={{ ...style, margin: 0 }}
           >
             {tokens.map((line, i) => (
               <div key={i} {...getLineProps({ line })}>
@@ -499,7 +499,7 @@ export const MessageItem = memo(function MessageItem({
       } else if (match[5] !== undefined) {
         parts.push(<s key={key++}>{match[5]}</s>)
       } else if (match[6] !== undefined) {
-        parts.push(<code key={key++} className="px-1 py-0.5 rounded text-sm" style={{ background: "rgba(0,0,0,0.3)", fontFamily: "monospace" }}>{match[6]}</code>)
+        parts.push(<code key={key++} className="px-1 py-0.5 rounded text-sm font-mono" style={{ background: "rgba(0,0,0,0.3)" }}>{match[6]}</code>)
       } else if (match[7] !== undefined) {
         const isSelfMention = match[7] === currentUserId
         parts.push(

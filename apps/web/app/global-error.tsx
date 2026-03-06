@@ -19,7 +19,7 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body style={{ margin: 0, background: "var(--theme-bg-primary)", color: "var(--theme-text-primary)", fontFamily: "system-ui, sans-serif" }}>
+      <body style={{ margin: 0, background: "var(--theme-bg-primary)", color: "var(--theme-text-primary)", fontFamily: "var(--font-body, system-ui, sans-serif)" }}>
         <div
           role="alert"
           style={{

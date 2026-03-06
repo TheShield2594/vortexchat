@@ -166,7 +166,7 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs px-2 py-1 rounded truncate" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)", fontFamily: "monospace" }}>
+                  <code className="flex-1 text-xs px-2 py-1 rounded truncate font-mono" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>
                     {wh.url}
                   </code>
                   <button
