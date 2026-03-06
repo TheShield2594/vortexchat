@@ -328,8 +328,7 @@ export function useVoiceIntelligence(userId: string | null): UseVoiceIntelligenc
 
       // If transcription is enabled and user has already consented (no explicit
       // consent required by policy), start the pipeline immediately.
-      const noConsentRequired = fetchedPolicy && !fetchedPolicy.requireExplicitConsent
-      if (noConsentRequired && fetchedPolicy.transcriptionEnabled && localStream) {
+      if (fetchedPolicy && !fetchedPolicy.requireExplicitConsent && fetchedPolicy.transcriptionEnabled && localStream) {
         await fetch(`/api/voice/sessions/${newSession.id}/consent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
