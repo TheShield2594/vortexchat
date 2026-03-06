@@ -4,6 +4,9 @@ import { requireServerOwner } from "@/lib/server-auth"
 import { resolveEffectivePolicy } from "@/lib/voice/voice-intelligence-service"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import type { PolicyUpdateRequest } from "@/types/voice-intelligence"
+import type { Database } from "@/types/database"
+
+type PolicyInsert = Database["public"]["Tables"]["voice_intelligence_policies"]["Insert"]
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -51,7 +54,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const serviceClient = await createServiceRoleClient()
 
-  const updatePayload: Record<string, unknown> = { scope_type: "server", scope_id: serverId }
+  const updatePayload: PolicyInsert = { scope_type: "server", scope_id: serverId }
   if (body.transcriptionEnabled !== undefined)
     updatePayload.transcription_enabled = body.transcriptionEnabled
   if (body.requireExplicitConsent !== undefined)
