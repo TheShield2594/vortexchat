@@ -2,12 +2,25 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { MessageSquare, UserPlus } from "lucide-react"
+import { MessageSquare, UserMinus, UserPlus } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 import { getStatusColor, getStatusLabel } from "@/lib/presence-status"
+
+type FriendshipStatus = "none" | "friends" | "pending_sent" | "pending_received" | "blocked" | "self"
 
 interface UserProfileData {
   username: string
@@ -49,6 +62,25 @@ export function UserProfilePopover({
   const router = useRouter()
   const { toast } = useToast()
   const [actionLoading, setActionLoading] = useState<"message" | "friend" | null>(null)
+  const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>("none")
+  const [friendshipId, setFriendshipId] = useState<string | null>(null)
+  const [statusLoaded, setStatusLoaded] = useState(false)
+
+  async function fetchFriendshipStatus() {
+    if (!showActions || statusLoaded) return
+    try {
+      const res = await fetch(`/api/friends/status?userId=${userId}`)
+      if (res.ok) {
+        const json = await res.json() as { status: FriendshipStatus; friendshipId?: string }
+        setFriendshipStatus(json.status)
+        setFriendshipId(json.friendshipId ?? null)
+      }
+    } catch {
+      // silently ignore; default to "none"
+    } finally {
+      setStatusLoaded(true)
+    }
+  }
 
   async function handleMessage() {
     if (!userId || actionLoading) return
@@ -84,6 +116,7 @@ export function UserProfilePopover({
       const json = await res.json()
       if (res.ok) {
         toast({ title: json.message })
+        setFriendshipStatus("pending_sent")
       } else {
         toast({ variant: res.status === 409 ? "default" : "destructive", title: json.error || json.message })
       }
@@ -92,8 +125,26 @@ export function UserProfilePopover({
     }
   }
 
+  async function handleRemoveFriend() {
+    if (!friendshipId || actionLoading) return
+    setActionLoading("friend")
+    try {
+      const res = await fetch(`/api/friends?id=${friendshipId}`, { method: "DELETE" })
+      const json = await res.json()
+      if (res.ok) {
+        toast({ title: "Friend removed" })
+        setFriendshipStatus("none")
+        setFriendshipId(null)
+      } else {
+        toast({ variant: "destructive", title: json.error || "Failed to remove friend" })
+      }
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => { if (open) fetchFriendshipStatus() }}>
       <PopoverTrigger asChild>
         {children}
       </PopoverTrigger>
@@ -213,16 +264,49 @@ export function UserProfilePopover({
                   <MessageSquare className="w-3.5 h-3.5" />
                   Message
                 </button>
-                <button
-                  type="button"
-                  onClick={handleAddFriend}
-                  disabled={actionLoading === "friend"}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
-                  style={{ background: "var(--theme-success)", color: "white" }}
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  Add Friend
-                </button>
+                {friendshipStatus === "friends" ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        type="button"
+                        disabled={actionLoading === "friend"}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
+                        style={{ background: "var(--theme-danger, #ed4245)", color: "white" }}
+                      >
+                        <UserMinus className="w-3.5 h-3.5" />
+                        Remove Friend
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove Friend</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to remove {user?.display_name || user?.username || displayName} from your friends?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleRemoveFriend}
+                          style={{ background: "var(--theme-danger, #ed4245)", color: "white" }}
+                        >
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleAddFriend}
+                    disabled={actionLoading === "friend" || friendshipStatus === "pending_sent"}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
+                    style={{ background: "var(--theme-success)", color: "white" }}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    {friendshipStatus === "pending_sent" ? "Request Sent" : "Add Friend"}
+                  </button>
+                )}
               </div>
             </>
           )}
