@@ -59,6 +59,14 @@ const THEME_PRESET_OPTIONS: {
     bg: "#171717",
     surface: "#1f1f1f",
   },
+  {
+    value: "oled-black",
+    label: "OLED Black",
+    description: "True black for OLED displays with Tiffany blue",
+    accent: "#0abab5",
+    bg: "#000000",
+    surface: "#080808",
+  },
 ]
 
 export function AppearanceSettingsPage() {

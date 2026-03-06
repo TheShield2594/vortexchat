@@ -892,6 +892,64 @@
   --theme-presence-offline: #7d858f;
 }
 
+[data-theme-preset="oled-black"] {
+  /* Core surface palette */
+  --background: 0 0% 0%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 5%;
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 3%;
+  --popover-foreground: 0 0% 96%;
+  /* Brand / interactive — Tiffany Blue */
+  --primary: 177 87% 39%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 72%;
+  --accent: 177 87% 39%;
+  --accent-foreground: 0 0% 100%;
+  /* Neutral */
+  --muted: 0 0% 14%;
+  --muted-foreground: 0 0% 60%;
+  --border: 0 0% 12%;
+  --input: 0 0% 8%;
+  --ring: 177 87% 39%;
+  /* Destructive */
+  --destructive: 359 87% 57%;
+  --destructive-foreground: 0 0% 100%;
+  /* App-specific surfaces — true black for OLED power savings */
+  --app-bg-primary: #000000;
+  --app-bg-secondary: #080808;
+  --app-bg-tertiary: #030303;
+  --app-accent-color: #0abab5;
+  --theme-bg-primary: #000000;
+  --theme-bg-secondary: #080808;
+  --theme-bg-tertiary: #030303;
+  --theme-surface-elevated: #111111;
+  --theme-surface-input: #161616;
+  --theme-surface-elevation-1: #0c0c0c;
+  --theme-surface-elevation-2: #111111;
+  --theme-surface-elevation-3: #161616;
+  --theme-surface-elevation-4: #1c1c1c;
+  --theme-surface-elevation-5: #222222;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 35%, transparent);
+  --theme-text-primary: #f0f4f4;
+  --theme-text-normal: #dce8e8;
+  --theme-text-secondary: #a8bfbf;
+  --theme-text-muted: #7a9898;
+  --theme-text-faint: #6b8888;
+  --theme-text-bright: #ffffff;
+  --theme-accent: #0abab5;
+  --theme-accent-secondary: #00d4cf;
+  --theme-link: #4dd4d0;
+  --theme-success: #30c97a;
+  --theme-positive: #5ddb95;
+  --theme-warning: #e5a020;
+  --theme-danger: #e8404a;
+  --theme-presence-offline: #5a7070;
+}
+
 /* Font scale */
 [data-font-scale="small"] { font-size: 14px; }
 [data-font-scale="normal"] { font-size: 16px; }
