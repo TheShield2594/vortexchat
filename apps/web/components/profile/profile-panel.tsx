@@ -1,16 +1,29 @@
 "use client"
 
-import { useMemo, useState, type CSSProperties } from "react"
+import { useEffect, useMemo, useState, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
-import { Calendar, MessageSquare, Shield, UserPlus, X } from "lucide-react"
+import { Calendar, MessageSquare, Shield, UserMinus, UserPlus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 import { sanitizeBannerColor } from "@/lib/banner-color"
 import { getStatusLabel } from "@/lib/presence-status"
 import type { RoleRow } from "@/types/database"
 import { PERMISSIONS } from "@vortex/shared"
+
+type FriendshipStatus = "none" | "friends" | "pending_sent" | "pending_received" | "blocked" | "self"
 
 interface ProfileUser {
   id: string
@@ -51,8 +64,24 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
   const router = useRouter()
   const { toast } = useToast()
   const [actionLoading, setActionLoading] = useState<"message" | "friend" | null>(null)
+  const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>("none")
+  const [friendshipId, setFriendshipId] = useState<string | null>(null)
   const initials = displayName.slice(0, 2).toUpperCase()
   const isOtherUser = Boolean(user?.id && currentUserId && user.id !== currentUserId)
+
+  useEffect(() => {
+    if (!isOtherUser || !user?.id) return
+    let cancelled = false
+    fetch(`/api/friends/status?userId=${user.id}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((json: { status: FriendshipStatus; friendshipId?: string } | null) => {
+        if (!json || cancelled) return
+        setFriendshipStatus(json.status)
+        setFriendshipId(json.friendshipId ?? null)
+      })
+      .catch(() => { /* silently ignore */ })
+    return () => { cancelled = true }
+  }, [user?.id, isOtherUser])
   const joined = useMemo(() => getJoinedDate(user?.created_at), [user?.created_at])
   const statusExpired = Boolean(user?.status_expires_at && new Date(user.status_expires_at).getTime() <= Date.now())
   const customStatus = !statusExpired ? [user?.status_emoji, user?.status_message].filter(Boolean).join(" ").trim() : ""
@@ -80,11 +109,36 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
     setActionLoading("friend")
     try {
       await sendFriendRequest(user.username, toast)
+      setFriendshipStatus("pending_sent")
     } catch (error) {
       console.error("Failed to send friend request:", error)
       toast({
         variant: "destructive",
         title: error instanceof Error ? error.message : "Network error while adding friend",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleRemoveFriend() {
+    if (!friendshipId || actionLoading) return
+    setActionLoading("friend")
+    try {
+      const res = await fetch(`/api/friends?id=${friendshipId}`, { method: "DELETE" })
+      const json = await res.json()
+      if (res.ok) {
+        toast({ title: "Friend removed" })
+        setFriendshipStatus("none")
+        setFriendshipId(null)
+      } else {
+        toast({ variant: "destructive", title: json.error || "Failed to remove friend" })
+      }
+    } catch (error) {
+      console.error("Failed to remove friend:", error)
+      toast({
+        variant: "destructive",
+        title: error instanceof Error ? error.message : "Network error while removing friend",
       })
     } finally {
       setActionLoading(null)
@@ -140,15 +194,48 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                 <MessageSquare className="w-3.5 h-3.5" />
                 Message
               </button>
-              <button
-                type="button"
-                onClick={handleAddFriend}
-                disabled={actionLoading === "friend"}
-                className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-muted disabled:opacity-50"
-                aria-label="Add friend"
-              >
-                <UserPlus className="w-4 h-4" />
-              </button>
+              {friendshipStatus === "friends" ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={actionLoading === "friend"}
+                      className="px-3 py-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+                      aria-label="Remove friend"
+                    >
+                      <UserMinus className="w-4 h-4" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remove Friend</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to remove {user?.display_name || user?.username || displayName} from your friends?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleRemoveFriend}
+                        className="bg-destructive text-destructive-foreground hover:opacity-90"
+                      >
+                        Remove
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAddFriend}
+                  disabled={actionLoading === "friend" || friendshipStatus === "pending_sent"}
+                  className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-muted disabled:opacity-50"
+                  aria-label={friendshipStatus === "pending_sent" ? "Friend request sent" : "Add friend"}
+                  title={friendshipStatus === "pending_sent" ? "Friend request sent" : "Add friend"}
+                >
+                  <UserPlus className="w-4 h-4" />
+                </button>
+              )}
             </div>
           )}
 
