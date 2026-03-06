@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-06T01:10:23.002Z",
+  "generatedAt": "2026-03-06T16:35:14.853Z",
   "rules": [
     {
       "id": "inline-style-color",
@@ -5002,184 +5002,166 @@
       "line": 351
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1006",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1020",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1006
+      "line": 1020
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1085",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1027",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1085
+      "line": 1027
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1091",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1030",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1091
+      "line": 1030
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1094",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1037",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1094
+      "line": 1037
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1100",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1044",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1100
+      "line": 1044
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1104",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1054",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1104
+      "line": 1054
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1109",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1061",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1109
+      "line": 1061
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1114",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1071",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1114
+      "line": 1071
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1119",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1078",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1119
+      "line": 1078
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1126",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1086",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1126
+      "line": 1086
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1141",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1089",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1141
+      "line": 1089
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1146",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1099",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1146
+      "line": 1099
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1411",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1178",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1411
+      "line": 1178
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1418",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1184",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1418
+      "line": 1184
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1421",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1187",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1421
+      "line": 1187
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1425",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1193",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1425
+      "line": 1193
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1432",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1197",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1432
+      "line": 1197
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1439",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1202",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1439
+      "line": 1202
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1448",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1207",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1448
+      "line": 1207
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1454",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1212",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1454
+      "line": 1212
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1459",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1219",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1459
+      "line": 1219
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1464",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1234",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1464
+      "line": 1234
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1471",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1239",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1471
+      "line": 1239
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1482",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1504",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1482
+      "line": 1504
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1486",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1511",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1486
+      "line": 1511
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1492",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1514",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1492
+      "line": 1514
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1497",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1518",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1497
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1502",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1502
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1515",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1515
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1521",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1521
+      "line": 1518
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1525",
@@ -5194,106 +5176,76 @@
       "line": 1532
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1536",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1541",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1536
+      "line": 1541
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1542",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1547",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1542
+      "line": 1547
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1550",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1552",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1550
+      "line": 1552
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1556",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1557",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1556
+      "line": 1557
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1563",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1564",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1563
+      "line": 1564
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1570",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1575",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1570
+      "line": 1575
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1577",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1579",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1577
+      "line": 1579
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1584",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1585",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1584
+      "line": 1585
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:159",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1590",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 159
+      "line": 1590
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1592",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1595",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1592
+      "line": 1595
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1593",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1608",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1593
+      "line": 1608
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1596",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1614",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1596
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1597",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1597
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1604",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1604
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1605",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1605
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1611",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1611
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1612",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1612
+      "line": 1614
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1618",
@@ -5302,10 +5254,22 @@
       "line": 1618
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:163",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1625",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 163
+      "line": 1625
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1629",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1629
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1635",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1635
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:164",
@@ -5314,34 +5278,40 @@
       "line": 164
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1646",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1643",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1646
+      "line": 1643
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1648",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1649",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1648
+      "line": 1649
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1667",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1656",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1667
+      "line": 1656
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1678",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1663",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1678
+      "line": 1663
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1679",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1670",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1679
+      "line": 1670
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1677",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1677
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:168",
@@ -5356,22 +5326,40 @@
       "line": 1685
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1687",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1686",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1687
+      "line": 1686
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1694",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1689",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1694
+      "line": 1689
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1700",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:169",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1700
+      "line": 169
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1690",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1690
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1697",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1697
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1698",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1698
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1704",
@@ -5380,70 +5368,124 @@
       "line": 1704
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:171",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1705",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 171
+      "line": 1705
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1712",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1711",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1712
+      "line": 1711
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1715",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:173",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1715
+      "line": 173
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:175",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1739",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 175
+      "line": 1739
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:178",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1741",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 178
+      "line": 1741
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1862",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:176",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1862
+      "line": 176
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1869",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1760",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1869
+      "line": 1760
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1879",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1771",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1879
+      "line": 1771
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1882",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1772",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1882
+      "line": 1772
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1894",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1778",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1894
+      "line": 1778
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1908",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1780",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1908
+      "line": 1780
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1787",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1787
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:179",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 179
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1793",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1793
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1797",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1797
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1805",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1805
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1808",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 1808
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:182",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 182
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:185",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 185
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:188",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 188
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:191",
@@ -5452,40 +5494,40 @@
       "line": 191
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1914",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:194",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1914
+      "line": 194
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1936",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1955",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1936
+      "line": 1955
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1950",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1962",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1950
+      "line": 1962
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1956",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:197",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1956
+      "line": 197
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1965",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1972",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1965
+      "line": 1972
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1978",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1975",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1978
+      "line": 1975
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1987",
@@ -5494,16 +5536,10 @@
       "line": 1987
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1989",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2001",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1989
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:1999",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 1999
+      "line": 2001
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2007",
@@ -5512,16 +5548,76 @@
       "line": 2007
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:202",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:201",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 202
+      "line": 201
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:212",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2029",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 212
+      "line": 2029
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2043",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 2043
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2049",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 2049
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:205",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 205
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2058",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 2058
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2071",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 2071
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2080",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 2080
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2082",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 2082
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:209",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 209
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2092",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 2092
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:2100",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 2100
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:213",
@@ -5530,88 +5626,94 @@
       "line": 213
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:222",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:216",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 222
+      "line": 216
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:240",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:219",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 240
+      "line": 219
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:248",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:223",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 248
+      "line": 223
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:253",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:236",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 253
+      "line": 236
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:263",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:247",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 263
+      "line": 247
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:269",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:257",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 269
+      "line": 257
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:276",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:258",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 276
+      "line": 258
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:278",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:267",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 278
+      "line": 267
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:296",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:285",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 296
+      "line": 285
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:304",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:293",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 304
+      "line": 293
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:310",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:298",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 310
+      "line": 298
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:322",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:308",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 322
+      "line": 308
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:328",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:314",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 328
+      "line": 314
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:338",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:321",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 338
+      "line": 321
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:323",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 323
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:341",
@@ -5620,10 +5722,34 @@
       "line": 341
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:428",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:349",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 428
+      "line": 349
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:355",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 355
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:367",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 367
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:373",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 373
+    },
+    {
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:415",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/modals/server-settings-modal.tsx",
+      "line": 415
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:431",
@@ -5632,232 +5758,226 @@
       "line": 431
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:437",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:434",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 437
+      "line": 434
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:438",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:521",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 438
+      "line": 521
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:445",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:524",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 445
+      "line": 524
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:451",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:530",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 451
+      "line": 530
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:459",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:531",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 459
+      "line": 531
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:469",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:538",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 469
+      "line": 538
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:472",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:544",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 472
+      "line": 544
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:478",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:552",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 478
+      "line": 552
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:484",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:562",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 484
+      "line": 562
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:598",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:565",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 598
+      "line": 565
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:601",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:571",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 601
+      "line": 571
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:607",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:577",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 607
+      "line": 577
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:608",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:691",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 608
+      "line": 691
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:615",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:694",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 615
+      "line": 694
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:621",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:700",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 621
+      "line": 700
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:631",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:701",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 631
+      "line": 701
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:641",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:708",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 641
+      "line": 708
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:644",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:714",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 644
+      "line": 714
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:650",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:724",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 650
+      "line": 724
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:654",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:734",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 654
+      "line": 734
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:660",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:737",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 660
+      "line": 737
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:667",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:743",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 667
+      "line": 743
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:673",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:747",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 673
+      "line": 747
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:774",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:753",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 774
+      "line": 753
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:777",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:760",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 777
+      "line": 760
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:782",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:766",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 782
+      "line": 766
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:783",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:867",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 783
+      "line": 867
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:790",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:870",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 790
+      "line": 870
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:797",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:875",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 797
+      "line": 875
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:803",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:876",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 803
+      "line": 876
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:815",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:883",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 815
+      "line": 883
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:822",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:890",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 822
+      "line": 890
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:824",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:896",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 824
+      "line": 896
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:830",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:908",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 830
+      "line": 908
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:834",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:915",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 834
+      "line": 915
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:835",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:917",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 835
+      "line": 917
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:840",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:923",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 840
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:853",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 853
+      "line": 923
     },
     {
       "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:927",
@@ -5866,64 +5986,22 @@
       "line": 927
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:934",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:928",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 934
+      "line": 928
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:937",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:933",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 937
+      "line": 933
     },
     {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:944",
+      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:946",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 944
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:951",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 951
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:961",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 961
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:968",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 968
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:978",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 978
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:985",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 985
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:993",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 993
-    },
-    {
-      "key": "inline-style-color:apps/web/components/modals/server-settings-modal.tsx:996",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/modals/server-settings-modal.tsx",
-      "line": 996
+      "line": 946
     },
     {
       "key": "inline-style-color:apps/web/components/modals/template-manager.tsx:101",
