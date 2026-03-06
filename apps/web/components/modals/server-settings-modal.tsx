@@ -169,7 +169,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
             <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
               {liveServer.name}
             </h3>
-            <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full flex-1 overflow-y-auto px-4 pb-4">
+            <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full flex-1 overflow-y-auto px-4 pb-4 justify-start items-start">
               <TabsTrigger value="overview" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Overview
               </TabsTrigger>
