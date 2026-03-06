@@ -1718,7 +1718,7 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
           <img src={qrCode} alt="2FA QR Code" className="w-40 h-40 rounded bg-white p-2 mx-auto" />
           {secret && (
             <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs px-2 py-1.5 rounded break-all" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)", fontFamily: "monospace" }}>{secret}</code>
+              <code className="flex-1 text-xs px-2 py-1.5 rounded break-all font-mono" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>{secret}</code>
               <button onClick={copySecret} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }} title="Copy secret">
                 {copied ? <Check className="w-4 h-4" style={{ color: "var(--theme-success)" }} /> : <Copy className="w-4 h-4" />}
               </button>
@@ -1734,8 +1734,8 @@ function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof imp
                 value={verifyCode}
                 onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
                 placeholder="000000"
-                className="w-32 px-3 py-2 rounded text-center text-lg tracking-widest focus:outline-none"
-                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)", fontFamily: "monospace" }}
+                className="w-32 px-3 py-2 rounded text-center text-lg tracking-widest focus:outline-none font-mono"
+                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)" }}
               />
               <button onClick={handleVerify} disabled={verifyCode.length !== 6 || verifying} className="px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50" style={{ background: "var(--theme-accent)", color: "white" }}>
                 {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify"}

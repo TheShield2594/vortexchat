@@ -609,7 +609,7 @@
   background: var(--theme-bg-tertiary);
   border-radius: 3px;
   padding: 0 4px;
-  font-family: 'Courier New', monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.875em;
 }
 
