@@ -606,14 +606,23 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     if (!sourceContainer || !targetContainer) return
 
     if (sourceContainer === targetContainer && draggedId !== resolvedOverId) {
-      // Compute the reordered array first, then update state and persist — no side
-      // effects inside the functional updater
       const containerItems = [...(latestItems[sourceContainer] ?? [])]
       const oldIndex = containerItems.indexOf(draggedId)
+      if (oldIndex === -1) return
       const newIndex = containerItems.indexOf(resolvedOverId)
-      if (oldIndex === -1 || newIndex === -1) return
-      const reordered = arrayMove(containerItems, oldIndex, newIndex)
-      setItems((prev) => ({ ...prev, [sourceContainer]: reordered }))
+      if (newIndex !== -1) {
+        // Reorder within the container; keep itemsRef in sync so persistChannelOrder
+        // reads the updated sequence — same pattern as handleDragOver
+        const reordered = arrayMove(containerItems, oldIndex, newIndex)
+        setItems((prev) => {
+          const next = { ...prev, [sourceContainer]: reordered }
+          itemsRef.current = next
+          return next
+        })
+      }
+      // Persist regardless: either we reordered within the container, or this was a
+      // cross-container move that landed on a category header (handleDragOver already
+      // placed the channel in the correct container / itemsRef position).
       persistChannelOrder()
     } else if (sourceContainer !== targetContainer) {
       // Cross-container move was already applied in handleDragOver; persist both
