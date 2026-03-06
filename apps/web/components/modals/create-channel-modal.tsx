@@ -211,7 +211,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
                 onChange={(e) => setName(e.target.value)}
                 placeholder={
                   type === "category" ? "New Category" :
-                  type === "voice" ? "General" :
+                  type === "voice" ? "general" :
                   type === "stage" ? "town-hall" :
                   type === "forum" ? "help-forum" :
                   type === "announcement" ? "announcements" :
