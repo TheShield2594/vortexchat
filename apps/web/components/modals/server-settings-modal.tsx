@@ -1403,7 +1403,8 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
           updated_at: new Date().toISOString(),
         },
         sampleMessage,
-        []
+        [],
+        { accountAgeMinutes: Infinity, recentMessageCount: 0 }
       )
     : null
 
