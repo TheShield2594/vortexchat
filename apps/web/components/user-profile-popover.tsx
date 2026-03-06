@@ -144,7 +144,7 @@ export function UserProfilePopover({
   }
 
   return (
-    <Popover onOpenChange={(open) => { if (open) fetchFriendshipStatus() }}>
+    <Popover onOpenChange={(open: boolean) => { if (open) fetchFriendshipStatus() }}>
       <PopoverTrigger asChild>
         {children}
       </PopoverTrigger>
