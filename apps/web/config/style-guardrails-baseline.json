@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-06T17:43:42.623Z",
+  "generatedAt": "2026-03-06T21:00:58.302Z",
   "rules": [
     {
       "id": "inline-style-color",
@@ -7588,64 +7588,16 @@
       "line": 18
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:106",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:157",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 106
+      "line": 157
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:111",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:162",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 111
-    },
-    {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:117",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 117
-    },
-    {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:127",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 127
-    },
-    {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:136",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 136
-    },
-    {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:140",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 140
-    },
-    {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:146",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 146
-    },
-    {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:152",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 152
-    },
-    {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:154",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 154
-    },
-    {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:160",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 160
+      "line": 162
     },
     {
       "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:168",
@@ -7654,34 +7606,40 @@
       "line": 168
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:171",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:178",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 171
+      "line": 178
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:180",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:187",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 180
+      "line": 187
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:188",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:191",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 188
+      "line": 191
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:192",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:197",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 192
+      "line": 197
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:204",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:203",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 204
+      "line": 203
+    },
+    {
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:205",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/user-profile-popover.tsx",
+      "line": 205
     },
     {
       "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:211",
@@ -7690,10 +7648,52 @@
       "line": 211
     },
     {
-      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:221",
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:219",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 221
+      "line": 219
+    },
+    {
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:222",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/user-profile-popover.tsx",
+      "line": 222
+    },
+    {
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:231",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/user-profile-popover.tsx",
+      "line": 231
+    },
+    {
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:239",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/user-profile-popover.tsx",
+      "line": 239
+    },
+    {
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:243",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/user-profile-popover.tsx",
+      "line": 243
+    },
+    {
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:255",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/user-profile-popover.tsx",
+      "line": 255
+    },
+    {
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:262",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/user-profile-popover.tsx",
+      "line": 262
+    },
+    {
+      "key": "inline-style-color:apps/web/components/user-profile-popover.tsx:303",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/user-profile-popover.tsx",
+      "line": 303
     },
     {
       "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1009",
@@ -8392,10 +8392,10 @@
       "line": 264
     },
     {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/profile/profile-panel.tsx:100",
+      "key": "tailwind-arbitrary-surface-token:apps/web/components/profile/profile-panel.tsx:154",
       "ruleId": "tailwind-arbitrary-surface-token",
       "file": "apps/web/components/profile/profile-panel.tsx",
-      "line": 100
+      "line": 154
     },
     {
       "key": "tailwind-arbitrary-surface-token:apps/web/components/ui/scroll-area.tsx:16",
@@ -8404,10 +8404,10 @@
       "line": 16
     },
     {
-      "key": "tailwind-arbitrary-surface-token:apps/web/components/user-profile-popover.tsx:126",
+      "key": "tailwind-arbitrary-surface-token:apps/web/components/user-profile-popover.tsx:177",
       "ruleId": "tailwind-arbitrary-surface-token",
       "file": "apps/web/components/user-profile-popover.tsx",
-      "line": 126
+      "line": 177
     }
   ]
 }

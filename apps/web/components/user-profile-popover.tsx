@@ -270,8 +270,7 @@ export function UserProfilePopover({
                       <button
                         type="button"
                         disabled={actionLoading === "friend"}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:brightness-125 disabled:opacity-50"
-                        style={{ background: "var(--theme-danger, #ed4245)", color: "white" }}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-destructive text-destructive-foreground hover:opacity-90 disabled:opacity-50"
                       >
                         <UserMinus className="w-3.5 h-3.5" />
                         Remove Friend
@@ -288,7 +287,7 @@ export function UserProfilePopover({
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={handleRemoveFriend}
-                          style={{ background: "var(--theme-danger, #ed4245)", color: "white" }}
+                          className="bg-destructive text-destructive-foreground hover:opacity-90"
                         >
                           Remove
                         </AlertDialogAction>
