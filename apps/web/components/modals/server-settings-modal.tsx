@@ -1115,25 +1115,30 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
   const [title, setTitle] = useState("Server Rules")
   const [description, setDescription] = useState("")
   const [rulesText, setRulesText] = useState("")
-  const [requireAcceptance, setRequireAcceptance] = useState(true)
+  const [screeningEnabled, setScreeningEnabled] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    fetch(`/api/servers/${serverId}/screening`)
-      .then((r) => {
+    Promise.all([
+      fetch(`/api/servers/${serverId}/screening`).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
-      })
-      .then((d) => {
-        const cfg = d.config as ScreeningConfigRow | null
+      }),
+      fetch(`/api/servers/${serverId}/moderation`).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      }),
+    ])
+      .then(([screeningData, moderationData]) => {
+        const cfg = screeningData.config as ScreeningConfigRow | null
         setConfig(cfg)
         if (cfg) {
           setTitle(cfg.title)
           setDescription(cfg.description ?? "")
           setRulesText(cfg.rules_text)
-          setRequireAcceptance(cfg.require_acceptance)
         }
+        setScreeningEnabled(moderationData.screening_enabled ?? false)
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -1141,17 +1146,25 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
 
   async function handleSave() {
     setSaving(true)
-    const res = await fetch(`/api/servers/${serverId}/screening`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description: description || null, rules_text: rulesText, require_acceptance: requireAcceptance }),
-    })
-    if (res.ok) {
-      const updated = await res.json()
+    const [screeningRes, moderationRes] = await Promise.all([
+      fetch(`/api/servers/${serverId}/screening`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description: description || null, rules_text: rulesText }),
+      }),
+      fetch(`/api/servers/${serverId}/moderation`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ screening_enabled: screeningEnabled }),
+      }),
+    ])
+    if (screeningRes.ok && moderationRes.ok) {
+      const updated = await screeningRes.json()
       setConfig(updated)
       toast({ title: "Screening rules saved" })
     } else {
-      const d = await res.json()
+      const failed = !screeningRes.ok ? screeningRes : moderationRes
+      const d = await failed.json().catch(() => ({}))
       toast({ variant: "destructive", title: "Failed to save", description: d.error })
     }
     setSaving(false)
@@ -1222,10 +1235,10 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
 
       <div className="flex items-center gap-3">
         <button
-          onClick={() => setRequireAcceptance(!requireAcceptance)}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${requireAcceptance ? 'bg-indigo-600' : 'bg-gray-600'}`}
+          onClick={() => setScreeningEnabled(!screeningEnabled)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${screeningEnabled ? 'bg-indigo-600' : 'bg-gray-600'}`}
         >
-          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${requireAcceptance ? 'translate-x-6' : 'translate-x-1'}`} />
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${screeningEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
         </button>
         <span className="text-sm text-white">Require acceptance to participate</span>
       </div>
