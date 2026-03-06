@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-05T21:33:32.751Z",
+  "generatedAt": "2026-03-06T00:23:15.370Z",
   "rules": [
     {
       "id": "inline-style-color",
@@ -668,6 +668,78 @@
       "ruleId": "inline-style-color",
       "file": "apps/web/components/admin/admin-activity-timeline.tsx",
       "line": 354
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:103",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 103
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:146",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 146
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:155",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 155
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:177",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 177
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:183",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 183
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:196",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 196
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:202",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 202
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:207",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 207
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:237",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 237
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:251",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 251
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:80",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 80
+    },
+    {
+      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:89",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "line": 89
     },
     {
       "key": "inline-style-color:apps/web/components/channels/announcement-channel.tsx:136",
@@ -2170,88 +2242,88 @@
       "line": 97
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:170",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:218",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 170
+      "line": 218
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:178",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:240",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 178
+      "line": 240
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:185",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:247",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 185
+      "line": 247
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:188",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:250",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 188
+      "line": 250
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:202",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:264",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 202
+      "line": 264
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:212",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:291",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 212
+      "line": 291
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:222",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:301",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 222
+      "line": 301
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:232",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:311",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 232
+      "line": 311
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:255",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:334",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 255
+      "line": 334
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:260",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:339",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 260
+      "line": 339
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:266",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:345",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 266
+      "line": 345
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:274",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:353",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 274
+      "line": 353
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:283",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:362",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 283
+      "line": 362
     },
     {
-      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:292",
+      "key": "inline-style-color:apps/web/components/dm/dm-call.tsx:371",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/dm/dm-call.tsx",
-      "line": 292
+      "line": 371
     },
     {
       "key": "inline-style-color:apps/web/components/dm/dm-channel-area.tsx:1002",
@@ -7504,94 +7576,64 @@
       "line": 221
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:332",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1009",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 332
+      "line": 1009
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:333",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1015",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 333
+      "line": 1015
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:334",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1021",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 334
+      "line": 1021
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:337",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1029",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 337
+      "line": 1029
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:338",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1032",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 338
+      "line": 1032
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:342",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1041",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 342
+      "line": 1041
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:348",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1042",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 348
+      "line": 1042
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:360",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1043",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 360
+      "line": 1043
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:364",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1048",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 364
+      "line": 1048
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:365",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:1052",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 365
-    },
-    {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:370",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 370
-    },
-    {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:372",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 372
-    },
-    {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:376",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 376
-    },
-    {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:379",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 379
-    },
-    {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:386",
-      "ruleId": "inline-style-color",
-      "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 386
+      "line": 1052
     },
     {
       "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:391",
@@ -7600,40 +7642,52 @@
       "line": 391
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:395",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:392",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 395
+      "line": 392
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:406",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:393",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 406
+      "line": 393
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:415",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:396",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 415
+      "line": 396
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:421",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:397",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 421
+      "line": 397
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:425",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:401",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 425
+      "line": 401
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:426",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:407",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 426
+      "line": 407
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:419",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-channel.tsx",
+      "line": 419
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:430",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-channel.tsx",
+      "line": 430
     },
     {
       "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:431",
@@ -7642,232 +7696,442 @@
       "line": 431
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:469",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:436",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 469
+      "line": 436
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:471",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:438",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 471
+      "line": 438
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:510",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:442",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 510
+      "line": 442
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:511",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:445",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 511
+      "line": 445
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:512",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:452",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 512
+      "line": 452
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:513",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:457",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 513
+      "line": 457
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:514",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:461",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 514
+      "line": 461
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:515",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:472",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 515
+      "line": 472
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:524",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:481",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 524
+      "line": 481
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:547",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:487",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 547
+      "line": 487
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:610",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:491",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 610
+      "line": 491
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:678",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:492",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 678
+      "line": 492
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:684",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:497",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 684
+      "line": 497
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:691",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:535",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 691
+      "line": 535
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:692",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:537",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 692
+      "line": 537
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:698",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:578",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 698
+      "line": 578
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:702",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:587",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 702
+      "line": 587
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:707",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:588",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 707
+      "line": 588
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:711",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:589",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 711
+      "line": 589
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:718",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:590",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 718
+      "line": 590
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:722",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:591",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 722
+      "line": 591
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:726",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:592",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 726
+      "line": 592
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:733",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:601",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 733
+      "line": 601
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:734",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:624",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 734
+      "line": 624
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:741",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:701",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 741
+      "line": 701
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:742",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:769",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 742
+      "line": 769
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:749",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:775",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 749
+      "line": 775
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:905",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:782",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 905
+      "line": 782
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:918",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:783",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 918
+      "line": 783
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:924",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:789",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 924
+      "line": 789
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:930",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:793",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 930
+      "line": 793
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:938",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:798",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 938
+      "line": 798
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:941",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:802",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 941
+      "line": 802
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:950",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:809",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 950
+      "line": 809
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:951",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:813",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 951
+      "line": 813
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:952",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:817",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 952
+      "line": 817
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:957",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:824",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 957
+      "line": 824
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:961",
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:825",
       "ruleId": "inline-style-color",
       "file": "apps/web/components/voice/voice-channel.tsx",
-      "line": 961
+      "line": 825
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:832",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-channel.tsx",
+      "line": 832
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:833",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-channel.tsx",
+      "line": 833
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:840",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-channel.tsx",
+      "line": 840
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-channel.tsx:996",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-channel.tsx",
+      "line": 996
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:112",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 112
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:121",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 121
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:128",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 128
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:145",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 145
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:155",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 155
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:162",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 162
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:43",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 43
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:47",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 47
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:53",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 53
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-consent-modal.tsx:87",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-consent-modal.tsx",
+      "line": 87
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-intelligence-indicator.tsx:41",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-intelligence-indicator.tsx",
+      "line": 41
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-intelligence-indicator.tsx:74",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-intelligence-indicator.tsx",
+      "line": 74
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-intelligence-indicator.tsx:96",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-intelligence-indicator.tsx",
+      "line": 96
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:107",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 107
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:110",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 110
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:57",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 57
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:65",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 65
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:67",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 67
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:70",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 70
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:72",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 72
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:79",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 79
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:87",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 87
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-summary-card.tsx:93",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-summary-card.tsx",
+      "line": 93
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-transcript-viewer.tsx:25",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-transcript-viewer.tsx",
+      "line": 25
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-transcript-viewer.tsx:49",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-transcript-viewer.tsx",
+      "line": 49
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-transcript-viewer.tsx:58",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-transcript-viewer.tsx",
+      "line": 58
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-transcript-viewer.tsx:69",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-transcript-viewer.tsx",
+      "line": 69
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-transcript-viewer.tsx:75",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-transcript-viewer.tsx",
+      "line": 75
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-transcript-viewer.tsx:81",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-transcript-viewer.tsx",
+      "line": 81
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-transcript-viewer.tsx:92",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-transcript-viewer.tsx",
+      "line": 92
+    },
+    {
+      "key": "inline-style-color:apps/web/components/voice/voice-transcript-viewer.tsx:94",
+      "ruleId": "inline-style-color",
+      "file": "apps/web/components/voice/voice-transcript-viewer.tsx",
+      "line": 94
     },
     {
       "key": "inline-style-radius-shadow:apps/web/app/global-error.tsx:41",

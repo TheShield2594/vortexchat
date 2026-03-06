@@ -1770,6 +1770,276 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_call_sessions: {
+        Row: {
+          id: string
+          scope_type: 'server_channel' | 'dm_call'
+          scope_id: string
+          started_at: string
+          ended_at: string | null
+          started_by: string
+          transcription_mode: 'off' | 'manual_opt_in' | 'server_policy_required'
+          summary_status: 'pending' | 'ready' | 'failed' | 'skipped'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          scope_type: 'server_channel' | 'dm_call'
+          scope_id: string
+          started_at?: string
+          ended_at?: string | null
+          started_by: string
+          transcription_mode?: 'off' | 'manual_opt_in' | 'server_policy_required'
+          summary_status?: 'pending' | 'ready' | 'failed' | 'skipped'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          scope_type?: 'server_channel' | 'dm_call'
+          scope_id?: string
+          started_at?: string
+          ended_at?: string | null
+          started_by?: string
+          transcription_mode?: 'off' | 'manual_opt_in' | 'server_policy_required'
+          summary_status?: 'pending' | 'ready' | 'failed' | 'skipped'
+          created_at?: string
+        }
+        Relationships: []
+      }
+      voice_call_participants: {
+        Row: {
+          id: string
+          session_id: string
+          user_id: string
+          joined_at: string
+          left_at: string | null
+          consent_transcription: boolean
+          consent_translation: boolean
+          preferred_subtitle_language: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          user_id: string
+          joined_at?: string
+          left_at?: string | null
+          consent_transcription?: boolean
+          consent_translation?: boolean
+          preferred_subtitle_language?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          user_id?: string
+          joined_at?: string
+          left_at?: string | null
+          consent_transcription?: boolean
+          consent_translation?: boolean
+          preferred_subtitle_language?: string | null
+        }
+        Relationships: []
+      }
+      voice_transcript_segments: {
+        Row: {
+          id: string
+          session_id: string
+          speaker_user_id: string | null
+          source_language: string
+          text: string
+          started_at: string
+          ended_at: string
+          confidence: number | null
+          provider: string | null
+          is_redacted: boolean
+          expires_at: string | null
+          deleted_at: string | null
+          purged_at: string | null
+          legal_hold: boolean
+          legal_hold_reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          speaker_user_id?: string | null
+          source_language?: string
+          text: string
+          started_at: string
+          ended_at: string
+          confidence?: number | null
+          provider?: string | null
+          is_redacted?: boolean
+          expires_at?: string | null
+          deleted_at?: string | null
+          purged_at?: string | null
+          legal_hold?: boolean
+          legal_hold_reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          speaker_user_id?: string | null
+          source_language?: string
+          text?: string
+          started_at?: string
+          ended_at?: string
+          confidence?: number | null
+          provider?: string | null
+          is_redacted?: boolean
+          expires_at?: string | null
+          deleted_at?: string | null
+          purged_at?: string | null
+          legal_hold?: boolean
+          legal_hold_reason?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      voice_transcript_translations: {
+        Row: {
+          id: string
+          segment_id: string
+          target_user_id: string | null
+          target_language: string
+          translated_text: string
+          provider: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          segment_id: string
+          target_user_id?: string | null
+          target_language: string
+          translated_text: string
+          provider?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          segment_id?: string
+          target_user_id?: string | null
+          target_language?: string
+          translated_text?: string
+          provider?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      voice_call_summaries: {
+        Row: {
+          session_id: string
+          model: string
+          highlights_md: string
+          decisions_md: string
+          action_items_md: string
+          generated_at: string
+          quality_score: number | null
+          expires_at: string | null
+          deleted_at: string | null
+          purged_at: string | null
+          legal_hold: boolean
+          legal_hold_reason: string | null
+        }
+        Insert: {
+          session_id: string
+          model: string
+          highlights_md?: string
+          decisions_md?: string
+          action_items_md?: string
+          generated_at?: string
+          quality_score?: number | null
+          expires_at?: string | null
+          deleted_at?: string | null
+          purged_at?: string | null
+          legal_hold?: boolean
+          legal_hold_reason?: string | null
+        }
+        Update: {
+          session_id?: string
+          model?: string
+          highlights_md?: string
+          decisions_md?: string
+          action_items_md?: string
+          generated_at?: string
+          quality_score?: number | null
+          expires_at?: string | null
+          deleted_at?: string | null
+          purged_at?: string | null
+          legal_hold?: boolean
+          legal_hold_reason?: string | null
+        }
+        Relationships: []
+      }
+      voice_intelligence_policies: {
+        Row: {
+          id: string
+          scope_type: 'workspace' | 'server'
+          scope_id: string
+          transcription_enabled: boolean
+          require_explicit_consent: boolean
+          translation_enabled: boolean
+          summary_enabled: boolean
+          retention_days: number
+          allowed_locales: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          scope_type: 'workspace' | 'server'
+          scope_id: string
+          transcription_enabled?: boolean
+          require_explicit_consent?: boolean
+          translation_enabled?: boolean
+          summary_enabled?: boolean
+          retention_days?: number
+          allowed_locales?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          scope_type?: 'workspace' | 'server'
+          scope_id?: string
+          transcription_enabled?: boolean
+          require_explicit_consent?: boolean
+          translation_enabled?: boolean
+          summary_enabled?: boolean
+          retention_days?: number
+          allowed_locales?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      voice_intelligence_audit_log: {
+        Row: {
+          id: string
+          session_id: string | null
+          actor_user_id: string | null
+          event_type: string
+          payload_json: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id?: string | null
+          actor_user_id?: string | null
+          event_type: string
+          payload_json?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string | null
+          actor_user_id?: string | null
+          event_type?: string
+          payload_json?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       app_catalog_public: {

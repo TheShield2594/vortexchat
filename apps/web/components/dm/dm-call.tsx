@@ -16,6 +16,10 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
+import { useVoiceIntelligence } from "@/lib/voice/use-voice-intelligence"
+import { VoiceIntelligenceIndicator } from "@/components/voice/voice-intelligence-indicator"
+import { VoiceConsentModal } from "@/components/voice/voice-consent-modal"
+import { VoiceTranscriptViewer } from "@/components/voice/voice-transcript-viewer"
 
 interface Participant {
   id: string
@@ -146,6 +150,50 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
     onHangUp()
   }
 
+  // ── Voice Intelligence (DM call) ──────────────────────────────────────────
+  const {
+    session: viSession,
+    policy: viPolicy,
+    myConsent: viConsent,
+    participantConsents: viParticipantConsents,
+    transcriptionStatus: viTranscriptionStatus,
+    interimSegment: viInterimSegment,
+    finalSegments: viFinalSegments,
+    summaryPending: viSummaryPending,
+    startSession: viStartSession,
+    setConsent: viSetConsent,
+    endSession: viEndSession,
+  } = useVoiceIntelligence(currentUserId)
+
+  const [showConsentModal, setShowConsentModal] = useState(false)
+
+  // DM call: start intelligence session when connected.
+  // Show consent modal (bilateral gate: if this user declines, transcription stays off).
+  useEffect(() => {
+    if (!connected) return
+    viStartSession({
+      scopeType: "dm_call",
+      scopeId: channelId,
+      localStream: localStreamRef.current,
+      language: "en-US",
+    })
+      .then(() => {
+        // Show consent modal for DM calls — bilateral consent required
+        setShowConsentModal(true)
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected])
+
+  // End intelligence session on unmount / hang-up.
+  useEffect(() => {
+    return () => {
+      viEndSession().catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  // ── End Voice Intelligence ────────────────────────────────────────────────
+
   const { toggleMute, toggleVideo } = useCallMediaToggles({
     muted,
     videoOff,
@@ -167,7 +215,21 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
   const initials = partnerName.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex flex-col items-center justify-between flex-1 p-6" style={{ background: "var(--theme-bg-tertiary)" }}>
+    <div className="flex flex-col items-center justify-between flex-1 p-6 relative" style={{ background: "var(--theme-bg-tertiary)" }}>
+      {/* DM consent modal — bilateral gate */}
+      {showConsentModal && (
+        <VoiceConsentModal
+          isDmCall
+          onAccept={(consentTranscription, consentTranslation, subtitleLanguage) => {
+            setShowConsentModal(false)
+            viSetConsent(consentTranscription, consentTranslation, subtitleLanguage).catch(() => {})
+          }}
+          onDecline={() => {
+            setShowConsentModal(false)
+            viSetConsent(false, false, null).catch(() => {})
+          }}
+        />
+      )}
       {/* Remote video / avatar */}
       <div className="flex-1 flex items-center justify-center w-full relative">
         <video
@@ -203,6 +265,23 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
           />
         )}
       </div>
+
+      {/* Intelligence indicator */}
+      <VoiceIntelligenceIndicator
+        transcriptionStatus={viTranscriptionStatus}
+        summaryPending={viSummaryPending}
+        participantConsents={viParticipantConsents}
+        className="mb-2"
+      />
+
+      {/* Live transcript (only when consented) */}
+      {viConsent?.consentTranscription && (
+        <VoiceTranscriptViewer
+          finalSegments={viFinalSegments}
+          interimSegment={viInterimSegment}
+          className="w-full mb-4"
+        />
+      )}
 
       {/* Controls */}
       <div className="flex items-center gap-4 mt-6">

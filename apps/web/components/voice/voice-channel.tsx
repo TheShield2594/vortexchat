@@ -24,6 +24,10 @@ import {
 } from "@/lib/voice/audio-settings"
 import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
 import { useShallow } from "zustand/react/shallow"
+import { useVoiceIntelligence } from "@/lib/voice/use-voice-intelligence"
+import { VoiceIntelligenceIndicator } from "@/components/voice/voice-intelligence-indicator"
+import { VoiceConsentModal } from "@/components/voice/voice-consent-modal"
+import { VoiceTranscriptViewer } from "@/components/voice/voice-transcript-viewer"
 
 interface VoiceParticipantInfo {
   user: UserRow
@@ -179,6 +183,60 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
   const pttDeactivate = useCallback(() => { if (!muted) toggleMute() }, [muted, toggleMute])
   usePushToTalk(pttEnabled, pttActivate, pttDeactivate)
 
+  // ── Voice Intelligence ────────────────────────────────────────────────────
+  const {
+    session: viSession,
+    policy: viPolicy,
+    myConsent: viConsent,
+    participantConsents: viParticipantConsents,
+    transcriptionStatus: viTranscriptionStatus,
+    interimSegment: viInterimSegment,
+    finalSegments: viFinalSegments,
+    summaryPending: viSummaryPending,
+    startSession: viStartSession,
+    setConsent: viSetConsent,
+    endSession: viEndSession,
+  } = useVoiceIntelligence(currentUserId)
+
+  const [showConsentModal, setShowConsentModal] = useState(false)
+
+  // Start the voice intelligence session after the component mounts.
+  // Non-fatal: voice continues to work if this fails.
+  useEffect(() => {
+    viStartSession({
+      scopeType: "server_channel",
+      scopeId: `${serverId}:${channelId}`,
+      localStream: localStream.current,
+      language: "en-US",
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Show consent modal once we know the policy requires it.
+  useEffect(() => {
+    if (viSession && viPolicy?.transcriptionEnabled && viPolicy.requireExplicitConsent) {
+      setShowConsentModal(true)
+    }
+  }, [viSession, viPolicy])
+
+  // End intelligence session on unmount.
+  useEffect(() => {
+    return () => {
+      viEndSession().catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Build display-name map for consent badges and transcript attribution.
+  const viParticipantNames = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of voiceParticipants) {
+      map.set(p.user.id, p.user.display_name ?? p.user.username)
+    }
+    return map
+  }, [voiceParticipants])
+  // ── End Voice Intelligence ────────────────────────────────────────────────
+
   useEffect(() => {
     return () => {
       if (outputAudioContextRef.current) {
@@ -270,6 +328,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
   }, [reconnectInfo.state])
 
   function handleLeave() {
+    viEndSession().catch(() => {})
     leaveChannel()
     setVoiceChannel(null, null)
     const serverChannels = channels[serverId] ?? []
@@ -359,6 +418,13 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
             )}
             <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{sessionState.detail}</span>
           </div>
+          {/* Voice intelligence status badges */}
+          <VoiceIntelligenceIndicator
+            transcriptionStatus={viTranscriptionStatus}
+            summaryPending={viSummaryPending}
+            participantConsents={viParticipantConsents}
+            participantNames={viParticipantNames}
+          />
           <div className="ml-auto flex items-center gap-2">
             <NetworkQualityIndicator quality={networkQuality} />
             {cpuBypassActive && <span className="text-xs" style={{ color: "var(--theme-warning)" }}>CPU bypass enabled</span>}
@@ -507,6 +573,17 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
           </div>
         )}
 
+        {/* Live transcript viewer — only shown when the user has consented */}
+        {viConsent?.consentTranscription && (
+          <div className="px-4 py-2 border-t" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+            <VoiceTranscriptViewer
+              finalSegments={viFinalSegments}
+              interimSegment={viInterimSegment}
+              participantNames={viParticipantNames}
+            />
+          </div>
+        )}
+
         <div className="h-20 border-t px-6 flex items-center justify-center gap-3" style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)" }}>
           <Tooltip><TooltipTrigger asChild><button onClick={toggleMute} disabled={!canConnect || (isStage && !canSpeak)} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: muted ? "var(--theme-danger)" : "var(--theme-text-faint)" }}>{muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{muted ? "Unmute" : "Mute"}</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><button onClick={toggleDeafen} className="w-12 h-12 rounded-full flex items-center justify-center transition-colors" style={{ background: deafened ? "var(--theme-danger)" : "var(--theme-text-faint)" }}><Headphones className="w-5 h-5 text-white" /></button></TooltipTrigger><TooltipContent>{deafened ? "Undeafen" : "Deafen"}</TooltipContent></Tooltip>
@@ -562,6 +639,20 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
           />
         ))}
       </div>
+      {/* Consent modal — shown when the server policy requires explicit opt-in */}
+      {showConsentModal && (
+        <VoiceConsentModal
+          isDmCall={false}
+          onAccept={(consentTranscription, consentTranslation, subtitleLanguage) => {
+            setShowConsentModal(false)
+            viSetConsent(consentTranscription, consentTranslation, subtitleLanguage).catch(() => {})
+          }}
+          onDecline={() => {
+            setShowConsentModal(false)
+            viSetConsent(false, false, null).catch(() => {})
+          }}
+        />
+      )}
     </TooltipProvider>
   )
 }
