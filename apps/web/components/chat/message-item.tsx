@@ -341,6 +341,7 @@ export const MessageItem = memo(function MessageItem({
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
   const [showActions, setShowActions] = useState(false)
+  const [toolbarBelow, setToolbarBelow] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showCreateThread, setShowCreateThread] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -599,7 +600,15 @@ export const MessageItem = memo(function MessageItem({
           onAnimationEnd={() => {
             if (animateOnMount) onMountAnimationComplete?.()
           }}
-          onMouseEnter={() => setShowActions(true)}
+          onMouseEnter={() => {
+            setShowActions(true)
+            if (containerRef.current) {
+              const rect = containerRef.current.getBoundingClientRect()
+              // If the message top is within 60px of the viewport top (behind the channel header),
+              // render the toolbar below the message instead of above it.
+              setToolbarBelow(rect.top < 60)
+            }
+          }}
           onMouseLeave={() => { setShowActions(false) }}
           onFocus={() => setShowActions(true)}
           onBlur={(e) => {
@@ -868,8 +877,13 @@ export const MessageItem = memo(function MessageItem({
               aria-hidden={!showActions}
               inert={!showActions}
               className={cn(
-                "action-rail-motion absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden",
-                showActions ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-1"
+                "action-rail-motion absolute right-4 flex items-center rounded shadow-lg overflow-hidden",
+                toolbarBelow ? "-bottom-4" : "-top-4",
+                showActions
+                  ? "opacity-100 translate-y-0"
+                  : toolbarBelow
+                    ? "pointer-events-none opacity-0 translate-y-1"
+                    : "pointer-events-none opacity-0 -translate-y-1"
               )}
               style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
             >
