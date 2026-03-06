@@ -46,16 +46,9 @@ interface Props {
   canManageMessages: boolean
 }
 
-function isDuplicateInsertError(error: { code?: string } | null): boolean {
-  return error?.code === "23505"
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
-
-const MESSAGE_SELECT = `*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`
-const REPLY_SELECT   = `*, author:users!messages_author_id_fkey(*)`
 const RECENTLY_ACTIVE_DECAY_MS = 12_000
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
@@ -316,95 +309,57 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setReplyTo,
   })
 
-  const persistOutboxAttachments = useCallback(async (messageId: string, entry: OutboxEntry) => {
-    if (!entry.attachments?.length) return
-
-    const { data: existingAttachments } = await supabase
-      .from("attachments")
-      .select("url, filename, size")
-      .eq("message_id", messageId)
-
-    const existing = new Set(
-      (existingAttachments ?? []).map((attachment) => `${attachment.url}::${attachment.filename}::${attachment.size}`)
-    )
-    const toInsert = entry.attachments.filter(
-      (attachment) => !existing.has(`${attachment.url}::${attachment.filename}::${attachment.size}`)
-    )
-    if (toInsert.length === 0) return
-
-    const { error: attachmentsError } = await supabase
-      .from("attachments")
-      .insert(toInsert.map((attachment) => ({
-        message_id: messageId,
-        url: attachment.url,
-        filename: attachment.filename,
-        size: attachment.size,
-        content_type: attachment.content_type,
-      })))
-
-    if (attachmentsError) {
-      const uploadedPaths = entry.attachments
-        .map((attachment) => attachment.storage_path)
-        .filter((path): path is string => typeof path === "string")
-
-      await supabase.from("messages").delete().eq("id", messageId)
-      if (uploadedPaths.length > 0) {
-        await supabase.storage.from("attachments").remove(uploadedPaths)
-      }
-      throw new Error(attachmentsError.message || "Failed to persist message attachments")
-    }
-  }, [supabase])
-
   const sendOutboxEntry = useCallback(async (entry: OutboxEntry) => {
     setAndPersistOutbox((current) => updateOutboxStatus(current, entry.id, { status: "sending", lastError: null }))
 
-    let data: unknown = null
-    let error: { code?: string; message?: string } | null = null
+    let message: MessageWithAuthor | null = null
+    let errorMsg: string | null = null
     try {
-      const result = await supabase
-        .from("messages")
-        .insert({
-          id: entry.id,
-          channel_id: entry.channelId,
-          author_id: entry.authorId,
-          content: entry.content.trim() || null,
-          reply_to_id: entry.replyToId,
-          client_nonce: entry.id,
-        })
-        .select(MESSAGE_SELECT)
-        .single()
-      data = result.data
-      error = result.error
-
-      if (!error || isDuplicateInsertError(error)) {
-        await persistOutboxAttachments(entry.id, entry)
+      const mentions = (entry.content.match(/<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? []).map((m) => m.slice(2, -1))
+      const mentionEveryone = entry.content.includes("@everyone")
+      const apiResponse = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channelId: entry.channelId,
+          content: entry.content.trim() || undefined,
+          replyToId: entry.replyToId ?? undefined,
+          mentions,
+          mentionEveryone,
+          attachments: (entry.attachments ?? []).map(({ url, filename, size, content_type }) => ({ url, filename, size, content_type })),
+          clientNonce: entry.id,
+        }),
+      })
+      if (apiResponse.ok) {
+        message = await apiResponse.json() as MessageWithAuthor
+      } else {
+        try {
+          const body = await apiResponse.json()
+          errorMsg = typeof body.error === "string" ? body.error : "Failed to replay outbox entry"
+        } catch {
+          errorMsg = "Failed to replay outbox entry"
+        }
       }
     } catch (caughtError) {
-      error = { message: caughtError instanceof Error ? caughtError.message : "Failed to replay outbox entry" }
+      errorMsg = caughtError instanceof Error ? caughtError.message : "Failed to replay outbox entry"
     }
 
-    if (error && !isDuplicateInsertError(error)) {
+    if (errorMsg) {
       const nextStatus = navigator.onLine ? "failed" : "queued"
       setAndPersistOutbox((current) => updateOutboxStatus(current, entry.id, {
         status: nextStatus,
         retryCount: entry.retryCount + 1,
-        lastError: error.message || "Failed to replay outbox entry",
+        lastError: errorMsg,
       }))
       return
     }
 
     setAndPersistOutbox((current) => removeOutboxEntry(current, entry.id))
 
-    if (data) {
-      const msg = data as any
-      let replyTo = null
-      if (msg.reply_to_id) {
-        const { data: parent } = await supabase.from("messages").select(REPLY_SELECT).eq("id", msg.reply_to_id).single()
-        replyTo = parent ?? null
-      }
-      upsertMessage({ ...msg, reply_to: replyTo } as MessageWithAuthor)
+    if (message) {
+      upsertMessage(message)
     }
-  }, [persistOutboxAttachments, setAndPersistOutbox, supabase, upsertMessage])
+  }, [setAndPersistOutbox, upsertMessage])
 
   const flushOutbox = useCallback(async () => {
     if (!navigator.onLine) return
@@ -1072,68 +1027,48 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       upsertMessage(makeOptimisticMessage(nextEntry))
     }
 
-    const { data: message, error } = await supabase
-      .from("messages")
-      .insert({
-        id: messageId,
-        channel_id: channel.id,
-        author_id: currentUserId,
-        content: content.trim() || null,
-        reply_to_id: replyTo?.id || null,
-        client_nonce: messageId,
-      })
-      .select(MESSAGE_SELECT)
-      .single()
+    const mentions = (content.match(/<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? []).map((m) => m.slice(2, -1))
+    const mentionEveryone = content.includes("@everyone")
+    const apiResponse = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channelId: channel.id,
+        content: content.trim() || undefined,
+        replyToId: replyTo?.id || undefined,
+        mentions,
+        mentionEveryone,
+        attachments: attachments.map(({ url, filename, size, content_type }) => ({ url, filename, size, content_type })),
+        clientNonce: messageId,
+      }),
+    })
 
-    if (error && !isDuplicateInsertError(error)) {
+    if (!apiResponse.ok) {
+      let errorMsg = "Your message could not be sent. Please try again."
+      try {
+        const body = await apiResponse.json()
+        if (typeof body.error === "string") errorMsg = body.error
+      } catch {}
       if (attachments.length > 0) {
         await supabase.storage.from("attachments").remove(attachments.map((attachment) => attachment.storage_path))
       }
       setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
         status: "failed",
         retryCount: 1,
-        lastError: error.message || "send failed",
+        lastError: errorMsg,
       }))
       toast({
         variant: "destructive",
         title: "Failed to send message",
-        description: error.message || "Your message could not be sent. Please try again.",
+        description: errorMsg,
       })
-      throw new Error("Your message could not be sent. Please try again.")
+      throw new Error(errorMsg)
     }
 
-    if (attachments.length > 0) {
-      const { error: attachmentInsertError } = await supabase
-        .from("attachments")
-        .insert(attachments.map((attachment) => ({
-          message_id: messageId,
-          url: attachment.url,
-          filename: attachment.filename,
-          size: attachment.size,
-          content_type: attachment.content_type,
-        })))
-
-      if (attachmentInsertError) {
-        await supabase.from("messages").delete().eq("id", messageId)
-        await supabase.storage.from("attachments").remove(attachments.map((attachment) => attachment.storage_path))
-        setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
-          status: "failed",
-          retryCount: 1,
-          lastError: attachmentInsertError.message || "Failed to store attachments",
-        }))
-        toast({
-          variant: "destructive",
-          title: "Failed to attach files",
-          description: attachmentInsertError.message || "Message send was rolled back due to attachment failure.",
-        })
-        throw new Error("Failed to store attachments")
-      }
-    }
+    const message = await apiResponse.json() as MessageWithAuthor
 
     setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
-    if (message) {
-      upsertMessage({ ...message, reply_to: replyTo ?? null } as unknown as MessageWithAuthor)
-    }
+    upsertMessage(message)
 
     resetComposerState()
     onSent()
