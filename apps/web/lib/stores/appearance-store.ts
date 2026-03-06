@@ -113,6 +113,8 @@ export const useAppearanceStore = create<AppearanceState>()(
         saturation: state.saturation,
         themePreset: state.themePreset,
         customCss: state.customCss,
+        hasHydratedFromProfile: state.hasHydratedFromProfile,
+        lastHydratedUserId: state.lastHydratedUserId,
       }),
     }
   )
