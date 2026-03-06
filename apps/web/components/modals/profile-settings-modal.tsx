@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
+import { EmojiPicker } from "frimousse"
 import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff, Link2, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -149,6 +150,8 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "connections" | "appearance">("profile")
+  const [showStatusEmojiPicker, setShowStatusEmojiPicker] = useState(false)
+  const statusEmojiPickerRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const toSettingsPayload = useAppearanceStore((s) => s.toSettingsPayload)
@@ -162,6 +165,17 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!showStatusEmojiPicker) return
+    function handleClickOutside(e: MouseEvent) {
+      if (!statusEmojiPickerRef.current?.contains(e.target as Node)) {
+        setShowStatusEmojiPicker(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [showStatusEmojiPicker])
 
   async function handleSave() {
     setLoading(true)
@@ -447,13 +461,132 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         Custom Status
                       </Label>
                       <div className="grid grid-cols-[90px_1fr] gap-2">
-                        <Input
-                          value={statusEmoji}
-                          onChange={(e) => setStatusEmoji(e.target.value)}
-                          placeholder="😀"
-                          maxLength={8}
-                          style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
-                        />
+                        <div className="relative" ref={statusEmojiPickerRef}>
+                          <button
+                            type="button"
+                            onClick={() => setShowStatusEmojiPicker((v) => !v)}
+                            aria-label="Choose status emoji"
+                            aria-haspopup="dialog"
+                            aria-expanded={showStatusEmojiPicker}
+                            className="w-full h-10 flex items-center justify-center rounded text-xl transition-colors hover:brightness-110"
+                            style={{ background: "var(--theme-bg-tertiary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                          >
+                            {statusEmoji || <span style={{ opacity: 0.4, fontSize: "18px" }}>😀</span>}
+                          </button>
+                          {showStatusEmojiPicker && (
+                            <div
+                              role="dialog"
+                              aria-label="Emoji picker"
+                              className="absolute z-50 rounded-lg shadow-xl border overflow-hidden"
+                              style={{
+                                bottom: "calc(100% + 6px)",
+                                left: 0,
+                                width: 300,
+                                height: 360,
+                                background: "var(--theme-bg-secondary)",
+                                borderColor: "var(--theme-bg-tertiary)",
+                                display: "flex",
+                                flexDirection: "column",
+                              }}
+                            >
+                              <EmojiPicker.Root
+                                onEmojiSelect={({ emoji }) => {
+                                  setStatusEmoji(emoji)
+                                  setShowStatusEmojiPicker(false)
+                                }}
+                                style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}
+                              >
+                                <div style={{ padding: "6px 6px 4px" }}>
+                                  <EmojiPicker.Search
+                                    autoFocus
+                                    style={{
+                                      display: "block",
+                                      width: "100%",
+                                      padding: "5px 10px",
+                                      borderRadius: "6px",
+                                      fontSize: "13px",
+                                      boxSizing: "border-box",
+                                      background: "var(--theme-bg-tertiary)",
+                                      color: "var(--theme-text-normal)",
+                                      border: "none",
+                                      outline: "none",
+                                    }}
+                                    placeholder="Search emoji…"
+                                  />
+                                </div>
+                                <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+                                  <EmojiPicker.Loading>
+                                    <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>Loading…</div>
+                                  </EmojiPicker.Loading>
+                                  <EmojiPicker.Empty>
+                                    {({ search }) => (
+                                      <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>
+                                        No emoji found for &ldquo;{search}&rdquo;
+                                      </div>
+                                    )}
+                                  </EmojiPicker.Empty>
+                                  <EmojiPicker.List
+                                    components={{
+                                      CategoryHeader: ({ category, ...props }) => (
+                                        <div
+                                          {...props}
+                                          style={{
+                                            padding: "3px 8px",
+                                            fontSize: "10px",
+                                            fontWeight: 600,
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.06em",
+                                            color: "var(--theme-text-muted)",
+                                            background: "var(--theme-bg-secondary)",
+                                            position: "sticky",
+                                            top: 0,
+                                          }}
+                                        >
+                                          {category.label}
+                                        </div>
+                                      ),
+                                      Emoji: ({ emoji, ...props }) => (
+                                        <button
+                                          type="button"
+                                          {...props}
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontSize: "18px",
+                                            width: "100%",
+                                            aspectRatio: "1",
+                                            borderRadius: "4px",
+                                            cursor: "pointer",
+                                            border: "none",
+                                            background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
+                                            fontFamily: "var(--frimousse-emoji-font)",
+                                          }}
+                                        >
+                                          {emoji.emoji}
+                                        </button>
+                                      ),
+                                    }}
+                                  />
+                                </EmojiPicker.Viewport>
+                                <div style={{ padding: "4px 8px 6px", display: "flex", alignItems: "center", justifyContent: "flex-end", borderTop: "1px solid var(--theme-bg-tertiary)" }}>
+                                  <EmojiPicker.SkinToneSelector
+                                    style={{
+                                      all: "unset",
+                                      cursor: "pointer",
+                                      fontSize: "16px",
+                                      padding: "2px 6px",
+                                      borderRadius: "4px",
+                                      border: "1px solid var(--theme-bg-tertiary)",
+                                      background: "var(--theme-bg-tertiary)",
+                                    }}
+                                    aria-label="Change skin tone"
+                                  />
+                                </div>
+                              </EmojiPicker.Root>
+                            </div>
+                          )}
+                        </div>
                         <Input
                           value={statusMessage}
                           onChange={(e) => setStatusMessage(e.target.value)}
