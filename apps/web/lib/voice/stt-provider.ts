@@ -29,15 +29,45 @@ export interface STTProvider {
 
 // ── Web Speech API provider ───────────────────────────────────────────────────
 
-type SpeechRecognitionType = typeof window extends { SpeechRecognition: infer T } ? T
-  : typeof window extends { webkitSpeechRecognition: infer T } ? T
-  : never
+// SpeechRecognition is not in all TypeScript DOM lib versions; declare minimally.
+interface SpeechRecognitionInstance {
+  lang: string
+  interimResults: boolean
+  maxAlternatives: number
+  continuous: boolean
+  onresult: ((event: SpeechRecognitionEventCompat) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEventCompat) => void) | null
+  onend: (() => void) | null
+  start(): void
+  stop(): void
+}
 
-function getSpeechRecognitionConstructor(): (new () => SpeechRecognition) | null {
+interface SpeechRecognitionResultAlt {
+  readonly transcript: string
+  readonly confidence: number
+}
+
+interface SpeechRecognitionResultCompat {
+  readonly isFinal: boolean
+  readonly length: number
+  [index: number]: SpeechRecognitionResultAlt
+}
+
+interface SpeechRecognitionEventCompat {
+  readonly results: { readonly length: number; [index: number]: SpeechRecognitionResultCompat }
+}
+
+interface SpeechRecognitionErrorEventCompat {
+  readonly error: string
+}
+
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance
+
+function getSpeechRecognitionConstructor(): SpeechRecognitionCtor | null {
   if (typeof window === "undefined") return null
   return (
-    (window as typeof window & { SpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition ??
-    (window as typeof window & { webkitSpeechRecognition?: new () => SpeechRecognition }).webkitSpeechRecognition ??
+    (window as typeof window & { SpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition ??
+    (window as typeof window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition ??
     null
   )
 }
@@ -52,7 +82,7 @@ export class WebSpeechSTTProvider implements STTProvider {
   onEnd: (() => void) | null = null
   onError: ((error: string) => void) | null = null
 
-  private recognition: SpeechRecognition | null = null
+  private recognition: SpeechRecognitionInstance | null = null
   private startTime: Date = new Date()
 
   start(stream: MediaStream, language: string): void {
@@ -76,7 +106,7 @@ export class WebSpeechSTTProvider implements STTProvider {
     recognition.maxAlternatives = 1
     recognition.continuous = true
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEventCompat) => {
       const result = event.results[event.results.length - 1]
       if (!result) return
 
@@ -97,7 +127,7 @@ export class WebSpeechSTTProvider implements STTProvider {
       this.onSegment?.(segment)
     }
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEventCompat) => {
       // 'no-speech' and 'aborted' are expected during silence/stop; ignore them
       if (event.error === "no-speech" || event.error === "aborted") return
       this.onError?.(event.error)
