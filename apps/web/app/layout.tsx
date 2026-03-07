@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter, Space_Grotesk } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
+import { PwaInstallBanner } from "@/components/pwa-install-banner"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" })
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" })
@@ -23,8 +24,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  userScalable: true,
   themeColor: "#00e5ff",
 }
 
@@ -50,6 +50,7 @@ export default function RootLayout({
         <a href="#main-content" className="skip-nav-link">Skip to main content</a>
         {children}
         <Toaster />
+        <PwaInstallBanner />
       </body>
     </html>
   )

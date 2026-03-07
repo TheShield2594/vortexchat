@@ -29,7 +29,7 @@
     {
       "name": "Friends",
       "short_name": "Friends",
-      "url": "/channels/@me",
+      "url": "/channels/me",
       "icons": [
         {
           "src": "/icon-192.png",
