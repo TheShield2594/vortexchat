@@ -173,7 +173,7 @@ export async function GET(req: NextRequest) {
       if (!REPORT_STATUSES.includes(statusFilter as ReportStatus)) {
         return NextResponse.json({ error: "Invalid status filter" }, { status: 400 })
       }
-      query = query.eq("status", statusFilter)
+      query = query.eq("status", statusFilter as ReportStatus)
     }
 
     const { data: reports, error } = await query
