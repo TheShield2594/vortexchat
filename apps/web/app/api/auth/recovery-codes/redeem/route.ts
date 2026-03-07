@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { verifyRecoveryCode } from "@/lib/auth/recovery-codes"
+import { rateLimiter } from "@/lib/rate-limit"
 
 /**
  * POST /api/auth/recovery-codes/redeem
@@ -9,6 +10,13 @@ import { verifyRecoveryCode } from "@/lib/auth/recovery-codes"
  * The code is marked as consumed (used_at set) after successful use.
  */
 export async function POST(request: Request) {
+  // Rate limit: 5 recovery code attempts per 15 minutes per IP (stricter — this is an MFA bypass path)
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
+  const rl = await rateLimiter.check(`recovery-redeem:${ip}`, { limit: 5, windowMs: 15 * 60_000 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+  }
+
   const body = (await request.json().catch(() => ({}))) as {
     email?: string
     password?: string
