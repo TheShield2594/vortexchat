@@ -91,15 +91,12 @@ jobs:
       # Install the Supabase CLI (used for `supabase db reset`)
       - name: Install Supabase CLI
         run: |
-          curl -fsSL https://github.com/supabase/cli/releases/download/v2.3.8/supabase_linux_amd64.tar.gz \
+          curl -fsSL https://github.com/supabase/cli/releases/download/v2.75.0/supabase_linux_amd64.tar.gz \
             | tar -xz -C /usr/local/bin supabase
           supabase --version
 
       - name: Start local Supabase
-        run: supabase start --ignore-health-check
-        env:
-          # Tell the CLI where to find the project (repo root)
-          SUPABASE_PROJECT_ID: vortex
+        run: supabase start
 
       - name: Run migration smoke test
         run: npm run test:migration-smoke
@@ -144,20 +141,29 @@ jobs:
 
       - name: Install Supabase CLI
         run: |
-          curl -fsSL https://github.com/supabase/cli/releases/download/v2.3.8/supabase_linux_amd64.tar.gz \
+          curl -fsSL https://github.com/supabase/cli/releases/download/v2.75.0/supabase_linux_amd64.tar.gz \
             | tar -xz -C /usr/local/bin supabase
           supabase --version
 
       - name: Start local Supabase
-        run: supabase start --ignore-health-check
+        run: supabase start
 
       - name: Build Next.js app
         run: npm run build --workspace=apps/web
 
       - name: Start Next.js server
         run: npm run start --workspace=apps/web &
-        # Give the server time to become ready
-      - run: npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Wait for Next.js to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Server is up"; exit 0
+            fi
+            echo "Waiting… ($i/30)"
+            sleep 2
+          done
+          echo "Server did not start in time" && exit 1
 
       - name: Run Playwright E2E tests
         run: npm run test:e2e --workspace=apps/web

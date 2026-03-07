@@ -117,7 +117,7 @@ const EXPECTED_TABLES_WITH_RLS = [
 // ── Step 1: reset the database ────────────────────────────────────────────────
 console.log("⟳  Running supabase db reset …")
 try {
-  execSync("supabase db reset --no-verify-jwt", {
+  execSync("supabase db reset", {
     stdio: "inherit",
     encoding: "utf8",
   })
