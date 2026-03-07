@@ -7,7 +7,7 @@ import {
   Monitor, MonitorOff, Video, VideoOff, Radio, Settings,
   RotateCcw, X, RefreshCw, WifiOff,
 } from "lucide-react"
-import { useVoice, type NetworkQualityTier, type NetworkQualityStats } from "@/lib/webrtc/use-voice"
+import { useUnifiedVoice, type NetworkQualityTier, type NetworkQualityStats } from "@/lib/webrtc/use-unified-voice"
 import { usePushToTalk } from "@/hooks/use-push-to-talk"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -173,7 +173,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
     networkQuality,
     reconnectInfo,
     manualReconnect,
-  } = useVoice(channelId, currentUserId, serverId)
+  } = useUnifiedVoice(channelId, currentUserId, serverId)
 
   const { setParticipantVolume, setParticipantPan } = useVoiceAudioStore(
     useShallow((s) => ({ setParticipantVolume: s.setParticipantVolume, setParticipantPan: s.setParticipantPan }))
