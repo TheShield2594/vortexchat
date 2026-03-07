@@ -89,18 +89,48 @@ export class InMemoryRoomManager implements IRoomManager {
   }
 }
 
+/** How long an empty room is kept before being evicted (ms). */
+const ROOM_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 /**
  * Legacy synchronous class — kept so rooms.parity-check.ts compiles and runs
  * without modification.
+ *
+ * Rooms that become empty are not deleted immediately; instead a TTL timer is
+ * started.  If no peer joins within ROOM_TTL_MS the room is evicted.  This
+ * prevents churn when participants briefly disconnect and reconnect (e.g. page
+ * refresh) while still reclaiming memory for genuinely abandoned rooms.
  */
 export class RoomManager {
   // channelId → Map<socketId, PeerInfo>
   private rooms = new Map<string, Map<string, PeerInfo>>()
+  // channelId → setTimeout handle; present only while the room is empty
+  private emptyTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+  private scheduleEviction(channelId: string): void {
+    if (this.emptyTimers.has(channelId)) return // timer already running
+    const handle = setTimeout(() => {
+      const room = this.rooms.get(channelId)
+      if (room && room.size === 0) this.rooms.delete(channelId)
+      this.emptyTimers.delete(channelId)
+    }, ROOM_TTL_MS)
+    this.emptyTimers.set(channelId, handle)
+  }
+
+  private cancelEviction(channelId: string): void {
+    const handle = this.emptyTimers.get(channelId)
+    if (handle !== undefined) {
+      clearTimeout(handle)
+      this.emptyTimers.delete(channelId)
+    }
+  }
 
   join(channelId: string, info: PeerInfo): PeerInfo[] {
     if (!this.rooms.has(channelId)) {
       this.rooms.set(channelId, new Map())
     }
+    // A peer joining cancels any pending eviction for this room.
+    this.cancelEviction(channelId)
     const room = this.rooms.get(channelId)!
     const existing = Array.from(room.values())
     room.set(info.socketId, info)
@@ -112,7 +142,8 @@ export class RoomManager {
     if (room) {
       room.delete(socketId)
       if (room.size === 0) {
-        this.rooms.delete(channelId)
+        // Room is empty — start TTL instead of deleting immediately.
+        this.scheduleEviction(channelId)
       }
     }
   }
@@ -124,7 +155,7 @@ export class RoomManager {
       if (peer) {
         left.push({ channelId, userId: peer.userId })
         room.delete(socketId)
-        if (room.size === 0) this.rooms.delete(channelId)
+        if (room.size === 0) this.scheduleEviction(channelId)
       }
     }
     return left
@@ -156,5 +187,11 @@ export class RoomManager {
       stats[channelId] = room.size
     }
     return stats
+  }
+
+  /** Cancel all pending eviction timers (call when shutting down the process). */
+  destroy(): void {
+    for (const handle of this.emptyTimers.values()) clearTimeout(handle)
+    this.emptyTimers.clear()
   }
 }
