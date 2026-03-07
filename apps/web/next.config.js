@@ -1,4 +1,7 @@
 const { withSentryConfig } = require("@sentry/nextjs")
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+})
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -69,11 +72,11 @@ const nextConfig = {
   transpilePackages: ['@vortex/shared'],
 }
 
-module.exports = withSentryConfig(nextConfig, {
+module.exports = withBundleAnalyzer(withSentryConfig(nextConfig, {
   silent: true,
   // Only upload source maps in CI to avoid leaking them in local builds
   sourcemaps: {
     disable: !process.env.CI,
   },
   autoInstrumentServerFunctions: true,
-})
+}))

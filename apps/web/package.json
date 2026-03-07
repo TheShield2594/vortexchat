@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "eslint . && npm run lint:style-guardrails",
     "type-check": "tsc --noEmit",
@@ -58,6 +59,7 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.5.12",
     "@types/hark": "^1.2.5",
     "@types/node": "^20",
     "@types/react": "^19.0.0",
