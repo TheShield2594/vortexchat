@@ -10,7 +10,7 @@ export async function GET(
   const auth = await requireModerator(serverId)
   if (auth.error) return auth.error
 
-  const { data, error } = await (auth.supabase as any)
+  const { data, error } = await auth.supabase
     .from("moderation_decision_templates")
     .select("id, title, body, decision, created_at")
     .eq("server_id", serverId)
@@ -54,13 +54,13 @@ export async function POST(
   }
 
   const serviceSupabase = await createServiceRoleClient()
-  const { data, error } = await (serviceSupabase as any)
+  const { data, error } = await serviceSupabase
     .from("moderation_decision_templates")
     .insert({
       server_id: serverId,
       title: title.trim(),
       body: templateBody.trim(),
-      decision,
+      decision: decision as "approved" | "denied" | "closed",
       created_by: auth.user.id,
     })
     .select("id, title, body, decision")

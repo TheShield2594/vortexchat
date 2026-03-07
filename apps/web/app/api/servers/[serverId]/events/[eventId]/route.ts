@@ -8,8 +8,7 @@ export async function PATCH(
 ) {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
-  const db = supabase as any
-  const service = (await createServiceRoleClient()) as any
+  const service = await createServiceRoleClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -25,7 +24,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { data: updated, error } = await db
+  const { data: updated, error } = await supabase
     .from("events")
     .update({
       title: body.title,
@@ -46,7 +45,7 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const { data: attendees } = await db
+  const { data: attendees } = await supabase
     .from("event_rsvps")
     .select("user_id")
     .eq("event_id", params.eventId)
@@ -56,7 +55,7 @@ export async function PATCH(
     await service.from("notifications").insert(
       attendees.map((attendee: any) => ({
         user_id: attendee.user_id,
-        type: "system",
+        type: "system" as const,
         title: body.cancelled ? `Event cancelled: ${updated.title}` : `Event updated: ${updated.title}`,
         body: body.cancelled ? "An event you RSVP'd for has been cancelled." : "An event you RSVP'd for was updated.",
         server_id: params.serverId,

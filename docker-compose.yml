@@ -14,8 +14,6 @@ services:
       NODE_ENV: production
     env_file:
       - ./apps/web/.env.local
-    depends_on:
-      - signal
     restart: unless-stopped
 
   # ─── Vortex Signaling Server (Node.js WebRTC) ────────────────────────────────

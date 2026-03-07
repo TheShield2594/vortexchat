@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
     }
   }
 
-  if (await isBlockedBetweenUsers(supabase as any, user.id, message.author_id)) {
+  if (await isBlockedBetweenUsers(supabase, user.id, message.author_id)) {
     return NextResponse.json({ error: "Cannot react due to block state" }, { status: 403 })
   }
 

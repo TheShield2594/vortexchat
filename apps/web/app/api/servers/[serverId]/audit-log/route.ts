@@ -73,7 +73,7 @@ export async function GET(
   const result = entries.map((e) => ({
     id: e.id,
     action: e.action,
-    reason: (e.changes as any)?.reason ?? null,
+    reason: (e.changes as { reason?: string } | null | undefined)?.reason ?? null,
     metadata: e.changes,
     created_at: e.created_at,
     actor: e.actor_id ? userMap[e.actor_id] ?? null : null,

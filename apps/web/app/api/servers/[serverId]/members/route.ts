@@ -78,7 +78,7 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const blockedUserIds = await getBlockedUserIdsForViewer(supabase as any, user.id)
+  const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
   const visibleMembers = filterBlockedUserIds(members ?? [], (member) => member.user_id, blockedUserIds)
 
   return NextResponse.json(visibleMembers, {
