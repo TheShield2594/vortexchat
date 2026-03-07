@@ -55,7 +55,7 @@ export async function PATCH(
     await service.from("notifications").insert(
       attendees.map((attendee: any) => ({
         user_id: attendee.user_id,
-        type: "system",
+        type: "system" as const,
         title: body.cancelled ? `Event cancelled: ${updated.title}` : `Event updated: ${updated.title}`,
         body: body.cancelled ? "An event you RSVP'd for has been cancelled." : "An event you RSVP'd for was updated.",
         server_id: params.serverId,

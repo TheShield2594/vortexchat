@@ -143,7 +143,7 @@ export async function POST(
       await service.from("notifications").insert(
         members.map((member: any) => ({
           user_id: member.user_id,
-          type: "system",
+          type: "system" as const,
           title: `New event: ${title}`,
           body: "A new event has been scheduled.",
           server_id: params.serverId,

@@ -264,7 +264,7 @@ export async function PATCH(req: NextRequest) {
   const { data: report, error } = await supabase
     .from("reports")
     .update({
-      status,
+      status: status as ReportStatus,
       reviewed_by: user.id,
       reviewed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

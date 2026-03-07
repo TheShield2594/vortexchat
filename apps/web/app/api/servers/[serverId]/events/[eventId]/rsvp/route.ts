@@ -81,7 +81,7 @@ export async function POST(
     .upsert({
       event_id: params.eventId,
       user_id: user.id,
-      status: nextStatus,
+      status: nextStatus as "going" | "maybe" | "not_going" | "waitlist",
       waitlist_position: nextStatus === RSVP_WAITLIST ? waitlistPosition : null,
     })
     .select("*")
@@ -114,7 +114,7 @@ export async function POST(
         .order("waitlist_position", { ascending: true })
 
       for (let index = 0; index < (waitlistRows?.length ?? 0); index += 1) {
-        const row = waitlistRows[index]
+        const row = waitlistRows![index]
         await supabase
           .from("event_rsvps")
           .update({ waitlist_position: index + 1 })

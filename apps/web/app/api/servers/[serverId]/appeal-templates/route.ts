@@ -60,7 +60,7 @@ export async function POST(
       server_id: serverId,
       title: title.trim(),
       body: templateBody.trim(),
-      decision,
+      decision: decision as "approved" | "denied" | "closed",
       created_by: auth.user.id,
     })
     .select("id, title, body, decision")

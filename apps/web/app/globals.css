@@ -36,6 +36,9 @@
     /* ── Motion easing tokens ─────────────────────────────────────────────── */
     --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+    --motion-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+    --motion-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     /* ── Interaction state tokens ─────────────────────────────────────────── */
     --motion-hover-bg: color-mix(in srgb, var(--theme-text-primary) 5%, transparent);
     --motion-hover-bg-md: color-mix(in srgb, var(--theme-text-primary) 8%, transparent);
@@ -52,7 +55,10 @@
     --theme-surface-elevated: #252a42;
     --theme-surface-input: #2a2f48;
     --theme-surface-elevation-1: #20243a;
+    --theme-surface-elevation-2: #252a42;
     --theme-surface-elevation-3: #2a304b;
+    --theme-surface-elevation-4: #303654;
+    --theme-surface-elevation-5: #363d5c;
     --theme-surface-passive: var(--theme-surface-elevation-1);
     --theme-surface-active: var(--theme-surface-elevation-3);
     --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
