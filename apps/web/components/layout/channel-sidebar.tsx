@@ -246,6 +246,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const itemsRef = useRef<Record<string, string[]>>({})
   itemsRef.current = items
   const containerIndexRef = useRef<Record<string, string>>({})
+  const isDraggingRef = useRef(false)
+  isDraggingRef.current = activeId !== null
+  // After a drag-end reorder, suppress the sync effect briefly.
+  // handleDragEnd already set items to the correct order; realtime echoes
+  // trigger multiple sync firings that can overwrite items before all
+  // position updates propagate through the store.
+  const skipSyncUntilRef = useRef(0)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -296,17 +303,19 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     }
   }, [server.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync items on channel changes.
-  // During an active drag, merge instead of replacing so realtime inserts/deletes
-  // are not dropped and the in-progress drag order is preserved.
+  // Sync items when channels change (store update, realtime event, etc.).
+  // After a drag-end reorder, skip syncing for a brief window — handleDragEnd
+  // already set items to the correct order, and realtime echoes from the
+  // individual Supabase updates can trigger multiple sync firings before all
+  // positions have propagated.
   useEffect(() => {
-    if (activeId) {
+    if (Date.now() < skipSyncUntilRef.current) return
+    if (isDraggingRef.current) {
       setItems((prev) => mergeItemsPreservingOrder(prev, buildItems(grouped)))
     } else {
       setItems(buildItems(grouped))
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channels, activeId])
+  }, [grouped])
 
   useEffect(() => {
     containerIndexRef.current = buildContainerIndex(items)
@@ -555,27 +564,27 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const sourceContainer = findContainer(draggedId)
     if (!sourceContainer || !targetContainer || sourceContainer === targetContainer) return
 
-    // Move optimistically between containers; keep ref in sync immediately
-    setItems((prev) => {
-      const sourceItems = [...(prev[sourceContainer] ?? [])]
-      const targetItems = [...(prev[targetContainer] ?? [])]
+    // Move optimistically between containers; update refs eagerly (before
+    // setItems) so subsequent handlers read the correct state.
+    const prev = itemsRef.current
+    const sourceItems = [...(prev[sourceContainer] ?? [])]
+    const targetItems = [...(prev[targetContainer] ?? [])]
 
-      const sourceIndex = sourceItems.indexOf(draggedId)
-      if (sourceIndex === -1) return prev
-      sourceItems.splice(sourceIndex, 1)
+    const sourceIndex = sourceItems.indexOf(draggedId)
+    if (sourceIndex === -1) return
+    sourceItems.splice(sourceIndex, 1)
 
-      const overIndex = targetItems.indexOf(resolvedOverId)
-      if (overIndex === -1) {
-        targetItems.push(draggedId)
-      } else {
-        targetItems.splice(overIndex, 0, draggedId)
-      }
+    const overIndex = targetItems.indexOf(resolvedOverId)
+    if (overIndex === -1) {
+      targetItems.push(draggedId)
+    } else {
+      targetItems.splice(overIndex, 0, draggedId)
+    }
 
-      const next = { ...prev, [sourceContainer]: sourceItems, [targetContainer]: targetItems }
-      itemsRef.current = next
-      containerIndexRef.current = buildContainerIndex(next)
-      return next
-    })
+    const next = { ...prev, [sourceContainer]: sourceItems, [targetContainer]: targetItems }
+    itemsRef.current = next
+    containerIndexRef.current = buildContainerIndex(next)
+    setItems(next)
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -588,6 +597,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const draggedId = active.id as string
     const overId = over.id as string
 
+    // Category-to-category reorder
     const draggedCategoryId = getCategoryIdFromDragId(draggedId)
     const overCategoryId = getCategoryIdFromDragId(overId)
 
@@ -596,36 +606,33 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       return
     }
 
-    // Read from ref to get the latest state (avoids stale closure from batched updates)
+    // Channel reorder — resolve IDs and containers
     const latestItems = itemsRef.current
     const sourceContainer = findContainer(draggedId)
-    // Resolve category drag IDs (prefixed "category:") to raw category IDs for container lookup
     const resolvedOverId = getCategoryIdFromDragId(overId) ?? overId
     const targetContainer = latestItems[resolvedOverId] !== undefined ? resolvedOverId : findContainer(resolvedOverId)
 
     if (!sourceContainer || !targetContainer) return
 
-    if (sourceContainer === targetContainer && draggedId !== resolvedOverId) {
+    if (sourceContainer === targetContainer) {
       const containerItems = [...(latestItems[sourceContainer] ?? [])]
       const oldIndex = containerItems.indexOf(draggedId)
-      if (oldIndex === -1) return
       const newIndex = containerItems.indexOf(resolvedOverId)
-      if (newIndex !== -1) {
-        // Reorder within the container; keep itemsRef in sync so persistChannelOrder
-        // reads the updated sequence — same pattern as handleDragOver
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
         const reordered = arrayMove(containerItems, oldIndex, newIndex)
-        setItems((prev) => {
-          const next = { ...prev, [sourceContainer]: reordered }
-          itemsRef.current = next
-          return next
-        })
+        // Update refs BEFORE setItems — React 18 batching defers the updater
+        // function to the render phase, so refs must be updated eagerly for
+        // persistChannelOrder to read the correct order.
+        const next = { ...latestItems, [sourceContainer]: reordered }
+        itemsRef.current = next
+        containerIndexRef.current = buildContainerIndex(next)
+        setItems(next)
+        skipSyncUntilRef.current = Date.now() + 2000
+        persistChannelOrder()
       }
-      // Persist regardless: either we reordered within the container, or this was a
-      // cross-container move that landed on a category header (handleDragOver already
-      // placed the channel in the correct container / itemsRef position).
-      persistChannelOrder()
-    } else if (sourceContainer !== targetContainer) {
-      // Cross-container move was already applied in handleDragOver; persist both
+    } else {
+      // Cross-container move was already applied in handleDragOver; persist
+      skipSyncUntilRef.current = Date.now() + 2000
       persistChannelOrder()
     }
   }
@@ -667,9 +674,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       }
     })
 
-    updates.forEach(({ id, position, parent_id }) => {
-      updateChannel(id, { position, parent_id })
+    // Apply all position changes in a single store update to avoid batching issues
+    const updateMap = new Map(updates.map(({ id, position, parent_id }) => [id, { position, parent_id }]))
+    const updatedChannels = channels.map((c) => {
+      const upd = updateMap.get(c.id)
+      return upd ? { ...c, ...upd } : c
     })
+    setChannels(server.id, updatedChannels)
 
     const supabase = createClientSupabaseClient()
     try {
@@ -681,9 +692,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       const failed = results.find(({ error }) => error)
       if (failed?.error) throw failed.error
     } catch (error: any) {
-      for (const { id, position, parent_id } of previous) {
-        updateChannel(id, { position, parent_id })
-      }
+      // Rollback: restore previous positions in a single store update
+      const rollbackMap = new Map(previous.map(({ id, position, parent_id }) => [id, { position, parent_id }]))
+      const rolledBack = channels.map((c) => {
+        const rb = rollbackMap.get(c.id)
+        return rb ? { ...c, ...rb } : c
+      })
+      setChannels(server.id, rolledBack)
       toast({ variant: "destructive", title: "Failed to save channel order", description: error.message })
     }
   }
