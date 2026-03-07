@@ -128,7 +128,7 @@ test.describe("user journey: register → server → message → realtime → re
     // Type server name
     const nameInput = page.locator('[role="dialog"] input[type="text"]').first()
     await nameInput.fill(TEST_SERVER_NAME)
-    await page.getByRole("button", { name: /^create$/i }).click()
+    await page.getByRole("button", { name: /^create server$/i }).click()
 
     // Wait for redirect to the newly created server's first channel
     await page.waitForURL(/\/channels\/[0-9a-f-]{36}\/[0-9a-f-]{36}/, {
@@ -144,10 +144,10 @@ test.describe("user journey: register → server → message → realtime → re
     const observer = await observerContext.newPage()
     await observer.goto(channelUrl)
 
-    // Wait for the observer's message list to settle
-    await observer.waitForSelector('[aria-label="Send message"]', {
-      timeout: 15_000,
-    })
+    // Wait for the observer's message input to be ready.
+    // (The send button only renders when there is content, so we wait for
+    // the textarea instead — it is always present on a loaded channel page.)
+    await observer.waitForSelector('textarea', { timeout: 15_000 })
 
     // ── 6. Send a message from the primary tab ───────────────────────────────
     const textarea = page.locator("textarea").filter({
