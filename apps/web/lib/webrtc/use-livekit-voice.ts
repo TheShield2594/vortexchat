@@ -29,6 +29,7 @@ import {
   ConnectionState,
   ParticipantEvent,
   type RoomConnectOptions,
+  LocalTrackPublication,
 } from "livekit-client"
 
 export interface LivekitParticipantState {
@@ -51,9 +52,18 @@ export interface LivekitVoiceReturn {
   deafened: boolean
   speaking: boolean
   videoEnabled: boolean
+  screenShareEnabled: boolean
+  screenTrack: MediaStreamTrack | null
+  audioInputDevices: MediaDeviceInfo[]
+  audioOutputDevices: MediaDeviceInfo[]
+  selectedInputId: string | null
+  selectedOutputId: string | null
   toggleMute: () => Promise<void>
   toggleDeafen: () => void
   toggleVideo: () => Promise<void>
+  toggleScreenShare: () => Promise<void>
+  setInputDevice: (deviceId: string) => Promise<void>
+  setOutputDevice: (deviceId: string) => Promise<void>
   leave: () => void
   room: Room | null
 }
@@ -102,6 +112,12 @@ export function useLivekitVoice({
   const [videoEnabled, setVideoEnabled] = useState(false)
   const [participants, setParticipants] = useState<Map<string, LivekitParticipantState>>(new Map())
   const [localParticipant, setLocalParticipant] = useState<LivekitParticipantState | null>(null)
+  const [screenShareEnabled, setScreenShareEnabled] = useState(false)
+  const [screenTrack, setScreenTrack] = useState<MediaStreamTrack | null>(null)
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([])
+  const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedInputId, setSelectedInputId] = useState<string | null>(null)
+  const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null)
 
   const refreshParticipants = useCallback((room: Room) => {
     const map = new Map<string, LivekitParticipantState>()
@@ -220,6 +236,43 @@ export function useLivekitVoice({
       setSpeaking(isSpeaking)
     })
 
+    // Track local screen-share publications
+    room
+      .on(RoomEvent.LocalTrackPublished, (pub: LocalTrackPublication) => {
+        if (pub.track?.source === Track.Source.ScreenShare) {
+          setScreenShareEnabled(true)
+          setScreenTrack(pub.track.mediaStreamTrack ?? null)
+        }
+        refreshParticipants(room)
+      })
+      .on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication) => {
+        if (pub.source === Track.Source.ScreenShare) {
+          setScreenShareEnabled(false)
+          setScreenTrack(null)
+        }
+        refreshParticipants(room)
+      })
+
+    // Enumerate devices once the connection is established
+    async function enumerateDevices() {
+      try {
+        const [inputs, outputs] = await Promise.all([
+          Room.getLocalDevices("audioinput"),
+          Room.getLocalDevices("audiooutput"),
+        ])
+        setAudioInputDevices(inputs)
+        setAudioOutputDevices(outputs)
+      } catch {
+        // Device enumeration may fail in restricted environments; safe to ignore
+      }
+    }
+
+    room.on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
+      if (state === ConnectionState.Connected) {
+        enumerateDevices()
+      }
+    })
+
     connect()
 
     return () => {
@@ -274,6 +327,40 @@ export function useLivekitVoice({
     }
   }, [videoEnabled, refreshParticipants])
 
+  const toggleScreenShare = useCallback(async () => {
+    const room = roomRef.current
+    if (!room) return
+    const next = !screenShareEnabled
+    try {
+      await room.localParticipant.setScreenShareEnabled(next)
+      // State is updated via LocalTrackPublished / LocalTrackUnpublished events
+    } catch (err) {
+      console.error("[Livekit] Failed to toggle screen share", err)
+    }
+  }, [screenShareEnabled])
+
+  const setInputDevice = useCallback(async (deviceId: string) => {
+    const room = roomRef.current
+    if (!room) return
+    try {
+      await room.switchActiveDevice("audioinput", deviceId)
+      setSelectedInputId(deviceId)
+    } catch (err) {
+      console.error("[Livekit] Failed to switch audio input", err)
+    }
+  }, [])
+
+  const setOutputDevice = useCallback(async (deviceId: string) => {
+    const room = roomRef.current
+    if (!room) return
+    try {
+      await room.switchActiveDevice("audiooutput", deviceId)
+      setSelectedOutputId(deviceId)
+    } catch (err) {
+      console.error("[Livekit] Failed to switch audio output", err)
+    }
+  }, [])
+
   const leave = useCallback(() => {
     roomRef.current?.disconnect()
   }, [])
@@ -288,9 +375,18 @@ export function useLivekitVoice({
     deafened,
     speaking,
     videoEnabled,
+    screenShareEnabled,
+    screenTrack,
+    audioInputDevices,
+    audioOutputDevices,
+    selectedInputId,
+    selectedOutputId,
     toggleMute,
     toggleDeafen,
     toggleVideo,
+    toggleScreenShare,
+    setInputDevice,
+    setOutputDevice,
     leave,
     room: roomRef.current,
   }

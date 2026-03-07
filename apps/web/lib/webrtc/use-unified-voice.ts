@@ -13,8 +13,6 @@ import { createDefaultAudioSettings, type VoiceAudioSettings } from "@/lib/voice
 /** Build-time flag — truthy when NEXT_PUBLIC_LIVEKIT_URL is set. */
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL
 
-const EMPTY_DEVICES: MediaDeviceInfo[] = []
-
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 function noop() {}
 
@@ -37,8 +35,10 @@ function useVoiceViaLivekit(
   // Stable null refs — VoiceChannel passes these to VoiceIntelligence and the
   // local participant tile.  Null is safe; both consumers handle a null stream.
   const nullLocalStreamRef = useRef<MediaStream | null>(null)
-  const nullScreenStreamRef = useRef<MediaStream | null>(null)
   const nullCameraStreamRef = useRef<MediaStream | null>(null)
+
+  // Screen stream ref is kept in sync with the LiveKit screen track below.
+  const screenStreamRef = useRef<MediaStream | null>(null)
 
   // Persist MediaStream instances across renders to avoid re-mounting audio
   // elements every time a participant state field (speaking, muted) changes.
@@ -100,6 +100,25 @@ function useVoiceViaLivekit(
     return map
   }, [lk.participants])
 
+  // Sync the screen stream ref with LiveKit's screen track.
+  // We keep a single MediaStream in the ref and swap its track on changes.
+  if (lk.screenTrack) {
+    if (!screenStreamRef.current) {
+      screenStreamRef.current = new MediaStream([lk.screenTrack])
+    } else {
+      const existing = screenStreamRef.current.getVideoTracks()
+      if (existing.length === 0 || existing[0]!.id !== lk.screenTrack.id) {
+        existing.forEach((t) => screenStreamRef.current!.removeTrack(t))
+        screenStreamRef.current.addTrack(lk.screenTrack)
+      }
+    }
+  } else {
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((t) => screenStreamRef.current!.removeTrack(t))
+      screenStreamRef.current = null
+    }
+  }
+
   // Derive a ReconnectInfo from LiveKit's connected/connecting booleans.
   const reconnectInfo = useMemo<ReconnectInfo>(() => {
     if (lk.connecting) return { state: "reconnecting", attempt: 1, maxAttempts: 3 }
@@ -116,28 +135,23 @@ function useVoiceViaLivekit(
     muted: lk.muted,
     deafened: lk.deafened,
     speaking: lk.speaking,
-    // Screen share is not yet surfaced by useLivekitVoice; always false until
-    // the LiveKit hook is extended with getDisplayMedia support.
-    screenSharing: false,
+    screenSharing: lk.screenShareEnabled,
     videoEnabled: lk.videoEnabled,
     // LiveKit toggleMute is async; fire-and-forget to match () => void signature.
     toggleMute: () => { lk.toggleMute().catch(() => {}) },
     toggleDeafen: lk.toggleDeafen,
-    // Screen share no-op — see screenSharing comment above.
-    toggleScreenShare: noop,
+    toggleScreenShare: lk.toggleScreenShare,
     toggleVideo: lk.toggleVideo,
     leaveChannel: lk.leave,
     localStream: nullLocalStreamRef,
-    screenStream: nullScreenStreamRef,
+    screenStream: screenStreamRef,
     cameraStream: nullCameraStreamRef,
-    // LiveKit Room enumerates and manages devices internally; expose empty
-    // lists so the device selector panel renders cleanly in SFU mode.
-    audioInputDevices: EMPTY_DEVICES,
-    audioOutputDevices: EMPTY_DEVICES,
-    selectedInputId: null,
-    selectedOutputId: null,
-    setSelectedInputId: noop,
-    setSelectedOutputId: noop,
+    audioInputDevices: lk.audioInputDevices,
+    audioOutputDevices: lk.audioOutputDevices,
+    selectedInputId: lk.selectedInputId,
+    selectedOutputId: lk.selectedOutputId,
+    setSelectedInputId: (id: string | null) => { if (id) lk.setInputDevice(id).catch(() => {}) },
+    setSelectedOutputId: (id: string | null) => { if (id) lk.setOutputDevice(id).catch(() => {}) },
     audioSettings: defaultAudioSettings,
     setAudioSettings: noop as (s: VoiceAudioSettings) => void,
     cpuBypassActive: false,
