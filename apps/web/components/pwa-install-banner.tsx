@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -50,68 +51,25 @@ export function PwaInstallBanner() {
     <div
       role="banner"
       aria-label="Add VortexChat to your home screen"
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 9999,
-        background: "var(--theme-surface-elevation-3)",
-        borderTop: "1px solid var(--theme-accent)",
-        padding: "12px 16px",
-        display: "flex",
-        alignItems: "center",
-        gap: "12px",
-        boxShadow: "var(--theme-shadow-elevation-4)",
-      }}
+      className="fixed bottom-0 left-0 right-0 z-[9999] flex items-center gap-3 border-t border-accent bg-card px-4 py-3 shadow-lg"
     >
-      {/* Icon */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icon-192.png" alt="" width={40} height={40} style={{ borderRadius: 8, flexShrink: 0 }} />
+      <img src="/icon-192.png" alt="" width={40} height={40} className="shrink-0 rounded-lg" />
 
-      {/* Text */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontWeight: 600, color: "var(--theme-text-bright)", fontSize: 14 }}>
-          Add VortexChat to Home Screen
-        </p>
-        <p style={{ margin: 0, color: "var(--theme-text-muted)", fontSize: 12 }}>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">Add VortexChat to Home Screen</p>
+        <p className="text-xs text-muted-foreground">
           Get the full app experience — offline support &amp; fast launch.
         </p>
       </div>
 
-      {/* Actions */}
-      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-        <button
-          onClick={dismiss}
-          aria-label="Dismiss install banner"
-          style={{
-            background: "transparent",
-            border: "1px solid var(--theme-border, #363d5c)",
-            borderRadius: 6,
-            color: "var(--theme-text-muted)",
-            cursor: "pointer",
-            fontSize: 13,
-            padding: "6px 10px",
-          }}
-        >
+      <div className="flex shrink-0 gap-2">
+        <Button variant="outline" size="sm" onClick={dismiss} aria-label="Dismiss install banner">
           Not now
-        </button>
-        <button
-          onClick={install}
-          aria-label="Install VortexChat app"
-          style={{
-            background: "var(--theme-accent)",
-            border: "none",
-            borderRadius: 6,
-            color: "var(--primary-foreground, #0f1120)",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: 13,
-            padding: "6px 12px",
-          }}
-        >
+        </Button>
+        <Button variant="default" size="sm" onClick={install} aria-label="Install VortexChat app">
           Install
-        </button>
+        </Button>
       </div>
     </div>
   )
