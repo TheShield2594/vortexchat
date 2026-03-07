@@ -67,8 +67,10 @@ async function loginViaUI(page: Page, email: string, password: string) {
   await page.locator('input[id="password"]').fill(password)
   await page.getByRole("button", { name: /log in with password/i }).click()
 
-  // Wait for redirect to /channels/me (or any /channels path)
+  // Wait for redirect to /channels/me (or any /channels path) and for the
+  // page to finish loading so client-side components are interactive.
   await page.waitForURL(/\/channels/, { timeout: 20_000 })
+  await page.waitForLoadState("domcontentloaded")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -106,8 +108,9 @@ test.describe("user journey: register → server → message → realtime → re
     await page.waitForURL(/\/login/, { timeout: 15_000 })
 
     // ── 2. Confirm email via admin API (local Supabase requires confirmation) ─
-    const { data: users } = await admin.auth.admin.listUsers()
-    const testUser = users?.users.find((u) => u.email === TEST_EMAIL)
+    // Request up to 1000 users to avoid pagination cutting off the new user.
+    const { data: listResult } = await admin.auth.admin.listUsers({ perPage: 1000 })
+    const testUser = listResult?.users?.find((u) => u.email === TEST_EMAIL)
     expect(testUser, "Test user should exist after registration").toBeTruthy()
     userId = testUser!.id
 
@@ -121,14 +124,17 @@ test.describe("user journey: register → server → message → realtime → re
     await page.getByRole("button", { name: /add a server/i }).click()
     await page.waitForSelector('[role="dialog"]', { timeout: 5_000 })
 
-    // Ensure "Create" mode is active (first option in the modal)
-    const createTab = page.getByRole("button", { name: /create.*server|new server|create/i }).first()
+    // Scope all modal interactions to the dialog element.
+    const dialog = page.locator('[role="dialog"]')
+
+    // Ensure "Create New" mode is active (it is the default, but click the tab
+    // explicitly so the test is robust against modal state changes).
+    const createTab = dialog.getByRole("button", { name: "Create New" })
     if (await createTab.isVisible()) await createTab.click()
 
     // Type server name
-    const nameInput = page.locator('[role="dialog"] input[type="text"]').first()
-    await nameInput.fill(TEST_SERVER_NAME)
-    await page.getByRole("button", { name: /^create server$/i }).click()
+    await dialog.locator('input[type="text"]').first().fill(TEST_SERVER_NAME)
+    await dialog.getByRole("button", { name: /^create server$/i }).click()
 
     // Wait for redirect to the newly created server's first channel
     await page.waitForURL(/\/channels\/[0-9a-f-]{36}\/[0-9a-f-]{36}/, {
@@ -150,9 +156,8 @@ test.describe("user journey: register → server → message → realtime → re
     await observer.waitForSelector('textarea', { timeout: 15_000 })
 
     // ── 6. Send a message from the primary tab ───────────────────────────────
-    const textarea = page.locator("textarea").filter({
-      hasText: "",
-    })
+    // Use .first() to avoid strict-mode errors if other textareas are present.
+    const textarea = page.locator("textarea").first()
     await textarea.click()
     await textarea.fill(TEST_MESSAGE)
     await page.getByRole("button", { name: /send message/i }).click()
