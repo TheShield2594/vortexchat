@@ -3,7 +3,8 @@ import { Server, type Socket } from "socket.io"
 import { createClient } from "@supabase/supabase-js"
 import dotenv from "dotenv"
 import pino from "pino"
-import { RoomManager } from "./rooms"
+import { InMemoryRoomManager, type IRoomManager } from "./rooms"
+import { RedisRoomManager } from "./redis-rooms"
 import { createVoiceStateSync } from "./voice-state-sync"
 
 dotenv.config()
@@ -20,6 +21,7 @@ const logger = pino({
 // ─── Env var validation ───────────────────────────────────────────────────────
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10)
+const REDIS_URL = process.env.REDIS_URL ?? ""
 const SUPABASE_URL = process.env.SUPABASE_URL ?? ""
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
 const rawOrigins = process.env.ALLOWED_ORIGINS ?? ""
@@ -50,10 +52,10 @@ if (!supabase) {
 
 // ─── HTTP server + Socket.IO ──────────────────────────────────────────────────
 
-const httpServer = createServer((req, res) => {
+const httpServer = createServer(async (req, res) => {
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" })
-    res.end(JSON.stringify({ status: "ok", rooms: rooms.getStats() }))
+    res.end(JSON.stringify({ status: "ok", rooms: await rooms.getStats() }))
     return
   }
   res.writeHead(404)
@@ -71,7 +73,15 @@ const io = new Server(httpServer, {
   perMessageDeflate: true,
 })
 
-const rooms = new RoomManager()
+const rooms: IRoomManager = REDIS_URL
+  ? new RedisRoomManager(REDIS_URL)
+  : new InMemoryRoomManager()
+
+if (REDIS_URL) {
+  logger.info("room state backed by Redis")
+} else {
+  logger.info("room state backed by in-memory Map (set REDIS_URL to enable Redis)")
+}
 const voiceStateSync = supabase ? createVoiceStateSync(supabase) : null
 
 io.on("connection", (socket: Socket) => {
@@ -109,7 +119,7 @@ io.on("connection", (socket: Socket) => {
     socket.join(channelId)
 
     // Register peer in room manager
-    const existingPeers = rooms.join(channelId, {
+    const existingPeers = await rooms.join(channelId, {
       socketId: socket.id,
       userId,
       displayName,
@@ -161,7 +171,7 @@ io.on("connection", (socket: Socket) => {
       }
     }
 
-    logger.info({ userId, channelId, peers: rooms.getRoomSize(channelId) }, "user joined room")
+    logger.info({ userId, channelId, peers: await rooms.getRoomSize(channelId) }, "user joined room")
   })
 
   // ─── WebRTC Signaling ───────────────────────────────────────────────────────
@@ -178,11 +188,11 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── Voice state events ─────────────────────────────────────────────────────
-  socket.on("speaking", ({ speaking }: { speaking: boolean }) => {
-    const peer = findPeerRoom(socket.id)
+  socket.on("speaking", async ({ speaking }: { speaking: boolean }) => {
+    const peer = await findPeerRoom(socket.id)
     if (!peer) return
 
-    rooms.updatePeer(peer.channelId, socket.id, { speaking })
+    await rooms.updatePeer(peer.channelId, socket.id, { speaking })
     socket.to(peer.channelId).emit("peer-speaking", { peerId: socket.id, speaking })
 
     if (voiceStateSync) {
@@ -190,11 +200,11 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
-  socket.on("toggle-mute", ({ muted }: { muted: boolean }) => {
-    const peer = findPeerRoom(socket.id)
+  socket.on("toggle-mute", async ({ muted }: { muted: boolean }) => {
+    const peer = await findPeerRoom(socket.id)
     if (!peer) return
 
-    rooms.updatePeer(peer.channelId, socket.id, { muted })
+    await rooms.updatePeer(peer.channelId, socket.id, { muted })
     socket.to(peer.channelId).emit("peer-muted", { peerId: socket.id, muted })
 
     if (voiceStateSync) {
@@ -202,11 +212,11 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
-  socket.on("toggle-deafen", ({ deafened }: { deafened: boolean }) => {
-    const peer = findPeerRoom(socket.id)
+  socket.on("toggle-deafen", async ({ deafened }: { deafened: boolean }) => {
+    const peer = await findPeerRoom(socket.id)
     if (!peer) return
 
-    rooms.updatePeer(peer.channelId, socket.id, { deafened })
+    await rooms.updatePeer(peer.channelId, socket.id, { deafened })
     socket.to(peer.channelId).emit("peer-deafened", { peerId: socket.id, deafened })
 
     if (voiceStateSync) {
@@ -214,11 +224,11 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
-  socket.on("screen-share", ({ sharing }: { sharing: boolean }) => {
-    const peer = findPeerRoom(socket.id)
+  socket.on("screen-share", async ({ sharing }: { sharing: boolean }) => {
+    const peer = await findPeerRoom(socket.id)
     if (!peer) return
 
-    rooms.updatePeer(peer.channelId, socket.id, { screenSharing: sharing })
+    await rooms.updatePeer(peer.channelId, socket.id, { screenSharing: sharing })
     socket.to(peer.channelId).emit("peer-screen-share", { peerId: socket.id, sharing })
 
     if (voiceStateSync) {
@@ -227,14 +237,14 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── Leave room explicitly ──────────────────────────────────────────────────
-  socket.on("leave-room", ({ channelId }: { channelId: string }) => {
-    handleLeave(socket, channelId)
+  socket.on("leave-room", async ({ channelId }: { channelId: string }) => {
+    await handleLeave(socket, channelId)
   })
 
   // ─── Disconnect ─────────────────────────────────────────────────────────────
-  socket.on("disconnect", (reason) => {
+  socket.on("disconnect", async (reason) => {
     logger.info({ socketId: socket.id, reason }, "client disconnected")
-    const left = rooms.leaveAll(socket.id)
+    const left = await rooms.leaveAll(socket.id)
 
     for (const { channelId, userId } of left) {
       socket.to(channelId).emit("peer-left", { peerId: socket.id, userId })
@@ -246,20 +256,20 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── Helper ─────────────────────────────────────────────────────────────────
-  function findPeerRoom(socketId: string): { channelId: string; userId: string } | null {
+  async function findPeerRoom(socketId: string): Promise<{ channelId: string; userId: string } | null> {
     const socketRooms = Array.from(socket.rooms).filter((r) => r !== socket.id)
     for (const channelId of socketRooms) {
-      const peer = rooms.getPeer(channelId, socketId)
+      const peer = await rooms.getPeer(channelId, socketId)
       if (peer) return { channelId, userId: peer.userId }
     }
     return null
   }
 
-  function handleLeave(socket: Socket, channelId: string) {
-    const peer = rooms.getPeer(channelId, socket.id)
+  async function handleLeave(socket: Socket, channelId: string) {
+    const peer = await rooms.getPeer(channelId, socket.id)
     if (!peer) return
 
-    rooms.leave(channelId, socket.id)
+    await rooms.leave(channelId, socket.id)
     socket.leave(channelId)
     socket.to(channelId).emit("peer-left", { peerId: socket.id, userId: peer.userId })
 

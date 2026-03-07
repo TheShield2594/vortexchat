@@ -36,9 +36,6 @@
     /* ── Motion easing tokens ─────────────────────────────────────────────── */
     --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
-    --motion-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
-    --motion-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
-    --motion-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     /* ── Interaction state tokens ─────────────────────────────────────────── */
     --motion-hover-bg: color-mix(in srgb, var(--theme-text-primary) 5%, transparent);
     --motion-hover-bg-md: color-mix(in srgb, var(--theme-text-primary) 8%, transparent);
@@ -48,8 +45,6 @@
     --motion-skeleton-shimmer: color-mix(in srgb, var(--theme-text-primary) 12%, transparent);
     --app-bg-primary: #1b1f31;
     --app-bg-secondary: #151829;
-    --app-bg-tertiary: #0f1120;
-    --app-accent-color: #00e5ff;
     /* Global semantic tokens for full custom themes */
     --theme-bg-primary: #1b1f31;
     --theme-bg-secondary: #151829;
@@ -57,10 +52,7 @@
     --theme-surface-elevated: #252a42;
     --theme-surface-input: #2a2f48;
     --theme-surface-elevation-1: #20243a;
-    --theme-surface-elevation-2: #252a42;
     --theme-surface-elevation-3: #2a304b;
-    --theme-surface-elevation-4: #303654;
-    --theme-surface-elevation-5: #363d5c;
     --theme-surface-passive: var(--theme-surface-elevation-1);
     --theme-surface-active: var(--theme-surface-elevation-3);
     --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
@@ -687,18 +679,13 @@
   /* App-specific surfaces (used by sidebar / shell) */
   --app-bg-primary: #313338;
   --app-bg-secondary: #2b2d31;
-  --app-bg-tertiary: #1e1f22;
-  --app-accent-color: #5865f2;
   --theme-bg-primary: #313338;
   --theme-bg-secondary: #2b2d31;
   --theme-bg-tertiary: #1e1f22;
   --theme-surface-elevated: #3f4147;
   --theme-surface-input: #383a40;
   --theme-surface-elevation-1: #32353a;
-  --theme-surface-elevation-2: #3a3d44;
   --theme-surface-elevation-3: #42464d;
-  --theme-surface-elevation-4: #4b4f57;
-  --theme-surface-elevation-5: #545963;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
   --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 35%, transparent);
@@ -745,18 +732,13 @@
   /* App-specific surfaces */
   --app-bg-primary: #1b1f31;
   --app-bg-secondary: #151829;
-  --app-bg-tertiary: #0f1120;
-  --app-accent-color: #00e5ff;
   --theme-bg-primary: #1b1f31;
   --theme-bg-secondary: #151829;
   --theme-bg-tertiary: #0f1120;
   --theme-surface-elevated: #252a42;
   --theme-surface-input: #2a2f48;
   --theme-surface-elevation-1: #20243a;
-  --theme-surface-elevation-2: #252a42;
   --theme-surface-elevation-3: #2a304b;
-  --theme-surface-elevation-4: #303654;
-  --theme-surface-elevation-5: #363d5c;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
   --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
@@ -803,18 +785,13 @@
   /* App-specific surfaces */
   --app-bg-primary: #2a1e46;
   --app-bg-secondary: #23193b;
-  --app-bg-tertiary: #1a1030;
-  --app-accent-color: #f92aad;
   --theme-bg-primary: #2a1e46;
   --theme-bg-secondary: #23193b;
   --theme-bg-tertiary: #1a1030;
   --theme-surface-elevated: #35255a;
   --theme-surface-input: #3f2d67;
   --theme-surface-elevation-1: #2d1f4f;
-  --theme-surface-elevation-2: #35255a;
   --theme-surface-elevation-3: #3d2b66;
-  --theme-surface-elevation-4: #463172;
-  --theme-surface-elevation-5: #4f387e;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
   --theme-focus-shift: color-mix(in srgb, var(--theme-accent-secondary) 35%, transparent);
@@ -861,18 +838,13 @@
   /* App-specific surfaces */
   --app-bg-primary: #1f2124;
   --app-bg-secondary: #191b1e;
-  --app-bg-tertiary: #141618;
-  --app-accent-color: #3ba55c;
   --theme-bg-primary: #1f2124;
   --theme-bg-secondary: #191b1e;
   --theme-bg-tertiary: #141618;
   --theme-surface-elevated: #2a2d31;
   --theme-surface-input: #30343a;
   --theme-surface-elevation-1: #25282c;
-  --theme-surface-elevation-2: #2a2d31;
   --theme-surface-elevation-3: #30343a;
-  --theme-surface-elevation-4: #373b42;
-  --theme-surface-elevation-5: #3e444c;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
   --theme-focus-shift: color-mix(in srgb, var(--theme-link) 34%, transparent);
@@ -919,18 +891,13 @@
   /* App-specific surfaces — true black for OLED power savings */
   --app-bg-primary: #000000;
   --app-bg-secondary: #080808;
-  --app-bg-tertiary: #030303;
-  --app-accent-color: #0abab5;
   --theme-bg-primary: #000000;
   --theme-bg-secondary: #080808;
   --theme-bg-tertiary: #030303;
   --theme-surface-elevated: #111111;
   --theme-surface-input: #161616;
   --theme-surface-elevation-1: #0c0c0c;
-  --theme-surface-elevation-2: #111111;
   --theme-surface-elevation-3: #161616;
-  --theme-surface-elevation-4: #1c1c1c;
-  --theme-surface-elevation-5: #222222;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
   --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 35%, transparent);

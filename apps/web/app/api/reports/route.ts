@@ -112,17 +112,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: report, error } = await (supabase as any)
+  const { data: report, error } = await supabase
     .from("reports")
     .insert({
       reporter_id: user.id,
       reported_user_id,
       reported_message_id: reported_message_id || null,
       server_id: server_id || null,
-      reason,
+      reason: reason as "spam" | "harassment" | "inappropriate_content" | "other",
       description: description?.trim() || null,
-      status: "pending",
+      status: "pending" as const,
     })
     .select()
     .single()
@@ -161,8 +160,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (supabase as any)
+    let query = supabase
       .from("reports")
       .select(
         "*, reporter:users!reports_reporter_id_fkey(id, username, display_name, avatar_url), reported_user:users!reports_reported_user_id_fkey(id, username, display_name, avatar_url), reviewer:users!reports_reviewed_by_fkey(id, username, display_name)"
@@ -186,8 +184,7 @@ export async function GET(req: NextRequest) {
   }
 
   // No server_id — return caller's own reports
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: reports, error } = await (supabase as any)
+  const { data: reports, error } = await supabase
     .from("reports")
     .select("*")
     .eq("reporter_id", user.id)
@@ -251,7 +248,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Fetch current status before updating for accurate audit trail
-  const { data: existingReport, error: lookupError } = await (supabase as any)
+  const { data: existingReport, error: lookupError } = await supabase
     .from("reports")
     .select("status")
     .eq("id", report_id)
@@ -262,10 +259,9 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Report not found" }, { status: 404 })
   }
 
-  const previousStatus = (existingReport as any).status
+  const previousStatus = existingReport.status
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: report, error } = await (supabase as any)
+  const { data: report, error } = await supabase
     .from("reports")
     .update({
       status,
@@ -286,13 +282,13 @@ export async function PATCH(req: NextRequest) {
     server_id,
     actor_id: user.id,
     action: `report_${status}`,
-    target_id: (report as any).reported_user_id,
+    target_id: report.reported_user_id,
     target_type: "user",
     changes: {
       report_id,
       previous_status: previousStatus,
       new_status: status,
-      reason: (report as any).reason,
+      reason: report.reason,
     },
   })
 

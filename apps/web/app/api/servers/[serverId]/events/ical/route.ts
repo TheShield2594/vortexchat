@@ -7,11 +7,10 @@ export async function GET(
 ) {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
-  const db = supabase as any
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response("Unauthorized", { status: 401 })
 
-  const { data: events, error } = await db
+  const { data: events, error } = await supabase
     .from("events")
     .select("id,title,description,timezone,start_at,end_at,recurrence,recurrence_until,capacity,cancelled_at")
     .eq("server_id", params.serverId)
@@ -20,7 +19,7 @@ export async function GET(
 
   if (error) return new Response(error.message, { status: 500 })
 
-  const body = buildICal((events ?? []) as any)
+  const body = buildICal(events ?? [])
 
   return new Response(body, {
     status: 200,

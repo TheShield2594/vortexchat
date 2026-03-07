@@ -13,7 +13,7 @@ export async function GET(
   if (auth.error) return auth.error
 
   const status = new URL(req.url).searchParams.get("status")
-  const query = (auth.supabase as any)
+  const query = auth.supabase
     .from("moderation_appeals")
     .select("id, user_id, status, submitted_at, assigned_reviewer_id, anti_abuse_score")
     .eq("server_id", serverId)

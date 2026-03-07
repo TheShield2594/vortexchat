@@ -96,7 +96,7 @@ async function getMessagesAroundTarget(supabase: ServerSupabaseClient, channelId
 
 async function resolveSafeMentions(supabase: ServerSupabaseClient, userId: string, mentions: string[]) {
   try {
-    const filteredMentions = await filterMentionsByBlockState(supabase as any, userId, mentions)
+    const filteredMentions = await filterMentionsByBlockState(supabase, userId, mentions)
     return { safeMentions: filteredMentions.allowed }
   } catch (error) {
     return {
@@ -329,7 +329,7 @@ async function runServerAutomodChecks({
 
   await Promise.all(
     violations.map((violation) =>
-      (supabase as any).rpc("increment_automod_rule_hit", { p_rule_id: violation.rule_id })
+      supabase.rpc("increment_automod_rule_hit", { p_rule_id: violation.rule_id })
     )
   )
 

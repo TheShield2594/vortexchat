@@ -2040,6 +2040,362 @@ export type Database = {
         }
         Relationships: []
       }
+      automod_rule_analytics: {
+        Row: {
+          rule_id: string
+          server_id: string
+          hit_count: number
+          false_positive_count: number
+          last_triggered_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          rule_id: string
+          server_id: string
+          hit_count?: number
+          false_positive_count?: number
+          last_triggered_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          rule_id?: string
+          server_id?: string
+          hit_count?: number
+          false_positive_count?: number
+          last_triggered_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automod_rule_analytics_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: true
+            referencedRelation: "automod_rules"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      events: {
+        Row: {
+          id: string
+          server_id: string
+          title: string
+          description: string | null
+          linked_channel_id: string | null
+          start_at: string
+          end_at: string
+          timezone: string
+          recurrence: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrence_until: string | null
+          capacity: number | null
+          create_voice_channel: boolean
+          voice_channel_id: string | null
+          post_event_thread: boolean
+          thread_id: string | null
+          created_by: string
+          cancelled_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          title: string
+          description?: string | null
+          linked_channel_id?: string | null
+          start_at: string
+          end_at: string
+          timezone?: string
+          recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrence_until?: string | null
+          capacity?: number | null
+          create_voice_channel?: boolean
+          voice_channel_id?: string | null
+          post_event_thread?: boolean
+          thread_id?: string | null
+          created_by: string
+          cancelled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          title?: string
+          description?: string | null
+          linked_channel_id?: string | null
+          start_at?: string
+          end_at?: string
+          timezone?: string
+          recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrence_until?: string | null
+          capacity?: number | null
+          create_voice_channel?: boolean
+          voice_channel_id?: string | null
+          post_event_thread?: boolean
+          thread_id?: string | null
+          created_by?: string
+          cancelled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_hosts: {
+        Row: {
+          event_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          event_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          event_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      event_rsvps: {
+        Row: {
+          event_id: string
+          user_id: string
+          status: 'going' | 'maybe' | 'not_going' | 'waitlist'
+          waitlist_position: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          event_id: string
+          user_id: string
+          status: 'going' | 'maybe' | 'not_going' | 'waitlist'
+          waitlist_position?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          event_id?: string
+          user_id?: string
+          status?: 'going' | 'maybe' | 'not_going' | 'waitlist'
+          waitlist_position?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_reminders: {
+        Row: {
+          event_id: string
+          user_id: string
+          minutes_before: 10 | 60 | 1440
+          sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          event_id: string
+          user_id: string
+          minutes_before: 10 | 60 | 1440
+          sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          event_id?: string
+          user_id?: string
+          minutes_before?: 10 | 60 | 1440
+          sent_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          id: string
+          reporter_id: string
+          reported_user_id: string
+          reported_message_id: string | null
+          server_id: string | null
+          reason: Database['public']['Enums']['report_reason']
+          description: string | null
+          status: Database['public']['Enums']['report_status']
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          reporter_id: string
+          reported_user_id: string
+          reported_message_id?: string | null
+          server_id?: string | null
+          reason: Database['public']['Enums']['report_reason']
+          description?: string | null
+          status?: Database['public']['Enums']['report_status']
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          reporter_id?: string
+          reported_user_id?: string
+          reported_message_id?: string | null
+          server_id?: string | null
+          reason?: Database['public']['Enums']['report_reason']
+          description?: string | null
+          status?: Database['public']['Enums']['report_status']
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      moderation_appeals: {
+        Row: {
+          id: string
+          server_id: string
+          user_id: string
+          linked_action: string
+          appellant_statement: string
+          evidence_attachments: Json
+          status: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed'
+          assigned_reviewer_id: string | null
+          decision_template_id: string | null
+          decision_reason: string | null
+          anti_abuse_score: number
+          submitted_at: string
+          updated_at: string
+          closed_at: string | null
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          user_id: string
+          linked_action?: string
+          appellant_statement: string
+          evidence_attachments?: Json
+          status?: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed'
+          assigned_reviewer_id?: string | null
+          decision_template_id?: string | null
+          decision_reason?: string | null
+          anti_abuse_score?: number
+          submitted_at?: string
+          updated_at?: string
+          closed_at?: string | null
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          user_id?: string
+          linked_action?: string
+          appellant_statement?: string
+          evidence_attachments?: Json
+          status?: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed'
+          assigned_reviewer_id?: string | null
+          decision_template_id?: string | null
+          decision_reason?: string | null
+          anti_abuse_score?: number
+          submitted_at?: string
+          updated_at?: string
+          closed_at?: string | null
+        }
+        Relationships: []
+      }
+      moderation_decision_templates: {
+        Row: {
+          id: string
+          server_id: string
+          title: string
+          body: string
+          decision: 'approved' | 'denied' | 'closed'
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          title: string
+          body: string
+          decision: 'approved' | 'denied' | 'closed'
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          title?: string
+          body?: string
+          decision?: 'approved' | 'denied' | 'closed'
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      moderation_appeal_internal_notes: {
+        Row: {
+          id: string
+          appeal_id: string
+          server_id: string
+          author_id: string
+          note: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          appeal_id: string
+          server_id: string
+          author_id: string
+          note: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          appeal_id?: string
+          server_id?: string
+          author_id?: string
+          note?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      moderation_appeal_status_events: {
+        Row: {
+          id: string
+          appeal_id: string
+          server_id: string
+          actor_id: string | null
+          previous_status: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed' | null
+          new_status: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed'
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          appeal_id: string
+          server_id: string
+          actor_id?: string | null
+          previous_status?: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed' | null
+          new_status: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed'
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          appeal_id?: string
+          server_id?: string
+          actor_id?: string | null
+          previous_status?: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed' | null
+          new_status?: 'submitted' | 'reviewing' | 'approved' | 'denied' | 'closed'
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       app_catalog_public: {
@@ -2150,9 +2506,19 @@ export type Database = {
         Args: { p_app_id: string; p_server_id: string; p_metric_key: string; p_metric_value?: number }
         Returns: void
       }
+      increment_automod_rule_hit: {
+        Args: { p_rule_id: string }
+        Returns: void
+      }
+      mark_automod_false_positive: {
+        Args: { p_rule_id: string }
+        Returns: void
+      }
     }
     Enums: {
       app_trust_badge: 'verified' | 'partner' | 'internal'
+      report_reason: 'spam' | 'harassment' | 'inappropriate_content' | 'other'
+      report_status: 'pending' | 'reviewed' | 'resolved' | 'dismissed'
     }
     CompositeTypes: {
       [_ in never]: never

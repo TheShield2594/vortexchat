@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { VALID_TRIGGER_TYPES, validateConfigAndActions } from "@/lib/automod"
+import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -37,9 +38,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   const ruleIds = (data ?? []).map((rule) => rule.id)
   const { data: analytics } = ruleIds.length
-    ? await (supabase as any).from("automod_rule_analytics").select("rule_id, hit_count, false_positive_count, last_triggered_at").in("rule_id", ruleIds)
-    : { data: [] as any[] }
-  const analyticsByRuleId = new Map((analytics ?? []).map((a: any) => [a.rule_id, a]))
+    ? await supabase.from("automod_rule_analytics").select("rule_id, hit_count, false_positive_count, last_triggered_at").in("rule_id", ruleIds)
+    : { data: [] }
+  const analyticsByRuleId = new Map((analytics ?? []).map((a) => [a.rule_id, a]))
 
   return NextResponse.json(
     (data ?? []).map((rule) => ({
@@ -86,9 +87,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       server_id: serverId,
       name: name.trim(),
       trigger_type: trigger_type as typeof VALID_TRIGGER_TYPES[number],
-      config: config as any,
-      conditions: (conditions && typeof conditions === "object" && !Array.isArray(conditions) ? conditions : {}) as any,
-      actions: actions as any,
+      config: config as Json,
+      conditions: (conditions && typeof conditions === "object" && !Array.isArray(conditions) ? conditions : {}) as Json,
+      actions: actions as Json,
       priority: typeof priority === "number" ? priority : 100,
       enabled: typeof enabled === "boolean" ? enabled : true,
     })

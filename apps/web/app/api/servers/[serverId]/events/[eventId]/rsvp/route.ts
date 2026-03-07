@@ -25,7 +25,6 @@ export async function POST(
 ) {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
-  const db = supabase as any
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -34,7 +33,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid RSVP status" }, { status: 400 })
   }
 
-  const { data: event } = await db
+  const { data: event } = await supabase
     .from("events")
     .select("id,capacity")
     .eq("id", params.eventId)
@@ -43,7 +42,7 @@ export async function POST(
 
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 })
 
-  const { data: existing } = await db
+  const { data: existing } = await supabase
     .from("event_rsvps")
     .select("event_id,user_id,status,waitlist_position")
     .eq("event_id", params.eventId)
@@ -54,7 +53,7 @@ export async function POST(
   let waitlistPosition: number | null = null
 
   if (status === RSVP_GOING && event.capacity) {
-    const { count } = await db
+    const { count } = await supabase
       .from("event_rsvps")
       .select("*", { count: "exact", head: true })
       .eq("event_id", params.eventId)
@@ -65,7 +64,7 @@ export async function POST(
 
     if (effectiveCount >= event.capacity) {
       nextStatus = RSVP_WAITLIST
-      const { data: waitlisted } = await db
+      const { data: waitlisted } = await supabase
         .from("event_rsvps")
         .select("waitlist_position")
         .eq("event_id", params.eventId)
@@ -77,7 +76,7 @@ export async function POST(
     }
   }
 
-  const { data: rsvp, error } = await db
+  const { data: rsvp, error } = await supabase
     .from("event_rsvps")
     .upsert({
       event_id: params.eventId,
@@ -91,7 +90,7 @@ export async function POST(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   if (event.capacity && existing?.status === RSVP_GOING && nextStatus !== RSVP_GOING) {
-    const { data: nextWaitlisted } = await db
+    const { data: nextWaitlisted } = await supabase
       .from("event_rsvps")
       .select("user_id")
       .eq("event_id", params.eventId)
@@ -101,13 +100,13 @@ export async function POST(
 
     const promotedUserId = nextWaitlisted?.[0]?.user_id
     if (promotedUserId) {
-      await db
+      await supabase
         .from("event_rsvps")
         .update({ status: RSVP_GOING, waitlist_position: null })
         .eq("event_id", params.eventId)
         .eq("user_id", promotedUserId)
 
-      const { data: waitlistRows } = await db
+      const { data: waitlistRows } = await supabase
         .from("event_rsvps")
         .select("user_id,waitlist_position")
         .eq("event_id", params.eventId)
@@ -116,7 +115,7 @@ export async function POST(
 
       for (let index = 0; index < (waitlistRows?.length ?? 0); index += 1) {
         const row = waitlistRows[index]
-        await db
+        await supabase
           .from("event_rsvps")
           .update({ waitlist_position: index + 1 })
           .eq("event_id", params.eventId)

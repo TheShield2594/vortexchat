@@ -8,7 +8,6 @@ export async function GET(
 ) {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
-  const db = supabase as any
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -16,7 +15,7 @@ export async function GET(
   const from = searchParams.get("from")
   const to = searchParams.get("to")
 
-  let query = db
+  let query = supabase
     .from("events")
     .select("id, server_id, title, description, linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status)")
     .eq("server_id", params.serverId)
@@ -52,8 +51,7 @@ export async function POST(
 ) {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
-  const db = supabase as any
-  const service = (await createServiceRoleClient()) as any
+  const service = await createServiceRoleClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -74,7 +72,7 @@ export async function POST(
 
   const hosts = Array.isArray(body.hosts) ? (body.hosts as string[]) : []
 
-  const { data: created, error } = await db
+  const { data: created, error } = await supabase
     .from("events")
     .insert({
       server_id: params.serverId,
@@ -97,11 +95,11 @@ export async function POST(
   if (error || !created) return NextResponse.json({ error: error?.message ?? "Failed to create event" }, { status: 500 })
 
   if (hosts.length > 0) {
-    await db.from("event_hosts").insert(hosts.map((hostUserId) => ({ event_id: created.id, user_id: hostUserId })))
+    await supabase.from("event_hosts").insert(hosts.map((hostUserId) => ({ event_id: created.id, user_id: hostUserId })))
   }
 
   if (body.createVoiceChannel) {
-    const { data: voiceChannel } = await db
+    const { data: voiceChannel } = await supabase
       .from("channels")
       .insert({
         server_id: params.serverId,
@@ -113,12 +111,12 @@ export async function POST(
       .single()
 
     if (voiceChannel?.id) {
-      await db.from("events").update({ voice_channel_id: voiceChannel.id }).eq("id", created.id)
+      await supabase.from("events").update({ voice_channel_id: voiceChannel.id }).eq("id", created.id)
     }
   }
 
   if (body.postEventThread && body.linkedChannelId) {
-    const { data: message } = await db
+    const { data: message } = await supabase
       .from("messages")
       .insert({
         channel_id: body.linkedChannelId,
@@ -129,18 +127,18 @@ export async function POST(
       .single()
 
     if (message?.id) {
-      const { data: thread } = await db.rpc("create_thread_from_message", {
+      const { data: thread } = await supabase.rpc("create_thread_from_message", {
         p_message_id: message.id,
         p_name: `${title} discussion`,
       })
       if (thread?.id) {
-        await db.from("events").update({ thread_id: thread.id }).eq("id", created.id)
+        await supabase.from("events").update({ thread_id: thread.id }).eq("id", created.id)
       }
     }
   }
 
   if (body.notifyMembers) {
-    const { data: members } = await db.from("server_members").select("user_id").eq("server_id", params.serverId)
+    const { data: members } = await supabase.from("server_members").select("user_id").eq("server_id", params.serverId)
     if (members?.length) {
       await service.from("notifications").insert(
         members.map((member: any) => ({
