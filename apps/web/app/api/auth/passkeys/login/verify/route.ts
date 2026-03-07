@@ -2,8 +2,16 @@ import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { getOrigin, getRpId, verifyWithAdapter } from "@/lib/auth/passkeys"
 import { createAuthSession, issueTrustedDevice } from "@/lib/auth/security"
+import { rateLimiter } from "@/lib/rate-limit"
 
 export async function POST(request: Request) {
+  // Rate limit: 10 verification attempts per minute per IP
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
+  const rl = await rateLimiter.check(`passkey-verify:${ip}`, { limit: 10, windowMs: 60_000 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+  }
+
   const body = (await request.json().catch(() => ({}))) as {
     challenge?: string
     credentialId?: string

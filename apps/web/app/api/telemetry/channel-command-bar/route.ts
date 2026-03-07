@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 interface CommandBarTelemetryPayload {
   eventType?: "action" | "discoverability"
@@ -9,6 +10,10 @@ interface CommandBarTelemetryPayload {
 }
 
 export async function POST(request: Request) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   try {
     const body = (await request.json()) as CommandBarTelemetryPayload
     if (!body.eventType || !body.channelId || !body.serverId) {

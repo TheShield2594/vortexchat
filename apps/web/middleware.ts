@@ -2,7 +2,18 @@ import { NextResponse, type NextRequest } from "next/server"
 import type { User } from "@supabase/supabase-js"
 import { updateSession } from "@/lib/supabase/middleware"
 
-const PUBLIC_ROUTES = ["/login", "/register", "/api/auth", "/auth/callback"]
+const PUBLIC_ROUTES = [
+  "/login",
+  "/register",
+  "/api/auth",
+  "/auth/callback",
+  // Cron and webhook endpoints authenticate via their own bearer tokens,
+  // not Supabase sessions — they must not be blocked by the session middleware.
+  "/api/cron",
+  "/api/channels/cleanup",
+  "/api/social-alerts/poll",
+  "/api/webhooks",
+]
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname

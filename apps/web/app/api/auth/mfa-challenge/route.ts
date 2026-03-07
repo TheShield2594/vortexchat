@@ -1,31 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-
-// ---------------------------------------------------------------------------
-// In-memory MFA attempt rate limiter (5 attempts per 10 minutes per key)
-// ---------------------------------------------------------------------------
-const MFA_WINDOW_MS = 10 * 60 * 1000
-const MFA_MAX_ATTEMPTS = 5
-
-const mfaAttempts = new Map<string, number[]>()
-
-function checkMfaRateLimit(key: string): boolean {
-  const now = Date.now()
-  const timestamps = (mfaAttempts.get(key) ?? []).filter((t) => now - t < MFA_WINDOW_MS)
-  mfaAttempts.set(key, timestamps)
-  return timestamps.length >= MFA_MAX_ATTEMPTS
-}
-
-function recordMfaAttempt(key: string) {
-  const now = Date.now()
-  const timestamps = (mfaAttempts.get(key) ?? []).filter((t) => now - t < MFA_WINDOW_MS)
-  timestamps.push(now)
-  mfaAttempts.set(key, timestamps)
-}
-
-function clearMfaAttempts(key: string) {
-  mfaAttempts.delete(key)
-}
+import { rateLimiter } from "@/lib/rate-limit"
 
 /**
  * GET /api/auth/mfa-challenge
@@ -71,9 +46,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "factorId and code are required" }, { status: 400 })
   }
 
-  // Rate limit: 5 attempts per 10 minutes per user+factor
-  const rateLimitKey = `${auth.user.id}:${body.factorId}`
-  if (checkMfaRateLimit(rateLimitKey)) {
+  // Rate limit: 5 attempts per 10 minutes per user+factor (uses Upstash Redis when configured)
+  const rateLimitKey = `mfa:${auth.user.id}:${body.factorId}`
+  const rl = await rateLimiter.check(rateLimitKey, { limit: 5, windowMs: 10 * 60_000 })
+  if (!rl.allowed) {
     return NextResponse.json({ error: "Too many attempts" }, { status: 429 })
   }
 
@@ -97,10 +73,8 @@ export async function POST(request: Request) {
   })
 
   if (verifyError) {
-    recordMfaAttempt(rateLimitKey)
     return NextResponse.json({ error: "Invalid code" }, { status: 401 })
   }
 
-  clearMfaAttempts(rateLimitKey)
   return NextResponse.json({ ok: true, level: "aal2" })
 }

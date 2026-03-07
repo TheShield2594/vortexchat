@@ -12,12 +12,14 @@ import { writeAuditEvent } from "@/lib/voice/voice-intelligence-service"
  * Called by a scheduled cron job (e.g. Vercel Cron). Requires CRON_SECRET.
  */
 export async function GET(req: NextRequest) {
+  // Fail closed: reject all requests when CRON_SECRET is not configured
   const secret = process.env.CRON_SECRET
-  if (secret) {
-    const authHeader = req.headers.get("authorization")
-    if (authHeader !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  if (!secret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
+  }
+  const authHeader = req.headers.get("authorization")
+  if (authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   const serviceClient = await createServiceRoleClient()
