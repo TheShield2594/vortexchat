@@ -55,10 +55,8 @@ function buildAdminClient(): SupabaseClient {
 async function loginViaUI(page: Page, email: string, password: string) {
   await page.goto("/login")
   // The login form may have a fallback-toggle that shows email+password fields.
-  // Click "Log In with Password" button to ensure the form is visible.
   const passwordFormVisible = await page.locator('input[type="email"]').isVisible()
   if (!passwordFormVisible) {
-    // Some variants render a "Use password" toggle first
     const toggle = page.getByRole("button", { name: /password|use password/i })
     if (await toggle.isVisible()) await toggle.click()
   }
@@ -91,93 +89,110 @@ test.describe("user journey: register → server → message → realtime → re
   })
 
   test("full journey", async ({ browser }) => {
-    // ── 1. Register via the UI form ─────────────────────────────────────────
     const context: BrowserContext = await browser.newContext()
     const page = await context.newPage()
 
-    await page.goto("/register")
-    await page.locator('input[type="email"]').fill(TEST_EMAIL)
-    // Username field: identified by placeholder
-    await page.locator('input[placeholder="cooluser123"]').fill(TEST_USERNAME)
-    // Display name field (optional — skip)
-    await page.locator('input[type="password"]').nth(0).fill(TEST_PASSWORD)
-    await page.locator('input[type="password"]').nth(1).fill(TEST_PASSWORD)
-    await page.getByRole("button", { name: /create account|continue/i }).click()
+    // ── 1. Register via the UI form ───────────────────────────────────────────
+    await test.step("register", async () => {
+      await page.goto("/register")
+      await page.locator('input[type="email"]').fill(TEST_EMAIL)
+      await page.locator('input[placeholder="cooluser123"]').fill(TEST_USERNAME)
+      await page.locator('input[type="password"]').nth(0).fill(TEST_PASSWORD)
+      await page.locator('input[type="password"]').nth(1).fill(TEST_PASSWORD)
+      await page.getByRole("button", { name: /create account|continue/i }).click()
 
-    // Registration redirects to /login?registered=true and shows a success toast.
-    await page.waitForURL(/\/login/, { timeout: 15_000 })
-
-    // ── 2. Confirm email via admin API (local Supabase requires confirmation) ─
-    // Request up to 1000 users to avoid pagination cutting off the new user.
-    const { data: listResult } = await admin.auth.admin.listUsers({ perPage: 1000 })
-    const testUser = listResult?.users?.find((u) => u.email === TEST_EMAIL)
-    expect(testUser, "Test user should exist after registration").toBeTruthy()
-    userId = testUser!.id
-
-    // Confirm the email so the user can log in
-    await admin.auth.admin.updateUserById(userId, { email_confirm: true })
-
-    // ── 3. Log in via the UI ────────────────────────────────────────────────
-    await loginViaUI(page, TEST_EMAIL, TEST_PASSWORD)
-
-    // ── 4. Create a server via the "Add a Server" modal ─────────────────────
-    await page.getByRole("button", { name: /add a server/i }).click()
-    await page.waitForSelector('[role="dialog"]', { timeout: 5_000 })
-
-    // Scope all modal interactions to the dialog element.
-    const dialog = page.locator('[role="dialog"]')
-
-    // Ensure "Create New" mode is active (it is the default, but click the tab
-    // explicitly so the test is robust against modal state changes).
-    const createTab = dialog.getByRole("button", { name: "Create New" })
-    if (await createTab.isVisible()) await createTab.click()
-
-    // Type server name
-    await dialog.locator('input[type="text"]').first().fill(TEST_SERVER_NAME)
-    await dialog.getByRole("button", { name: /^create server$/i }).click()
-
-    // Wait for redirect to the newly created server's first channel
-    await page.waitForURL(/\/channels\/[0-9a-f-]{36}\/[0-9a-f-]{36}/, {
-      timeout: 15_000,
+      // Registration redirects to /login?registered=true
+      await page.waitForURL(/\/login/, { timeout: 15_000 })
     })
 
-    const channelUrl = page.url()
+    // ── 2. Confirm email via admin API ────────────────────────────────────────
+    await test.step("confirm email", async () => {
+      // Request up to 1000 users to avoid pagination cutting off the new user.
+      const { data: listResult } = await admin.auth.admin.listUsers({ perPage: 1000 })
+      const testUser = listResult?.users?.find((u) => u.email === TEST_EMAIL)
+      expect(testUser, "Test user should exist after registration").toBeTruthy()
+      userId = testUser!.id
 
-    // ── 5. Open a second browser context (real-time observer) ───────────────
-    // Share cookies/storage so the observer is logged in as the same user.
-    const storageState = await context.storageState()
-    const observerContext = await browser.newContext({ storageState })
-    const observer = await observerContext.newPage()
-    await observer.goto(channelUrl)
-
-    // Wait for the observer's message input to be ready.
-    // (The send button only renders when there is content, so we wait for
-    // the textarea instead — it is always present on a loaded channel page.)
-    await observer.waitForSelector('textarea', { timeout: 15_000 })
-
-    // ── 6. Send a message from the primary tab ───────────────────────────────
-    // Use .first() to avoid strict-mode errors if other textareas are present.
-    const textarea = page.locator("textarea").first()
-    await textarea.click()
-    await textarea.fill(TEST_MESSAGE)
-    await page.getByRole("button", { name: /send message/i }).click()
-
-    // ── 7. Verify the message appears in the OBSERVER tab (real-time) ────────
-    await expect(
-      observer.getByText(TEST_MESSAGE, { exact: false })
-    ).toBeVisible({ timeout: 15_000 })
-
-    // ── 8. Verify persistence: message still there after a full page refresh ─
-    await page.reload()
-    await page.waitForURL(/\/channels\/[0-9a-f-]{36}\/[0-9a-f-]{36}/, {
-      timeout: 15_000,
+      await admin.auth.admin.updateUserById(userId, { email_confirm: true })
     })
-    await expect(
-      page.getByText(TEST_MESSAGE, { exact: false })
-    ).toBeVisible({ timeout: 10_000 })
 
-    // Clean up secondary context
-    await observerContext.close()
+    // ── 3. Log in via the UI ──────────────────────────────────────────────────
+    await test.step("login", async () => {
+      await loginViaUI(page, TEST_EMAIL, TEST_PASSWORD)
+    })
+
+    // ── 4. Create a server via the "Add a Server" modal ───────────────────────
+    let channelUrl: string
+    await test.step("create server", async () => {
+      await page.getByRole("button", { name: /add a server/i }).click()
+      await page.waitForSelector('[role="dialog"]', { timeout: 5_000 })
+
+      // Scope all modal interactions to the dialog element.
+      const dialog = page.locator('[role="dialog"]')
+
+      // Ensure "Create New" mode is active (default, but click explicitly for robustness).
+      const createTab = dialog.getByRole("button", { name: "Create New" })
+      if (await createTab.isVisible()) await createTab.click()
+
+      await dialog.locator('input[type="text"]').first().fill(TEST_SERVER_NAME)
+      await dialog.getByRole("button", { name: /^create server$/i }).click()
+
+      // Wait for redirect to the newly created server's first channel
+      await page.waitForURL(/\/channels\/[0-9a-f-]{36}\/[0-9a-f-]{36}/, {
+        timeout: 15_000,
+      })
+
+      channelUrl = page.url()
+    })
+
+    // ── 5. Open observer context + send message + verify realtime ─────────────
+    await test.step("open observer", async () => {
+      // Share cookies/storage so the observer is logged in as the same user.
+      const storageState = await context.storageState()
+      const observerContext = await browser.newContext({ storageState })
+      const observer = await observerContext.newPage()
+
+      // Wait for the messages API response — this fires during channel page init
+      // and indicates the Realtime subscription has been established.
+      const messagesLoaded = observer.waitForResponse(
+        (res) =>
+          res.url().includes("/api/messages") && res.status() === 200,
+        { timeout: 15_000 }
+      )
+      await observer.goto(channelUrl)
+      await messagesLoaded
+
+      // ── 6. Send a message from the primary tab ──────────────────────────────
+      await test.step("send message", async () => {
+        const textarea = page.locator("textarea").first()
+        await textarea.click()
+        // keyboard.type() dispatches per-character events, which React's
+        // controlled-component onChange handler reliably picks up.
+        await page.keyboard.type(TEST_MESSAGE)
+        await page.keyboard.press("Enter")
+      })
+
+      // ── 7. Verify the message appears in the OBSERVER tab (real-time) ────────
+      await test.step("verify realtime delivery", async () => {
+        await expect(
+          observer.getByText(TEST_MESSAGE, { exact: false })
+        ).toBeVisible({ timeout: 15_000 })
+      })
+
+      await observerContext.close()
+    })
+
+    // ── 8. Verify persistence: message still there after a full page refresh ───
+    await test.step("verify persistence after reload", async () => {
+      await page.reload()
+      await page.waitForURL(/\/channels\/[0-9a-f-]{36}\/[0-9a-f-]{36}/, {
+        timeout: 15_000,
+      })
+      await expect(
+        page.getByText(TEST_MESSAGE, { exact: false })
+      ).toBeVisible({ timeout: 10_000 })
+    })
+
     await context.close()
   })
 })
