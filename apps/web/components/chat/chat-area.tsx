@@ -1045,13 +1045,29 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     if (!apiResponse.ok) {
       let errorMsg = "Your message could not be sent. Please try again."
+      let errorCode: string | undefined
       try {
         const body = await apiResponse.json()
         if (typeof body.error === "string") errorMsg = body.error
+        if (typeof body.code === "string") errorCode = body.code
       } catch {}
       if (attachments.length > 0) {
         await supabase.storage.from("attachments").remove(attachments.map((attachment) => attachment.storage_path))
       }
+
+      // AutoMod blocks/quarantines are not retriable — remove the optimistic
+      // message entirely instead of leaving a ghost "Failed" message in chat.
+      if (errorCode === "AUTOMOD_BLOCKED" || errorCode === "AUTOMOD_QUARANTINED") {
+        setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
+        setMessages((prev) => prev.filter((m) => m.id !== messageId))
+        toast({
+          variant: "destructive",
+          title: "Message blocked",
+          description: errorMsg,
+        })
+        throw new Error(errorMsg)
+      }
+
       setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
         status: "failed",
         retryCount: 1,
