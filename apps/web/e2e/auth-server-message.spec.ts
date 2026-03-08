@@ -152,15 +152,13 @@ test.describe("user journey: register → server → message → realtime → re
       const observerContext = await browser.newContext({ storageState })
       const observer = await observerContext.newPage()
 
-      // Wait for the messages API response — this fires during channel page init
-      // and indicates the Realtime subscription has been established.
-      const messagesLoaded = observer.waitForResponse(
-        (res) =>
-          res.url().includes("/api/messages") && res.status() === 200,
-        { timeout: 15_000 }
-      )
       await observer.goto(channelUrl)
-      await messagesLoaded
+      // Wait for the page to fully load (all HTTP requests done, JS executed).
+      // The channel page is server-rendered so there is no client-side
+      // /api/messages fetch on initial load; networkidle is the right signal.
+      await observer.waitForLoadState("networkidle", { timeout: 15_000 })
+      // Confirm React has hydrated by waiting for the chat textarea.
+      await observer.waitForSelector("textarea", { timeout: 10_000 })
 
       // ── 6. Send a message from the primary tab ──────────────────────────────
       await test.step("send message", async () => {
