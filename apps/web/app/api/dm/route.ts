@@ -10,18 +10,19 @@ export async function GET(request: Request) {
   const partnerId = searchParams.get("partnerId")
 
   if (!partnerId) {
-    // Return all DM conversations (latest message per partner)
-    const { data: sent } = await supabase
-      .from("direct_messages")
-      .select("receiver_id, created_at")
-      .eq("sender_id", user.id)
-      .order("created_at", { ascending: false })
-
-    const { data: received } = await supabase
-      .from("direct_messages")
-      .select("sender_id, created_at")
-      .eq("receiver_id", user.id)
-      .order("created_at", { ascending: false })
+    // Return all DM conversations (latest message per partner) — fetch in parallel
+    const [{ data: sent }, { data: received }] = await Promise.all([
+      supabase
+        .from("direct_messages")
+        .select("receiver_id, created_at")
+        .eq("sender_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("direct_messages")
+        .select("sender_id, created_at")
+        .eq("receiver_id", user.id)
+        .order("created_at", { ascending: false }),
+    ])
 
     const partnerIds = new Set<string>([
       ...(sent?.map((m) => m.receiver_id).filter((id): id is string => id !== null) ?? []),

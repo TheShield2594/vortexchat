@@ -136,17 +136,21 @@ export async function POST(req: NextRequest) {
   if (!isGroup) {
     const partnerId = userIds[0] as string
 
-    // Find existing 1:1 channel between current user and partner
-    const { data: userMems, error: userMemsError } = await supabase
-      .from("dm_channel_members")
-      .select("dm_channel_id")
-      .eq("user_id", user.id)
+    // Find existing 1:1 channel between current user and partner — fetch in parallel
+    const [
+      { data: userMems, error: userMemsError },
+      { data: partnerMems, error: partnerMemsError },
+    ] = await Promise.all([
+      supabase
+        .from("dm_channel_members")
+        .select("dm_channel_id")
+        .eq("user_id", user.id),
+      supabase
+        .from("dm_channel_members")
+        .select("dm_channel_id")
+        .eq("user_id", partnerId),
+    ])
     if (userMemsError) return NextResponse.json({ error: userMemsError.message }, { status: 500 })
-
-    const { data: partnerMems, error: partnerMemsError } = await supabase
-      .from("dm_channel_members")
-      .select("dm_channel_id")
-      .eq("user_id", partnerId)
     if (partnerMemsError) return NextResponse.json({ error: partnerMemsError.message }, { status: 500 })
 
     const userChannelIds = new Set((userMems ?? []).map((m) => m.dm_channel_id))

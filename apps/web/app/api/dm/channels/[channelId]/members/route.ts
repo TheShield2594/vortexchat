@@ -11,22 +11,22 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Verify caller is a member
-  const { data: membership } = await supabase
-    .from("dm_channel_members")
-    .select("user_id")
-    .eq("dm_channel_id", channelId)
-    .eq("user_id", user.id)
-    .single()
+  // Verify caller membership and channel type in parallel
+  const [{ data: membership }, { data: channel }] = await Promise.all([
+    supabase
+      .from("dm_channel_members")
+      .select("user_id")
+      .eq("dm_channel_id", channelId)
+      .eq("user_id", user.id)
+      .single(),
+    supabase
+      .from("dm_channels")
+      .select("is_group")
+      .eq("id", channelId)
+      .single(),
+  ])
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-
-  // Only group DMs can have members added
-  const { data: channel } = await supabase
-    .from("dm_channels")
-    .select("is_group")
-    .eq("id", channelId)
-    .single()
 
   if (!channel?.is_group) {
     return NextResponse.json({ error: "Cannot add members to a 1:1 DM" }, { status: 400 })

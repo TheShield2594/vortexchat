@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { MessageSquare, Plus, ArrowLeft, Users } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
@@ -182,23 +182,72 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
     await supabase.from("channels").update({ last_post_at: new Date().toISOString() }).eq("id", channel.id)
   }
 
-  // Top-level posts: messages not replying to another message
-  const topLevelPosts = messages.filter((m) => !m.reply_to_id)
-  const sortedPosts = [...topLevelPosts].sort((a, b) => {
-    const repliesFor = (id: string) => messages.filter((m) => m.reply_to_id === id).length
-    if (sortMode === "popular") return repliesFor(b.id) - repliesFor(a.id)
-    if (sortMode === "unanswered") {
-      const aReplies = repliesFor(a.id)
-      const bReplies = repliesFor(b.id)
-      if ((aReplies === 0) !== (bReplies === 0)) return aReplies === 0 ? -1 : 1
+  // Pre-compute reply counts once (avoids O(n²) in sort comparator)
+  const replyCountMap = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const m of messages) {
+      if (m.reply_to_id) {
+        map.set(m.reply_to_id, (map.get(m.reply_to_id) ?? 0) + 1)
+      }
     }
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })
+    return map
+  }, [messages])
+
+  // Top-level posts: messages not replying to another message
+  const sortedPosts = useMemo(() => {
+    const topLevelPosts = messages.filter((m) => !m.reply_to_id)
+    return [...topLevelPosts].sort((a, b) => {
+      if (sortMode === "popular") return (replyCountMap.get(b.id) ?? 0) - (replyCountMap.get(a.id) ?? 0)
+      if (sortMode === "unanswered") {
+        const aReplies = replyCountMap.get(a.id) ?? 0
+        const bReplies = replyCountMap.get(b.id) ?? 0
+        if ((aReplies === 0) !== (bReplies === 0)) return aReplies === 0 ? -1 : 1
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  }, [messages, sortMode, replyCountMap])
 
   // Replies to the active thread post
-  const threadReplies = activeThread
-    ? messages.filter((m) => m.reply_to_id === activeThread.id)
-    : []
+  const threadReplies = useMemo(
+    () => activeThread ? messages.filter((m) => m.reply_to_id === activeThread.id) : [],
+    [messages, activeThread]
+  )
+
+  // Stable handlers for MessageItem callbacks (avoids recreating logic per render)
+  const handleMessageEdit = useCallback(async (messageId: string, content: string) => {
+    const { error } = await supabase.from("messages").update({ content, edited_at: new Date().toISOString() }).eq("id", messageId)
+    if (!error) setMessages((prev) => prev.map((m) => m.id === messageId ? { ...m, content, edited_at: new Date().toISOString() } : m))
+  }, [supabase])
+
+  const handleMessageDelete = useCallback(async (messageId: string) => {
+    const { error } = await supabase.from("messages").delete().eq("id", messageId)
+    if (!error) setMessages((prev) => prev.filter((m) => m.id !== messageId))
+  }, [supabase])
+
+  const handleMessageReaction = useCallback(async (messageId: string, emoji: string) => {
+    let previousReactions: MessageWithAuthor["reactions"] = []
+    let remove = false
+
+    setMessages((prev) => prev.map((m) => {
+      if (m.id !== messageId) return m
+      previousReactions = m.reactions
+      const hasOwn = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+      remove = hasOwn
+      return {
+        ...m,
+        reactions: hasOwn
+          ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+          : [...m.reactions, { message_id: messageId, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+      }
+    }))
+
+    try {
+      await sendReactionMutation({ messageId, emoji, remove, nonce: crypto.randomUUID() })
+    } catch (error) {
+      console.error("Failed to update reaction", error)
+      setMessages((prev) => prev.map((m) => m.id === messageId ? { ...m, reactions: previousReactions } : m))
+    }
+  }, [currentUserId])
 
   if (view === "thread" && activeThread) {
     return (
@@ -233,40 +282,13 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
               isGrouped={false}
               currentUserId={currentUserId}
               onReply={() => {}}
-              onEdit={async (content) => {
-                const { error } = await supabase.from("messages").update({ content, edited_at: new Date().toISOString() }).eq("id", activeThread.id)
-                if (!error) setMessages((prev) => prev.map((m) => m.id === activeThread.id ? { ...m, content, edited_at: new Date().toISOString() } : m))
-              }}
+              onEdit={(content) => handleMessageEdit(activeThread.id, content)}
               onDelete={async () => {
-                const { error } = await supabase.from("messages").delete().eq("id", activeThread.id)
-                if (!error) { setMessages((prev) => prev.filter((m) => m.id !== activeThread.id)); setView("list"); setActiveThread(null) }
+                await handleMessageDelete(activeThread.id)
+                setView("list")
+                setActiveThread(null)
               }}
-              onReaction={async (emoji) => {
-                const currentThread = messages.find((m) => m.id === activeThread.id)
-                const previousReactions = currentThread?.reactions ?? activeThread.reactions
-                const existing = previousReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
-                const remove = Boolean(existing)
-                setMessages((prev) => prev.map((m) => {
-                  if (m.id !== activeThread.id) return m
-                  const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
-                  return {
-                    ...m,
-                    reactions: remove
-                      ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
-                      : hasOwnReaction
-                        ? m.reactions
-                        : [...m.reactions, { message_id: activeThread.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
-                  }
-                }))
-                try {
-                  await sendReactionMutation({ messageId: activeThread.id, emoji, remove, nonce: crypto.randomUUID() })
-                } catch (error) {
-                  console.error("Failed to update thread reaction", error)
-                  setMessages((prev) =>
-                    prev.map((m) => (m.id === activeThread.id ? { ...m, reactions: previousReactions } : m))
-                  )
-                }
-              }}
+              onReaction={(emoji) => handleMessageReaction(activeThread.id, emoji)}
             />
           </div>
 
@@ -286,39 +308,9 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
                   isGrouped={!!isGrouped}
                   currentUserId={currentUserId}
                   onReply={() => setReplyTo(reply)}
-                  onEdit={async (content) => {
-                    const { error } = await supabase.from("messages").update({ content, edited_at: new Date().toISOString() }).eq("id", reply.id)
-                    if (!error) setMessages((prev) => prev.map((m) => m.id === reply.id ? { ...m, content, edited_at: new Date().toISOString() } : m))
-                  }}
-                  onDelete={async () => {
-                    const { error } = await supabase.from("messages").delete().eq("id", reply.id)
-                    if (!error) setMessages((prev) => prev.filter((m) => m.id !== reply.id))
-                  }}
-                  onReaction={async (emoji) => {
-                    const previousReactions = reply.reactions
-                    const existing = reply.reactions.find((r) => r.emoji === emoji && r.user_id === currentUserId)
-                    const remove = Boolean(existing)
-                    setMessages((prev) => prev.map((m) => {
-                      if (m.id !== reply.id) return m
-                      const hasOwnReaction = m.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
-                      return {
-                        ...m,
-                        reactions: remove
-                          ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
-                          : hasOwnReaction
-                            ? m.reactions
-                            : [...m.reactions, { message_id: reply.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
-                      }
-                    }))
-                    try {
-                      await sendReactionMutation({ messageId: reply.id, emoji, remove, nonce: crypto.randomUUID() })
-                    } catch (error) {
-                      console.error("Failed to update thread reply reaction", error)
-                      setMessages((prev) =>
-                        prev.map((m) => (m.id === reply.id ? { ...m, reactions: previousReactions } : m))
-                      )
-                    }
-                  }}
+                  onEdit={(content) => handleMessageEdit(reply.id, content)}
+                  onDelete={() => handleMessageDelete(reply.id)}
+                  onReaction={(emoji) => handleMessageReaction(reply.id, emoji)}
                 />
               )
             })}
@@ -438,7 +430,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
 
       {/* Post list */}
       <div className="flex-1 overflow-y-auto py-4 px-4 space-y-2">
-        {topLevelPosts.length === 0 && !showNewPost && (
+        {sortedPosts.length === 0 && !showNewPost && (
           <div className="text-center py-12">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto"
@@ -463,7 +455,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
         )}
 
         {sortedPosts.map((post) => {
-          const replyCount = messages.filter((m) => m.reply_to_id === post.id).length
+          const replyCount = replyCountMap.get(post.id) ?? 0
           const firstLine = post.content?.split("\n")[0] ?? ""
           const isTitle = firstLine.startsWith("**") && firstLine.endsWith("**")
           const title = isTitle ? firstLine.replace(/\*\*/g, "") : null

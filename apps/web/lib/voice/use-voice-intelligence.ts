@@ -4,7 +4,7 @@
 // and live transcription. Designed to be used alongside the existing use-voice
 // and use-livekit-voice hooks without modifying them.
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { createSTTProvider, type STTProvider, type STTSegment } from "@/lib/voice/stt-provider"
 import {
@@ -65,7 +65,7 @@ export interface UseVoiceIntelligenceReturn extends VoiceIntelligenceState {
 }
 
 export function useVoiceIntelligence(userId: string | null): UseVoiceIntelligenceReturn {
-  const supabase = createClientSupabaseClient()
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   const [session, setSession] = useState<VoiceCallSessionRow | null>(null)
   const [policy, setPolicy] = useState<EffectiveVoicePolicy | null>(null)

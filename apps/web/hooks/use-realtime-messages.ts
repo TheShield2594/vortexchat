@@ -28,21 +28,24 @@ export function useRealtimeMessages(
         async (payload) => {
           // Fetch full message with relations (reply_to hydrated separately to
           // avoid depending on the self-referential FK being in PostgREST cache)
-          const { data } = await supabase
-            .from("messages")
-            .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
-            .eq("id", payload.new.id)
-            .single()
-          if (!data) return
-          let replyTo = null
-          if (data.reply_to_id) {
-            const { data: parent } = await supabase
+          const replyToId = (payload.new as any).reply_to_id
+          const [messageResult, replyResult] = await Promise.all([
+            supabase
               .from("messages")
-              .select(`*, author:users!messages_author_id_fkey(*)`)
-              .eq("id", data.reply_to_id)
-              .single()
-            replyTo = parent ?? null
-          }
+              .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
+              .eq("id", payload.new.id)
+              .single(),
+            replyToId
+              ? supabase
+                  .from("messages")
+                  .select(`*, author:users!messages_author_id_fkey(*)`)
+                  .eq("id", replyToId)
+                  .single()
+              : Promise.resolve({ data: null }),
+          ])
+          const data = messageResult.data
+          if (!data) return
+          const replyTo = replyResult.data ?? null
           onInsert({ ...data, reply_to: replyTo } as unknown as MessageWithAuthor)
         }
       )

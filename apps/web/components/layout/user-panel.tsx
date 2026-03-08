@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, lazy, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle, LogOut, UserRound } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -9,7 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
-import { ProfileSettingsModal } from "@/components/modals/profile-settings-modal"
+const ProfileSettingsModal = lazy(() => import("@/components/modals/profile-settings-modal").then((m) => ({ default: m.ProfileSettingsModal })))
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { UserRow } from "@/types/database"
 
@@ -273,11 +273,15 @@ export function UserPanel() {
         </Tooltip>
       </div>
 
-      <ProfileSettingsModal
-        open={showProfileSettings}
-        onClose={() => setShowProfileSettings(false)}
-        user={currentUser}
-      />
+      {showProfileSettings && (
+        <Suspense fallback={null}>
+          <ProfileSettingsModal
+            open={showProfileSettings}
+            onClose={() => setShowProfileSettings(false)}
+            user={currentUser}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

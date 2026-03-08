@@ -6,9 +6,9 @@ import { AnnouncementChannel } from "@/components/channels/announcement-channel"
 import { ForumChannel } from "@/components/channels/forum-channel"
 import { MediaChannel } from "@/components/channels/media-channel"
 import { hydrateReplyTo, MESSAGE_PROJECTION } from "@/lib/messages/hydration"
-import { computePermissions, hasPermission } from "@vortex/shared"
-import { getChannelPermissions } from "@/lib/permissions"
+import { PERMISSIONS, computePermissions, hasPermission } from "@vortex/shared"
 import type { RoleRow } from "@/types/database"
+import { perfTimer } from "@/lib/perf"
 
 interface Props {
   params: Promise<{ serverId: string; channelId: string }>
@@ -23,6 +23,7 @@ const VOICE_CHANNEL_TYPES = ["voice", "stage"] as const
 /** Server-rendered channel page that fetches channel data, messages, and read-state, then delegates to the appropriate channel-type component. */
 export default async function ChannelPage({ params: paramsPromise }: Props) {
   const params = await paramsPromise
+  const pageTimer = perfTimer(`channel-page total [${params.channelId.slice(0, 8)}]`)
 
   const [supabase, { data: { user }, error }] = await Promise.all([
     createServerSupabaseClient(),
@@ -31,8 +32,20 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
 
   if (error || !user) redirect("/login")
 
-  // Fetch channel, messages, read-state, server ownership, and member roles in parallel
-  const [{ data: channel }, { data: messagesData }, { data: readState }, { data: server }, { data: memberRoles }] = await Promise.all([
+  // Fetch channel, messages, read-state, server ownership, member roles, default role,
+  // and channel permission overrides — ALL in one parallel block.
+  // Previously getChannelPermissions() ran sequentially after this block and re-queried
+  // server ownership + member_roles (5 redundant queries eliminated).
+  const queryTimer = perfTimer("channel-page queries")
+  const [
+    { data: channel },
+    { data: messagesData },
+    { data: readState },
+    { data: server },
+    { data: memberRoles },
+    { data: defaultRole },
+    { data: channelOverwrites },
+  ] = await Promise.all([
     supabase
       .from("channels")
       .select("*")
@@ -62,30 +75,60 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
       .select("role_id, roles(*)")
       .eq("server_id", params.serverId)
       .eq("user_id", user.id),
+    supabase
+      .from("roles")
+      .select("id")
+      .eq("server_id", params.serverId)
+      .eq("is_default", true)
+      .maybeSingle(),
+    supabase
+      .from("channel_permissions")
+      .select("role_id, allow_permissions, deny_permissions")
+      .eq("channel_id", params.channelId),
   ])
+
+  queryTimer.end()
 
   if (!channel) notFound()
 
-  // Compute canManageMessages server-side (avoids 2 client-side Supabase queries)
+  // Compute permissions synchronously from the already-fetched data
   const isOwner = server?.owner_id === user.id
   type MemberRoleWithRole = { role_id: string; roles: RoleRow | null }
-  const roleBitmasks = ((memberRoles ?? []) as unknown as MemberRoleWithRole[])
-    .map((mr) => mr.roles?.permissions ?? 0)
+  const typedMemberRoles = (memberRoles ?? []) as unknown as MemberRoleWithRole[]
+  const roleBitmasks = typedMemberRoles.map((mr) => mr.roles?.permissions ?? 0)
   const effectivePerms = computePermissions(roleBitmasks)
+  const isAdmin = isOwner || !!(effectivePerms & PERMISSIONS.ADMINISTRATOR)
   const canManageMessages = isOwner || hasPermission(effectivePerms, "MANAGE_MESSAGES")
-  const channelPerms = await getChannelPermissions(supabase, params.serverId, params.channelId, user.id)
-  const canSendMessages = channelPerms.isAdmin || hasPermission(channelPerms.permissions, "SEND_MESSAGES")
+
+  // Apply channel-level permission overwrites (deny first, then allow)
+  let channelPerms = effectivePerms
+  if (!isAdmin) {
+    const roleIds = new Set(typedMemberRoles.map((mr) => mr.role_id))
+    if (defaultRole?.id) roleIds.add(defaultRole.id)
+    if (roleIds.size > 0) {
+      const relevant = (channelOverwrites ?? []).filter((row) => roleIds.has(row.role_id))
+      const denyMask = relevant.reduce((acc, row) => acc | (row.deny_permissions ?? 0), 0)
+      const allowMask = relevant.reduce((acc, row) => acc | (row.allow_permissions ?? 0), 0)
+      channelPerms = (effectivePerms & ~denyMask) | allowMask
+    }
+  }
+
+  const canSendMessages = isAdmin || hasPermission(channelPerms, "SEND_MESSAGES")
   const canAttachMedia = canSendMessages
-  const canConnectVoice = channelPerms.isAdmin || hasPermission(channelPerms.permissions, "CONNECT_VOICE")
-  const canSpeakOnStage = channelPerms.isAdmin || hasPermission(channelPerms.permissions, "SPEAK")
-  const canModerateStage = channelPerms.isAdmin || hasPermission(channelPerms.permissions, "MUTE_MEMBERS")
+  const canConnectVoice = isAdmin || hasPermission(channelPerms, "CONNECT_VOICE")
+  const canSpeakOnStage = isAdmin || hasPermission(channelPerms, "SPEAK")
+  const canModerateStage = isAdmin || hasPermission(channelPerms, "MUTE_MEMBERS")
 
   // Filter messages to only text-based channel types
   let messages: any[] = []
   if ((MESSAGE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
+    const hydrateTimer = perfTimer("channel-page reply hydration")
     const raw = (messagesData ?? []).reverse()
     messages = await hydrateReplyTo(supabase, raw)
+    hydrateTimer.end()
   }
+
+  pageTimer.end()
 
   // Voice and Stage channels use the WebRTC voice infrastructure
   if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {

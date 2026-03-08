@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus, Reply, X } from "lucide-react"
@@ -16,7 +16,7 @@ import { useShallow } from "zustand/react/shallow"
 import { decryptDmContent, encryptDmContent, exportPublicKey, fingerprintFromPublicKey, generateConversationKey, generateDeviceKeyPair, importPublicKey, parseEncryptedEnvelope, unwrapConversationKey, wrapConversationKey } from "@/lib/dm-encryption"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { useLocalSearch } from "@/hooks/use-local-search"
-import { DmLocalSearchModal } from "@/components/modals/dm-local-search-modal"
+const DmLocalSearchModal = lazy(() => import("@/components/modals/dm-local-search-modal").then((m) => ({ default: m.DmLocalSearchModal })))
 import type { IndexedDocument } from "@/lib/local-search-index"
 import { ChannelRowSkeleton, MessageListSkeleton } from "@/components/ui/skeleton"
 
@@ -1008,6 +1008,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
       {/* Local search modal for encrypted DM channels */}
       {showLocalSearch && channel?.is_encrypted && (
+        <Suspense fallback={null}>
         <DmLocalSearchModal
           channelId={channel.id}
           channelLabel={displayName}
@@ -1044,6 +1045,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           searchFn={searchLocal}
           indexedCount={Object.values(decryptedContent).filter((d) => !d.failed).length}
         />
+        </Suspense>
       )}
     </div>
   )

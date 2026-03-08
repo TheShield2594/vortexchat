@@ -6,6 +6,7 @@ import { MemberList } from "@/components/layout/member-list"
 import { ServerEmojiProvider } from "@/components/chat/server-emoji-context"
 import type { RoleRow } from "@/types/database"
 import type { MemberData } from "@/components/layout/member-list"
+import { perfTimer } from "@/lib/perf"
 
 interface Props {
   children: React.ReactNode
@@ -14,22 +15,28 @@ interface Props {
 
 /** Server-rendered layout that verifies membership and renders the channel sidebar alongside the active channel. */
 export default async function ServerLayout({ children, params: paramsPromise }: Props) {
+  const layoutTimer = perfTimer(`server-layout total [${(await paramsPromise).serverId.slice(0, 8)}]`)
   const params = await paramsPromise
 
+  const authTimer = perfTimer("server-layout auth")
   const [supabase, { data: { user }, error }] = await Promise.all([
     createServerSupabaseClient(),
     getAuthUser(),
   ])
+  authTimer.end()
 
   if (error || !user) redirect("/login")
 
   // Fetch membership, server, channels, and roles in parallel
+  const round1Timer = perfTimer("server-layout round-1 (member/server/channels/roles)")
   const [{ data: member }, { data: server }, { data: channels }, { data: memberRoles }] = await Promise.all([
     supabase.from("server_members").select("server_id").eq("server_id", params.serverId).eq("user_id", user.id).single(),
     supabase.from("servers").select("*").eq("id", params.serverId).single(),
     supabase.from("channels").select("*").eq("server_id", params.serverId).order("position", { ascending: true }),
     supabase.from("member_roles").select("role_id, roles(*)").eq("server_id", params.serverId).eq("user_id", user.id),
   ])
+
+  round1Timer.end()
 
   if (!server) notFound()
   if (!member) notFound()
@@ -46,6 +53,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
     .map((c) => c.id)
 
   // Fetch 5 additional data sources in parallel for SSR hydration
+  const round2Timer = perfTimer("server-layout round-2 (members/emojis/threads/voice/reads/messages)")
   const adminSupabase = await createServiceRoleClient()
 
   const [
@@ -123,6 +131,8 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
       : Promise.resolve({ data: [] as { channel_id: string; created_at: string }[] }),
   ])
 
+  round2Timer.end()
+
   // Normalize members: flatten nested roles
   type ApiRoleEntry = { role_id: string; roles: RoleRow | null }
   type ApiMember = Omit<MemberData, "roles"> & { roles?: ApiRoleEntry[] }
@@ -172,6 +182,8 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
       }
     }
   }
+
+  layoutTimer.end()
 
   return (
     <ServerEmojiProvider serverId={params.serverId} initialEmojis={emojis ?? []}>

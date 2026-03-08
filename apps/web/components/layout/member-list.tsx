@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react"
+import { perfLogSinceNav } from "@/lib/perf"
 import { useRouter } from "next/navigation"
 import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle, Flag } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -16,7 +17,7 @@ import type { RoleRow } from "@/types/database"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { Skeleton } from "@/components/ui/skeleton"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
-import { ReportModal } from "@/components/modals/report-modal"
+const ReportModal = lazy(() => import("@/components/modals/report-modal").then((m) => ({ default: m.ReportModal })))
 import { getStatusColor } from "@/lib/presence-status"
 import { cn } from "@/lib/utils/cn"
 
@@ -63,6 +64,11 @@ export function MemberList({ serverId, initialMembers }: Props) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const memberFetchControllerRef = useRef<AbortController | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+
+  // Perf: log mount time relative to navigation start
+  useEffect(() => {
+    perfLogSinceNav("MemberList mounted")
+  }, [serverId])
 
   // Sync SSR-provided members to the app store for mention autocomplete
   useEffect(() => {
@@ -233,16 +239,22 @@ export function MemberList({ serverId, initialMembers }: Props) {
     }
   }, [currentUser?.status, currentUser?.id])
 
-  if (!memberListOpen) return null
+  const onlineMembers = useMemo(
+    () => members.filter((m) => {
+      const p = presence[m.user_id]
+      return p && p.status !== "offline" && p.status !== "invisible"
+    }),
+    [members, presence]
+  )
+  const offlineMembers = useMemo(
+    () => members.filter((m) => {
+      const p = presence[m.user_id]
+      return !p || p.status === "offline" || p.status === "invisible"
+    }),
+    [members, presence]
+  )
 
-  const onlineMembers = members.filter((m) => {
-    const p = presence[m.user_id]
-    return p && p.status !== "offline" && p.status !== "invisible"
-  })
-  const offlineMembers = members.filter((m) => {
-    const p = presence[m.user_id]
-    return !p || p.status === "offline" || p.status === "invisible"
-  })
+  if (!memberListOpen) return null
 
   const selectedMember = selectedMemberId
     ? members.find((member) => member.user_id === selectedMemberId) ?? null
@@ -329,7 +341,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
   )
 }
 
-function MemberItem({
+const MemberItem = memo(function MemberItem({
   member,
   presence,
   currentUserId,
@@ -520,15 +532,17 @@ function MemberItem({
       </ContextMenuContent>
     </ContextMenu>
 
-    {isOtherUser && (
-      <ReportModal
-        open={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        reportedUserId={member.user_id}
-        reportedUsername={displayName}
-        serverId={serverId}
-      />
+    {isOtherUser && showReportModal && (
+      <Suspense fallback={null}>
+        <ReportModal
+          open={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedUserId={member.user_id}
+          reportedUsername={displayName}
+          serverId={serverId}
+        />
+      </Suspense>
     )}
     </>
   )
-}
+})
