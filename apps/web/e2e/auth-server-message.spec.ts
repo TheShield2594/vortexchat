@@ -89,6 +89,10 @@ test.describe("user journey: register → server → message → realtime → re
   })
 
   test("full journey", async ({ browser }) => {
+    // Belt-and-suspenders: also set timeout from inside the test body so it
+    // overrides any default even if the config value is not picked up.
+    test.setTimeout(120_000)
+
     const context: BrowserContext = await browser.newContext()
     const page = await context.newPage()
 
@@ -122,7 +126,7 @@ test.describe("user journey: register → server → message → realtime → re
     })
 
     // ── 4. Create a server via the "Add a Server" modal ───────────────────────
-    let channelUrl: string
+    let channelUrl = ""
     await test.step("create server", async () => {
       await page.getByRole("button", { name: /add a server/i }).click()
       await page.waitForSelector('[role="dialog"]', { timeout: 5_000 })

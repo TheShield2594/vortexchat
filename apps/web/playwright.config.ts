@@ -18,7 +18,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
+  // Allow 2 minutes per test — the full journey (register → login → server →
+  // message → realtime → reload) involves many network round-trips in CI.
+  timeout: 120_000,
+  reporter: process.env.CI
+    ? [["github"], ["html", { open: "never" }], ["list"]]
+    : "list",
   use: {
     baseURL,
     trace: "on-first-retry",
