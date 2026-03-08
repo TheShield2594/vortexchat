@@ -18,7 +18,8 @@
     "signal": "cd apps/signal && npm run dev",
     "web": "cd apps/web && npm run dev",
     "dep:cycles:web": "node scripts/dep-cycles-web.mjs",
-    "parity:report": "node scripts/parity/generate-weekly-report.mjs"
+    "parity:report": "node scripts/parity/generate-weekly-report.mjs",
+    "test:migration-smoke": "node scripts/migration-smoke-test.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

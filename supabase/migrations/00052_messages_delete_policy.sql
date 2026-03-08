@@ -24,6 +24,7 @@ CREATE POLICY "Authors and moderators can hard delete messages"
 
 DROP POLICY IF EXISTS "Authors can edit own messages" ON public.messages;
 DROP POLICY IF EXISTS "Authors and moderators can delete messages" ON public.messages;
+DROP POLICY IF EXISTS "Authors and moderators can soft delete messages" ON public.messages;
 
 CREATE POLICY "Authors can edit own messages"
   ON public.messages FOR UPDATE
