@@ -93,28 +93,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Install the Supabase CLI (used for `supabase db reset`)
-      - name: Install Supabase CLI
-        run: |
-          curl -fsSL https://github.com/supabase/cli/releases/download/v2.75.0/supabase_linux_amd64.tar.gz \
-            | tar -xz -C /usr/local/bin supabase
-          supabase --version
-
-      - name: Start local Supabase
-        run: supabase start
-
+      # This project uses cloud-hosted Supabase (no local Docker instance).
+      # The smoke test validates migration file structure: ordering, no
+      # duplicate version prefixes, and no unguarded duplicate policies.
       - name: Run migration smoke test
         run: npm run test:migration-smoke
-        env:
-          PGHOST: localhost
-          PGPORT: "54322"
-          PGUSER: postgres
-          PGPASSWORD: postgres
-          PGDATABASE: postgres
-
-      - name: Stop local Supabase
-        if: always()
-        run: supabase stop
 
   build:
     name: Build

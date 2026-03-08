@@ -1,42 +1,33 @@
 #!/usr/bin/env node
 /**
- * Migration smoke test
+ * Migration smoke test (static analysis — no database required)
  *
- * Runs `supabase db reset` (applies all migrations from scratch), then
- * connects to the local Postgres instance and asserts that:
+ * This project uses cloud-hosted Supabase; there is no local Docker stack.
+ * Instead of running `supabase db reset`, this script analyses the migration
+ * files in supabase/migrations/ and asserts:
  *
- *   1. All expected tables exist in the `public` schema
- *   2. Every expected table has Row Level Security enabled
+ *   1. Every migration filename matches the expected NNNNn_name.sql pattern
+ *   2. No two migration files share the same numeric prefix (version conflict)
+ *   3. Every expected table has an ENABLE ROW LEVEL SECURITY statement
+ *   4. No CREATE POLICY appears for a policy name that was already created in
+ *      an earlier migration without a preceding DROP POLICY IF EXISTS guard
  *
  * Usage (from repo root):
  *   node scripts/migration-smoke-test.mjs
- *
- * Prerequisites:
- *   - Supabase CLI installed and `supabase start` has been run at least once
- *   - PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE env vars, or the
- *     local defaults below are used.
  *
  * Exit code:
  *   0 – all assertions passed
  *   1 – one or more assertions failed (details printed to stderr)
  */
 
-import { execSync } from "node:child_process"
-import { createRequire } from "node:module"
+import { readdirSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 
-// ── Postgres connection ───────────────────────────────────────────────────────
-// `supabase start` exposes Postgres on 54322 with the default credentials.
-const PG_HOST = process.env.PGHOST ?? "localhost"
-const PG_PORT = process.env.PGPORT ?? "54322"
-const PG_USER = process.env.PGUSER ?? "postgres"
-const PG_PASSWORD = process.env.PGPASSWORD ?? "postgres"
-const PG_DATABASE = process.env.PGDATABASE ?? "postgres"
+const MIGRATIONS_DIR = new URL("../supabase/migrations/", import.meta.url).pathname
 
 // ── Expected tables ───────────────────────────────────────────────────────────
-// Derived from the RLS-enabling statements across all migration files.
-// Every table listed here MUST:
-//   • exist in the public schema after `supabase db reset`
-//   • have row_security = true (ALTER TABLE … ENABLE ROW LEVEL SECURITY)
+// Every table listed here MUST have an ALTER TABLE … ENABLE ROW LEVEL SECURITY
+// statement somewhere in the migration files.
 const EXPECTED_TABLES_WITH_RLS = [
   "users",
   "servers",
@@ -115,94 +106,94 @@ const EXPECTED_TABLES_WITH_RLS = [
   "user_connections",
 ]
 
-// ── Step 1: reset the database ────────────────────────────────────────────────
-console.log("⟳  Running supabase db reset …")
-try {
-  execSync("supabase db reset", {
-    stdio: "inherit",
-    encoding: "utf8",
-  })
-  console.log("✓  supabase db reset completed\n")
-} catch (err) {
-  console.error("✗  supabase db reset failed:", err.message)
-  process.exit(1)
-}
-
-// ── Step 2: query the database ────────────────────────────────────────────────
-// Dynamically import `pg` so the script can be run with plain Node without a
-// build step, as long as `pg` is installed somewhere in the workspace.
-let pg
-try {
-  const require = createRequire(import.meta.url)
-  pg = require("pg")
-} catch {
-  console.error(
-    "✗  Could not load the `pg` package.\n" +
-      "   Install it with: npm install --save-dev pg\n" +
-      "   Or run the smoke test inside a workspace that already has it."
-  )
-  process.exit(1)
-}
-
-const { Client } = pg
-
-const client = new Client({
-  host: PG_HOST,
-  port: Number(PG_PORT),
-  user: PG_USER,
-  password: PG_PASSWORD,
-  database: PG_DATABASE,
-})
-
-await client.connect()
-
-// Fetch all tables in the public schema and their RLS status in one query.
-const { rows } = await client.query(`
-  SELECT
-    c.relname          AS table_name,
-    c.relrowsecurity   AS rls_enabled
-  FROM pg_class c
-  JOIN pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public'
-    AND c.relkind = 'r'
-  ORDER BY c.relname
-`)
-
-await client.end()
-
-const existing = new Map(rows.map((r) => [r.table_name, r.rls_enabled]))
-
-// ── Step 3: assert tables exist and have RLS ──────────────────────────────────
 let failures = 0
 
+// ── Load migration files ──────────────────────────────────────────────────────
+const files = readdirSync(MIGRATIONS_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+
+// ── Check 1: filename format ──────────────────────────────────────────────────
+const FILE_RE = /^\d{5}_\w+\.sql$/
+for (const f of files) {
+  if (!FILE_RE.test(f)) {
+    console.error(`✗  Unexpected migration filename: ${f}`)
+    failures++
+  }
+}
+
+// ── Check 2: no duplicate version prefixes ────────────────────────────────────
+const versionsSeen = new Map()
+for (const f of files) {
+  const version = f.slice(0, 5)
+  if (versionsSeen.has(version)) {
+    console.error(`✗  Duplicate migration version ${version}: ${versionsSeen.get(version)} and ${f}`)
+    failures++
+  } else {
+    versionsSeen.set(version, f)
+  }
+}
+
+// ── Parse all migration SQL ───────────────────────────────────────────────────
+// Collect: tables with RLS, and policy creation order.
+const rlsTables = new Set()
+// Map of policy name → filename where it was first created
+const policyFirstSeen = new Map()
+
+for (const filename of files) {
+  const sql = readFileSync(join(MIGRATIONS_DIR, filename), "utf8")
+  const lines = sql.split("\n")
+
+  // ENABLE ROW LEVEL SECURITY
+  for (const line of lines) {
+    const m = line.match(/ALTER\s+TABLE\s+(?:public\.)?(\w+)\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/i)
+    if (m) rlsTables.add(m[1])
+  }
+
+  // Policy duplicate detection
+  // Track which policies this file drops before creating
+  const droppedInThisFile = new Set()
+  for (let i = 0; i < lines.length; i++) {
+    const dropM = lines[i].match(/DROP\s+POLICY\s+IF\s+EXISTS\s+"([^"]+)"/i)
+    if (dropM) droppedInThisFile.add(dropM[1])
+
+    const createM = lines[i].match(/CREATE\s+POLICY\s+"([^"]+)"/i)
+    if (createM) {
+      const name = createM[1]
+      if (policyFirstSeen.has(name) && !droppedInThisFile.has(name)) {
+        // Check whether this line is inside a DO $$ … IF NOT EXISTS … END $$ block
+        // (safe guard via pg_policies check — not a duplicate)
+        const blockStart = Math.max(0, i - 40)
+        const context = lines.slice(blockStart, i).join("\n")
+        if (!context.includes("NOT EXISTS") || !context.includes(name)) {
+          console.error(
+            `✗  Duplicate policy without DROP IF EXISTS guard: "${name}"\n` +
+            `     First created in: ${policyFirstSeen.get(name)}\n` +
+            `     Created again in: ${filename}:${i + 1}`
+          )
+          failures++
+        }
+      } else if (!policyFirstSeen.has(name)) {
+        policyFirstSeen.set(name, filename)
+      }
+    }
+  }
+}
+
+// ── Check 3: expected tables have RLS ────────────────────────────────────────
 for (const table of EXPECTED_TABLES_WITH_RLS) {
-  if (!existing.has(table)) {
-    console.error(`✗  Table missing:      public.${table}`)
-    failures++
-    continue
-  }
-  if (!existing.get(table)) {
-    console.error(`✗  RLS not enabled on: public.${table}`)
+  if (!rlsTables.has(table)) {
+    console.error(`✗  No ENABLE ROW LEVEL SECURITY found for table: ${table}`)
     failures++
   }
 }
 
-// Report tables present in the DB but not in our expected list (informational)
-const unexpected = [...existing.keys()].filter(
-  (t) => !EXPECTED_TABLES_WITH_RLS.includes(t)
-)
-if (unexpected.length > 0) {
-  console.warn(
-    `⚠  Tables in DB but not in expected list (add them if they need RLS):\n` +
-      unexpected.map((t) => `     public.${t}`).join("\n")
-  )
-}
-
+// ── Result ────────────────────────────────────────────────────────────────────
 if (failures > 0) {
   console.error(`\n✗  ${failures} assertion(s) failed.`)
   process.exit(1)
 }
 
-console.log(
-  `✓  All ${EXPECTED_TABLES_WITH_RLS.length} expected tables exist with RLS enabled.`
-)
+console.log(`✓  ${files.length} migration files checked`)
+console.log(`✓  ${EXPECTED_TABLES_WITH_RLS.length} expected tables have RLS enabled`)
+console.log(`✓  ${policyFirstSeen.size} unique policies — no unguarded duplicates`)

@@ -22,7 +22,6 @@
     "test:migration-smoke": "node scripts/migration-smoke-test.mjs"
   },
   "devDependencies": {
-    "pg": "^8.13.3",
     "turbo": "^2.0.0",
     "typescript": "^5.4.5"
   }
