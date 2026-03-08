@@ -112,6 +112,7 @@ const EXPECTED_TABLES_WITH_RLS = [
   "voice_transcript_translations",
   "dm_channel_keys",
   "user_device_keys",
+  "user_connections",
 ]
 
 // ── Step 1: reset the database ────────────────────────────────────────────────
