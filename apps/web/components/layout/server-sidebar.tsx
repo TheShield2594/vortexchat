@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Plus, Compass, Clipboard, LogOut, UserPlus } from "lucide-react"
+import { Plus, Compass, Clipboard, LogOut, UserPlus, Bell, BellOff } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils/cn"
 import type { ServerRow } from "@/types/database"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 import { Skeleton } from "@/components/ui/skeleton"
+import { NotificationSettingsModal } from "@/components/modals/notification-settings-modal"
 import Image from "next/image"
 
 /** Vertical icon strip listing joined servers, DM shortcut, and create/discover actions. */
@@ -190,6 +191,9 @@ function ServerIcon({
   onLeave: () => void
 }) {
   const { toast } = useToast()
+  const notificationMode = useAppStore((s) => s.notificationModes[server.id])
+  const isMuted = notificationMode === "muted"
+  const [showNotifSettings, setShowNotifSettings] = useState(false)
   const initials = server.name
     .split(" ")
     .map((w) => w[0])
@@ -206,6 +210,7 @@ function ServerIcon({
   }, [])
 
   return (
+    <>
     <ContextMenu>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -248,8 +253,15 @@ function ServerIcon({
                 )}
               </div>
 
-              {/* Unread pip — shown when the server has unread channels and is not active */}
-              {hasUnread && !isActive && (
+              {/* Muted indicator */}
+              {isMuted && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-[16px] h-[16px] rounded-full flex items-center justify-center pointer-events-none" style={{ background: "var(--theme-bg-tertiary)" }}>
+                  <BellOff className="w-2.5 h-2.5" style={{ color: "var(--theme-text-muted)" }} />
+                </div>
+              )}
+
+              {/* Unread pip — shown when the server has unread channels and is not active/muted */}
+              {hasUnread && !isActive && !isMuted && (
                 <div
                   className="absolute -bottom-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full border-2 pointer-events-none server-sidebar-unread-pip"
                 />
@@ -261,6 +273,10 @@ function ServerIcon({
       </Tooltip>
 
       <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={() => setShowNotifSettings(true)}>
+          <Bell className="w-4 h-4 mr-2" /> Notification Settings
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={() => {
           navigator.clipboard.writeText(server.invite_code)
           toast({ title: "Invite code copied!" })
@@ -286,5 +302,13 @@ function ServerIcon({
         )}
       </ContextMenuContent>
     </ContextMenu>
+
+    <NotificationSettingsModal
+      open={showNotifSettings}
+      onClose={() => setShowNotifSettings(false)}
+      serverId={server.id}
+      label={server.name}
+    />
+    </>
   )
 }
