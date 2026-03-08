@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Bell, BellOff, AtSign, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useAppStore } from "@/lib/stores/app-store"
 
 type Mode = "all" | "mentions" | "muted"
 
@@ -24,9 +25,12 @@ export function NotificationSettingsModal({ open, onClose, serverId, channelId, 
   const [mode, setMode] = useState<Mode>("all")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const setNotificationMode = useAppStore((s) => s.setNotificationMode)
+  const removeNotificationMode = useAppStore((s) => s.removeNotificationMode)
 
   useEffect(() => {
     if (!open) return
+    setLoading(true)
     const param = serverId ? `serverId=${serverId}` : `channelId=${channelId}`
     fetch(`/api/notification-settings?${param}`)
       .then((r) => r.json())
@@ -41,6 +45,11 @@ export function NotificationSettingsModal({ open, onClose, serverId, channelId, 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ serverId, channelId, mode: newMode }),
     })
+    const entityId = serverId || channelId
+    if (entityId) {
+      if (newMode === "all") removeNotificationMode(entityId)
+      else setNotificationMode(entityId, newMode)
+    }
     setSaving(false)
     onClose()
   }

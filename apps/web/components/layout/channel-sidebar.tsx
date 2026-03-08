@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
   Plus, Clipboard, Pencil, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, MessageCircle,
-  MicOff, Headphones
+  MicOff, Headphones, Bell, BellOff
 } from "lucide-react"
 import {
   DndContext,
@@ -43,6 +43,7 @@ const CreateChannelModal = dynamic(() => import("@/components/modals/create-chan
 const EditChannelModal = dynamic(() => import("@/components/modals/edit-channel-modal").then((m) => ({ default: m.EditChannelModal })))
 const ServerSettingsModal = dynamic(() => import("@/components/modals/server-settings-modal").then((m) => ({ default: m.ServerSettingsModal })))
 const QuickSwitcherModal = dynamic(() => import("@/components/modals/quickswitcher-modal").then((m) => ({ default: m.QuickSwitcherModal })))
+const NotificationSettingsModal = dynamic(() => import("@/components/modals/notification-settings-modal").then((m) => ({ default: m.NotificationSettingsModal })))
 const SearchModal = dynamic(() => import("@/components/modals/search-modal").then((m) => ({ default: m.SearchModal })))
 const KeyboardShortcutsModal = dynamic(() => import("@/components/modals/keyboard-shortcuts-modal").then((m) => ({ default: m.KeyboardShortcutsModal })))
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
@@ -1188,7 +1189,10 @@ function SortableChannelItem({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: channel.id })
   const { toast } = useToast()
-  const showBadge = !isActive && (isUnread || (mentionCount ?? 0) > 0)
+  const notificationMode = useAppStore((s) => s.notificationModes[channel.id])
+  const isMuted = notificationMode === "muted"
+  const [showNotifSettings, setShowNotifSettings] = useState(false)
+  const showBadge = !isActive && !isMuted && (isUnread || (mentionCount ?? 0) > 0)
 
   // Live countdown for temporary channels
   const [timeRemaining, setTimeRemaining] = useState<string | null>(
@@ -1257,9 +1261,12 @@ function SortableChannelItem({
               </span>
             )}
             <ChannelIcon channel={channel} isVoiceActive={isVoiceActive} />
-            <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>
+            <span className={cn("truncate flex-1", isMuted && "opacity-50", isUnread && !isActive && !isMuted ? "font-semibold" : "")}>
               {channel.name}
             </span>
+            {isMuted && (
+              <BellOff className="w-3 h-3 flex-shrink-0 opacity-40" />
+            )}
             <span className="ml-auto flex items-center gap-1 flex-shrink-0 tertiary-metadata">
               {timeRemaining && (
                 <Tooltip>
@@ -1308,6 +1315,9 @@ function SortableChannelItem({
               <ContextMenuSeparator />
             </>
           )}
+          <ContextMenuItem onClick={() => setShowNotifSettings(true)}>
+            <Bell className="w-4 h-4 mr-2" /> Notification Settings
+          </ContextMenuItem>
           <ContextMenuItem onClick={() => {
             navigator.clipboard.writeText(channel.id)
             toast({ title: "Channel ID copied!" })
@@ -1327,6 +1337,13 @@ function SortableChannelItem({
           )}
         </ContextMenuContent>
       </ContextMenu>
+
+      <NotificationSettingsModal
+        open={showNotifSettings}
+        onClose={() => setShowNotifSettings(false)}
+        channelId={channel.id}
+        label={`#${channel.name}`}
+      />
 
       {/* Voice participants listed under voice channels */}
       {voiceParticipants && voiceParticipants.length > 0 && (
