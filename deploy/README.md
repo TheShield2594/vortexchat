@@ -17,7 +17,26 @@ Vortex runs on three cloud services:
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_URL`
    - **anon public** key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`
-3. Run migrations against your cloud database:
+3. **Database connection string (production)** — use the **PgBouncer (transaction mode)** connection string, **not** the direct Postgres connection.
+
+   | Mode | Port | Use case |
+   |------|------|----------|
+   | Direct Postgres | **5432** | Migrations, long-running admin scripts, local dev |
+   | PgBouncer (transaction) | **6543** | **Production app servers** — pooled, scales to many concurrent requests |
+
+   Find both strings in **Settings → Database → Connection string** (toggle *"Use connection pooling"*).
+
+   ```
+   # Direct (for migrations / `supabase db push`):
+   postgresql://postgres:[password]@db.<project-ref>.supabase.co:5432/postgres
+
+   # PgBouncer – use this for SUPABASE_DB_URL in production:
+   postgresql://postgres.[project-ref]:[password]@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true
+   ```
+
+   > **Why PgBouncer?** Each Supabase project has a limited number of direct Postgres connections. Vercel serverless functions can open hundreds of connections simultaneously; PgBouncer multiplexes them so you don't exhaust the connection limit. Always append `?pgbouncer=true` to suppress prepared-statement usage, which is incompatible with transaction-mode pooling.
+
+4. Run migrations against your cloud database:
    ```bash
    npx supabase link --project-ref <project-ref>
    npx supabase db push
@@ -58,7 +77,17 @@ The WebRTC signaling server runs persistent WebSocket connections and must be ho
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ALLOWED_ORIGINS=https://your-app.vercel.app
    ```
-4. In Railway, enable **Public Networking** for the service and copy the generated URL (e.g., `https://vortex-signal.up.railway.app`).
+4. **(Recommended for production)** Add a Redis service to your Railway project and set `REDIS_URL` to enable horizontal scaling:
+   ```
+   REDIS_URL=redis://default:<password>@<host>:6379
+   ```
+   With `REDIS_URL` set the signal server:
+   - Stores room state (peers, voice states) as Redis hashes — shared across all replicas.
+   - Attaches the Socket.IO Redis adapter so that broadcasts (peer-joined, peer-left, etc.) reach clients connected to *any* replica.
+
+   Without `REDIS_URL` the server falls back to an in-memory store and in-process adapter, which only works correctly with a single replica.
+
+5. In Railway, enable **Public Networking** for the service and copy the generated URL (e.g., `https://vortex-signal.up.railway.app`).
    Use this URL as `NEXT_PUBLIC_SIGNAL_URL` in the Vercel environment — prefix with `wss://` for WebSockets.
 
 ### Railway config

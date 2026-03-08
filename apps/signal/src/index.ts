@@ -1,6 +1,8 @@
 import { createServer } from "http"
 import { Server, type Socket } from "socket.io"
+import { createAdapter } from "@socket.io/redis-adapter"
 import { createClient } from "@supabase/supabase-js"
+import Redis from "ioredis"
 import dotenv from "dotenv"
 import pino from "pino"
 import { InMemoryRoomManager, type IRoomManager } from "./rooms"
@@ -72,6 +74,21 @@ const io = new Server(httpServer, {
   pingInterval: 25000,
   perMessageDeflate: true,
 })
+
+// ─── Socket.IO Redis adapter (horizontal scaling) ────────────────────────────
+// When REDIS_URL is set we attach the Redis adapter so that socket-room
+// broadcasts (io.to(channelId).emit) are fanned out to ALL signal-server
+// replicas.  Two separate ioredis clients are required: one for publish,
+// one for the blocking subscribe channel.
+
+if (REDIS_URL) {
+  const pubClient = new Redis(REDIS_URL, { maxRetriesPerRequest: 3 })
+  const subClient = pubClient.duplicate()
+  io.adapter(createAdapter(pubClient, subClient))
+  logger.info("Socket.IO using Redis adapter (multi-instance mode)")
+} else {
+  logger.info("Socket.IO using in-memory adapter (single-instance mode)")
+}
 
 const rooms: IRoomManager = REDIS_URL
   ? new RedisRoomManager(REDIS_URL)
