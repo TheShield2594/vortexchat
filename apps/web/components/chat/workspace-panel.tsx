@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { CheckSquare, FileText, Plus, Trash2, X } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { CheckSquare, ChevronDown, ChevronRight, FileText, Plus, Square, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 type Task = { id: string; title: string; status: string; due_date: string | null }
@@ -12,6 +12,7 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
   const [docs, setDocs] = useState<Doc[]>([])
   const [taskTitle, setTaskTitle] = useState("")
   const [docTitle, setDocTitle] = useState("")
+  const [showCompleted, setShowCompleted] = useState(false)
 
   async function load() {
     const [tasksRes, docsRes] = await Promise.all([
@@ -30,6 +31,19 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
     })
     if (res.ok) setTasks((prev) => prev.filter((t) => t.id !== taskId))
   }
+
+  async function toggleTaskStatus(taskId: string, currentStatus: string) {
+    const newStatus = currentStatus === "done" ? "todo" : "done"
+    const res = await fetch(`/api/channels/${channelId}/tasks`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId, status: newStatus }),
+    })
+    if (res.ok) setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t))
+  }
+
+  const activeTasks = useMemo(() => tasks.filter((t) => t.status !== "done"), [tasks])
+  const completedTasks = useMemo(() => tasks.filter((t) => t.status === "done"), [tasks])
 
   async function deleteDoc(docId: string) {
     const res = await fetch(`/api/channels/${channelId}/docs`, {
@@ -64,11 +78,19 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
           }}><Plus className="w-3 h-3" /></Button>
         </div>
         <div className="space-y-1">
-          {tasks.map((task) => (
+          {activeTasks.map((task) => (
             <div key={task.id} className="group flex items-start gap-2 rounded bg-black/20 p-2 text-xs text-zinc-200">
+              <button
+                type="button"
+                onClick={() => toggleTaskStatus(task.id, task.status)}
+                className="text-zinc-500 hover:text-zinc-200 shrink-0 mt-0.5"
+                aria-label={`Mark task complete: ${task.title}`}
+              >
+                <Square className="w-3.5 h-3.5" />
+              </button>
               <div className="flex-1 min-w-0">
                 <div className="font-medium">{task.title}</div>
-                <div className="text-zinc-400">{task.status}{task.due_date ? ` \u2022 due ${new Date(task.due_date).toLocaleDateString()}` : ""}</div>
+                {task.due_date && <div className="text-zinc-400">due {new Date(task.due_date).toLocaleDateString()}</div>}
               </div>
               <button
                 type="button"
@@ -81,6 +103,46 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
             </div>
           ))}
         </div>
+
+        {completedTasks.length > 0 && (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => setShowCompleted((v) => !v)}
+              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 mb-1"
+            >
+              {showCompleted ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              Completed ({completedTasks.length})
+            </button>
+            {showCompleted && (
+              <div className="space-y-1">
+                {completedTasks.map((task) => (
+                  <div key={task.id} className="group flex items-start gap-2 rounded bg-black/20 p-2 text-xs text-zinc-400">
+                    <button
+                      type="button"
+                      onClick={() => toggleTaskStatus(task.id, task.status)}
+                      className="text-green-500 hover:text-zinc-200 shrink-0 mt-0.5"
+                      aria-label={`Mark task incomplete: ${task.title}`}
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium line-through">{task.title}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteTask(task.id)}
+                      className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 shrink-0 mt-0.5 transition-opacity"
+                      aria-label={`Delete task: ${task.title}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div>

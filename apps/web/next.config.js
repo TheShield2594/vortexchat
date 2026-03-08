@@ -78,5 +78,7 @@ module.exports = withBundleAnalyzer(withSentryConfig(nextConfig, {
   sourcemaps: {
     disable: !process.env.CI,
   },
-  autoInstrumentServerFunctions: true,
+  webpack: {
+    autoInstrumentServerFunctions: true,
+  },
 }))
