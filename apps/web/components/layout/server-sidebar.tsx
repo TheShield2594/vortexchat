@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { CreateServerModal } from "@/components/modals/create-server-modal"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useState, useMemo, useCallback, useEffect } from "react"
+import { perfMarkNavStart } from "@/lib/perf"
 import { cn } from "@/lib/utils/cn"
 import type { ServerRow } from "@/types/database"
 import { VortexLogo } from "@/components/ui/vortex-logo"
@@ -31,6 +32,7 @@ export function ServerSidebar() {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   const navigateToServer = useCallback((serverId: string) => {
+    perfMarkNavStart(`server:${serverId.slice(0, 8)}`)
     setActiveServer(serverId)
 
     // Check Zustand store for cached channels (populated after any visit this session)

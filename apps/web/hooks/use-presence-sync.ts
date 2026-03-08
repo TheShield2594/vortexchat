@@ -33,9 +33,12 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
     if (!userId) return
     userIdRef.current = userId
 
+    let isInitialCall = true
     const persistStatus = (nextStatus: PresenceStatus, options?: { persistUserRecord?: boolean; rememberExplicit?: boolean }) => {
       const persistUserRecord = options?.persistUserRecord ?? true
       const rememberExplicit = options?.rememberExplicit ?? (nextStatus === "idle" || nextStatus === "dnd" || nextStatus === "invisible")
+
+      const statusChanged = currentStatusRef.current !== nextStatus
 
       currentStatusRef.current = nextStatus
       if (rememberExplicit) {
@@ -49,6 +52,10 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
       } else if (rememberExplicit) {
         isIdleExplicitRef.current = false
       }
+
+      // Skip redundant track/persist calls when status hasn't actually changed
+      if (!statusChanged && !isInitialCall) return
+      isInitialCall = false
 
       if (persistUserRecord) {
         supabase

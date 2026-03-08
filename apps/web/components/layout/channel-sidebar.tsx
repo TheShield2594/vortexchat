@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { perfLogSinceNav } from "@/lib/perf"
 import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
@@ -254,6 +255,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   )
 
+  // Perf: log mount time relative to navigation start
+  useEffect(() => {
+    perfLogSinceNav("ChannelSidebar mounted")
+  }, [server.id])
+
   // Seed store with server-fetched channels once per server
   const seededServerRef = useRef<string | null>(null)
   useEffect(() => {
@@ -404,7 +410,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }, [voiceParticipants])
 
   // Compute effective permissions
-  const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
+  const userPermissions = useMemo(() => userRoles.reduce((acc, role) => acc | role.permissions, 0), [userRoles])
   const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
   const canManageEvents = isOwner || hasPermission(userPermissions, "MANAGE_EVENTS")
 
@@ -725,19 +731,25 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const activeCategory = activeCategoryId ? channels.find((c) => c.id === activeCategoryId) : null
 
   // Rebuild grouped view from live items map to reflect drag state
-  const liveGrouped = grouped.map(({ category }) => {
-    const key = category?.id ?? NO_CATEGORY
-    const channelIds = items[key] ?? []
-    const categoryChannels = channelIds
-      .map((id) => channelById.get(id))
-      .filter((c): c is ChannelRow => !!c)
-    return { category, channels: categoryChannels }
-  })
+  const liveGrouped = useMemo(
+    () => grouped.map(({ category }) => {
+      const key = category?.id ?? NO_CATEGORY
+      const channelIds = items[key] ?? []
+      const categoryChannels = channelIds
+        .map((id) => channelById.get(id))
+        .filter((c): c is ChannelRow => !!c)
+      return { category, channels: categoryChannels }
+    }),
+    [grouped, items, channelById]
+  )
 
   // Channels eligible for webhooks are all message-based channel types
-  const webhookEligibleChannels = channels
-    .filter((c) => (MESSAGE_CHANNEL_TYPES as readonly string[]).includes(c.type))
-    .map((c) => ({ id: c.id, name: c.name }))
+  const webhookEligibleChannels = useMemo(
+    () => channels
+      .filter((c) => (MESSAGE_CHANNEL_TYPES as readonly string[]).includes(c.type))
+      .map((c) => ({ id: c.id, name: c.name })),
+    [channels]
+  )
 
   return (
     <TooltipProvider delayDuration={200}>

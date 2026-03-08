@@ -10,8 +10,8 @@ export const getAuthUser = cache(async () => {
   return supabase.auth.getUser()
 })
 
-/** Creates a Supabase client authenticated via the request's cookies (anon key). Safe for Server Components, Route Handlers, and Server Actions. */
-export async function createServerSupabaseClient() {
+/** Per-request cached Supabase client. Deduplicates client creation across nested layouts and pages within a single render. */
+export const createServerSupabaseClient = cache(async () => {
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
@@ -34,13 +34,13 @@ export async function createServerSupabaseClient() {
       },
     }
   )
-}
+})
 
-/** Creates a Supabase client with the service-role key, bypassing RLS. Use only for admin operations. */
-export async function createServiceRoleClient() {
+/** Per-request cached service-role client. Bypasses RLS — use only for admin operations. */
+export const createServiceRoleClient = cache(async () => {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   )
-}
+})

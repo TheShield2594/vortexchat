@@ -1,10 +1,9 @@
 "use client"
 
-import { memo, useCallback, useEffect, useId, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useId, useRef, useState, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
 import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check, Pin, PinOff } from "lucide-react"
-import { Highlight, themes } from "prism-react-renderer"
 import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
@@ -19,8 +18,8 @@ import { useShallow } from "zustand/react/shallow"
 import { LinkEmbed, extractFirstUrl, extractGiphyUrl, getEmbeddableGiphyUrl, stripUrlFromContent } from "@/components/chat/link-embed"
 import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
-import { CreateThreadModal } from "@/components/modals/create-thread-modal"
-import { ReportModal } from "@/components/modals/report-modal"
+const CreateThreadModal = lazy(() => import("@/components/modals/create-thread-modal").then((m) => ({ default: m.CreateThreadModal })))
+const ReportModal = lazy(() => import("@/components/modals/report-modal").then((m) => ({ default: m.ReportModal })))
 import Image from "next/image"
 import { useParams } from "next/navigation"
 import { isAttachmentDownloadAllowed } from "@/lib/attachment-access"
@@ -80,6 +79,31 @@ const SUPPORTED_PRISM_LANGUAGES = new Set([
   "nginx", "regex", "wasm", "text",
 ])
 
+const HighlightedCode = lazy(() =>
+  import("prism-react-renderer").then((m) => ({
+    default: function HighlightedCodeInner({ code, language }: { code: string; language: string }) {
+      return (
+        <m.Highlight code={code} language={language} theme={m.themes.nightOwl}>
+          {({ style, tokens, getLineProps, getTokenProps }) => (
+            <pre
+              className="overflow-x-auto text-sm p-3 font-mono"
+              style={{ ...style, margin: 0 }}
+            >
+              {tokens.map((line, i) => (
+                <div key={i} {...getLineProps({ line })}>
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token })} />
+                  ))}
+                </div>
+              ))}
+            </pre>
+          )}
+        </m.Highlight>
+      )
+    },
+  }))
+)
+
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [copied, setCopied] = useState(false)
 
@@ -118,22 +142,15 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
           {copied ? "Copied!" : "Copy"}
         </button>
       </div>
-      <Highlight code={code} language={language} theme={themes.nightOwl}>
-        {({ style, tokens, getLineProps, getTokenProps }) => (
-          <pre
-            className="overflow-x-auto text-sm p-3 font-mono"
-            style={{ ...style, margin: 0 }}
-          >
-            {tokens.map((line, i) => (
-              <div key={i} {...getLineProps({ line })}>
-                {line.map((token, key) => (
-                  <span key={key} {...getTokenProps({ token })} />
-                ))}
-              </div>
-            ))}
+      <Suspense
+        fallback={
+          <pre className="overflow-x-auto text-sm p-3 font-mono" style={{ background: "#011627", color: "#d6deeb", margin: 0 }}>
+            {code}
           </pre>
-        )}
-      </Highlight>
+        }
+      >
+        <HighlightedCode code={code} language={language} />
+      </Suspense>
     </div>
   )
 }
@@ -1104,27 +1121,31 @@ export const MessageItem = memo(function MessageItem({
       </ContextMenuContent>
     </ContextMenu>
 
-    {!isOwn && (
-      <ReportModal
-        open={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        reportedUserId={message.author_id}
-        reportedUsername={displayName}
-        reportedMessageId={message.id}
-        serverId={activeServerId ?? undefined}
-      />
+    {!isOwn && showReportModal && (
+      <Suspense fallback={null}>
+        <ReportModal
+          open={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedUserId={message.author_id}
+          reportedUsername={displayName}
+          reportedMessageId={message.id}
+          serverId={activeServerId ?? undefined}
+        />
+      </Suspense>
     )}
 
-    {onThreadCreated && (
-      <CreateThreadModal
-        open={showCreateThread}
-        onClose={() => setShowCreateThread(false)}
-        messageId={message.id}
-        onCreated={(thread) => {
-          setShowCreateThread(false)
-          onThreadCreated(thread)
-        }}
-      />
+    {onThreadCreated && showCreateThread && (
+      <Suspense fallback={null}>
+        <CreateThreadModal
+          open={showCreateThread}
+          onClose={() => setShowCreateThread(false)}
+          messageId={message.id}
+          onCreated={(thread) => {
+            setShowCreateThread(false)
+            onThreadCreated(thread)
+          }}
+        />
+      </Suspense>
     )}
 
     <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -1330,6 +1351,7 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
           alt={attachment.filename}
           width={384}
           height={320}
+          loading="lazy"
           className="rounded object-contain"
           style={{ width: "auto", maxWidth: "100%", height: "auto", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
         />

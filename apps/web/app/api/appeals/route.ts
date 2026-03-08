@@ -54,40 +54,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many submissions, please try later" }, { status: 429 })
   }
 
-  const { data: ban, error: banError } = await serviceSupabase
-    .from("server_bans")
-    .select("server_id, user_id")
-    .eq("server_id", serverId)
-    .eq("user_id", user.id)
-    .maybeSingle()
+  const thirtyDaysAgoIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  if (banError) return NextResponse.json({ error: banError.message }, { status: 500 })
-  if (!ban) {
+  // Run ban check, duplicate check, and 30-day count in parallel (all independent)
+  const [banResult, duplicateResult, countResult] = await Promise.all([
+    serviceSupabase
+      .from("server_bans")
+      .select("server_id, user_id")
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    (serviceSupabase as any)
+      .from("moderation_appeals")
+      .select("id")
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .in("status", ["submitted", "reviewing"])
+      .maybeSingle(),
+    (serviceSupabase as any)
+      .from("moderation_appeals")
+      .select("id", { count: "exact", head: true })
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .gte("submitted_at", thirtyDaysAgoIso),
+  ])
+
+  if (banResult.error) return NextResponse.json({ error: banResult.error.message }, { status: 500 })
+  if (!banResult.data) {
     return NextResponse.json({ error: "Appeal cannot be created" }, { status: 403 })
   }
 
-  const { data: duplicate, error: duplicateError } = await (serviceSupabase as any)
-    .from("moderation_appeals")
-    .select("id")
-    .eq("server_id", serverId)
-    .eq("user_id", user.id)
-    .in("status", ["submitted", "reviewing"])
-    .maybeSingle()
-
-  if (duplicateError) return NextResponse.json({ error: duplicateError.message }, { status: 500 })
-  if (duplicate) {
+  if (duplicateResult.error) return NextResponse.json({ error: duplicateResult.error.message }, { status: 500 })
+  if (duplicateResult.data) {
     return NextResponse.json({ error: "An active appeal already exists" }, { status: 409 })
   }
 
-  const thirtyDaysAgoIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  const { count, error: countError } = await (serviceSupabase as any)
-    .from("moderation_appeals")
-    .select("id", { count: "exact", head: true })
-    .eq("server_id", serverId)
-    .eq("user_id", user.id)
-    .gte("submitted_at", thirtyDaysAgoIso)
-
-  if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
+  if (countResult.error) return NextResponse.json({ error: countResult.error.message }, { status: 500 })
+  const count = countResult.count
 
   const antiAbuseScore = computeAntiAbuseScore({
     statement,

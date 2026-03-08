@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
+import { perfLogSinceNav, perfClearNav } from "@/lib/perf"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, MoreHorizontal } from "lucide-react"
@@ -14,10 +15,10 @@ import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
 import { useTyping } from "@/hooks/use-typing"
 import { useToast } from "@/components/ui/use-toast"
-import { ThreadPanel } from "@/components/chat/thread-panel"
-import { SearchModal } from "@/components/modals/search-modal"
-import { CreateThreadModal } from "@/components/modals/create-thread-modal"
-import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal"
+const ThreadPanel = lazy(() => import("@/components/chat/thread-panel").then((m) => ({ default: m.ThreadPanel })))
+const SearchModal = lazy(() => import("@/components/modals/search-modal").then((m) => ({ default: m.SearchModal })))
+const CreateThreadModal = lazy(() => import("@/components/modals/create-thread-modal").then((m) => ({ default: m.CreateThreadModal })))
+const KeyboardShortcutsModal = lazy(() => import("@/components/modals/keyboard-shortcuts-modal").then((m) => ({ default: m.KeyboardShortcutsModal })))
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
@@ -378,6 +379,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [channel.id, sendOutboxEntry])
 
   useEffect(() => {
+    perfLogSinceNav("ChatArea mounted")
+    perfClearNav()
     setActiveServer(serverId)
     setActiveChannel(channel.id)
     return () => {
@@ -1267,8 +1270,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [layout.overflowActionIds.length, trackCommandEvent, viewportWidth])
 
-  const visibleActions = commandActions.filter((action) => layout.visibleActionIds.includes(action.id))
-  const overflowActions = commandActions.filter((action) => layout.overflowActionIds.includes(action.id))
+  const visibleActions = useMemo(
+    () => commandActions.filter((action) => layout.visibleActionIds.includes(action.id)),
+    [commandActions, layout.visibleActionIds]
+  )
+  const overflowActions = useMemo(
+    () => commandActions.filter((action) => layout.overflowActionIds.includes(action.id)),
+    [commandActions, layout.overflowActionIds]
+  )
 
   const handleCommandBarKeydown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!visibleActions.length) return
@@ -1409,25 +1418,31 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         </div>
 
         {showSearchModal && (
-          <SearchModal
-            serverId={serverId}
-            onClose={() => setShowSearchModal(false)}
-            onJumpToMessage={(channelId, messageId) => router.push(`/channels/${serverId}/${channelId}?message=${messageId}`)}
-          />
+          <Suspense fallback={null}>
+            <SearchModal
+              serverId={serverId}
+              onClose={() => setShowSearchModal(false)}
+              onJumpToMessage={(channelId, messageId) => router.push(`/channels/${serverId}/${channelId}?message=${messageId}`)}
+            />
+          </Suspense>
         )}
 
-        <KeyboardShortcutsModal
-          open={showKeyboardShortcuts}
-          onOpenChange={setShowKeyboardShortcuts}
-          handlers={{
-            onSearch: () => setShowSearchModal(true),
-            onSearchInChannel: () => setShowSearchModal(true),
-            onToggleMemberList: toggleMemberList,
-            onToggleThreadPanel: toggleThreadPanel,
-            onToggleWorkspacePanel: toggleWorkspacePanel,
-            onOpenShortcutHelp: () => setShowKeyboardShortcuts(true),
-          }}
-        />
+        {showKeyboardShortcuts && (
+          <Suspense fallback={null}>
+            <KeyboardShortcutsModal
+              open={showKeyboardShortcuts}
+              onOpenChange={setShowKeyboardShortcuts}
+              handlers={{
+                onSearch: () => setShowSearchModal(true),
+                onSearchInChannel: () => setShowSearchModal(true),
+                onToggleMemberList: toggleMemberList,
+                onToggleThreadPanel: toggleThreadPanel,
+                onToggleWorkspacePanel: toggleWorkspacePanel,
+                onOpenShortcutHelp: () => setShowKeyboardShortcuts(true),
+              }}
+            />
+          </Suspense>
+        )}
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
         <div className="sr-only" aria-live="polite" aria-atomic="true">{typingAnnouncement}</div>
@@ -1669,13 +1684,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       {activeThread && threadPanelOpen && (
         <div data-state="open" className="panel-surface-motion" style={{ ["--panel-transform-origin" as string]: "center right" }}>
-          <ThreadPanel
-            thread={activeThread}
-            currentUserId={currentUserId}
-            onClose={() => setThreadPanelOpen(false)}
-            onThreadUpdate={(updated) => setActiveThread(updated)}
-            focusMessageId={openThreadId ? jumpToMessageId : null}
-          />
+          <Suspense fallback={null}>
+            <ThreadPanel
+              thread={activeThread}
+              currentUserId={currentUserId}
+              onClose={() => setThreadPanelOpen(false)}
+              onThreadUpdate={(updated) => setActiveThread(updated)}
+              focusMessageId={openThreadId ? jumpToMessageId : null}
+            />
+          </Suspense>
         </div>
       )}
 
@@ -1696,16 +1713,20 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       <WorkspacePanel channelId={channel.id} open={workspaceOpen} onClose={toggleWorkspacePanel} />
 
-      <CreateThreadModal
-        open={showCreateChannelThread}
-        onClose={() => setShowCreateChannelThread(false)}
-        channelId={channel.id}
-        onCreated={(thread) => {
-          setActiveThread(thread)
-          setThreadPanelOpen(true)
-          setShowCreateChannelThread(false)
-        }}
-      />
+      {showCreateChannelThread && (
+        <Suspense fallback={null}>
+          <CreateThreadModal
+            open={showCreateChannelThread}
+            onClose={() => setShowCreateChannelThread(false)}
+            channelId={channel.id}
+            onCreated={(thread) => {
+              setActiveThread(thread)
+              setThreadPanelOpen(true)
+              setShowCreateChannelThread(false)
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

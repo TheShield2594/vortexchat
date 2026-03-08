@@ -353,8 +353,8 @@ async function runServerAutomodChecks({
   if (alertChannels.length > 0 && !dryRun) {
     createServiceRoleClient()
       .then((serviceSupabase) => {
-        for (const alertChannelId of alertChannels) {
-          Promise.resolve(
+        Promise.all(
+          alertChannels.map((alertChannelId) =>
             serviceSupabase
               .from("messages")
               .insert({
@@ -374,8 +374,8 @@ async function runServerAutomodChecks({
                   changes: { channel_id: alertChannelId, reason: violations[0].reason },
                 })
               )
-          ).catch(() => {})
-        }
+          )
+        ).catch(() => {})
       })
       .catch(() => {})
   }

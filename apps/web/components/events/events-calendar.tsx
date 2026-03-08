@@ -111,12 +111,33 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
   }
 
   async function rsvp(eventId: string, status: "going" | "maybe" | "not_going") {
-    await fetch(`/api/servers/${serverId}/events/${eventId}/rsvp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    })
-    await load()
+    // Snapshot for rollback
+    const prevEvents = events
+
+    // Optimistic update: immediately reflect the new RSVP in local state
+    setEvents((prev) => prev.map((e) => {
+      if (e.id !== eventId) return e
+      const prevStatus: string | null = e.myRsvp?.status ?? null
+      const newStats = { ...(e.stats ?? {}) }
+      if (prevStatus && prevStatus !== status) {
+        newStats[prevStatus] = Math.max(0, (newStats[prevStatus] ?? 0) - 1)
+      }
+      if (prevStatus !== status) {
+        newStats[status] = (newStats[status] ?? 0) + 1
+      }
+      return { ...e, myRsvp: { ...(e.myRsvp ?? {}), status }, stats: newStats }
+    }))
+
+    try {
+      const res = await fetch(`/api/servers/${serverId}/events/${eventId}/rsvp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) setEvents(prevEvents)
+    } catch {
+      setEvents(prevEvents)
+    }
   }
 
   return (
