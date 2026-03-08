@@ -10,11 +10,11 @@
 ALTER FUNCTION public.delete_expired_channels()
   SET search_path = '';
 
--- ── Member timeouts (from 00014_expand_permissions) ──────────────────────────
+-- ── Member timeouts (from 00014c_moderation) ─────────────────────────────────
 ALTER FUNCTION public.set_member_timeout(UUID, UUID, TIMESTAMPTZ, UUID, TEXT)
   SET search_path = '';
 
--- ── Moderation helpers (from 00014_moderation) ───────────────────────────────
+-- ── Moderation helpers (from 00014c_moderation) ──────────────────────────────
 ALTER FUNCTION public.is_member_timed_out(UUID, UUID)
   SET search_path = '';
 

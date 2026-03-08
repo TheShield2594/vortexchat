@@ -114,7 +114,9 @@ const files = readdirSync(MIGRATIONS_DIR)
   .sort()
 
 // ── Check 1: filename format ──────────────────────────────────────────────────
-const FILE_RE = /^\d{5}_\w+\.sql$/
+// Accepts: NNNNN_name.sql  or  NNNNNx_name.sql  (x = single lowercase letter
+// used for sub-migrations within the same logical group, e.g. 00014b_moderation.sql)
+const FILE_RE = /^\d{5}[a-z]?_\w+\.sql$/
 for (const f of files) {
   if (!FILE_RE.test(f)) {
     console.error(`✗  Unexpected migration filename: ${f}`)
@@ -125,7 +127,8 @@ for (const f of files) {
 // ── Check 2: no duplicate version prefixes ────────────────────────────────────
 const versionsSeen = new Map()
 for (const f of files) {
-  const version = f.slice(0, 5)
+  // Include the optional letter suffix so 00014b !== 00014
+  const version = f.match(/^\d{5}[a-z]?/)[0]
   if (versionsSeen.has(version)) {
     console.error(`✗  Duplicate migration version ${version}: ${versionsSeen.get(version)} and ${f}`)
     failures++
