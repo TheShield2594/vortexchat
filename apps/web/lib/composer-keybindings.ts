@@ -1,8 +1,11 @@
 export interface ComposerKeybindingState {
   isMentionOpen: boolean
   hasMentionSelection: boolean
+  isEmojiOpen: boolean
+  hasEmojiSelection: boolean
   hasDraftContent: boolean
   mentionHandledNavigation: boolean
+  emojiHandledNavigation: boolean
 }
 
 export interface ComposerKeybindingResult {
@@ -10,7 +13,19 @@ export interface ComposerKeybindingResult {
   sendMessage: boolean
   acceptMention: boolean
   closeMention: boolean
+  acceptEmoji: boolean
+  closeEmoji: boolean
   clearDraft: boolean
+}
+
+const NOOP: ComposerKeybindingResult = {
+  preventDefault: false,
+  sendMessage: false,
+  acceptMention: false,
+  closeMention: false,
+  acceptEmoji: false,
+  closeEmoji: false,
+  clearDraft: false,
 }
 
 /**
@@ -21,64 +36,45 @@ export function resolveComposerKeybinding(
   shiftKey: boolean,
   state: ComposerKeybindingState
 ): ComposerKeybindingResult {
-  if (state.mentionHandledNavigation) {
-    return {
-      preventDefault: true,
-      sendMessage: false,
-      acceptMention: false,
-      closeMention: false,
-      clearDraft: false,
+  if (state.mentionHandledNavigation || state.emojiHandledNavigation) {
+    return { ...NOOP, preventDefault: true }
+  }
+
+  // Mention autocomplete takes priority
+  if (state.isMentionOpen) {
+    if (key === "Escape") {
+      return { ...NOOP, preventDefault: true, closeMention: true }
+    }
+    if (key === "Tab" || (key === "Enter" && !shiftKey)) {
+      return {
+        ...NOOP,
+        preventDefault: state.hasMentionSelection,
+        acceptMention: state.hasMentionSelection,
+      }
     }
   }
 
-  if (state.isMentionOpen) {
+  // Emoji autocomplete
+  if (state.isEmojiOpen) {
     if (key === "Escape") {
-      return {
-        preventDefault: true,
-        sendMessage: false,
-        acceptMention: false,
-        closeMention: true,
-        clearDraft: false,
-      }
+      return { ...NOOP, preventDefault: true, closeEmoji: true }
     }
-
     if (key === "Tab" || (key === "Enter" && !shiftKey)) {
       return {
-        preventDefault: state.hasMentionSelection,
-        sendMessage: false,
-        acceptMention: state.hasMentionSelection,
-        closeMention: false,
-        clearDraft: false,
+        ...NOOP,
+        preventDefault: state.hasEmojiSelection,
+        acceptEmoji: state.hasEmojiSelection,
       }
     }
   }
 
   if (key === "Enter" && !shiftKey) {
-    return {
-      preventDefault: true,
-      sendMessage: true,
-      acceptMention: false,
-      closeMention: false,
-      clearDraft: false,
-    }
+    return { ...NOOP, preventDefault: true, sendMessage: true }
   }
 
   if (key === "Escape" && state.hasDraftContent) {
-    return {
-      preventDefault: true,
-      sendMessage: false,
-      acceptMention: false,
-      closeMention: false,
-      clearDraft: true,
-    }
+    return { ...NOOP, preventDefault: true, clearDraft: true }
   }
 
-  return {
-    preventDefault: false,
-    sendMessage: false,
-    acceptMention: false,
-    closeMention: false,
-    clearDraft: false,
-  }
+  return NOOP
 }
-

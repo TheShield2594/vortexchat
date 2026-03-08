@@ -393,6 +393,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     } catch {}
   }, [serverId, channel.id])
 
+  // Keep messagesRef in sync with the messages state so that
+  // scrollToLatest, loadOlderMessages, and ensureMessageLoaded always
+  // operate on the current list — not just the initial server payload.
+  // Declared early so it runs before any effect that reads the ref.
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
   useEffect(() => {
     messagesRef.current = initialMessages
     setMessages(initialMessages)
@@ -660,6 +668,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       window.removeEventListener("online", onOnline)
     }
   }, [setIsOnline])
+
+  // Resync messages when the browser tab regains focus — browsers throttle
+  // WebSockets in background tabs so Supabase Realtime can silently drop.
+  useEffect(() => {
+    const onVisibility = async () => {
+      if (document.hidden) return
+      try {
+        const res = await fetch(`/api/messages?channelId=${channel.id}&limit=50`)
+        if (!res.ok) return
+        const latest = (await res.json()) as MessageWithAuthor[]
+        if (!Array.isArray(latest) || latest.length === 0) return
+        setMessages((prev) => {
+          const known = new Set(prev.map((m) => m.id))
+          const fresh = latest.filter((m) => !known.has(m.id))
+          if (fresh.length === 0) return prev
+          return sortMessagesChronologically([...prev, ...fresh])
+        })
+      } catch {
+        // best-effort resync
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => document.removeEventListener("visibilitychange", onVisibility)
+  }, [channel.id])
 
   useEffect(() => {
     if (!isOnline) return
@@ -1029,11 +1061,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     const mentions = (content.match(/<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? []).map((m) => m.slice(2, -1))
     const mentionEveryone = content.includes("@everyone")
+    const sendT0 = performance.now()
     const apiResponse = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         channelId: channel.id,
+        serverId,
         content: content.trim() || undefined,
         replyToId: replyTo?.id || undefined,
         mentions,
@@ -1077,6 +1111,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     const message = await apiResponse.json() as MessageWithAuthor
+    console.log(`[msg-send-client] ${(performance.now() - sendT0).toFixed(0)}ms round-trip (fetch + parse)`)
 
     setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
     upsertMessage(message)
@@ -1551,6 +1586,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
                         if (!touched) return
 
+                        const wasAtBottom = isAtBottom
+
                         setMessages((prev) =>
                           prev.map((m) => {
                             if (m.id !== message.id) return m
@@ -1562,6 +1599,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                             }
                           })
                         )
+
+                        // Re-measure the affected item so the virtualizer
+                        // accounts for the new reaction row height, then
+                        // keep the user at the bottom if they were already there.
+                        requestAnimationFrame(() => {
+                          virtualizer.measure()
+                          if (wasAtBottom) {
+                            scrollToLatest("auto")
+                          }
+                        })
 
                         try {
                           await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })

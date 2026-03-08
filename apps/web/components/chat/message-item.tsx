@@ -453,7 +453,7 @@ export const MessageItem = memo(function MessageItem({
   const parsedPoll = extractPoll(renderedContent)
   const messageBodyContent = parsedPoll ? parsedPoll.sanitizedContent : renderedContent
 
-  const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "sending" ? "Sending" : sendState === "failed" ? "Failed" : null
+  const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "failed" ? "Failed" : null
 
 
   // Group reactions by emoji
@@ -600,7 +600,8 @@ export const MessageItem = memo(function MessageItem({
             "relative group px-4 message-hover motion-interactive",
             highlighted && "mention-highlight",
             animateOnMount && "message-arrival",
-            isGrouped ? "py-0.5" : "pt-4 pb-0.5"
+            isGrouped ? "py-0.5" : "pt-2.5 pb-0.5",
+            sendState === "sending" && "opacity-50"
           )}
           onAnimationEnd={() => {
             if (animateOnMount) onMountAnimationComplete?.()
@@ -895,12 +896,20 @@ export const MessageItem = memo(function MessageItem({
                   } else if (emojiButtonRef.current) {
                     const rect = emojiButtonRef.current.getBoundingClientRect()
                     const pickerW = 320
-                    const pickerH = 440
+                    const pickerH = 400 // matches EmojiPickerPopup height
+                    const gap = 4
                     // Position: right-aligned with the button, prefer above; flip below if clipped
-                    let top = rect.top - pickerH - 8
-                    if (top < 8) top = rect.bottom + 8
+                    let top = rect.top - pickerH - gap
+                    if (top < 8) top = rect.bottom + gap
+                    // Also clamp bottom so picker stays on screen
+                    if (top + pickerH > window.innerHeight - 8) {
+                      top = window.innerHeight - pickerH - 8
+                    }
                     let left = rect.right - pickerW
                     if (left < 8) left = 8
+                    if (left + pickerW > window.innerWidth - 8) {
+                      left = window.innerWidth - pickerW - 8
+                    }
                     setEmojiPickerPos({ top, left })
                     setShowEmojiPicker(true)
                   }
