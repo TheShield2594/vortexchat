@@ -28,7 +28,7 @@ export async function createServerSupabaseClient() {
               cookieStore.set(name, value, options)
             )
           } catch {
-            // Called from a Server Component — middleware handles session refresh.
+            // Called from a Server Component — proxy handles session refresh.
           }
         },
       },
