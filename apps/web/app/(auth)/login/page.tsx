@@ -137,9 +137,8 @@ export default function LoginPage() {
         return
       }
 
-      if (data.actionLink) {
-        window.location.href = data.actionLink
-      }
+      // Session cookies are now set by the redeem endpoint — navigate to the app
+      window.location.href = "/channels/me"
     } catch (error: any) {
       toast({ variant: "destructive", title: "Recovery failed", description: error.message })
     } finally {

@@ -102,9 +102,8 @@ export async function startPasskeyLogin(email?: string, trustedDeviceLabel?: str
   const verified = await verifyRes.json()
   if (!verifyRes.ok) throw new Error(verified.error || "Passkey login failed")
 
-  if (verified.actionLink) {
-    window.location.href = verified.actionLink
-  }
+  // Session cookies are now set by the verify endpoint — navigate to the app
+  window.location.href = "/channels/me"
 
   return options.policy as {
     passkey_first: boolean
