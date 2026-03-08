@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, Volume2, MoreHorizontal } from "lucide-react"
+import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, MoreHorizontal } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -1196,14 +1196,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       },
       {
         id: "voice",
-        label: memberListOpen ? "Members" : "Voice & Members",
+        label: "Members",
         group: "voice",
         groupLabel: "Voice",
         priority: 5,
-        ariaLabel: memberListOpen ? "Hide members and voice status" : "Show members and voice status",
-        icon: memberListOpen
-          ? <Users className="w-4 h-4 chat-area-text-primary" />
-          : <Volume2 className="w-4 h-4 chat-area-text-muted" />,
+        ariaLabel: memberListOpen ? "Hide members" : "Show members",
+        icon: <Users className={`w-4 h-4 ${memberListOpen ? "chat-area-text-primary" : "chat-area-text-muted"}`} />,
         onSelect: toggleMemberList,
       },
       {
@@ -1649,7 +1647,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         />
       )}
 
-      <WorkspacePanel channelId={channel.id} open={workspaceOpen} />
+      <WorkspacePanel channelId={channel.id} open={workspaceOpen} onClose={toggleWorkspacePanel} />
 
       <CreateThreadModal
         open={showCreateChannelThread}
