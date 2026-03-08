@@ -393,6 +393,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     } catch {}
   }, [serverId, channel.id])
 
+  // Keep messagesRef in sync with the messages state so that
+  // scrollToLatest, loadOlderMessages, and ensureMessageLoaded always
+  // operate on the current list — not just the initial server payload.
+  // Declared early so it runs before any effect that reads the ref.
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
   useEffect(() => {
     messagesRef.current = initialMessages
     setMessages(initialMessages)
@@ -1578,6 +1586,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
                         if (!touched) return
 
+                        const wasAtBottom = isAtBottom
+
                         setMessages((prev) =>
                           prev.map((m) => {
                             if (m.id !== message.id) return m
@@ -1589,6 +1599,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                             }
                           })
                         )
+
+                        // Re-measure the affected item so the virtualizer
+                        // accounts for the new reaction row height, then
+                        // keep the user at the bottom if they were already there.
+                        requestAnimationFrame(() => {
+                          virtualizer.measure()
+                          if (wasAtBottom) {
+                            scrollToLatest("auto")
+                          }
+                        })
 
                         try {
                           await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
