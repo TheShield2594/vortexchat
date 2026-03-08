@@ -435,7 +435,6 @@ export const MessageItem = memo(function MessageItem({
     try {
       await onDelete()
       setShowDeleteDialog(false)
-      toast({ title: "Message deleted" })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to delete message", description: error?.message ?? "Please try again." })
     }
@@ -993,7 +992,7 @@ export const MessageItem = memo(function MessageItem({
                 </button>
               )}
 
-              {isOwn && (
+              {(isOwn || canManageMessages) && (
                 <button
                   onClick={() => setShowDeleteDialog(true)}
                   className="motion-interactive motion-press w-8 h-8 flex items-center justify-center hover:bg-red-500/20 focus-ring"
@@ -1084,7 +1083,7 @@ export const MessageItem = memo(function MessageItem({
             </ContextMenuItem>
           </>
         )}
-        {isOwn && (
+        {(isOwn || canManageMessages) && (
           <>
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={() => setShowDeleteDialog(true)}>

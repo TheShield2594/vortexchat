@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 
 // PATCH /api/servers/[serverId]/channels/[channelId]/messages/[messageId] — edit a server channel message
@@ -97,4 +97,61 @@ export async function PATCH(
     )
 
   return NextResponse.json(data)
+}
+
+// DELETE /api/servers/[serverId]/channels/[channelId]/messages/[messageId] — soft-delete a message
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ serverId: string; channelId: string; messageId: string }> }
+) {
+  const { serverId, channelId, messageId } = await params
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Verify channel belongs to this server
+  const { data: channelRow } = await supabase
+    .from("channels")
+    .select("id")
+    .eq("id", channelId)
+    .eq("server_id", serverId)
+    .single()
+
+  if (!channelRow)
+    return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  // Verify message exists in this channel
+  const { data: message } = await supabase
+    .from("messages")
+    .select("id, author_id")
+    .eq("id", messageId)
+    .eq("channel_id", channelId)
+    .is("deleted_at", null)
+    .single()
+
+  if (!message)
+    return NextResponse.json({ error: "Message not found" }, { status: 404 })
+
+  // Permission: author can delete own, or user needs MANAGE_MESSAGES
+  const isAuthor = message.author_id === user.id
+  if (!isAuthor) {
+    const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, channelId, user.id)
+    if (!isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
+      return NextResponse.json({ error: "You can only delete your own messages" }, { status: 403 })
+    }
+  }
+
+  // Use service role to bypass RLS for the soft-delete update
+  const admin = await createServiceRoleClient()
+  const { error } = await admin
+    .from("messages")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", messageId)
+
+  if (error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
 }
