@@ -1060,11 +1060,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       if (errorCode === "AUTOMOD_BLOCKED" || errorCode === "AUTOMOD_QUARANTINED") {
         setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
         setMessages((prev) => prev.filter((m) => m.id !== messageId))
-        toast({
-          variant: "destructive",
-          title: "Message blocked",
-          description: errorMsg,
-        })
         throw new Error(errorMsg)
       }
 
@@ -1534,15 +1529,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                         )
                       }}
                       onDelete={async () => {
-                        const { data, error } = await supabase
-                          .from("messages")
-                          .update({ deleted_at: new Date().toISOString() })
-                          .eq("id", message.id)
-                          .eq("author_id", currentUserId)
-                          .select("id")
-                        if (error) throw error
-                        if (!data || data.length === 0) {
-                          throw new Error("Message could not be deleted. It may have already been removed.")
+                        const res = await fetch(`/api/servers/${serverId}/channels/${channel.id}/messages/${message.id}`, {
+                          method: "DELETE",
+                        })
+                        if (!res.ok) {
+                          const data = await res.json().catch(() => ({ error: "Failed to delete message" }))
+                          throw new Error(data.error || "Failed to delete message")
                         }
                         setMessages((prev) => prev.filter((m) => m.id !== message.id))
                         setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))

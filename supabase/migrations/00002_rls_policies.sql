@@ -234,8 +234,26 @@ CREATE POLICY "Authors can edit own messages"
   WITH CHECK (author_id = auth.uid());
 
 -- Soft delete: authors and moderators can set deleted_at
-CREATE POLICY "Authors and moderators can delete messages"
+CREATE POLICY "Authors and moderators can soft delete messages"
   ON public.messages FOR UPDATE
+  USING (
+    author_id = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM public.channels c
+      WHERE c.id = channel_id AND public.has_permission(c.server_id, 4) -- MANAGE_MESSAGES
+    )
+  )
+  WITH CHECK (
+    author_id = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM public.channels c
+      WHERE c.id = channel_id AND public.has_permission(c.server_id, 4) -- MANAGE_MESSAGES
+    )
+  );
+
+-- Hard delete: authors can remove own messages, moderators can remove any
+CREATE POLICY "Authors and moderators can hard delete messages"
+  ON public.messages FOR DELETE
   USING (
     author_id = auth.uid() OR
     EXISTS (

@@ -1,5 +1,6 @@
 import { cache } from "react"
 import { createServerClient } from "@supabase/ssr"
+import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import type { Database } from "@/types/database"
 
@@ -37,24 +38,9 @@ export async function createServerSupabaseClient() {
 
 /** Creates a Supabase client with the service-role key, bypassing RLS. Use only for admin operations. */
 export async function createServiceRoleClient() {
-  const cookieStore = await cookies()
-
-  return createServerClient<Database>(
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {}
-        },
-      },
-    }
+    { auth: { persistSession: false } }
   )
 }
