@@ -1210,6 +1210,7 @@ function AttachmentGallery({ attachments, canManageMessages }: { attachments: At
         <DialogContent
           className="max-w-5xl border"
           style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-secondary)", color: "var(--theme-text-primary)" }}
+          aria-describedby={undefined}
           onKeyDown={(event) => {
             if (event.key === "ArrowRight") {
               event.preventDefault()
@@ -1230,6 +1231,7 @@ function AttachmentGallery({ attachments, canManageMessages }: { attachments: At
             }
           }}
         >
+          <DialogTitle className="sr-only">Image viewer</DialogTitle>
           {currentAttachment && (
             <div className="space-y-3">
               <div

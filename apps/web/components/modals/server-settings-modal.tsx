@@ -162,7 +162,9 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
       <DialogContent
         className="max-w-5xl max-h-[90vh] overflow-hidden p-0"
         style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
+        aria-describedby={undefined}
       >
+        <DialogTitle className="sr-only">{liveServer.name} — Server Settings</DialogTitle>
         <Tabs defaultValue="overview" orientation="vertical" className="flex h-[85vh]">
           {/* Settings sidebar */}
           <div className="w-52 flex-shrink-0 flex flex-col overflow-hidden" style={{ background: 'var(--theme-bg-secondary)' }}>
