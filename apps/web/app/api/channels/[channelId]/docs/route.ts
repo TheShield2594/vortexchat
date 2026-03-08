@@ -52,3 +52,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cha
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ doc: data }, { status: 201 })
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ channelId: string }> }) {
+  const { channelId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data: channel } = await supabase.from("channels").select("server_id").eq("id", channelId).single()
+  if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  const access = await requireWorkspaceAccess(supabase, channel.server_id, user.id)
+  if (!access.canDelete) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  const { docId } = await req.json()
+  if (typeof docId !== "string" || !docId.trim()) return NextResponse.json({ error: "docId required" }, { status: 400 })
+
+  const { error } = await supabase.from("channel_docs").delete().eq("id", docId).eq("channel_id", channelId)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}
