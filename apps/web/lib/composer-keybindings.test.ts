@@ -4,8 +4,11 @@ import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
 const baseState = {
   isMentionOpen: false,
   hasMentionSelection: false,
+  isEmojiOpen: false,
+  hasEmojiSelection: false,
   hasDraftContent: false,
   mentionHandledNavigation: false,
+  emojiHandledNavigation: false,
 }
 
 describe("resolveComposerKeybinding", () => {
@@ -16,6 +19,8 @@ describe("resolveComposerKeybinding", () => {
       sendMessage: true,
       acceptMention: false,
       closeMention: false,
+      acceptEmoji: false,
+      closeEmoji: false,
       clearDraft: false,
     })
   })

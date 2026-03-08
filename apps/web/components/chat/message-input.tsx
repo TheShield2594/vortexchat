@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Sticker, Plus, MessageSquare } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
@@ -56,6 +56,17 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const plusMenuRef = useRef<HTMLDivElement>(null)
   const plusButtonRef = useRef<HTMLButtonElement>(null)
   const fileUrlCache = useRef(new Map<File, string>())
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  // Debounced draft sync — keeps typing snappy, persists after 150ms idle
+  const debouncedDraftChange = useCallback((value: string) => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    draftTimerRef.current = setTimeout(() => onDraftChange(value), 150)
+  }, [onDraftChange])
+
+  useEffect(() => {
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current) }
+  }, [])
 
   // Mention autocomplete
   const { activeServerId, members: membersByServer } = useAppStore(
@@ -88,12 +99,14 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     textareaRef.current?.focus()
   }, [replyTo?.id])
 
+  // Only sync from external draft changes (e.g. channel switch), not our own edits
   useEffect(() => {
+    if (draft === content) return
     setContent(draft)
     requestAnimationFrame(() => {
       const el = textareaRef.current
       if (!el) return
-      el.style.height = "auto"
+      el.style.height = "28px"
       el.style.height = Math.min(el.scrollHeight, 200) + "px"
     })
   }, [draft])
@@ -192,6 +205,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     uploadAbortRef.current = abortController
     onSent?.()
 
+    // Cancel any pending debounced draft sync before clearing
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+
     // Clear input immediately for a snappy feel — restore on failure
     const savedContent = content
     const savedFiles = [...files]
@@ -199,7 +215,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     onDraftChange("")
     setFiles([])
     // Reset textarea height
-    if (textareaRef.current) textareaRef.current.style.height = "auto"
+    if (textareaRef.current) textareaRef.current.style.height = "28px"
 
     try {
       await onSend(savedContent, savedFiles, (percent) => setUploadProgress(percent), abortController.signal)
@@ -268,6 +284,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     }
 
     if (action.clearDraft) {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
       setContent("")
       onDraftChange("")
       setCursorPosition(0)
@@ -331,10 +348,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   // Auto-resize textarea
   function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setContent(e.target.value)
-    onDraftChange(e.target.value)
+    debouncedDraftChange(e.target.value)
     setCursorPosition(e.target.selectionStart)
     const el = e.target
-    el.style.height = "auto"
+    el.style.height = "28px"
     el.style.height = Math.min(el.scrollHeight, 200) + "px"
     if (e.target.value) onTyping?.()
   }
@@ -615,7 +632,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       {/* Input area */}
       <div
         className={cn(
-          "relative flex items-end gap-2 rounded-lg px-3 py-2",
+          "relative flex items-center gap-2 rounded-lg px-3 py-2",
           replyTo || files.length > 0 || uploadProgress !== null || Boolean(sendError) ? "rounded-t-none" : ""
         )}
         style={{
@@ -625,7 +642,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         }}
       >
         {/* + button with dropdown menu (left side) */}
-        <div className="mb-1 relative flex-shrink-0">
+        <div className="relative flex-shrink-0">
           <button
             type="button"
             ref={plusButtonRef}
@@ -737,8 +754,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               : `Message #${channelName} — @ to mention, : for emoji`
             }
             rows={1}
-            className="w-full resize-none bg-transparent text-sm focus:outline-none py-1"
-            style={{ color: "var(--theme-text-normal)", maxHeight: "200px", lineHeight: "1.5" }}
+            className="w-full resize-none bg-transparent text-sm focus:outline-none block"
+            style={{ color: "var(--theme-text-normal)", maxHeight: "200px", lineHeight: "28px", height: "28px", padding: 0, margin: 0, border: "none" }}
           />
         </div>
 
@@ -954,7 +971,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             setPickerTab("gif")
             setShowEmojiPicker((prev) => !prev || pickerTab !== "gif")
           }}
-          className="motion-interactive motion-press flex-shrink-0 mb-1 focus-ring rounded"
+          className="motion-interactive motion-press flex-shrink-0 focus-ring rounded"
           style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
           title="GIF"
           aria-label="Insert GIF"
@@ -969,7 +986,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             setPickerTab("emoji")
             setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
           }}
-          className="motion-interactive motion-press flex-shrink-0 mb-1 focus-ring rounded"
+          className="motion-interactive motion-press flex-shrink-0 focus-ring rounded"
           style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
           title="Emoji"
           aria-label="Insert emoji"
@@ -984,7 +1001,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onClick={handleSend}
             disabled={sending}
             aria-label="Send message"
-            className="motion-interactive motion-press flex-shrink-0 mb-1 focus-ring rounded"
+            className="motion-interactive motion-press flex-shrink-0 focus-ring rounded"
             style={{ color: "var(--theme-accent)" }}
             title="Send Message"
           >

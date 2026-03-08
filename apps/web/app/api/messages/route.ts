@@ -18,6 +18,7 @@ import { MESSAGE_PROJECTION, withReplyTo, type ServerSupabaseClient } from "@/li
 import { parsePostMessageRequestBody, type MessageAttachment, type PostMessageRequestBody } from "@/lib/messages/validators"
 import { enqueueAttachmentScans } from "@/lib/attachment-malware"
 import { validateChannelTypeMessagePolicy, type SupportedMessageChannelType } from "@/lib/messages/channel-type-policy"
+import { cached } from "@/lib/server-cache"
 async function getChannelForRead(supabase: ServerSupabaseClient, channelId: string, userId: string) {
   const { data: channel, error: channelError } = await supabase
     .from("channels")
@@ -108,36 +109,27 @@ async function resolveSafeMentions(supabase: ServerSupabaseClient, userId: strin
   }
 }
 
+/** Check screening + timeout status. Permissions are resolved externally to avoid duplicate queries. */
 async function enforceServerMessagingGuards({
   supabase,
   serverId,
-  channelId,
   userId,
-  mentionEveryone,
+  screeningEnabled,
 }: {
   supabase: ServerSupabaseClient
   serverId: string
-  channelId: string
   userId: string
-  mentionEveryone: boolean
+  screeningEnabled: boolean
 }) {
-  const { isAdmin, permissions, screeningEnabled } = await getChannelPermissions(supabase, serverId, channelId, userId)
-
-  if (!isAdmin && !hasPermission(permissions, "SEND_MESSAGES")) {
-    return { error: NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 }) }
-  }
-
-  if (mentionEveryone && !isAdmin && !hasPermission(permissions, "MENTION_EVERYONE")) {
-    return { error: NextResponse.json({ error: "Missing MENTION_EVERYONE permission" }, { status: 403 }) }
-  }
-
   const [screeningResult, timeoutResult] = await Promise.all([
-    supabase
-      .from("member_screening")
-      .select("accepted_at")
-      .eq("server_id", serverId)
-      .eq("user_id", userId)
-      .maybeSingle(),
+    screeningEnabled
+      ? supabase
+          .from("member_screening")
+          .select("accepted_at")
+          .eq("server_id", serverId)
+          .eq("user_id", userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase
       .from("member_timeouts")
       .select("timed_out_until")
@@ -231,35 +223,34 @@ async function runServerAutomodChecks({
   content: string
   mentions: string[]
 }): Promise<NextResponse | null> {
-  const [{ data: automodSettingsRaw }, { data: memberRoles }] = await Promise.all([
-    supabase
-      .from("servers")
-      .select("automod_dry_run, automod_emergency_disable")
-      .eq("id", serverId)
-      .maybeSingle(),
-    supabase
-      .from("member_roles")
-      .select("role_id")
-      .eq("server_id", serverId)
-      .eq("user_id", user.id),
+  // All three are cached — typically 0ms on hot path
+  const [settingsData, rolesData, rawRules] = await Promise.all([
+    cached(`automod-settings:${serverId}`, async () => {
+      const { data } = await supabase.from("servers").select("automod_dry_run, automod_emergency_disable").eq("id", serverId).maybeSingle()
+      return (data ?? {}) as { automod_dry_run?: boolean; automod_emergency_disable?: boolean }
+    }, 60_000),
+    cached(`member-roles:${serverId}:${user.id}`, async () => {
+      const { data } = await supabase.from("member_roles").select("role_id").eq("server_id", serverId).eq("user_id", user.id)
+      return (data ?? []).map((r: any) => r.role_id) as string[]
+    }, 30_000),
+    cached(`automod-rules:${serverId}`, async () => {
+      const { data } = await supabase.from("automod_rules")
+        .select("id, name, trigger_type, config, conditions, actions, enabled, priority")
+        .eq("server_id", serverId).eq("enabled", true)
+        .order("priority", { ascending: true }).order("created_at", { ascending: true })
+      return data ?? []
+    }, 60_000),
   ])
 
-  const automodSettings = (automodSettingsRaw ?? {}) as { automod_dry_run?: boolean; automod_emergency_disable?: boolean }
-  if (automodSettings.automod_emergency_disable) {
+  if (settingsData.automod_emergency_disable) {
     return null
   }
-
-  const { data: rawRules } = await supabase
-    .from("automod_rules")
-    .select("id, name, trigger_type, config, conditions, actions, enabled, priority")
-    .eq("server_id", serverId)
-    .eq("enabled", true)
-    .order("priority", { ascending: true })
-    .order("created_at", { ascending: true })
 
   if (!rawRules?.length) {
     return null
   }
+
+  const resolvedRoleIds = rolesData
 
   const earliestWindowSeconds = rawRules.reduce((acc, rule) => {
     const cfg = rule.config as Record<string, unknown>
@@ -299,7 +290,7 @@ async function runServerAutomodChecks({
 
   const violations = evaluateAllRules(rules, content.trim(), mentions, {
     channelId,
-    memberRoleIds: (memberRoles ?? []).map((r) => r.role_id),
+    memberRoleIds: resolvedRoleIds,
     accountAgeMinutes,
     recentMessageCount,
   })
@@ -310,7 +301,7 @@ async function runServerAutomodChecks({
 
   const blocked = shouldBlockMessage(violations)
   const quarantined = shouldQuarantineMessage(violations)
-  const dryRun = Boolean(automodSettings?.automod_dry_run)
+  const dryRun = Boolean(settingsData?.automod_dry_run)
 
   await supabase.from("audit_logs").insert({
     server_id: serverId,
@@ -500,9 +491,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const t0 = performance.now()
+  const lap = (label: string) => {
+    const elapsed = (performance.now() - t0).toFixed(1)
+    console.log(`[msg-send] ${elapsed}ms — ${label}`)
+  }
+
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  lap("auth")
 
   let body: PostMessageRequestBody
 
@@ -521,60 +519,63 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: attachmentValidation.error }, { status: 400 })
   }
 
-  // --- Fetch channel for server context and basic validation ---
-  const { data: channel } = await supabase
-    .from("channels")
-    .select("slowmode_delay, server_id, type")
-    .eq("id", channelId)
-    .single()
+  // Client provides serverId so server-scoped queries can start alongside channel lookup
+  const clientServerId: string | null = typeof (body as any).serverId === "string" && (body as any).serverId ? (body as any).serverId : null
 
+  // --- Group 1: cached lookups + per-request checks ---
+  // Channel metadata, permissions, and automod rules are cached (30-60s TTL).
+  // Nonce, rate limit, and mentions are always fresh.
+  const [channelData, idempotencyResult, rl, mentionResult, permResult] = await Promise.all([
+    cached(`channel:${channelId}`, async () => {
+      const { data } = await supabase.from("channels").select("slowmode_delay, server_id, type").eq("id", channelId).single()
+      return data
+    }, 30_000),
+    clientNonce?.trim()
+      ? supabase.from("messages").select(MESSAGE_PROJECTION).eq("channel_id", channelId).eq("author_id", user.id).eq("client_nonce", clientNonce.trim()).maybeSingle()
+      : Promise.resolve({ data: null }),
+    rateLimiter.check(`msg:${user.id}`, { limit: 5, windowMs: 10_000 }),
+    mentions.length > 0
+      ? resolveSafeMentions(supabase, user.id, mentions)
+      : Promise.resolve({ safeMentions: [] as string[], error: undefined as NextResponse | undefined }),
+    clientServerId
+      ? cached(`perms:${clientServerId}:${channelId}:${user.id}`, () =>
+          getChannelPermissions(supabase, clientServerId, channelId, user.id),
+          30_000,
+        )
+      : Promise.resolve(null),
+  ])
+  lap("group-1 (channel+nonce+rl+mentions+perms)")
+
+  const channel = channelData
   if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
 
-  // --- Idempotency lookup (same nonce/user/channel returns the original message) ---
-  if (clientNonce?.trim()) {
-    const { data: existing } = await supabase
-      .from("messages")
-      .select(MESSAGE_PROJECTION)
-      .eq("channel_id", channelId)
-      .eq("author_id", user.id)
-      .eq("client_nonce", clientNonce.trim())
-      .maybeSingle()
-
-    if (existing) {
-      const [hydrated] = await withReplyTo(supabase, [existing])
-      return NextResponse.json(hydrated, { status: 200 })
-    }
+  const serverId: string | null = channel.server_id ?? null
+  if (clientServerId && serverId && clientServerId !== serverId) {
+    return NextResponse.json({ error: "serverId mismatch" }, { status: 400 })
   }
 
-  // --- Rate limit: max 5 messages per 10 seconds per user ---
-  const rl = await rateLimiter.check(`msg:${user.id}`, { limit: 5, windowMs: 10_000 })
+  if (idempotencyResult.data) {
+    const [hydrated] = await withReplyTo(supabase, [idempotencyResult.data])
+    return NextResponse.json(hydrated, { status: 200 })
+  }
+
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "You are sending messages too fast. Slow down." },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
-          "X-RateLimit-Remaining": "0",
-        },
-      }
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)), "X-RateLimit-Remaining": "0" } }
     )
   }
 
-  // --- Server-side MIME type verification using magic bytes ---
-  // Runs after auth and rate-limit to avoid unnecessary work for rejected requests
+  if (mentionResult.error) return mentionResult.error
+  const { safeMentions } = mentionResult
+
   if (attachments.length > 0) {
     const contentValidation = await validateAttachmentContent(attachments)
     if (!contentValidation.valid) {
       return NextResponse.json({ error: contentValidation.error }, { status: 400 })
     }
+    lap("attachment-validation")
   }
-
-  const mentionResult = await resolveSafeMentions(supabase, user.id, mentions)
-  if (mentionResult.error) return mentionResult.error
-  const { safeMentions } = mentionResult
-
-  const serverId: string | null = channel.server_id ?? null
 
   if (channel.type === "voice" || channel.type === "stage" || channel.type === "category") {
     return NextResponse.json({ error: "This channel type does not support text messages." }, { status: 400 })
@@ -582,62 +583,48 @@ export async function POST(request: Request) {
 
   const channelType = (channel.type ?? "text") as SupportedMessageChannelType
 
-  if (serverId) {
-    const channelPerms = await getChannelPermissions(supabase, serverId, channelId, user.id)
-    const policy = validateChannelTypeMessagePolicy({
-      channelType,
-      hasSendPermission: channelPerms.isAdmin || hasPermission(channelPerms.permissions, "SEND_MESSAGES"),
-      content,
-      attachments,
-    })
-    if (policy.error) return NextResponse.json({ error: policy.error }, { status: policy.status })
-  } else {
-    const policy = validateChannelTypeMessagePolicy({
-      channelType,
-      hasSendPermission: true,
-      content,
-      attachments,
-    })
-    if (policy.error) return NextResponse.json({ error: policy.error }, { status: policy.status })
-  }
-
-  if (serverId) {
-    const guardResult = await enforceServerMessagingGuards({
-      supabase,
-      serverId,
-      channelId,
-      userId: user.id,
-      mentionEveryone,
-    })
-    if (guardResult.error) return guardResult.error
-  }
-
-  const slowmodeResult = await enforceSlowmode({
-    supabase,
-    channelId,
-    userId: user.id,
-    slowmodeDelay: channel.slowmode_delay,
-  })
-  if (slowmodeResult.error) return slowmodeResult.error
-
-  // --- AutoMod evaluation (only for server channels) ---
-  if (serverId && content?.trim()) {
-    const automodResponse = await runServerAutomodChecks({
-      supabase,
-      serverId,
-      channelId,
-      user: {
-        id: user.id,
-        created_at: user.created_at,
-      },
-      content,
-      mentions,
-    })
-
-    if (automodResponse) {
-      return automodResponse
+  // --- Permission + policy checks (using pre-fetched permissions) ---
+  if (permResult) {
+    if (!permResult.isAdmin && !hasPermission(permResult.permissions, "SEND_MESSAGES")) {
+      return NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 })
     }
+    if (mentionEveryone && !permResult.isAdmin && !hasPermission(permResult.permissions, "MENTION_EVERYONE")) {
+      return NextResponse.json({ error: "Missing MENTION_EVERYONE permission" }, { status: 403 })
+    }
+    const policy = validateChannelTypeMessagePolicy({
+      channelType,
+      hasSendPermission: permResult.isAdmin || hasPermission(permResult.permissions, "SEND_MESSAGES"),
+      content, attachments,
+    })
+    if (policy.error) return NextResponse.json({ error: policy.error }, { status: policy.status })
+  } else if (!serverId) {
+    const policy = validateChannelTypeMessagePolicy({ channelType, hasSendPermission: true, content, attachments })
+    if (policy.error) return NextResponse.json({ error: policy.error }, { status: policy.status })
   }
+
+  // --- Group 2: guards + slowmode + automod (all parallel, lightweight) ---
+  // Guards no longer calls getChannelPermissions (eliminated duplicate).
+  // Automod fetches its own rules but member_roles/settings queries are cheap.
+  const [guardResult, slowmodeResult, automodResponse] = await Promise.all([
+    serverId
+      ? enforceServerMessagingGuards({ supabase, serverId, userId: user.id, screeningEnabled: permResult?.screeningEnabled ?? false })
+      : Promise.resolve({ error: null }),
+    channel.slowmode_delay > 0
+      ? enforceSlowmode({ supabase, channelId, userId: user.id, slowmodeDelay: channel.slowmode_delay })
+      : Promise.resolve({ error: null }),
+    serverId && content?.trim()
+      ? runServerAutomodChecks({
+          supabase, serverId, channelId,
+          user: { id: user.id, created_at: user.created_at },
+          content, mentions,
+        })
+      : Promise.resolve(null),
+  ])
+  lap("group-2 (guards+slowmode+automod)")
+
+  if (guardResult.error) return guardResult.error
+  if (slowmodeResult.error) return slowmodeResult.error
+  if (automodResponse) return automodResponse
 
   // --- Insert message ---
   const { message, msgError } = await insertMessageWithAttachments({
@@ -651,6 +638,7 @@ export async function POST(request: Request) {
     clientNonce,
     attachments,
   })
+  lap("insert")
 
   if (msgError) {
     const isDuplicate = msgError.code === "23505" || /duplicate key/i.test(msgError.message ?? "")
@@ -735,6 +723,10 @@ export async function POST(request: Request) {
     excludeUserId: user.id,
   }).catch(() => {})
 
-  const [hydratedMessage] = await withReplyTo(supabase, [message])
+  // Skip the extra DB query when there's no reply to hydrate
+  const hydratedMessage = replyToId
+    ? (await withReplyTo(supabase, [message]))[0]
+    : { ...message, reply_to: null }
+  lap("total")
   return NextResponse.json(hydratedMessage, { status: 201 })
 }
