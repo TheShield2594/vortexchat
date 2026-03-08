@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServiceRoleClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { verifyRecoveryCode } from "@/lib/auth/recovery-codes"
 import { rateLimiter } from "@/lib/rate-limit"
 
@@ -93,11 +93,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Recovery code already used" }, { status: 409 })
   }
 
-  // Generate a session link for the user (same pattern as passkey login verify)
+  // Generate a magic link token and verify it server-side so session cookies
+  // are set in this response — no implicit-grant redirect required.
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email: body.email! })
-  if (!link.data.properties?.action_link) {
+  const tokenHash = link.data.properties?.hashed_token
+  if (!tokenHash) {
     return NextResponse.json({ error: "Unable to finalize session" }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, actionLink: link.data.properties.action_link })
+  const anonClient = await createServerSupabaseClient()
+  const { error: otpError } = await anonClient.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "magiclink",
+  })
+  if (otpError) {
+    return NextResponse.json({ error: "Session creation failed" }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true })
 }

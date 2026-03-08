@@ -55,3 +55,52 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cha
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ task: data }, { status: 201 })
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ channelId: string }> }) {
+  const { channelId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data: channel } = await supabase.from("channels").select("server_id").eq("id", channelId).single()
+  if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  const access = await requireWorkspaceAccess(supabase, channel.server_id, user.id)
+  if (!access.canEdit) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  const body = await req.json()
+  const { taskId, status } = body
+  if (typeof taskId !== "string" || !taskId.trim()) return NextResponse.json({ error: "taskId required" }, { status: 400 })
+  if (!["todo", "done"].includes(status)) return NextResponse.json({ error: "invalid status" }, { status: 400 })
+
+  const { data, error } = await supabase
+    .from("channel_tasks")
+    .update({ status, updated_by: user.id })
+    .eq("id", taskId)
+    .eq("channel_id", channelId)
+    .select("id, title, description, status, due_date, assignee_id, channel_id, server_id, source_message_id, created_by, updated_by, created_at, updated_at")
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ task: data })
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ channelId: string }> }) {
+  const { channelId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { data: channel } = await supabase.from("channels").select("server_id").eq("id", channelId).single()
+  if (!channel) return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+
+  const access = await requireWorkspaceAccess(supabase, channel.server_id, user.id)
+  if (!access.canDelete) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  const { taskId } = await req.json()
+  if (typeof taskId !== "string" || !taskId.trim()) return NextResponse.json({ error: "taskId required" }, { status: 400 })
+
+  const { error } = await supabase.from("channel_tasks").delete().eq("id", taskId).eq("channel_id", channelId)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}

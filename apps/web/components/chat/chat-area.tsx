@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, Volume2, MoreHorizontal } from "lucide-react"
+import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, MoreHorizontal } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -393,6 +393,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     } catch {}
   }, [serverId, channel.id])
 
+  // Keep messagesRef in sync with the messages state so that
+  // scrollToLatest, loadOlderMessages, and ensureMessageLoaded always
+  // operate on the current list — not just the initial server payload.
+  // Declared early so it runs before any effect that reads the ref.
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
   useEffect(() => {
     messagesRef.current = initialMessages
     setMessages(initialMessages)
@@ -660,6 +668,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       window.removeEventListener("online", onOnline)
     }
   }, [setIsOnline])
+
+  // Resync messages when the browser tab regains focus — browsers throttle
+  // WebSockets in background tabs so Supabase Realtime can silently drop.
+  useEffect(() => {
+    const onVisibility = async () => {
+      if (document.hidden) return
+      try {
+        const res = await fetch(`/api/messages?channelId=${channel.id}&limit=50`)
+        if (!res.ok) return
+        const latest = (await res.json()) as MessageWithAuthor[]
+        if (!Array.isArray(latest) || latest.length === 0) return
+        setMessages((prev) => {
+          const known = new Set(prev.map((m) => m.id))
+          const fresh = latest.filter((m) => !known.has(m.id))
+          if (fresh.length === 0) return prev
+          return sortMessagesChronologically([...prev, ...fresh])
+        })
+      } catch {
+        // best-effort resync
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => document.removeEventListener("visibilitychange", onVisibility)
+  }, [channel.id])
 
   useEffect(() => {
     if (!isOnline) return
@@ -1029,11 +1061,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     const mentions = (content.match(/<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? []).map((m) => m.slice(2, -1))
     const mentionEveryone = content.includes("@everyone")
+    const sendT0 = performance.now()
     const apiResponse = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         channelId: channel.id,
+        serverId,
         content: content.trim() || undefined,
         replyToId: replyTo?.id || undefined,
         mentions,
@@ -1045,13 +1079,24 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     if (!apiResponse.ok) {
       let errorMsg = "Your message could not be sent. Please try again."
+      let errorCode: string | undefined
       try {
         const body = await apiResponse.json()
         if (typeof body.error === "string") errorMsg = body.error
+        if (typeof body.code === "string") errorCode = body.code
       } catch {}
       if (attachments.length > 0) {
         await supabase.storage.from("attachments").remove(attachments.map((attachment) => attachment.storage_path))
       }
+
+      // AutoMod blocks/quarantines are not retriable — remove the optimistic
+      // message entirely instead of leaving a ghost "Failed" message in chat.
+      if (errorCode === "AUTOMOD_BLOCKED" || errorCode === "AUTOMOD_QUARANTINED") {
+        setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
+        setMessages((prev) => prev.filter((m) => m.id !== messageId))
+        throw new Error(errorMsg)
+      }
+
       setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
         status: "failed",
         retryCount: 1,
@@ -1066,6 +1111,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     const message = await apiResponse.json() as MessageWithAuthor
+    console.log(`[msg-send-client] ${(performance.now() - sendT0).toFixed(0)}ms round-trip (fetch + parse)`)
 
     setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
     upsertMessage(message)
@@ -1185,14 +1231,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       },
       {
         id: "voice",
-        label: memberListOpen ? "Members" : "Voice & Members",
+        label: "Members",
         group: "voice",
         groupLabel: "Voice",
         priority: 5,
-        ariaLabel: memberListOpen ? "Hide members and voice status" : "Show members and voice status",
-        icon: memberListOpen
-          ? <Users className="w-4 h-4 chat-area-text-primary" />
-          : <Volume2 className="w-4 h-4 chat-area-text-muted" />,
+        ariaLabel: memberListOpen ? "Hide members" : "Show members",
+        icon: <Users className={`w-4 h-4 ${memberListOpen ? "chat-area-text-primary" : "chat-area-text-muted"}`} />,
         onSelect: toggleMemberList,
       },
       {
@@ -1397,17 +1441,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         )}
 
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
-          {messages.length === 0 && (
-            <div className="px-4 py-8">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mb-4 chat-area-empty-state-icon-bg"
-              >
-                <Hash className="w-8 h-8 chat-area-text-accent" />
-              </div>
-              <h2 className="text-2xl font-bold font-display mb-2 chat-area-text-bright">
+          {/* Channel beginning header — provides clearance so the first message toolbar never clips behind the channel bar */}
+          {!hasMoreHistory && (
+            <div className="px-4 py-4">
+              <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
                 Welcome to #{channel.name}!
               </h2>
-              <p className="text-[var(--theme-text-secondary)]">
+              <p className="text-sm text-[var(--theme-text-secondary)]">
                 This is the start of the #{channel.name} channel.
                 {channel.topic && ` ${channel.topic}`}
               </p>
@@ -1522,15 +1562,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                         )
                       }}
                       onDelete={async () => {
-                        const { data, error } = await supabase
-                          .from("messages")
-                          .update({ deleted_at: new Date().toISOString() })
-                          .eq("id", message.id)
-                          .eq("author_id", currentUserId)
-                          .select("id")
-                        if (error) throw error
-                        if (!data || data.length === 0) {
-                          throw new Error("Message could not be deleted. It may have already been removed.")
+                        const res = await fetch(`/api/servers/${serverId}/channels/${channel.id}/messages/${message.id}`, {
+                          method: "DELETE",
+                        })
+                        if (!res.ok) {
+                          const data = await res.json().catch(() => ({ error: "Failed to delete message" }))
+                          throw new Error(data.error || "Failed to delete message")
                         }
                         setMessages((prev) => prev.filter((m) => m.id !== message.id))
                         setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
@@ -1549,6 +1586,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
                         if (!touched) return
 
+                        const wasAtBottom = isAtBottom
+
                         setMessages((prev) =>
                           prev.map((m) => {
                             if (m.id !== message.id) return m
@@ -1560,6 +1599,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                             }
                           })
                         )
+
+                        // Re-measure the affected item so the virtualizer
+                        // accounts for the new reaction row height, then
+                        // keep the user at the bottom if they were already there.
+                        requestAnimationFrame(() => {
+                          virtualizer.measure()
+                          if (wasAtBottom) {
+                            scrollToLatest("auto")
+                          }
+                        })
 
                         try {
                           await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
@@ -1645,7 +1694,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         />
       )}
 
-      <WorkspacePanel channelId={channel.id} open={workspaceOpen} />
+      <WorkspacePanel channelId={channel.id} open={workspaceOpen} onClose={toggleWorkspacePanel} />
 
       <CreateThreadModal
         open={showCreateChannelThread}

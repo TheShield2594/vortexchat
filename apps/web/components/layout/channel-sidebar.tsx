@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, ChevronDown, ChevronRight,
   Plus, Clipboard, Pencil, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, MessageCircle,
-  MicOff, Headphones
+  MicOff, Headphones, Bell, BellOff
 } from "lucide-react"
 import {
   DndContext,
@@ -43,6 +43,7 @@ const CreateChannelModal = dynamic(() => import("@/components/modals/create-chan
 const EditChannelModal = dynamic(() => import("@/components/modals/edit-channel-modal").then((m) => ({ default: m.EditChannelModal })))
 const ServerSettingsModal = dynamic(() => import("@/components/modals/server-settings-modal").then((m) => ({ default: m.ServerSettingsModal })))
 const QuickSwitcherModal = dynamic(() => import("@/components/modals/quickswitcher-modal").then((m) => ({ default: m.QuickSwitcherModal })))
+const NotificationSettingsModal = dynamic(() => import("@/components/modals/notification-settings-modal").then((m) => ({ default: m.NotificationSettingsModal })))
 const SearchModal = dynamic(() => import("@/components/modals/search-modal").then((m) => ({ default: m.SearchModal })))
 const KeyboardShortcutsModal = dynamic(() => import("@/components/modals/keyboard-shortcuts-modal").then((m) => ({ default: m.KeyboardShortcutsModal })))
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
@@ -248,11 +249,6 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const containerIndexRef = useRef<Record<string, string>>({})
   const isDraggingRef = useRef(false)
   isDraggingRef.current = activeId !== null
-  // After a drag-end reorder, suppress the sync effect briefly.
-  // handleDragEnd already set items to the correct order; realtime echoes
-  // trigger multiple sync firings that can overwrite items before all
-  // position updates propagate through the store.
-  const skipSyncUntilRef = useRef(0)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -304,16 +300,24 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }, [server.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync items when channels change (store update, realtime event, etc.).
-  // After a drag-end reorder, skip syncing for a brief window — handleDragEnd
-  // already set items to the correct order, and realtime echoes from the
-  // individual Supabase updates can trigger multiple sync firings before all
-  // positions have propagated.
+  // Compare before overwriting to prevent no-op updates from realtime echoes
+  // that confirm the same order we already have locally.
   useEffect(() => {
-    if (Date.now() < skipSyncUntilRef.current) return
+    const next = buildItems(grouped)
     if (isDraggingRef.current) {
-      setItems((prev) => mergeItemsPreservingOrder(prev, buildItems(grouped)))
+      setItems((prev) => mergeItemsPreservingOrder(prev, next))
     } else {
-      setItems(buildItems(grouped))
+      setItems((prev) => {
+        const prevKeys = Object.keys(prev).sort()
+        const nextKeys = Object.keys(next).sort()
+        if (prevKeys.length !== nextKeys.length || prevKeys.some((k, i) => k !== nextKeys[i])) return next
+        for (const key of prevKeys) {
+          const a = prev[key]
+          const b = next[key]
+          if (!a || !b || a.length !== b.length || a.some((id, i) => id !== b[i])) return next
+        }
+        return prev
+      })
     }
   }, [grouped])
 
@@ -402,6 +406,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
   const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
+  const canManageEvents = isOwner || hasPermission(userPermissions, "MANAGE_EVENTS")
 
   // Track unread state for all text channels in this server
   const textChannelIds = useMemo(() => channels.filter((c) => c.type === "text").map((c) => c.id), [channels])
@@ -627,12 +632,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         itemsRef.current = next
         containerIndexRef.current = buildContainerIndex(next)
         setItems(next)
-        skipSyncUntilRef.current = Date.now() + 2000
         persistChannelOrder()
       }
     } else {
       // Cross-container move was already applied in handleDragOver; persist
-      skipSyncUntilRef.current = Date.now() + 2000
       persistChannelOrder()
     }
   }
@@ -684,13 +687,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
     const supabase = createClientSupabaseClient()
     try {
-      const results = await Promise.all(
-        updates.map(({ id, position, parent_id }) =>
-          supabase.from("channels").update({ position, parent_id }).eq("id", id)
-        )
-      )
-      const failed = results.find(({ error }) => error)
-      if (failed?.error) throw failed.error
+      const { error } = await supabase.rpc("reorder_channels", {
+        p_server_id: server.id,
+        p_updates: updates.map(({ id, position, parent_id }) => ({ id, position, parent_id })),
+      })
+      if (error) throw error
     } catch (error: any) {
       // Rollback: restore previous positions in a single store update
       const rollbackMap = new Map(previous.map(({ id, position, parent_id }) => [id, { position, parent_id }]))
@@ -752,13 +753,15 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           <ChevronDown className="w-4 h-4 flex-shrink-0 motion-interactive text-muted-interactive" />
         </button>
 
-        <button
-          onClick={() => router.push(`/channels/${server.id}/events`)}
-          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm surface-hover-md motion-interactive motion-press focus-ring channel-sidebar-events" aria-label="Open server events"
-        >
-          <CalendarDays className="h-4 w-4" />
-          Events
-        </button>
+        {canManageEvents && (
+          <button
+            onClick={() => router.push(`/channels/${server.id}/events`)}
+            className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm surface-hover-md motion-interactive motion-press focus-ring channel-sidebar-events" aria-label="Open server events"
+          >
+            <CalendarDays className="h-4 w-4" />
+            Events
+          </button>
+        )}
 
         {/* Channel list */}
         <div className="flex-1 overflow-y-auto py-2">
@@ -1185,7 +1188,10 @@ function SortableChannelItem({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: channel.id })
   const { toast } = useToast()
-  const showBadge = !isActive && (isUnread || (mentionCount ?? 0) > 0)
+  const notificationMode = useAppStore((s) => s.notificationModes[channel.id])
+  const isMuted = notificationMode === "muted"
+  const [showNotifSettings, setShowNotifSettings] = useState(false)
+  const showBadge = !isActive && !isMuted && (isUnread || (mentionCount ?? 0) > 0)
 
   // Live countdown for temporary channels
   const [timeRemaining, setTimeRemaining] = useState<string | null>(
@@ -1254,9 +1260,12 @@ function SortableChannelItem({
               </span>
             )}
             <ChannelIcon channel={channel} isVoiceActive={isVoiceActive} />
-            <span className={cn("truncate flex-1", isUnread && !isActive ? "font-semibold" : "")}>
+            <span className={cn("truncate flex-1", isMuted && "opacity-50", isUnread && !isActive && !isMuted ? "font-semibold" : "")}>
               {channel.name}
             </span>
+            {isMuted && (
+              <BellOff className="w-3 h-3 flex-shrink-0 opacity-40" />
+            )}
             <span className="ml-auto flex items-center gap-1 flex-shrink-0 tertiary-metadata">
               {timeRemaining && (
                 <Tooltip>
@@ -1305,6 +1314,9 @@ function SortableChannelItem({
               <ContextMenuSeparator />
             </>
           )}
+          <ContextMenuItem onClick={() => setShowNotifSettings(true)}>
+            <Bell className="w-4 h-4 mr-2" /> Notification Settings
+          </ContextMenuItem>
           <ContextMenuItem onClick={() => {
             navigator.clipboard.writeText(channel.id)
             toast({ title: "Channel ID copied!" })
@@ -1324,6 +1336,13 @@ function SortableChannelItem({
           )}
         </ContextMenuContent>
       </ContextMenu>
+
+      <NotificationSettingsModal
+        open={showNotifSettings}
+        onClose={() => setShowNotifSettings(false)}
+        channelId={channel.id}
+        label={`#${channel.name}`}
+      />
 
       {/* Voice participants listed under voice channels */}
       {voiceParticipants && voiceParticipants.length > 0 && (

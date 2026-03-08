@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServiceRoleClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getOrigin, getRpId, verifyWithAdapter } from "@/lib/auth/passkeys"
 import { createAuthSession, issueTrustedDevice } from "@/lib/auth/security"
 import { rateLimiter } from "@/lib/rate-limit"
@@ -81,9 +81,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unable to resolve account email for passkey login" }, { status: 400 })
   }
 
+  // Generate a magic link token, then verify it server-side through the
+  // cookie-aware client so session cookies are set in this response —
+  // no implicit-grant redirect required.
   const link = await supabase.auth.admin.generateLink({ type: "magiclink", email })
-  if (!link.data.properties?.action_link) {
+  const tokenHash = link.data.properties?.hashed_token
+  if (!tokenHash) {
     return NextResponse.json({ error: "Unable to finalize session" }, { status: 500 })
+  }
+
+  const anonClient = await createServerSupabaseClient()
+  const { error: otpError } = await anonClient.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "magiclink",
+  })
+  if (otpError) {
+    return NextResponse.json({ error: "Session creation failed" }, { status: 500 })
   }
 
   const trustedDeviceId = body.trustedDeviceLabel
@@ -97,5 +110,5 @@ export async function POST(request: Request) {
     ipAddress: request.headers.get("x-forwarded-for"),
   })
 
-  return NextResponse.json({ ok: true, actionLink: link.data.properties.action_link })
+  return NextResponse.json({ ok: true })
 }
