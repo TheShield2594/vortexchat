@@ -36,6 +36,10 @@ refresh_token_reuse_interval = 10
 enable_signup = true
 enable_anonymous_sign_ins = false
 minimum_password_length = 12
+# Pin the JWT secret so the well-known local-dev anon/service-role keys in
+# the CI workflow env always match the running Supabase instance.
+# Without this, Supabase CLI v2 generates a random secret on each `start`.
+jwt_secret = "your-super-secret-jwt-token-with-at-least-32-characters-long"
 
 [auth.email]
 enable_signup = true
