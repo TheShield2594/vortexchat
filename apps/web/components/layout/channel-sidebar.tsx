@@ -249,11 +249,6 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const containerIndexRef = useRef<Record<string, string>>({})
   const isDraggingRef = useRef(false)
   isDraggingRef.current = activeId !== null
-  // After a drag-end reorder, suppress the sync effect briefly.
-  // handleDragEnd already set items to the correct order; realtime echoes
-  // trigger multiple sync firings that can overwrite items before all
-  // position updates propagate through the store.
-  const skipSyncUntilRef = useRef(0)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -305,16 +300,24 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }, [server.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync items when channels change (store update, realtime event, etc.).
-  // After a drag-end reorder, skip syncing for a brief window — handleDragEnd
-  // already set items to the correct order, and realtime echoes from the
-  // individual Supabase updates can trigger multiple sync firings before all
-  // positions have propagated.
+  // Compare before overwriting to prevent no-op updates from realtime echoes
+  // that confirm the same order we already have locally.
   useEffect(() => {
-    if (Date.now() < skipSyncUntilRef.current) return
+    const next = buildItems(grouped)
     if (isDraggingRef.current) {
-      setItems((prev) => mergeItemsPreservingOrder(prev, buildItems(grouped)))
+      setItems((prev) => mergeItemsPreservingOrder(prev, next))
     } else {
-      setItems(buildItems(grouped))
+      setItems((prev) => {
+        const prevKeys = Object.keys(prev).sort()
+        const nextKeys = Object.keys(next).sort()
+        if (prevKeys.length !== nextKeys.length || prevKeys.some((k, i) => k !== nextKeys[i])) return next
+        for (const key of prevKeys) {
+          const a = prev[key]
+          const b = next[key]
+          if (!a || !b || a.length !== b.length || a.some((id, i) => id !== b[i])) return next
+        }
+        return prev
+      })
     }
   }, [grouped])
 
@@ -629,12 +632,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         itemsRef.current = next
         containerIndexRef.current = buildContainerIndex(next)
         setItems(next)
-        skipSyncUntilRef.current = Date.now() + 2000
         persistChannelOrder()
       }
     } else {
       // Cross-container move was already applied in handleDragOver; persist
-      skipSyncUntilRef.current = Date.now() + 2000
       persistChannelOrder()
     }
   }
@@ -686,13 +687,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
     const supabase = createClientSupabaseClient()
     try {
-      const results = await Promise.all(
-        updates.map(({ id, position, parent_id }) =>
-          supabase.from("channels").update({ position, parent_id }).eq("id", id)
-        )
-      )
-      const failed = results.find(({ error }) => error)
-      if (failed?.error) throw failed.error
+      const { error } = await supabase.rpc("reorder_channels", {
+        p_server_id: server.id,
+        p_updates: updates.map(({ id, position, parent_id }) => ({ id, position, parent_id })),
+      })
+      if (error) throw error
     } catch (error: any) {
       // Rollback: restore previous positions in a single store update
       const rollbackMap = new Map(previous.map(({ id, position, parent_id }) => [id, { position, parent_id }]))

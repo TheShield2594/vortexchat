@@ -2514,6 +2514,10 @@ export type Database = {
         Args: { p_rule_id: string }
         Returns: void
       }
+      reorder_channels: {
+        Args: { p_server_id: string; p_updates: Json }
+        Returns: undefined
+      }
     }
     Enums: {
       app_trust_badge: 'verified' | 'partner' | 'internal'
