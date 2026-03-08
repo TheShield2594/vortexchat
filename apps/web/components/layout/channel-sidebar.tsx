@@ -402,6 +402,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   // Compute effective permissions
   const userPermissions = userRoles.reduce((acc, role) => acc | role.permissions, 0)
   const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
+  const canManageEvents = isOwner || hasPermission(userPermissions, "MANAGE_EVENTS")
 
   // Track unread state for all text channels in this server
   const textChannelIds = useMemo(() => channels.filter((c) => c.type === "text").map((c) => c.id), [channels])
@@ -752,13 +753,15 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           <ChevronDown className="w-4 h-4 flex-shrink-0 motion-interactive text-muted-interactive" />
         </button>
 
-        <button
-          onClick={() => router.push(`/channels/${server.id}/events`)}
-          className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm surface-hover-md motion-interactive motion-press focus-ring channel-sidebar-events" aria-label="Open server events"
-        >
-          <CalendarDays className="h-4 w-4" />
-          Events
-        </button>
+        {canManageEvents && (
+          <button
+            onClick={() => router.push(`/channels/${server.id}/events`)}
+            className="mx-2 mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm surface-hover-md motion-interactive motion-press focus-ring channel-sidebar-events" aria-label="Open server events"
+          >
+            <CalendarDays className="h-4 w-4" />
+            Events
+          </button>
+        )}
 
         {/* Channel list */}
         <div className="flex-1 overflow-y-auto py-2">
