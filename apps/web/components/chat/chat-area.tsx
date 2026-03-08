@@ -1397,17 +1397,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         )}
 
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
-          {messages.length === 0 && (
-            <div className="px-4 py-8">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mb-4 chat-area-empty-state-icon-bg"
-              >
-                <Hash className="w-8 h-8 chat-area-text-accent" />
-              </div>
-              <h2 className="text-2xl font-bold font-display mb-2 chat-area-text-bright">
+          {/* Channel beginning header — provides clearance so the first message toolbar never clips behind the channel bar */}
+          {!hasMoreHistory && (
+            <div className="px-4 py-4">
+              <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
                 Welcome to #{channel.name}!
               </h2>
-              <p className="text-[var(--theme-text-secondary)]">
+              <p className="text-sm text-[var(--theme-text-secondary)]">
                 This is the start of the #{channel.name} channel.
                 {channel.topic && ` ${channel.topic}`}
               </p>
