@@ -19,7 +19,7 @@ const PUBLIC_ROUTES = [
   "/auth/callback",
 ]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Machine-to-machine endpoints — pass through with zero Supabase overhead
