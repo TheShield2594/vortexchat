@@ -453,7 +453,7 @@ export const MessageItem = memo(function MessageItem({
   const parsedPoll = extractPoll(renderedContent)
   const messageBodyContent = parsedPoll ? parsedPoll.sanitizedContent : renderedContent
 
-  const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "sending" ? "Sending" : sendState === "failed" ? "Failed" : null
+  const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "failed" ? "Failed" : null
 
 
   // Group reactions by emoji
@@ -600,7 +600,8 @@ export const MessageItem = memo(function MessageItem({
             "relative group px-4 message-hover motion-interactive",
             highlighted && "mention-highlight",
             animateOnMount && "message-arrival",
-            isGrouped ? "py-0.5" : "pt-4 pb-0.5"
+            isGrouped ? "py-0.5" : "pt-4 pb-0.5",
+            sendState === "sending" && "opacity-50"
           )}
           onAnimationEnd={() => {
             if (animateOnMount) onMountAnimationComplete?.()

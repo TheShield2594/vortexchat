@@ -7,8 +7,11 @@ import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useMentionAutocomplete } from "@/hooks/use-mention-autocomplete"
+import { useEmojiAutocomplete } from "@/hooks/use-emoji-autocomplete"
 import { MentionSuggestions } from "@/components/chat/mention-suggestions"
+import { EmojiSuggestions } from "@/components/chat/emoji-suggestions"
 import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
+import { useServerEmojis } from "@/components/chat/server-emoji-context"
 import { EmojiPicker } from "frimousse"
 
 interface Props {
@@ -60,6 +63,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   )
   const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
   const mention = useMentionAutocomplete({ content, cursorPosition, members })
+
+  // Emoji autocomplete (`:shortcode` trigger)
+  const { emojis: serverEmojis } = useServerEmojis()
+  const emoji = useEmojiAutocomplete({ content, cursorPosition, serverEmojis })
 
   function getPreviewUrl(file: File): string {
     let url = fileUrlCache.current.get(file)
@@ -184,17 +191,28 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     const abortController = new AbortController()
     uploadAbortRef.current = abortController
     onSent?.()
+
+    // Clear input immediately for a snappy feel — restore on failure
+    const savedContent = content
+    const savedFiles = [...files]
+    setContent("")
+    onDraftChange("")
+    setFiles([])
+    // Reset textarea height
+    if (textareaRef.current) textareaRef.current.style.height = "auto"
+
     try {
-      await onSend(content, files, (percent) => setUploadProgress(percent), abortController.signal)
-      setContent("")
-      onDraftChange("")
+      await onSend(savedContent, savedFiles, (percent) => setUploadProgress(percent), abortController.signal)
       for (const url of fileUrlCache.current.values()) URL.revokeObjectURL(url)
       fileUrlCache.current.clear()
-      setFiles([])
     } catch (error: any) {
       if (error?.name === "AbortError" || abortController.signal.aborted) {
         setSendError(null)
       } else {
+        // Restore content so the user can retry
+        setContent(savedContent)
+        onDraftChange(savedContent)
+        setFiles(savedFiles)
         setSendError(error?.message ?? "Message send failed. Try again.")
       }
     } finally {
@@ -212,25 +230,40 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     const mentionHandledNavigation = mention.handleKeyDown(e)
-    const selected = mention.filteredMembers[mention.selectedIndex]
+    const emojiHandledNavigation = emoji.handleKeyDown(e)
+    const selectedMention = mention.filteredMembers[mention.selectedIndex]
+    const selectedEmoji = emoji.matches[emoji.selectedIndex]
     const action = resolveComposerKeybinding(e.key, e.shiftKey, {
       isMentionOpen: mention.isOpen,
-      hasMentionSelection: Boolean(selected),
+      hasMentionSelection: Boolean(selectedMention),
+      isEmojiOpen: emoji.isOpen,
+      hasEmojiSelection: Boolean(selectedEmoji),
       hasDraftContent: content.length > 0,
       mentionHandledNavigation,
+      emojiHandledNavigation,
     })
 
     if (action.preventDefault) {
       e.preventDefault()
     }
 
-    if (action.acceptMention && selected) {
-      insertMention(selected)
+    if (action.acceptMention && selectedMention) {
+      insertMention(selectedMention)
       return
     }
 
     if (action.closeMention) {
       mention.close()
+      return
+    }
+
+    if (action.acceptEmoji && selectedEmoji) {
+      insertEmoji(selectedEmoji)
+      return
+    }
+
+    if (action.closeEmoji) {
+      emoji.close()
       return
     }
 
@@ -248,6 +281,19 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   function insertMention(member: typeof members[number]) {
     const { newContent, newCursorPosition } = mention.selectMember(member)
+    setContent(newContent)
+    onDraftChange(newContent)
+    setCursorPosition(newCursorPosition)
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = newCursorPosition
+        textareaRef.current.selectionEnd = newCursorPosition
+      }
+    })
+  }
+
+  function insertEmoji(match: Parameters<typeof emoji.selectEmoji>[0]) {
+    const { newContent, newCursorPosition } = emoji.selectEmoji(match)
     setContent(newContent)
     onDraftChange(newContent)
     setCursorPosition(newCursorPosition)
@@ -648,6 +694,20 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
         {/* Text input */}
         <div className="flex-1 relative">
+          {/* Emoji autocomplete dropdown */}
+          {emoji.isOpen && !mention.isOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 z-50">
+              <EmojiSuggestions
+                matches={emoji.matches}
+                selectedIndex={emoji.selectedIndex}
+                onSelect={(match) => {
+                  insertEmoji(match)
+                  textareaRef.current?.focus()
+                }}
+              />
+            </div>
+          )}
+
           {/* Mention autocomplete dropdown */}
           {mention.isOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-1 z-50">
@@ -674,7 +734,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onBlur={() => setInputFocused(false)}
             placeholder={replyTo
               ? `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`
-              : `Message #${channelName} — use @ to mention teammates`
+              : `Message #${channelName} — @ to mention, : for emoji`
             }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none py-1"
