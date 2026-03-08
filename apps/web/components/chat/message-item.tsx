@@ -1,6 +1,7 @@
 "use client"
 
 import { memo, useCallback, useEffect, useId, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { format } from "date-fns"
 import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check, Pin, PinOff } from "lucide-react"
 import { Highlight, themes } from "prism-react-renderer"
@@ -341,13 +342,14 @@ export const MessageItem = memo(function MessageItem({
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
   const [showActions, setShowActions] = useState(false)
-  const [toolbarBelow, setToolbarBelow] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showCreateThread, setShowCreateThread] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
   const { toast } = useToast()
   const containerRef = useRef<HTMLDivElement>(null)
+  const emojiButtonRef = useRef<HTMLButtonElement>(null)
+  const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
   const reactionCountsRef = useRef<Record<string, number>>({})
   const [poppingReactions, setPoppingReactions] = useState<Record<string, number>>({})
   const popReactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -357,16 +359,20 @@ export const MessageItem = memo(function MessageItem({
     if (!showActions && !showEmojiPicker) return
 
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setShowActions(false)
-        setShowEmojiPicker(false)
-      }
+      const target = e.target as Node
+      // Ignore clicks inside the message container or the portaled emoji picker
+      if (containerRef.current?.contains(target)) return
+      if ((target as HTMLElement).closest?.("[data-emoji-picker-portal]")) return
+      setShowActions(false)
+      setShowEmojiPicker(false)
+      setEmojiPickerPos(null)
     }
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setShowActions(false)
         setShowEmojiPicker(false)
+        setEmojiPickerPos(null)
       }
     }
 
@@ -602,12 +608,6 @@ export const MessageItem = memo(function MessageItem({
           }}
           onMouseEnter={() => {
             setShowActions(true)
-            if (containerRef.current) {
-              const rect = containerRef.current.getBoundingClientRect()
-              // If the message top is within 60px of the viewport top (behind the channel header),
-              // render the toolbar below the message instead of above it.
-              setToolbarBelow(rect.top < 60)
-            }
           }}
           onMouseLeave={() => { setShowActions(false) }}
           onFocus={() => setShowActions(true)}
@@ -615,6 +615,7 @@ export const MessageItem = memo(function MessageItem({
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
               setShowActions(false)
               setShowEmojiPicker(false)
+              setEmojiPickerPos(null)
             }
           }}
         >
@@ -853,11 +854,12 @@ export const MessageItem = memo(function MessageItem({
             </div>
           </div>
 
-          {/* Emoji picker popup — positioned above the action rail */}
-          {showEmojiPicker && (
+          {/* Emoji picker — portaled to body so it escapes scroll overflow clipping */}
+          {showEmojiPicker && emojiPickerPos && createPortal(
             <div
-              className="absolute z-50"
-              style={{ right: 0, bottom: "calc(100% + 8px)" }}
+              data-emoji-picker-portal
+              className="fixed z-[9999]"
+              style={{ top: emojiPickerPos.top, left: emojiPickerPos.left }}
             >
               <div
                 className="rounded-lg shadow-xl overflow-hidden"
@@ -865,10 +867,11 @@ export const MessageItem = memo(function MessageItem({
               >
                 <EmojiPickerPopup
                   onSelect={(emoji) => onReaction(emoji)}
-                  onClose={() => setShowEmojiPicker(false)}
+                  onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
                 />
               </div>
-            </div>
+            </div>,
+            document.body,
           )}
 
           {/* Action buttons */}
@@ -877,18 +880,32 @@ export const MessageItem = memo(function MessageItem({
               aria-hidden={!showActions}
               inert={!showActions}
               className={cn(
-                "action-rail-motion absolute right-4 flex items-center rounded shadow-lg overflow-hidden",
-                toolbarBelow ? "-bottom-4" : "-top-4",
+                "action-rail-motion absolute right-4 -top-4 flex items-center rounded shadow-lg overflow-hidden",
                 showActions
                   ? "opacity-100 translate-y-0"
-                  : toolbarBelow
-                    ? "pointer-events-none opacity-0 translate-y-1"
-                    : "pointer-events-none opacity-0 -translate-y-1"
+                  : "pointer-events-none opacity-0 -translate-y-1"
               )}
               style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
             >
               <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                ref={emojiButtonRef}
+                onClick={() => {
+                  if (showEmojiPicker) {
+                    setShowEmojiPicker(false)
+                    setEmojiPickerPos(null)
+                  } else if (emojiButtonRef.current) {
+                    const rect = emojiButtonRef.current.getBoundingClientRect()
+                    const pickerW = 320
+                    const pickerH = 440
+                    // Position: right-aligned with the button, prefer above; flip below if clipped
+                    let top = rect.top - pickerH - 8
+                    if (top < 8) top = rect.bottom + 8
+                    let left = rect.right - pickerW
+                    if (left < 8) left = 8
+                    setEmojiPickerPos({ top, left })
+                    setShowEmojiPicker(true)
+                  }
+                }}
                 className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
                 style={{ color: showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
                 title="Add Reaction"
