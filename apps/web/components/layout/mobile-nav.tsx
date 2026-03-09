@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, createContext, useContext } from "react"
-import { X } from "lucide-react"
+import { Menu, X } from "lucide-react"
 import { useSwipe } from "@/hooks/use-swipe"
 
 interface MobileNavCtx {
@@ -27,19 +27,17 @@ export function useMobileNav() {
   return useContext(MobileNavContext)
 }
 
-// Hamburger button shown in the mobile header
+// Hamburger button shown in the mobile header — opens or closes the sidebar drawer
 export function MobileMenuButton() {
   const { sidebarOpen, setSidebarOpen } = useMobileNav()
-  if (!sidebarOpen) return <div className="md:hidden w-8 h-8" aria-hidden="true" />
-
   return (
     <button
       className="md:hidden w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-white/10"
       style={{ color: "var(--theme-text-secondary)" }}
-      onClick={() => setSidebarOpen(false)}
-      aria-label="Close sidebar"
+      onClick={() => setSidebarOpen(!sidebarOpen)}
+      aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
     >
-      <X className="w-5 h-5" />
+      {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
     </button>
   )
 }
