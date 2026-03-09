@@ -6,7 +6,7 @@ import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle, LogOut,
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 const ProfileSettingsModal = lazy(() => import("@/components/modals/profile-settings-modal").then((m) => ({ default: m.ProfileSettingsModal })))
@@ -187,6 +187,7 @@ export function UserPanel() {
       </ContextMenu>
 
       {/* Controls */}
+      <TooltipProvider delayDuration={200}>
       <div className="flex items-center gap-0.5">
         {voiceChannelId && (
           <Tooltip>
@@ -272,6 +273,7 @@ export function UserPanel() {
           <TooltipContent>User Settings</TooltipContent>
         </Tooltip>
       </div>
+      </TooltipProvider>
 
       {showProfileSettings && (
         <Suspense fallback={null}>
