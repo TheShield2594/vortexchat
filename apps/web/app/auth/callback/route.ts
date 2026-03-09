@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerClient } from "@supabase/ssr"
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -11,7 +11,32 @@ export async function GET(request: NextRequest) {
       : "/channels/me"
 
   if (code) {
-    const supabase = await createServerSupabaseClient()
+    // Build the redirect response first so we can attach cookies directly to it.
+    // Using the cached createServerSupabaseClient() here would set cookies via
+    // cookieStore.set(), but those aren't guaranteed to appear on a separately
+    // constructed NextResponse — especially on mobile browsers that are strict
+    // about Set-Cookie headers on redirects.  Creating a dedicated client that
+    // writes straight to the response object is the pattern recommended by
+    // @supabase/ssr for Route Handler callbacks.
+    const redirectResponse = NextResponse.redirect(`${origin}${next}`)
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              redirectResponse.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
       console.error("Auth callback: code exchange failed", error)
@@ -25,7 +50,7 @@ export async function GET(request: NextRequest) {
           console.error("Auth callback: failed to set user status to online", statusError)
         }
       }
-      return NextResponse.redirect(`${origin}${next}`)
+      return redirectResponse
     }
   }
 
