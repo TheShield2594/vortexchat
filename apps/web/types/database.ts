@@ -129,6 +129,7 @@ export type Database = {
           screening_enabled: boolean
           automod_dry_run: boolean
           automod_emergency_disable: boolean
+          join_role_id: string | null
           created_at: string
         }
         Insert: {
@@ -146,6 +147,7 @@ export type Database = {
           screening_enabled?: boolean
           automod_dry_run?: boolean
           automod_emergency_disable?: boolean
+          join_role_id?: string | null
           created_at?: string
         }
         Update: {
@@ -163,6 +165,7 @@ export type Database = {
           screening_enabled?: boolean
           automod_dry_run?: boolean
           automod_emergency_disable?: boolean
+          join_role_id?: string | null
           created_at?: string
         }
         Relationships: []
