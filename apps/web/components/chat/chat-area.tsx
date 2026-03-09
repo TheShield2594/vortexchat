@@ -707,7 +707,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (messages.length === 0) return
     shouldAutoScrollToLatestRef.current = false
     scrollToLatest("auto")
-  }, [jumpToMessageId, messages.length, openThreadId, scrollToLatest])
+  }, [channel.id, jumpToMessageId, messages.length, openThreadId, scrollToLatest])
 
   useEffect(() => {
     const newestMessage = messages[messages.length - 1]

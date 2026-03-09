@@ -629,7 +629,9 @@ export const MessageItem = memo(function MessageItem({
           onMouseLeave={() => { setShowActions(false) }}
           onFocus={() => setShowActions(true)}
           onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            const relatedTarget = e.relatedTarget as HTMLElement | null
+            const focusMovedIntoEmojiPortal = Boolean(relatedTarget?.closest?.("[data-emoji-picker-portal]"))
+            if (!e.currentTarget.contains(relatedTarget) && !focusMovedIntoEmojiPortal) {
               setShowActions(false)
               setShowEmojiPicker(false)
               setEmojiPickerPos(null)
@@ -642,24 +644,24 @@ export const MessageItem = memo(function MessageItem({
               <button
                 type="button"
                 onClick={() => onReplyJump(message.reply_to_id!)}
-                className="w-full text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5 surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--theme-accent)]"
+                className="w-[calc(100%-2.5rem)] min-w-0 text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5 surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--theme-accent)]"
                 aria-label={message.reply_to ? "Jump to replied message" : "Jump to original message"}
               >
                 <Reply className="w-3 h-3 -scale-x-100" />
-                <span className="font-medium" style={{ color: 'var(--theme-text-secondary)' }}>
+                <span className="font-medium shrink-0" style={{ color: 'var(--theme-text-secondary)' }}>
                   {message.reply_to?.author?.display_name || message.reply_to?.author?.username || "Original message"}
                 </span>
-                <span className="truncate">{message.reply_to?.content || "Message unavailable"}</span>
+                <span className="truncate min-w-0">{message.reply_to?.content || "Message unavailable"}</span>
               </button>
             ) : (
               <div
-                className="w-full text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5"
+                className="w-[calc(100%-2.5rem)] min-w-0 text-left flex items-center gap-2 mb-1 ml-10 text-xs tertiary-metadata rounded px-1 py-0.5"
               >
                 <Reply className="w-3 h-3 -scale-x-100" />
-                <span className="font-medium" style={{ color: 'var(--theme-text-secondary)' }}>
+                <span className="font-medium shrink-0" style={{ color: 'var(--theme-text-secondary)' }}>
                   {message.reply_to?.author?.display_name || message.reply_to?.author?.username || "Original message"}
                 </span>
-                <span className="truncate">{message.reply_to?.content || "Message unavailable"}</span>
+                <span className="truncate min-w-0">{message.reply_to?.content || "Message unavailable"}</span>
               </div>
             )
           )}

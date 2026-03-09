@@ -21,13 +21,13 @@ export function TypingIndicator({ users }: TypingIndicatorProps) {
   }
 
   return (
-    <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0 composer-presence-rail" style={{ minHeight: "24px" }} aria-hidden="true">
+    <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0 composer-presence-rail overflow-hidden" style={{ minHeight: "24px" }} aria-hidden="true">
       <span className="flex gap-0.5 items-end" aria-hidden="true">
         <span className="typing-dot" />
         <span className="typing-dot" />
         <span className="typing-dot" />
       </span>
-      <span className="text-xs text-muted-foreground">
+      <span className="text-xs text-muted-foreground truncate min-w-0 block">
         {buildTypingText(users)}
       </span>
     </div>
