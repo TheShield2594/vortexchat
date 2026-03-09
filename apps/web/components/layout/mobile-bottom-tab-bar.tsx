@@ -2,16 +2,34 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Compass, MessagesSquare, Search, Shield, UserRound } from "lucide-react"
+import { Compass, MessagesSquare, Users, UserRound } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 
 const TABS = [
-  { href: "/channels/discover", label: "Servers", icon: Compass },
+  { href: "/channels/discover", label: "Discover", icon: Compass },
   { href: "/channels/me", label: "DMs", icon: MessagesSquare },
-  { href: "/channels/friends", label: "Friends", icon: Shield },
-  { href: "/channels/discover", label: "Search", icon: Search },
+  { href: "/channels/friends", label: "Friends", icon: Users },
   { href: "/channels/profile", label: "Profile", icon: UserRound },
 ]
+
+function isTabActive(href: string, pathname: string): boolean {
+  if (href === "/channels/me") return pathname.startsWith("/channels/me")
+  if (href === "/channels/friends") return pathname.startsWith("/channels/friends")
+  if (href === "/channels/profile") return pathname.startsWith("/channels/profile")
+  // Discover tab is active for the discover page and any server channel pages
+  if (href === "/channels/discover") {
+    return (
+      pathname.startsWith("/channels/discover") ||
+      // Server channel routes: /channels/[serverId]/... (not /me, /friends, /profile, /discover)
+      (pathname.startsWith("/channels/") &&
+        !pathname.startsWith("/channels/me") &&
+        !pathname.startsWith("/channels/friends") &&
+        !pathname.startsWith("/channels/profile") &&
+        !pathname.startsWith("/channels/discover"))
+    )
+  }
+  return pathname === href
+}
 
 export function MobileBottomTabBar() {
   const pathname = usePathname()
@@ -26,9 +44,9 @@ export function MobileBottomTabBar() {
       }}
       aria-label="Mobile sections"
     >
-      <ul className="grid grid-cols-5 h-16">
+      <ul className="grid grid-cols-4 h-16">
         {TABS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href === "/channels/me" && pathname.startsWith("/channels/me/"))
+          const active = isTabActive(href, pathname)
           return (
             <li key={label}>
               <Link
