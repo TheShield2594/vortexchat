@@ -156,7 +156,11 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: form.email,
-        options: { emailRedirectTo: `${window.location.origin}/channels/me` },
+        // Redirect to /auth/callback so the server-side route can exchange the
+        // PKCE code for session cookies before forwarding to the app.  Pointing
+        // directly at /channels/me means the code lands where no exchange
+        // handler exists; the server sees no session and redirects to login.
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       })
       if (error) throw error
       toast({ title: "Magic link sent!", description: `Check ${form.email} for your login link.` })
