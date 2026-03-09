@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, X } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { format } from "date-fns"
 
 interface Notification {
@@ -36,6 +37,7 @@ interface Props {
 export function NotificationBell({ userId, variant = "icon" }: Props) {
   const [supabase] = useState(() => createClientSupabaseClient())
   const router = useRouter()
+  const { playNotification } = useNotificationSound()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -69,6 +71,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           const n = payload.new as Notification
           setNotifications((prev) => [n, ...prev.slice(0, 29)])
           setUnreadCount((c) => c + 1)
+          playNotification()
         }
       )
       .subscribe()

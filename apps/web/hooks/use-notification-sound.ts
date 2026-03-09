@@ -50,9 +50,16 @@ function setNotificationSoundEnabled(enabled: boolean) {
 // Web Audio API tone generator
 // ---------------------------------------------------------------------------
 
-function playTone() {
+async function playTone() {
   try {
     const ctx = new AudioContext()
+
+    // Browsers suspend AudioContext until a user gesture has been received.
+    // Without resuming first, start() queues the sound but it is never played.
+    if (ctx.state === "suspended") {
+      await ctx.resume()
+    }
+
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
 
