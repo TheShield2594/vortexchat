@@ -7,7 +7,7 @@ type Params = { params: Promise<{ serverId: string; channelId: string }> }
 /**
  * POST /api/servers/[serverId]/channels/[channelId]/voice-token
  *
- * Generates a Livekit access token for a user joining a voice channel.
+ * Generates a Livekit access token for a user joining a voice/stage channel.
  * The room name is derived from the channel ID to ensure isolation.
  * Requires CONNECT_VOICE permission.
  *
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     )
   }
 
-  // Verify channel belongs to this server and is a voice channel
+  // Verify channel belongs to this server and is a real-time audio channel
   const { data: channel, error: channelError } = await supabase
     .from("channels")
     .select("id, name, type, server_id")
@@ -47,8 +47,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Channel not found" }, { status: 404 })
   }
 
-  if (channel.type !== "voice") {
-    return NextResponse.json({ error: "Channel is not a voice channel" }, { status: 400 })
+  if (channel.type !== "voice" && channel.type !== "stage") {
+    return NextResponse.json({ error: "Channel is not a voice/stage channel" }, { status: 400 })
   }
 
   // Fetch user profile for display name
