@@ -25,6 +25,8 @@ export type Database = {
           status_expires_at: string | null
           discoverable: boolean
           appearance_settings: Json
+          interests: string[]
+          activity_visibility: 'public' | 'friends' | 'private'
           created_at: string
           updated_at: string
         }
@@ -43,6 +45,8 @@ export type Database = {
           status_expires_at?: string | null
           discoverable?: boolean
           appearance_settings?: Json | null
+          interests?: string[]
+          activity_visibility?: 'public' | 'friends' | 'private'
           created_at?: string
           updated_at?: string
         }
@@ -61,10 +65,100 @@ export type Database = {
           status_expires_at?: string | null
           discoverable?: boolean
           appearance_settings?: Json | null
+          interests?: string[]
+          activity_visibility?: 'public' | 'friends' | 'private'
           created_at?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      user_pinned_items: {
+        Row: {
+          id: string
+          user_id: string
+          pin_type: 'message' | 'channel' | 'file' | 'link'
+          label: string
+          sublabel: string | null
+          ref_id: string | null
+          url: string | null
+          position: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          pin_type: 'message' | 'channel' | 'file' | 'link'
+          label: string
+          sublabel?: string | null
+          ref_id?: string | null
+          url?: string | null
+          position?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          pin_type?: 'message' | 'channel' | 'file' | 'link'
+          label?: string
+          sublabel?: string | null
+          ref_id?: string | null
+          url?: string | null
+          position?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_pinned_items_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      user_activity_log: {
+        Row: {
+          id: string
+          user_id: string
+          event_type: 'message_posted' | 'file_uploaded' | 'server_joined' | 'reaction_added' | 'channel_created'
+          summary: string
+          ref_id: string | null
+          ref_type: 'channel' | 'server' | 'message' | 'file' | null
+          ref_label: string | null
+          ref_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          event_type: 'message_posted' | 'file_uploaded' | 'server_joined' | 'reaction_added' | 'channel_created'
+          summary: string
+          ref_id?: string | null
+          ref_type?: 'channel' | 'server' | 'message' | 'file' | null
+          ref_label?: string | null
+          ref_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          event_type?: 'message_posted' | 'file_uploaded' | 'server_joined' | 'reaction_added' | 'channel_created'
+          summary?: string
+          ref_id?: string | null
+          ref_type?: 'channel' | 'server' | 'message' | 'file' | null
+          ref_label?: string | null
+          ref_url?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_activity_log_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       user_connections: {
         Row: {
@@ -2535,6 +2629,8 @@ export type Database = {
 
 // Derived types for convenience
 export type UserRow = Database['public']['Tables']['users']['Row']
+export type UserPinnedItemRow = Database['public']['Tables']['user_pinned_items']['Row']
+export type UserActivityLogRow = Database['public']['Tables']['user_activity_log']['Row']
 export type ServerRow = Database['public']['Tables']['servers']['Row']
 export type ServerMemberRow = Database['public']['Tables']['server_members']['Row']
 export type RoleRow = Database['public']['Tables']['roles']['Row']

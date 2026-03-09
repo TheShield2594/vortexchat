@@ -22,6 +22,9 @@ import { sanitizeBannerColor } from "@/lib/banner-color"
 import { getStatusLabel } from "@/lib/presence-status"
 import type { RoleRow } from "@/types/database"
 import { PERMISSIONS } from "@vortex/shared"
+import { ProfileInterestTags } from "@/components/profile/profile-interest-tags"
+import { ProfilePinnedItems } from "@/components/profile/profile-pinned-items"
+import { ProfileActivity } from "@/components/profile/profile-activity"
 
 type FriendshipStatus = "none" | "friends" | "pending_sent" | "pending_received" | "blocked" | "self"
 
@@ -36,6 +39,7 @@ interface ProfileUser {
   status_emoji?: string | null
   status_expires_at?: string | null
   created_at?: string
+  interests?: string[]
 }
 
 interface ProfilePanelProps {
@@ -274,6 +278,30 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                   </span>
                 ))}
               </div>
+            </section>
+          )}
+
+          {/* Interests / Tags */}
+          {(user?.interests && user.interests.length > 0) && (
+            <section className="rounded-xl bg-secondary/60 p-3">
+              <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-2">INTERESTS</h4>
+              <ProfileInterestTags tags={user.interests} />
+            </section>
+          )}
+
+          {/* Pinned Items */}
+          {user?.id && (
+            <section className="rounded-xl bg-secondary/60 p-3">
+              <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-2">PINNED</h4>
+              <ProfilePinnedItems userId={user.id} />
+            </section>
+          )}
+
+          {/* Recent Activity */}
+          {user?.id && (
+            <section className="rounded-xl bg-secondary/60 p-3">
+              <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-2">RECENT ACTIVITY</h4>
+              <ProfileActivity userId={user.id} />
             </section>
           )}
         </div>
