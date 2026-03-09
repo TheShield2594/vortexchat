@@ -1679,6 +1679,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           onTyping={onKeystroke}
           onSent={onSent}
           onCreateThread={() => setShowCreateChannelThread(true)}
+          serverId={serverId}
         />
       </div>
 

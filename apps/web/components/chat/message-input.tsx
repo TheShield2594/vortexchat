@@ -8,8 +8,10 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useMentionAutocomplete } from "@/hooks/use-mention-autocomplete"
 import { useEmojiAutocomplete } from "@/hooks/use-emoji-autocomplete"
+import { useSlashCommandAutocomplete, type SlashCommand } from "@/hooks/use-slash-command-autocomplete"
 import { MentionSuggestions } from "@/components/chat/mention-suggestions"
 import { EmojiSuggestions } from "@/components/chat/emoji-suggestions"
+import { SlashCommandSuggestions } from "@/components/chat/slash-command-suggestions"
 import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
 import { useServerEmojis } from "@/components/chat/server-emoji-context"
 import { EmojiPicker } from "frimousse"
@@ -24,12 +26,14 @@ interface Props {
   onTyping?: () => void
   onSent?: () => void
   onCreateThread?: () => void
+  /** When provided, slash command autocomplete is enabled for apps installed on this server. */
+  serverId?: string
 }
 
 const GIPHY_API_BASE = "https://api.giphy.com/v1/gifs"
 
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
-export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread }: Props) {
+export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread, serverId }: Props) {
   const [content, setContent] = useState(draft)
   const [cursorPosition, setCursorPosition] = useState(0)
   const [files, setFiles] = useState<File[]>([])
@@ -78,6 +82,17 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   // Emoji autocomplete (`:shortcode` trigger)
   const { emojis: serverEmojis } = useServerEmojis()
   const emoji = useEmojiAutocomplete({ content, cursorPosition, serverEmojis })
+
+  // Slash command autocomplete (`/command` prefix trigger)
+  const [slashCommands, setSlashCommands] = useState<SlashCommand[]>([])
+  useEffect(() => {
+    if (!serverId) return
+    fetch(`/api/servers/${serverId}/apps/commands`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: SlashCommand[]) => setSlashCommands(Array.isArray(data) ? data : []))
+      .catch(() => {/* non-fatal */})
+  }, [serverId])
+  const slash = useSlashCommandAutocomplete({ content, cursorPosition, commands: slashCommands })
 
   function getPreviewUrl(file: File): string {
     let url = fileUrlCache.current.get(file)
@@ -198,6 +213,42 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
+
+    // Detect slash command invocation: `/commandName [args]`
+    if (serverId && content.startsWith("/")) {
+      const [commandToken, ...argParts] = content.trim().split(/\s+/)
+      const commandName = commandToken.slice(1).toLowerCase()
+      const matchedCommand = slashCommands.find((cmd) => cmd.commandName.toLowerCase() === commandName)
+      if (matchedCommand) {
+        setSending(true)
+        setSendError(null)
+        const savedContent = content
+        setContent("")
+        onDraftChange("")
+        if (textareaRef.current) textareaRef.current.style.height = "28px"
+        onSent?.()
+        try {
+          const res = await fetch(`/api/servers/${serverId}/apps/commands/execute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ commandId: matchedCommand.id, appId: matchedCommand.appId, args: argParts.join(" ") }),
+          })
+          if (!res.ok) {
+            const payload = await res.json().catch(() => ({}))
+            throw new Error(payload?.error ?? `Command failed (${res.status})`)
+          }
+        } catch (error: any) {
+          setContent(savedContent)
+          onDraftChange(savedContent)
+          setSendError(error?.message ?? "Command failed. Try again.")
+        } finally {
+          setSending(false)
+          textareaRef.current?.focus()
+        }
+        return
+      }
+    }
+
     setSending(true)
     setSendError(null)
     setUploadProgress(files.length > 0 ? 0 : null)
@@ -247,16 +298,21 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     const mentionHandledNavigation = mention.handleKeyDown(e)
     const emojiHandledNavigation = emoji.handleKeyDown(e)
+    const slashHandledNavigation = slash.handleKeyDown(e)
     const selectedMention = mention.filteredMembers[mention.selectedIndex]
     const selectedEmoji = emoji.matches[emoji.selectedIndex]
+    const selectedSlash = slash.matches[slash.selectedIndex]
     const action = resolveComposerKeybinding(e.key, e.shiftKey, {
       isMentionOpen: mention.isOpen,
       hasMentionSelection: Boolean(selectedMention),
       isEmojiOpen: emoji.isOpen,
       hasEmojiSelection: Boolean(selectedEmoji),
+      isSlashOpen: slash.isOpen,
+      hasSlashSelection: Boolean(selectedSlash),
       hasDraftContent: content.length > 0,
       mentionHandledNavigation,
       emojiHandledNavigation,
+      slashHandledNavigation,
     })
 
     if (action.preventDefault) {
@@ -283,6 +339,16 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       return
     }
 
+    if (action.acceptSlash && selectedSlash) {
+      insertSlashCommand(selectedSlash)
+      return
+    }
+
+    if (action.closeSlash) {
+      slash.close()
+      return
+    }
+
     if (action.clearDraft) {
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
       setContent("")
@@ -298,6 +364,19 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   function insertMention(member: typeof members[number]) {
     const { newContent, newCursorPosition } = mention.selectMember(member)
+    setContent(newContent)
+    onDraftChange(newContent)
+    setCursorPosition(newCursorPosition)
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = newCursorPosition
+        textareaRef.current.selectionEnd = newCursorPosition
+      }
+    })
+  }
+
+  function insertSlashCommand(command: Parameters<typeof slash.selectCommand>[0]) {
+    const { newContent, newCursorPosition } = slash.selectCommand(command)
     setContent(newContent)
     onDraftChange(newContent)
     setCursorPosition(newCursorPosition)
@@ -740,6 +819,20 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             </div>
           )}
 
+          {/* Slash command autocomplete dropdown */}
+          {slash.isOpen && !mention.isOpen && !emoji.isOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 z-50">
+              <SlashCommandSuggestions
+                commands={slash.matches}
+                selectedIndex={slash.selectedIndex}
+                onSelect={(command) => {
+                  insertSlashCommand(command)
+                  textareaRef.current?.focus()
+                }}
+              />
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             value={content}
@@ -751,7 +844,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onBlur={() => setInputFocused(false)}
             placeholder={replyTo
               ? `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`
-              : `Message #${channelName} — @ to mention, : for emoji`
+              : slashCommands.length > 0
+                ? `Message #${channelName} — @ mention, : emoji, / command`
+                : `Message #${channelName} — @ to mention, : for emoji`
             }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none block"
