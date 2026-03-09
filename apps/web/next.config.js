@@ -44,6 +44,8 @@ const nextConfig = {
               // Allow WebSocket connections (Supabase Realtime, Livekit) and external APIs
               "connect-src 'self' wss: https:",
               "media-src 'self' blob: https:",
+              // Allow embedded YouTube streams for Stage channels
+              "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com",
               // Prevent <frame>/<iframe> embedding
               "frame-ancestors 'none'",
             ].join("; "),
