@@ -43,8 +43,16 @@ export function usePushNotifications() {
   }, [])
 
   useEffect(() => {
-    // Auto-subscribe if already granted
-    if (typeof window !== "undefined" && Notification.permission === "granted") {
+    // Auto-subscribe if already granted.
+    // Guard typeof Notification: on iOS Safari < 16.4 and some Android WebViews
+    // the Notification global is not defined at all.  Accessing it without this
+    // check throws a ReferenceError that React 18 routes to the nearest error
+    // boundary, producing the "Something went wrong" screen on mobile.
+    if (
+      typeof window !== "undefined" &&
+      typeof Notification !== "undefined" &&
+      Notification.permission === "granted"
+    ) {
       subscribe()
     }
   }, [subscribe])
