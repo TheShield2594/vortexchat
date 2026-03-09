@@ -208,6 +208,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       status_expires_at: null,
       discoverable: false,
       appearance_settings: null,
+      interests: [],
+      activity_visibility: "public" as const,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
