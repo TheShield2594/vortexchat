@@ -981,6 +981,7 @@ interface ModerationSettings {
   explicit_content_filter: number
   default_message_notifications: number
   screening_enabled: boolean
+  join_role_id: string | null
 }
 
 /** Moderation settings tab — verification level, explicit-content filter, and default notification preferences. */
@@ -989,16 +990,23 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
   const [settings, setSettings] = useState<ModerationSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [roles, setRoles] = useState<{ id: string; name: string; color: string; is_default: boolean }[]>([])
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    fetch(`/api/servers/${serverId}/moderation`)
-      .then((r) => {
+    Promise.all([
+      fetch(`/api/servers/${serverId}/moderation`).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
+      }),
+      fetch(`/api/servers/${serverId}/roles`).then((r) => (r.ok ? r.json() : [])),
+    ])
+      .then(([modData, rolesData]) => {
+        setSettings(modData)
+        setRoles(rolesData)
+        setLoading(false)
       })
-      .then((d) => { setSettings(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [open, serverId])
 
@@ -1096,6 +1104,29 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
         >
           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.screening_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
         </button>
+      </div>
+
+      {/* Auto-assign Role on Join */}
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+          Auto-assign Role on Join
+        </Label>
+        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+          Automatically give new members this role when they join the server.
+        </p>
+        <select
+          value={settings.join_role_id ?? ""}
+          onChange={(e) => setSettings({ ...settings, join_role_id: e.target.value || null })}
+          className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+          style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
+        >
+          <option value="">— None —</option>
+          {roles.filter((r) => !r.is_default).map((role) => (
+            <option key={role.id} value={role.id}>
+              {role.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <Button onClick={handleSave} disabled={saving} style={{ background: 'var(--theme-accent)' }}>

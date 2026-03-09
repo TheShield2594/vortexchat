@@ -111,16 +111,19 @@ export function RoleManager({ serverId, isOwner }: Props) {
   }
 
   async function fetchAllMembers() {
-    const { data } = await supabase
-      .from("server_members")
-      .select("user_id, users(*)")
-      .eq("server_id", serverId)
-    type MemberWithUser = { user_id: string; users: UserRow | null }
-    setAllMembers(
-      ((data ?? []) as unknown as MemberWithUser[])
-        .filter((m) => m.users !== null)
-        .map((m) => ({ ...m.users!, user_id: m.user_id }))
-    )
+    try {
+      const res = await fetch(`/api/servers/${encodeURIComponent(serverId)}/members`, { credentials: "include" })
+      if (!res.ok) return
+      type ApiMember = { user_id: string; user: UserRow | null }
+      const data: ApiMember[] = await res.json()
+      setAllMembers(
+        data
+          .filter((m) => m.user !== null)
+          .map((m) => ({ ...m.user!, user_id: m.user_id }))
+      )
+    } catch {
+      // silently ignore — list stays empty
+    }
   }
 
   async function fetchRoleMembers(roleId: string) {
