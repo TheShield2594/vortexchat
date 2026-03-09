@@ -39,7 +39,7 @@ export async function getMemberPermissions(
   serverId: string,
   userId: string
 ): Promise<MemberPerms> {
-  const [{ data: server, error: serverError }, { data: member, error: memberError }] = await Promise.all([
+  const [{ data: server, error: serverError }, { data: member, error: memberError }, { data: defaultRole, error: defaultRoleError }] = await Promise.all([
     supabase.from("servers").select("owner_id, screening_enabled").eq("id", serverId).single(),
     supabase
       .from("server_members")
@@ -47,10 +47,12 @@ export async function getMemberPermissions(
       .eq("server_id", serverId)
       .eq("user_id", userId)
       .maybeSingle(),
+    supabase.from("roles").select("permissions").eq("server_id", serverId).eq("is_default", true).maybeSingle(),
   ])
 
   if (serverError) throw new Error(`Failed to fetch server: ${serverError.message}`)
   if (memberError) throw new Error(`Failed to fetch member: ${memberError.message}`)
+  if (defaultRoleError) throw new Error(`Failed to fetch default role: ${defaultRoleError.message}`)
 
   const ownerId: string | null = server?.owner_id ?? null
   const isOwner = ownerId === userId
@@ -60,6 +62,8 @@ export async function getMemberPermissions(
     (member as any)?.member_roles?.flatMap((mr: any) =>
       mr.roles?.permissions != null ? [mr.roles.permissions] : []
     ) ?? []
+
+  if (defaultRole?.permissions != null) rawPerms.push(defaultRole.permissions)
 
   const permissions = computePermissions(rawPerms)
   const isAdmin = isOwner || !!(permissions & PERMISSIONS.ADMINISTRATOR)
