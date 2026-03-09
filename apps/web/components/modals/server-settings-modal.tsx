@@ -16,7 +16,6 @@ import type { ServerRow, AutoModRuleRow, AutoModAction, ScreeningConfigRow } fro
 import { copyToClipboard, createWebhook, deleteWebhook, formatChannelName } from "@/lib/webhooks"
 import { RoleManager } from "@/components/roles/role-manager"
 import { TemplateManager } from "@/components/modals/template-manager"
-import { AppsTab } from "@/components/settings/apps-tab"
 import { ReportsTab } from "@/components/settings/reports-tab"
 import { AdminActivityTimeline } from "@/components/admin/admin-activity-timeline"
 import { PermissionSimulator } from "@/components/admin/permission-simulator"
@@ -190,9 +189,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
               <TabsTrigger value="social-alerts" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Social Alerts
               </TabsTrigger>
-              <TabsTrigger value="apps" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
-                Apps
-              </TabsTrigger>
+              {/* Apps tab hidden: slash command invocation not yet implemented (< 80% complete) */}
               <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
                 Moderation
               </div>
@@ -393,9 +390,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
               <SocialAlertsTab serverId={server.id} channels={channels} open />
             </TabsContent>
 
-            <TabsContent value="apps" className="mt-0">
-              <AppsTab serverId={server.id} canManageApps={isOwner} />
-            </TabsContent>
+            {/* Apps TabsContent hidden: feature < 80% complete, slash commands not wired */}
 
             <TabsContent value="moderation" className="mt-0">
               <ModerationTab serverId={server.id} open />

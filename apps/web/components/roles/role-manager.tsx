@@ -351,19 +351,29 @@ export function RoleManager({ serverId, isOwner }: Props) {
                     {catLabel}
                   </div>
                   <div className="space-y-1">
-                    {perms.map(({ key, label, description }) => (
+                    {perms.map(({ key, label, description }) => {
+                      const comingSoon = key === "USE_APPLICATION_COMMANDS"
+                      return (
                       <div key={key} className="flex items-center justify-between py-1">
                         <div>
-                          <div className="text-sm font-medium text-white">{label}</div>
+                          <div className="text-sm font-medium text-white flex items-center gap-2">
+                            {label}
+                            {comingSoon && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-muted)' }}>
+                                Coming Soon
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{description}</div>
                         </div>
                         <Switch
                           checked={!!(editPermissions & PERMISSIONS[key])}
                           onCheckedChange={() => togglePermission(key)}
-                          disabled={selectedRole.is_default && DEFAULT_ROLE_LOCKED.has(key)}
+                          disabled={comingSoon || (selectedRole.is_default && DEFAULT_ROLE_LOCKED.has(key))}
                         />
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               ))}
