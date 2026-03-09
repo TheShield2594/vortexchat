@@ -7,7 +7,7 @@ export default function AuthLayout({
 }) {
   return (
     <div
-      className="relative flex min-h-screen items-center justify-center overflow-hidden px-6"
+      className="relative flex min-h-[100dvh] items-center justify-center overflow-x-hidden overflow-y-auto px-6 py-8"
       style={{
         background:
           "radial-gradient(ellipse 80% 60% at 50% -10%, color-mix(in srgb, var(--theme-accent) 10%, transparent), transparent 70%), var(--theme-bg-tertiary)",
