@@ -86,14 +86,23 @@ export async function requireServerPermission(serverId: string, permission: Perm
   if (server.owner_id === user.id)
     return { supabase, user, error: null }
 
-  // Look up member roles and aggregate permissions
-  const { data: memberRoles } = await supabase
-    .from("member_roles")
-    .select("roles(permissions)")
-    .eq("user_id", user.id)
-    .eq("server_id", serverId)
+  // Look up member roles and default (@everyone) role permissions
+  const [{ data: memberRoles }, { data: defaultRole }] = await Promise.all([
+    supabase
+      .from("member_roles")
+      .select("roles(permissions)")
+      .eq("user_id", user.id)
+      .eq("server_id", serverId),
+    supabase
+      .from("roles")
+      .select("permissions")
+      .eq("server_id", serverId)
+      .eq("is_default", true)
+      .maybeSingle(),
+  ])
 
-  const permissions = aggregateMemberPermissions(memberRoles)
+  let permissions = aggregateMemberPermissions(memberRoles)
+  if (defaultRole?.permissions != null) permissions |= defaultRole.permissions
 
   if (!hasPermission(permissions, permission))
     return { supabase, user, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
