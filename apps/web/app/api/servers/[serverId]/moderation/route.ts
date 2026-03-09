@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data, error: dbErr } = await supabase
     .from("servers")
-    .select("verification_level, explicit_content_filter, default_message_notifications, screening_enabled, automod_dry_run, automod_emergency_disable")
+    .select("verification_level, explicit_content_filter, default_message_notifications, screening_enabled, automod_dry_run, automod_emergency_disable, join_role_id")
     .eq("id", serverId)
     .single()
 
@@ -81,6 +81,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "automod_emergency_disable must be a boolean" }, { status: 400 })
     }
     updates.automod_emergency_disable = v
+  }
+  if ("join_role_id" in body) {
+    const v = body.join_role_id
+    if (v !== null && typeof v !== "string") {
+      return NextResponse.json({ error: "join_role_id must be a UUID string or null" }, { status: 400 })
+    }
+    updates.join_role_id = v
   }
 
   if (Object.keys(updates).length === 0)

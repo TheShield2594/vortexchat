@@ -3,7 +3,7 @@
 import { memo, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react"
 import { perfLogSinceNav } from "@/lib/perf"
 import { useRouter } from "next/navigation"
-import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle, Flag } from "lucide-react"
+import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle, Flag, Shield, Check } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
@@ -11,9 +11,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ProfilePanel } from "@/components/profile/profile-panel"
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut } from "@/components/ui/context-menu"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
+import { PERMISSIONS } from "@vortex/shared"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { Skeleton } from "@/components/ui/skeleton"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
@@ -61,6 +62,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
   const previousPresenceRef = useRef<PresenceState>({})
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(!initialMembers?.length)
+  const [serverRoles, setServerRoles] = useState<RoleRow[]>([])
   const channelRef = useRef<RealtimeChannel | null>(null)
   const memberFetchControllerRef = useRef<AbortController | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
@@ -254,6 +256,27 @@ export function MemberList({ serverId, initialMembers }: Props) {
     [members, presence]
   )
 
+  const canManageRoles = useMemo(() => {
+    if (!currentUser) return false
+    const currentMember = members.find((m) => m.user_id === currentUser.id)
+    if (!currentMember) return false
+    const perms = currentMember.roles.reduce((acc, r) => acc | r.permissions, 0)
+    return !!(perms & PERMISSIONS.ADMINISTRATOR) || !!(perms & PERMISSIONS.MANAGE_ROLES)
+  }, [members, currentUser])
+
+  // Fetch assignable roles when the current user has MANAGE_ROLES
+  useEffect(() => {
+    if (!canManageRoles) { setServerRoles([]); return }
+    fetch(`/api/servers/${encodeURIComponent(serverId)}/roles`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: RoleRow[]) => setServerRoles(data.filter((r) => !r.is_default)))
+      .catch(() => {})
+  }, [serverId, canManageRoles])
+
+  function handleMemberUpdate(userId: string, updatedRoles: RoleRow[]) {
+    setMembers((prev) => prev.map((m) => m.user_id === userId ? { ...m, roles: updatedRoles } : m))
+  }
+
   if (!memberListOpen) return null
 
   const selectedMember = selectedMemberId
@@ -307,6 +330,9 @@ export function MemberList({ serverId, initialMembers }: Props) {
                 onViewProfile={() => setSelectedMemberId(member.user_id)}
                 recentlyActive={recentlyActiveUserIds.has(member.user_id)}
                 serverId={serverId}
+                canManageRoles={canManageRoles}
+                serverRoles={serverRoles}
+                onMemberUpdate={handleMemberUpdate}
               />
             ))}
           </div>
@@ -331,6 +357,9 @@ export function MemberList({ serverId, initialMembers }: Props) {
                 recentlyActive={recentlyActiveUserIds.has(member.user_id)}
                 offline
                 serverId={serverId}
+                canManageRoles={canManageRoles}
+                serverRoles={serverRoles}
+                onMemberUpdate={handleMemberUpdate}
               />
             ))}
           </div>
@@ -349,6 +378,9 @@ const MemberItem = memo(function MemberItem({
   offline,
   recentlyActive,
   serverId,
+  canManageRoles,
+  serverRoles,
+  onMemberUpdate,
 }: {
   member: MemberData
   presence?: { status: string; speaking?: boolean; voice_channel_id?: string }
@@ -357,6 +389,9 @@ const MemberItem = memo(function MemberItem({
   offline?: boolean
   recentlyActive?: boolean
   serverId: string
+  canManageRoles?: boolean
+  serverRoles?: RoleRow[]
+  onMemberUpdate?: (userId: string, roles: RoleRow[]) => void
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -406,6 +441,43 @@ const MemberItem = memo(function MemberItem({
       })
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  async function handleToggleRole(role: RoleRow) {
+    const hasRole = member.roles?.some((r) => r.id === role.id)
+    const encodedServerId = encodeURIComponent(serverId)
+    const encodedUserId = encodeURIComponent(member.user_id)
+    try {
+      let res: Response
+      if (hasRole) {
+        res = await fetch(
+          `/api/servers/${encodedServerId}/members/${encodedUserId}/roles?roleId=${role.id}`,
+          { method: "DELETE", credentials: "include" }
+        )
+      } else {
+        res = await fetch(
+          `/api/servers/${encodedServerId}/members/${encodedUserId}/roles`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roleId: role.id }),
+          }
+        )
+      }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        toast({ variant: "destructive", title: d.error ?? "Failed to update role" })
+        return
+      }
+      const updatedRoles = hasRole
+        ? (member.roles ?? []).filter((r) => r.id !== role.id)
+        : [...(member.roles ?? []), role]
+      onMemberUpdate?.(member.user_id, updatedRoles)
+      toast({ title: hasRole ? `Removed role "${role.name}"` : `Assigned role "${role.name}"` })
+    } catch {
+      toast({ variant: "destructive", title: "Network error updating role" })
     }
   }
 
@@ -507,6 +579,31 @@ const MemberItem = memo(function MemberItem({
           <UserCircle className="w-4 h-4 mr-2" /> View Profile
           <ContextMenuShortcut>P</ContextMenuShortcut>
         </ContextMenuItem>
+        {isOtherUser && canManageRoles && serverRoles && serverRoles.length > 0 && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <Shield className="w-4 h-4 mr-2" /> Roles
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-48">
+                {serverRoles.map((role) => {
+                  const hasRole = member.roles?.some((r) => r.id === role.id)
+                  return (
+                    <ContextMenuItem key={role.id} onClick={() => handleToggleRole(role)}>
+                      <span
+                        className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                        style={{ background: role.color }}
+                      />
+                      <span className="flex-1 truncate">{role.name}</span>
+                      {hasRole && <Check className="w-3.5 h-3.5 ml-2 flex-shrink-0" />}
+                    </ContextMenuItem>
+                  )
+                })}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => {
           navigator.clipboard.writeText(`@${member.user?.username ?? displayName}`)
