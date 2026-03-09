@@ -1,9 +1,21 @@
 "use client"
 
 import { DMList } from "./dm-list"
+import { UserPanel } from "@/components/layout/user-panel"
 import { MobileNavProvider, MobileOverlay, MobileSwipeArea } from "@/components/layout/mobile-nav"
 import { useMobileNav } from "@/components/layout/mobile-nav"
 import { useSwipe } from "@/hooks/use-swipe"
+
+function DMNavContent({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <>
+      <div className="flex-1 min-h-0">
+        <DMList onNavigate={onNavigate} />
+      </div>
+      <UserPanel />
+    </>
+  )
+}
 
 function DMListPanel() {
   const { sidebarOpen, setSidebarOpen } = useMobileNav()
@@ -15,7 +27,7 @@ function DMListPanel() {
         className="hidden md:flex w-60 flex-shrink-0 flex-col overflow-hidden"
         style={{ background: "var(--app-bg-secondary)" }}
       >
-        <DMList />
+        <DMNavContent />
       </div>
 
       {/* Mobile: slide-in drawer */}
@@ -25,7 +37,7 @@ function DMListPanel() {
           style={{ background: "var(--app-bg-secondary)" }}
           {...swipe}
         >
-          <DMList onNavigate={() => setSidebarOpen(false)} />
+          <DMNavContent onNavigate={() => setSidebarOpen(false)} />
         </div>
       )}
     </>
