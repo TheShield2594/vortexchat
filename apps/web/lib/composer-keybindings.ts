@@ -3,9 +3,12 @@ export interface ComposerKeybindingState {
   hasMentionSelection: boolean
   isEmojiOpen: boolean
   hasEmojiSelection: boolean
+  isSlashOpen: boolean
+  hasSlashSelection: boolean
   hasDraftContent: boolean
   mentionHandledNavigation: boolean
   emojiHandledNavigation: boolean
+  slashHandledNavigation: boolean
 }
 
 export interface ComposerKeybindingResult {
@@ -15,6 +18,8 @@ export interface ComposerKeybindingResult {
   closeMention: boolean
   acceptEmoji: boolean
   closeEmoji: boolean
+  acceptSlash: boolean
+  closeSlash: boolean
   clearDraft: boolean
 }
 
@@ -25,6 +30,8 @@ const NOOP: ComposerKeybindingResult = {
   closeMention: false,
   acceptEmoji: false,
   closeEmoji: false,
+  acceptSlash: false,
+  closeSlash: false,
   clearDraft: false,
 }
 
@@ -36,7 +43,7 @@ export function resolveComposerKeybinding(
   shiftKey: boolean,
   state: ComposerKeybindingState
 ): ComposerKeybindingResult {
-  if (state.mentionHandledNavigation || state.emojiHandledNavigation) {
+  if (state.mentionHandledNavigation || state.emojiHandledNavigation || state.slashHandledNavigation) {
     return { ...NOOP, preventDefault: true }
   }
 
@@ -64,6 +71,20 @@ export function resolveComposerKeybinding(
         ...NOOP,
         preventDefault: state.hasEmojiSelection,
         acceptEmoji: state.hasEmojiSelection,
+      }
+    }
+  }
+
+  // Slash command autocomplete
+  if (state.isSlashOpen) {
+    if (key === "Escape") {
+      return { ...NOOP, preventDefault: true, closeSlash: true }
+    }
+    if (key === "Tab" || (key === "Enter" && !shiftKey)) {
+      return {
+        ...NOOP,
+        preventDefault: state.hasSlashSelection,
+        acceptSlash: state.hasSlashSelection,
       }
     }
   }
