@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
-import { ServerSidebar } from "@/components/layout/server-sidebar"
 import { AppProvider } from "@/components/layout/app-provider"
+import { ChannelsShell } from "@/components/layout/channels-shell"
 import { MobileBottomTabBar } from "@/components/layout/mobile-bottom-tab-bar"
 import type { ServerRow } from "@/types/database"
 import { perfTimer } from "@/lib/perf"
@@ -60,12 +60,9 @@ export default async function ChannelsLayout({
 
   return (
     <AppProvider user={profile} servers={servers}>
-      <div className="flex h-screen overflow-hidden pb-16 md:pb-0" style={{ background: "var(--app-bg-primary)" }}>
-        <div className="hidden md:flex">
-          <ServerSidebar />
-        </div>
-        <div className="flex flex-1 min-w-0 overflow-hidden">{children}</div>
-      </div>
+      <ChannelsShell>
+        {children}
+      </ChannelsShell>
       <MobileBottomTabBar />
     </AppProvider>
   )
