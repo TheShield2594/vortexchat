@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -39,7 +39,6 @@ function AccentBadge({
 }
 
 export default function LoginPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const isNewUser = searchParams.get("registered") === "true"
   const { toast } = useToast()
@@ -79,8 +78,11 @@ export default function LoginPage() {
       }
 
       await supabase.from("users").update({ status: "online" }).eq("id", data.userId)
-      router.push("/channels/me")
-      router.refresh()
+      // Hard navigation ensures session cookies set by the login API are fully
+      // committed by the browser before the next page's server render fires.
+      // router.push() (client-side nav) can race against Set-Cookie processing
+      // on mobile — window.location.href matches what the passkey flow does.
+      window.location.href = "/channels/me"
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login failed", description: error.message || "Something went wrong" })
     } finally {
@@ -110,8 +112,7 @@ export default function LoginPage() {
       if (user) {
         await supabase.from("users").update({ status: "online" }).eq("id", user.id)
       }
-      router.push("/channels/me")
-      router.refresh()
+      window.location.href = "/channels/me"
     } catch (error: any) {
       toast({ variant: "destructive", title: "Verification failed", description: error.message })
     } finally {
