@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { expandEventOccurrences, formatInTimeZone } from "@/lib/events"
 import type { EventOccurrence } from "@/lib/events"
+import { EventCard } from "./event-card"
 
 type ViewMode = "month" | "week" | "list"
+type EventType = "general" | "voice" | "external"
 
 function toLocalDatetime(date: Date): string {
   const y = date.getFullYear()
@@ -20,7 +22,15 @@ function toLocalDatetime(date: Date): string {
   return `${y}-${m}-${d}T${h}:${min}`
 }
 
-export function EventsCalendar({ serverId, channels, canManageEvents = false }: { serverId: string; channels: Array<{ id: string; name: string }>; canManageEvents?: boolean }) {
+export function EventsCalendar({
+  serverId,
+  channels,
+  canManageEvents = false,
+}: {
+  serverId: string
+  channels: Array<{ id: string; name: string; type?: string }>
+  canManageEvents?: boolean
+}) {
   const [events, setEvents] = useState<any[]>([])
   const [view, setView] = useState<ViewMode>("month")
   const [popover, setPopover] = useState<{ eventId: string; rect: DOMRect } | null>(null)
@@ -34,7 +44,14 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
   const [endAt, setEndAt] = useState(() => toLocalDatetime(new Date(Date.now() + 25 * 60 * 60 * 1000)))
   const [capacity, setCapacity] = useState("")
   const [linkedChannelId, setLinkedChannelId] = useState(channels[0]?.id ?? "")
+  const [eventType, setEventType] = useState<EventType>("general")
+  const [externalUrl, setExternalUrl] = useState("")
+  const [voiceChannelId, setVoiceChannelId] = useState("")
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [bannerUploading, setBannerUploading] = useState(false)
   const [creating, setCreating] = useState(false)
+
+  const voiceChannels = channels.filter((ch) => ch.type === "voice")
 
   async function load() {
     const res = await fetch(`/api/servers/${serverId}/events`, { cache: "no-store" })
@@ -60,7 +77,6 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
       end.setHours(23, 59, 59)
       return { start, end }
     }
-    // list: 90 days from today
     const start = new Date()
     const end = new Date()
     end.setDate(end.getDate() + 90)
@@ -79,13 +95,34 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
     setEndAt(toLocalDatetime(new Date(Date.now() + 25 * 60 * 60 * 1000)))
     setCapacity("")
     setLinkedChannelId(channels[0]?.id ?? "")
+    setEventType("general")
+    setExternalUrl("")
+    setVoiceChannelId("")
+    setBannerFile(null)
     setShowForm(false)
+  }
+
+  async function uploadBanner(file: File): Promise<string | null> {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("serverId", serverId)
+    const res = await fetch("/api/upload/event-banner", { method: "POST", body: formData })
+    if (!res.ok) return null
+    const json = await res.json()
+    return json.url ?? null
   }
 
   async function createEvent() {
     if (!title.trim()) return
     setCreating(true)
     try {
+      let bannerUrl: string | null = null
+      if (bannerFile) {
+        setBannerUploading(true)
+        bannerUrl = await uploadBanner(bannerFile)
+        setBannerUploading(false)
+      }
+
       const res = await fetch(`/api/servers/${serverId}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,6 +135,10 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
           recurrence: "none",
           capacity: capacity ? parseInt(capacity, 10) : undefined,
           linkedChannelId: linkedChannelId || undefined,
+          eventType,
+          externalUrl: eventType === "external" ? externalUrl : undefined,
+          voiceChannelId: eventType === "voice" ? voiceChannelId || undefined : undefined,
+          bannerUrl: bannerUrl ?? undefined,
           notifyMembers: true,
         }),
       })
@@ -107,14 +148,12 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
       }
     } finally {
       setCreating(false)
+      setBannerUploading(false)
     }
   }
 
   async function rsvp(eventId: string, status: "going" | "maybe" | "not_going") {
-    // Snapshot for rollback
     const prevEvents = events
-
-    // Optimistic update: immediately reflect the new RSVP in local state
     setEvents((prev) => prev.map((e) => {
       if (e.id !== eventId) return e
       const prevStatus: string | null = e.myRsvp?.status ?? null
@@ -127,7 +166,6 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
       }
       return { ...e, myRsvp: { ...(e.myRsvp ?? {}), status }, stats: newStats }
     }))
-
     try {
       const res = await fetch(`/api/servers/${serverId}/events/${eventId}/rsvp`, {
         method: "POST",
@@ -189,6 +227,27 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
             <Button variant="ghost" size="sm" onClick={resetForm}>Cancel</Button>
           </div>
 
+          {/* Event type */}
+          <div className="space-y-1">
+            <Label>Event Type</Label>
+            <div className="flex gap-2">
+              {(["general", "voice", "external"] as EventType[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setEventType(t)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium border transition-colors capitalize ${
+                    eventType === t
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-1">
             <Label htmlFor="event-title">Title</Label>
             <Input id="event-title" placeholder="Event title" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -231,15 +290,62 @@ export function EventsCalendar({ serverId, channels, canManageEvents = false }: 
             </div>
           </div>
 
+          {/* External URL field */}
+          {eventType === "external" && (
+            <div className="space-y-1">
+              <Label htmlFor="event-external-url">Event URL</Label>
+              <Input
+                id="event-external-url"
+                type="url"
+                placeholder="https://..."
+                value={externalUrl}
+                onChange={(e) => setExternalUrl(e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* Voice channel selector */}
+          {eventType === "voice" && (
+            <div className="space-y-1">
+              <Label htmlFor="event-voice-channel">Voice Channel</Label>
+              <select
+                id="event-voice-channel"
+                value={voiceChannelId}
+                onChange={(e) => setVoiceChannelId(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-sm text-zinc-100"
+              >
+                <option value="">Select a voice channel</option>
+                {(voiceChannels.length > 0 ? voiceChannels : channels).map((ch) => (
+                  <option key={ch.id} value={ch.id}>{ch.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Banner upload */}
+          <div className="space-y-1">
+            <Label htmlFor="event-banner">Banner image (optional)</Label>
+            <Input
+              id="event-banner"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)}
+              className="cursor-pointer file:mr-2 file:cursor-pointer file:rounded file:border-0 file:bg-zinc-700 file:px-2 file:py-1 file:text-xs file:text-zinc-200"
+            />
+            {bannerFile && (
+              <p className="text-xs text-zinc-400">Selected: {bannerFile.name}</p>
+            )}
+          </div>
+
           <Button onClick={createEvent} disabled={creating || !title.trim()}>
-            {creating ? "Creating..." : "Create event"}
+            {bannerUploading ? "Uploading banner..." : creating ? "Creating..." : "Create event"}
           </Button>
         </div>
       )}
 
       {view === "month" && <MonthView occurrences={occurrences} events={events} anchor={anchor} timezone={timezone} rsvp={rsvp} onClickEvent={(eventId, rect) => setPopover(popover?.eventId === eventId ? null : { eventId, rect })} />}
       {view === "week" && <WeekView occurrences={occurrences} events={events} range={range} timezone={timezone} rsvp={rsvp} onClickEvent={(eventId, rect) => setPopover(popover?.eventId === eventId ? null : { eventId, rect })} />}
-      {view === "list" && <ListView occurrences={occurrences} events={events} timezone={timezone} rsvp={rsvp} />}
+      {view === "list" && <ListView occurrences={occurrences} events={events} timezone={timezone} rsvp={rsvp} serverId={serverId} />}
 
       {popover && (
         <EventPopover
@@ -272,7 +378,7 @@ function formatTime12h(date: Date): string {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true })
 }
 
-// ── Popover (portaled, positioned near the clicked pill) ─────────────────────
+// ── Popover ──────────────────────────────────────────────────────────────────
 
 const POPOVER_W = 340
 const POPOVER_GAP = 8
@@ -290,18 +396,14 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
   const occ = occurrences.find((o) => o.eventId === eventId)
   const full = events.find((e) => e.id === eventId)
 
-  // Click outside to close
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose()
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
   }, [onClose])
 
-  // Escape to close
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       if (e.key === "Escape") onClose()
@@ -312,22 +414,15 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
 
   if (!occ || !full) return null
 
-  // Position: prefer right of the anchor, fall back left, then center below
   const vw = window.innerWidth
   const vh = window.innerHeight
   let left = anchorRect.right + POPOVER_GAP
   let top = anchorRect.top
-
-  // If overflows right, try left side
-  if (left + POPOVER_W > vw - POPOVER_GAP) {
-    left = anchorRect.left - POPOVER_W - POPOVER_GAP
-  }
-  // If still overflows left, center horizontally below the anchor
+  if (left + POPOVER_W > vw - POPOVER_GAP) left = anchorRect.left - POPOVER_W - POPOVER_GAP
   if (left < POPOVER_GAP) {
     left = Math.max(POPOVER_GAP, anchorRect.left + anchorRect.width / 2 - POPOVER_W / 2)
     top = anchorRect.bottom + POPOVER_GAP
   }
-  // Clamp vertically
   top = Math.max(POPOVER_GAP, Math.min(top, vh - 300))
 
   const myStatus: string | null = full?.myRsvp?.status ?? null
@@ -345,21 +440,16 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
           <X className="h-4 w-4" />
         </button>
       </div>
-
       {full.description && <p className="text-sm text-zinc-400 mt-1">{full.description}</p>}
-
       <div className="text-sm text-zinc-300 mt-2">
-        {formatInTimeZone(occ.startAt.toISOString(), timezone)} → {formatInTimeZone(occ.endAt.toISOString(), timezone)}
+        {formatInTimeZone(occ.startAt.toISOString(), timezone)} &rarr; {formatInTimeZone(occ.endAt.toISOString(), timezone)}
       </div>
-
       <div className="mt-1.5 text-xs text-zinc-400">
         Capacity: {full.capacity ?? "unlimited"} &middot; Going: {full.stats?.going ?? 0} &middot; Waitlist: {full.stats?.waitlist ?? 0}
       </div>
-
       {myStatus === "waitlist" && (
         <div className="mt-1.5 text-xs text-yellow-400">You are on the waitlist</div>
       )}
-
       <div className="mt-3 flex gap-2">
         <Button size="sm" variant={myStatus === "going" ? "default" : "secondary"} onClick={() => rsvp(occ.eventId, "going")}>
           {myStatus === "going" ? "\u2713 Going" : "Going"}
@@ -410,10 +500,7 @@ function MonthView({ occurrences, anchor, onClickEvent }: ViewProps & { anchor: 
         {cells.map((cell, i) => {
           const dayEvents = cell.day ? eventsForDay(cell.day) : []
           return (
-            <div
-              key={i}
-              className={`bg-zinc-950 min-h-[100px] p-1.5 ${cell.day ? "" : "opacity-30"}`}
-            >
+            <div key={i} className={`bg-zinc-950 min-h-[100px] p-1.5 ${cell.day ? "" : "opacity-30"}`}>
               {cell.day && (
                 <>
                   <div className={`text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday(cell.day) ? "bg-blue-600 text-white" : "text-zinc-400"}`}>
@@ -486,14 +573,8 @@ function WeekView({ occurrences, events, range, onClickEvent }: ViewProps & { ra
                     className="text-xs w-full text-left rounded p-1.5 mb-1 border cursor-pointer transition-colors bg-blue-900/40 text-blue-200 border-blue-800/50 hover:bg-blue-800/50"
                   >
                     <div className="font-medium truncate">{occ.title}</div>
-                    <div className="text-blue-300/70 mt-0.5">
-                      {formatTime12h(occ.startAt)}
-                    </div>
-                    {full && (
-                      <div className="text-blue-300/50 mt-0.5">
-                        {full.stats?.going ?? 0} going
-                      </div>
-                    )}
+                    <div className="text-blue-300/70 mt-0.5">{formatTime12h(occ.startAt)}</div>
+                    {full && <div className="text-blue-300/50 mt-0.5">{full.stats?.going ?? 0} going</div>}
                   </button>
                 )
               })}
@@ -507,8 +588,7 @@ function WeekView({ occurrences, events, range, onClickEvent }: ViewProps & { ra
 
 // ── List view ────────────────────────────────────────────────────────────────
 
-function ListView({ occurrences, events, timezone, rsvp }: Omit<ViewProps, "onClickEvent">) {
-  // Group by date
+function ListView({ occurrences, events, timezone, rsvp, serverId }: Omit<ViewProps, "onClickEvent"> & { serverId: string }) {
   const grouped = useMemo(() => {
     const map = new Map<string, EventOccurrence[]>()
     for (const occ of occurrences) {
@@ -524,39 +604,23 @@ function ListView({ occurrences, events, timezone, rsvp }: Omit<ViewProps, "onCl
   }
 
   return (
-    <div className="flex-1 overflow-auto space-y-4">
+    <div className="flex-1 overflow-auto space-y-6">
       {grouped.map(([dateLabel, dayOccurrences]) => (
         <div key={dateLabel}>
-          <div className="text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wider">{dateLabel}</div>
+          <div className="text-xs font-medium text-zinc-400 mb-3 uppercase tracking-wider">{dateLabel}</div>
           <div className="grid gap-3">
             {dayOccurrences.map((occ) => {
               const full = events.find((e) => e.id === occ.eventId)
-              const myStatus: string | null = full?.myRsvp?.status ?? null
+              if (!full) return null
               return (
-                <div key={`${occ.eventId}-${occ.startAt.toISOString()}`} className="rounded border border-zinc-700 bg-zinc-900 p-3">
-                  <div className="font-semibold">{occ.title}</div>
-                  {full?.description && <p className="text-sm text-zinc-400 mt-0.5">{full.description}</p>}
-                  <div className="text-sm text-zinc-300 mt-1">
-                    {formatInTimeZone(occ.startAt.toISOString(), timezone)} → {formatInTimeZone(occ.endAt.toISOString(), timezone)}
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-400">
-                    Capacity: {full?.capacity ?? "unlimited"} &middot; Going: {full?.stats?.going ?? 0} &middot; Waitlist: {full?.stats?.waitlist ?? 0}
-                  </div>
-                  {myStatus === "waitlist" && (
-                    <div className="mt-1 text-xs text-yellow-400">You are on the waitlist</div>
-                  )}
-                  <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant={myStatus === "going" ? "default" : "secondary"} onClick={() => rsvp(occ.eventId, "going")}>
-                      {myStatus === "going" ? "\u2713 Going" : "Going"}
-                    </Button>
-                    <Button size="sm" variant={myStatus === "maybe" ? "default" : "secondary"} onClick={() => rsvp(occ.eventId, "maybe")}>
-                      {myStatus === "maybe" ? "\u2713 Maybe" : "Maybe"}
-                    </Button>
-                    <Button size="sm" variant={myStatus === "not_going" ? "default" : "secondary"} onClick={() => rsvp(occ.eventId, "not_going")}>
-                      {myStatus === "not_going" ? "\u2713 Not going" : "Not going"}
-                    </Button>
-                  </div>
-                </div>
+                <EventCard
+                  key={`${occ.eventId}-${occ.startAt.toISOString()}`}
+                  event={full}
+                  occurrence={occ}
+                  timezone={timezone}
+                  serverId={serverId}
+                  onRsvp={rsvp}
+                />
               )
             })}
           </div>
