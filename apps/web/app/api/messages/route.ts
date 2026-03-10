@@ -693,24 +693,44 @@ export async function POST(request: Request) {
 
       if (recipientIds.size === 0) return
 
+      // Fetch global notification preferences to respect per-type opt-outs
+      const recipientList = Array.from(recipientIds)
+      const { data: globalPrefs } = await serviceSupabase
+        .from("user_notification_preferences")
+        .select("user_id, mention_notifications, reply_notifications")
+        .in("user_id", recipientList)
+      const prefMap = new Map(
+        (globalPrefs ?? []).map((p) => [p.user_id, p])
+      )
+
       const bodyPreview = (content?.trim() || "Sent an attachment").slice(0, MAX_NOTIFICATION_BODY_LENGTH)
-      const rows = Array.from(recipientIds).map((recipientId) => {
-        const isMentionTarget = safeMentions.includes(recipientId)
+      const rows = recipientList
+        .filter((recipientId) => {
+          const isMentionTarget = safeMentions.includes(recipientId)
+          const prefs = prefMap.get(recipientId)
+          // If user has explicitly disabled this type, skip (default true when no row)
+          if (isMentionTarget && prefs && prefs.mention_notifications === false) return false
+          if (!isMentionTarget && prefs && prefs.reply_notifications === false) return false
+          return true
+        })
+        .map((recipientId) => {
+          const isMentionTarget = safeMentions.includes(recipientId)
+          return {
+            user_id: recipientId,
+            type: isMentionTarget ? "mention" as const : "reply" as const,
+            title: isMentionTarget
+              ? `${senderName} mentioned you`
+              : `${senderName} replied to your message`,
+            body: bodyPreview,
+            server_id: channel.server_id,
+            channel_id: channelId,
+            message_id: message.id,
+          }
+        })
 
-        return {
-          user_id: recipientId,
-          type: isMentionTarget ? "mention" as const : "reply" as const,
-          title: isMentionTarget
-            ? `${senderName} mentioned you`
-            : `${senderName} replied to your message`,
-          body: bodyPreview,
-          server_id: channel.server_id,
-          channel_id: channelId,
-          message_id: message.id,
-        }
-      })
-
-      await serviceSupabase.from("notifications").insert(rows)
+      if (rows.length > 0) {
+        await serviceSupabase.from("notifications").insert(rows)
+      }
     })
     .catch(() => {})
 

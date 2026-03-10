@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/server"
+import { sendPushToUser } from "@/lib/push"
 
 // GET /api/friends
 // Returns { accepted: FriendWithUser[], pending_received: FriendWithUser[], pending_sent: FriendWithUser[], blocked: FriendWithUser[] }
@@ -95,6 +97,37 @@ export async function POST(req: NextRequest) {
           .update({ status: "accepted" })
           .eq("id", existing.id)
         if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+        // Notify the original requester that their request was auto-accepted (fire-and-forget)
+        Promise.resolve().then(async () => {
+          const { data: accepter } = await supabase
+            .from("users")
+            .select("display_name, username, avatar_url")
+            .eq("id", user.id)
+            .maybeSingle()
+          const accepterName = accepter?.display_name || accepter?.username || "Someone"
+          const serviceSupabase = await createServiceRoleClient()
+          const { data: prefs } = await serviceSupabase
+            .from("user_notification_preferences")
+            .select("friend_request_notifications")
+            .eq("user_id", target.id)
+            .maybeSingle()
+          if (prefs && prefs.friend_request_notifications === false) return
+          await serviceSupabase.from("notifications").insert({
+            user_id: target.id,
+            type: "friend_request",
+            title: `${accepterName} accepted your friend request`,
+            body: "You can now message each other.",
+            icon_url: accepter?.avatar_url ?? null,
+          })
+          await sendPushToUser(target.id, {
+            title: "Friend Request Accepted",
+            body: `${accepterName} accepted your friend request`,
+            url: "/channels/me",
+            tag: `friend-accepted-${user.id}`,
+          })
+        }).catch(() => {})
+
         return NextResponse.json({ message: "Friend request accepted" })
       }
       return NextResponse.json({ error: "Friend request already sent" }, { status: 409 })
@@ -109,6 +142,41 @@ export async function POST(req: NextRequest) {
     .insert({ requester_id: user.id, addressee_id: target.id, status: "pending" })
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
+
+  // Notify the addressee of the incoming friend request (fire-and-forget)
+  Promise.resolve().then(async () => {
+    const { data: sender } = await supabase
+      .from("users")
+      .select("display_name, username, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle()
+    const senderName = sender?.display_name || sender?.username || "Someone"
+
+    // Check if addressee has friend_request notifications enabled (default true)
+    const serviceSupabase = await createServiceRoleClient()
+    const { data: prefs } = await serviceSupabase
+      .from("user_notification_preferences")
+      .select("friend_request_notifications")
+      .eq("user_id", target.id)
+      .maybeSingle()
+
+    if (prefs && prefs.friend_request_notifications === false) return
+
+    await serviceSupabase.from("notifications").insert({
+      user_id: target.id,
+      type: "friend_request",
+      title: `${senderName} sent you a friend request`,
+      body: "Accept or decline in the Friends section.",
+      icon_url: sender?.avatar_url ?? null,
+    })
+
+    await sendPushToUser(target.id, {
+      title: "New Friend Request",
+      body: `${senderName} sent you a friend request`,
+      url: "/channels/me",
+      tag: `friend-request-${user.id}`,
+    })
+  }).catch(() => {})
 
   return NextResponse.json({ message: "Friend request sent" }, { status: 201 })
 }
@@ -144,6 +212,42 @@ export async function PATCH(req: NextRequest) {
       .update({ status: "accepted" })
       .eq("id", friendshipId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Notify the original requester that their request was accepted (fire-and-forget)
+    Promise.resolve().then(async () => {
+      const requesterId = row.requester_id
+      const { data: accepter } = await supabase
+        .from("users")
+        .select("display_name, username, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle()
+      const accepterName = accepter?.display_name || accepter?.username || "Someone"
+
+      const serviceSupabase = await createServiceRoleClient()
+      const { data: prefs } = await serviceSupabase
+        .from("user_notification_preferences")
+        .select("friend_request_notifications")
+        .eq("user_id", requesterId)
+        .maybeSingle()
+
+      if (prefs && prefs.friend_request_notifications === false) return
+
+      await serviceSupabase.from("notifications").insert({
+        user_id: requesterId,
+        type: "friend_request",
+        title: `${accepterName} accepted your friend request`,
+        body: "You can now message each other.",
+        icon_url: accepter?.avatar_url ?? null,
+      })
+
+      await sendPushToUser(requesterId, {
+        title: "Friend Request Accepted",
+        body: `${accepterName} accepted your friend request`,
+        url: "/channels/me",
+        tag: `friend-accepted-${user.id}`,
+      })
+    }).catch(() => {})
+
     return NextResponse.json({ message: "Friend request accepted" })
   }
 

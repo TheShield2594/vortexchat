@@ -147,6 +147,15 @@ export async function sendPushToChannel(opts: {
 
   const settings = settingsBatches.flat()
 
+  // Fetch global notification type preferences so mention opt-outs are respected
+  const { data: globalTypePrefs } = await supabase
+    .from("user_notification_preferences")
+    .select("user_id, mention_notifications")
+    .in("user_id", memberIds)
+  const globalTypePrefMap = new Map(
+    (globalTypePrefs ?? []).map((p) => [p.user_id, p])
+  )
+
   const payload: PushPayload = {
     title: senderName,
     body: content.length > 100 ? content.slice(0, 97) + "…" : content,
@@ -171,6 +180,13 @@ export async function sendPushToChannel(opts: {
       )
 
       if (!resolved.shouldPush) return
+
+      // Respect global mention opt-out even when channel mode allows it
+      if (eventType === "mention") {
+        const typePrefs = globalTypePrefMap.get(uid)
+        if (typePrefs && typePrefs.mention_notifications === false) return
+      }
+
       return sendPushToUser(uid, payload)
     })
   )
