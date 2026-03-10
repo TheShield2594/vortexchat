@@ -39,6 +39,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from "@/components/ui/use-toast"
 import dynamic from "next/dynamic"
 import { UserPanel } from "@/components/layout/user-panel"
+import { CompactVoiceBar } from "@/components/voice/compact-voice-bar"
 
 const CreateChannelModal = dynamic(() => import("@/components/modals/create-channel-modal").then((m) => ({ default: m.CreateChannelModal })))
 const EditChannelModal = dynamic(() => import("@/components/modals/edit-channel-modal").then((m) => ({ default: m.EditChannelModal })))
@@ -850,7 +851,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                                 setCategoryExpansionOverrides((prev) => ({ ...prev, [channel.parent_id!]: true }))
                               }
                               if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
-                                setVoiceChannel(channel.id, server.id)
+                                setVoiceChannel(channel.id, server.id, channel.name)
                               }
                               router.push(`/channels/${server.id}/${channel.id}`)
                             }}
@@ -912,6 +913,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             </div>
           )}
         </div>
+
+        {/* Compact voice bar — appears above user panel when in a voice channel */}
+        <CompactVoiceBar />
 
         {/* User panel */}
         <UserPanel />
