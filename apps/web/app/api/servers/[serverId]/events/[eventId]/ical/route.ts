@@ -18,19 +18,40 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data: event } = await supabase
+  // Cast to any: new columns (external_url, banner_url, event_type) added by migration
+  // 00060_events_enhancements.sql are not yet in the generated Supabase types.
+  const { data: event } = await (supabase
     .from("events")
-    .select("id, title, description, start_at, end_at, external_url, server_id")
+    .select("id, title, description, start_at, end_at, server_id") as any)
     .eq("id", params.eventId)
     .eq("server_id", params.serverId)
-    .single()
+    .single() as { data: {
+      id: string
+      title: string
+      description: string | null
+      start_at: string
+      end_at: string | null
+      server_id: string
+      external_url?: string | null
+    } | null }
+
+  // Re-fetch external_url separately via raw RPC to avoid type-gen issues
+  let externalUrl: string | null = null
+  if (event) {
+    const { data: extra } = await (supabase
+      .from("events")
+      .select("external_url") as any)
+      .eq("id", params.eventId)
+      .single() as { data: { external_url?: string | null } | null }
+    externalUrl = extra?.external_url ?? null
+  }
 
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 })
 
   const start = new Date(event.start_at)
   const end = event.end_at ? new Date(event.end_at) : new Date(start.getTime() + 60 * 60 * 1000)
   const uid = `${event.id}@vortexchat`
-  const url = event.external_url ?? `${process.env.NEXT_PUBLIC_APP_URL ?? "https://vortexchat.app"}/channels/${params.serverId}/events`
+  const url = externalUrl ?? `${process.env.NEXT_PUBLIC_APP_URL ?? "https://vortexchat.app"}/channels/${params.serverId}/events`
 
   const ics = [
     "BEGIN:VCALENDAR",
