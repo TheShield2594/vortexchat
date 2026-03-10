@@ -1,6 +1,6 @@
 "use client"
 
-import { Activity, Eye, Shield, ShieldCheck, Zap, Flag } from "lucide-react"
+import { Activity, BookOpen, Eye, Flag, Shield, ShieldCheck, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleManager } from "@/components/roles/role-manager"
 import { TemplateManager } from "@/components/modals/template-manager"
@@ -9,6 +9,7 @@ import { AppsTab } from "@/components/settings/apps-tab"
 import { ReportsTab } from "@/components/settings/reports-tab"
 import { AdminActivityTimeline } from "@/components/admin/admin-activity-timeline"
 import { PermissionSimulator } from "@/components/admin/permission-simulator"
+import { AuditLogPage } from "@/components/admin/audit-log-page"
 
 interface Channel {
   id: string
@@ -60,6 +61,10 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
                 Safety Tools
               </div>
+              <TabsTrigger value="audit-log" className="w-full justify-start">
+                <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                Audit Log
+              </TabsTrigger>
               <TabsTrigger value="admin-activity" className="w-full justify-start">
                 <Activity className="mr-1.5 h-3.5 w-3.5" />
                 Activity Log
@@ -101,6 +106,9 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
             </TabsContent>
             <TabsContent value="templates" className="mt-0">
               {isOwner ? <TemplateManager serverId={serverId} /> : <p style={{ color: "var(--theme-text-secondary)" }}>Only the owner can import/export templates.</p>}
+            </TabsContent>
+            <TabsContent value="audit-log" className="mt-0">
+              <AuditLogPage serverId={serverId} />
             </TabsContent>
             <TabsContent value="admin-activity" className="mt-0">
               <AdminActivityTimeline serverId={serverId} />
