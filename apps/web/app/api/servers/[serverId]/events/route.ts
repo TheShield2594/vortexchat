@@ -17,7 +17,7 @@ export async function GET(
 
   let query = supabase
     .from("events")
-    .select("id, server_id, title, description, linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status)")
+    .select("id, server_id, title, description, event_type, external_url, banner_url, linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status)")
     .eq("server_id", params.serverId)
     .order("start_at", { ascending: true })
 
@@ -70,6 +70,9 @@ export async function POST(
   const title = String(body.title ?? "").trim()
   if (!title) return NextResponse.json({ error: "title required" }, { status: 400 })
 
+  const validEventTypes = ["general", "voice", "external"]
+  const eventType = validEventTypes.includes(body.eventType) ? body.eventType : "general"
+
   const hosts = Array.isArray(body.hosts) ? (body.hosts as string[]) : []
 
   const { data: created, error } = await supabase
@@ -78,7 +81,11 @@ export async function POST(
       server_id: params.serverId,
       title,
       description: body.description ?? null,
+      event_type: eventType,
+      external_url: eventType === "external" ? (body.externalUrl ?? null) : null,
+      banner_url: body.bannerUrl ?? null,
       linked_channel_id: body.linkedChannelId ?? null,
+      voice_channel_id: eventType === "voice" ? (body.voiceChannelId ?? null) : null,
       start_at: body.startAt,
       end_at: body.endAt,
       timezone: body.timezone ?? "UTC",
@@ -121,7 +128,7 @@ export async function POST(
       .insert({
         channel_id: body.linkedChannelId,
         author_id: user.id,
-        content: `📅 **${title}**\n${body.description ?? "Event created"}`,
+        content: `\uD83D\uDCC5 **${title}**\n${body.description ?? "Event created"}`,
       })
       .select("id")
       .single()
