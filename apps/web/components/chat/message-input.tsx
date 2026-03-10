@@ -30,7 +30,9 @@ interface Props {
   serverId?: string
 }
 
-const GIPHY_API_BASE = "https://api.giphy.com/v1/gifs"
+// GIF requests go through the server-side proxy (caching + no client-side API key exposure)
+const GIF_TRENDING_URL = "/api/gif/trending"
+const GIF_SEARCH_URL = "/api/gif/search"
 
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
 export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread, serverId }: Props) {
@@ -176,28 +178,17 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   useEffect(() => {
     if (!showEmojiPicker || pickerTab !== "gif") return
-    const apiKey = process.env.NEXT_PUBLIC_GIPHY_API_KEY
-    if (!apiKey) {
-      setGifResults([])
-      return
-    }
 
     const controller = new AbortController()
     const timeout = setTimeout(async () => {
       setGifLoading(true)
       try {
         const endpoint = gifQuery.trim()
-          ? `${GIPHY_API_BASE}/search?api_key=${apiKey}&q=${encodeURIComponent(gifQuery)}&limit=12&rating=pg-13`
-          : `${GIPHY_API_BASE}/trending?api_key=${apiKey}&limit=12&rating=pg-13`
-        const res = await fetch(endpoint, { signal: controller.signal, keepalive: true })
+          ? `${GIF_SEARCH_URL}?q=${encodeURIComponent(gifQuery.trim())}`
+          : GIF_TRENDING_URL
+        const res = await fetch(endpoint, { signal: controller.signal })
         const json = await res.json()
-        setGifResults((json.data ?? []).map((gif: any) => ({
-          id: gif.id,
-          title: gif.title || "GIF",
-          previewUrl: gif.images?.fixed_width_small?.url ?? gif.images?.preview_gif?.url ?? gif.images?.fixed_width_small_still?.url ?? gif.images?.original_still?.url ?? gif.images?.original?.url ?? "",
-          gifUrl: gif.images?.original?.url ?? gif.images?.downsized?.url ?? "",
-          url: gif.url || null,
-        })).filter((gif: { previewUrl: string; gifUrl: string; url: string | null }) => Boolean(gif.previewUrl && (gif.url || gif.gifUrl))))
+        setGifResults(Array.isArray(json) ? json : [])
       } catch {
         setGifResults([])
       } finally {

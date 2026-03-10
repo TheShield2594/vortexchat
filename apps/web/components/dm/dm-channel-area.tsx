@@ -7,6 +7,7 @@ import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, Mi
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
+import { useDMCall, IncomingCallToast, CallerRingingOverlay } from "@/components/dm/dm-call"
 import { MobileMenuButton } from "@/components/layout/mobile-nav"
 import { useToast } from "@/components/ui/use-toast"
 import { useTyping } from "@/hooks/use-typing"
@@ -151,8 +152,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
-  const [inCall, setInCall] = useState(false)
-  const [callWithVideo, setCallWithVideo] = useState(false)
+  const [isAtBottom, setIsAtBottom] = useState(true)
+  const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
@@ -160,6 +161,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const prevLastMsgIdRef = useRef<string | null>(null)
   const topRef = useRef<HTMLDivElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const { toast } = useToast()
@@ -175,6 +178,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const indexedIdsRef = useRef<Set<string>>(new Set())
 
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
+
+  const { incomingCall, activeCall, ringing, startCall, cancelCall, acceptCall, declineCall, endCall } =
+    useDMCall(channelId, currentUserId, currentDisplayName)
 
   const sendDmPayload = useCallback(async (payload: { content: string; reply_to_id?: string }) => {
     const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
@@ -325,18 +331,47 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     loadMessages()
   }, [loadMessages])
 
-  // Scroll to bottom on initial load
+  // Scroll to bottom on channel switch, reset new-message counter
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto" })
+    setPendingNewMessageCount(0)
+    setIsAtBottom(true)
+    prevLastMsgIdRef.current = null
   }, [channelId])
 
-  // Scroll to bottom on new messages (if near bottom)
+  // Track isAtBottom via scroll listener
   useEffect(() => {
-    const container = bottomRef.current?.parentElement
+    const container = scrollerRef.current
     if (!container) return
-    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200
-    if (isNearBottom) bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages.length])
+    const onScroll = () => {
+      const dist = container.scrollHeight - container.scrollTop - container.clientHeight
+      const atBottom = dist < 120
+      setIsAtBottom(atBottom)
+      if (atBottom) setPendingNewMessageCount(0)
+    }
+    onScroll()
+    container.addEventListener("scroll", onScroll)
+    return () => container.removeEventListener("scroll", onScroll)
+  }, [channelId])
+
+  // Auto-scroll or count new messages from others
+  useEffect(() => {
+    const newestMsg = messages[messages.length - 1]
+    if (!newestMsg) return
+    // On initial load just record the id without scrolling (channelId effect handles initial scroll)
+    if (prevLastMsgIdRef.current === null) {
+      prevLastMsgIdRef.current = newestMsg.id
+      return
+    }
+    if (newestMsg.id === prevLastMsgIdRef.current) return
+    prevLastMsgIdRef.current = newestMsg.id
+    if (isAtBottom || newestMsg.sender_id === currentUserId) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+      setPendingNewMessageCount(0)
+    } else {
+      setPendingNewMessageCount((c) => c + 1)
+    }
+  }, [messages, isAtBottom, currentUserId])
 
   // Realtime subscription
   useEffect(() => {
@@ -612,13 +647,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   }
 
   function startVoiceCall() {
-    setCallWithVideo(false)
-    setInCall(true)
+    startCall(false, currentUser?.avatar_url ?? null)
   }
 
   function startVideoCall() {
-    setCallWithVideo(true)
-    setInCall(true)
+    startCall(true, currentUser?.avatar_url ?? null)
   }
 
   function handleSearchClick() {
@@ -719,18 +752,18 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             <button
               onClick={startVoiceCall}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-              style={{ color: (inCall && !callWithVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
+              style={{ color: (activeCall && !activeCall.withVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start voice call"
-              disabled={inCall}
+              disabled={!!activeCall || !!ringing}
             >
               <Phone className="w-4 h-4" />
             </button>
             <button
               onClick={startVideoCall}
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-              style={{ color: (inCall && callWithVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
+              style={{ color: (activeCall?.withVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start video call"
-              disabled={inCall}
+              disabled={!!activeCall || !!ringing}
             >
               <Video className="w-4 h-4" />
             </button>
@@ -738,20 +771,39 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         )}
       </div>
 
-      {/* Call overlay */}
-      {inCall && (
+      {/* Caller ringing overlay — shown while waiting for callee to accept */}
+      {ringing && !activeCall && (
+        <CallerRingingOverlay
+          partnerName={displayName}
+          partnerAvatar={channel.partner?.avatar_url ?? null}
+          withVideo={ringing.withVideo}
+          onCancel={cancelCall}
+        />
+      )}
+
+      {/* Active call overlay */}
+      {activeCall && (
         <DMCallView
           channelId={channelId}
           currentUserId={currentUserId}
           partner={channel.partner}
           displayName={displayName}
-          withVideo={callWithVideo}
-          onHangup={() => setInCall(false)}
+          withVideo={activeCall.withVideo}
+          onHangup={endCall}
+        />
+      )}
+
+      {/* Incoming call toast — shown when another user rings this DM */}
+      {incomingCall && !activeCall && (
+        <IncomingCallToast
+          call={incomingCall}
+          onAccept={acceptCall}
+          onDecline={declineCall}
         />
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
         {/* Load more */}
         {hasMore && (
           <div className="flex justify-center pb-2">
@@ -928,6 +980,18 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           )
         })}
         <div ref={bottomRef} />
+        {!isAtBottom && (
+          <div className="sticky bottom-0 flex justify-center pointer-events-none pb-3">
+            <button
+              onClick={() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); setPendingNewMessageCount(0) }}
+              className="motion-interactive motion-press px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 pointer-events-auto"
+              style={{ background: "var(--theme-accent)", color: "white" }}
+              aria-label={pendingNewMessageCount > 0 ? `Jump to latest — ${pendingNewMessageCount} new message${pendingNewMessageCount !== 1 ? "s" : ""}` : "Jump to latest message"}
+            >
+              ↓ {pendingNewMessageCount > 0 ? `${pendingNewMessageCount} new message${pendingNewMessageCount !== 1 ? "s" : ""}` : "Jump to latest"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Typing indicator */}

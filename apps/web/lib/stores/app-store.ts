@@ -112,7 +112,8 @@ interface AppState {
   // Voice state
   voiceChannelId: string | null
   voiceServerId: string | null
-  setVoiceChannel: (channelId: string | null, serverId: string | null) => void
+  voiceChannelName: string | null
+  setVoiceChannel: (channelId: string | null, serverId: string | null, channelName?: string | null) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -242,6 +243,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   voiceChannelId: null,
   voiceServerId: null,
-  setVoiceChannel: (channelId, serverId) =>
-    set({ voiceChannelId: channelId, voiceServerId: serverId }),
+  voiceChannelName: null,
+  setVoiceChannel: (channelId, serverId, channelName = null) =>
+    set({ voiceChannelId: channelId, voiceServerId: serverId, voiceChannelName: channelId ? channelName : null }),
 }))
