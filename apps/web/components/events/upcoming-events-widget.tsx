@@ -4,8 +4,8 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Calendar, ChevronRight } from "lucide-react"
 import { EventCard } from "./event-card"
+import { expandEventOccurrences } from "@/lib/events"
 import type { EventOccurrence } from "@/lib/events"
-import { expandOccurrences } from "@/lib/events"
 
 interface UpcomingEventsWidgetProps {
   serverId: string
@@ -17,22 +17,26 @@ export function UpcomingEventsWidget({ serverId, timezone = "UTC" }: UpcomingEve
   const [occurrences, setOccurrences] = useState<EventOccurrence[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  async function loadEvents() {
     const now = new Date()
     const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-    fetch(
-      `/api/servers/${serverId}/events?from=${now.toISOString()}&to=${thirtyDaysLater.toISOString()}`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (!Array.isArray(data)) return
-        setEvents(data)
-        const occs = expandOccurrences(data, now, thirtyDaysLater).slice(0, 3)
-        setOccurrences(occs)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [serverId])
+    try {
+      const res = await fetch(
+        `/api/servers/${serverId}/events?from=${now.toISOString()}&to=${thirtyDaysLater.toISOString()}`
+      )
+      const data = await res.json()
+      if (!Array.isArray(data)) return
+      setEvents(data)
+      const occs = expandEventOccurrences(data, now, thirtyDaysLater).slice(0, 3)
+      setOccurrences(occs)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadEvents() }, [serverId])
 
   async function handleRsvp(eventId: string, status: "going" | "maybe" | "not_going") {
     await fetch(`/api/servers/${serverId}/events/${eventId}/rsvp`, {
@@ -40,21 +44,10 @@ export function UpcomingEventsWidget({ serverId, timezone = "UTC" }: UpcomingEve
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     })
-    // Refresh
-    const now = new Date()
-    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-    const res = await fetch(
-      `/api/servers/${serverId}/events?from=${now.toISOString()}&to=${thirtyDaysLater.toISOString()}`
-    )
-    const data = await res.json()
-    if (Array.isArray(data)) {
-      setEvents(data)
-      setOccurrences(expandOccurrences(data, now, thirtyDaysLater).slice(0, 3))
-    }
+    await loadEvents()
   }
 
-  if (loading) return null
-  if (occurrences.length === 0) return null
+  if (loading || occurrences.length === 0) return null
 
   return (
     <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/40 p-4">
