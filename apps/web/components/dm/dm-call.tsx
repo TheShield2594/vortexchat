@@ -378,6 +378,43 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
   )
 }
 
+// ─── Caller Ringing Overlay ────────────────────────────────────────────────────
+
+interface CallerRingingOverlayProps {
+  partnerName: string
+  partnerAvatar: string | null
+  withVideo: boolean
+  onCancel: () => void
+}
+
+/** Shown on the caller's side while waiting for the callee to pick up (max 30 s). */
+export function CallerRingingOverlay({ partnerName, partnerAvatar, withVideo, onCancel }: CallerRingingOverlayProps) {
+  const initials = partnerName.slice(0, 2).toUpperCase()
+  return (
+    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-6" style={{ background: "var(--theme-bg-tertiary)" }}>
+      <Avatar className="w-24 h-24">
+        {partnerAvatar && <AvatarImage src={partnerAvatar} />}
+        <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "32px" }}>{initials}</AvatarFallback>
+      </Avatar>
+      <div className="text-center">
+        <div className="text-white font-semibold text-xl mb-1">{partnerName}</div>
+        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {withVideo ? "Calling (video)…" : "Calling…"}
+        </div>
+      </div>
+      <button
+        onClick={onCancel}
+        className="w-14 h-14 rounded-full flex items-center justify-center"
+        style={{ background: "var(--theme-danger)" }}
+        title="Cancel call"
+      >
+        <PhoneOff className="w-6 h-6 text-white" />
+      </button>
+    </div>
+  )
+}
+
 // ─── useDMCall hook ─────────────────────────────────────────────────────────────
 // Manages incoming call state for a DM channel
 
@@ -386,9 +423,13 @@ export function useDMCall(channelId: string, currentUserId: string, currentUserN
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
   const [activeCall, setActiveCall] = useState<{ withVideo: boolean } | null>(null)
+  const [ringing, setRinging] = useState<{ withVideo: boolean } | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const incomingCallRef = useRef(incomingCall)
   incomingCallRef.current = incomingCall
+  const ringingRef = useRef(ringing)
+  ringingRef.current = ringing
+  const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const ch = supabase.channel(`dm-call-notify:${channelId}`)
@@ -407,26 +448,53 @@ export function useDMCall(channelId: string, currentUserId: string, currentUserN
     .on("broadcast", { event: "call-cancelled" }, ({ payload }) => {
       if (incomingCallRef.current?.callerId === payload.callerId) setIncomingCall(null)
     })
+    .on("broadcast", { event: "call-accepted" }, ({ payload }) => {
+      if (!ringingRef.current) return
+      if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null }
+      setRinging(null)
+      setActiveCall({ withVideo: payload.acceptedWithVideo ?? false })
+    })
+    .on("broadcast", { event: "call-declined" }, () => {
+      if (!ringingRef.current) return
+      if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null }
+      setRinging(null)
+    })
     .subscribe()
 
-    return () => { supabase.removeChannel(ch) }
+    return () => {
+      if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null }
+      supabase.removeChannel(ch)
+    }
   }, [channelId, currentUserId])
 
-  const startCall = useCallback(async (withVideo: boolean, callerAvatar?: string | null) => {
+  const startCall = useCallback((withVideo: boolean, callerAvatar?: string | null) => {
     channelRef.current?.send({
       type: "broadcast",
       event: "call-invite",
       payload: { callerId: currentUserId, callerName: currentUserName, callerAvatar: callerAvatar ?? null, withVideo },
     })
-    setActiveCall({ withVideo })
+    setRinging({ withVideo })
+    ringTimeoutRef.current = setTimeout(() => {
+      ringTimeoutRef.current = null
+      channelRef.current?.send({ type: "broadcast", event: "call-cancelled", payload: { callerId: currentUserId } })
+      setRinging(null)
+    }, 30_000)
   }, [currentUserId, currentUserName])
 
+  const cancelCall = useCallback(() => {
+    if (ringTimeoutRef.current) { clearTimeout(ringTimeoutRef.current); ringTimeoutRef.current = null }
+    channelRef.current?.send({ type: "broadcast", event: "call-cancelled", payload: { callerId: currentUserId } })
+    setRinging(null)
+  }, [currentUserId])
+
   const acceptCall = useCallback((withVideo: boolean) => {
+    channelRef.current?.send({ type: "broadcast", event: "call-accepted", payload: { acceptedWithVideo: withVideo } })
     setIncomingCall(null)
     setActiveCall({ withVideo })
   }, [])
 
   const declineCall = useCallback(() => {
+    channelRef.current?.send({ type: "broadcast", event: "call-declined", payload: {} })
     setIncomingCall(null)
   }, [])
 
@@ -434,5 +502,5 @@ export function useDMCall(channelId: string, currentUserId: string, currentUserN
     setActiveCall(null)
   }, [])
 
-  return { incomingCall, activeCall, startCall, acceptCall, declineCall, endCall }
+  return { incomingCall, activeCall, ringing, startCall, cancelCall, acceptCall, declineCall, endCall }
 }
