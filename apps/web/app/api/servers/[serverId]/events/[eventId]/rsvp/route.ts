@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
+type RsvpStatus = "going" | "maybe" | "not_going" | "waitlist"
+
 export async function POST(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ serverId: string; eventId: string }> }
@@ -26,10 +28,11 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const { status } = body
-  if (!["going", "maybe", "not_going"].includes(status)) {
+  const validStatuses: RsvpStatus[] = ["going", "maybe", "not_going"]
+  if (!validStatuses.includes(body.status as RsvpStatus)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 })
   }
+  const requestedStatus = body.status as RsvpStatus
 
   // Fetch event for capacity check
   const { data: event } = await supabase
@@ -40,10 +43,10 @@ export async function POST(
     .single()
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 })
 
-  let resolvedStatus = status
+  let resolvedStatus: RsvpStatus = requestedStatus
 
-  // If going and capacity is set, check if full
-  if (status === "going" && event.capacity) {
+  // If going and capacity is set, check if at capacity
+  if (requestedStatus === "going" && event.capacity) {
     const { count } = await supabase
       .from("event_rsvps")
       .select("id", { count: "exact", head: true })
