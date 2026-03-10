@@ -207,6 +207,47 @@ export type Database = {
           },
         ]
       }
+      user_notification_preferences: {
+        Row: {
+          user_id: string
+          mention_notifications: boolean
+          reply_notifications: boolean
+          friend_request_notifications: boolean
+          server_invite_notifications: boolean
+          system_notifications: boolean
+          sound_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          mention_notifications?: boolean
+          reply_notifications?: boolean
+          friend_request_notifications?: boolean
+          server_invite_notifications?: boolean
+          system_notifications?: boolean
+          sound_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          mention_notifications?: boolean
+          reply_notifications?: boolean
+          friend_request_notifications?: boolean
+          server_invite_notifications?: boolean
+          system_notifications?: boolean
+          sound_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_notification_preferences_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       servers: {
         Row: {
           id: string

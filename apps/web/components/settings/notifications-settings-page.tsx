@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Bell, BellOff, Volume2, VolumeX } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -26,66 +26,91 @@ const SETTING_LABELS: { key: keyof NotificationSettingsRow; label: string; descr
   { key: "sound_enabled", label: "Notification Sounds", description: "Play a sound when you receive a notification" },
 ]
 
+const DEFAULT_SETTINGS: NotificationSettingsRow = {
+  mention_notifications: true,
+  reply_notifications: true,
+  friend_request_notifications: true,
+  server_invite_notifications: true,
+  system_notifications: true,
+  sound_enabled: true,
+}
+
+// localStorage key kept for sound_enabled cross-component sync
+const soundStorageKey = (userId: string) => `vortexchat:notif-sound:${userId}`
+
 export function NotificationsSettingsPage({ userId }: Props) {
   const { toast } = useToast()
-  const [settings, setSettings] = useState<NotificationSettingsRow>({
-    mention_notifications: true,
-    reply_notifications: true,
-    friend_request_notifications: true,
-    server_invite_notifications: true,
-    system_notifications: true,
-    sound_enabled: true,
-  })
+  const [settings, setSettings] = useState<NotificationSettingsRow>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
-
-  const STORAGE_KEY = `vortexchat:notif-prefs:${userId}`
-
-  const DEFAULT_SETTINGS: NotificationSettingsRow = {
-    mention_notifications: true,
-    reply_notifications: true,
-    friend_request_notifications: true,
-    server_invite_notifications: true,
-    system_notifications: true,
-    sound_enabled: true,
-  }
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = window.localStorage.getItem(STORAGE_KEY)
-        if (stored) {
-          const parsed = JSON.parse(stored) as Record<string, unknown>
-          // Merge parsed values with defaults, accepting only boolean fields
-          const validated: NotificationSettingsRow = { ...DEFAULT_SETTINGS }
+    fetch("/api/user/notification-preferences")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && typeof data === "object") {
+          const validated = { ...DEFAULT_SETTINGS }
           for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof NotificationSettingsRow)[]) {
-            if (typeof parsed[key] === "boolean") {
-              validated[key] = parsed[key] as boolean
-            }
+            if (typeof data[key] === "boolean") validated[key] = data[key] as boolean
           }
           setSettings(validated)
+          // Keep sound pref in localStorage for use-notification-sound hook
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(soundStorageKey(userId), String(validated.sound_enabled))
+            } catch { /* ignore */ }
+          }
         }
-      } catch {
-        // ignore parse/storage errors
-      }
-    }
-    setLoading(false)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [STORAGE_KEY])
+      })
+      .catch(() => {
+        // Fall back to localStorage if API unavailable
+        if (typeof window !== "undefined") {
+          try {
+            const stored = window.localStorage.getItem(`vortexchat:notif-prefs:${userId}`)
+            if (stored) {
+              const parsed = JSON.parse(stored) as Record<string, unknown>
+              const validated = { ...DEFAULT_SETTINGS }
+              for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof NotificationSettingsRow)[]) {
+                if (typeof parsed[key] === "boolean") validated[key] = parsed[key] as boolean
+              }
+              setSettings(validated)
+            }
+          } catch { /* ignore */ }
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [userId])
 
-  function saveToStorage(next: NotificationSettingsRow) {
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      } catch {
-        // ignore quota / privacy-mode failures
+  const persistSetting = useCallback(async (next: NotificationSettingsRow) => {
+    setSaving(true)
+    try {
+      await fetch("/api/user/notification-preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      })
+      // Mirror sound setting to localStorage so use-notification-sound hook picks it up
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(soundStorageKey(userId), String(next.sound_enabled))
+          // Dispatch storage event so cross-tab hook reacts
+          window.dispatchEvent(new StorageEvent("storage", {
+            key: soundStorageKey(userId),
+            newValue: String(next.sound_enabled),
+          }))
+        } catch { /* ignore */ }
       }
+    } catch {
+      toast({ title: "Failed to save preference", variant: "destructive" })
+    } finally {
+      setSaving(false)
     }
-  }
+  }, [userId, toast])
 
   function handleToggle(key: keyof NotificationSettingsRow) {
     const next = { ...settings, [key]: !settings[key] }
     setSettings(next)
-    saveToStorage(next)
+    void persistSetting(next)
   }
 
   function muteAll() {
@@ -98,7 +123,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
       sound_enabled: false,
     }
     setSettings(next)
-    saveToStorage(next)
+    void persistSetting(next)
     toast({ title: "All notifications muted" })
   }
 
@@ -120,7 +145,8 @@ export function NotificationsSettingsPage({ userId }: Props) {
         <button
           type="button"
           onClick={muteAll}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all"
+          disabled={saving}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all disabled:opacity-50"
           style={{
             background: "rgba(242,63,67,0.1)",
             color: "var(--theme-danger)",
@@ -161,7 +187,8 @@ export function NotificationsSettingsPage({ userId }: Props) {
               <button
                 type="button"
                 onClick={() => handleToggle(key)}
-                className="relative w-10 h-6 rounded-full transition-all focus-ring"
+                disabled={saving}
+                className="relative w-10 h-6 rounded-full transition-all focus-ring disabled:opacity-50"
                 style={{ background: enabled ? "var(--theme-accent)" : "var(--theme-bg-tertiary)" }}
                 role="switch"
                 aria-checked={enabled}
@@ -179,6 +206,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
 
       <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
         Per-server and per-channel notification overrides can be set by right-clicking on servers and channels.
+        Preferences sync across all your devices.
       </p>
     </div>
   )
