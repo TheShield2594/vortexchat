@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { getMemberPermissions, PERMISSIONS, hasPermission } from "@/lib/permissions"
+import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 
 /**
  * GET /api/servers/[serverId]/audit-log
@@ -31,7 +31,7 @@ export async function GET(
   const canView =
     perms.isOwner ||
     perms.isAdmin ||
-    hasPermission(perms.permissions, PERMISSIONS.MANAGE_CHANNELS)
+    hasPermission(perms.permissions, "MANAGE_CHANNELS")
 
   if (!canView) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
