@@ -9,7 +9,9 @@
  */
 import type { UserRow } from "@/types/database"
 
-export const STATUS_OPTIONS: { value: UserRow["status"]; label: string; color: string }[] = [
+export type SettableStatus = Exclude<UserRow["status"], "offline">
+
+export const STATUS_OPTIONS: { value: SettableStatus; label: string; color: string }[] = [
   { value: "online", label: "Online", color: "var(--theme-success)" },
   { value: "idle", label: "Idle", color: "var(--theme-warning)" },
   { value: "dnd", label: "Do Not Disturb", color: "var(--theme-danger)" },

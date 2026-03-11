@@ -130,5 +130,6 @@ export async function insertAuditLog(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   entry: AuditLogEntry
 ) {
-  return supabase.from("audit_logs").insert(entry as Parameters<ReturnType<typeof supabase.from<"audit_logs">>["insert"]>[0])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return supabase.from("audit_logs").insert(entry as any)
 }
