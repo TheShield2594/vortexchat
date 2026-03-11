@@ -254,7 +254,14 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
               key={tab}
               onClick={() => {
                 setActiveTab(tab)
-                router.push(tab === "friends" ? "/channels/me?tab=friends" : "/channels/me")
+                const params = new URLSearchParams(searchParams.toString())
+                if (tab === "friends") {
+                  params.set("tab", "friends")
+                } else {
+                  params.delete("tab")
+                }
+                const query = params.toString()
+                router.push(`${pathname}${query ? `?${query}` : ""}`)
               }}
               className={cn(
                 "flex-1 px-3 py-1.5 rounded text-xs font-semibold transition-colors capitalize",
@@ -287,7 +294,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
       {/* Tab content */}
       {activeTab === "friends" ? (
         <div className="flex-1 overflow-hidden">
-          <FriendsSidebar compact onStartDM={(friendId) => { startDM(friendId); onNavigate?.() }} />
+          <FriendsSidebar compact onStartDM={startDM} />
         </div>
       ) : (
         /* Channel list */
@@ -311,6 +318,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
 
             return (
               <button
+                type="button"
                 key={ch.id}
                 onClick={() => { router.push(`/channels/me/${ch.id}`); onNavigate?.() }}
                 className={cn(

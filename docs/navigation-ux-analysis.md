@@ -56,6 +56,7 @@
 ### Channel Click Handler
 
 Channels are `<a>` tags with direct `href`:
+
 ```tsx
 // ServerSidebar.tsx — Entry component, line 486
 <a href={`/server/${props.channel.serverId}/channel/${props.channel.id}`}>
@@ -277,6 +278,7 @@ Mobile (hamburger open):
 ### Channel Click Handler
 
 Channels ARE clickable (contrary to issue description):
+
 ```tsx
 // channel-sidebar.tsx, line 849-857
 onClick={() => {
@@ -560,10 +562,10 @@ interface AppState {
 - Clearer mental model: "Servers" is a first-class destination
 - Easier to discover servers (no hidden hamburger)
 - More room for server metadata (member count, last activity)
-- 2 taps from bottom nav to any channel (Servers tab → server card → channel)
+- 3 taps from bottom nav to any channel (Servers tab → server card → channel), or 2 taps for returning users when auto-navigating to last channel
 
 **Cons:**
-- 3 taps to channel (Servers tab → server → channel) unless we auto-navigate to last channel
+- 3 taps baseline without auto-navigation (Servers tab → server → channel)
 - Desktop server rail needs to remain for desktop users
 - New page component to build and maintain
 - "Servers" tab may feel redundant on desktop where sidebar is always visible

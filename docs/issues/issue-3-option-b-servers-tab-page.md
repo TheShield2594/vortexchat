@@ -196,10 +196,17 @@ Minimal additions to `app-store.ts`:
 serverListView: 'list' | 'grid'  // default: 'list'
 setServerListView: (view: 'list' | 'grid') => void
 
-// Existing state already provides everything needed:
+// Existing state provides basic data:
 // - servers: ServerRow[]
-// - serverHasUnread: Record<string, boolean>
+// - serverHasUnread: Record<string, boolean>  (boolean only — no numeric counts)
 // - channels: Record<string, ChannelRow[]>
+//
+// NOTE: ServerCardProps expects numeric unreadCount, mentionCount, and voiceCount,
+// but the store only exposes boolean serverHasUnread. To support rich cards,
+// add per-server aggregate fields to the store (e.g., serverUnreadCounts,
+// serverMentionCounts, serverVoiceCounts as Record<string, number>) or
+// simplify ServerCardProps to accept boolean serverHasUnread and derive/omit
+// the numeric metrics in the card UI.
 ```
 
 ## Acceptance Criteria

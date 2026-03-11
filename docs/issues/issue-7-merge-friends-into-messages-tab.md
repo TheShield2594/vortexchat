@@ -134,9 +134,11 @@ Show a count badge on the "Friends" toggle when there are pending incoming reque
 ### 4. Remove Friends from bottom nav
 
 In the updated `mobile-bottom-tab-bar.tsx`, replace:
+
 ```tsx
 { href: "/channels/friends", label: "Friends", icon: Users }
 ```
+
 with the new tab structure (Messages / Servers / Notifications / You).
 
 ### 5. Keep `/channels/friends` route working

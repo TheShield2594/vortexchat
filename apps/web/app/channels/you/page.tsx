@@ -51,11 +51,12 @@ export default function YouPage() {
   const initials = displayName.slice(0, 2).toUpperCase()
 
   async function handleSetStatus(status: UserRow["status"]) {
-    if (!currentUser) return
+    const latestUser = useAppStore.getState().currentUser
+    if (!latestUser) return
     try {
-      const { error } = await supabase.from("users").update({ status }).eq("id", currentUser.id)
+      const { error } = await supabase.from("users").update({ status }).eq("id", latestUser.id)
       if (error) throw error
-      setCurrentUser({ ...currentUser, status })
+      setCurrentUser({ ...useAppStore.getState().currentUser!, status })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to update status", description: error.message })
     }

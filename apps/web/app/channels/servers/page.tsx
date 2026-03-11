@@ -156,6 +156,7 @@ export default function ServersPage() {
                 </Avatar>
                 {hasUnread && (
                   <span
+                    aria-hidden="true"
                     className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
                     style={{ background: "var(--theme-accent)", borderColor: "var(--theme-bg-primary)" }}
                   />
@@ -165,6 +166,7 @@ export default function ServersPage() {
                 <span className={cn("text-sm truncate block", hasUnread ? "font-semibold text-white" : "text-gray-300")}>
                   {server.name}
                 </span>
+                {hasUnread && <span className="sr-only">, unread</span>}
                 {server.description && (
                   <span className="text-xs truncate block" style={{ color: "var(--theme-text-muted)" }}>
                     {server.description}

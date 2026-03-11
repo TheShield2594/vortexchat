@@ -42,19 +42,15 @@ Add route-depth detection to control layout:
 ```tsx
 export function ChannelsShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isFullScreenChannel = useMediaQuery('(max-width: 767px)') &&
-    /^\/channels\/[^/]+\/[^/]+/.test(pathname) &&
-    !pathname.startsWith('/channels/me/')  // DM channels also go full-screen
+  const isFullScreen = isFullScreenChannel(pathname)
 
   return (
     <MobileNavProvider>
-      <div className={cn(
-        "flex h-screen overflow-hidden",
-        !isFullScreenChannel && "pb-16 md:pb-0"
-      )}>
+      {/* Bottom padding omitted in full-screen channel view where MobileBottomTabBar is hidden */}
+      <div className={`flex h-screen overflow-hidden md:pb-0 ${isFullScreen ? "" : "pb-16"}`}>
         <ConnectionBanner />
-        {/* Guild rail: always on desktop, conditional on mobile */}
-        {!isFullScreenChannel && <ServerSidebarWrapper />}
+        {/* ServerSidebarWrapper always renders (desktop sidebar); hidden via CSS on mobile */}
+        <ServerSidebarWrapper />
         <MobileSwipeArea />
         <MobileOverlay />
         <div className="flex flex-1 overflow-hidden min-w-0">
@@ -65,6 +61,8 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
   )
 }
 ```
+
+> **Note:** The runtime implementation always renders `<ServerSidebarWrapper />` (CSS-hidden on mobile). Only the bottom padding is toggled based on `isFullScreenChannel()`, which is exported from `mobile-bottom-tab-bar.tsx`.
 
 ### 2. `apps/web/components/layout/server-sidebar-wrapper.tsx`
 

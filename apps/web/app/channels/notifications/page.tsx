@@ -51,11 +51,23 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>("all")
 
-  // Derive unread count from notifications state and sync to store
-  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
-  useEffect(() => {
-    useAppStore.getState().setNotificationUnreadCount(unreadCount)
-  }, [unreadCount])
+  // Local unread count for UI within this page (may be truncated to 50 rows)
+  const localUnreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
+
+  // True unread count for the global badge — fetched separately to avoid limit(50) undercount
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0)
+  const refreshTotalUnread = useCallback(async () => {
+    if (!currentUser) return
+    const { count } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", currentUser.id)
+      .eq("read", false)
+    if (count !== null) {
+      setTotalUnreadCount(count)
+      useAppStore.getState().setNotificationUnreadCount(count)
+    }
+  }, [currentUser, supabase])
 
   const loadNotifications = useCallback(async () => {
     if (!currentUser) return
@@ -68,8 +80,9 @@ export default function NotificationsPage() {
     if (data) {
       setNotifications((prev) => mergeNotifications(prev, data as Notification[]))
     }
+    await refreshTotalUnread()
     setLoading(false)
-  }, [currentUser, supabase])
+  }, [currentUser, supabase, refreshTotalUnread])
 
   useEffect(() => {
     loadNotifications()
@@ -86,6 +99,12 @@ export default function NotificationsPage() {
         (payload) => {
           const n = payload.new as Notification
           setNotifications((prev) => mergeNotifications(prev, [n]).slice(0, 50))
+          if (!n.read) {
+            setTotalUnreadCount((prev) => prev + 1)
+            useAppStore.getState().setNotificationUnreadCount(
+              (useAppStore.getState().notificationUnreadCount ?? 0) + 1
+            )
+          }
           playNotification()
         }
       )
@@ -102,18 +121,31 @@ export default function NotificationsPage() {
       .eq("read", false)
     if (error) return
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    setTotalUnreadCount(0)
+    useAppStore.getState().setNotificationUnreadCount(0)
   }
 
   async function markRead(id: string) {
     const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id)
     if (error) return
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    setTotalUnreadCount((prev) => Math.max(0, prev - 1))
+    useAppStore.getState().setNotificationUnreadCount(
+      Math.max(0, (useAppStore.getState().notificationUnreadCount ?? 0) - 1)
+    )
   }
 
   async function dismiss(id: string) {
+    const target = notifications.find((x) => x.id === id)
     const { error } = await supabase.from("notifications").delete().eq("id", id)
     if (error) return
     setNotifications((prev) => prev.filter((x) => x.id !== id))
+    if (target && !target.read) {
+      setTotalUnreadCount((prev) => Math.max(0, prev - 1))
+      useAppStore.getState().setNotificationUnreadCount(
+        Math.max(0, (useAppStore.getState().notificationUnreadCount ?? 0) - 1)
+      )
+    }
   }
 
   async function handleClick(n: Notification) {
@@ -150,7 +182,7 @@ export default function NotificationsPage() {
         style={{ borderColor: "var(--theme-bg-tertiary)" }}
       >
         <span className="font-semibold text-white">Notifications</span>
-        {unreadCount > 0 && (
+        {totalUnreadCount > 0 && (
           <button
             type="button"
             onClick={markAllRead}
@@ -177,12 +209,12 @@ export default function NotificationsPage() {
             }}
           >
             {f}
-            {f === "unread" && unreadCount > 0 && (
+            {f === "unread" && totalUnreadCount > 0 && (
               <span
                 className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
                 style={{ background: "var(--theme-danger)", color: "white" }}
               >
-                {unreadCount}
+                {totalUnreadCount}
               </span>
             )}
           </button>
