@@ -32,6 +32,16 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 
 type Filter = "all" | "unread" | "mentions"
 
+/** Merge fetched rows into existing state, deduplicating by id */
+function mergeNotifications(existing: Notification[], incoming: Notification[]): Notification[] {
+  const map = new Map<string, Notification>()
+  for (const n of existing) map.set(n.id, n)
+  for (const n of incoming) map.set(n.id, n)
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+}
+
 export default function NotificationsPage() {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
@@ -40,6 +50,12 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>("all")
+
+  // Derive unread count from notifications state and sync to store
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
+  useEffect(() => {
+    useAppStore.getState().setNotificationUnreadCount(unreadCount)
+  }, [unreadCount])
 
   const loadNotifications = useCallback(async () => {
     if (!currentUser) return
@@ -50,9 +66,7 @@ export default function NotificationsPage() {
       .order("created_at", { ascending: false })
       .limit(50)
     if (data) {
-      setNotifications(data as Notification[])
-      const unread = data.filter((n) => !n.read).length
-      useAppStore.getState().setNotificationUnreadCount(unread)
+      setNotifications((prev) => mergeNotifications(prev, data as Notification[]))
     }
     setLoading(false)
   }, [currentUser, supabase])
@@ -71,7 +85,7 @@ export default function NotificationsPage() {
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${currentUser.id}` },
         (payload) => {
           const n = payload.new as Notification
-          setNotifications((prev) => [n, ...prev.slice(0, 49)])
+          setNotifications((prev) => mergeNotifications(prev, [n]).slice(0, 50))
           playNotification()
         }
       )
@@ -81,34 +95,25 @@ export default function NotificationsPage() {
 
   async function markAllRead() {
     if (!currentUser) return
-    await supabase
+    const { error } = await supabase
       .from("notifications")
       .update({ read: true })
       .eq("user_id", currentUser.id)
       .eq("read", false)
+    if (error) return
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    useAppStore.getState().setNotificationUnreadCount(0)
   }
 
   async function markRead(id: string) {
-    await supabase.from("notifications").update({ read: true }).eq("id", id)
+    const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id)
+    if (error) return
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-    useAppStore.getState().setNotificationUnreadCount(
-      Math.max(0, (useAppStore.getState().notificationUnreadCount ?? 0) - 1)
-    )
   }
 
   async function dismiss(id: string) {
-    await supabase.from("notifications").delete().eq("id", id)
-    setNotifications((prev) => {
-      const n = prev.find((x) => x.id === id)
-      if (n && !n.read) {
-        useAppStore.getState().setNotificationUnreadCount(
-          Math.max(0, (useAppStore.getState().notificationUnreadCount ?? 0) - 1)
-        )
-      }
-      return prev.filter((x) => x.id !== id)
-    })
+    const { error } = await supabase.from("notifications").delete().eq("id", id)
+    if (error) return
+    setNotifications((prev) => prev.filter((x) => x.id !== id))
   }
 
   async function handleClick(n: Notification) {
@@ -137,8 +142,6 @@ export default function NotificationsPage() {
     return true
   })
 
-  const unreadCount = notifications.filter((n) => !n.read).length
-
   return (
     <div className="flex flex-1 flex-col overflow-hidden" style={{ background: "var(--theme-bg-primary)" }}>
       {/* Header */}
@@ -149,6 +152,7 @@ export default function NotificationsPage() {
         <span className="font-semibold text-white">Notifications</span>
         {unreadCount > 0 && (
           <button
+            type="button"
             onClick={markAllRead}
             className="flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors hover:bg-white/10"
             style={{ color: "var(--theme-text-muted)" }}
@@ -163,6 +167,7 @@ export default function NotificationsPage() {
       <div className="flex gap-1 px-4 py-2 flex-shrink-0" style={{ borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
         {(["all", "unread", "mentions"] as const).map((f) => (
           <button
+            type="button"
             key={f}
             onClick={() => setFilter(f)}
             className="px-3 py-1.5 rounded text-xs font-medium capitalize transition-colors"
@@ -210,6 +215,7 @@ export default function NotificationsPage() {
               }}
             >
               <button
+                type="button"
                 onClick={() => handleClick(n)}
                 className="flex flex-1 min-w-0 items-start gap-3 text-left"
               >
@@ -243,6 +249,7 @@ export default function NotificationsPage() {
               <div className="flex items-center gap-1 flex-shrink-0 mt-1">
                 {!n.read && (
                   <button
+                    type="button"
                     onClick={() => markRead(n.id)}
                     className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
                     style={{ color: "var(--theme-text-muted)" }}
@@ -252,6 +259,7 @@ export default function NotificationsPage() {
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={() => dismiss(n.id)}
                   className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
                   style={{ color: "var(--theme-text-faint)" }}

@@ -22,7 +22,7 @@ Add a floating search button (FAB) or a search bar to the mobile header on key s
 
 Add a search icon (magnifying glass) to the mobile header bar on every screen. Tapping it opens the existing `SearchModal`:
 
-```
+```text
 ┌───────────────────────────────────────────────────┐
 │ ☰  Page Title                      [🔍] [🔔]     │
 └───────────────────────────────────────────────────┘
@@ -32,7 +32,7 @@ Add a search icon (magnifying glass) to the mobile header bar on every screen. T
 
 On screens that show lists (DMs, server list, channel list), add a tappable search bar at the top:
 
-```
+```text
 ┌───────────────────────────────────────────────────┐
 │ Messages                                          │
 ├───────────────────────────────────────────────────┤

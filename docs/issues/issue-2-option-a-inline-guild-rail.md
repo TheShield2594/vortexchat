@@ -19,7 +19,7 @@ Implement the Fluxer/Discord mobile navigation pattern: show the server icon rai
 
 ### Visual (Mobile)
 
-```
+```text
 Home/Server screen:          Channel view:
 ┌──────┬──────────────┐     ┌────────────────────┐
 │ Rail │ Content      │     │ ← Back  #channel   │

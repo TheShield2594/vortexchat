@@ -10,7 +10,7 @@ Add a dedicated "Servers" tab to the mobile bottom nav that opens a full-page se
 
 ### New Mobile Screens
 
-```
+```text
 1. Servers Tab (new page):
 ┌───────────────────────────────────────────────────┐
 │ Servers                                 [search]  │
@@ -58,7 +58,7 @@ Add a dedicated "Servers" tab to the mobile bottom nav that opens a full-page se
 
 ### New Files
 
-```
+```text
 apps/web/
 ├── app/channels/
 │   ├── servers/
@@ -77,7 +77,7 @@ apps/web/
 
 ### Modified Files
 
-```
+```text
 apps/web/components/layout/
 ├── mobile-bottom-tab-bar.tsx      ← REWRITE: 4 new tabs
 ├── channels-shell.tsx             ← MODIFY: hide guild rail on mobile
@@ -87,7 +87,7 @@ apps/web/components/layout/
 
 ## Route Structure
 
-```
+```text
 /channels/me                    → Home (DMs) — bottom nav visible
 /channels/me/:channelId         → DM chat — full-screen
 /channels/servers               → NEW: Server list page — bottom nav visible
@@ -101,7 +101,7 @@ apps/web/components/layout/
 
 ### React Router / App Router Setup
 
-```
+```text
 apps/web/app/channels/
 ├── layout.tsx                  (existing — auth + server list loader)
 ├── servers/
@@ -157,6 +157,8 @@ interface ServerCardProps {
   unreadCount: number
   mentionCount: number
   voiceCount: number
+  /** Approximate member count (cached, not real-time). Provided by the server list API. */
+  memberCount?: number
   lastActiveChannel?: string
   onClick: () => void
 }

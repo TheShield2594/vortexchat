@@ -10,7 +10,7 @@ With the proposed 4-tab bottom nav (**Messages / Servers / Notifications / You**
 
 Discord's "Messages" tab has a segmented header:
 
-```
+```text
 ┌───────────────────────────────────────────────────┐
 │ [Messages]  [Friends]                    [+ New]  │
 ├───────────────────────────────────────────────────┤
@@ -41,7 +41,7 @@ Discord's "Messages" tab has a segmented header:
 
 Add a segmented control to the DMs page header:
 
-```
+```text
 /channels/me (Messages selected):
 ┌───────────────────────────────────────────────────┐
 │ [💬 Messages] [👥 Friends]                [+ New] │

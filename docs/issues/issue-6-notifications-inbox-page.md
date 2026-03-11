@@ -32,7 +32,7 @@ The `NotificationBell` already supports a `variant="sidebar"` mode alongside `va
 
 Create `/channels/notifications` as a full-screen page that reuses the existing notification fetching/rendering logic.
 
-```
+```text
 /channels/notifications (mobile):
 ┌───────────────────────────────────────────────────┐
 │ Notifications                    [Mark All Read]  │

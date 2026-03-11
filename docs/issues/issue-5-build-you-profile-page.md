@@ -32,7 +32,7 @@ Vortex already has all the settings UI built — it's just not wired to the bott
 
 Rename the bottom tab from "Profile" to "You" and build a real page that surfaces all of this:
 
-```
+```text
 /channels/you (mobile full-page):
 ┌───────────────────────────────────────────────────┐
 │ You                                               │

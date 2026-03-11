@@ -49,7 +49,7 @@ function isTabActive(href: string, pathname: string): boolean {
 }
 
 /** True when the user is inside a full-screen channel view (server channel or DM conversation). */
-function isFullScreenChannel(pathname: string): boolean {
+export function isFullScreenChannel(pathname: string): boolean {
   // /channels/me/:channelId — DM conversation
   if (pathname.startsWith("/channels/me/") && pathname.split("/").length >= 4) return true
   // /channels/:serverId/:channelId — server channel (not a reserved route)
@@ -82,6 +82,7 @@ export function MobileBottomTabBar() {
             <li key={label}>
               <Link
                 href={href}
+                aria-current={active ? "page" : undefined}
                 className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-[11px]", active && "font-semibold")}
                 style={{ color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
               >

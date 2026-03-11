@@ -12,6 +12,10 @@ import { CreateServerModal } from "@/components/modals/create-server-modal"
 import { cn } from "@/lib/utils/cn"
 import { perfMarkNavStart } from "@/lib/perf"
 
+const QuickSwitcherModal = lazy(() =>
+  import("@/components/modals/quickswitcher-modal").then((m) => ({ default: m.QuickSwitcherModal }))
+)
+
 export default function ServersPage() {
   const { servers, isLoadingServers, channels, setActiveServer, serverHasUnread } = useAppStore(
     useShallow((s) => ({
@@ -25,15 +29,26 @@ export default function ServersPage() {
   const router = useRouter()
   const [showCreate, setShowCreate] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
-  const QuickSwitcherModal = lazy(() =>
-    import("@/components/modals/quickswitcher-modal").then((m) => ({ default: m.QuickSwitcherModal }))
-  )
 
   const navigateToServer = useCallback(
     (serverId: string) => {
       perfMarkNavStart(`server:${serverId.slice(0, 8)}`)
       setActiveServer(serverId)
 
+      // Prefer persisted last-visited channel
+      try {
+        const stored = localStorage.getItem(`vortexchat:last-channel:${serverId}`)
+        if (stored) {
+          // Validate against cached channels if available
+          const cached = channels[serverId]
+          if (!cached || cached.some((c) => c.id === stored)) {
+            router.push(`/channels/${serverId}/${stored}`)
+            return
+          }
+        }
+      } catch {}
+
+      // Fall back to first text channel from cache
       const cached = channels[serverId]
       if (cached && cached.length > 0) {
         const firstText = [...cached]
@@ -44,14 +59,6 @@ export default function ServersPage() {
           return
         }
       }
-
-      try {
-        const stored = localStorage.getItem(`vortexchat:last-channel:${serverId}`)
-        if (stored) {
-          router.push(`/channels/${serverId}/${stored}`)
-          return
-        }
-      } catch {}
 
       router.push(`/channels/${serverId}`)
     },
@@ -68,6 +75,7 @@ export default function ServersPage() {
         <span className="font-semibold text-white">Servers</span>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setShowSearch(true)}
             className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors md:hidden"
             style={{ color: "var(--theme-text-muted)" }}
@@ -76,6 +84,7 @@ export default function ServersPage() {
             <Search className="w-5 h-5" />
           </button>
           <button
+            type="button"
             onClick={() => router.push("/channels/discover")}
             className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
             style={{ color: "var(--theme-text-muted)" }}
@@ -84,6 +93,7 @@ export default function ServersPage() {
             <Compass className="w-5 h-5" />
           </button>
           <button
+            type="button"
             onClick={() => setShowCreate(true)}
             className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
             style={{ color: "var(--theme-accent)" }}
@@ -126,6 +136,7 @@ export default function ServersPage() {
 
           return (
             <button
+              type="button"
               key={server.id}
               onClick={() => navigateToServer(server.id)}
               className={cn(

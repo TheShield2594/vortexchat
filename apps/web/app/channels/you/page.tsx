@@ -78,7 +78,7 @@ export default function YouPage() {
           className="rounded-xl p-4 flex flex-col items-center"
           style={{ background: "var(--theme-bg-secondary)" }}
         >
-          <button onClick={() => setShowProfileSettings(true)} className="relative group">
+          <button type="button" onClick={() => setShowProfileSettings(true)} className="relative group">
             <Avatar className="w-20 h-20">
               {currentUser.avatar_url && <AvatarImage src={currentUser.avatar_url} />}
               <AvatarFallback
@@ -117,6 +117,7 @@ export default function YouPage() {
         <div className="grid grid-cols-2 gap-2">
           {STATUS_OPTIONS.map(({ value, label, color }) => (
             <button
+              type="button"
               key={value}
               onClick={() => handleSetStatus(value)}
               className="flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors"
@@ -142,6 +143,7 @@ export default function YouPage() {
         <div className="rounded-xl overflow-hidden" style={{ background: "var(--theme-bg-secondary)" }}>
           {SETTINGS_LINKS.map(({ href, label, icon: Icon }, i) => (
             <button
+              type="button"
               key={href}
               onClick={() => router.push(href)}
               className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5"
@@ -159,6 +161,7 @@ export default function YouPage() {
       {/* Logout */}
       <div className="px-4 pb-8">
         <button
+          type="button"
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors hover:bg-red-500/10"
           style={{ background: "var(--theme-bg-secondary)", color: "var(--theme-danger)" }}

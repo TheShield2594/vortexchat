@@ -133,6 +133,12 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const searchParams = useSearchParams()
   const initialTab = searchParams.get("tab") === "friends" ? "friends" : "messages"
   const [activeTab, setActiveTab] = useState<DMTab>(initialTab)
+
+  // Keep activeTab in sync with URL search params
+  useEffect(() => {
+    const tab: DMTab = searchParams.get("tab") === "friends" ? "friends" : "messages"
+    setActiveTab(tab)
+  }, [searchParams])
   const [channels, setChannels] = useState<DMChannel[]>([])
   const [loading, setLoading] = useState(true)
   const [newDmOpen, setNewDmOpen] = useState(false)
@@ -244,8 +250,12 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
         >
           {(["messages", "friends"] as const).map((tab) => (
             <button
+              type="button"
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab)
+                router.push(tab === "friends" ? "/channels/me?tab=friends" : "/channels/me")
+              }}
               className={cn(
                 "flex-1 px-3 py-1.5 rounded text-xs font-semibold transition-colors capitalize",
                 activeTab === tab
@@ -263,6 +273,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
         </div>
         {activeTab === "messages" && (
           <button
+            type="button"
             onClick={() => setNewDmOpen(true)}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition-colors flex-shrink-0"
             style={{ color: "var(--theme-text-muted)" }}
@@ -354,7 +365,10 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
 
                 {/* Unread dot */}
                 {ch.is_unread && !isActive && (
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--theme-accent)" }} aria-label="Unread messages" />
+                  <>
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" aria-hidden="true" style={{ background: "var(--theme-accent)" }} />
+                    <span className="sr-only">Unread messages</span>
+                  </>
                 )}
               </button>
             )

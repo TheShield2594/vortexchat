@@ -13,7 +13,7 @@
 
 **Layout:** Two-panel left sidebar — always visible on desktop.
 
-```
+```text
 ┌──────────┬────────────────┬──────────────────────┐
 │ Server   │ Channel        │                      │
 │ Rail     │ Sidebar        │   Message Area        │
@@ -34,7 +34,7 @@
 
 ### Routing
 
-```
+```text
 /                         → HomePage (DMs)
 /server/:server           → ServerHome (redirect to last channel)
 /server/:server/channel/:channel → ChannelPage
@@ -92,7 +92,7 @@ No `onClick` handler needed — SolidJS router intercepts the anchor navigation.
 
 **Layout:** Three-tier: Guild list → Guild sidebar (channels) → Content. Fully responsive with dedicated mobile mode via `MobileLayoutStore`.
 
-```
+```text
 Desktop:
 ┌──────────┬────────────────┬──────────────────────┐
 │ Guild    │ Guild Sidebar  │                      │
@@ -137,7 +137,7 @@ Mobile (channel selected):
 
 ### Routing
 
-```
+```text
 /channels/@me             → DM list (Home)
 /channels/@me/:channelId  → DM conversation
 /channels/@favorites      → Favorited channels
@@ -211,7 +211,7 @@ Fluxer's mobile layout uses a **progressive disclosure** pattern:
 
 ### Navigation Architecture
 
-```
+```text
 Desktop (≥768px):
 ┌──────────┬────────────────┬──────────────────────┬──────────┐
 │ Server   │ Channel        │                      │ Member   │
@@ -250,7 +250,7 @@ Mobile (hamburger open):
 
 ### Routing
 
-```
+```text
 /channels/discover        → Server discovery
 /channels/me              → DM list
 /channels/me/:channelId   → DM conversation
@@ -333,7 +333,7 @@ onClick={() => {
 
 **Concept:** Keep the desktop 2-sidebar layout. On mobile, show the guild list inline on the "home" screen and use a swipe-back gesture from channel view.
 
-```
+```text
 Mobile Home:
 ┌──────────┬────────────────────────────────────────┐
 │ Server   │ DMs / Channel List                     │
@@ -361,7 +361,7 @@ Mobile Channel View (full-screen, swipe-back):
 
 **File Structure Changes:**
 
-```
+```text
 apps/web/components/layout/
   ├── mobile-bottom-tab-bar.tsx    ← MODIFY: 3 tabs (DMs, Notifications, You)
   ├── server-sidebar-wrapper.tsx   ← MODIFY: show inline on mobile home too
@@ -421,7 +421,7 @@ const showBottomNav = isMobile && !isChannelView
 
 **Concept:** Replace the 4-tab bottom nav with a dynamic server-aware bottom nav. When a server is active, the bottom nav morphs to show server-specific actions.
 
-```
+```text
 Mobile Home (no server selected):
 ┌───────────────────────────────────────────────────┐
 │ VortexChat                              [search]  │
@@ -475,7 +475,7 @@ Mobile Channel View (full-screen):
 
 **File Structure Changes:**
 
-```
+```text
 apps/web/
 ├── app/channels/
 │   ├── servers/                    ← NEW: servers tab page
@@ -484,17 +484,20 @@ apps/web/
 │   │   └── page.tsx
 │   └── you/                       ← NEW: replaces /profile
 │       └── page.tsx
-├── components/layout/
-│   ├── mobile-bottom-tab-bar.tsx  ← REWRITE: 4 tabs (Home, Servers, Notif, You)
-│   ├── server-list-page.tsx       ← NEW: full-page server list with cards
-│   ├── server-sidebar-wrapper.tsx ← MODIFY: hide on mobile entirely
-│   ├── channels-shell.tsx         ← MODIFY: route-depth-based layout
-│   └── mobile-nav.tsx             ← SIMPLIFY: remove drawer, keep swipe-back
+├── components/
+│   ├── servers/
+│   │   ├── server-list-page.tsx   ← NEW: full-page server list with cards
+│   │   └── server-card.tsx        ← NEW: individual server card component
+│   └── layout/
+│       ├── mobile-bottom-tab-bar.tsx  ← REWRITE: 4 tabs (Home, Servers, Notif, You)
+│       ├── server-sidebar-wrapper.tsx ← MODIFY: hide on mobile entirely
+│       ├── channels-shell.tsx         ← MODIFY: route-depth-based layout
+│       └── mobile-nav.tsx             ← SIMPLIFY: remove drawer, keep swipe-back
 ```
 
 **Route Changes:**
 
-```
+```text
 /channels/me              → Home (DMs)
 /channels/servers         ← NEW: Server list page
 /channels/notifications   ← NEW: Notifications
@@ -608,11 +611,11 @@ Server/channel navigation is only part of the picture. A full comparison against
 
 ### Target Bottom Nav
 
-```
+```text
 [💬 Messages]  [📡 Servers]  [🔔 Notifications]  [👤 You]
 ```
 
-This matches Discord's mobile layout exactly. Each tab maps to a real, full-featured page.
+This closely resembles Discord's mobile layout (Discord uses Servers / Messages ordering). Each tab maps to a real, full-featured page.
 
 ### Implementation Order
 
