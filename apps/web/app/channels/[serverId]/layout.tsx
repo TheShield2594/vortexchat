@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { redirect, notFound } from "next/navigation"
 import { createServerSupabaseClient, createServiceRoleClient, getAuthUser } from "@/lib/supabase/server"
 import { ChannelSidebar } from "@/components/layout/channel-sidebar"
@@ -201,7 +202,13 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
           initialMentionCounts={initialMentionCounts}
         />
         <main id="main-content" className="flex flex-1 overflow-hidden">
-          {children}
+          <Suspense fallback={
+            <div className="flex-1 flex items-center justify-center" style={{ background: "var(--theme-bg-primary)" }}>
+              <div className="animate-pulse text-sm" style={{ color: "var(--theme-text-muted)" }}>Loading channel...</div>
+            </div>
+          }>
+            {children}
+          </Suspense>
         </main>
         <MemberList key={`members-${params.serverId}`} serverId={params.serverId} initialMembers={initialMembers} />
       </div>

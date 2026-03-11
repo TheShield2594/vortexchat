@@ -510,6 +510,10 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       const resolvedUserId = peersRef.current.get(peerId)?.userId ?? ""
 
       if (oldPc) {
+        oldPc.onicecandidate = null
+        oldPc.oniceconnectionstatechange = null
+        oldPc.ontrack = null
+        oldPc.onnegotiationneeded = null
         oldPc.close()
         peerConnections.current.delete(peerId)
       }
@@ -526,8 +530,13 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
 
     function removePeerConnection(peerId: string, closeConnection = true) {
       const pc = peerConnections.current.get(peerId)
-      if (closeConnection) {
-        pc?.close()
+      if (pc) {
+        // Clear event handlers before closing to prevent stale callbacks and aid GC
+        pc.onicecandidate = null
+        pc.oniceconnectionstatechange = null
+        pc.ontrack = null
+        pc.onnegotiationneeded = null
+        if (closeConnection) pc.close()
       }
       peerConnections.current.delete(peerId)
       lastSeenByPeerRef.current.delete(peerId)

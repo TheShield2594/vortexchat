@@ -1159,3 +1159,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--theme-text-primary);
   border-color: var(--theme-bg-tertiary);
 }
+
+/* Big-emoji: messages that contain only 1-5 emojis render them larger */
+.big-emoji {
+  font-size: 2.5rem;
+  line-height: 1.2;
+}

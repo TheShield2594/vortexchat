@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useId, useRef, useState, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Copy, Check, Pin, PinOff } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff } from "lucide-react"
 import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
@@ -18,6 +18,8 @@ import { useShallow } from "zustand/react/shallow"
 import { LinkEmbed, extractFirstUrl, extractGiphyUrl, getEmbeddableGiphyUrl, stripUrlFromContent } from "@/components/chat/link-embed"
 import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
+import { getReplyPreviewText } from "@/components/chat/reply-preview"
+import { MessageMarkdown } from "@/components/chat/markdown-renderer"
 const CreateThreadModal = lazy(() => import("@/components/modals/create-thread-modal").then((m) => ({ default: m.CreateThreadModal })))
 const ReportModal = lazy(() => import("@/components/modals/report-modal").then((m) => ({ default: m.ReportModal })))
 import Image from "next/image"
@@ -66,94 +68,9 @@ function extractPoll(content: string | null): { question: string; options: strin
   }
 }
 
-const SUPPORTED_PRISM_LANGUAGES = new Set([
-  "markup", "html", "xml", "svg", "mathml", "css", "clike",
-  "javascript", "js", "jsx", "typescript", "ts", "tsx",
-  "bash", "shell", "python", "py", "ruby", "rb", "go",
-  "java", "kotlin", "swift", "c", "cpp", "csharp", "cs",
-  "json", "yaml", "markdown", "md", "sql", "graphql",
-  "diff", "git", "rust", "php", "r", "scala", "dart",
-  "haskell", "erlang", "elixir", "clojure", "groovy",
-  "objectivec", "perl", "lua", "coffeescript", "sass",
-  "scss", "less", "stylus", "toml", "ini", "dockerfile",
-  "nginx", "regex", "wasm", "text",
-])
 
-const HighlightedCode = lazy(() =>
-  import("prism-react-renderer").then((m) => ({
-    default: function HighlightedCodeInner({ code, language }: { code: string; language: string }) {
-      return (
-        <m.Highlight code={code} language={language} theme={m.themes.nightOwl}>
-          {({ style, tokens, getLineProps, getTokenProps }) => (
-            <pre
-              className="overflow-x-auto text-sm p-3 font-mono"
-              style={{ ...style, margin: 0 }}
-            >
-              {tokens.map((line, i) => (
-                <div key={i} {...getLineProps({ line })}>
-                  {line.map((token, key) => (
-                    <span key={key} {...getTokenProps({ token })} />
-                  ))}
-                </div>
-              ))}
-            </pre>
-          )}
-        </m.Highlight>
-      )
-    },
-  }))
-)
-
-function CodeBlock({ lang, code }: { lang: string; code: string }) {
-  const [copied, setCopied] = useState(false)
-
-  async function copyCode() {
-    try {
-      await navigator.clipboard.writeText(code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
-      console.error("Failed to copy code:", error)
-    }
-  }
-
-  const langKey = lang ? lang.toLowerCase() : ""
-  const language = langKey && SUPPORTED_PRISM_LANGUAGES.has(langKey) ? langKey : "text"
-
-  return (
-    <div className="relative my-1 group/code rounded overflow-hidden" style={{ border: "1px solid var(--theme-surface-elevated)" }}>
-      <div
-        className="flex items-center justify-between px-3 py-1"
-        style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-surface-elevated)" }}
-      >
-        {lang ? (
-          <span className="text-xs font-mono" style={{ color: "var(--theme-accent)" }}>{lang}</span>
-        ) : (
-          <span />
-        )}
-        <button
-          type="button"
-          onClick={copyCode}
-          aria-label="Copy code"
-          className="flex items-center gap-1 text-xs opacity-0 group-hover/code:opacity-100 focus-visible:opacity-100 transition-opacity motion-interactive"
-          style={{ color: copied ? "var(--theme-success)" : "var(--theme-text-muted)" }}
-        >
-          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-          {copied ? "Copied!" : "Copy"}
-        </button>
-      </div>
-      <Suspense
-        fallback={
-          <pre className="overflow-x-auto text-sm p-3 font-mono" style={{ background: "#011627", color: "#d6deeb", margin: 0 }}>
-            {code}
-          </pre>
-        }
-      >
-        <HighlightedCode code={code} language={language} />
-      </Suspense>
-    </div>
-  )
-}
+// Code block and syntax highlighting are now handled by MessageMarkdown
+// (components/chat/markdown-renderer.tsx).
 
 const EMOJI_RECENTS_KEY = "vortexchat:emoji-recents"
 const EMOJI_RECENTS_MAX = 18
@@ -499,112 +416,8 @@ export const MessageItem = memo(function MessageItem({
     setIsEditing(false)
   }
 
-  function renderInline(text: string, keyOffset: number): React.ReactNode[] {
-    // bold, italic, underline, strikethrough, inline-code, URL, mention, spoiler, :server_emoji:
-    const pattern = /(https?:\/\/[^\s>]+|\*\*([\s\S]*?)\*\*|\*([\s\S]*?)\*|__([\s\S]*?)__|~~([\s\S]*?)~~|`([^`\n]+)`|<@(\w+)>|\|\|([\s\S]*?)\|\||:([a-z0-9_]+):)/g
-    const parts: React.ReactNode[] = []
-    let lastIndex = 0
-    let match: RegExpExecArray | null
-    let key = keyOffset
-
-    while ((match = pattern.exec(text)) !== null) {
-      if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index))
-      const full = match[0]
-      if (/^https?:\/\//.test(full)) {
-        parts.push(<a key={key++} href={full} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "var(--theme-link)" }}>{full}</a>)
-      } else if (match[2] !== undefined) {
-        parts.push(<strong key={key++}>{match[2]}</strong>)
-      } else if (match[3] !== undefined) {
-        parts.push(<em key={key++}>{match[3]}</em>)
-      } else if (match[4] !== undefined) {
-        parts.push(<u key={key++}>{match[4]}</u>)
-      } else if (match[5] !== undefined) {
-        parts.push(<s key={key++}>{match[5]}</s>)
-      } else if (match[6] !== undefined) {
-        parts.push(<code key={key++} className="px-1 py-0.5 rounded text-sm font-mono" style={{ background: "rgba(0,0,0,0.3)" }}>{match[6]}</code>)
-      } else if (match[7] !== undefined) {
-        const isSelfMention = match[7] === currentUserId
-        parts.push(
-          <span
-            key={key++}
-            className="px-0.5 rounded"
-            style={{
-              color: isSelfMention ? "var(--theme-mention-self-color)" : "var(--theme-accent)",
-              background: isSelfMention ? "var(--theme-mention-self-bg)" : "rgba(88,101,242,0.1)",
-              border: isSelfMention ? "1px solid var(--theme-mention-self-border)" : undefined,
-            }}
-          >
-            @{match[7]}
-          </span>
-        )
-      } else if (match[8] !== undefined) {
-        parts.push(<SpoilerSpan key={key++}>{match[8]}</SpoilerSpan>)
-      } else if (match[9] !== undefined) {
-        parts.push(<ServerEmojiImage key={key++} name={match[9]} />)
-      }
-      lastIndex = match.index + full.length
-    }
-    if (lastIndex < text.length) parts.push(text.slice(lastIndex))
-    return parts
-  }
-
-  function renderTextBlock(text: string, keyOffset: number): React.ReactNode[] {
-    const lines = text.split("\n")
-    const result: React.ReactNode[] = []
-    let key = keyOffset
-    let i = 0
-    while (i < lines.length) {
-      const line = lines[i]
-      if (/^>\s?/.test(line)) {
-        const quoteLines: string[] = []
-        while (i < lines.length && /^>\s?/.test(lines[i])) {
-          quoteLines.push(lines[i].replace(/^>\s?/, ""))
-          i++
-        }
-        result.push(
-          <blockquote key={`bq-${key++}`} className="pl-3 my-1" style={{ borderLeft: "4px solid var(--theme-text-faint)", color: "var(--theme-text-secondary)" }}>
-            {quoteLines.map((ql, qi) => <div key={qi}>{renderInline(ql, key + qi * 100)}</div>)}
-          </blockquote>
-        )
-      } else {
-        const inlined = renderInline(line, key)
-        key += 100
-        if (i < lines.length - 1) {
-          result.push(<span key={`ln-${key++}`}>{inlined}<br /></span>)
-        } else {
-          result.push(<span key={`ln-${key++}`}>{inlined}</span>)
-        }
-        i++
-      }
-    }
-    return result
-  }
-
-  function renderContent(content: string): React.ReactNode {
-    const segments: React.ReactNode[] = []
-    let keyCounter = 0
-    let lastEnd = 0
-    // Split out fenced code blocks first
-    const codeBlockRe = /```(\w*)\n?([\s\S]*?)```/g
-    let cbMatch: RegExpExecArray | null
-    while ((cbMatch = codeBlockRe.exec(content)) !== null) {
-      const before = content.slice(lastEnd, cbMatch.index)
-      if (before) {
-        for (const node of renderTextBlock(before, keyCounter)) { segments.push(node); keyCounter++ }
-      }
-      const lang = cbMatch[1] || ""
-      const code = cbMatch[2]
-      segments.push(
-        <CodeBlock key={`cb-${keyCounter++}`} lang={lang} code={code} />
-      )
-      lastEnd = cbMatch.index + cbMatch[0].length
-    }
-    const remaining = content.slice(lastEnd)
-    if (remaining) {
-      for (const node of renderTextBlock(remaining, keyCounter)) { segments.push(node); keyCounter++ }
-    }
-    return segments
-  }
+  // Message content rendering is now handled by <MessageMarkdown /> component
+  // in components/chat/markdown-renderer.tsx (AST-based unified/remark pipeline).
 
   return (
     <>
@@ -651,7 +464,7 @@ export const MessageItem = memo(function MessageItem({
                 <span className="font-medium shrink-0" style={{ color: 'var(--theme-text-secondary)' }}>
                   {message.reply_to?.author?.display_name || message.reply_to?.author?.username || "Original message"}
                 </span>
-                <span className="truncate min-w-0">{message.reply_to?.content || "Message unavailable"}</span>
+                <span className="truncate min-w-0">{getReplyPreviewText(message.reply_to?.content ?? null)}</span>
               </button>
             ) : (
               <div
@@ -661,7 +474,7 @@ export const MessageItem = memo(function MessageItem({
                 <span className="font-medium shrink-0" style={{ color: 'var(--theme-text-secondary)' }}>
                   {message.reply_to?.author?.display_name || message.reply_to?.author?.username || "Original message"}
                 </span>
-                <span className="truncate min-w-0">{message.reply_to?.content || "Message unavailable"}</span>
+                <span className="truncate min-w-0">{getReplyPreviewText(message.reply_to?.content ?? null)}</span>
               </div>
             )
           )}
@@ -808,7 +621,7 @@ export const MessageItem = memo(function MessageItem({
                       className="text-sm leading-relaxed message-content break-words"
                       style={{ color: "var(--theme-text-normal)" }}
                     >
-                      {renderContent(messageBodyContent)}
+                      <MessageMarkdown content={messageBodyContent} currentUserId={currentUserId} serverId={activeServerId} />
                     </div>
                   )}
 
@@ -1420,20 +1233,3 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
   )
 }
 
-function SpoilerSpan({ children }: { children: React.ReactNode }) {
-  const [revealed, setRevealed] = useState(false)
-  return (
-    <span
-      onClick={() => setRevealed(true)}
-      className="rounded px-0.5 cursor-pointer select-none"
-      style={{
-        background: revealed ? "rgba(255,255,255,0.1)" : "var(--theme-bg-secondary)",
-        color: revealed ? "var(--theme-text-normal)" : "transparent",
-        transition: "color 0.1s",
-      }}
-      title={revealed ? undefined : "Click to reveal spoiler"}
-    >
-      {children}
-    </span>
-  )
-}

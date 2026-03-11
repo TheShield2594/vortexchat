@@ -10,7 +10,7 @@ import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserProfilePopover } from "@/components/user-profile-popover"
-import { ProfilePanel } from "@/components/profile/profile-panel"
+const ProfilePanel = lazy(() => import("@/components/profile/profile-panel").then((m) => ({ default: m.ProfilePanel })))
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"

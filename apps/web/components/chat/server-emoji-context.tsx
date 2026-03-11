@@ -1,11 +1,29 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from "react"
 
 interface ServerEmoji {
   id: string
   name: string
   image_url: string
+}
+
+// Module-level emoji cache with 5-minute TTL to persist across server navigations
+const emojiCache = new Map<string, { emojis: ServerEmoji[]; timestamp: number }>()
+const EMOJI_CACHE_TTL = 5 * 60 * 1000
+
+function getCachedEmojis(serverId: string): ServerEmoji[] | null {
+  const entry = emojiCache.get(serverId)
+  if (!entry) return null
+  if (Date.now() - entry.timestamp > EMOJI_CACHE_TTL) {
+    emojiCache.delete(serverId)
+    return null
+  }
+  return entry.emojis
+}
+
+function setCachedEmojis(serverId: string, emojis: ServerEmoji[]) {
+  emojiCache.set(serverId, { emojis, timestamp: Date.now() })
 }
 
 interface ServerEmojiContextValue {
@@ -27,15 +45,26 @@ export function useServerEmojis() {
 
 export type { ServerEmoji }
 
-/** Fetches and caches server custom emojis, providing a context for child components to resolve :emoji: tokens. */
+/** Fetches and caches server custom emojis, providing a context for child components to resolve :emoji: tokens.
+ *  Emoji lists are cached in module-level memory with a 5-minute TTL so that navigating
+ *  between servers doesn't re-fetch on every switch. */
 export function ServerEmojiProvider({ serverId, initialEmojis, children }: { serverId: string; initialEmojis?: ServerEmoji[]; children: React.ReactNode }) {
-  const [emojis, setEmojis] = useState<ServerEmoji[]>(initialEmojis ?? [])
+  const [emojis, setEmojis] = useState<ServerEmoji[]>(() => {
+    // Prefer cached data, then SSR-provided initial data
+    return getCachedEmojis(serverId) ?? initialEmojis ?? []
+  })
   const controllerRef = useRef<AbortController | null>(null)
 
-  // When serverId changes (navigating between servers), reset to SSR-provided data
+  // When serverId changes, use cache if available, else fall back to SSR data
   useEffect(() => {
-    setEmojis(initialEmojis ?? [])
+    const cached = getCachedEmojis(serverId)
+    setEmojis(cached ?? initialEmojis ?? [])
   }, [serverId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cache emojis whenever they change
+  useEffect(() => {
+    if (emojis.length > 0) setCachedEmojis(serverId, emojis)
+  }, [serverId, emojis])
 
   const reload = useCallback(async () => {
     controllerRef.current?.abort()
@@ -43,7 +72,11 @@ export function ServerEmojiProvider({ serverId, initialEmojis, children }: { ser
     controllerRef.current = controller
     try {
       const res = await fetch(`/api/servers/${serverId}/emojis`, { signal: controller.signal })
-      if (res.ok && !controller.signal.aborted) setEmojis(await res.json())
+      if (res.ok && !controller.signal.aborted) {
+        const data = await res.json()
+        setEmojis(data)
+        setCachedEmojis(serverId, data)
+      }
     } catch (err: any) {
       if (err.name !== "AbortError") console.error("Failed to reload emojis", err)
     }
@@ -62,18 +95,23 @@ export function ServerEmojiProvider({ serverId, initialEmojis, children }: { ser
   )
 }
 
-/** Inline component to render :emoji_name: tokens. */
-export function ServerEmojiImage({ name }: { name: string }) {
+/** Inline component to render :emoji_name: tokens.
+ *  Falls back to :name: text when the emoji is unknown or the image fails to load. */
+export function ServerEmojiImage({ name, size = 22 }: { name: string; size?: number }) {
   const { getEmoji } = useServerEmojis()
+  const [broken, setBroken] = useState(false)
   const emoji = getEmoji(name)
-  if (!emoji) return <span>:{name}:</span>
+  if (!emoji || broken) return <span>:{name}:</span>
   return (
     <img
       src={emoji.image_url}
       alt={`:${name}:`}
       title={`:${name}:`}
+      loading="lazy"
+      draggable={false}
       className="inline-block align-middle"
-      style={{ width: 22, height: 22, objectFit: "contain" }}
+      style={{ width: size, height: size, objectFit: "contain" }}
+      onError={() => setBroken(true)}
     />
   )
 }

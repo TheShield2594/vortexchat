@@ -12,7 +12,7 @@ import { useShallow } from "zustand/react/shallow"
 import type { AttachmentRow, ChannelRow, MessageWithAuthor, ThreadRow } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
-import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
+import { useRealtimeMessages, type RealtimeStatus } from "@/hooks/use-realtime-messages"
 import { useTyping } from "@/hooks/use-typing"
 import { useToast } from "@/components/ui/use-toast"
 const ThreadPanel = lazy(() => import("@/components/chat/thread-panel").then((m) => ({ default: m.ThreadPanel })))
@@ -66,8 +66,8 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 
 /** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen } = useAppStore(
-    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen }))
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages }))
   )
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
@@ -86,6 +86,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
+  const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [viewportWidth, setViewportWidth] = useState(1280)
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [focusedActionIndex, setFocusedActionIndex] = useState(0)
@@ -391,6 +393,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
 
+  // Toast after sustained disconnection (30s)
+  useEffect(() => {
+    if (realtimeStatus === "disconnected") {
+      disconnectTimerRef.current = setTimeout(() => {
+        toast({
+          variant: "destructive",
+          title: "Connection lost",
+          description: "Unable to reconnect to live updates. New messages may not appear until the page is refreshed.",
+        })
+      }, 30_000)
+    } else {
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current)
+        disconnectTimerRef.current = null
+      }
+    }
+    return () => {
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current)
+        disconnectTimerRef.current = null
+      }
+    }
+  }, [realtimeStatus, toast])
+
   // Persist last-visited channel per server for fast navigation on next session
   useEffect(() => {
     try {
@@ -405,6 +431,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   useEffect(() => {
     messagesRef.current = messages
   }, [messages])
+
+  // Cache messages when leaving a channel (component unmount or channel switch)
+  useEffect(() => {
+    return () => {
+      const msgs = messagesRef.current
+      if (msgs.length > 0) {
+        const scrollTop = messageScrollerRef.current?.scrollTop ?? 0
+        cacheMessages(channel.id, msgs, scrollTop)
+      }
+    }
+  }, [channel.id, cacheMessages])
 
   useEffect(() => {
     messagesRef.current = initialMessages
@@ -505,17 +542,32 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       // Restore scroll: jump to where the anchor message ended up in the
       // updated list (its index has shifted by the number of prepended messages).
+      // Use a double-rAF to ensure React has committed the state update and the
+      // virtualizer has recalculated row measurements before we scroll.
       requestAnimationFrame(() => {
-        if (!anchorId) return
-        const updatedMessages = messagesRef.current
-        const newAnchorIndex = updatedMessages.findIndex((m) => m.id === anchorId)
-        if (newAnchorIndex !== -1) {
-          virtualizer.scrollToIndex(newAnchorIndex, { align: "start", behavior: "auto" })
-        } else if (messageScrollerRef.current) {
-          // Fallback: shift by the measured scrollHeight delta
-          const scroller = messageScrollerRef.current
-          scroller.scrollTop = prevScrollTop + (scroller.scrollHeight - prevScrollHeight)
-        }
+        requestAnimationFrame(() => {
+          if (!anchorId) return
+          const updatedMessages = messagesRef.current
+          const newAnchorIndex = updatedMessages.findIndex((m) => m.id === anchorId)
+          if (newAnchorIndex !== -1) {
+            virtualizer.scrollToIndex(newAnchorIndex, { align: "start", behavior: "auto" })
+            // After the virtualizer adjusts, apply fine-grained offset correction
+            // in case the estimated size differs from actual measured size.
+            requestAnimationFrame(() => {
+              if (!messageScrollerRef.current) return
+              const scroller = messageScrollerRef.current
+              const expectedDelta = scroller.scrollHeight - prevScrollHeight
+              const actualDelta = scroller.scrollTop - prevScrollTop
+              if (Math.abs(expectedDelta - actualDelta) > 4) {
+                scroller.scrollTop = prevScrollTop + expectedDelta
+              }
+            })
+          } else if (messageScrollerRef.current) {
+            // Fallback: shift by the measured scrollHeight delta
+            const scroller = messageScrollerRef.current
+            scroller.scrollTop = prevScrollTop + (scroller.scrollHeight - prevScrollHeight)
+          }
+        })
       })
     })()
 
@@ -876,6 +928,29 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [returnToContext, showReturnToContext])
 
+  // Backfill messages missed during a Supabase Realtime disconnection
+  const backfillMissedMessages = useCallback(async () => {
+    const current = messagesRef.current
+    const lastMessage = current[current.length - 1]
+    if (!lastMessage) return
+    try {
+      const res = await fetch(
+        `/api/messages?channelId=${channel.id}&after=${encodeURIComponent(lastMessage.created_at)}&limit=100`
+      )
+      if (!res.ok) return
+      const missed = (await res.json()) as MessageWithAuthor[]
+      if (!Array.isArray(missed) || missed.length === 0) return
+      setMessages((prev) => {
+        const known = new Set(prev.map((m) => m.id))
+        const newItems = missed.filter((m) => !known.has(m.id))
+        if (newItems.length === 0) return prev
+        return sortMessagesChronologically([...prev, ...newItems])
+      })
+    } catch {
+      // Best-effort backfill — realtime events will catch up
+    }
+  }, [channel.id])
+
   useRealtimeMessages(
     channel.id,
     (newMessage) => {
@@ -909,7 +984,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           return { ...m, reactions: m.reactions.filter((r) => !(r.emoji === reaction.emoji && r.user_id === reaction.user_id)) }
         })
       )
-    }
+    },
+    setRealtimeStatus,
+    backfillMissedMessages,
   )
 
   async function handleSendMessage(content: string, attachmentFiles?: File[], onUploadProgress?: (percent: number) => void, abortSignal?: AbortSignal): Promise<void> {
@@ -1455,6 +1532,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             channelId={channel.id}
             lastReadAt={initialLastReadAt}
           />
+        )}
+
+        {realtimeStatus === "disconnected" && (
+          <div
+            className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium flex-shrink-0"
+            style={{ background: "color-mix(in srgb, var(--theme-warning) 15%, transparent)", color: "var(--theme-warning)" }}
+            role="status"
+          >
+            <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--theme-warning)" }} />
+            Reconnecting to chat&hellip;
+          </div>
         )}
 
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">

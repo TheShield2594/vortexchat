@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import type { ServerRow, ChannelRow, UserRow } from "@/types/database"
+import type { ServerRow, ChannelRow, UserRow, MessageWithAuthor } from "@/types/database"
 
 const MEMBER_LIST_STORAGE_KEY = "vortexchat:ui:member-list-open"
 const THREAD_PANEL_STORAGE_KEY = "vortexchat:ui:thread-panel-open"
@@ -108,6 +108,11 @@ interface AppState {
   setNotificationMode: (entityId: string, mode: "all" | "mentions" | "muted") => void
   removeNotificationMode: (entityId: string) => void
   loadNotificationSettings: () => Promise<void>
+
+  // Message cache (per-channel, most recent messages for instant channel switching)
+  messageCache: Record<string, { messages: MessageWithAuthor[]; scrollOffset: number; timestamp: number }>
+  cacheMessages: (channelId: string, messages: MessageWithAuthor[], scrollOffset?: number) => void
+  invalidateMessageCache: (channelId: string) => void
 
   // Voice state
   voiceChannelId: string | null
@@ -255,6 +260,34 @@ export const useAppStore = create<AppState>((set) => ({
       // Non-critical — mute indicators just won't show
     }
   },
+
+  messageCache: {},
+  cacheMessages: (channelId, messages, scrollOffset = 0) =>
+    set((state) => {
+      const cache = { ...state.messageCache }
+      // Keep only last 100 messages per channel and cap at 10 cached channels
+      cache[channelId] = {
+        messages: messages.slice(-100),
+        scrollOffset,
+        timestamp: Date.now(),
+      }
+      // Evict oldest if over 10 channels cached
+      const keys = Object.keys(cache)
+      if (keys.length > 10) {
+        let oldestKey = keys[0]
+        for (const k of keys) {
+          if (cache[k].timestamp < cache[oldestKey].timestamp) oldestKey = k
+        }
+        delete cache[oldestKey]
+      }
+      return { messageCache: cache }
+    }),
+  invalidateMessageCache: (channelId) =>
+    set((state) => {
+      const cache = { ...state.messageCache }
+      delete cache[channelId]
+      return { messageCache: cache }
+    }),
 
   voiceChannelId: null,
   voiceServerId: null,

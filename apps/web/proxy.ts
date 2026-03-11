@@ -17,6 +17,7 @@ const PUBLIC_ROUTES = [
   "/register",
   "/api/auth",
   "/auth/callback",
+  "/invite",
 ]
 
 export async function proxy(request: NextRequest) {
