@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { ArrowLeft, Users } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -32,6 +33,16 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
       memberListOpen: s.memberListOpen,
     }))
   )
+
+  // On mobile, use local state for the member list overlay so that entering
+  // a channel always shows messages first. Desktop uses the persisted store value.
+  const [mobileMemberListOpen, setMobileMemberListOpen] = useState(false)
+
+  // Reset mobile member list whenever the channel route changes
+  const routeChannelSegment = pathname.split("/").filter(Boolean)[2]
+  useEffect(() => {
+    if (isMobile) setMobileMemberListOpen(false)
+  }, [isMobile, routeChannelSegment])
 
   // Determine if we are viewing a channel (not just the server root)
   const pathParts = pathname.split("/").filter(Boolean)
@@ -102,16 +113,22 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           </span>
           <button
             type="button"
-            onClick={() => toggleMemberList()}
+            onClick={() => {
+              if (isMobile) {
+                setMobileMemberListOpen((v) => !v)
+              } else {
+                toggleMemberList()
+              }
+            }}
             className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
-            style={{ color: memberListOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+            style={{ color: (isMobile ? mobileMemberListOpen : memberListOpen) ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             aria-label="Toggle member list"
           >
             <Users className="w-5 h-5" />
           </button>
         </div>
         {/* Channel content area or mobile member list */}
-        {memberListOpen ? (
+        {(isMobile ? mobileMemberListOpen : memberListOpen) ? (
           <div className="flex-1 overflow-hidden">{memberList}</div>
         ) : (
           <main id="main-content" className="flex flex-1 overflow-hidden">
