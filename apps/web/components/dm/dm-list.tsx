@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Plus, Loader2 } from "lucide-react"
@@ -11,6 +11,7 @@ import { Skeleton, ChannelRowSkeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { FriendsSidebar } from "./friends-sidebar"
 import type { FriendWithUser } from "@/types/database"
 
 interface DMChannel {
@@ -125,8 +126,13 @@ function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
   )
 }
 
+type DMTab = "messages" | "friends"
+
 /** Sidebar list of DM conversations with unread indicators, last-message previews, and real-time channel updates. */
 export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get("tab") === "friends" ? "friends" : "messages"
+  const [activeTab, setActiveTab] = useState<DMTab>(initialTab)
   const [channels, setChannels] = useState<DMChannel[]>([])
   const [loading, setLoading] = useState(true)
   const [newDmOpen, setNewDmOpen] = useState(false)
@@ -230,102 +236,131 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
         onSelectFriend={startDM}
       />
 
-      {/* Header */}
-      <div className="px-4 py-3 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-muted)" }}>
-          Direct Messages
-        </span>
-        <button
-          onClick={() => setNewDmOpen(true)}
-          className="w-4 h-4 hover:text-white transition-colors"
-          style={{ color: "var(--theme-text-muted)" }}
-          title="New DM"
+      {/* Segmented header: Messages / Friends */}
+      <div className="px-3 pt-3 pb-2 flex items-center gap-2">
+        <div
+          className="flex flex-1 rounded-md p-0.5"
+          style={{ background: "var(--theme-bg-tertiary)" }}
         >
-          <Plus className="w-4 h-4" />
-        </button>
+          {(["messages", "friends"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "flex-1 px-3 py-1.5 rounded text-xs font-semibold transition-colors capitalize",
+                activeTab === tab
+                  ? "text-white"
+                  : "hover:text-white/70"
+              )}
+              style={{
+                background: activeTab === tab ? "var(--theme-bg-secondary)" : "transparent",
+                color: activeTab === tab ? "var(--theme-text-primary)" : "var(--theme-text-muted)",
+              }}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        {activeTab === "messages" && (
+          <button
+            onClick={() => setNewDmOpen(true)}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition-colors flex-shrink-0"
+            style={{ color: "var(--theme-text-muted)" }}
+            title="New DM"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {/* Channel list */}
-      <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
-        {channels.length === 0 && (
-          <div className="px-2 py-4">
-            <BrandedEmptyState
-              icon={Users}
-              title="Your DMs are quiet"
-              description="Start a new conversation to see your messages, status updates, and call history here."
-              hint="Tip: Right-click a member and choose Message to open a DM."
-            />
-          </div>
-        )}
-        {channels.map((ch) => {
-          const isActive = pathname === `/channels/me/${ch.id}`
-          const displayName = ch.is_group
-            ? (ch.name || ch.members.map((m) => m.display_name || m.username).join(", "))
-            : (ch.partner?.display_name || ch.partner?.username || "Unknown")
-          const initials = displayName.slice(0, 2).toUpperCase()
+      {/* Tab content */}
+      {activeTab === "friends" ? (
+        <div className="flex-1 overflow-hidden">
+          <FriendsSidebar compact onStartDM={(friendId) => { startDM(friendId); onNavigate?.() }} />
+        </div>
+      ) : (
+        /* Channel list */
+        <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
+          {channels.length === 0 && (
+            <div className="px-2 py-4">
+              <BrandedEmptyState
+                icon={Users}
+                title="Your DMs are quiet"
+                description="Start a new conversation to see your messages, status updates, and call history here."
+                hint="Tip: Right-click a member and choose Message to open a DM."
+              />
+            </div>
+          )}
+          {channels.map((ch) => {
+            const isActive = pathname === `/channels/me/${ch.id}`
+            const displayName = ch.is_group
+              ? (ch.name || ch.members.map((m) => m.display_name || m.username).join(", "))
+              : (ch.partner?.display_name || ch.partner?.username || "Unknown")
+            const initials = displayName.slice(0, 2).toUpperCase()
 
-          return (
-            <button
-              key={ch.id}
-              onClick={() => { router.push(`/channels/me/${ch.id}`); onNavigate?.() }}
-              className={cn(
-                "w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-left interactive-list-item",
-                isActive
-                  ? "motion-selected text-white"
-                  : "surface-hover text-gray-400 hover:text-gray-200"
-              )}
-            >
-              {/* Avatar */}
-              <div className="relative flex-shrink-0">
-                {ch.is_group ? (
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{ background: "var(--theme-accent)" }}
-                  >
-                    <Users className="w-4 h-4 text-white" />
-                  </div>
-                ) : (
-                  <Avatar className="w-8 h-8">
-                    {ch.partner?.avatar_url && <AvatarImage src={ch.partner.avatar_url} />}
-                    <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "11px" }}>
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+            return (
+              <button
+                key={ch.id}
+                onClick={() => { router.push(`/channels/me/${ch.id}`); onNavigate?.() }}
+                className={cn(
+                  "w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-left interactive-list-item",
+                  isActive
+                    ? "motion-selected text-white"
+                    : "surface-hover text-gray-400 hover:text-gray-200"
                 )}
-                {!ch.is_group && ch.partner && (
-                  <StatusDot status={ch.partner.status} />
-                )}
-              </div>
-
-              {/* Name + preview */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <span
-                    className={cn("text-sm font-medium truncate", ch.is_unread && !isActive ? "text-white" : "")}
-                  >
-                    {displayName}{ch.is_encrypted ? " 🔒" : ""}
-                  </span>
-                  {ch.latest_message && (
-                    <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-faint)" }}>
-                      {formatTime(ch.latest_message.created_at)}
-                    </span>
+              >
+                {/* Avatar */}
+                <div className="relative flex-shrink-0">
+                  {ch.is_group ? (
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ background: "var(--theme-accent)" }}
+                    >
+                      <Users className="w-4 h-4 text-white" />
+                    </div>
+                  ) : (
+                    <Avatar className="w-8 h-8">
+                      {ch.partner?.avatar_url && <AvatarImage src={ch.partner.avatar_url} />}
+                      <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "11px" }}>
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  {!ch.is_group && ch.partner && (
+                    <StatusDot status={ch.partner.status} />
                   )}
                 </div>
-                {ch.latest_message && (
-                  <p className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
-                    {ch.latest_message.content}
-                  </p>
-                )}
-              </div>
 
-              {/* Unread dot */}
-              {ch.is_unread && !isActive && (
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--theme-accent)" }} aria-label="Unread messages" />
-              )}
-            </button>
-          )
-        })}
-      </div>
+                {/* Name + preview */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <span
+                      className={cn("text-sm font-medium truncate", ch.is_unread && !isActive ? "text-white" : "")}
+                    >
+                      {displayName}{ch.is_encrypted ? " 🔒" : ""}
+                    </span>
+                    {ch.latest_message && (
+                      <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-faint)" }}>
+                        {formatTime(ch.latest_message.created_at)}
+                      </span>
+                    )}
+                  </div>
+                  {ch.latest_message && (
+                    <p className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
+                      {ch.latest_message.content}
+                    </p>
+                  )}
+                </div>
+
+                {/* Unread dot */}
+                {ch.is_unread && !isActive && (
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--theme-accent)" }} aria-label="Unread messages" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

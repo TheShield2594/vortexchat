@@ -2,37 +2,67 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Compass, MessagesSquare, Users, UserRound } from "lucide-react"
+import { MessagesSquare, Server, Bell, UserRound } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
+import { useAppStore } from "@/lib/stores/app-store"
 
-const TABS = [
-  { href: "/channels/discover", label: "Discover", icon: Compass },
-  { href: "/channels/me", label: "DMs", icon: MessagesSquare },
-  { href: "/channels/friends", label: "Friends", icon: Users },
-  { href: "/channels/profile", label: "Profile", icon: UserRound },
+const RESERVED_PREFIXES = [
+  "/channels/me",
+  "/channels/notifications",
+  "/channels/you",
+  "/channels/friends",
+  "/channels/discover",
+  "/channels/servers",
+  "/channels/profile",
 ]
 
+const TABS = [
+  { href: "/channels/me", label: "Messages", icon: MessagesSquare },
+  { href: "/channels/servers", label: "Servers", icon: Server },
+  { href: "/channels/notifications", label: "Notifications", icon: Bell },
+  { href: "/channels/you", label: "You", icon: UserRound },
+]
+
+function isServerRoute(pathname: string): boolean {
+  return (
+    pathname.startsWith("/channels/") &&
+    !RESERVED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  )
+}
+
 function isTabActive(href: string, pathname: string): boolean {
-  if (href === "/channels/me") return pathname.startsWith("/channels/me")
-  if (href === "/channels/friends") return pathname.startsWith("/channels/friends")
-  if (href === "/channels/profile") return pathname.startsWith("/channels/profile")
-  // Discover tab is active for the discover page and any server channel pages
-  if (href === "/channels/discover") {
+  if (href === "/channels/me") {
+    return pathname.startsWith("/channels/me") || pathname.startsWith("/channels/friends")
+  }
+  if (href === "/channels/servers") {
     return (
+      pathname === "/channels/servers" ||
       pathname.startsWith("/channels/discover") ||
-      // Server channel routes: /channels/[serverId]/... (not /me, /friends, /profile, /discover)
-      (pathname.startsWith("/channels/") &&
-        !pathname.startsWith("/channels/me") &&
-        !pathname.startsWith("/channels/friends") &&
-        !pathname.startsWith("/channels/profile") &&
-        !pathname.startsWith("/channels/discover"))
+      isServerRoute(pathname)
     )
+  }
+  if (href === "/channels/notifications") return pathname.startsWith("/channels/notifications")
+  if (href === "/channels/you") {
+    return pathname.startsWith("/channels/you") || pathname.startsWith("/channels/profile")
   }
   return pathname === href
 }
 
+/** True when the user is inside a full-screen channel view (server channel or DM conversation). */
+function isFullScreenChannel(pathname: string): boolean {
+  // /channels/me/:channelId — DM conversation
+  if (pathname.startsWith("/channels/me/") && pathname.split("/").length >= 4) return true
+  // /channels/:serverId/:channelId — server channel (not a reserved route)
+  if (isServerRoute(pathname) && pathname.split("/").length >= 4) return true
+  return false
+}
+
 export function MobileBottomTabBar() {
   const pathname = usePathname()
+  const notificationUnreadCount = useAppStore((s) => s.notificationUnreadCount)
+
+  // Hide the bottom nav when viewing a channel (full-screen message view)
+  if (isFullScreenChannel(pathname)) return null
 
   return (
     <nav
@@ -47,6 +77,7 @@ export function MobileBottomTabBar() {
       <ul className="grid grid-cols-4 h-16">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = isTabActive(href, pathname)
+          const showBadge = href === "/channels/notifications" && notificationUnreadCount > 0
           return (
             <li key={label}>
               <Link
@@ -54,7 +85,17 @@ export function MobileBottomTabBar() {
                 className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-[11px]", active && "font-semibold")}
                 style={{ color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
               >
-                <Icon className="h-4 w-4" />
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {showBadge && (
+                    <span
+                      className="absolute -top-1 -right-2 min-w-[16px] h-4 rounded-full flex items-center justify-center text-[10px] font-bold px-0.5"
+                      style={{ background: "var(--theme-danger)", color: "white" }}
+                    >
+                      {notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}
+                    </span>
+                  )}
+                </span>
                 <span>{label}</span>
               </Link>
             </li>

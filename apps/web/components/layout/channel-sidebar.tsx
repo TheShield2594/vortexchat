@@ -253,7 +253,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   isDraggingRef.current = activeId !== null
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
   // Perf: log mount time relative to navigation start
