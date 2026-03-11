@@ -405,6 +405,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
+                inputMode="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required

@@ -120,6 +120,7 @@ export function DmLocalSearchModal({
           <input
             ref={inputRef}
             type="text"
+            inputMode="search"
             value={query}
             onChange={handleInput}
             placeholder={`${placeholderLabel} — try from:<userId> before:2026-01-01`}

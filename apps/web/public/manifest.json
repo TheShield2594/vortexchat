@@ -4,6 +4,7 @@
   "description": "The chat platform for focused teams and creative communities.",
   "start_url": "/channels/me",
   "display": "standalone",
+  "display_override": ["window-controls-overlay"],
   "background_color": "#1b1f31",
   "theme_color": "#00e5ff",
   "orientation": "portrait-primary",
@@ -30,6 +31,28 @@
       "name": "Friends",
       "short_name": "Friends",
       "url": "/channels/me",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "New Direct Message",
+      "short_name": "New DM",
+      "url": "/channels/me?new=1",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Discover Servers",
+      "short_name": "Discover",
+      "url": "/discover",
       "icons": [
         {
           "src": "/icon-192.png",

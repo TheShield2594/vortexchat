@@ -87,6 +87,32 @@ self.addEventListener("push", (event) => {
   )
 })
 
+// App badge — update the badge count on the app icon
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "APP_UPDATE_BADGE") {
+    const count = event.data.count
+    if (navigator.setAppBadge) {
+      if (count > 0) {
+        navigator.setAppBadge(count)
+      } else {
+        navigator.clearAppBadge()
+      }
+    }
+  }
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting()
+  }
+})
+
+// Re-subscribe if the browser rotates push keys
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      clients.forEach((client) => client.postMessage({ type: "PUSH_SUBSCRIPTION_CHANGED" }))
+    })
+  )
+})
+
 // Notification click — open or focus the app
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
