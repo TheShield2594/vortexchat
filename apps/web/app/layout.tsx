@@ -3,6 +3,9 @@ import { Inter, Space_Grotesk } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { PwaInstallBanner } from "@/components/pwa-install-banner"
+import { SwUpdateToast } from "@/components/sw-update-toast"
+import { SplashScreen } from "@/components/splash-screen"
+import { PushPermissionPrompt } from "@/components/push-permission-prompt"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" })
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" })
@@ -32,6 +35,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   userScalable: true,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: "#00e5ff",
 }
 
@@ -44,6 +49,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <meta name="format-detection" content="telephone=no" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1170-2532.svg" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1284-2778.svg" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1125-2436.svg" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
@@ -55,9 +61,12 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`} style={{ background: "var(--theme-bg-primary)" }}>
         <a href="#main-content" className="skip-nav-link">Skip to main content</a>
+        <SplashScreen />
         {children}
         <Toaster />
         <PwaInstallBanner />
+        <SwUpdateToast />
+        <PushPermissionPrompt />
       </body>
     </html>
   )

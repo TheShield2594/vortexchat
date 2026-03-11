@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { MessageWithAuthor, MessageRow, ReactionRow } from "@/types/database"
 
@@ -22,6 +22,9 @@ export function useRealtimeMessages(
 
   useEffect(() => {
     wasConnectedRef.current = false
+    // Effect-local flag — avoids the race condition of a shared ref when
+    // channelId changes rapidly (each effect instance has its own copy).
+    let isCleaningUp = false
 
     const channel = supabase
       .channel(`messages:${channelId}`)
@@ -91,12 +94,34 @@ export function useRealtimeMessages(
           }
           wasConnectedRef.current = true
           onStatusChange?.("connected")
-        } else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          // Notify the connection-status FSM that realtime is healthy
+          window.dispatchEvent(new CustomEvent("vortex:realtime-connect"))
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           onStatusChange?.("disconnected")
+          // Notify the connection-status FSM that realtime dropped
+          window.dispatchEvent(new CustomEvent("vortex:realtime-disconnect"))
+        } else if (status === "CLOSED") {
+          // Only treat CLOSED as a disconnect if it wasn't an intentional
+          // cleanup (e.g. channel switch calling supabase.removeChannel)
+          if (!isCleaningUp) {
+            onStatusChange?.("disconnected")
+            window.dispatchEvent(new CustomEvent("vortex:realtime-disconnect"))
+          }
         }
       })
 
+    // Listen for reconnect requests from the connection-status FSM.
+    // When use-connection-status dispatches vortex:realtime-retry (e.g. after
+    // coming back online), re-subscribe the Supabase channel.
+    function onRealtimeRetry() {
+      supabase.removeChannel(channel)
+      channel.subscribe()
+    }
+    window.addEventListener("vortex:realtime-retry", onRealtimeRetry)
+
     return () => {
+      isCleaningUp = true
+      window.removeEventListener("vortex:realtime-retry", onRealtimeRetry)
       supabase.removeChannel(channel)
     }
   }, [channelId])

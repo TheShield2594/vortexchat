@@ -8,6 +8,40 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Service worker must always be fresh — no caching
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        // Long-lived cache for PWA icons and splash screens
+        source: "/icon-:size(\\d+).png",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/apple-touch-icon.png",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/startup/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        // Manifest should refresh periodically
+        source: "/manifest.json",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400" },
+        ],
+      },
+      {
         // Apply security headers to all routes
         source: "/(.*)",
         headers: [
@@ -72,6 +106,37 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: ['@vortex/shared'],
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Split heavy client-side dependencies into separate chunks
+      // so the initial bundle stays small on low-end mobile devices
+      config.optimization.splitChunks = {
+        ...config.optimization.splitChunks,
+        cacheGroups: {
+          ...config.optimization.splitChunks?.cacheGroups,
+          livekit: {
+            test: /[\\/]node_modules[\\/](livekit-client|@livekit)[\\/]/,
+            name: "livekit",
+            chunks: "all",
+            priority: 30,
+          },
+          supabase: {
+            test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+            name: "supabase",
+            chunks: "all",
+            priority: 25,
+          },
+          sentry: {
+            test: /[\\/]node_modules[\\/]@sentry[\\/]/,
+            name: "sentry",
+            chunks: "all",
+            priority: 20,
+          },
+        },
+      }
+    }
+    return config
+  },
 }
 
 module.exports = withBundleAnalyzer(withSentryConfig(nextConfig, {

@@ -26,6 +26,7 @@ export function useChatOutbox({
   const [outbox, setOutbox] = useState<OutboxEntry[]>([])
   const [draft, setDraftState] = useState("")
   const [isOnline, setIsOnline] = useState(initialIsOnline)
+  const [flushTrigger, setFlushTrigger] = useState(0)
   const outboxRef = useRef<OutboxEntry[]>([])
   const draftRef = useRef("")
   const draftPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -87,11 +88,17 @@ export function useChatOutbox({
   useEffect(() => {
     const onOnline = () => setIsOnline(true)
     const onOffline = () => setIsOnline(false)
+    // vortex:flush-outbox fires on realtime reconnect even when isOnline is
+    // already true.  Incrementing flushTrigger ensures the flush effect in
+    // chat-area re-runs regardless of the current isOnline value.
+    const onFlush = () => setFlushTrigger((n) => n + 1)
     window.addEventListener("online", onOnline)
     window.addEventListener("offline", onOffline)
+    window.addEventListener("vortex:flush-outbox", onFlush)
     return () => {
       window.removeEventListener("online", onOnline)
       window.removeEventListener("offline", onOffline)
+      window.removeEventListener("vortex:flush-outbox", onFlush)
     }
   }, [])
 
@@ -99,6 +106,7 @@ export function useChatOutbox({
     draft,
     draftPersistTimerRef,
     draftRef,
+    flushTrigger,
     isOnline,
     outbox,
     outboxRef,

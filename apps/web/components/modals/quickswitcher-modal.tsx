@@ -186,6 +186,7 @@ export function QuickSwitcherModal({ onClose }: Props) {
           <input
             ref={inputRef}
             type="text"
+            inputMode="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Where would you like to go?"

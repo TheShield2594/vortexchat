@@ -122,6 +122,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
           <input
             ref={inputRef}
             type="text"
+            inputMode="search"
             value={text}
             onChange={handleTextInput}
             placeholder="Search messages, tasks, docs…"

@@ -12,16 +12,27 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export function usePushNotifications() {
-  const subscribe = useCallback(async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
-    if (!PUBLIC_VAPID_KEY) return
+  const subscribe = useCallback(async (): Promise<boolean> => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false
+    if (!PUBLIC_VAPID_KEY) return false
 
     try {
-      const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
-      await navigator.serviceWorker.ready
+      // Prefer .ready (resolved by useSwRegistration's register call).
+      // If no SW is registered yet (e.g. SwUpdateToast not mounted), fall
+      // back to getRegistration() then register() so push doesn't hang.
+      let registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<ServiceWorkerRegistration | undefined>((resolve) => setTimeout(resolve, 3000)),
+      ])
+      if (!registration) {
+        registration = await navigator.serviceWorker.getRegistration("/")
+      }
+      if (!registration) {
+        registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
+      }
 
       const permission = await Notification.requestPermission()
-      if (permission !== "granted") return
+      if (permission !== "granted") return false
 
       const existing = await registration.pushManager.getSubscription()
       const subscription =
@@ -32,13 +43,19 @@ export function usePushNotifications() {
         }))
 
       const { endpoint, keys } = subscription.toJSON() as any
-      await fetch("/api/push", {
+      const res = await fetch("/api/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint, keys }),
       })
+      if (!res.ok) {
+        console.warn("Push subscription server registration failed:", res.status)
+        return false
+      }
+      return true
     } catch (e) {
       console.warn("Push notification setup failed:", e)
+      return false
     }
   }, [])
 
@@ -55,6 +72,12 @@ export function usePushNotifications() {
     ) {
       subscribe()
     }
+
+    // Re-subscribe when the browser rotates push keys (forwarded from SW
+    // via useSwRegistration → vortex:resubscribe-push custom event)
+    const onResubscribe = () => subscribe()
+    window.addEventListener("vortex:resubscribe-push", onResubscribe)
+    return () => window.removeEventListener("vortex:resubscribe-push", onResubscribe)
   }, [subscribe])
 
   return { subscribe }

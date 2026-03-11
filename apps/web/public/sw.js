@@ -87,6 +87,70 @@ self.addEventListener("push", (event) => {
   )
 })
 
+// App badge — update the badge count on the app icon
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "APP_UPDATE_BADGE") {
+    const count = event.data.count
+    if (navigator.setAppBadge) {
+      if (count > 0) {
+        navigator.setAppBadge(count)
+      } else {
+        navigator.clearAppBadge()
+      }
+    }
+  }
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting()
+  }
+})
+
+// Re-subscribe if the browser rotates push keys.
+// Performs a SW-side re-subscribe + server sync so push works even when
+// no tabs are open, then also notifies any open clients.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      // Attempt SW-side re-subscribe using the old subscription's options.
+      // If oldSubscription is null (e.g. browser cleared it), fall back to
+      // fetching the VAPID key from the server.
+      try {
+        const oldSub = event.oldSubscription
+        let subscribeOptions = oldSub?.options
+        if (!subscribeOptions?.applicationServerKey) {
+          try {
+            const keyRes = await fetch("/api/push/vapid-key")
+            if (keyRes.ok) {
+              const { key } = await keyRes.json()
+              subscribeOptions = { userVisibleOnly: true, applicationServerKey: key }
+            }
+          } catch {
+            // VAPID key fetch failed — proceed with userVisibleOnly only
+          }
+        }
+        const newSub = await self.registration.pushManager.subscribe(
+          subscribeOptions ?? { userVisibleOnly: true }
+        )
+        const { endpoint, keys } = newSub.toJSON()
+        const res = await fetch("/api/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint, keys }),
+        })
+        if (!res.ok) throw new Error("Server returned " + res.status)
+      } catch (err) {
+        // SW-side re-subscribe failed — fall through to notify clients
+        console.warn("SW pushsubscriptionchange: re-subscribe failed", err)
+      }
+
+      // Also notify any open tabs so the client-side hook can re-subscribe
+      const clients = await self.clients.matchAll({ type: "window" })
+      for (const client of clients) {
+        client.postMessage({ type: "PUSH_SUBSCRIPTION_CHANGED" })
+      }
+    })()
+  )
+})
+
 // Notification click — open or focus the app
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()

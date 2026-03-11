@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useId, useRef, useState, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2 } from "lucide-react"
 import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
@@ -894,6 +894,17 @@ export const MessageItem = memo(function MessageItem({
         }}>
           <Hash className="w-4 h-4 mr-2" /> Copy Message ID
         </ContextMenuItem>
+        {typeof navigator !== "undefined" && "share" in navigator && message.content && (
+          <ContextMenuItem onClick={async () => {
+            try {
+              await navigator.share({ text: message.content! })
+            } catch {
+              // User cancelled or share failed — ignore
+            }
+          }}>
+            <Share2 className="w-4 h-4 mr-2" /> Share
+          </ContextMenuItem>
+        )}
         {canManageMessages && (
           <>
             <ContextMenuSeparator />
