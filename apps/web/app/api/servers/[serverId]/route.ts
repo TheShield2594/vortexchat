@@ -15,12 +15,8 @@ type Params = { params: Promise<{ serverId: string }> }
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { data: server } = await supabase
     .from("servers")
@@ -160,7 +156,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: dbErr.message }, { status: 500 })
 
   // Audit log
-  await supabase.from("audit_logs").insert({
+  await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "server_update",
