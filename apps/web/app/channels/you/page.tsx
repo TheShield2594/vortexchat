@@ -96,7 +96,14 @@ export default function YouPage() {
           className="rounded-xl p-4 flex flex-col items-center"
           style={{ background: "var(--theme-bg-secondary)" }}
         >
-          <button type="button" onClick={() => setShowProfileSettings(true)} className="relative group">
+          <button
+            type="button"
+            onClick={() => setShowProfileSettings(true)}
+            aria-label="Open profile settings"
+            aria-haspopup="dialog"
+            aria-expanded={showProfileSettings}
+            className="relative group"
+          >
             <Avatar className="w-20 h-20">
               {currentUser.avatar_url && <AvatarImage src={currentUser.avatar_url} />}
               <AvatarFallback
@@ -191,15 +198,15 @@ export default function YouPage() {
         </button>
       </div>
 
-      {showProfileSettings && (
-        <Suspense fallback={null}>
+      <Suspense fallback={null}>
+        {showProfileSettings && (
           <ProfileSettingsModal
-            open={showProfileSettings}
+            open
             onClose={() => setShowProfileSettings(false)}
             user={currentUser}
           />
-        </Suspense>
-      )}
+        )}
+      </Suspense>
     </div>
   )
 }

@@ -40,6 +40,8 @@ Home/Server screen:          Channel view:
 Add route-depth detection to control layout:
 
 ```tsx
+import { isFullScreenChannel } from "@/components/layout/mobile-bottom-tab-bar"
+
 export function ChannelsShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isFullScreen = isFullScreenChannel(pathname)
@@ -49,8 +51,8 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
       {/* Bottom padding omitted in full-screen channel view where MobileBottomTabBar is hidden */}
       <div className={`flex h-screen overflow-hidden md:pb-0 ${isFullScreen ? "" : "pb-16"}`}>
         <ConnectionBanner />
-        {/* ServerSidebarWrapper renders inline on both desktop and mobile (always-visible rail) */}
-        <ServerSidebarWrapper />
+        {/* Guild rail hidden in full-screen channel views; always shown on desktop (md:flex) */}
+        {!isFullScreen && <ServerSidebarWrapper />}
         <MobileSwipeArea />
         <MobileOverlay />
         <div className="flex flex-1 overflow-hidden min-w-0">
@@ -62,7 +64,7 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
 }
 ```
 
-> **Note:** The target end state renders `<ServerSidebarWrapper />` inline on **both** desktop and mobile (always-visible guild rail). The current implementation in `apps/web/components/layout/server-sidebar-wrapper.tsx` uses a drawer on mobile — this must be changed to inline rendering. The guild rail is hidden only in full-screen channel views, controlled by the shared `isFullScreenChannel()` helper exported from `mobile-bottom-tab-bar.tsx`. Bottom padding is also toggled based on `isFullScreenChannel()` to account for the hidden `MobileBottomTabBar`.
+> **Note:** The target end state renders `<ServerSidebarWrapper />` inline on both desktop and mobile (always-visible guild rail). The current implementation in `apps/web/components/layout/server-sidebar-wrapper.tsx` uses a drawer on mobile — this must be changed to inline rendering. `ChannelsShell` gates `<ServerSidebarWrapper />` on `!isFullScreenChannel(pathname)` so the rail is suppressed on full-screen channel routes; `isFullScreenChannel()` is the shared helper exported from `mobile-bottom-tab-bar.tsx`. Bottom padding toggles alongside `MobileBottomTabBar` visibility using the same `isFullScreen` flag.
 
 ### 2. `apps/web/components/layout/server-sidebar-wrapper.tsx`
 
@@ -107,7 +109,7 @@ Remove hamburger button (no longer needed — guild rail is always visible). Kee
 
 ## Router Setup
 
-No URL changes needed. The layout is entirely controlled by detecting the route depth:
+No new route patterns needed, but Option A requires router **behavior** changes: mobile server taps must navigate to `/channels/:serverId` (showing the channel list) rather than directly into a channel, and the `[serverId]/page.tsx` route must perform device-aware handling before selecting a channel (see State Management below). Layout switching is controlled by the shared helpers `useIsFullScreenChannel()` and `isFullScreenChannel(pathname)`:
 
 ```tsx
 import { isFullScreenChannel } from "@/components/layout/mobile-bottom-tab-bar"
@@ -149,7 +151,7 @@ Desktop behavior should remain unchanged — `navigateToServer()` continues to a
 - [ ] Mobile: Tap channel → full-screen messages (guild rail + bottom nav hidden)
 - [ ] Mobile: Back/swipe-back from messages → channel list
 - [ ] Desktop: No visual or behavioral changes
-- [ ] Swipe right from left edge opens guild rail when in channel view (optional)
+- [ ] Swipe right from left edge goes back to server/channel list (swipe-back gesture, optional)
 - [ ] Bottom nav hidden when viewing messages
 - [ ] Channels remain clickable with immediate navigation
 

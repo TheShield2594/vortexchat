@@ -538,7 +538,19 @@ const TABS = [
 ]
 
 // Reserved slugs that appear as /channels/:serverId/<slug> but are NOT channel views.
-// Keep this list in sync with RESERVED_SERVER_SUBROUTES used by isFullScreenChannel.
+//
+// SYNC REQUIREMENT: This list must stay in sync with the route classification
+// used by isFullScreenChannel() in apps/web/components/layout/mobile-bottom-tab-bar.tsx.
+// Currently, isFullScreenChannel delegates to isServerRoute() which only checks
+// RESERVED_PREFIXES (top-level namespaces) and does NOT exclude these sub-route
+// slugs. Until isFullScreenChannel is updated, isTabActive (below) and
+// isFullScreenChannel may disagree on paths like /channels/:serverId/settings.
+//
+// Recommended: extract RESERVED_SERVER_SUBROUTES into a shared module
+// (e.g., packages/shared/src/route-constants.ts or apps/web/lib/route-constants.ts)
+// and import it in both isTabActive and isFullScreenChannel so there is a single
+// source of truth. The slugs here correspond to [serverId] sub-routes defined in
+// apps/web/app/channels/[serverId]/ (settings, moderation, events).
 const RESERVED_SERVER_SUBROUTES = ["settings", "moderation", "events"]
 
 function isServerSubrouteReserved(pathname: string): boolean {
@@ -575,8 +587,15 @@ const isMobile = useMediaQuery('(max-width: 767px)')
 const pathname = usePathname()
 // Use the shared isFullScreenChannel() from mobile-bottom-tab-bar.tsx which
 // excludes RESERVED_PREFIXES (me, notifications, you, friends, discover, etc.)
-// and reserved server sub-routes (settings, moderation, events) via isServerRoute().
-// Only matches true channel views: /channels/me/:channelId or /channels/:serverId/:channelId
+// via isServerRoute(). NOTE: isFullScreenChannel currently does NOT exclude
+// reserved server sub-routes (settings, moderation, events) — isServerRoute()
+// only checks top-level prefixes. To fully align with isTabActive above, the
+// shared helper should also call isServerSubrouteReserved() (or an equivalent
+// check) so paths like /channels/:serverId/settings are not treated as
+// full-screen channel views. Until that fix lands, this callsite inherits the
+// limitation.
+// Target: only matches true channel views — /channels/me/:channelId or
+// /channels/:serverId/:channelId (excluding reserved sub-routes).
 const isFullScreenChannel = isMobile && isFullScreenChannelFn(pathname)
 
 // Hide bottom nav in full-screen channel view
@@ -605,7 +624,7 @@ interface AppState {
 ```
 
 **Pros:**
-- Full screen width for server list with rich cards (requires aggregate data — see State Management)
+- Full-screen width for server list with rich cards (requires aggregate data — see State Management)
 - Clearer mental model: "Servers" is a first-class destination
 - Easier to discover servers (no hidden hamburger)
 - More room for server metadata (member count, last activity — requires additional API work)
