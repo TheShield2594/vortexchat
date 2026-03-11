@@ -375,7 +375,23 @@ apps/web/components/layout/
 **Route Changes:**
 
 ```tsx
-// No URL changes needed. Mobile layout is controlled by:
+// No new URLs needed, but the existing /channels/:serverId route currently
+// redirects to the first channel (via server-sidebar.tsx navigateToServer()
+// and the [serverId]/page.tsx fallback). This redirect MUST change for
+// Option A to work on mobile:
+//
+// - Desktop: keep the redirect — clicking a server icon auto-opens
+//   the last-visited or first text channel (current behavior).
+// - Mobile: do NOT redirect — /channels/:serverId should render the
+//   channel list as full-width content so users can pick a channel.
+//
+// Implementation options:
+//   1. Make [serverId]/page.tsx device-aware (useMediaQuery) and only
+//      redirect on desktop.
+//   2. Update navigateToServer() to accept a { forceChannelList } flag
+//      and skip the cached-channel lookup on mobile.
+//
+// Layout control (unchanged):
 // - /channels/:serverId (show guild rail + channel list + bottom nav)
 // - /channels/:serverId/:channelId (full-screen messages, hide bottom nav)
 ```
@@ -506,6 +522,9 @@ apps/web/
 /channels/you             ← NEW: Profile (replaces /profile)
 /channels/:serverId       → Channel list (full-page on mobile)
 /channels/:serverId/:channelId → Message view (full-screen on mobile)
+/channels/:serverId/settings   → Server settings (NOT a channel view)
+/channels/:serverId/moderation → Moderation panel (NOT a channel view)
+/channels/:serverId/events     → Server events (NOT a channel view)
 ```
 
 **Bottom Tab Bar Rewrite:**
@@ -518,9 +537,20 @@ const TABS = [
   { href: "/channels/you", label: "You", icon: User },
 ]
 
+// Reserved slugs that appear as /channels/:serverId/<slug> but are NOT channel views.
+// Keep this list in sync with RESERVED_SERVER_SUBROUTES used by isFullScreenChannel.
+const RESERVED_SERVER_SUBROUTES = ["settings", "moderation", "events"]
+
+function isServerSubrouteReserved(pathname: string): boolean {
+  const segments = pathname.split("/").filter(Boolean)
+  // Pattern: /channels/:serverId/:slug where slug is reserved
+  return segments.length >= 3 && RESERVED_SERVER_SUBROUTES.includes(segments[2])
+}
+
 function isTabActive(href: string, pathname: string): boolean {
   if (href === "/channels/servers") {
-    // Active when on servers page OR inside any server
+    // Active when on servers page OR inside any real server route
+    // (excludes reserved prefixes AND reserved server sub-routes)
     return pathname === "/channels/servers" ||
       (pathname.startsWith("/channels/") &&
        !pathname.startsWith("/channels/me") &&
@@ -529,7 +559,8 @@ function isTabActive(href: string, pathname: string): boolean {
        !pathname.startsWith("/channels/discover") &&
        !pathname.startsWith("/channels/friends") &&
        !pathname.startsWith("/channels/profile") &&
-       !pathname.startsWith("/channels/servers"))
+       !pathname.startsWith("/channels/servers") &&
+       !isServerSubrouteReserved(pathname))
   }
   return pathname.startsWith(href)
 }
@@ -538,9 +569,15 @@ function isTabActive(href: string, pathname: string): boolean {
 **Mobile Breakpoint Logic:**
 
 ```tsx
+import { isFullScreenChannel as isFullScreenChannelFn } from "@/components/layout/mobile-bottom-tab-bar"
+
 const isMobile = useMediaQuery('(max-width: 767px)')
 const pathname = usePathname()
-const isFullScreenChannel = isMobile && /\/channels\/[^/]+\/[^/]+/.test(pathname)
+// Use the shared isFullScreenChannel() from mobile-bottom-tab-bar.tsx which
+// excludes RESERVED_PREFIXES (me, notifications, you, friends, discover, etc.)
+// and reserved server sub-routes (settings, moderation, events) via isServerRoute().
+// Only matches true channel views: /channels/me/:channelId or /channels/:serverId/:channelId
+const isFullScreenChannel = isMobile && isFullScreenChannelFn(pathname)
 
 // Hide bottom nav in full-screen channel view
 // Hide server sidebar entirely on mobile (replaced by /channels/servers page)

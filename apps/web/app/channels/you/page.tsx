@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, lazy, Suspense } from "react"
+import { useState, useMemo, useRef, lazy, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { User, Palette, Bell, Shield, Volume2, Keyboard, LogOut, Circle, Settings } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -38,6 +38,7 @@ export default function YouPage() {
   const { toast } = useToast()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [showProfileSettings, setShowProfileSettings] = useState(false)
+  const statusAbortRef = useRef<AbortController | null>(null)
 
   if (!currentUser) {
     return (
@@ -53,11 +54,18 @@ export default function YouPage() {
   async function handleSetStatus(status: UserRow["status"]) {
     const latestUser = useAppStore.getState().currentUser
     if (!latestUser) return
+
+    // Abort any in-flight status request so stale responses can't overwrite
+    statusAbortRef.current?.abort()
+    const controller = new AbortController()
+    statusAbortRef.current = controller
+
     try {
       const res = await fetch("/api/users/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
+        signal: controller.signal,
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -66,6 +74,7 @@ export default function YouPage() {
       const updatedUser = await res.json()
       setCurrentUser(updatedUser)
     } catch (error: any) {
+      if (error.name === "AbortError") return
       toast({ variant: "destructive", title: "Failed to update status", description: error.message })
     }
   }
@@ -129,6 +138,8 @@ export default function YouPage() {
               type="button"
               key={value}
               onClick={() => handleSetStatus(value)}
+              aria-pressed={currentUser.status === value}
+              aria-label={`Set status to ${label}`}
               className="flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors"
               style={{
                 background: currentUser.status === value

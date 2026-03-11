@@ -49,7 +49,7 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
       {/* Bottom padding omitted in full-screen channel view where MobileBottomTabBar is hidden */}
       <div className={`flex h-screen overflow-hidden md:pb-0 ${isFullScreen ? "" : "pb-16"}`}>
         <ConnectionBanner />
-        {/* ServerSidebarWrapper always renders (desktop sidebar); hidden via CSS on mobile */}
+        {/* ServerSidebarWrapper renders inline on both desktop and mobile (always-visible rail) */}
         <ServerSidebarWrapper />
         <MobileSwipeArea />
         <MobileOverlay />
@@ -62,7 +62,7 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
 }
 ```
 
-> **Note:** The runtime implementation always renders `<ServerSidebarWrapper />` (CSS-hidden on mobile). Only the bottom padding is toggled based on `isFullScreenChannel()`, which is exported from `mobile-bottom-tab-bar.tsx`.
+> **Note:** The target end state renders `<ServerSidebarWrapper />` inline on **both** desktop and mobile (always-visible guild rail). The current implementation in `apps/web/components/layout/server-sidebar-wrapper.tsx` uses a drawer on mobile — this must be changed to inline rendering. The guild rail is hidden only in full-screen channel views, controlled by the shared `isFullScreenChannel()` helper exported from `mobile-bottom-tab-bar.tsx`. Bottom padding is also toggled based on `isFullScreenChannel()` to account for the hidden `MobileBottomTabBar`.
 
 ### 2. `apps/web/components/layout/server-sidebar-wrapper.tsx`
 
@@ -110,22 +110,19 @@ Remove hamburger button (no longer needed — guild rail is always visible). Kee
 No URL changes needed. The layout is entirely controlled by detecting the route depth:
 
 ```tsx
-// Utility: detect if we're in a "full-screen channel" view on mobile
+import { isFullScreenChannel } from "@/components/layout/mobile-bottom-tab-bar"
+
+// Utility: detect if we're in a "full-screen channel" view on mobile.
+// Delegates to the shared isFullScreenChannel() exported from
+// mobile-bottom-tab-bar.tsx, which uses RESERVED_PREFIXES to exclude
+// non-channel routes (friends, notifications, you, discover, servers,
+// profile) and only matches true DM conversations (/channels/me/:channelId)
+// and server channels (/channels/:serverId/:channelId).
 function useIsFullScreenChannel() {
   const pathname = usePathname()
   const isMobile = useMediaQuery('(max-width: 767px)')
 
-  // /channels/:serverId/:channelId or /channels/me/:channelId
-  // Exclude reserved sub-routes like /channels/:serverId/settings, /moderation, /events
-  const segments = pathname.split('/').filter(Boolean)
-  const RESERVED_SUBROUTES = ['settings', 'moderation', 'events']
-  const isChannelRoute =
-    segments[0] === 'channels' &&
-    segments.length >= 3 &&
-    !!segments[2] &&
-    !RESERVED_SUBROUTES.includes(segments[2])
-
-  return isMobile && isChannelRoute
+  return isMobile && isFullScreenChannel(pathname)
 }
 ```
 
@@ -136,10 +133,14 @@ function useIsFullScreenChannel() {
 
 ## State Management
 
-No changes to `app-store.ts`. The existing `activeServerId`, `activeChannelId`, and `channels` cache work as-is. The server sidebar's `navigateToServer()` already handles:
-1. Cached channels → navigate to first text channel
-2. localStorage last-channel → navigate to stored channel
-3. Fallback → navigate to `/channels/:serverId` (server layout handles redirect)
+No changes to `app-store.ts`. The existing `activeServerId`, `activeChannelId`, and `channels` cache work as-is.
+
+**Important:** The current `navigateToServer()` in `server-sidebar.tsx` auto-navigates to a cached/stored channel, which bypasses the channel-list route and breaks the mobile flow (user should see the channel list, not jump straight into a channel). On mobile, the server-icon tap handler must route to `/channels/:serverId` so the channel list is shown. Two approaches:
+
+1. **Flag-based:** Add an optional parameter `navigateToServer(serverId, { forceChannelList?: boolean })` and pass `forceChannelList: true` when `isMobile` is detected, skipping the cached/localStorage channel lookup.
+2. **Separate helper:** Add `navigateToServerList(serverId)` that always routes to `/channels/:serverId` and use it in the mobile tap handler.
+
+Desktop behavior should remain unchanged — `navigateToServer()` continues to auto-open the last channel on desktop.
 
 ## Acceptance Criteria
 
