@@ -1,20 +1,28 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { MessageWithAuthor, MessageRow, ReactionRow } from "@/types/database"
 
-/** Subscribes to real-time message inserts, updates, and reaction changes for a channel via Supabase Realtime postgres_changes. */
+export type RealtimeStatus = "connecting" | "connected" | "disconnected"
+
+/** Subscribes to real-time message inserts, updates, and reaction changes for a channel via Supabase Realtime postgres_changes.
+ *  Detects reconnections and invokes onReconnect so the caller can backfill missed messages. */
 export function useRealtimeMessages(
   channelId: string,
   onInsert: (message: MessageWithAuthor) => void,
   onUpdate: (message: MessageRow) => void,
   onReactionInsert?: (reaction: ReactionRow) => void,
-  onReactionDelete?: (reaction: ReactionRow) => void
+  onReactionDelete?: (reaction: ReactionRow) => void,
+  onStatusChange?: (status: RealtimeStatus) => void,
+  onReconnect?: () => void,
 ) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const wasConnectedRef = useRef(false)
 
   useEffect(() => {
+    wasConnectedRef.current = false
+
     const channel = supabase
       .channel(`messages:${channelId}`)
       .on(
@@ -75,7 +83,18 @@ export function useRealtimeMessages(
           if (onReactionDelete) onReactionDelete(payload.old as ReactionRow)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          if (wasConnectedRef.current) {
+            // This is a reconnection — backfill any missed messages
+            onReconnect?.()
+          }
+          wasConnectedRef.current = true
+          onStatusChange?.("connected")
+        } else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          onStatusChange?.("disconnected")
+        }
+      })
 
     return () => {
       supabase.removeChannel(channel)

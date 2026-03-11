@@ -82,7 +82,10 @@ export default function LoginPage() {
       // committed by the browser before the next page's server render fires.
       // router.push() (client-side nav) can race against Set-Cookie processing
       // on mobile — window.location.href matches what the passkey flow does.
-      window.location.href = "/channels/me"
+      const redirectTo = searchParams.get("redirect")
+      // Only allow relative paths to prevent open-redirect attacks
+      const safeDest = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : "/channels/me"
+      window.location.href = safeDest
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login failed", description: error.message || "Something went wrong" })
     } finally {
@@ -112,7 +115,8 @@ export default function LoginPage() {
       if (user) {
         await supabase.from("users").update({ status: "online" }).eq("id", user.id)
       }
-      window.location.href = "/channels/me"
+      const rd = searchParams.get("redirect")
+      window.location.href = rd && rd.startsWith("/") && !rd.startsWith("//") ? rd : "/channels/me"
     } catch (error: any) {
       toast({ variant: "destructive", title: "Verification failed", description: error.message })
     } finally {
@@ -139,7 +143,8 @@ export default function LoginPage() {
       }
 
       // Session cookies are now set by the redeem endpoint — navigate to the app
-      window.location.href = "/channels/me"
+      const rd = searchParams.get("redirect")
+      window.location.href = rd && rd.startsWith("/") && !rd.startsWith("//") ? rd : "/channels/me"
     } catch (error: any) {
       toast({ variant: "destructive", title: "Recovery failed", description: error.message })
     } finally {
