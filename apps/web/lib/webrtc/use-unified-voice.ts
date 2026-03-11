@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useMemo } from "react"
+import { useCallback, useRef, useMemo } from "react"
 import {
   useVoice,
   type NetworkQualityTier,
@@ -8,7 +8,8 @@ import {
   type ReconnectInfo,
 } from "@/lib/webrtc/use-voice"
 import { useLivekitVoice } from "@/lib/webrtc/use-livekit-voice"
-import { createDefaultAudioSettings, type VoiceAudioSettings } from "@/lib/voice/audio-settings"
+import { type VoiceAudioSettings } from "@/lib/voice/audio-settings"
+import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
 
 /** Build-time flag — truthy when NEXT_PUBLIC_LIVEKIT_URL is set. */
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL
@@ -22,10 +23,12 @@ function noop() {}
  * Wraps useLivekitVoice and adapts its return value to the same interface as
  * useVoice so that VoiceChannel can consume either path identically.
  *
- * Fields that the LiveKit SFU path does not yet expose (screen share, per-device
- * selection, EQ/gain, spatial audio, CPU bypass) are stubbed with sensible
- * defaults or no-ops.  They can be promoted to real implementations once the
- * LiveKit hook is extended.
+ * Fields that the LiveKit SFU path does not yet expose (screen share, CPU
+ * bypass) are stubbed with sensible defaults or no-ops.  They can be promoted
+ * to real implementations once the LiveKit hook is extended.
+ *
+ * EQ, gain, and spatial settings are persisted via the shared voice-audio-store
+ * so changes made in the settings panel are preserved across sessions.
  */
 function useVoiceViaLivekit(
   channelId: string,
@@ -126,9 +129,25 @@ function useVoiceViaLivekit(
     return { state: "connected", attempt: 0, maxAttempts: 3 }
   }, [lk.connected, lk.connecting])
 
-  // LiveKit Room manages its own audio processing pipeline internally, so the
-  // P2P-specific EQ/gain/spatial settings are returned as read-only defaults.
-  const defaultAudioSettings = useMemo(() => createDefaultAudioSettings(), [])
+  // Read EQ/gain/spatial settings from the persisted Zustand store so that the
+  // LiveKit path shares the same settings surface as the P2P path.
+  const profileSettings = useVoiceAudioStore((state) => state.profilesByUser[userId])
+  const serverOverrideSettings = useVoiceAudioStore((state) =>
+    serverId ? state.serverOverridesByUser[userId]?.[serverId] : undefined
+  )
+  const setProfileSettings = useVoiceAudioStore((state) => state.setProfileSettings)
+  const setServerOverride = useVoiceAudioStore((state) => state.setServerOverride)
+
+  const audioSettings = useMemo(() => {
+    if (serverOverrideSettings) return serverOverrideSettings
+    if (profileSettings) return profileSettings
+    return useVoiceAudioStore.getState().getEffectiveSettings(userId, serverId)
+  }, [profileSettings, serverOverrideSettings, userId, serverId])
+
+  const setAudioSettings = useCallback((settings: VoiceAudioSettings) => {
+    if (serverId) setServerOverride(userId, serverId, settings)
+    else setProfileSettings(userId, settings)
+  }, [serverId, userId, setProfileSettings, setServerOverride])
 
   return {
     peers,
@@ -152,8 +171,8 @@ function useVoiceViaLivekit(
     selectedOutputId: lk.selectedOutputId,
     setSelectedInputId: (id: string | null) => { if (id) lk.setInputDevice(id).catch(() => {}) },
     setSelectedOutputId: (id: string | null) => { if (id) lk.setOutputDevice(id).catch(() => {}) },
-    audioSettings: defaultAudioSettings,
-    setAudioSettings: noop as (s: VoiceAudioSettings) => void,
+    audioSettings,
+    setAudioSettings,
     cpuBypassActive: false,
     audioInitError: lk.error,
     networkQuality: null,
