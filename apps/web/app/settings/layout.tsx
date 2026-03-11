@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
-import { SettingsSidebar } from "@/components/settings/settings-sidebar"
 import { SettingsResponsiveContent } from "@/components/settings/settings-responsive-content"
 
 /** Full-page settings layout — two-panel on desktop, stacked nav on mobile */
@@ -25,12 +24,6 @@ export default async function SettingsLayout({ children }: { children: React.Rea
       className="flex h-screen overflow-hidden"
       style={{ background: "var(--theme-bg-primary)" }}
     >
-      {/* Desktop: always show sidebar inline */}
-      <div className="hidden md:flex flex-shrink-0">
-        <SettingsSidebar user={profile} />
-      </div>
-
-      {/* Single mount of children — desktop or mobile, never both */}
       <SettingsResponsiveContent user={profile}>
         {children}
       </SettingsResponsiveContent>

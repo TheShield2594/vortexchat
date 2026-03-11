@@ -35,7 +35,7 @@ export function MeShell({ children }: { children: React.ReactNode }) {
       {/* Mobile: show DM list OR conversation, not both */}
       <div className="md:hidden flex flex-1 overflow-hidden">
         {isInConversation ? (
-          <main className="flex flex-1 overflow-hidden min-w-0">
+          <main id="main-content" className="flex flex-1 overflow-hidden min-w-0">
             {children}
           </main>
         ) : (

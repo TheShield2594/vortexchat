@@ -1,23 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
+
+const QUERY = "(min-width: 768px)"
+
+function subscribe(callback: () => void) {
+  const mql = window.matchMedia(QUERY)
+  mql.addEventListener("change", callback)
+  return () => mql.removeEventListener("change", callback)
+}
+
+function getSnapshot() {
+  return !window.matchMedia(QUERY).matches
+}
+
+function getServerSnapshot() {
+  return false
+}
 
 /**
  * Mobile detection using matchMedia at 768px (Tailwind's md breakpoint).
- * This ensures JS routing decisions match CSS md: breakpoint visibility.
+ * Uses useSyncExternalStore to avoid tearing and ensure consistent reads.
  */
 export function useMobileLayout() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === "undefined") return false
-    return !window.matchMedia("(min-width: 768px)").matches
-  })
-
-  useEffect(() => {
-    const mql = window.matchMedia("(min-width: 768px)")
-    const handler = (e: MediaQueryListEvent) => setIsMobile(!e.matches)
-    mql.addEventListener("change", handler)
-    return () => mql.removeEventListener("change", handler)
-  }, [])
-
-  return isMobile
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
