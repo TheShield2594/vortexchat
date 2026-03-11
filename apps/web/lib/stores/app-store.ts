@@ -114,6 +114,21 @@ interface AppState {
   voiceServerId: string | null
   voiceChannelName: string | null
   setVoiceChannel: (channelId: string | null, serverId: string | null, channelName?: string | null) => void
+  voiceMuted: boolean
+  voiceDeafened: boolean
+  voiceReconnectInfo: { state: string; attempt: number; maxAttempts: number } | null
+  voiceJoinedAt: number | null
+  voiceToggleMute: (() => void) | null
+  voiceToggleDeafen: (() => void) | null
+  voiceManualReconnect: (() => void) | null
+  setVoiceControls: (controls: {
+    muted: boolean
+    deafened: boolean
+    reconnectInfo?: { state: string; attempt: number; maxAttempts: number } | null
+    toggleMute?: () => void
+    toggleDeafen?: () => void
+    manualReconnect?: () => void
+  }) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -245,5 +260,35 @@ export const useAppStore = create<AppState>((set) => ({
   voiceServerId: null,
   voiceChannelName: null,
   setVoiceChannel: (channelId, serverId, channelName = null) =>
-    set({ voiceChannelId: channelId, voiceServerId: serverId, voiceChannelName: channelId ? channelName : null }),
+    set({
+      voiceChannelId: channelId,
+      voiceServerId: serverId,
+      voiceChannelName: channelId ? channelName : null,
+      voiceJoinedAt: channelId ? Date.now() : null,
+      // Clear controls when disconnecting
+      ...(channelId ? {} : {
+        voiceMuted: false,
+        voiceDeafened: false,
+        voiceReconnectInfo: null,
+        voiceToggleMute: null,
+        voiceToggleDeafen: null,
+        voiceManualReconnect: null,
+      }),
+    }),
+  voiceMuted: false,
+  voiceDeafened: false,
+  voiceReconnectInfo: null,
+  voiceJoinedAt: null,
+  voiceToggleMute: null,
+  voiceToggleDeafen: null,
+  voiceManualReconnect: null,
+  setVoiceControls: (controls) =>
+    set({
+      voiceMuted: controls.muted,
+      voiceDeafened: controls.deafened,
+      ...(controls.reconnectInfo !== undefined ? { voiceReconnectInfo: controls.reconnectInfo ?? null } : {}),
+      ...(controls.toggleMute ? { voiceToggleMute: controls.toggleMute } : {}),
+      ...(controls.toggleDeafen ? { voiceToggleDeafen: controls.toggleDeafen } : {}),
+      ...(controls.manualReconnect ? { voiceManualReconnect: controls.manualReconnect } : {}),
+    }),
 }))
