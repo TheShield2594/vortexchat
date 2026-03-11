@@ -567,22 +567,71 @@ interface AppState {
 
 ---
 
-## 6. Recommendation
+## 6. Holistic Mobile Parity Assessment
 
-**Option A (Left Sidebar + Drawer)** is recommended for Vortex because:
+Server/channel navigation is only part of the picture. A full comparison against Discord's mobile PWA reveals additional gaps:
 
-1. **Minimal code changes** — mostly visibility toggles on existing components
-2. **Matches Fluxer's proven mobile UX** — 2 taps to any channel
-3. **No new routes needed** — layout is URL-depth-aware
-4. **Desktop experience unchanged** — zero regression risk
-5. **Existing swipe gesture infrastructure** — `MobileSwipeArea` already handles right-swipe to open drawer
+### Bottom Nav: Discord vs Vortex (Current) vs Proposed
 
-However, **Option B should be considered as a Phase 2** improvement for the server list page, as it provides a better discovery experience for users with many servers.
+| Tab Slot | Discord Mobile | Vortex Current | Proposed Final |
+|----------|---------------|----------------|----------------|
+| 1 | **Servers** (guild list) | Discover | **Messages** (DMs + Friends toggle) |
+| 2 | **Messages** (DMs + Friends) | DMs | **Servers** (guild rail or server list) |
+| 3 | **Notifications** (mention inbox) | Friends | **Notifications** (full-page inbox) |
+| 4 | **You** (profile + settings hub) | Profile (stub) | **You** (real profile + settings) |
 
-### Quick Win (Implement Now)
+### Flow-by-Flow Comparison
 
-Before either option, a **quick fix** can immediately improve navigation:
+| Flow | Discord Mobile | Vortex Current | After All Issues |
+|------|---------------|----------------|-----------------|
+| Access servers | Servers tab → guild list | Hamburger → drawer | Servers tab (2 taps to channel) |
+| Access DMs | Messages tab → DM list | DMs tab → DM list | Messages tab → DM list |
+| Access Friends | Messages tab → header toggle | Dedicated tab | Messages tab → header toggle |
+| Profile/Settings | You tab → full settings hub | Stub placeholder | You tab → real settings page |
+| Notifications | Dedicated tab → mention inbox | Bell dropdown in header | Dedicated tab → full inbox |
+| Search | Top search bar on every screen | Cmd+K only (hidden on mobile) | Visible search icon in header |
+| Start new DM | Messages → "+" → friend picker | DMs → "+" → friend picker | Same |
+| Message a friend | Friends → tap → opens DM | No "Message" action | Friends toggle → Message button |
 
-1. Replace "Discover" tab with "Servers" tab that navigates to the last-visited server
-2. Keep hamburger as fallback but make the bottom tab the primary path
-3. This is a ~20-line change in `mobile-bottom-tab-bar.tsx`
+### What's Missing Beyond Navigation
+
+| Gap | Issue | Priority |
+|-----|-------|----------|
+| Profile page is a stub | [#5 Build "You" page](issues/issue-5-build-you-profile-page.md) | P1 |
+| No notifications page | [#6 Notifications inbox](issues/issue-6-notifications-inbox-page.md) | P1 |
+| Friends wastes a tab slot | [#7 Merge into Messages](issues/issue-7-merge-friends-into-messages-tab.md) | P1 |
+| No mobile search entry point | [#8 Mobile search](issues/issue-8-mobile-search-affordance.md) | P2 |
+
+---
+
+## 7. Recommendation
+
+### Target Bottom Nav
+
+```
+[💬 Messages]  [📡 Servers]  [🔔 Notifications]  [👤 You]
+```
+
+This matches Discord's mobile layout exactly. Each tab maps to a real, full-featured page.
+
+### Implementation Order
+
+| Phase | Issue | What | Effort |
+|-------|-------|------|--------|
+| **Phase 0** | #1, #4 | Quick win: swap Discover→Servers tab + channel click audit | Small |
+| **Phase 1a** | #7 | Merge Friends into Messages tab (header toggle) | Small |
+| **Phase 1b** | #5 | Build real "You" profile/settings page | Medium |
+| **Phase 1c** | #6 | Build Notifications inbox page | Medium |
+| **Phase 2a** | #2 | Option A: Inline guild rail on mobile | Medium |
+| **Phase 2b** | #8 | Mobile search affordance | Small |
+| **Phase 3** | #3 | Option B: Rich server list page (if needed) | Large |
+
+### Why This Order
+
+1. **Phase 0** is a quick fix that immediately reduces tap count with minimal code changes
+2. **Phase 1a-c** builds the missing pages that the new 4-tab nav requires — you can't ship "Notifications" and "You" tabs until those pages exist
+3. **Phase 2a** is the full navigation architecture change (inline guild rail)
+4. **Phase 2b** is a polish item
+5. **Phase 3** is optional — only needed if user research shows the guild rail is insufficient for users with many servers
+
+After all phases, Vortex's mobile experience will match Discord's in every major flow: server access, DMs, friends, notifications, profile/settings, and search.
