@@ -1,5 +1,6 @@
 "use client"
 
+import { usePathname } from "next/navigation"
 import { DMList } from "./dm-list"
 import { UserPanel } from "@/components/layout/user-panel"
 import { MobileNavProvider, MobileOverlay, MobileSwipeArea } from "@/components/layout/mobile-nav"
@@ -45,13 +46,46 @@ function DMListPanel() {
 }
 
 export function MeShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  // On mobile, /channels/me shows the DM list full-screen.
+  // /channels/me/:channelId shows the conversation full-screen.
+  const isInConversation = pathname.startsWith("/channels/me/") && pathname.split("/").length >= 4
+
   return (
     <MobileNavProvider>
       <div className="flex flex-1 overflow-hidden">
-        <DMListPanel />
+        {/* Desktop: always show DM list sidebar */}
+        <div className="hidden md:flex flex-shrink-0">
+          <div
+            className="w-60 flex flex-col overflow-hidden"
+            style={{ background: "var(--app-bg-secondary)" }}
+          >
+            <DMNavContent />
+          </div>
+        </div>
+
+        {/* Mobile: show DM list OR conversation, not both */}
+        <div className="md:hidden flex flex-1 overflow-hidden">
+          {isInConversation ? (
+            /* Conversation view */
+            <main className="flex flex-1 overflow-hidden min-w-0">
+              {children}
+            </main>
+          ) : (
+            /* DM list shown full-screen */
+            <div
+              className="flex flex-1 flex-col overflow-hidden"
+              style={{ background: "var(--app-bg-secondary)" }}
+            >
+              <DMNavContent />
+            </div>
+          )}
+        </div>
+
+        {/* Desktop: main content area */}
         <MobileSwipeArea />
         <MobileOverlay />
-        <main id="main-content" className="flex flex-1 overflow-hidden min-w-0">
+        <main id="main-content" className="hidden md:flex flex-1 overflow-hidden min-w-0">
           {children}
         </main>
       </div>

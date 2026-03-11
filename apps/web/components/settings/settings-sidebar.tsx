@@ -57,7 +57,7 @@ export function SettingsSidebar({ user }: Props) {
 
   return (
     <aside
-      className="w-56 flex-shrink-0 flex flex-col h-full border-r overflow-y-auto"
+      className="w-full md:w-56 flex-shrink-0 flex flex-col h-full md:border-r overflow-y-auto"
       style={{
         background: "var(--theme-bg-secondary)",
         borderColor: "var(--theme-bg-tertiary)",

@@ -11,6 +11,7 @@ import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { CreateServerModal } from "@/components/modals/create-server-modal"
 import { cn } from "@/lib/utils/cn"
 import { perfMarkNavStart } from "@/lib/perf"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 
 const QuickSwitcherModal = lazy(() =>
   import("@/components/modals/quickswitcher-modal").then((m) => ({ default: m.QuickSwitcherModal }))
@@ -27,6 +28,7 @@ export default function ServersPage() {
     }))
   )
   const router = useRouter()
+  const isMobile = useMobileLayout()
   const [showCreate, setShowCreate] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
 
@@ -34,6 +36,12 @@ export default function ServersPage() {
     (serverId: string) => {
       perfMarkNavStart(`server:${serverId.slice(0, 8)}`)
       setActiveServer(serverId)
+
+      // On mobile, always go to the server root so the channel sidebar is shown
+      if (isMobile) {
+        router.push(`/channels/${serverId}`)
+        return
+      }
 
       // Prefer persisted last-visited channel
       try {
@@ -62,7 +70,7 @@ export default function ServersPage() {
 
       router.push(`/channels/${serverId}`)
     },
-    [channels, router, setActiveServer]
+    [channels, isMobile, router, setActiveServer]
   )
 
   return (

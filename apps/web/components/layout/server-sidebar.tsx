@@ -20,6 +20,7 @@ import { VortexLogo } from "@/components/ui/vortex-logo"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NotificationSettingsModal } from "@/components/modals/notification-settings-modal"
 import Image from "next/image"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 
 /** Vertical icon strip listing joined servers, DM shortcut, and create/discover actions. */
 export function ServerSidebar() {
@@ -29,11 +30,18 @@ export function ServerSidebar() {
   const [showCreateServer, setShowCreateServer] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
+  const isMobile = useMobileLayout()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   const navigateToServer = useCallback((serverId: string) => {
     perfMarkNavStart(`server:${serverId.slice(0, 8)}`)
     setActiveServer(serverId)
+
+    // On mobile, go to the server root so the channel sidebar is shown full-screen
+    if (isMobile) {
+      router.push(`/channels/${serverId}`)
+      return
+    }
 
     // Check Zustand store for cached channels (populated after any visit this session)
     const cached = channels[serverId]
@@ -58,7 +66,7 @@ export function ServerSidebar() {
 
     // Fallback: redirect page handles first-ever visit
     router.push(`/channels/${serverId}`)
-  }, [channels, router, setActiveServer])
+  }, [channels, isMobile, router, setActiveServer])
 
   async function handleLeaveServer(server: ServerRow) {
     if (!currentUser) return
