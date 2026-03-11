@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { usePathname } from "next/navigation"
-import { MobileNavProvider, MobileOverlay, MobileSwipeArea } from "./mobile-nav"
+import { MobileNavProvider } from "./mobile-nav"
 import { ServerSidebarWrapper } from "./server-sidebar-wrapper"
 import { ConnectionBanner } from "@/components/connection-banner"
 import { setupMobileBackGuard } from "@/utils/mobile-navigation"
@@ -22,9 +22,8 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
       {/* pb-16 md:pb-0 reserves space for the fixed MobileBottomTabBar on mobile; omitted in full-screen channel view */}
       <div className={`flex h-screen overflow-hidden md:pb-0 ${isFullScreen ? "" : "pb-16"}`} style={{ background: "var(--app-bg-primary)", paddingTop: "env(safe-area-inset-top)" }}>
         <ConnectionBanner />
-        <ServerSidebarWrapper />
-        <MobileSwipeArea />
-        <MobileOverlay />
+        {/* Guild rail: always visible inline; hidden in full-screen channel views on mobile */}
+        {!isFullScreen && <ServerSidebarWrapper />}
         <div className="flex flex-1 overflow-hidden min-w-0">
           {children}
         </div>

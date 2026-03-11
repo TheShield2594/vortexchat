@@ -1,5 +1,7 @@
 # Mobile: Replace "Discover" bottom tab with "Servers" tab
 
+> **Status: COMPLETED** — The "Discover" tab has been replaced with a "Servers" tab. The current mobile bottom tabs are: Messages, Notifications, You (3 tabs). The "Servers" tab was subsequently removed when the inline guild rail was implemented (Issue #2), since the server rail is now always visible on mobile.
+
 ## Problem
 
 On mobile (`<768px`), the bottom navigation has 4 tabs: **Discover / DMs / Friends / Profile**. Servers are only accessible via a hamburger menu drawer, requiring 3 taps to reach any channel. The "Discover" tab confusingly highlights when viewing server channels, even though it's not the path the user took.
