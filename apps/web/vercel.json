@@ -6,12 +6,8 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/cron/event-reminders",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/social-alerts/poll",
-      "schedule": "*/5 * * * *"
+      "path": "/api/cron",
+      "schedule": "0 * * * *"
     }
   ]
 }

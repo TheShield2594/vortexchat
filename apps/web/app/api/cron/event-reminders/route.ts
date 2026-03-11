@@ -1,27 +1,14 @@
 import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 
-/**
- * Cron job: notify RSVP'd members 15 minutes before an event starts.
- * Schedule: every 5 minutes via Vercel cron (see vercel.json)
- */
-export async function GET(request: Request) {
-  // Validate cron secret to prevent unauthorized triggers
-  const authHeader = request.headers.get("authorization")
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
+/** Core logic — exported so the unified cron route can call it directly. */
+export async function processEventReminders() {
   const service = await createServiceRoleClient()
 
   const now = new Date()
   const windowStart = new Date(now.getTime() + 10 * 60 * 1000)  // 10 min from now
   const windowEnd = new Date(now.getTime() + 20 * 60 * 1000)    // 20 min from now
 
-  // Find events starting within the 10–20 min window
   const { data: events, error: eventsError } = await service
     .from("events")
     .select("id, title, server_id, linked_channel_id, start_at")
@@ -30,17 +17,14 @@ export async function GET(request: Request) {
 
   if (eventsError) {
     console.error("[event-reminders] Failed to fetch events:", eventsError.message)
-    return NextResponse.json({ error: eventsError.message }, { status: 500 })
+    throw new Error(eventsError.message)
   }
 
-  if (!events || events.length === 0) {
-    return NextResponse.json({ notified: 0 })
-  }
+  if (!events || events.length === 0) return { notified: 0, eventsProcessed: 0 }
 
   let totalNotified = 0
 
   for (const event of events) {
-    // Get users who RSVP'd going or maybe
     const { data: rsvps } = await service
       .from("event_rsvps")
       .select("user_id")
@@ -69,5 +53,26 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ notified: totalNotified, eventsProcessed: events.length })
+  return { notified: totalNotified, eventsProcessed: events.length }
+}
+
+/**
+ * Standalone endpoint — kept for manual triggers.
+ * The unified cron at /api/cron calls processEventReminders() directly.
+ */
+export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization")
+  if (
+    process.env.CRON_SECRET &&
+    authHeader !== `Bearer ${process.env.CRON_SECRET}`
+  ) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const result = await processEventReminders()
+    return NextResponse.json(result)
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "unknown" }, { status: 500 })
+  }
 }

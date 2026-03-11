@@ -11,17 +11,8 @@ import { writeAuditEvent } from "@/lib/voice/voice-intelligence-service"
  *
  * Called by a scheduled cron job (e.g. Vercel Cron). Requires CRON_SECRET.
  */
-export async function GET(req: NextRequest) {
-  // Fail closed: reject all requests when CRON_SECRET is not configured
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
-  }
-  const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
+/** Core logic — exported so the unified cron route can call it directly. */
+export async function processVoiceRetention() {
   const serviceClient = await createServiceRoleClient()
   const now = new Date().toISOString()
 
@@ -51,7 +42,6 @@ export async function GET(req: NextRequest) {
     purgedSegments++
   }
 
-  // Write purge audit event for segments
   if (purgedSegments > 0) {
     await writeAuditEvent(serviceClient, null, null, "voice_segments_purged", {
       count: purgedSegments,
@@ -94,12 +84,27 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({
-    ok: true,
-    purgedSegments,
-    skippedSegmentsHeld,
-    purgedSummaries,
-    skippedSummariesHeld,
-    runAt: now,
-  })
+  return { purgedSegments, skippedSegmentsHeld, purgedSummaries, skippedSummariesHeld, runAt: now }
+}
+
+/**
+ * Standalone endpoint — kept for manual triggers.
+ * The unified cron at /api/cron calls processVoiceRetention() directly.
+ */
+export async function GET(req: NextRequest) {
+  const secret = process.env.CRON_SECRET
+  if (!secret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
+  }
+  const authHeader = req.headers.get("authorization")
+  if (authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const result = await processVoiceRetention()
+    return NextResponse.json({ ok: true, ...result })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "unknown" }, { status: 500 })
+  }
 }

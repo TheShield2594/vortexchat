@@ -275,23 +275,16 @@ async function processAlert(supabase: Awaited<ReturnType<typeof createServiceRol
   }
 }
 
-async function pollFeeds(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
-
-  const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
+/** Core polling logic — exported so the unified cron route can call it directly. */
+export async function pollRssFeeds() {
   const supabase = await createServiceRoleClient()
   const { data: alerts, error } = await supabase
     .from("social_alerts")
     .select("id,server_id,channel_id,name,feed_url,last_item_id,last_checked_at")
     .eq("enabled", true)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!alerts || alerts.length === 0) return NextResponse.json({ ok: true, processed: 0, posted: 0 })
+  if (error) throw new Error(error.message)
+  if (!alerts || alerts.length === 0) return { processed: 0, posted: 0 }
 
   const concurrency = 5
   let posted = 0
@@ -306,15 +299,38 @@ async function pollFeeds(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, processed, posted })
+  return { processed, posted }
 }
 
-// Vercel Cron invokes GET requests
+function verifyCronSecret(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
+  const authHeader = req.headers.get("authorization")
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  return null
+}
+
+// Standalone endpoint for manual/external triggers
 export async function GET(req: NextRequest) {
-  return pollFeeds(req)
+  const denied = verifyCronSecret(req)
+  if (denied) return denied
+  try {
+    const result = await pollRssFeeds()
+    return NextResponse.json({ ok: true, ...result })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "unknown" }, { status: 500 })
+  }
 }
 
-// Keep POST for manual/external triggers
 export async function POST(req: NextRequest) {
-  return pollFeeds(req)
+  const denied = verifyCronSecret(req)
+  if (denied) return denied
+  try {
+    const result = await pollRssFeeds()
+    return NextResponse.json({ ok: true, ...result })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "unknown" }, { status: 500 })
+  }
 }
