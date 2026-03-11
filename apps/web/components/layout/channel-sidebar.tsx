@@ -755,7 +755,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   return (
     <TooltipProvider delayDuration={200}>
       <div
-        className="w-full md:w-60 flex flex-col flex-shrink-0 channel-sidebar-surface"
+        className="w-full md:w-60 h-full flex flex-col flex-shrink-0 channel-sidebar-surface"
       >
         {/* Server header */}
         <button

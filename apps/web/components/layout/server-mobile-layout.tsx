@@ -84,7 +84,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
     return (
       <div className="flex flex-1 overflow-hidden">
         {/* Channel sidebar */}
-        <div className="flex-shrink-0">{sidebar}</div>
+        <div className="flex-shrink-0 h-full">{sidebar}</div>
         {/* Channel content */}
         <main id="main-content" className="flex flex-1 overflow-hidden">
           {children}
