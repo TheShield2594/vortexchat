@@ -473,6 +473,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [newName, setNewName] = useState("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -484,7 +485,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
   }, [serverId])
 
   async function handleUpload() {
-    const file = fileRef.current?.files?.[0]
+    const file = selectedFile ?? fileRef.current?.files?.[0]
     if (!file || !newName.trim()) return
     if (emojis.length >= CUSTOM_EMOJI_LIMIT) {
       toast({ variant: "destructive", title: `Emoji limit reached (${CUSTOM_EMOJI_LIMIT})` })
@@ -502,6 +503,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
         return [...withoutSameName, emoji].sort((a, b) => a.name.localeCompare(b.name))
       })
       setNewName("")
+      setSelectedFile(null)
       if (fileRef.current) fileRef.current.value = ""
       toast({ title: "Emoji uploaded" })
     } else {
@@ -542,21 +544,30 @@ export function EmojisTab({ serverId }: { serverId: string }) {
             className="flex-1 min-w-0 px-3 py-2 rounded text-sm focus:outline-none"
             style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
           />
-          <input ref={fileRef} type="file" accept="image/png,image/gif,image/webp" className="hidden" />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/gif,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null
+              setSelectedFile(file)
+            }}
+          />
           <button
             onClick={() => fileRef.current?.click()}
             className="px-3 py-2 rounded text-sm transition-colors"
             style={{ background: 'var(--theme-surface-input)', color: 'var(--theme-text-secondary)' }}
           >
-            Choose file
+            {selectedFile ? selectedFile.name : "Choose file"}
           </button>
           <button
             onClick={handleUpload}
-            disabled={uploading || !newName.trim() || emojis.length >= CUSTOM_EMOJI_LIMIT}
+            disabled={uploading || !newName.trim() || !selectedFile || emojis.length >= CUSTOM_EMOJI_LIMIT}
             className="px-3 py-2 rounded text-sm font-semibold disabled:opacity-50"
             style={{ background: 'var(--theme-accent)', color: 'white' }}
           >
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Upload"}
           </button>
         </div>
       </div>
