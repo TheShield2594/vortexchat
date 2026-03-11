@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
+import { PERMISSIONS } from "@vortex/shared"
 
-export const BAN_MEMBERS = 16
-export const ADMINISTRATOR = 128
+const { BAN_MEMBERS, ADMINISTRATOR } = PERMISSIONS
 
 export function canModerate(permissions: number): boolean {
   return (permissions & BAN_MEMBERS) !== 0 || (permissions & ADMINISTRATOR) !== 0

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/utils/api-helpers"
 
 const FEED_LIMIT = 10
 
@@ -66,9 +67,8 @@ export async function GET(request: Request) {
  * Body: { visibility: "public" | "friends" | "private" }
  */
 export async function PATCH(request: Request) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const body = await request.json().catch(() => null)
   const visibility = body?.visibility

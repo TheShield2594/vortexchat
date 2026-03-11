@@ -6,7 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerOwner } from "@/lib/server-auth"
-import type { Json } from "@/types/database"
+import { parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -30,12 +30,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { supabase, user, error } = await requireServerOwner(serverId)
   if (error) return error
 
-  let body: Record<string, unknown>
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  const { data: body, error: parseError } = await parseJsonBody<Record<string, unknown>>(req)
+  if (parseError) return parseError
 
   const updates: Record<string, unknown> = {}
 
@@ -97,13 +93,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
 
   // Audit log
-  await supabase.from("audit_logs").insert({
+  await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user!.id,
     action: "moderation_settings_updated",
     target_id: serverId,
     target_type: "server",
-    changes: updates as unknown as Json,
+    changes: updates,
   })
 
   return NextResponse.json({ message: "Moderation settings updated" })

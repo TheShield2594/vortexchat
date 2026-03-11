@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
+import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 
 const KICK_MEMBERS = 8
 
@@ -26,11 +27,8 @@ async function getMemberPermissions(supabase: Awaited<ReturnType<typeof createSe
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { serverId, userId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   // Must be a member to fetch others' profiles
   const { data: ownMembership } = await supabase
@@ -68,11 +66,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { serverId, userId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(req.url)
   const reason = searchParams.get("reason") ?? undefined
@@ -134,7 +129,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     .eq("server_id", serverId)
     .eq("user_id", userId)
 
-  await supabase.from("audit_logs").insert({
+  await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "member_kick",

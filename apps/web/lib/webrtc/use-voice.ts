@@ -31,15 +31,10 @@ export interface NetworkQualityStats {
   tier: NetworkQualityTier
 }
 
-/** Connection state machine for the voice reconnect system. */
-export type VoiceConnectionState = "connected" | "reconnecting" | "disconnected"
-
-/** Reconnect progress exposed to the UI. */
-export interface ReconnectInfo {
-  state: VoiceConnectionState
-  attempt: number
-  maxAttempts: number
-}
+/** Connection state machine for the voice reconnect system — re-exported from the canonical manager. */
+export type { VoiceConnectionState, ReconnectSnapshot as ReconnectInfo } from "./voice-reconnection-manager"
+import type { VoiceConnectionState } from "./voice-reconnection-manager"
+import type { ReconnectSnapshot as ReconnectInfo } from "./voice-reconnection-manager"
 
 interface UseVoiceReturn {
   peers: Map<string, PeerState>

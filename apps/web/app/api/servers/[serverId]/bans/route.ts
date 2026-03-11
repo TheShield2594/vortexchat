@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 
 const BAN_MEMBERS = 16
 const KICK_MEMBERS = 8
@@ -14,9 +14,8 @@ export async function GET(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   // Must be owner or have BAN permission
   const { data: member } = await supabase
@@ -57,9 +56,8 @@ export async function POST(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { userId, reason } = await req.json()
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 })
@@ -154,7 +152,7 @@ export async function POST(
   }
 
   // Audit log
-  await supabase.from("audit_logs").insert({
+  await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "member_ban",
@@ -172,9 +170,8 @@ export async function DELETE(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(req.url)
   const userId = searchParams.get("userId")

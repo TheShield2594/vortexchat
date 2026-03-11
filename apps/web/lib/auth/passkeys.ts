@@ -1,5 +1,7 @@
 import crypto from "node:crypto"
 
+export { decodeBase64Url, encodeBase64Url } from "@/lib/auth/base64url"
+
 export const PASSKEY_CHALLENGE_TTL_SECONDS = 5 * 60
 
 export function base64url(input: Buffer | string) {

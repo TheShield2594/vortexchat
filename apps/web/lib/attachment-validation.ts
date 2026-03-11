@@ -1,3 +1,5 @@
+import { DANGEROUS_EXTENSIONS, EXECUTABLE_MIMES } from "@/lib/attachment-security-constants"
+
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/"]
 const ALLOWED_MIME_TYPES = new Set([
@@ -5,20 +7,6 @@ const ALLOWED_MIME_TYPES = new Set([
   "text/plain",
   "application/zip",
   "application/json",
-])
-const BLOCKED_EXTENSIONS = new Set([
-  "exe",
-  "msi",
-  "bat",
-  "cmd",
-  "scr",
-  "com",
-  "ps1",
-  "js",
-  "jar",
-  "vbs",
-  "dll",
-  "sh",
 ])
 
 /**
@@ -47,14 +35,6 @@ const MAGIC_BYTES: Array<{ bytes: number[]; offset: number; mime: string }> = [
   { bytes: [0x7F, 0x45, 0x4C, 0x46], offset: 0, mime: "application/x-elf" }, // ELF binary
 ]
 
-/** MIME types that indicate executable content, always rejected regardless of extension. */
-const EXECUTABLE_MIMES = new Set([
-  "application/x-msdownload",
-  "application/x-msdos-program",
-  "application/x-elf",
-  "application/x-executable",
-  "application/x-dosexec",
-])
 
 /**
  * Map of file extension to expected MIME type prefixes for mismatch detection.
@@ -94,7 +74,7 @@ export function validateAttachments(attachments: AttachmentInput[]): { valid: bo
     }
 
     const ext = attachment.filename.split(".").pop()?.toLowerCase()
-    if (ext && BLOCKED_EXTENSIONS.has(ext)) {
+    if (ext && DANGEROUS_EXTENSIONS.has(ext)) {
       return { valid: false, error: `.${ext} files are blocked for safety.` }
     }
 

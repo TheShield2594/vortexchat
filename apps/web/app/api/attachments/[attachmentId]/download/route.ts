@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { isAttachmentDownloadAllowed } from "@/lib/attachment-access"
+import { requireAuth } from "@/lib/utils/api-helpers"
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ attachmentId: string }> }
 ) {
   const { attachmentId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { data: attachment, error } = await supabase
     .from("attachments")

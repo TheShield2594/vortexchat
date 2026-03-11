@@ -1,19 +1,16 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission, PERMISSIONS } from "@/lib/permissions"
 import { filterBlockedUserIds, getBlockedUserIdsForViewer } from "@/lib/social-block-policy"
+import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 
 export async function GET(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
   const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   // Verify the requester is a member of this server
   const { data: membership } = await supabase
@@ -91,9 +88,8 @@ export async function DELETE(
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
   const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(request.url)
   const targetUserId = searchParams.get("userId")
@@ -144,20 +140,15 @@ export async function PATCH(
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
   const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(request.url)
   const targetUserId = searchParams.get("userId")
   if (!targetUserId) return NextResponse.json({ error: "userId required" }, { status: 400 })
 
-  let body: { timeoutUntil?: string | null }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  const { data: body, error: parseError } = await parseJsonBody<{ timeoutUntil?: string | null }>(request as any)
+  if (parseError) return parseError
 
   const { timeoutUntil } = body
 
@@ -209,7 +200,7 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Audit log
-  await supabase.from("audit_logs").insert({
+  await insertAuditLog(supabase, {
     server_id: params.serverId,
     actor_id: user.id,
     action: timeoutUntil ? "member_timeout" : "member_timeout_remove",

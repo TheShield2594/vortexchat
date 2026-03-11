@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
+import { requireAuth } from "@/lib/utils/api-helpers"
 
 /**
  * GET /api/auth/mfa-challenge
@@ -9,9 +9,8 @@ import { rateLimiter } from "@/lib/rate-limit"
  * whether to show the TOTP challenge screen.
  */
 export async function GET() {
-  const supabase = await createServerSupabaseClient()
-  const { data: auth } = await supabase.auth.getUser()
-  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
   const { data: factors } = await supabase.auth.mfa.listFactors()
@@ -33,9 +32,8 @@ export async function GET() {
  * Used during the login flow to step up from AAL1 to AAL2.
  */
 export async function POST(request: Request) {
-  const supabase = await createServerSupabaseClient()
-  const { data: auth } = await supabase.auth.getUser()
-  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const body = (await request.json().catch(() => ({}))) as {
     factorId?: string
@@ -47,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   // Rate limit: 5 attempts per 10 minutes per user+factor (uses Upstash Redis when configured)
-  const rateLimitKey = `mfa:${auth.user.id}:${body.factorId}`
+  const rateLimitKey = `mfa:${user.id}:${body.factorId}`
   const rl = await rateLimiter.check(rateLimitKey, { limit: 5, windowMs: 10 * 60_000 })
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many attempts" }, { status: 429 })

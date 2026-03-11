@@ -1,47 +1,10 @@
 import { create } from "zustand"
 import type { ServerRow, ChannelRow, UserRow, MessageWithAuthor } from "@/types/database"
+import { loadBooleanStorage, persistBooleanStorage } from "@/lib/utils/storage"
 
 const MEMBER_LIST_STORAGE_KEY = "vortexchat:ui:member-list-open"
 const THREAD_PANEL_STORAGE_KEY = "vortexchat:ui:thread-panel-open"
 const WORKSPACE_PANEL_STORAGE_KEY = "vortexchat:ui:workspace-panel-open"
-
-function loadMemberListOpen(): boolean {
-  if (typeof window === "undefined") return true
-  try {
-    const stored = window.localStorage.getItem(MEMBER_LIST_STORAGE_KEY)
-    return stored == null ? true : stored === "true"
-  } catch {
-    return true
-  }
-}
-
-function persistMemberListOpen(open: boolean) {
-  if (typeof window === "undefined") return
-  try {
-    window.localStorage.setItem(MEMBER_LIST_STORAGE_KEY, String(open))
-  } catch {
-    // Best effort only. Ignore storage failures (private mode / restricted environments).
-  }
-}
-
-function loadBooleanStorage(key: string, fallback: boolean): boolean {
-  if (typeof window === "undefined") return fallback
-  try {
-    const stored = window.localStorage.getItem(key)
-    return stored == null ? fallback : stored === "true"
-  } catch {
-    return fallback
-  }
-}
-
-function persistBooleanStorage(key: string, value: boolean) {
-  if (typeof window === "undefined") return
-  try {
-    window.localStorage.setItem(key, String(value))
-  } catch {
-    // Best effort only. Ignore storage failures (private mode / restricted environments).
-  }
-}
 
 export interface MemberForMention {
   user_id: string
@@ -195,14 +158,14 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveServer: (serverId) => set({ activeServerId: serverId }),
   setActiveChannel: (channelId) => set({ activeChannelId: channelId }),
 
-  memberListOpen: loadMemberListOpen(),
+  memberListOpen: loadBooleanStorage(MEMBER_LIST_STORAGE_KEY, true),
   toggleMemberList: () => set((state) => {
     const next = !state.memberListOpen
-    persistMemberListOpen(next)
+    persistBooleanStorage(MEMBER_LIST_STORAGE_KEY, next)
     return { memberListOpen: next }
   }),
   setMemberListOpen: (open) => {
-    persistMemberListOpen(open)
+    persistBooleanStorage(MEMBER_LIST_STORAGE_KEY, open)
     set({ memberListOpen: open })
   },
   threadPanelOpen: loadBooleanStorage(THREAD_PANEL_STORAGE_KEY, true),

@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
 import { computeAntiAbuseScore, sanitizeEvidenceAttachments } from "@/lib/appeals"
+import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 
 export async function GET() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { data, error } = await (supabase as any)
     .from("moderation_appeals")
@@ -24,20 +21,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
   const serviceSupabase = await createServiceRoleClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  let payload: unknown
-  try {
-    payload = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Malformed JSON" }, { status: 400 })
-  }
+  const { data: payload, error: parseError } = await parseJsonBody(req)
+  if (parseError) return parseError
 
   const body = payload as { serverId?: unknown; statement?: unknown; evidenceAttachments?: unknown }
   const serverId = typeof body.serverId === "string" ? body.serverId : ""
@@ -128,7 +117,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create appeal status event" }, { status: 500 })
   }
 
-  const { error: auditError } = await serviceSupabase.from("audit_logs").insert({
+  const { error: auditError } = await insertAuditLog(serviceSupabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "appeal_status_changed",

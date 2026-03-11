@@ -12,17 +12,7 @@ import { useToast } from "@/components/ui/use-toast"
 const ProfileSettingsModal = lazy(() => import("@/components/modals/profile-settings-modal").then((m) => ({ default: m.ProfileSettingsModal })))
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { UserRow } from "@/types/database"
-
-const STATUS_OPTIONS: { value: UserRow["status"]; label: string; color: string }[] = [
-  { value: "online", label: "Online", color: "var(--theme-success)" },
-  { value: "idle", label: "Idle", color: "var(--theme-warning)" },
-  { value: "dnd", label: "Do Not Disturb", color: "var(--theme-danger)" },
-  { value: "invisible", label: "Invisible", color: "var(--theme-presence-offline)" },
-]
-
-function getStatusColor(status: string) {
-  return STATUS_OPTIONS.find((o) => o.value === status)?.color ?? "var(--theme-presence-offline)"
-}
+import { STATUS_OPTIONS, getStatusColor } from "@/lib/utils/status-options"
 
 /** Bottom-bar user panel with avatar, status selector, mute/deafen/disconnect controls, and settings shortcut. */
 export function UserPanel() {

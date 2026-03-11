@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { sendPushToUser } from "@/lib/push"
+import { requireAuth } from "@/lib/utils/api-helpers"
 
 // GET /api/friends
 // Returns { accepted: FriendWithUser[], pending_received: FriendWithUser[], pending_sent: FriendWithUser[], blocked: FriendWithUser[] }
 export async function GET() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   // Fetch all friendships where the current user is involved
   const { data, error } = await supabase
@@ -54,9 +53,8 @@ export async function GET() {
 // POST /api/friends  { username: string }
 // Send a friend request by username
 export async function POST(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { username } = await req.json()
   if (!username?.trim()) return NextResponse.json({ error: "Username required" }, { status: 400 })
@@ -183,9 +181,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/friends  { friendshipId: string, action: "accept" | "decline" | "block" }
 export async function PATCH(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { friendshipId, action } = await req.json()
   if (!friendshipId || !action) {
@@ -289,9 +286,8 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/friends?id=<friendshipId>
 // Unfriend or unblock
 export async function DELETE(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(req.url)
   const friendshipId = searchParams.get("id")

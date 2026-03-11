@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useSyncExternalStore } from "react"
+import { persistBooleanStorage } from "@/lib/utils/storage"
 
 const STORAGE_KEY = "vortexchat:notification-sound-enabled"
 
@@ -42,7 +43,7 @@ function getServerSnapshot(): boolean {
 }
 
 function setNotificationSoundEnabled(enabled: boolean) {
-  localStorage.setItem(STORAGE_KEY, String(enabled))
+  persistBooleanStorage(STORAGE_KEY, enabled)
   notifyListeners()
 }
 

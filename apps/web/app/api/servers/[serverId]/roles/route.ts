@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { requireAuth, parseJsonBody } from "@/lib/utils/api-helpers"
 
 export async function GET(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
   const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { data: roles, error } = await supabase
     .from("roles")
@@ -26,17 +25,12 @@ export async function POST(
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
   const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  const { data: body, error: parseError } = await parseJsonBody<any>(request as any)
+  if (parseError) return parseError
 
   const { data: role, error } = await supabase
     .from("roles")

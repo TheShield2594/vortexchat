@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react"
+import { useCallback } from "react"
+import { useAutocomplete } from "./use-autocomplete"
 
 export interface SlashCommand {
   id: string
@@ -38,33 +39,26 @@ function findSlashQuery(text: string, cursor: number): string | null {
 }
 
 export function useSlashCommandAutocomplete({ content, cursorPosition, commands }: Options): Result {
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [dismissed, setDismissed] = useState(false)
-
-  const query = useMemo(
-    () => findSlashQuery(content, cursorPosition),
-    [content, cursorPosition]
+  const filter = useCallback(
+    (query: string) => {
+      const lower = query.toLowerCase()
+      return commands
+        .filter(
+          (cmd) =>
+            cmd.commandName.toLowerCase().startsWith(lower) ||
+            (cmd.description?.toLowerCase().includes(lower) ?? false)
+        )
+        .slice(0, 10)
+    },
+    [commands]
   )
 
-  const matches = useMemo(() => {
-    if (query === null) return []
-    const lower = query.toLowerCase()
-    return commands.filter(
-      (cmd) =>
-        cmd.commandName.toLowerCase().startsWith(lower) ||
-        (cmd.description?.toLowerCase().includes(lower) ?? false)
-    ).slice(0, 10)
-  }, [query, commands])
-
-  const isOpen = query !== null && matches.length > 0 && !dismissed
-
-  useEffect(() => {
-    setSelectedIndex(0)
-  }, [matches.length, query])
-
-  useEffect(() => {
-    setDismissed(false)
-  }, [query])
+  const { isOpen, query, matches, selectedIndex, handleKeyDown, close } = useAutocomplete({
+    findQuery: findSlashQuery,
+    filter,
+    content,
+    cursorPosition,
+  })
 
   function selectCommand(command: SlashCommand) {
     // Replace the /query prefix with the full command invocation token
@@ -73,31 +67,6 @@ export function useSlashCommandAutocomplete({ content, cursorPosition, commands 
       newContent: replacement + content.slice(cursorPosition),
       newCursorPosition: replacement.length,
     }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent): boolean {
-    if (!isOpen) return false
-
-    switch (e.key) {
-      case "ArrowUp":
-        e.preventDefault()
-        setSelectedIndex((prev) => (prev <= 0 ? matches.length - 1 : prev - 1))
-        return true
-      case "ArrowDown":
-        e.preventDefault()
-        setSelectedIndex((prev) => (prev >= matches.length - 1 ? 0 : prev + 1))
-        return true
-      case "Escape":
-        e.preventDefault()
-        setDismissed(true)
-        return true
-      default:
-        return false
-    }
-  }
-
-  function close() {
-    setDismissed(true)
   }
 
   return { isOpen, query, matches, selectedIndex, selectCommand, handleKeyDown, close }

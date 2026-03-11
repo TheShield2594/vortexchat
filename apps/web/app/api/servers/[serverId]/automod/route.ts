@@ -5,19 +5,16 @@
  * Server members may read rules; only owners may create/modify/delete.
  */
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { VALID_TRIGGER_TYPES, validateConfigAndActions } from "@/lib/automod"
+import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   // Must be a member to view rules
   const { data: membership } = await supabase
@@ -57,22 +54,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { data: server } = await supabase.from("servers").select("owner_id").eq("id", serverId).single()
   if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
   if (server.owner_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  let name: string, trigger_type: string, config: unknown, actions: unknown, conditions: unknown, priority: unknown, enabled: unknown
-  try {
-    ;({ name, trigger_type, config, actions, conditions, priority, enabled } = await req.json())
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  const { data: jsonBody, error: parseError } = await parseJsonBody<{ name: string; trigger_type: string; config: unknown; actions: unknown; conditions: unknown; priority: unknown; enabled: unknown }>(req)
+  if (parseError) return parseError
+  const { name, trigger_type, config, actions, conditions, priority, enabled } = jsonBody
 
   if (!name?.trim()) return NextResponse.json({ error: "name is required" }, { status: 400 })
   if (!(VALID_TRIGGER_TYPES as readonly string[]).includes(trigger_type))
@@ -99,7 +90,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Audit
-  await supabase.from("audit_logs").insert({
+  await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "automod_rule_created",
