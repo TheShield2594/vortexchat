@@ -3,15 +3,12 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
 import { writeAuditEvent } from "@/lib/voice/voice-intelligence-service"
 
 /**
- * GET /api/cron/voice-retention
- *
  * Purge worker: hard-deletes expired voice transcript segments and summaries
  * that are past their expires_at and have not been purged yet.
  * Legal-hold records are explicitly skipped and logged.
  *
- * Called by a scheduled cron job (e.g. Vercel Cron). Requires CRON_SECRET.
+ * Core logic exported so the unified cron route (/api/cron) can call it directly.
  */
-/** Core logic — exported so the unified cron route can call it directly. */
 export async function processVoiceRetention() {
   const serviceClient = await createServiceRoleClient()
   const now = new Date().toISOString()

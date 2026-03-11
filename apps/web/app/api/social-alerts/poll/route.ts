@@ -292,7 +292,7 @@ export async function pollRssFeeds() {
 
   for (let index = 0; index < alerts.length; index += concurrency) {
     const batch = alerts.slice(index, index + concurrency)
-    const results = await Promise.allSettled(batch.map((alert) => processAlert(supabase, alert as AlertRow)))
+    const results = await Promise.allSettled(batch.map((alert: AlertRow) => processAlert(supabase, alert)))
     processed += batch.length
     for (const result of results) {
       if (result.status === "fulfilled") posted += result.value.posted
