@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
+import { requireAuth } from "@/lib/utils/api-helpers"
 
 /**
  * GET /api/auth/mfa-challenge
