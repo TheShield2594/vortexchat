@@ -66,8 +66,8 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 
 /** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen } = useAppStore(
-    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen }))
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages }))
   )
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
@@ -87,6 +87,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
+  const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [viewportWidth, setViewportWidth] = useState(1280)
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [focusedActionIndex, setFocusedActionIndex] = useState(0)
@@ -392,6 +393,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
 
+  // Toast after sustained disconnection (30s)
+  useEffect(() => {
+    if (realtimeStatus === "disconnected") {
+      disconnectTimerRef.current = setTimeout(() => {
+        toast({
+          variant: "destructive",
+          title: "Connection lost",
+          description: "Unable to reconnect to live updates. New messages may not appear until the page is refreshed.",
+        })
+      }, 30_000)
+    } else {
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current)
+        disconnectTimerRef.current = null
+      }
+    }
+    return () => {
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current)
+        disconnectTimerRef.current = null
+      }
+    }
+  }, [realtimeStatus, toast])
+
   // Persist last-visited channel per server for fast navigation on next session
   useEffect(() => {
     try {
@@ -406,6 +431,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   useEffect(() => {
     messagesRef.current = messages
   }, [messages])
+
+  // Cache messages when leaving a channel (component unmount or channel switch)
+  useEffect(() => {
+    return () => {
+      const msgs = messagesRef.current
+      if (msgs.length > 0) {
+        const scrollTop = messageScrollerRef.current?.scrollTop ?? 0
+        cacheMessages(channel.id, msgs, scrollTop)
+      }
+    }
+  }, [channel.id, cacheMessages])
 
   useEffect(() => {
     messagesRef.current = initialMessages

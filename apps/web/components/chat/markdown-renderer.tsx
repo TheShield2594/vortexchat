@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, lazy, Suspense, useState, type ReactNode } from "react"
+import { memo, lazy, Suspense, useState, useEffect, type ReactNode } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkBreaks from "remark-breaks"
@@ -9,6 +9,17 @@ import type { Plugin } from "unified"
 import type { Root, Text, PhrasingContent } from "mdast"
 import { visit } from "unist-util-visit"
 import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
+import { useAppStore } from "@/lib/stores/app-store"
+
+// ─── Big-emoji detection ────────────────────────────────────────────────────
+
+const RE_ONLY_EMOJI = /^(?:\s*(?::([a-z0-9_]+):|[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?(?:\u200D[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?)*)\s*){1,5}$/u
+
+/** Returns true if a message consists of 1-5 emojis (custom or unicode) and nothing else. */
+function isOnlyEmoji(content: string): boolean {
+  const stripped = content.trim()
+  return stripped.length > 0 && stripped.length < 100 && RE_ONLY_EMOJI.test(stripped)
+}
 
 // ─── Lazy code highlighter ─────────────────────────────────────────────────
 
@@ -98,6 +109,181 @@ const remarkSpoiler = splitTextByPattern(
   (m) => `<vortex-spoiler>${m[1]}</vortex-spoiler>`,
 )
 
+/** Remark plugin: <t:epoch> or <t:epoch:format> → <vortex-timestamp> elements. */
+const remarkTimestamps = splitTextByPattern(
+  /<t:(\d+)(?::([tTdDfFR]))?>/g,
+  (m) => `<vortex-timestamp data-epoch="${m[1]}" data-format="${m[2] ?? "f"}"></vortex-timestamp>`,
+)
+
+// ─── Unicode emoji → image replacement ──────────────────────────────────────
+
+/** Convert a unicode emoji codepoint to a Twemoji CDN URL. */
+function emojiToTwemojiUrl(emoji: string): string {
+  const codePoints = [...emoji]
+    .map((c) => c.codePointAt(0)!.toString(16))
+    .filter((cp) => cp !== "fe0f") // remove variation selector
+    .join("-")
+  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codePoints}.svg`
+}
+
+/** Regex matching common unicode emoji sequences. */
+const RE_UNICODE_EMOJI = /(?:\p{Emoji_Presentation}|\p{Extended_Pictographic})\uFE0F?(?:\u200D(?:\p{Emoji_Presentation}|\p{Extended_Pictographic})\uFE0F?)*/gu
+
+/** Remark plugin: unicode emojis → <img> tags with Twemoji SVGs for consistent cross-platform rendering. */
+const remarkUnicodeEmoji: Plugin<[], Root> = () => (tree) => {
+  visit(tree, "text", (node: Text, index, parent) => {
+    if (!parent || index === undefined) return
+    const value = node.value
+    const parts: PhrasingContent[] = []
+    let lastIdx = 0
+    let match: RegExpExecArray | null
+    RE_UNICODE_EMOJI.lastIndex = 0
+
+    while ((match = RE_UNICODE_EMOJI.exec(value)) !== null) {
+      // Skip single digit characters (0-9) that can match emoji regex
+      if (match[0].length === 1 && /\d/.test(match[0])) continue
+
+      if (match.index > lastIdx) {
+        parts.push({ type: "text", value: value.slice(lastIdx, match.index) })
+      }
+      const url = emojiToTwemojiUrl(match[0])
+      parts.push({
+        type: "html",
+        value: `<img src="${url}" alt="${match[0]}" class="inline-block align-middle" draggable="false" loading="lazy" style="width:1.25em;height:1.25em" />`,
+      } as any)
+      lastIdx = match.index + match[0].length
+    }
+
+    if (parts.length === 0) return
+    if (lastIdx < value.length) {
+      parts.push({ type: "text", value: value.slice(lastIdx) })
+    }
+    parent.children.splice(index, 1, ...parts)
+  })
+}
+
+// ─── Timestamp component ────────────────────────────────────────────────────
+
+const TIMESTAMP_FORMATS: Record<string, Intl.DateTimeFormatOptions> = {
+  t: { hour: "numeric", minute: "numeric" },
+  T: { hour: "numeric", minute: "numeric", second: "numeric" },
+  d: { year: "numeric", month: "2-digit", day: "2-digit" },
+  D: { year: "numeric", month: "long", day: "numeric" },
+  f: { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" },
+  F: { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" },
+}
+
+function TimestampDisplay({ epoch, format }: { epoch: number; format: string }) {
+  const date = new Date(epoch * 1000)
+  const [relative, setRelative] = useState("")
+
+  useEffect(() => {
+    if (format !== "R") return
+    function updateRelative() {
+      const diff = Math.floor((Date.now() - date.getTime()) / 1000)
+      if (diff < 60) setRelative("just now")
+      else if (diff < 3600) setRelative(`${Math.floor(diff / 60)} minutes ago`)
+      else if (diff < 86400) setRelative(`${Math.floor(diff / 3600)} hours ago`)
+      else setRelative(`${Math.floor(diff / 86400)} days ago`)
+    }
+    updateRelative()
+    const id = setInterval(updateRelative, 60_000)
+    return () => clearInterval(id)
+  }, [epoch, format, date])
+
+  if (isNaN(date.getTime())) return <span>&lt;invalid date&gt;</span>
+
+  const text = format === "R"
+    ? relative
+    : date.toLocaleString(undefined, TIMESTAMP_FORMATS[format] ?? TIMESTAMP_FORMATS.f)
+
+  return (
+    <span
+      className="rounded px-1 py-0.5 text-xs"
+      style={{ background: "rgba(88,101,242,0.1)", color: "var(--theme-accent)" }}
+      title={date.toLocaleString()}
+    >
+      {text}
+    </span>
+  )
+}
+
+// ─── External link confirmation ─────────────────────────────────────────────
+
+/** Domains considered safe (no confirmation needed). */
+const TRUSTED_DOMAINS = new Set([
+  "vortexchat.app", "www.vortexchat.app",
+  "github.com", "www.github.com",
+  "youtube.com", "www.youtube.com", "youtu.be",
+  "giphy.com", "media.giphy.com",
+  "tenor.com", "media.tenor.com",
+  "wikipedia.org",
+])
+
+function isTrustedUrl(href: string): boolean {
+  try {
+    const url = new URL(href)
+    const host = url.hostname.toLowerCase()
+    if (TRUSTED_DOMAINS.has(host)) return true
+    // Same origin
+    if (typeof window !== "undefined" && url.origin === window.location.origin) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
+function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  if (!href) return <>{children}</>
+
+  function handleClick(e: React.MouseEvent) {
+    if (isTrustedUrl(href)) return // let the native <a> navigate
+    e.preventDefault()
+    setShowConfirm(true)
+  }
+
+  return (
+    <>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:underline"
+        style={{ color: "var(--theme-link)" }}
+        onClick={handleClick}
+      >
+        {children}
+      </a>
+      {showConfirm && (
+        <span
+          className="inline-flex items-center gap-2 ml-1 text-xs rounded px-2 py-0.5"
+          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-surface-elevated)" }}
+        >
+          <span style={{ color: "var(--theme-text-muted)" }}>Open external link?</span>
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            style={{ color: "var(--theme-accent)" }}
+            onClick={() => { window.open(href, "_blank", "noopener,noreferrer"); setShowConfirm(false) }}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            className="font-medium hover:underline"
+            style={{ color: "var(--theme-text-muted)" }}
+            onClick={() => setShowConfirm(false)}
+          >
+            No
+          </button>
+        </span>
+      )}
+    </>
+  )
+}
+
 // ─── Spoiler component ──────────────────────────────────────────────────────
 
 function SpoilerSpan({ children }: { children: ReactNode }) {
@@ -144,21 +330,13 @@ function CopyButton({ code }: { code: string }) {
 
 // ─── Component map ──────────────────────────────────────────────────────────
 
-function buildComponents(currentUserId: string): Components {
+function buildComponents(currentUserId: string, serverId: string | null, bigEmoji = false): Components {
+  const emojiSize = bigEmoji ? 48 : 22
+  const members = serverId ? useAppStore.getState().members[serverId] ?? [] : []
   return {
-    // Links — external open in new tab
+    // Links — external open with confirmation for untrusted domains
     a({ href, children }) {
-      return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline"
-          style={{ color: "var(--theme-link)" }}
-        >
-          {children}
-        </a>
-      )
+      return <ExternalLink href={href ?? ""}>{children}</ExternalLink>
     },
 
     // Code blocks with syntax highlighting
@@ -248,24 +426,33 @@ function buildComponents(currentUserId: string): Components {
     // Custom elements from our remark plugins (passed through rehype-raw)
     "vortex-emoji": ({ node, ...props }: any) => {
       const name = props["data-name"] ?? node?.properties?.dataName ?? ""
-      return <ServerEmojiImage name={name} />
+      return <ServerEmojiImage name={name} size={emojiSize} />
     },
 
     "vortex-mention": ({ node, ...props }: any) => {
       const uid = props["data-uid"] ?? node?.properties?.dataUid ?? ""
       const isSelfMention = uid === currentUserId
+      const member = members.find((m) => m.user_id === uid)
+      const displayLabel = member?.nickname ?? member?.display_name ?? member?.username ?? uid
       return (
         <span
-          className="px-0.5 rounded"
+          className="px-0.5 rounded cursor-pointer"
           style={{
             color: isSelfMention ? "var(--theme-mention-self-color)" : "var(--theme-accent)",
             background: isSelfMention ? "var(--theme-mention-self-bg)" : "rgba(88,101,242,0.1)",
             border: isSelfMention ? "1px solid var(--theme-mention-self-border)" : undefined,
           }}
+          title={member ? `${member.username}${member.display_name ? ` (${member.display_name})` : ""}` : uid}
         >
-          @{uid}
+          @{displayLabel}
         </span>
       )
+    },
+
+    "vortex-timestamp": ({ node, ...props }: any) => {
+      const epoch = parseInt(props["data-epoch"] ?? node?.properties?.dataEpoch ?? "0", 10)
+      const format = props["data-format"] ?? node?.properties?.dataFormat ?? "f"
+      return <TimestampDisplay epoch={epoch} format={format} />
     },
 
     "vortex-spoiler": ({ children }: any) => {
@@ -288,7 +475,7 @@ function preProcessContent(content: string): string {
 
 // ─── Stable plugin arrays ───────────────────────────────────────────────────
 
-const remarkPlugins = [remarkGfm, remarkBreaks, remarkCustomEmoji, remarkMentions, remarkSpoiler]
+const remarkPlugins = [remarkGfm, remarkBreaks, remarkCustomEmoji, remarkMentions, remarkSpoiler, remarkTimestamps, remarkUnicodeEmoji]
 const rehypePlugins = [rehypeRaw]
 
 // ─── Exported renderer ──────────────────────────────────────────────────────
@@ -296,27 +483,31 @@ const rehypePlugins = [rehypeRaw]
 interface MessageMarkdownProps {
   content: string
   currentUserId: string
+  serverId?: string | null
 }
 
 /** AST-based Markdown renderer for chat messages.
  *
  *  Uses react-markdown (unified/remark/rehype) with custom remark plugins for
- *  mentions, custom emojis, and spoilers. rehype-raw passes our custom HTML
- *  elements through to be rendered by React component overrides.
+ *  mentions, custom emojis, spoilers, and timestamps. rehype-raw passes our
+ *  custom HTML elements through to be rendered by React component overrides.
  *
  *  Supports nested formatting (e.g. **bold _and italic_**) which the
  *  previous single-regex approach could not handle. */
-export const MessageMarkdown = memo(function MessageMarkdown({ content, currentUserId }: MessageMarkdownProps) {
+export const MessageMarkdown = memo(function MessageMarkdown({ content, currentUserId, serverId }: MessageMarkdownProps) {
   const processed = preProcessContent(content)
-  const components = buildComponents(currentUserId)
+  const bigEmoji = isOnlyEmoji(processed)
+  const components = buildComponents(currentUserId, serverId ?? null, bigEmoji)
 
   return (
-    <ReactMarkdown
-      remarkPlugins={remarkPlugins}
-      rehypePlugins={rehypePlugins}
-      components={components}
-    >
-      {processed}
-    </ReactMarkdown>
+    <div className={bigEmoji ? "big-emoji" : undefined}>
+      <ReactMarkdown
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
+        components={components}
+      >
+        {processed}
+      </ReactMarkdown>
+    </div>
   )
 })

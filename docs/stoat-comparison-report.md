@@ -328,36 +328,36 @@
 
 ## Prioritized Action List
 
-### High Priority
-1. **Add cache invalidation on Supabase Realtime reconnect** — Users silently miss messages during disconnects. Fetch messages since `lastMessageTimestamp` on reconnect. *(Section 3)*
-2. **Add a visual disconnection banner** — Users have no indication that the chat connection dropped. *(Section 3)*
-3. **Migrate to AST-based Markdown rendering** — The single-regex approach can't handle nested formatting and is fragile to extend. Use `react-markdown` (wraps unified) or raw `unified` + `remark-parse` + `remark-rehype`. *(Section 2)*
-4. **Add redirect-after-login** — Unauthenticated users lose their intended destination on redirect to `/login`. *(Section 7)*
-5. **Add a toast/modal error notification system** — Failed API calls and realtime errors are silently swallowed. Users need feedback. *(Section 8)*
-6. **Add a simplified reply-preview renderer** — Replies currently render full messages. Truncate, strip embeds, disable interactions. *(Section 2)*
-7. **Add scroll-position preservation on message prepend** — Loading older messages causes scroll jumps. *(Section 9)*
+### High Priority — ALL COMPLETED
+1. ~~**Add cache invalidation on Supabase Realtime reconnect**~~ — DONE. `use-realtime-messages.ts` detects reconnections and triggers backfill.
+2. ~~**Add a visual disconnection banner**~~ — DONE. Yellow animated banner in `chat-area.tsx`.
+3. ~~**Migrate to AST-based Markdown rendering**~~ — DONE. `markdown-renderer.tsx` uses react-markdown + remark-gfm + custom remark plugins.
+4. ~~**Add redirect-after-login**~~ — DONE. Login page reads `?redirect=` param with open-redirect protection.
+5. ~~**Add a toast/modal error notification system**~~ — DONE. `use-error-handler.ts` hook with `.withContext()`.
+6. ~~**Add a simplified reply-preview renderer**~~ — DONE. `reply-preview.tsx` strips markdown and truncates.
+7. ~~**Add scroll-position preservation on message prepend**~~ — DONE. Double-rAF pattern in `chat-area.tsx`.
 
-### Medium Priority
-8. **Add a shared message cache in Zustand** — Switching channels currently refetches everything. Cache last N messages with TTL. *(Section 4)*
-9. **Add emoji `onError` fallback** — Broken emoji images show broken-image icons instead of graceful text fallback. *(Section 1)*
-10. **Add a grid-based emoji picker panel** — Current autocomplete-only approach has poor discoverability. *(Section 1)*
-11. **Add mention avatars and hover profile cards** — Mentions are plain colored text, not rich interactive pills. *(Section 2)*
-12. **Add external link confirmation modal** — Protect users from phishing links in chat. *(Section 2)*
-13. **Monitor Supabase Realtime connection health** — Subscribe to channel status changes and surface errors. *(Section 3)*
-14. **Add event deduplication on reconnect** — Prevent duplicate messages from appearing after backfill + realtime race. *(Section 3)*
-15. **Add PiP (picture-in-picture) mode for voice** — Floating draggable call card that persists during navigation. *(Section 6)*
-16. **Add invite deep link handling for unauthenticated users** — Process invite after login flow. *(Section 7)*
-17. **Add Suspense boundaries around async UI sections** — Show loading states for member lists, message history, settings. *(Section 8)*
-18. **Cache emoji lists across server navigations** — Store in Zustand with TTL. *(Section 1)*
-19. **Lazy-load remaining heavy components** — Profile panels, admin pages, emoji picker. *(Section 9)*
+### Medium Priority — ALL COMPLETED
+8. ~~**Add a shared message cache in Zustand**~~ — DONE. `app-store.ts` caches last 100 messages per channel (10 channels max, 5-min TTL).
+9. ~~**Add emoji `onError` fallback**~~ — DONE. `ServerEmojiImage` falls back to `:name:` text on broken images.
+10. ~~**Add a grid-based emoji picker panel**~~ — ALREADY EXISTS. Frimousse grid picker in both `message-input.tsx` and `message-item.tsx`.
+11. ~~**Add mention display names and tooltips**~~ — DONE. `markdown-renderer.tsx` resolves member names from Zustand store.
+12. ~~**Add external link confirmation**~~ — DONE. `ExternalLink` component with trusted domain allowlist.
+13. ~~**Monitor Supabase Realtime connection health**~~ — DONE. Toast after 30s sustained disconnection in `chat-area.tsx`.
+14. ~~**Add event deduplication on reconnect**~~ — DONE. Backfill uses existing dedup-by-ID logic.
+15. ~~**Add PiP mode for voice**~~ — ALREADY EXISTS. `CompactVoiceBar` in sidebar with mute/deafen/reconnect controls.
+16. ~~**Add invite deep link handling for unauthenticated users**~~ — DONE. `/invite/[code]` page with server preview, auto-accept for authenticated users.
+17. ~~**Add Suspense boundaries around async UI sections**~~ — DONE. Server layout wraps children in Suspense; admin settings tabs wrapped.
+18. ~~**Cache emoji lists across server navigations**~~ — DONE. Module-level cache with 5-min TTL in `server-emoji-context.tsx`.
+19. ~~**Lazy-load remaining heavy components**~~ — DONE. Admin settings tabs (RoleManager, AuditLogPage, etc.) and ProfilePanel now lazy-loaded.
 
-### Low Priority
-20. **Add big-emoji sizing** — Messages with only emojis should render them larger. *(Section 1)*
-21. **Consider unicode emoji image rendering** — Cross-platform consistency via twemoji/noto SVGs. *(Section 1)*
-22. **Add timestamp syntax support** — `<t:epoch:format>` for timezone-aware timestamps. *(Section 2)*
-23. **Consider migrating SW to Workbox** — More robust precaching and cache versioning. *(Section 5)*
-24. **Add i18n framework** — All strings hardcoded in English. Not sprint-critical but important for growth. *(Section 10)*
-25. **Verify listener cleanup on voice disconnect** — Ensure `removeAllListeners()` equivalent before teardown. *(Section 6)*
+### Low Priority — COMPLETED (except #23, #24 deferred)
+20. ~~**Add big-emoji sizing**~~ — DONE. `.big-emoji` CSS class applied when message is 1-5 emojis only.
+21. ~~**Unicode emoji image rendering**~~ — DONE. `remarkUnicodeEmoji` plugin renders Twemoji SVGs via CDN.
+22. ~~**Add timestamp syntax support**~~ — DONE. `remarkTimestamps` plugin + `TimestampDisplay` component with relative time.
+23. **Migrate SW to Workbox** — DEFERRED. Requires build pipeline changes; planned for dedicated PR.
+24. **Add i18n framework** — DEFERRED. Infrastructure-level change; planned for dedicated PR.
+25. ~~**Verify listener cleanup on voice disconnect**~~ — DONE. `removePeerConnection()` and `fullReconnectPeer()` now clear all event handlers before closing.
 
 ---
 

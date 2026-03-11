@@ -621,7 +621,7 @@ export const MessageItem = memo(function MessageItem({
                       className="text-sm leading-relaxed message-content break-words"
                       style={{ color: "var(--theme-text-normal)" }}
                     >
-                      <MessageMarkdown content={messageBodyContent} currentUserId={currentUserId} />
+                      <MessageMarkdown content={messageBodyContent} currentUserId={currentUserId} serverId={activeServerId} />
                     </div>
                   )}
 

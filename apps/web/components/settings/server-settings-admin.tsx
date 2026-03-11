@@ -1,15 +1,18 @@
 "use client"
 
+import { lazy, Suspense } from "react"
 import { Activity, BookOpen, Eye, Flag, Shield, ShieldCheck, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { RoleManager } from "@/components/roles/role-manager"
-import { TemplateManager } from "@/components/modals/template-manager"
 import { AutoModTab, EmojisTab, ModerationTab, ScreeningTab, SocialAlertsTab, WebhooksTab } from "@/components/modals/server-settings-modal"
-import { AppsTab } from "@/components/settings/apps-tab"
-import { ReportsTab } from "@/components/settings/reports-tab"
-import { AdminActivityTimeline } from "@/components/admin/admin-activity-timeline"
-import { PermissionSimulator } from "@/components/admin/permission-simulator"
-import { AuditLogPage } from "@/components/admin/audit-log-page"
+
+// Lazy-load heavy tab components that aren't needed on initial render
+const RoleManager = lazy(() => import("@/components/roles/role-manager").then((m) => ({ default: m.RoleManager })))
+const TemplateManager = lazy(() => import("@/components/modals/template-manager").then((m) => ({ default: m.TemplateManager })))
+const AppsTab = lazy(() => import("@/components/settings/apps-tab").then((m) => ({ default: m.AppsTab })))
+const ReportsTab = lazy(() => import("@/components/settings/reports-tab").then((m) => ({ default: m.ReportsTab })))
+const AdminActivityTimeline = lazy(() => import("@/components/admin/admin-activity-timeline").then((m) => ({ default: m.AdminActivityTimeline })))
+const PermissionSimulator = lazy(() => import("@/components/admin/permission-simulator").then((m) => ({ default: m.PermissionSimulator })))
+const AuditLogPage = lazy(() => import("@/components/admin/audit-log-page").then((m) => ({ default: m.AuditLogPage })))
 
 interface Channel {
   id: string
@@ -21,6 +24,14 @@ interface Props {
   serverName: string
   isOwner: boolean
   channels: Channel[]
+}
+
+function TabLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <div className="animate-pulse text-sm" style={{ color: "var(--theme-text-muted)" }}>Loading...</div>
+    </div>
+  )
 }
 
 export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }: Props) {
@@ -77,45 +88,47 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
           </div>
 
           <div className="min-w-0 flex-1 rounded-md p-4" style={{ background: "var(--theme-bg-primary)" }}>
-            <TabsContent value="roles" className="mt-0">
-              <RoleManager serverId={serverId} isOwner={isOwner} />
-            </TabsContent>
-            <TabsContent value="emojis" className="mt-0">
-              <EmojisTab serverId={serverId} />
-            </TabsContent>
-            <TabsContent value="webhooks" className="mt-0">
-              <WebhooksTab serverId={serverId} channels={channels} open />
-            </TabsContent>
-            <TabsContent value="social-alerts" className="mt-0">
-              <SocialAlertsTab serverId={serverId} channels={channels} open />
-            </TabsContent>
-            <TabsContent value="apps" className="mt-0">
-              <AppsTab serverId={serverId} canManageApps={isOwner} />
-            </TabsContent>
-            <TabsContent value="moderation" className="mt-0">
-              <ModerationTab serverId={serverId} open />
-            </TabsContent>
-            <TabsContent value="screening" className="mt-0">
-              <ScreeningTab serverId={serverId} open />
-            </TabsContent>
-            <TabsContent value="automod" className="mt-0">
-              <AutoModTab serverId={serverId} channels={channels} open />
-            </TabsContent>
-            <TabsContent value="reports" className="mt-0">
-              <ReportsTab serverId={serverId} />
-            </TabsContent>
-            <TabsContent value="templates" className="mt-0">
-              {isOwner ? <TemplateManager serverId={serverId} /> : <p style={{ color: "var(--theme-text-secondary)" }}>Only the owner can import/export templates.</p>}
-            </TabsContent>
-            <TabsContent value="audit-log" className="mt-0">
-              <AuditLogPage serverId={serverId} />
-            </TabsContent>
-            <TabsContent value="admin-activity" className="mt-0">
-              <AdminActivityTimeline serverId={serverId} />
-            </TabsContent>
-            <TabsContent value="permission-simulator" className="mt-0">
-              <PermissionSimulator serverId={serverId} channels={channels} />
-            </TabsContent>
+            <Suspense fallback={<TabLoadingFallback />}>
+              <TabsContent value="roles" className="mt-0">
+                <RoleManager serverId={serverId} isOwner={isOwner} />
+              </TabsContent>
+              <TabsContent value="emojis" className="mt-0">
+                <EmojisTab serverId={serverId} />
+              </TabsContent>
+              <TabsContent value="webhooks" className="mt-0">
+                <WebhooksTab serverId={serverId} channels={channels} open />
+              </TabsContent>
+              <TabsContent value="social-alerts" className="mt-0">
+                <SocialAlertsTab serverId={serverId} channels={channels} open />
+              </TabsContent>
+              <TabsContent value="apps" className="mt-0">
+                <AppsTab serverId={serverId} canManageApps={isOwner} />
+              </TabsContent>
+              <TabsContent value="moderation" className="mt-0">
+                <ModerationTab serverId={serverId} open />
+              </TabsContent>
+              <TabsContent value="screening" className="mt-0">
+                <ScreeningTab serverId={serverId} open />
+              </TabsContent>
+              <TabsContent value="automod" className="mt-0">
+                <AutoModTab serverId={serverId} channels={channels} open />
+              </TabsContent>
+              <TabsContent value="reports" className="mt-0">
+                <ReportsTab serverId={serverId} />
+              </TabsContent>
+              <TabsContent value="templates" className="mt-0">
+                {isOwner ? <TemplateManager serverId={serverId} /> : <p style={{ color: "var(--theme-text-secondary)" }}>Only the owner can import/export templates.</p>}
+              </TabsContent>
+              <TabsContent value="audit-log" className="mt-0">
+                <AuditLogPage serverId={serverId} />
+              </TabsContent>
+              <TabsContent value="admin-activity" className="mt-0">
+                <AdminActivityTimeline serverId={serverId} />
+              </TabsContent>
+              <TabsContent value="permission-simulator" className="mt-0">
+                <PermissionSimulator serverId={serverId} channels={channels} />
+              </TabsContent>
+            </Suspense>
           </div>
         </Tabs>
       </div>
