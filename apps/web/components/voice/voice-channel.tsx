@@ -28,6 +28,9 @@ import { useVoiceIntelligence } from "@/lib/voice/use-voice-intelligence"
 import { VoiceIntelligenceIndicator } from "@/components/voice/voice-intelligence-indicator"
 import { VoiceConsentModal } from "@/components/voice/voice-consent-modal"
 import { VoiceTranscriptViewer } from "@/components/voice/voice-transcript-viewer"
+import { VoiceStatsOverlay, VoiceStatsToggle } from "@/components/voice/voice-stats-overlay"
+import { VoiceGridLayout } from "@/components/voice/voice-grid-layout"
+import { useDeviceMonitoring } from "@/hooks/use-device-monitoring"
 
 interface VoiceParticipantInfo {
   user: UserRow
@@ -142,6 +145,9 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
   const supabase = supabaseRef.current
 
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
+  const [statsOverlayOpen, setStatsOverlayOpen] = useState(false)
+  const [rttHistory, setRttHistory] = useState<number[]>([])
+  const [lossHistory, setLossHistory] = useState<number[]>([])
   const outputAudioContextRef = useRef<AudioContext | null>(null)
   const settingsButtonRef = useRef<HTMLButtonElement>(null)
   const closeDeviceMenu = useCallback(() => setDeviceMenuOpen(false), [])
@@ -178,6 +184,19 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
   const { setParticipantVolume, setParticipantPan } = useVoiceAudioStore(
     useShallow((s) => ({ setParticipantVolume: s.setParticipantVolume, setParticipantPan: s.setParticipantPan }))
   )
+
+  // Sync voice controls to global store for CompactVoiceBar
+  const setVoiceControls = useAppStore((s) => s.setVoiceControls)
+  useEffect(() => {
+    setVoiceControls({
+      muted,
+      deafened,
+      reconnectInfo: reconnectInfo,
+      toggleMute,
+      toggleDeafen,
+      manualReconnect,
+    })
+  }, [muted, deafened, reconnectInfo, toggleMute, toggleDeafen, manualReconnect, setVoiceControls])
 
   const pttActivate = useCallback(() => { if (muted) toggleMute() }, [muted, toggleMute])
   const pttDeactivate = useCallback(() => { if (!muted) toggleMute() }, [muted, toggleMute])
@@ -236,6 +255,16 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
     return map
   }, [voiceParticipants])
   // ── End Voice Intelligence ────────────────────────────────────────────────
+
+  // ── Device Monitoring ──────────────────────────────────────────────────
+  const { prompt: devicePrompt, dismiss: dismissDevicePrompt } = useDeviceMonitoring()
+
+  // ── Network Stats History ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!networkQuality) return
+    setRttHistory((prev) => [...prev.slice(-29), networkQuality.rttMs])
+    setLossHistory((prev) => [...prev.slice(-29), networkQuality.packetLossPercent])
+  }, [networkQuality])
 
   useEffect(() => {
     return () => {
@@ -425,8 +454,17 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
             participantConsents={viParticipantConsents}
             participantNames={viParticipantNames}
           />
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 relative">
             <NetworkQualityIndicator quality={networkQuality} />
+            <VoiceStatsToggle quality={networkQuality} onClick={() => setStatsOverlayOpen((v) => !v)} />
+            <VoiceStatsOverlay
+              quality={networkQuality}
+              rttHistory={rttHistory}
+              lossHistory={lossHistory}
+              peerCount={peerArray.length}
+              open={statsOverlayOpen}
+              onToggle={() => setStatsOverlayOpen(false)}
+            />
             {cpuBypassActive && <span className="text-xs" style={{ color: "var(--theme-warning)" }}>CPU bypass enabled</span>}
             {audioInitError && <span className="text-xs" style={{ color: "var(--theme-warning)" }}>{audioInitError}</span>}
           </div>
@@ -537,7 +575,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
                 <p style={{ color: "var(--theme-text-muted)" }} className="text-sm">Invite others to join this voice channel</p>
               </div>
             ) : (
-              <div className="grid gap-4 w-full" style={{ gridTemplateColumns: hasVideo ? "repeat(auto-fill, minmax(320px, 1fr))" : "repeat(auto-fill, minmax(200px, 1fr))" }}>
+              <VoiceGridLayout participantCount={peerArray.length + (currentUser ? 1 : 0)} hasVideo={hasVideo}>
                 {currentUser && (
                   <ParticipantTile
                     user={currentUser}
@@ -568,7 +606,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
                     spatialEnabled={audioSettings.spatialAudioEnabled}
                   />
                 ))}
-              </div>
+              </VoiceGridLayout>
             )}
           </div>
         )}
@@ -639,6 +677,40 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
           />
         ))}
       </div>
+      {/* New device detected prompt */}
+      {devicePrompt && (
+        <div
+          className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl"
+          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+          role="alert"
+        >
+          <span className="text-sm text-white">
+            New {devicePrompt.kind === "audioinput" ? "microphone" : "speaker"} detected:{" "}
+            <strong>{devicePrompt.device.label || "Unknown Device"}</strong>
+          </span>
+          <button
+            onClick={() => {
+              if (devicePrompt.kind === "audioinput") {
+                setSelectedInputId(devicePrompt.device.deviceId)
+              } else {
+                setSelectedOutputId(devicePrompt.device.deviceId)
+              }
+              dismissDevicePrompt()
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium text-white"
+            style={{ background: "var(--theme-accent)" }}
+          >
+            Switch
+          </button>
+          <button
+            onClick={dismissDevicePrompt}
+            className="text-xs px-2 py-1.5 rounded-lg"
+            style={{ color: "var(--theme-text-muted)" }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       {/* Consent modal — shown when the server policy requires explicit opt-in */}
       {showConsentModal && (
         <VoiceConsentModal
