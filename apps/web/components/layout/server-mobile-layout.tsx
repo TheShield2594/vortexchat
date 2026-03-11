@@ -25,11 +25,10 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const pathname = usePathname()
   const router = useRouter()
   const isMobile = useMobileLayout()
-  const { activeChannelId, channels, toggleMemberList, memberListOpen, setMemberListOpen } = useAppStore(
+  const { activeChannelId, channels, memberListOpen, setMemberListOpen } = useAppStore(
     useShallow((s) => ({
       activeChannelId: s.activeChannelId,
       channels: s.channels,
-      toggleMemberList: s.toggleMemberList,
       memberListOpen: s.memberListOpen,
       setMemberListOpen: s.setMemberListOpen,
     }))
@@ -47,6 +46,14 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
       setMemberListOpen(false)
     }
   }, [isMobile, routeChannelSegment, setMemberListOpen])
+
+  // Sync local mobile state when the store is toggled externally
+  // (e.g. chat-area header button, keyboard shortcut)
+  useEffect(() => {
+    if (isMobile) {
+      setMobileMemberListOpen(memberListOpen)
+    }
+  }, [isMobile, memberListOpen])
 
   // Determine if we are viewing a channel (not just the server root)
   const pathParts = pathname.split("/").filter(Boolean)
@@ -118,25 +125,21 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           <button
             type="button"
             onClick={() => {
-              if (isMobile) {
-                setMobileMemberListOpen((v) => {
-                  const next = !v
-                  setMemberListOpen(next)
-                  return next
-                })
-              } else {
-                toggleMemberList()
-              }
+              setMobileMemberListOpen((v) => {
+                const next = !v
+                setMemberListOpen(next)
+                return next
+              })
             }}
             className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
-            style={{ color: (isMobile ? mobileMemberListOpen : memberListOpen) ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+            style={{ color: mobileMemberListOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             aria-label="Toggle member list"
           >
             <Users className="w-5 h-5" />
           </button>
         </div>
         {/* Channel content area or mobile member list */}
-        {(isMobile ? mobileMemberListOpen : memberListOpen) ? (
+        {mobileMemberListOpen ? (
           <div className="flex-1 overflow-hidden">{memberList}</div>
         ) : (
           <main id="main-content" className="flex flex-1 overflow-hidden">
