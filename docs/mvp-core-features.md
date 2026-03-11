@@ -39,6 +39,26 @@
 | Role management | Done | CRUD with permission bitmasks |
 | Content screening | Done | Accept/reject queue |
 
+## PWA / Mobile
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Installable manifest + service worker | Done | `manifest.json`, `sw.js` with multi-strategy caching |
+| Push notifications (Web Push VAPID) | Done | All users, 4-level settings hierarchy |
+| Push permission soft-ask | Done | 60s delay, contextual prompt |
+| Offline banner + connection state machine | Done | `use-connection-status` FSM, color-coded banner |
+| Message outbox (offline queue) | Done | localStorage-persisted, flushes on reconnect |
+| Mobile bottom tab bar + drawer nav | Done | Responsive `md:` breakpoint with hysteresis |
+| Mobile back-button handling | Done | Two-entry history stack prevents PWA exit |
+| Branded splash + skeleton screens | Done | Shimmer animation, respects reduced-motion |
+| SW update detection + toast | Done | Hourly polling, "New version available" toast |
+| iOS splash screens | Done | 8 device sizes, SVG |
+| App badge for unread mentions | Done | `use-tab-unread-title` → SW `setAppBadge()` |
+| Web Share API | Done | `navigator.share()` in message context menu |
+| `inputmode` on all inputs | Done | `search`, `email`, `numeric` where appropriate |
+| `viewport-fit=cover` + `interactive-widget` | Done | Safe-area insets + keyboard resize |
+| `format-detection: telephone=no` | Done | Prevents iOS auto-linking phone numbers |
+
 ---
 
 *Last updated: 2026-03-11*

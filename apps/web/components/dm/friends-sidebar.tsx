@@ -233,6 +233,7 @@ export function FriendsSidebar({ compact, onStartDM }: { compact?: boolean; onSt
         <div className="flex gap-2">
           <input
             type="text"
+            inputMode="search"
             value={addUsername}
             onChange={(e) => { setAddUsername(e.target.value); setAddStatus(null) }}
             placeholder="Add friend by username…"
