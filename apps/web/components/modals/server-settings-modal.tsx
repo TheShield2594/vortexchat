@@ -459,6 +459,9 @@ interface EmojiEntry {
   id: string
   name: string
   image_url: string
+  created_at?: string
+  uploader_id?: string
+  uploader?: { id: string; display_name: string; avatar_url: string | null } | null
 }
 
 const CUSTOM_EMOJI_LIMIT = 50
@@ -572,7 +575,15 @@ export function EmojisTab({ serverId }: { serverId: string }) {
           {emojis.map((e) => (
             <div key={e.id} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: 'var(--theme-bg-secondary)' }}>
               <img src={e.image_url} alt={e.name} className="w-8 h-8 object-contain rounded" />
-              <span className="flex-1 text-sm text-white">:{e.name}:</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm text-white">:{e.name}:</span>
+                {e.uploader && (
+                  <p className="text-[11px] truncate" style={{ color: 'var(--theme-text-muted)' }}>
+                    Uploaded by {e.uploader.display_name}
+                    {e.created_at && <> &middot; {new Date(e.created_at).toLocaleDateString()}</>}
+                  </p>
+                )}
+              </div>
               <button
                 onClick={() => handleDelete(e.id)}
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors"

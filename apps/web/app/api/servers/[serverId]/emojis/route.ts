@@ -25,7 +25,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("server_emojis")
-    .select("id, name, image_url, created_at")
+    .select("id, name, image_url, created_at, uploader_id, uploader:users!uploader_id(id, display_name, avatar_url)")
     .eq("server_id", serverId)
     .order("name")
 
@@ -93,6 +93,15 @@ export async function POST(
     .single()
 
   if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+
+  // Audit log
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user.id,
+    action: "emoji_uploaded",
+    details: { emoji_name: name, emoji_id: emoji.id },
+  })
+
   return NextResponse.json(emoji, { status: 201 })
 }
 
@@ -150,5 +159,20 @@ export async function DELETE(
     .eq("server_id", serverId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+
+  // Audit log
+  await supabase.from("audit_logs").insert({
+    server_id: serverId,
+    actor_id: user.id,
+    action: "emoji_deleted",
+    details: { emoji_name: emoji.name, emoji_id: emojiId },
+  })
+
+  return NextResponse.json({ ok: true }, {
+    headers: {
+      // Instruct CDN / browser to skip cached copies of the now-deleted asset
+      "Cache-Control": "no-cache",
+      "CDN-Cache-Control": "no-store, must-revalidate",
+    },
+  })
 }
