@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { MessagesSquare, Server, Bell, UserRound } from "lucide-react"
+import { MessagesSquare, Bell, UserRound } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
 
@@ -18,7 +18,6 @@ const RESERVED_PREFIXES = [
 
 const TABS = [
   { href: "/channels/me", label: "Messages", icon: MessagesSquare },
-  { href: "/channels/servers", label: "Servers", icon: Server },
   { href: "/channels/notifications", label: "Notifications", icon: Bell },
   { href: "/channels/you", label: "You", icon: UserRound },
 ]
@@ -33,13 +32,6 @@ function isServerRoute(pathname: string): boolean {
 function isTabActive(href: string, pathname: string): boolean {
   if (href === "/channels/me") {
     return pathname.startsWith("/channels/me") || pathname.startsWith("/channels/friends")
-  }
-  if (href === "/channels/servers") {
-    return (
-      pathname === "/channels/servers" ||
-      pathname.startsWith("/channels/discover") ||
-      isServerRoute(pathname)
-    )
   }
   if (href === "/channels/notifications") return pathname.startsWith("/channels/notifications")
   if (href === "/channels/you") {
@@ -74,7 +66,7 @@ export function MobileBottomTabBar() {
       }}
       aria-label="Mobile sections"
     >
-      <ul className="grid grid-cols-4 h-16">
+      <ul className="grid grid-cols-3 h-16">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = isTabActive(href, pathname)
           const showBadge = href === "/channels/notifications" && notificationUnreadCount > 0

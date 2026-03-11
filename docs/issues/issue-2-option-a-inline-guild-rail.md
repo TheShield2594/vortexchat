@@ -1,5 +1,7 @@
 # Option A: Inline guild rail on mobile home screen (Fluxer pattern)
 
+> **Status: COMPLETED** — Guild rail now renders inline on mobile. Bottom nav reduced to 3 tabs (Messages, Notifications, You). Full-screen channel views hide both the rail and bottom nav.
+
 ## Summary
 
 Implement the Fluxer/Discord mobile navigation pattern: show the server icon rail inline on mobile when the user is on a "home" screen (DMs, server channel list), and switch to full-screen message view when a channel is selected.
@@ -146,14 +148,14 @@ Desktop behavior should remain unchanged — `navigateToServer()` continues to a
 
 ## Acceptance Criteria
 
-- [ ] Mobile: Guild rail visible on home screen without hamburger
-- [ ] Mobile: Tap server → see channel list (guild rail stays)
-- [ ] Mobile: Tap channel → full-screen messages (guild rail + bottom nav hidden)
-- [ ] Mobile: Back/swipe-back from messages → channel list
-- [ ] Desktop: No visual or behavioral changes
+- [x] Mobile: Guild rail visible on home screen without hamburger
+- [x] Mobile: Tap server → see channel list (guild rail stays)
+- [x] Mobile: Tap channel → full-screen messages (guild rail + bottom nav hidden)
+- [x] Mobile: Back/swipe-back from messages → channel list
+- [x] Desktop: No visual or behavioral changes
 - [ ] Swipe right from left edge goes back to server/channel list (swipe-back gesture, optional)
-- [ ] Bottom nav hidden when viewing messages
-- [ ] Channels remain clickable with immediate navigation
+- [x] Bottom nav hidden when viewing messages
+- [x] Channels remain clickable with immediate navigation
 
 ## Priority
 

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Users, Compass, BadgeCheck, Star } from "lucide-react"
-import { MobileMenuButton } from "@/components/layout/mobile-nav"
+
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
@@ -135,7 +135,6 @@ export default function DiscoverPage() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-background">
       <div className="flex flex-shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-        <MobileMenuButton />
         <Compass className="h-5 w-5 text-muted-foreground" />
         <span className="font-semibold">Discover</span>
       </div>
