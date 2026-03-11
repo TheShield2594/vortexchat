@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
-import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap, Radio, Upload, X, Clock, Users, Activity, Eye, Flag } from "lucide-react"
+import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap, Upload, X, Clock, Users, Activity, Eye, Flag } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -186,9 +186,6 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
               </TabsTrigger>
               <TabsTrigger value="webhooks" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Webhooks
-              </TabsTrigger>
-              <TabsTrigger value="social-alerts" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
-                Social Alerts
               </TabsTrigger>
               <TabsTrigger value="apps" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Apps
@@ -387,10 +384,6 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
 
             <TabsContent value="webhooks" className="mt-0">
               <WebhooksTab serverId={server.id} channels={channels} open />
-            </TabsContent>
-
-            <TabsContent value="social-alerts" className="mt-0">
-              <SocialAlertsTab serverId={server.id} channels={channels} open />
             </TabsContent>
 
             <TabsContent value="apps" className="mt-0">
@@ -621,15 +614,6 @@ interface WebhookEntry {
   created_at: string
 }
 
-interface SocialAlertEntry {
-  id: string
-  name: string
-  feed_url: string
-  channel_id: string
-  enabled: boolean
-  last_checked_at: string | null
-}
-
 /** Webhook management tab — lists webhooks with create, copy-URL, and delete controls. Lazy-loads data when the tab is opened. */
 export function WebhooksTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
   const { toast } = useToast()
@@ -792,187 +776,6 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
                 >
                   {copiedId === wh.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-export function SocialAlertsTab({ serverId, channels, open }: { serverId: string; channels: Channel[]; open: boolean }) {
-  const { toast } = useToast()
-  const [alerts, setAlerts] = useState<SocialAlertEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
-  const [newName, setNewName] = useState("RSS Feed")
-  const [newFeedUrl, setNewFeedUrl] = useState("")
-  const [newChannelId, setNewChannelId] = useState(channels[0]?.id ?? "")
-
-  useEffect(() => {
-    if (!open) return
-    setLoading(true)
-    fetch(`/api/servers/${serverId}/social-alerts`)
-      .then((r) => r.json())
-      .then((d) => { setAlerts(Array.isArray(d) ? d : []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [open, serverId])
-
-  useEffect(() => {
-    if (!newChannelId && channels[0]) setNewChannelId(channels[0].id)
-  }, [channels, newChannelId])
-
-  async function handleCreate() {
-    if (!newChannelId || !newFeedUrl.trim()) return
-    setCreating(true)
-    const res = await fetch(`/api/servers/${serverId}/social-alerts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelId: newChannelId, feedUrl: newFeedUrl.trim(), name: newName.trim() || "RSS Feed" }),
-    })
-    if (res.ok) {
-      const created = await res.json()
-      setAlerts((prev) => [...prev, created])
-      setNewFeedUrl("")
-      setNewName("RSS Feed")
-      toast({ title: "Social alert created" })
-    } else {
-      const errorPayload = await res.json().catch(() => ({ error: "Failed to create social alert" }))
-      toast({ variant: "destructive", title: "Failed to create social alert", description: errorPayload.error })
-    }
-    setCreating(false)
-  }
-
-  async function handleDelete(id: string) {
-    try {
-      const res = await fetch(`/api/servers/${serverId}/social-alerts?alertId=${id}`, { method: "DELETE" })
-      if (res.ok) {
-        setAlerts((prev) => prev.filter((alert) => alert.id !== id))
-        toast({ title: "Social alert deleted" })
-        return
-      }
-
-      toast({
-        variant: "destructive",
-        title: "Failed to delete social alert",
-        description: res.statusText || "Please try again.",
-      })
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Failed to delete social alert",
-        description: "Network error. Please try again.",
-      })
-    }
-  }
-
-  async function toggleEnabled(id: string, enabled: boolean) {
-    setAlerts((prev) => prev.map((alert) => alert.id === id ? { ...alert, enabled } : alert))
-    const res = await fetch(`/api/servers/${serverId}/social-alerts`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ alertId: id, enabled }),
-    })
-    if (!res.ok) {
-      setAlerts((prev) => prev.map((alert) => alert.id === id ? { ...alert, enabled: !enabled } : alert))
-      toast({ variant: "destructive", title: "Failed to update social alert" })
-    }
-  }
-
-  function channelName(channelId: string) {
-    return formatChannelName(channelId, channels)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-white font-semibold mb-0.5 flex items-center gap-2">
-          <Radio className="w-4 h-4" style={{ color: 'var(--theme-accent)' }} />
-          Social Alerts
-        </p>
-        <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-          Connect RSS feeds and deliver new posts into a designated channel.
-        </p>
-      </div>
-
-      <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-bg-tertiary)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>New RSS Feed Alert</p>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Alert name"
-            className="px-3 py-2 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
-          />
-          <input
-            value={newFeedUrl}
-            onChange={(e) => setNewFeedUrl(e.target.value)}
-            placeholder="https://example.com/feed.xml"
-            className="md:col-span-2 px-3 py-2 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
-          />
-          <select
-            value={newChannelId}
-            onChange={(e) => setNewChannelId(e.target.value)}
-            className="px-2 py-2 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-surface-elevated)' }}
-          >
-            {channels.map((c) => (
-              <option key={c.id} value={c.id}>#{c.name}</option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={creating || !newChannelId || !newFeedUrl.trim()}
-          className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
-          style={{ background: 'var(--theme-accent)', color: 'white' }}
-        >
-          {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Alert"}
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-6"><Loader2 className="animate-spin" style={{ color: 'var(--theme-text-muted)' }} /></div>
-      ) : alerts.length === 0 ? (
-        <div className="text-center py-8 text-sm" style={{ color: 'var(--theme-text-muted)' }}>
-          No social alerts yet. Add an RSS feed above.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {alerts.map((alert) => (
-            <div key={alert.id} className="rounded-lg p-3" style={{ background: 'var(--theme-bg-secondary)', border: '1px solid var(--theme-bg-tertiary)' }}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-white">{alert.name}</p>
-                  <p className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{alert.feed_url}</p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-                    #{channelName(alert.channel_id)} {alert.last_checked_at ? `• Checked ${new Date(alert.last_checked_at).toLocaleString()}` : ""}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs" style={{ color: 'var(--theme-text-secondary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={alert.enabled}
-                      onChange={(e) => toggleEnabled(alert.id, e.target.checked)}
-                      className="mr-1"
-                    />
-                    Enabled
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(alert.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors"
-                    style={{ color: 'var(--theme-text-faint)' }}
-                    title="Delete"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </div>
             </div>
           ))}
