@@ -145,14 +145,12 @@
 - **Main layout** (`components/layout/channels-shell.tsx`): `pb-16 md:pb-0` reserves space for bottom tab bar on mobile.
 - **Hysteresis breakpoints** (`hooks/use-mobile-layout.ts`): enable mobile at `<640px`, disable at `>=768px` — prevents layout flapping when resizing near the breakpoint (same pattern as Fluxer's `MobileLayoutStore`).
 - **Mobile back-button history management** (`utils/mobile-navigation.ts`): builds a two-entry History API stack (base → channel) so hardware back on Android navigates to the channel list instead of exiting the PWA. Includes a `setupMobileBackGuard` fallback for standalone PWAs.
-- **Viewport meta:** `width=device-width, initialScale=1, userScalable=true, themeColor="#00e5ff"`.
-- **Missing: `viewport-fit=cover`** — safe-area-inset values won't activate on iOS notch devices.
-- **Missing: `interactive-widget=resizes-content`** — keyboard overlay behavior is uncontrolled.
+- **Viewport meta:** `width=device-width, initialScale=1, userScalable=true, viewportFit=cover, interactiveWidget=resizes-content, themeColor="#00e5ff"`.
 
 ### Gaps & Recommendations
 
-- **HIGH: Add `viewport-fit=cover` to the viewport meta tag** in `apps/web/app/layout.tsx`. Without this, `env(safe-area-inset-*)` values are always zero on iOS Safari. Fluxer has this; Stoat is missing it too.
-- **HIGH: Add `interactive-widget=resizes-content`** to the viewport meta — this tells mobile browsers to resize the layout when the virtual keyboard opens, preventing the keyboard from overlapping the message input.
+- ~~**HIGH: Add `viewport-fit=cover` to the viewport meta tag**~~ **Resolved:** `apps/web/app/layout.tsx` now includes `viewportFit: "cover"`.
+- ~~**HIGH: Add `interactive-widget=resizes-content`**~~ **Resolved:** `apps/web/app/layout.tsx` now includes `interactiveWidget: "resizes-content"`.
 - ~~**MEDIUM: Add hysteresis breakpoints**~~ **Resolved:** `hooks/use-mobile-layout.ts` implements hysteresis (enable `<640px`, disable `>=768px`).
 - ~~**MEDIUM: Add mobile back-button history management**~~ **Resolved:** `utils/mobile-navigation.ts` implements the two-entry history stack + guard.
 - **LOW: Add `is-standalone` CSS class** to conditionally apply top safe-area-inset only in installed PWA mode (like Fluxer), avoiding unnecessary padding in the browser.
@@ -192,7 +190,7 @@
 ### Gaps & Recommendations
 
 - **Vortex has the most complete notification system.** The settings hierarchy is more sophisticated than either competitor.
-- **MEDIUM: Add app badge support** like Fluxer — post unread mention count to the service worker via `postMessage`, call `navigator.setAppBadge()`. This shows a badge on the app icon on Android and iOS.
+- ~~**MEDIUM: Add app badge support**~~ **Resolved:** `hooks/use-tab-unread-title.ts` posts unread count to the service worker via `postMessage({ type: "APP_UPDATE_BADGE", count })`, which calls `navigator.setAppBadge()` / `clearAppBadge()`.
 - ~~**MEDIUM: Consider gating push permission requests.**~~ **Resolved:** `components/push-permission-prompt.tsx` delays 60s, shows a contextual soft-ask, and only triggers the browser dialog when the user clicks "Enable".
 - ~~**LOW: Add `pushsubscriptionchange` handling**~~ **Resolved:** `sw.js` now handles `pushsubscriptionchange` with SW-side re-subscribe + server sync, plus client notification via `postMessage`.
 
@@ -250,8 +248,8 @@
 
 | # | Item | Relevant files | Status |
 |---|------|---------------|--------|
-| H1 | **Add `viewport-fit=cover` to viewport meta** | `apps/web/app/layout.tsx` | Open |
-| H2 | **Add `interactive-widget=resizes-content` to viewport meta** | `apps/web/app/layout.tsx` | Open |
+| H1 | ~~**Add `viewport-fit=cover` to viewport meta**~~ | `apps/web/app/layout.tsx` | **Done** |
+| H2 | ~~**Add `interactive-widget=resizes-content` to viewport meta**~~ | `apps/web/app/layout.tsx` | **Done** |
 | H3 | ~~**Add connection state machine + offline banner**~~ | `hooks/use-connection-status.ts`, `components/connection-banner.tsx` | **Done** |
 | H4 | ~~**Add message outbox/queue for offline sends**~~ | `lib/chat-outbox.ts`, `components/chat/hooks/use-chat-outbox.ts` | **Done** |
 | H5 | ~~**Add mobile back-button history management**~~ | `utils/mobile-navigation.ts` | **Done** |
@@ -262,7 +260,7 @@
 |---|------|---------------|--------|
 | M1 | ~~**Add "new version available" toast**~~ | `components/sw-update-toast.tsx`, `hooks/use-sw-registration.ts` | **Done** |
 | M2 | ~~**Add hourly SW update polling**~~ | `hooks/use-sw-registration.ts` | **Done** |
-| M3 | **Add app badge for unread mentions** | `public/sw.js` + new read-state sync in the main thread | Open |
+| M3 | ~~**Add app badge for unread mentions**~~ | `public/sw.js` + `hooks/use-tab-unread-title.ts` | **Done** |
 | M4 | **Add explicit Cache-Control headers for public assets** | `apps/web/next.config.js` `headers()` | Open |
 | M5 | ~~**Delay push permission request with soft-ask**~~ | `components/push-permission-prompt.tsx`, `hooks/use-push-notifications.ts` | **Done** |
 | M6 | **Add hysteresis for mobile/desktop layout breakpoints** | `hooks/use-mobile-layout.ts` | **Done** (pre-existing) |
@@ -276,10 +274,10 @@
 | L1 | **Add `display_override: ["window-controls-overlay"]` to manifest** | `apps/web/public/manifest.json` | Enables a polished desktop PWA titlebar (like Stoat) with custom content in the title bar area |
 | L2 | **Add `is-standalone` CSS class for conditional styling** | `apps/web/app/layout.tsx` or a client component | Only apply `safe-area-inset-top` padding when running as installed PWA, not in browser tab (Fluxer pattern) |
 | L3 | **Add more PWA shortcuts** | `apps/web/public/manifest.json` | Currently only "Friends". Add shortcuts for "New DM", "Discover Servers", etc. |
-| L4 | **Add Web Share API integration** | New: share button in message context menu | Allow users to share messages/media to other apps via `navigator.share()` |
-| L5 | **Add `inputmode` attributes to input fields** | Various input components | Proper `inputmode="text"`, `inputmode="email"`, `inputmode="search"` to optimize the mobile keyboard |
+| L4 | ~~**Add Web Share API integration**~~ | `components/chat/message-item.tsx` context menu | **Done** — `navigator.share()` gated on browser support |
+| L5 | ~~**Add `inputmode` attributes to input fields**~~ | Various input components | **Done** — search, email, numeric, and text inputs all have appropriate `inputMode` |
 | L6 | **Consider granular code splitting for heavy deps** | `apps/web/next.config.js` | Explicitly split livekit, emoji data, and other large packages to reduce initial bundle size |
-| L7 | **Add `format-detection: telephone=no` meta tag** | `apps/web/app/layout.tsx` | Prevents iOS from auto-linking numbers in chat messages as phone numbers (Fluxer has this) |
+| L7 | ~~**Add `format-detection: telephone=no` meta tag**~~ | `apps/web/app/layout.tsx` | **Done** — `<meta name="format-detection" content="telephone=no" />` |
 
 ---
 
@@ -294,14 +292,14 @@
 | SW update notification | ✅ Titlebar button | Code-level only | ✅ Toast + hourly poll |
 | Push notifications (Web Push) | ❌ Browser API only | ✅ PWA-gated | ✅ All users |
 | Notification settings hierarchy | Basic filters | Basic | ✅ 4-level hierarchy |
-| App badge | ❌ | ✅ | ❌ Missing |
+| App badge | ❌ | ✅ | ✅ Via SW postMessage |
 | Install prompt (`beforeinstallprompt`) | ❌ | ❌ | ✅ Custom banner |
 | Offline banner | ✅ Full FSM | ❌ | ✅ Full FSM + banner |
 | Message outbox/queue | ✅ Persistent | ❌ | ✅ Persistent (localStorage) |
 | Mobile bottom nav | ❌ | ✅ | ✅ |
 | Swipe gestures | ❌ | ❌ | ✅ Left-edge swipe |
-| Safe area insets | Partial (missing viewport-fit) | ✅ Full | Partial (missing viewport-fit) |
-| `viewport-fit=cover` | ❌ | ✅ | ❌ Missing |
+| Safe area insets | Partial (missing viewport-fit) | ✅ Full | ✅ Full |
+| `viewport-fit=cover` | ❌ | ✅ | ✅ |
 | Mobile back-button handling | ❌ | ✅ History stack | ✅ History stack + guard |
 | Skeleton loading screens | ❌ Spinners only | ✅ | ✅ Shimmer |
 | Splash/loading screen | ❌ | ✅ Animated | ✅ Branded + iOS |
@@ -310,4 +308,4 @@
 
 ### Key Takeaway
 
-**Vortex now has the most complete PWA support** of the three — it's the only one with all of: multi-strategy service worker caching, Web Push for all users, a custom install prompt, iOS splash screens, skeleton loading, swipe gestures, a connection state machine with offline banner, a persistent message outbox, SW update detection with toast UI, hourly update polling, a branded splash screen, mobile back-button history management, and a push permission soft-ask. The remaining gaps are in **mobile viewport handling** (missing `viewport-fit=cover` and `interactive-widget`) and **app badge support**. See remaining items H1, H2, and M3 above.
+**Vortex now has the most complete PWA support** of the three — it's the only one with all of: multi-strategy service worker caching, Web Push for all users, a custom install prompt, iOS splash screens, skeleton loading, swipe gestures, a connection state machine with offline banner, a persistent message outbox, SW update detection with toast UI, hourly update polling, a branded splash screen, mobile back-button history management, a push permission soft-ask, app badge support, Web Share API, proper `inputmode` attributes, `viewport-fit=cover`, and `interactive-widget=resizes-content`. The remaining open items are low-priority polish (L1, L2, L3, L6).
