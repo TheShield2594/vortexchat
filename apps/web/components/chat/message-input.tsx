@@ -53,6 +53,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [gifQuery, setGifQuery] = useState("")
   const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [gifLoading, setGifLoading] = useState(false)
+  const [gifSuggestions, setGifSuggestions] = useState<string[]>([])
   const uploadAbortRef = useRef<AbortController | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -200,6 +201,25 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       clearTimeout(timeout)
       controller.abort()
     }
+  }, [showEmojiPicker, pickerTab, gifQuery])
+
+  // Fetch GIF search autocomplete suggestions as user types
+  useEffect(() => {
+    if (!showEmojiPicker || pickerTab !== "gif" || gifQuery.trim().length < 2) {
+      setGifSuggestions([])
+      return
+    }
+    const controller = new AbortController()
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/gif/suggestions?q=${encodeURIComponent(gifQuery.trim())}`, { signal: controller.signal })
+        const json = await res.json()
+        setGifSuggestions(Array.isArray(json) ? json : [])
+      } catch {
+        // ignore abort / network errors
+      }
+    }, 300)
+    return () => { clearTimeout(timeout); controller.abort() }
   }, [showEmojiPicker, pickerTab, gifQuery])
 
   async function handleSend() {
@@ -1012,11 +1032,28 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
                     style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   />
-                  {!process.env.NEXT_PUBLIC_GIPHY_API_KEY ? (
-                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-                      Add NEXT_PUBLIC_GIPHY_API_KEY to enable GIF search.
+                  {/* Search autocomplete suggestions */}
+                  {gifSuggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {gifSuggestions.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setGifQuery(s)}
+                          className="px-2 py-0.5 rounded-full text-[11px] hover:opacity-80 transition-opacity"
+                          style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Section header */}
+                  {!gifQuery.trim() && !gifLoading && gifResults.length > 0 && (
+                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                      Trending
                     </p>
-                  ) : gifLoading ? (
+                  )}
+                  {gifLoading ? (
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
                   ) : (
                     <div
