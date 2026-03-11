@@ -275,6 +275,32 @@ async function processAlert(supabase: Awaited<ReturnType<typeof createServiceRol
   }
 }
 
+const STALE_THRESHOLD_MS = 5 * 60 * 1000 // 5 minutes
+
+/**
+ * On-demand poll: check feeds targeting a specific channel, but only if
+ * they haven't been checked in the last 5 minutes.  Designed to be called
+ * fire-and-forget from the messages GET route so users see fresh RSS
+ * content without needing a cron job.
+ */
+export async function pollStaleFeedsForChannel(channelId: string) {
+  const supabase = await createServiceRoleClient()
+  const cutoff = new Date(Date.now() - STALE_THRESHOLD_MS).toISOString()
+
+  const { data: alerts, error } = await supabase
+    .from("social_alerts")
+    .select("id,server_id,channel_id,name,feed_url,last_item_id,last_checked_at")
+    .eq("channel_id", channelId)
+    .eq("enabled", true)
+    .or(`last_checked_at.is.null,last_checked_at.lt.${cutoff}`)
+
+  if (error || !alerts || alerts.length === 0) return
+
+  for (const alert of alerts) {
+    await processAlert(supabase, alert as AlertRow)
+  }
+}
+
 /** Core polling logic — exported so the unified cron route can call it directly. */
 export async function pollRssFeeds() {
   const supabase = await createServiceRoleClient()

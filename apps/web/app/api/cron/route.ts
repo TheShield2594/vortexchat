@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { processEventReminders } from "./event-reminders/route"
 import { processVoiceRetention } from "./voice-retention/route"
-import { pollRssFeeds } from "@/app/api/social-alerts/poll/route"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -10,8 +9,11 @@ export const maxDuration = 60
  * Unified cron endpoint — runs all scheduled tasks in a single invocation.
  * This keeps Vercel free-plan usage to one cron slot.
  *
- * Schedule: every day via vercel.json crons
- * Each sub-task is fire-and-forget; a failure in one does not block the others.
+ * RSS feed polling is handled on-demand (see messages GET route) and does
+ * not need a cron trigger.
+ *
+ * Schedule: daily via vercel.json crons
+ * Each sub-task is independent; a failure in one does not block the others.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
@@ -39,14 +41,6 @@ export async function GET(req: NextRequest) {
   } catch (err: unknown) {
     console.error("[cron] voice-retention failed:", err)
     results.voiceRetention = { error: err instanceof Error ? err.message : "unknown" }
-  }
-
-  // RSS feed polling
-  try {
-    results.rssFeeds = await pollRssFeeds()
-  } catch (err: unknown) {
-    console.error("[cron] rss-feeds failed:", err)
-    results.rssFeeds = { error: err instanceof Error ? err.message : "unknown" }
   }
 
   return NextResponse.json({ ok: true, ...results })

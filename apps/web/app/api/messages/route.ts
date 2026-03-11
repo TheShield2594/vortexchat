@@ -13,6 +13,7 @@ import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import type { AutoModRuleWithParsed } from "@/types/database"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { filterMentionsByBlockState } from "@/lib/blocking"
+import { pollStaleFeedsForChannel } from "@/app/api/social-alerts/poll/route"
 import { validateAttachments, validateAttachmentContent } from "@/lib/attachment-validation"
 import { MESSAGE_PROJECTION, withReplyTo, type ServerSupabaseClient } from "@/lib/messages/hydration"
 import { parsePostMessageRequestBody, type MessageAttachment, type PostMessageRequestBody } from "@/lib/messages/validators"
@@ -464,6 +465,12 @@ export async function GET(request: Request) {
 
   const { error: channelError } = await getChannelForRead(supabase, channelId, user.id)
   if (channelError) return channelError
+
+  // Fire-and-forget: poll any stale RSS feeds targeting this channel.
+  // Runs in the background — does not delay the message response.
+  if (!before) {
+    pollStaleFeedsForChannel(channelId).catch(() => {})
+  }
 
   if (around) {
     const aroundResult = await getMessagesAroundTarget(supabase, channelId, around, limit)
