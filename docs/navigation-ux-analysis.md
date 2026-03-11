@@ -526,7 +526,10 @@ function isTabActive(href: string, pathname: string): boolean {
        !pathname.startsWith("/channels/me") &&
        !pathname.startsWith("/channels/notifications") &&
        !pathname.startsWith("/channels/you") &&
-       !pathname.startsWith("/channels/discover"))
+       !pathname.startsWith("/channels/discover") &&
+       !pathname.startsWith("/channels/friends") &&
+       !pathname.startsWith("/channels/profile") &&
+       !pathname.startsWith("/channels/servers"))
   }
   return pathname.startsWith(href)
 }
@@ -553,15 +556,22 @@ interface AppState {
   serverListView: 'grid' | 'list'  // user preference for server list page
 }
 
-// Server list page fetches from existing `servers` array in store
-// No new data fetching needed
+// The `servers` array in AppState provides base server info (id, name, icon).
+// The server card examples above reference aggregates (unread counts, mention
+// counts, voice activity) that are NOT currently in AppState. To support those:
+//   - Add `unreadCounts: Record<string, number>` to AppState (per-server unread)
+//   - Add `mentionCounts: Record<string, number>` to AppState (per-server mentions)
+//   - Add `voiceActivity: Record<string, { count: number }>` to AppState
+//   - Populate via new API endpoint or derive from existing channel/message stores
+// Without these additions, the server list page should only display fields
+// already available on `servers` (name, icon, member count if present).
 ```
 
 **Pros:**
-- Full screen width for server list with rich cards (unread counts, voice status)
+- Full screen width for server list with rich cards (requires aggregate data — see State Management)
 - Clearer mental model: "Servers" is a first-class destination
 - Easier to discover servers (no hidden hamburger)
-- More room for server metadata (member count, last activity)
+- More room for server metadata (member count, last activity — requires additional API work)
 - 3 taps from bottom nav to any channel (Servers tab → server card → channel), or 2 taps for returning users when auto-navigating to last channel
 
 **Cons:**

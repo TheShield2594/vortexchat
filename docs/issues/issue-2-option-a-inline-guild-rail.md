@@ -86,7 +86,7 @@ Reduce to 3 tabs, hide when in full-screen channel:
 const TABS = [
   { href: "/channels/me", label: "DMs", icon: MessagesSquare },
   { href: "/channels/notifications", label: "Notifications", icon: Bell },
-  { href: "/channels/profile", label: "You", icon: UserRound },
+  { href: "/channels/you", label: "You", icon: UserRound },
 ]
 ```
 
@@ -116,9 +116,16 @@ function useIsFullScreenChannel() {
   const isMobile = useMediaQuery('(max-width: 767px)')
 
   // /channels/:serverId/:channelId or /channels/me/:channelId
-  const hasChannelId = pathname.split('/').length >= 4
+  // Exclude reserved sub-routes like /channels/:serverId/settings, /moderation, /events
+  const segments = pathname.split('/').filter(Boolean)
+  const RESERVED_SUBROUTES = ['settings', 'moderation', 'events']
+  const isChannelRoute =
+    segments[0] === 'channels' &&
+    segments.length >= 3 &&
+    !!segments[2] &&
+    !RESERVED_SUBROUTES.includes(segments[2])
 
-  return isMobile && hasChannelId
+  return isMobile && isChannelRoute
 }
 ```
 

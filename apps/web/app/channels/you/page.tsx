@@ -54,9 +54,17 @@ export default function YouPage() {
     const latestUser = useAppStore.getState().currentUser
     if (!latestUser) return
     try {
-      const { error } = await supabase.from("users").update({ status }).eq("id", latestUser.id)
-      if (error) throw error
-      setCurrentUser({ ...useAppStore.getState().currentUser!, status })
+      const res = await fetch("/api/users/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || "Failed to update status")
+      }
+      const updatedUser = await res.json()
+      setCurrentUser(updatedUser)
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to update status", description: error.message })
     }
