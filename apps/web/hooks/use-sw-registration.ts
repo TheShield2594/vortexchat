@@ -33,21 +33,25 @@ export function useSwRegistration() {
     }
 
     let pollTimer: ReturnType<typeof setInterval> | undefined
+    let disposed = false
+    let onUpdateFound: (() => void) | undefined
 
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .then((reg) => {
+        if (disposed) return
         registrationRef.current = reg
 
         // Detect a new worker waiting
         const onStateChange = () => {
-          if (reg.waiting) setUpdateAvailable(true)
+          if (!disposed && reg.waiting) setUpdateAvailable(true)
         }
 
-        reg.addEventListener("updatefound", () => {
+        onUpdateFound = () => {
           const newWorker = reg.installing
           newWorker?.addEventListener("statechange", onStateChange)
-        })
+        }
+        reg.addEventListener("updatefound", onUpdateFound)
 
         // Already waiting (e.g. page refresh after SW install)
         if (reg.waiting) setUpdateAvailable(true)
@@ -83,7 +87,10 @@ export function useSwRegistration() {
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange)
 
     return () => {
+      disposed = true
       if (pollTimer) clearInterval(pollTimer)
+      const reg = registrationRef.current
+      if (reg && onUpdateFound) reg.removeEventListener("updatefound", onUpdateFound)
       navigator.serviceWorker.removeEventListener("message", onMessage)
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange)
     }

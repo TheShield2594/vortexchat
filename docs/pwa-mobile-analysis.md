@@ -21,7 +21,7 @@
 - Referenced in `fluxer_app/index.html` line 10.
 
 ### What Vortex does
-- Static `apps/web/public/manifest.json` with `name: "VortexChat"`, `short_name: "Vortex"`, `display: "standalone"`, `start_url: "/channels/me"`, `theme_color: "#00e5ff"`, `background_color: "#1b1f31"`, `orientation: "portrait-primary"`, `scope: "/channels"`, `categories: ["social", "communication"]`.
+- Static `apps/web/public/manifest.json` with `name: "VortexChat"`, `short_name: "Vortex"`, `display: "standalone"`, `start_url: "/channels/me"`, `theme_color: "#00e5ff"`, `background_color: "#1b1f31"`, `orientation: "portrait-primary"`, `scope: "/"`, `categories: ["social", "communication"]`.
 - Two icons: 192x192 and 512x512, both with `purpose: "any maskable"`.
 - One shortcut to "Friends" at `/channels/me`.
 - Apple-touch-icon 180x180, multiple favicons, SVG icon.
@@ -171,8 +171,8 @@
 ### Gaps & Recommendations
 - **Vortex has the most complete notification system.** The settings hierarchy is more sophisticated than either competitor.
 - **MEDIUM: Add app badge support** like Fluxer — post unread mention count to the service worker via `postMessage`, call `navigator.setAppBadge()`. This shows a badge on the app icon on Android and iOS.
-- **MEDIUM: Consider gating push permission requests.** Currently the hook requests permission in `useEffect` on mount. Consider delaying until the user has been active for a session or showing a soft-ask UI first (like Fluxer's nagbar) before triggering the browser prompt.
-- **LOW: Add `pushsubscriptionchange` handling** in the service worker (like Fluxer) to re-register if the browser rotates keys.
+- ~~**MEDIUM: Consider gating push permission requests.**~~ **Resolved:** `components/push-permission-prompt.tsx` delays 60s, shows a contextual soft-ask, and only triggers the browser dialog when the user clicks "Enable".
+- ~~**LOW: Add `pushsubscriptionchange` handling**~~ **Resolved:** `sw.js` now handles `pushsubscriptionchange` with SW-side re-subscribe + server sync, plus client notification via `postMessage`.
 
 ---
 
@@ -199,45 +199,49 @@
 - **File hashing:** Next.js automatic content-hash filenames for `_next/static/` assets.
 - **Code splitting:** Next.js automatic page/route-based splitting.
 - **Cache headers:** Defined in `next.config.js` — CSP, HSTS (2 years), Permissions-Policy. **No explicit `Cache-Control` headers for static assets** (Next.js defaults handle `_next/static/` with immutable cache, but custom assets in `public/` may not be cached aggressively).
-- **SW updates:** `skipWaiting()` on install, old cache cleanup on activation. **No client-side update detection or prompt.**
+- **SW updates:** `use-sw-registration.ts` handles client-side update detection (waiting worker via `updatefound`/`statechange`), hourly polling (`registration.update()`), and `controllerchange` reloads (upgrade-only). `sw-update-toast.tsx` shows a "New version available — Refresh" toast.
 
 ### Gaps & Recommendations
 - **MEDIUM: Add explicit long-lived `Cache-Control` headers** for `public/` assets (icons, splash screens, manifest). Add to `next.config.js` `headers()`:
-  ```
+
+  ```text
   /icon-*.png, /apple-touch-icon.png, /startup/* → Cache-Control: public, max-age=31536000, immutable
   /manifest.json → Cache-Control: public, max-age=86400
   /sw.js → Cache-Control: no-cache (must always be fresh)
   ```
-- **MEDIUM: Add "new version available" toast.** Listen for the service worker `controllerchange` event or use a `statechange` listener on the registration to detect when a new worker is waiting. Show a dismissable toast with a "Refresh" button.
-- **MEDIUM: Add hourly SW update polling** like Stoat — `setInterval(() => registration.update(), 3600000)` in the push-notifications hook or a dedicated registration hook.
+
+- ~~**MEDIUM: Add "new version available" toast.**~~ **Resolved:** `sw-update-toast.tsx` + `use-sw-registration.ts`.
+- ~~**MEDIUM: Add hourly SW update polling.**~~ **Resolved:** `use-sw-registration.ts` polls `registration.update()` every hour.
 - **LOW: Consider more granular code splitting.** Fluxer's 18 named cache groups are aggressive, but Vortex could benefit from explicit splitting of heavy dependencies (e.g., livekit, emoji data) to keep initial bundle small.
 
 ---
 
 ## Prioritized PWA/Mobile Improvement Checklist
 
+> Items marked ~~strikethrough~~ were implemented in this PR.
+
 ### High — Must-have to feel like a real mobile chat app
 
-| # | Item | Relevant files | Why |
-|---|------|---------------|-----|
-| H1 | **Add `viewport-fit=cover` to viewport meta** | `apps/web/app/layout.tsx` | Without this, `env(safe-area-inset-*)` is always 0 on iOS — content renders under the notch and home indicator |
-| H2 | **Add `interactive-widget=resizes-content` to viewport meta** | `apps/web/app/layout.tsx` | Prevents the virtual keyboard from overlapping the message input on mobile browsers |
-| H3 | **Add connection state machine + offline banner** | New: `hooks/use-connection-status.ts`, update `components/layout/channels-shell.tsx` | Users get no feedback when disconnected. Adopt Stoat's FSM pattern: `Connected → Disconnected → Reconnecting → Offline` with a persistent banner |
-| H4 | **Add message outbox/queue for offline sends** | New: add `pending` status to message store, update `hooks/use-send-message.ts` or equivalent | Messages silently fail when offline. Queue them locally, show with a "pending" indicator, flush on reconnect. Stoat's `Draft.ts` is the model |
-| H5 | **Add mobile back-button history management** | New: `utils/mobile-navigation.ts`, update router navigation calls | Hardware back on Android exits the PWA instead of navigating to channel list. Adopt Fluxer's two-entry history stack pattern |
+| # | Item | Relevant files | Status |
+|---|------|---------------|--------|
+| H1 | **Add `viewport-fit=cover` to viewport meta** | `apps/web/app/layout.tsx` | Open |
+| H2 | **Add `interactive-widget=resizes-content` to viewport meta** | `apps/web/app/layout.tsx` | Open |
+| H3 | ~~**Add connection state machine + offline banner**~~ | `hooks/use-connection-status.ts`, `components/connection-banner.tsx` | **Done** |
+| H4 | ~~**Add message outbox/queue for offline sends**~~ | `lib/chat-outbox.ts`, `components/chat/hooks/use-chat-outbox.ts` | **Done** |
+| H5 | ~~**Add mobile back-button history management**~~ | `utils/mobile-navigation.ts` | **Done** |
 
 ### Medium — Good UX and performance wins
 
-| # | Item | Relevant files | Why |
-|---|------|---------------|-----|
-| M1 | **Add "new version available" toast** | New: `components/sw-update-toast.tsx`, update `hooks/use-push-notifications.ts` | Users may run stale cached versions indefinitely. Add `controllerchange` listener → show "Refresh" toast |
-| M2 | **Add hourly SW update polling** | `hooks/use-push-notifications.ts` or new `hooks/use-sw-registration.ts` | Catches SW updates when tabs stay open. Pattern: `setInterval(() => registration.update(), 3600000)` |
-| M3 | **Add app badge for unread mentions** | `public/sw.js` + new read-state sync in the main thread | Fluxer shows unread count on the app icon via `navigator.setAppBadge()`. Post count to SW via `postMessage` |
-| M4 | **Add explicit Cache-Control headers for public assets** | `apps/web/next.config.js` `headers()` | Icons, splash SVGs, and manifest lack aggressive caching. Add `immutable` for hashed assets, `no-cache` for `sw.js` |
-| M5 | **Delay push permission request with soft-ask** | `hooks/use-push-notifications.ts`, new: `components/push-permission-prompt.tsx` | Currently requests on mount. Show a contextual prompt (e.g., after first message received) explaining the value before triggering the browser dialog |
-| M6 | **Add hysteresis for mobile/desktop layout breakpoints** | `components/layout/channels-shell.tsx` or new layout store | Prevents layout flapping near the 768px breakpoint. Adopt Fluxer's pattern: enable at 640px, disable at 768px |
-| M7 | **Add branded splash/loading overlay for cold starts** | New: `components/splash-screen.tsx` | Between HTML load and React hydration, users see a blank screen. Show a branded overlay like Fluxer's animated splash |
-| M8 | **Add `pushsubscriptionchange` handler to SW** | `apps/web/public/sw.js` | If the browser rotates push keys, re-register the subscription. Fluxer broadcasts to all clients to trigger re-registration |
+| # | Item | Relevant files | Status |
+|---|------|---------------|--------|
+| M1 | ~~**Add "new version available" toast**~~ | `components/sw-update-toast.tsx`, `hooks/use-sw-registration.ts` | **Done** |
+| M2 | ~~**Add hourly SW update polling**~~ | `hooks/use-sw-registration.ts` | **Done** |
+| M3 | **Add app badge for unread mentions** | `public/sw.js` + new read-state sync in the main thread | Open |
+| M4 | **Add explicit Cache-Control headers for public assets** | `apps/web/next.config.js` `headers()` | Open |
+| M5 | ~~**Delay push permission request with soft-ask**~~ | `components/push-permission-prompt.tsx`, `hooks/use-push-notifications.ts` | **Done** |
+| M6 | **Add hysteresis for mobile/desktop layout breakpoints** | `hooks/use-mobile-layout.ts` | **Done** (pre-existing) |
+| M7 | ~~**Add branded splash/loading overlay for cold starts**~~ | `components/splash-screen.tsx` | **Done** |
+| M8 | ~~**Add `pushsubscriptionchange` handler to SW**~~ | `public/sw.js` | **Done** |
 
 ### Low — Nice-to-have polish
 

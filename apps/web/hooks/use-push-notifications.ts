@@ -33,11 +33,15 @@ export function usePushNotifications() {
         }))
 
       const { endpoint, keys } = subscription.toJSON() as any
-      await fetch("/api/push", {
+      const res = await fetch("/api/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint, keys }),
       })
+      if (!res.ok) {
+        console.warn("Push subscription server registration failed:", res.status)
+        return false
+      }
       return true
     } catch (e) {
       console.warn("Push notification setup failed:", e)

@@ -20,8 +20,11 @@ export function useRealtimeMessages(
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const wasConnectedRef = useRef(false)
 
+  const isCleaningUpRef = useRef(false)
+
   useEffect(() => {
     wasConnectedRef.current = false
+    isCleaningUpRef.current = false
 
     const channel = supabase
       .channel(`messages:${channelId}`)
@@ -93,14 +96,22 @@ export function useRealtimeMessages(
           onStatusChange?.("connected")
           // Notify the connection-status FSM that realtime is healthy
           window.dispatchEvent(new CustomEvent("vortex:realtime-connect"))
-        } else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           onStatusChange?.("disconnected")
           // Notify the connection-status FSM that realtime dropped
           window.dispatchEvent(new CustomEvent("vortex:realtime-disconnect"))
+        } else if (status === "CLOSED") {
+          // Only treat CLOSED as a disconnect if it wasn't an intentional
+          // cleanup (e.g. channel switch calling supabase.removeChannel)
+          if (!isCleaningUpRef.current) {
+            onStatusChange?.("disconnected")
+            window.dispatchEvent(new CustomEvent("vortex:realtime-disconnect"))
+          }
         }
       })
 
     return () => {
+      isCleaningUpRef.current = true
       supabase.removeChannel(channel)
     }
   }, [channelId])

@@ -12,7 +12,7 @@ const listeners = new Set<() => void>()
 function setState(next: ConnectionState) {
   if (next === state) return
   state = next
-  listeners.forEach((l) => l())
+  for (const l of listeners) l()
 }
 
 function getSnapshot(): ConnectionState {
@@ -78,8 +78,10 @@ export function useConnectionStatus(): {
   useEffect(() => {
     function onOnline() {
       cancelReconnect()
-      failures = 0
-      setState("connected")
+      // Network is back — request a realtime reconnect.
+      // Don't set "connected" here; wait for onRealtimeConnect to confirm.
+      setState("reconnecting")
+      window.dispatchEvent(new CustomEvent("vortex:realtime-retry"))
     }
 
     function onOffline() {
@@ -123,9 +125,8 @@ export function useConnectionStatus(): {
   const retry = useCallback(() => {
     cancelReconnect()
     if (navigator.onLine) {
-      failures = 0
-      setState("connected")
-      // Trigger a realtime reconnect if available
+      // Don't set "connected" — wait for onRealtimeConnect to confirm.
+      setState("reconnecting")
       window.dispatchEvent(new CustomEvent("vortex:realtime-retry"))
     } else {
       scheduleReconnect()

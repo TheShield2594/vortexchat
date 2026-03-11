@@ -41,9 +41,17 @@ export function PushPermissionPrompt() {
     if (success) {
       setVisible(false)
       localStorage.setItem(STORAGE_KEY, "1")
+      return
     }
-    // If subscribe failed silently (denied, error), keep prompt visible
-    // so the user can dismiss manually or retry
+    // If the user hard-denied via the browser dialog, permanently dismiss —
+    // the prompt is no longer actionable and showing it is confusing.
+    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+      setVisible(false)
+      localStorage.setItem(STORAGE_KEY, "1")
+      return
+    }
+    // Transient failure (SW not ready, network error) — keep prompt visible
+    // so the user can retry or dismiss manually.
   }
 
   if (!visible) return null

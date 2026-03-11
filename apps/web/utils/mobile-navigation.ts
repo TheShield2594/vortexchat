@@ -31,14 +31,20 @@ export function navigateToWithMobileHistory(
     return
   }
 
+  // Preserve existing history state (e.g. vortexGuard from setupMobileBackGuard)
+  // so the guard listener continues to recognise its own entries.
+  const prevState = window.history.state
+
   // Build the back-stack synchronously via the History API:
   // 1. Replace the current entry with the base (channel list)
   // 2. Push the target on top
   // This means: back → channel list, back again → previous page or home.
-  window.history.replaceState(null, "", baseUrl)
-  window.history.pushState(null, "", targetUrl)
-  // Trigger the App Router to sync with the new URL
-  window.dispatchEvent(new PopStateEvent("popstate"))
+  window.history.replaceState(prevState, "", baseUrl)
+  window.history.pushState(prevState, "", targetUrl)
+
+  // Signal the App Router to sync with the new URL without triggering
+  // setupMobileBackGuard — use a private event instead of PopStateEvent.
+  window.dispatchEvent(new Event("vortex:route-sync"))
 }
 
 /**

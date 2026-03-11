@@ -299,6 +299,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     draft,
     draftPersistTimerRef,
     draftRef,
+    flushTrigger,
     isOnline,
     outbox,
     outboxRef,
@@ -753,7 +754,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   useEffect(() => {
     if (!isOnline) return
     flushOutbox()
-  }, [isOnline, channel.id, flushOutbox])
+  }, [isOnline, channel.id, flushOutbox, flushTrigger])
 
   useEffect(() => {
     if (!shouldAutoScrollToLatestRef.current) return

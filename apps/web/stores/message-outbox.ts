@@ -42,6 +42,8 @@ function clientId(): string {
 
 const STORAGE_KEY = "vortexchat:zustand-outbox:v1"
 
+const VALID_STATUSES: OutboxStatus[] = ["pending", "sending", "failed"]
+
 function loadPersistedMessages(): OutboxMessage[] {
   if (typeof window === "undefined") return []
   try {
@@ -49,12 +51,22 @@ function loadPersistedMessages(): OutboxMessage[] {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (m: any) =>
-        typeof m.clientId === "string" &&
-        typeof m.channelId === "string" &&
-        typeof m.content === "string",
-    )
+    return parsed
+      .filter(
+        (m: any) =>
+          typeof m.clientId === "string" &&
+          typeof m.channelId === "string" &&
+          typeof m.content === "string",
+      )
+      .map((m: any): OutboxMessage => ({
+        clientId: m.clientId,
+        channelId: m.channelId,
+        content: m.content,
+        queuedAt: typeof m.queuedAt === "string" ? m.queuedAt : new Date().toISOString(),
+        status: VALID_STATUSES.includes(m.status) ? m.status : "pending",
+        retries: typeof m.retries === "number" && Number.isFinite(m.retries) ? m.retries : 0,
+        ...(typeof m.error === "string" ? { error: m.error } : {}),
+      }))
   } catch {
     return []
   }

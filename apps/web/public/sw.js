@@ -117,11 +117,12 @@ self.addEventListener("pushsubscriptionchange", (event) => {
           oldSub?.options ?? { userVisibleOnly: true }
         )
         const { endpoint, keys } = newSub.toJSON()
-        await fetch("/api/push", {
+        const res = await fetch("/api/push", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint, keys }),
         })
+        if (!res.ok) throw new Error("Server returned " + res.status)
       } catch (err) {
         // SW-side re-subscribe failed — fall through to notify clients
         console.warn("SW pushsubscriptionchange: re-subscribe failed", err)
