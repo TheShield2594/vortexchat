@@ -275,7 +275,7 @@ async function processAlert(supabase: Awaited<ReturnType<typeof createServiceRol
   }
 }
 
-export async function POST(req: NextRequest) {
+async function pollFeeds(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
 
@@ -307,4 +307,14 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, processed, posted })
+}
+
+// Vercel Cron invokes GET requests
+export async function GET(req: NextRequest) {
+  return pollFeeds(req)
+}
+
+// Keep POST for manual/external triggers
+export async function POST(req: NextRequest) {
+  return pollFeeds(req)
 }
