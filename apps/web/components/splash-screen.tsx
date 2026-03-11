@@ -6,17 +6,26 @@ import { useEffect, useState } from "react"
  * Branded loading overlay shown during cold starts.
  * Renders a pulsing Vortex logo that fades out once the app is hydrated.
  * Uses inline styles to avoid layout shift from CSS loading.
+ *
+ * Two-phase unmount: first fade opacity to 0, then remove from DOM
+ * after the transition completes so the animation is actually visible.
  */
 export function SplashScreen() {
-  const [visible, setVisible] = useState(true)
+  const [mounted, setMounted] = useState(true)
+  const [fading, setFading] = useState(false)
 
   useEffect(() => {
-    // Once React hydrates, fade out and unmount
-    const timer = setTimeout(() => setVisible(false), 300)
-    return () => clearTimeout(timer)
+    // Phase 1: start the fade-out once React hydrates
+    const fadeTimer = setTimeout(() => setFading(true), 0)
+    // Phase 2: unmount after the 300ms CSS transition finishes
+    const unmountTimer = setTimeout(() => setMounted(false), 350)
+    return () => {
+      clearTimeout(fadeTimer)
+      clearTimeout(unmountTimer)
+    }
   }, [])
 
-  if (!visible) return null
+  if (!mounted) return null
 
   return (
     <div
@@ -31,7 +40,7 @@ export function SplashScreen() {
         justifyContent: "center",
         background: "#1b1f31",
         transition: "opacity 300ms ease-out",
-        opacity: visible ? 1 : 0,
+        opacity: fading ? 0 : 1,
         pointerEvents: "none",
       }}
     >

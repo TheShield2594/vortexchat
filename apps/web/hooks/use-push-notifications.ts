@@ -17,8 +17,9 @@ export function usePushNotifications() {
     if (!PUBLIC_VAPID_KEY) return
 
     try {
-      const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
-      await navigator.serviceWorker.ready
+      // Use .ready instead of .register — useSwRegistration handles registration.
+      // This avoids a duplicate register() call and potential race conditions.
+      const registration = await navigator.serviceWorker.ready
 
       const permission = await Notification.requestPermission()
       if (permission !== "granted") return
@@ -55,6 +56,12 @@ export function usePushNotifications() {
     ) {
       subscribe()
     }
+
+    // Re-subscribe when the browser rotates push keys (forwarded from SW
+    // via useSwRegistration → vortex:resubscribe-push custom event)
+    const onResubscribe = () => subscribe()
+    window.addEventListener("vortex:resubscribe-push", onResubscribe)
+    return () => window.removeEventListener("vortex:resubscribe-push", onResubscribe)
   }, [subscribe])
 
   return { subscribe }

@@ -1,9 +1,10 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useConnectionStatus, type ConnectionState } from "@/hooks/use-connection-status"
 import { WifiOff, RefreshCw, Loader2 } from "lucide-react"
 
-const LABELS: Record<Exclude<ConnectionState, "connected">, { icon: React.ReactNode; text: string }> = {
+const LABELS: Record<Exclude<ConnectionState, "connected">, { icon: ReactNode; text: string }> = {
   offline: {
     icon: <WifiOff className="h-4 w-4" />,
     text: "You're offline",
