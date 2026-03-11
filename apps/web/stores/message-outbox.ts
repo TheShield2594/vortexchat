@@ -84,6 +84,8 @@ export const useMessageOutbox = create<OutboxState>((set, get) => ({
   messages: loadPersistedMessages(),
 
   enqueue(channelId, content) {
+    if (!channelId || typeof channelId !== "string") throw new Error("enqueue: channelId is required")
+    if (!content || typeof content !== "string" || !content.trim()) throw new Error("enqueue: content must be a non-empty string")
     const id = clientId()
     set((s) => {
       const messages = [

@@ -17,9 +17,19 @@ export function usePushNotifications() {
     if (!PUBLIC_VAPID_KEY) return false
 
     try {
-      // Use .ready instead of .register — useSwRegistration handles registration.
-      // This avoids a duplicate register() call and potential race conditions.
-      const registration = await navigator.serviceWorker.ready
+      // Prefer .ready (resolved by useSwRegistration's register call).
+      // If no SW is registered yet (e.g. SwUpdateToast not mounted), fall
+      // back to getRegistration() then register() so push doesn't hang.
+      let registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<ServiceWorkerRegistration | undefined>((resolve) => setTimeout(resolve, 3000)),
+      ])
+      if (!registration) {
+        registration = await navigator.serviceWorker.getRegistration("/")
+      }
+      if (!registration) {
+        registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
+      }
 
       const permission = await Notification.requestPermission()
       if (permission !== "granted") return false

@@ -110,11 +110,25 @@ self.addEventListener("message", (event) => {
 self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
     (async () => {
-      // Attempt SW-side re-subscribe using the old subscription's options
+      // Attempt SW-side re-subscribe using the old subscription's options.
+      // If oldSubscription is null (e.g. browser cleared it), fall back to
+      // fetching the VAPID key from the server.
       try {
         const oldSub = event.oldSubscription
+        let subscribeOptions = oldSub?.options
+        if (!subscribeOptions?.applicationServerKey) {
+          try {
+            const keyRes = await fetch("/api/push/vapid-key")
+            if (keyRes.ok) {
+              const { key } = await keyRes.json()
+              subscribeOptions = { userVisibleOnly: true, applicationServerKey: key }
+            }
+          } catch {
+            // VAPID key fetch failed — proceed with userVisibleOnly only
+          }
+        }
         const newSub = await self.registration.pushManager.subscribe(
-          oldSub?.options ?? { userVisibleOnly: true }
+          subscribeOptions ?? { userVisibleOnly: true }
         )
         const { endpoint, keys } = newSub.toJSON()
         const res = await fetch("/api/push", {
@@ -130,7 +144,9 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 
       // Also notify any open tabs so the client-side hook can re-subscribe
       const clients = await self.clients.matchAll({ type: "window" })
-      clients.forEach((client) => client.postMessage({ type: "PUSH_SUBSCRIPTION_CHANGED" }))
+      for (const client of clients) {
+        client.postMessage({ type: "PUSH_SUBSCRIPTION_CHANGED" })
+      }
     })()
   )
 })

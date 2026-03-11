@@ -61,8 +61,10 @@ export function setupMobileBackGuard(fallbackUrl: string) {
 
   if (!isStandalone) return () => {}
 
-  // Push an initial guard entry so there's always something to go back to
-  window.history.pushState({ vortexGuard: true }, "", window.location.href)
+  // Push an initial guard entry so there's always something to go back to.
+  // Merge with existing history state to preserve any framework state (e.g. Next.js).
+  const existingState = window.history.state
+  window.history.pushState({ ...existingState, vortexGuard: true }, "", window.location.href)
 
   function onPopState(e: PopStateEvent) {
     if (e.state?.vortexGuard) return
