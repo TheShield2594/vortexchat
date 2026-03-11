@@ -38,13 +38,20 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const specialPaths = ["settings", "moderation", "events"]
   const isSpecialPage = isInChannel && specialPaths.includes(pathParts[2])
 
-  // Resolve the active channel name from the store
+  // Resolve the channel name — prefer the route param, fall back to store
+  const routeChannelId = pathParts[2]
   const channelName = (() => {
-    if (!activeChannelId) return "channel"
     const serverChannels = channels[serverId]
     if (!serverChannels) return "channel"
-    const ch = serverChannels.find((c) => c.id === activeChannelId)
-    return ch?.name ?? "channel"
+    if (routeChannelId) {
+      const ch = serverChannels.find((c) => c.id === routeChannelId)
+      if (ch) return ch.name
+    }
+    if (activeChannelId) {
+      const ch = serverChannels.find((c) => c.id === activeChannelId)
+      if (ch) return ch.name
+    }
+    return "channel"
   })()
 
   return (

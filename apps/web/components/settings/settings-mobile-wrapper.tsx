@@ -19,7 +19,7 @@ export function SettingsMobileWrapper({ user, children }: Props) {
   const isSettingsRoot = pathname === "/settings"
 
   return (
-    <div className="md:hidden flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden">
       {isSettingsRoot ? (
         <SettingsSidebar user={user} />
       ) : (
