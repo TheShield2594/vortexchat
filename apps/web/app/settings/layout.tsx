@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
-import { SettingsSidebar } from "@/components/settings/settings-sidebar"
+import { SettingsResponsiveContent } from "@/components/settings/settings-responsive-content"
 
-/** Full-page settings layout — two-panel: sidebar + content area */
+/** Full-page settings layout — two-panel on desktop, stacked nav on mobile */
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const [supabase, { data: { user }, error }] = await Promise.all([
     createServerSupabaseClient(),
@@ -24,16 +24,9 @@ export default async function SettingsLayout({ children }: { children: React.Rea
       className="flex h-screen overflow-hidden"
       style={{ background: "var(--theme-bg-primary)" }}
     >
-      <SettingsSidebar user={profile} />
-      <main
-        id="settings-content"
-        className="flex-1 overflow-y-auto"
-        style={{ background: "var(--theme-bg-primary)" }}
-      >
-        <div className="max-w-2xl mx-auto px-8 py-10">
-          {children}
-        </div>
-      </main>
+      <SettingsResponsiveContent user={profile}>
+        {children}
+      </SettingsResponsiveContent>
     </div>
   )
 }

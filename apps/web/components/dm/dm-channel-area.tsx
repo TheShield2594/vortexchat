@@ -1,14 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react"
+import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus, Reply, X } from "lucide-react"
+import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus, Reply, X, ArrowLeft } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
 import { useDMCall, IncomingCallToast, CallerRingingOverlay } from "@/components/dm/dm-call"
-import { MobileMenuButton } from "@/components/layout/mobile-nav"
 import { useToast } from "@/components/ui/use-toast"
 import { useTyping } from "@/hooks/use-typing"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -140,6 +140,7 @@ async function getConversationKey(cacheKey: string): Promise<Uint8Array | null> 
 
 /** Channel-based DM view with message history, file uploads, voice/video calling, typing indicators, and real-time updates. */
 export function DMChannelArea({ channelId, currentUserId }: Props) {
+  const router = useRouter()
   const [channel, setChannel] = useState<Channel | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [hasMore, setHasMore] = useState(false)
@@ -703,7 +704,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "var(--app-bg-primary)" }}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
-        <MobileMenuButton />
+        {/* Mobile: back arrow to DM list. Desktop: hidden (sidebar always visible). */}
+        <button
+          type="button"
+          className="md:hidden w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-white/10"
+          style={{ color: "var(--theme-text-secondary)" }}
+          onClick={() => router.push("/channels/me")}
+          aria-label="Back to messages"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
         {channel.is_group ? (
           <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--theme-accent)" }}>
             <Users className="w-4 h-4 text-white" />

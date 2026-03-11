@@ -5,6 +5,7 @@ import { ChannelSidebar } from "@/components/layout/channel-sidebar"
 import type { VoiceParticipant } from "@/components/layout/channel-sidebar"
 import { MemberList } from "@/components/layout/member-list"
 import { ServerEmojiProvider } from "@/components/chat/server-emoji-context"
+import { ServerMobileLayout } from "@/components/layout/server-mobile-layout"
 import type { RoleRow } from "@/types/database"
 import type { MemberData } from "@/components/layout/member-list"
 import { perfTimer } from "@/lib/perf"
@@ -188,30 +189,34 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
 
   return (
     <ServerEmojiProvider serverId={params.serverId} initialEmojis={emojis ?? []}>
-      <div className="flex flex-1 overflow-hidden">
-        <ChannelSidebar
-          key={`sidebar-${params.serverId}`}
-          server={server}
-          channels={allChannels}
-          currentUserId={user.id}
-          isOwner={server.owner_id === user.id}
-          userRoles={userRoles}
-          initialThreadCounts={initialThreadCounts}
-          initialVoiceParticipants={initialVoiceParticipants}
-          initialUnreadChannelIds={initialUnreadChannelIds}
-          initialMentionCounts={initialMentionCounts}
-        />
-        <main id="main-content" className="flex flex-1 overflow-hidden">
-          <Suspense fallback={
-            <div className="flex-1 flex items-center justify-center" style={{ background: "var(--theme-bg-primary)" }}>
-              <div className="animate-pulse text-sm" style={{ color: "var(--theme-text-muted)" }}>Loading channel...</div>
-            </div>
-          }>
-            {children}
-          </Suspense>
-        </main>
-        <MemberList key={`members-${params.serverId}`} serverId={params.serverId} initialMembers={initialMembers} />
-      </div>
+      <ServerMobileLayout
+        serverId={params.serverId}
+        sidebar={
+          <ChannelSidebar
+            key={`sidebar-${params.serverId}`}
+            server={server}
+            channels={allChannels}
+            currentUserId={user.id}
+            isOwner={server.owner_id === user.id}
+            userRoles={userRoles}
+            initialThreadCounts={initialThreadCounts}
+            initialVoiceParticipants={initialVoiceParticipants}
+            initialUnreadChannelIds={initialUnreadChannelIds}
+            initialMentionCounts={initialMentionCounts}
+          />
+        }
+        memberList={
+          <MemberList key={`members-${params.serverId}`} serverId={params.serverId} initialMembers={initialMembers} />
+        }
+      >
+        <Suspense fallback={
+          <div className="flex-1 flex items-center justify-center" style={{ background: "var(--theme-bg-primary)" }}>
+            <div className="animate-pulse text-sm" style={{ color: "var(--theme-text-muted)" }}>Loading channel...</div>
+          </div>
+        }>
+          {children}
+        </Suspense>
+      </ServerMobileLayout>
     </ServerEmojiProvider>
   )
 }

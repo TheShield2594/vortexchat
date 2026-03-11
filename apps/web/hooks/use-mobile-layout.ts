@@ -1,38 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 
-const MOBILE_ENABLE_PX = 640
-const MOBILE_DISABLE_PX = 768
+const QUERY = "(min-width: 768px)"
+
+function subscribe(callback: () => void) {
+  const mql = window.matchMedia(QUERY)
+  mql.addEventListener("change", callback)
+  return () => mql.removeEventListener("change", callback)
+}
+
+function getSnapshot() {
+  return !window.matchMedia(QUERY).matches
+}
+
+function getServerSnapshot() {
+  return false
+}
 
 /**
- * Hysteresis-based mobile detection to prevent layout flapping
- * near breakpoints. Enables mobile at <640px, disables at >=768px.
- * Matches the approach used by Fluxer's MobileLayoutStore.
+ * Mobile detection using matchMedia at 768px (Tailwind's md breakpoint).
+ * Uses useSyncExternalStore to avoid tearing and ensure consistent reads.
  */
 export function useMobileLayout() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === "undefined") return false
-    return window.innerWidth < MOBILE_DISABLE_PX
-  })
-
-  useEffect(() => {
-    let current = window.innerWidth < MOBILE_DISABLE_PX
-
-    function onResize() {
-      const width = window.innerWidth
-      if (current && width >= MOBILE_DISABLE_PX) {
-        current = false
-        setIsMobile(false)
-      } else if (!current && width < MOBILE_ENABLE_PX) {
-        current = true
-        setIsMobile(true)
-      }
-    }
-
-    window.addEventListener("resize", onResize, { passive: true })
-    return () => window.removeEventListener("resize", onResize)
-  }, [])
-
-  return isMobile
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }

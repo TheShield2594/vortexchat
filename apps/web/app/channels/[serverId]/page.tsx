@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { ServerHomeRedirect } from "@/components/layout/server-home-redirect"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Hash } from "lucide-react"
 
@@ -22,7 +22,9 @@ export default async function ServerHomePage({ params: paramsPromise }: Props) {
     .single()
 
   if (channel) {
-    redirect(`/channels/${params.serverId}/${channel.id}`)
+    // On desktop, redirect to first channel. On mobile, the channel sidebar
+    // is shown full-screen by ServerMobileLayout (the redirect is handled client-side).
+    return <ServerHomeRedirect serverId={params.serverId} channelId={channel.id} />
   }
 
   return (
