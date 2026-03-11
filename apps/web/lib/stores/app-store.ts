@@ -85,6 +85,7 @@ interface AppState {
   // UI state
   memberListOpen: boolean
   toggleMemberList: () => void
+  setMemberListOpen: (open: boolean) => void
   threadPanelOpen: boolean
   toggleThreadPanel: () => void
   setThreadPanelOpen: (open: boolean) => void
@@ -200,6 +201,10 @@ export const useAppStore = create<AppState>((set) => ({
     persistMemberListOpen(next)
     return { memberListOpen: next }
   }),
+  setMemberListOpen: (open) => {
+    persistMemberListOpen(open)
+    set({ memberListOpen: open })
+  },
   threadPanelOpen: loadBooleanStorage(THREAD_PANEL_STORAGE_KEY, true),
   toggleThreadPanel: () => set((state) => {
     const next = !state.threadPanelOpen
