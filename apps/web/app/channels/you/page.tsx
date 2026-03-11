@@ -9,17 +9,11 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import type { UserRow } from "@/types/database"
+import { STATUS_OPTIONS } from "@/lib/utils/status-options"
 
 const ProfileSettingsModal = lazy(() =>
   import("@/components/modals/profile-settings-modal").then((m) => ({ default: m.ProfileSettingsModal }))
 )
-
-const STATUS_OPTIONS: { value: UserRow["status"]; label: string; color: string }[] = [
-  { value: "online", label: "Online", color: "var(--theme-success)" },
-  { value: "idle", label: "Idle", color: "var(--theme-warning)" },
-  { value: "dnd", label: "Do Not Disturb", color: "var(--theme-danger)" },
-  { value: "invisible", label: "Invisible", color: "var(--theme-presence-offline)" },
-]
 
 const SETTINGS_LINKS = [
   { href: "/settings/profile", label: "My Profile", icon: User },

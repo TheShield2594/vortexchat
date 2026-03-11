@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 import { REPORT_REASON_VALUES, type ReportReason } from "@/lib/report-reasons"
 import { REPORT_STATUSES, REPORT_STATUS_TRANSITIONS, type ReportStatus } from "@/lib/report-status"
 
@@ -24,25 +24,17 @@ const VALID_REASONS = REPORT_REASON_VALUES
  * }
  */
 export async function POST(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
-  let body: {
+  const { data: body, error: parseError } = await parseJsonBody<{
     reported_user_id?: string
     reported_message_id?: string
     server_id?: string
     reason?: string
     description?: string
-  }
-
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  }>(req)
+  if (parseError) return parseError
 
   const { reported_user_id, reported_message_id, server_id, reason, description } = body
 
@@ -138,11 +130,8 @@ export async function POST(req: NextRequest) {
  * Without server_id, returns the caller's own reports.
  */
 export async function GET(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(req.url)
   const serverId = searchParams.get("server_id")
@@ -207,18 +196,11 @@ export async function GET(req: NextRequest) {
  * }
  */
 export async function PATCH(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
-  let body: { report_id?: string; server_id?: string; status?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  const { data: body, error: parseError } = await parseJsonBody<{ report_id?: string; server_id?: string; status?: string }>(req)
+  if (parseError) return parseError
 
   const { report_id, server_id, status } = body
 
@@ -278,7 +260,7 @@ export async function PATCH(req: NextRequest) {
   if (!report) return NextResponse.json({ error: "Report not found" }, { status: 404 })
 
   // Audit log the moderator action on this report
-  await supabase.from("audit_logs").insert({
+  await insertAuditLog(supabase, {
     server_id,
     actor_id: user.id,
     action: `report_${status}`,

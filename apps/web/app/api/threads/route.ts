@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { type NextRequest, NextResponse } from "next/server"
+import { requireAuth, parseJsonBody } from "@/lib/utils/api-helpers"
 
 /** GET /api/threads?channelId=xxx&archived=false — Lists threads for a channel, ordered by most recently updated. */
 export async function GET(request: Request) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(request.url)
   const channelId = searchParams.get("channelId")
@@ -54,16 +53,11 @@ export async function GET(request: Request) {
 
 /** POST /api/threads — Creates a new thread, either from an existing message or directly from a channel. */
 export async function POST(request: Request) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
-  let body: { messageId?: string; channelId?: string; name: string }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  const { data: body, error: parseError } = await parseJsonBody<{ messageId?: string; channelId?: string; name: string }>(request as unknown as NextRequest)
+  if (parseError) return parseError
 
   const { messageId, channelId, name } = body
   if (!name?.trim()) return NextResponse.json({ error: "name required" }, { status: 400 })

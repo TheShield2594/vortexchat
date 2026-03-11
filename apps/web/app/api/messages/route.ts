@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/utils/api-helpers"
 import { rateLimiter } from "@/lib/rate-limit"
 import { sendPushToChannel } from "@/lib/push"
 import {
@@ -448,9 +449,8 @@ async function insertMessageWithAttachments({
 }
 
 export async function GET(request: Request) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(request.url)
   const channelId = searchParams.get("channelId")
@@ -497,9 +497,8 @@ export async function POST(request: Request) {
     console.log(`[msg-send] ${elapsed}ms — ${label}`)
   }
 
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
   lap("auth")
 
   let body: PostMessageRequestBody

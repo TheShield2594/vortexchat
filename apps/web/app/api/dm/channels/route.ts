@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { requireAuth, parseJsonBody } from "@/lib/utils/api-helpers"
 
 // GET /api/dm/channels — list all DM channels with unread counts
 export async function GET() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   // 1. Get all channel IDs the user belongs to
   const { data: memberships, error } = await supabase
@@ -115,16 +114,11 @@ export async function GET() {
 // POST /api/dm/channels — open/create a DM channel
 // Body: { userIds: string[], name?: string } (userIds = partner(s), name for group)
 export async function POST(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
-  let parsedBody: { userIds?: string[]; name?: string; encrypted?: boolean }
-  try {
-    parsedBody = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  const { data: parsedBody, error: parseError } = await parseJsonBody<{ userIds?: string[]; name?: string; encrypted?: boolean }>(req)
+  if (parseError) return parseError
 
   const { userIds, name } = parsedBody
   const encrypted = parsedBody.encrypted === true

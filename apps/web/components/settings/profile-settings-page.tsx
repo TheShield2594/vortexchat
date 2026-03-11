@@ -8,17 +8,11 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/components/ui/use-toast"
 import type { UserRow, UserPinnedItemRow } from "@/types/database"
+import { STATUS_OPTIONS } from "@/lib/utils/status-options"
 
 interface Props {
   user: UserRow
 }
-
-const STATUS_OPTIONS = [
-  { value: "online", label: "Online", color: "var(--theme-success)" },
-  { value: "idle", label: "Idle", color: "var(--theme-warning)" },
-  { value: "dnd", label: "Do Not Disturb", color: "var(--theme-danger)" },
-  { value: "invisible", label: "Invisible", color: "var(--theme-presence-offline)" },
-] as const
 
 const BANNER_PRESETS = [
   "#5865f2", "#eb459e", "#fee75c", "#57f287", "#ed4245",

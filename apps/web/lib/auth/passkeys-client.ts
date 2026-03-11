@@ -1,20 +1,4 @@
-function decodeBase64Url(input: string): ArrayBuffer {
-  const base64 = input.replace(/-/g, "+").replace(/_/g, "/")
-  const pad = "=".repeat((4 - (base64.length % 4)) % 4)
-  const str = atob(base64 + pad)
-  const bytes = new Uint8Array(str.length)
-  for (let i = 0; i < str.length; i += 1) bytes[i] = str.charCodeAt(i)
-  return bytes.buffer
-}
-
-function encodeBuffer(input: ArrayBuffer): string {
-  const bytes = new Uint8Array(input)
-  let str = ""
-  bytes.forEach((b) => {
-    str += String.fromCharCode(b)
-  })
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-}
+import { decodeBase64Url, encodeBase64Url } from "@/lib/auth/base64url"
 
 export function supportsPasskeys() {
   return typeof window !== "undefined" && !!window.PublicKeyCredential && !!navigator.credentials
@@ -50,8 +34,8 @@ export async function startPasskeyRegistration(emailLabel?: string) {
       credentialId: credential.id,
       name: emailLabel || "This device",
       response: {
-        attestationObject: encodeBuffer(authResp.attestationObject),
-        clientDataJSON: encodeBuffer(authResp.clientDataJSON),
+        attestationObject: encodeBase64Url(authResp.attestationObject),
+        clientDataJSON: encodeBase64Url(authResp.clientDataJSON),
       },
       transports: authResp.getTransports?.() || [],
     }),
@@ -91,10 +75,10 @@ export async function startPasskeyLogin(email?: string, trustedDeviceLabel?: str
       credentialId: assertion.id,
       trustedDeviceLabel,
       response: {
-        authenticatorData: encodeBuffer(authResp.authenticatorData),
-        clientDataJSON: encodeBuffer(authResp.clientDataJSON),
-        signature: encodeBuffer(authResp.signature),
-        userHandle: authResp.userHandle ? encodeBuffer(authResp.userHandle) : null,
+        authenticatorData: encodeBase64Url(authResp.authenticatorData),
+        clientDataJSON: encodeBase64Url(authResp.clientDataJSON),
+        signature: encodeBase64Url(authResp.signature),
+        userHandle: authResp.userHandle ? encodeBase64Url(authResp.userHandle) : null,
       },
     }),
   })

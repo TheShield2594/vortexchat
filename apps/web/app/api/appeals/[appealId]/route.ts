@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/server"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { isTerminalAppealStatus, isValidAppealStatus, isValidAppealTransition } from "@/lib/appeals"
 import { canModerate } from "@/lib/moderation-auth"
-
-async function getRequester() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return { supabase, user }
-}
+import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ appealId: string }> }
 ) {
   const { appealId } = await params
-  const { supabase, user } = await getRequester()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { data: appeal, error } = await (supabase as any)
     .from("moderation_appeals")
@@ -71,8 +64,8 @@ export async function PATCH(
   { params }: { params: Promise<{ appealId: string }> }
 ) {
   const { appealId } = await params
-  const { supabase, user } = await getRequester()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const serviceSupabase = await createServiceRoleClient()
   const { data: appeal, error } = await (serviceSupabase as any)
@@ -94,12 +87,8 @@ export async function PATCH(
   const permissions = aggregateMemberPermissions((member as any)?.member_roles)
   if (!canModerate(permissions)) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  let body: unknown
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Malformed JSON" }, { status: 400 })
-  }
+  const { data: body, error: parseError } = await parseJsonBody(req)
+  if (parseError) return parseError
 
   const parsed = body as {
     status?: unknown
@@ -174,7 +163,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Failed to write status event" }, { status: 500 })
     }
 
-    const { error: auditError } = await serviceSupabase.from("audit_logs").insert({
+    const { error: auditError } = await insertAuditLog(serviceSupabase, {
       server_id: appeal.server_id,
       actor_id: user.id,
       action: "appeal_status_changed",

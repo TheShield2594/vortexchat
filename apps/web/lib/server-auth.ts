@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { hasPermission, type Permission } from "@vortex/shared"
+import { getMemberPermissions } from "@/lib/permissions"
 
 /**
  * Fixed UUID of the system/AutoMod bot user (seeded in 00015_system_bot.sql).
@@ -73,39 +74,20 @@ export async function requireServerPermission(serverId: string, permission: Perm
   if (!user)
     return { supabase, user: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
 
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", serverId)
-    .single()
+  try {
+    const memberPerms = await getMemberPermissions(supabase, serverId, user.id)
 
-  if (!server)
-    return { supabase, user, error: NextResponse.json({ error: "Server not found" }, { status: 404 }) }
+    if (memberPerms.ownerId === null)
+      return { supabase, user, error: NextResponse.json({ error: "Server not found" }, { status: 404 }) }
 
-  // Server owner always passes
-  if (server.owner_id === user.id)
+    if (memberPerms.isOwner)
+      return { supabase, user, error: null }
+
+    if (!hasPermission(memberPerms.permissions, permission))
+      return { supabase, user, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
+
     return { supabase, user, error: null }
-
-  // Look up member roles and default (@everyone) role permissions
-  const [{ data: memberRoles }, { data: defaultRole }] = await Promise.all([
-    supabase
-      .from("member_roles")
-      .select("roles(permissions)")
-      .eq("user_id", user.id)
-      .eq("server_id", serverId),
-    supabase
-      .from("roles")
-      .select("permissions")
-      .eq("server_id", serverId)
-      .eq("is_default", true)
-      .maybeSingle(),
-  ])
-
-  let permissions = aggregateMemberPermissions(memberRoles)
-  if (defaultRole?.permissions != null) permissions |= defaultRole.permissions
-
-  if (!hasPermission(permissions, permission))
-    return { supabase, user, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
-
-  return { supabase, user, error: null }
+  } catch {
+    return { supabase, user, error: NextResponse.json({ error: "Server not found" }, { status: 404 }) }
+  }
 }

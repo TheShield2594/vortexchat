@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from "react"
+import { useCallback } from "react"
 import type { MemberForMention } from "@/lib/stores/app-store"
+import { useAutocomplete } from "./use-autocomplete"
 
 interface Options {
   content: string
@@ -36,38 +37,27 @@ function findMentionQuery(text: string, cursor: number): string | null {
 }
 
 export function useMentionAutocomplete({ content, cursorPosition, members }: Options): Result {
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [dismissed, setDismissed] = useState(false)
-
-  const query = useMemo(
-    () => findMentionQuery(content, cursorPosition),
-    [content, cursorPosition]
+  const filter = useCallback(
+    (query: string) => {
+      const lower = query.toLowerCase()
+      return members
+        .filter(
+          (m) =>
+            m.username.toLowerCase().includes(lower) ||
+            (m.display_name?.toLowerCase().includes(lower) ?? false) ||
+            (m.nickname?.toLowerCase().includes(lower) ?? false)
+        )
+        .slice(0, 10)
+    },
+    [members]
   )
 
-  const filteredMembers = useMemo(() => {
-    if (query === null) return []
-    const lower = query.toLowerCase()
-    return members
-      .filter(
-        (m) =>
-          m.username.toLowerCase().includes(lower) ||
-          (m.display_name?.toLowerCase().includes(lower) ?? false) ||
-          (m.nickname?.toLowerCase().includes(lower) ?? false)
-      )
-      .slice(0, 10)
-  }, [query, members])
-
-  const isOpen = query !== null && filteredMembers.length > 0 && !dismissed
-
-  // Reset selection when results change
-  useEffect(() => {
-    setSelectedIndex(0)
-  }, [filteredMembers.length, query])
-
-  // Un-dismiss when query changes (user keeps typing after Escape)
-  useEffect(() => {
-    setDismissed(false)
-  }, [query])
+  const { isOpen, query, matches, selectedIndex, handleKeyDown, close } = useAutocomplete({
+    findQuery: findMentionQuery,
+    filter,
+    content,
+    cursorPosition,
+  })
 
   function selectMember(member: MemberForMention) {
     const atIndex = content.lastIndexOf("@", cursorPosition - 1)
@@ -80,39 +70,10 @@ export function useMentionAutocomplete({ content, cursorPosition, members }: Opt
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent): boolean {
-    if (!isOpen) return false
-
-    switch (e.key) {
-      case "ArrowUp":
-        e.preventDefault()
-        setSelectedIndex((prev) =>
-          prev <= 0 ? filteredMembers.length - 1 : prev - 1
-        )
-        return true
-      case "ArrowDown":
-        e.preventDefault()
-        setSelectedIndex((prev) =>
-          prev >= filteredMembers.length - 1 ? 0 : prev + 1
-        )
-        return true
-      case "Escape":
-        e.preventDefault()
-        setDismissed(true)
-        return true
-      default:
-        return false
-    }
-  }
-
-  function close() {
-    setDismissed(true)
-  }
-
   return {
     isOpen,
     query,
-    filteredMembers,
+    filteredMembers: matches,
     selectedIndex,
     selectMember,
     handleKeyDown,

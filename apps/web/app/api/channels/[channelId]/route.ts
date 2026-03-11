@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { computePermissions, hasPermission } from "@vortex/shared"
+import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 import type { Json } from "@/types/database"
 
 // PATCH /api/channels/[channelId] — update channel settings
@@ -9,9 +9,8 @@ export async function PATCH(
   { params }: { params: Promise<{ channelId: string }> }
 ) {
   const { channelId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   // Fetch channel to get server_id
   const { data: channel, error: channelError } = await supabase
@@ -67,12 +66,8 @@ export async function PATCH(
     }
   }
 
-  let body: Record<string, unknown>
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+  const { data: body, error: parseError } = await parseJsonBody<Record<string, unknown>>(req)
+  if (parseError) return parseError
 
   // Build the update payload with validation
   const update: Record<string, unknown> = {}
@@ -163,7 +158,7 @@ export async function PATCH(
     }
   }
 
-  await supabase.from("audit_logs").insert({
+  await insertAuditLog(supabase, {
     server_id: channel.server_id,
     actor_id: user.id,
     action: "channel_updated",

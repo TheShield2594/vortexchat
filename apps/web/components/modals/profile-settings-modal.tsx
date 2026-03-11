@@ -18,19 +18,13 @@ import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import type { MessageDisplay, FontScale, Saturation } from "@/lib/stores/appearance-store"
 import type { UserRow } from "@/types/database"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
+import { STATUS_OPTIONS } from "@/lib/utils/status-options"
 
 interface Props {
   open: boolean
   onClose: () => void
   user: UserRow
 }
-
-const STATUS_OPTIONS = [
-  { value: "online", label: "Online", color: "var(--theme-success)" },
-  { value: "idle", label: "Idle", color: "var(--theme-warning)" },
-  { value: "dnd", label: "Do Not Disturb", color: "var(--theme-danger)" },
-  { value: "invisible", label: "Invisible", color: "var(--theme-presence-offline)" },
-] as const
 
 const BANNER_PRESETS = [
   "#5865f2", "#eb459e", "#fee75c", "#57f287", "#ed4245",
