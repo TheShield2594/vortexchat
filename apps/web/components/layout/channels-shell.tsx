@@ -20,7 +20,7 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
   return (
     <MobileNavProvider>
       {/* pb-16 md:pb-0 reserves space for the fixed MobileBottomTabBar on mobile; omitted in full-screen channel view */}
-      <div className={`flex h-screen overflow-hidden md:pb-0 ${isFullScreen ? "" : "pb-16"}`} style={{ background: "var(--app-bg-primary)", paddingTop: "env(safe-area-inset-top)" }}>
+      <div className={`flex h-screen overflow-hidden md:pb-0 ${isFullScreen ? "" : "pb-16"}`} style={{ background: "var(--app-bg-primary)", paddingTop: isFullScreen ? undefined : "env(safe-area-inset-top)" }}>
         <ConnectionBanner />
         <ServerSidebarWrapper />
         <MobileSwipeArea />
