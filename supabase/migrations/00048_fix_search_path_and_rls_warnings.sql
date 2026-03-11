@@ -45,7 +45,6 @@ ALTER FUNCTION public.app_catalog_set_updated_at() SET search_path = '';
 ALTER FUNCTION public.dm_channel_keys_prune_trigger() SET search_path = '';
 ALTER FUNCTION public.dm_channel_rotate_on_member_change() SET search_path = '';
 
-ALTER FUNCTION public.set_social_alerts_updated_at() SET search_path = '';
 ALTER FUNCTION public.set_user_connections_updated_at() SET search_path = '';
 
 -- ============================================================

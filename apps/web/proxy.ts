@@ -7,7 +7,6 @@ import { updateSession } from "@/lib/supabase/middleware"
 const PASSTHROUGH_ROUTES = [
   "/api/cron",
   "/api/channels/cleanup",
-  "/api/social-alerts/poll",
   "/api/webhooks",
 ]
 

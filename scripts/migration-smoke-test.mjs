@@ -92,7 +92,6 @@ const EXPECTED_TABLES_WITH_RLS = [
   "channel_tasks",
   "channel_docs",
   "workspace_updates",
-  "social_alerts",
   "attachment_scan_metrics",
   "voice_call_sessions",
   "voice_call_participants",

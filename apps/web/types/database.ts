@@ -1348,48 +1348,6 @@ export type Database = {
         }
         Relationships: []
       }
-      social_alerts: {
-        Row: {
-          id: string
-          server_id: string
-          channel_id: string
-          name: string
-          feed_url: string
-          enabled: boolean
-          last_item_id: string | null
-          last_checked_at: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          server_id: string
-          channel_id: string
-          name?: string
-          feed_url: string
-          enabled?: boolean
-          last_item_id?: string | null
-          last_checked_at?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          server_id?: string
-          channel_id?: string
-          name?: string
-          feed_url?: string
-          enabled?: boolean
-          last_item_id?: string | null
-          last_checked_at?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       webhooks: {
         Row: {
           id: string
@@ -2687,7 +2645,6 @@ export type InviteRow = Database['public']['Tables']['invites']['Row']
 export type NotificationRow = Database['public']['Tables']['notifications']['Row']
 export type ServerEmojiRow = Database['public']['Tables']['server_emojis']['Row']
 export type WebhookRow = Database['public']['Tables']['webhooks']['Row']
-export type SocialAlertRow = Database['public']['Tables']['social_alerts']['Row']
 export type ScreeningConfigRow = Database['public']['Tables']['screening_configs']['Row']
 export type MemberScreeningRow = Database['public']['Tables']['member_screening']['Row']
 export type MemberTimeoutRow = Database['public']['Tables']['member_timeouts']['Row']
