@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { requireAuth } from "@/lib/utils/api-helpers"
 import { filterBlockedUserIds, getBlockedUserIdsForViewer } from "@/lib/social-block-policy"
 
 interface SearchFilters {
@@ -50,9 +50,8 @@ function parseSearchQuery(raw: string): { query: string; filters: SearchFilters 
 
 // Unified search across messages + tasks + docs
 export async function GET(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { searchParams } = new URL(req.url)
   const rawQuery = searchParams.get("q")?.trim() ?? ""
