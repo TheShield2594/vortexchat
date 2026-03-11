@@ -114,9 +114,10 @@ interface AuditLogEntry {
   server_id: string
   actor_id: string
   action: string
-  target_id?: string
-  target_type?: string
-  changes?: Record<string, unknown>
+  target_id?: string | null
+  target_type?: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  changes?: Record<string, any> | null
 }
 
 /**
@@ -129,5 +130,5 @@ export async function insertAuditLog(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   entry: AuditLogEntry
 ) {
-  return supabase.from("audit_logs").insert(entry)
+  return supabase.from("audit_logs").insert(entry as Parameters<ReturnType<typeof supabase.from<"audit_logs">>["insert"]>[0])
 }

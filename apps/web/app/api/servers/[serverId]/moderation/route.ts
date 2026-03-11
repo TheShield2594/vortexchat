@@ -6,7 +6,6 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerOwner } from "@/lib/server-auth"
-import type { Json } from "@/types/database"
 import { parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 
 type Params = { params: Promise<{ serverId: string }> }
@@ -100,7 +99,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     action: "moderation_settings_updated",
     target_id: serverId,
     target_type: "server",
-    changes: updates as unknown as Json,
+    changes: updates,
   })
 
   return NextResponse.json({ message: "Moderation settings updated" })

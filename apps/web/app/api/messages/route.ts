@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { rateLimiter } from "@/lib/rate-limit"
 import { sendPushToChannel } from "@/lib/push"

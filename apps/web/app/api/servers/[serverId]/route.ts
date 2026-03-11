@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { hasPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
-import type { Json } from "@/types/database"
 import { detectMimeFromBytes } from "@/lib/attachment-validation"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 
@@ -162,7 +161,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     action: "server_update",
     target_id: serverId,
     target_type: "server",
-    changes: changes as unknown as Json,
+    changes,
   })
 
   return NextResponse.json(updated)
