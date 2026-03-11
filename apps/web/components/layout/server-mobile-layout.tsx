@@ -25,12 +25,13 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const pathname = usePathname()
   const router = useRouter()
   const isMobile = useMobileLayout()
-  const { activeChannelId, channels, toggleMemberList, memberListOpen } = useAppStore(
+  const { activeChannelId, channels, toggleMemberList, memberListOpen, setMemberListOpen } = useAppStore(
     useShallow((s) => ({
       activeChannelId: s.activeChannelId,
       channels: s.channels,
       toggleMemberList: s.toggleMemberList,
       memberListOpen: s.memberListOpen,
+      setMemberListOpen: s.setMemberListOpen,
     }))
   )
 
@@ -41,8 +42,11 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // Reset mobile member list whenever the channel route changes
   const routeChannelSegment = pathname.split("/").filter(Boolean)[2]
   useEffect(() => {
-    if (isMobile) setMobileMemberListOpen(false)
-  }, [isMobile, routeChannelSegment])
+    if (isMobile) {
+      setMobileMemberListOpen(false)
+      setMemberListOpen(false)
+    }
+  }, [isMobile, routeChannelSegment, setMemberListOpen])
 
   // Determine if we are viewing a channel (not just the server root)
   const pathParts = pathname.split("/").filter(Boolean)
@@ -115,7 +119,11 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
             type="button"
             onClick={() => {
               if (isMobile) {
-                setMobileMemberListOpen((v) => !v)
+                setMobileMemberListOpen((v) => {
+                  const next = !v
+                  setMemberListOpen(next)
+                  return next
+                })
               } else {
                 toggleMemberList()
               }
