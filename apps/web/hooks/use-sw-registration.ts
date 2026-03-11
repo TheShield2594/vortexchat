@@ -70,9 +70,12 @@ export function useSwRegistration() {
     }
     navigator.serviceWorker.addEventListener("message", onMessage)
 
-    // Reload when a new SW takes control
+    // Reload when an *upgraded* SW takes control (not on first activation).
+    // Without this guard, first-time visitors get an unexpected reload.
+    const hadController = !!navigator.serviceWorker.controller
     let refreshing = false
     const onControllerChange = () => {
+      if (!hadController) return // first install — no reload needed
       if (refreshing) return
       refreshing = true
       window.location.reload()

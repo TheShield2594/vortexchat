@@ -12,9 +12,9 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export function usePushNotifications() {
-  const subscribe = useCallback(async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
-    if (!PUBLIC_VAPID_KEY) return
+  const subscribe = useCallback(async (): Promise<boolean> => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false
+    if (!PUBLIC_VAPID_KEY) return false
 
     try {
       // Use .ready instead of .register — useSwRegistration handles registration.
@@ -22,7 +22,7 @@ export function usePushNotifications() {
       const registration = await navigator.serviceWorker.ready
 
       const permission = await Notification.requestPermission()
-      if (permission !== "granted") return
+      if (permission !== "granted") return false
 
       const existing = await registration.pushManager.getSubscription()
       const subscription =
@@ -38,8 +38,10 @@ export function usePushNotifications() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint, keys }),
       })
+      return true
     } catch (e) {
       console.warn("Push notification setup failed:", e)
+      return false
     }
   }, [])
 

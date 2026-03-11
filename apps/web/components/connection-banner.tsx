@@ -44,6 +44,7 @@ export function ConnectionBanner() {
       <span>{text}</span>
       {status !== "reconnecting" && (
         <button
+          type="button"
           onClick={retry}
           className="ml-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold underline hover:opacity-80"
         >

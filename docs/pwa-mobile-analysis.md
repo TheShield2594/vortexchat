@@ -68,12 +68,14 @@
 - Full push notification handling: `push` event → `showNotification()`, `notificationclick` → navigate to URL.
 - `skipWaiting()` on install, old cache cleanup on activation.
 
-- **Registration:** `apps/web/hooks/use-push-notifications.ts` calls `navigator.serviceWorker.register('/sw.js', { scope: '/' })`.
+- **Registration:** `apps/web/hooks/use-sw-registration.ts` owns registration via `navigator.serviceWorker.register('/sw.js', { scope: '/' })`. The hook detects waiting workers (via `updatefound` + `statechange`), surfaces `updateAvailable` state, polls `registration.update()` hourly, and manages `controllerchange` reloads (upgrade-only, skips first install).
+- **Update UI:** `apps/web/components/sw-update-toast.tsx` consumes `useSwRegistration()` and shows a persistent "New version available — Refresh" toast when a waiting worker is detected.
+- **Push re-subscribe:** `pushsubscriptionchange` handler in `sw.js` performs SW-side re-subscribe + server sync, then notifies open clients via `postMessage`.
 
 ### Gaps & Recommendations
 - **Vortex has the most complete caching strategy** of the three. Stoat only precaches, Fluxer caches nothing.
-- **Missing: update notification UI.** Stoat shows an "Update" button in the titlebar when a new worker is waiting. Vortex should add a similar "New version available — click to refresh" toast. Use a `controllerchange` listener or message channel to detect the new worker.
-- **Missing: hourly update polling.** Adopt Stoat's pattern of `setInterval(() => registration.update(), 3600000)` to catch updates when the tab stays open.
+- ~~**Missing: update notification UI.**~~ **Resolved:** `sw-update-toast.tsx` + `use-sw-registration.ts` detect waiting workers and show a refresh toast.
+- ~~**Missing: hourly update polling.**~~ **Resolved:** `use-sw-registration.ts` polls `registration.update()` every hour.
 - **Missing: Background Sync API.** Neither competitor has this either, but it would be a differentiator for offline message queuing (see section 3).
 
 ---
@@ -93,14 +95,16 @@
 - **Install prompt:** Not implemented.
 
 ### What Vortex does
-- **Startup:** Shimmer skeleton screens (`components/ui/skeleton.tsx`) with staggered animation delays (0ms → 400ms). Used for messages, member lists, channel rows. 1600ms animation cycle.
-- **Offline/reconnect:** Service worker serves cached pages for navigation requests. **No explicit offline banner.** No connection state machine in the client. No message outbox/queue.
+- **Startup:** Shimmer skeleton screens (`components/ui/skeleton.tsx`) with staggered animation delays (0ms → 400ms). Used for messages, member lists, channel rows. 1600ms animation cycle. **Branded splash screen** (`components/splash-screen.tsx`) shows a pulsing "V" logo during hydration with a two-phase fade-out. Respects `prefers-reduced-motion`.
+- **Offline/reconnect:** Full connection FSM in `hooks/use-connection-status.ts` with states: `connected → disconnected → reconnecting → offline`. Listens to `navigator.onLine` + Supabase Realtime channel events (via `vortex:realtime-connect` / `vortex:realtime-disconnect` custom events emitted by `hooks/use-realtime-messages.ts`). Exponential backoff with jitter, max 30s. **Persistent offline banner** in `components/connection-banner.tsx` — color-coded (red for offline, amber for disconnected/reconnecting), with manual reconnect button.
+- **Message outbox/queue:** `lib/chat-outbox.ts` persists queued messages to localStorage. `components/chat/hooks/use-chat-outbox.ts` rehydrates on mount, flushes on reconnect (listens for `online` and `vortex:flush-outbox` events). Messages shown with pending/failed indicators in the message list.
 - **Install prompt:** `components/pwa-install-banner.tsx` — captures `beforeinstallprompt`, shows fixed-bottom banner on mobile only. Remembers dismissal in localStorage. **This is better than both competitors**, neither of which has this.
+- **Push permission soft-ask:** `components/push-permission-prompt.tsx` — delays 60s before showing a contextual prompt explaining the value of notifications. Only shown when permission is `"default"` and user hasn't dismissed before. Only dismisses on successful subscription.
 
 ### Gaps & Recommendations
-- **HIGH: Add a connection state machine and offline banner.** Adopt Stoat's FSM pattern — track `Connected → Disconnected → Reconnecting → Offline` states, show a persistent banner with reconnect countdown. Use `navigator.onLine` + WebSocket/Supabase Realtime disconnect events.
-- **HIGH: Add message outbox/queue.** Adopt Stoat's `UnsentMessage` pattern — when a send fails or the user is offline, store the message locally with a `"pending" | "failed"` status, show it in the message list with a visual indicator (dimmed, spinner, retry button), and flush on reconnect.
-- **MEDIUM: Add splash screen for cold starts.** The iOS splash SVGs handle the very first load, but add a branded loading overlay (like Fluxer's) between the HTML shell loading and the React hydration completing.
+- ~~**HIGH: Add a connection state machine and offline banner.**~~ **Resolved:** `hooks/use-connection-status.ts` + `components/connection-banner.tsx` implement the full FSM with offline banner.
+- ~~**HIGH: Add message outbox/queue.**~~ **Resolved:** `lib/chat-outbox.ts` + `use-chat-outbox.ts` persist and replay queued messages.
+- ~~**MEDIUM: Add splash screen for cold starts.**~~ **Resolved:** `components/splash-screen.tsx` shows a branded loading overlay during hydration.
 
 ---
 
@@ -257,23 +261,23 @@
 | PWA icons (192 + 512 + maskable) | ✅ | ✅ | ✅ |
 | iOS splash screens | ❌ | ❌ | ✅ 8 device sizes |
 | Service worker caching | Precache only | None | ✅ Multi-strategy |
-| SW update notification | ✅ Titlebar button | Code-level only | ❌ Missing |
+| SW update notification | ✅ Titlebar button | Code-level only | ✅ Toast + hourly poll |
 | Push notifications (Web Push) | ❌ Browser API only | ✅ PWA-gated | ✅ All users |
 | Notification settings hierarchy | Basic filters | Basic | ✅ 4-level hierarchy |
 | App badge | ❌ | ✅ | ❌ Missing |
 | Install prompt (`beforeinstallprompt`) | ❌ | ❌ | ✅ Custom banner |
-| Offline banner | ✅ Full FSM | ❌ | ❌ Missing |
-| Message outbox/queue | ✅ Persistent | ❌ | ❌ Missing |
+| Offline banner | ✅ Full FSM | ❌ | ✅ Full FSM + banner |
+| Message outbox/queue | ✅ Persistent | ❌ | ✅ Persistent (localStorage) |
 | Mobile bottom nav | ❌ | ✅ | ✅ |
 | Swipe gestures | ❌ | ❌ | ✅ Left-edge swipe |
 | Safe area insets | Partial (missing viewport-fit) | ✅ Full | Partial (missing viewport-fit) |
 | `viewport-fit=cover` | ❌ | ✅ | ❌ Missing |
-| Mobile back-button handling | ❌ | ✅ History stack | ❌ Missing |
+| Mobile back-button handling | ❌ | ✅ History stack | ✅ History stack + guard |
 | Skeleton loading screens | ❌ Spinners only | ✅ | ✅ Shimmer |
-| Splash/loading screen | ❌ | ✅ Animated | iOS only |
+| Splash/loading screen | ❌ | ✅ Animated | ✅ Branded + iOS |
 | Presence/online status | ✅ | ✅ | ✅ |
 | `prefers-reduced-motion` | Unknown | ✅ | ✅ |
 
 ### Key Takeaway
 
-**Vortex already has the strongest foundation** of the three for PWA support — it's the only one with all of: multi-strategy service worker caching, Web Push for all users, a custom install prompt, iOS splash screens, skeleton loading, and swipe gestures. The main gaps are in **offline resilience** (no connection state machine, no offline banner, no message queue) and **mobile viewport handling** (missing `viewport-fit=cover` and `interactive-widget`). Closing these gaps (items H1–H5) would make Vortex feel like a native mobile app.
+**Vortex now has the most complete PWA support** of the three — it's the only one with all of: multi-strategy service worker caching, Web Push for all users, a custom install prompt, iOS splash screens, skeleton loading, swipe gestures, a connection state machine with offline banner, a persistent message outbox, SW update detection with toast UI, hourly update polling, a branded splash screen, mobile back-button history management, and a push permission soft-ask. The remaining gaps are in **mobile viewport handling** (missing `viewport-fit=cover` and `interactive-widget`) and **app badge support**. See remaining items H1, H2, and M3 above.

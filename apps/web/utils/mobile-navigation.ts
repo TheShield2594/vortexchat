@@ -13,9 +13,13 @@
  * Navigate to a channel while building a proper back-stack so the
  * Android hardware back button returns to the channel list (baseUrl)
  * instead of exiting the PWA.
+ *
+ * Uses the History API directly to build a two-entry stack in one
+ * synchronous operation, avoiding the unreliable setTimeout sequencing
+ * between router.replace and router.push.
  */
 export function navigateToWithMobileHistory(
-  router: { push: (url: string) => void; replace: (url: string) => void },
+  router: { push: (url: string) => void },
   targetUrl: string,
   baseUrl: string,
 ) {
@@ -27,19 +31,20 @@ export function navigateToWithMobileHistory(
     return
   }
 
-  // Replace current entry with the base (channel list), then push the target.
+  // Build the back-stack synchronously via the History API:
+  // 1. Replace the current entry with the base (channel list)
+  // 2. Push the target on top
   // This means: back → channel list, back again → previous page or home.
-  router.replace(baseUrl)
-  // Use setTimeout to ensure the replace settles before pushing
-  setTimeout(() => {
-    router.push(targetUrl)
-  }, 0)
+  window.history.replaceState(null, "", baseUrl)
+  window.history.pushState(null, "", targetUrl)
+  // Trigger the App Router to sync with the new URL
+  window.dispatchEvent(new PopStateEvent("popstate"))
 }
 
 /**
  * Set up a popstate listener that prevents exiting the PWA when the
- * history stack is exhausted. Pushes a synthetic entry so the user
- * stays in the app.
+ * history stack is exhausted. Navigates to fallbackUrl instead of
+ * letting the PWA close.
  */
 export function setupMobileBackGuard(fallbackUrl: string) {
   if (typeof window === "undefined") return () => {}
@@ -50,13 +55,15 @@ export function setupMobileBackGuard(fallbackUrl: string) {
 
   if (!isStandalone) return () => {}
 
-  // Push an initial entry so there's always something to go back to
+  // Push an initial guard entry so there's always something to go back to
   window.history.pushState({ vortexGuard: true }, "", window.location.href)
 
   function onPopState(e: PopStateEvent) {
     if (e.state?.vortexGuard) return
-    // Re-push the guard so we don't exit
-    window.history.pushState({ vortexGuard: true }, "", window.location.href)
+    // Instead of trapping the user by re-pushing the current URL,
+    // navigate to the fallback (e.g. channel list) so the back button
+    // feels natural.
+    window.location.href = fallbackUrl
   }
 
   window.addEventListener("popstate", onPopState)

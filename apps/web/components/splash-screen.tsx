@@ -41,7 +41,7 @@ export function SplashScreen() {
         background: "#1b1f31",
         transition: "opacity 300ms ease-out",
         opacity: fading ? 0 : 1,
-        pointerEvents: "none",
+        pointerEvents: "auto",
       }}
     >
       {/* Glow ring */}

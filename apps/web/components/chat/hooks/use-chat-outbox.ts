@@ -87,11 +87,16 @@ export function useChatOutbox({
   useEffect(() => {
     const onOnline = () => setIsOnline(true)
     const onOffline = () => setIsOnline(false)
+    // Also treat vortex:flush-outbox (dispatched on realtime reconnect) as
+    // a signal to go online, which triggers the flushOutbox effect in chat-area
+    const onFlush = () => setIsOnline(true)
     window.addEventListener("online", onOnline)
     window.addEventListener("offline", onOffline)
+    window.addEventListener("vortex:flush-outbox", onFlush)
     return () => {
       window.removeEventListener("online", onOnline)
       window.removeEventListener("offline", onOffline)
+      window.removeEventListener("vortex:flush-outbox", onFlush)
     }
   }, [])
 

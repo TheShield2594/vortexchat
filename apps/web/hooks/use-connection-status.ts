@@ -41,13 +41,13 @@ function scheduleReconnect() {
   setState("reconnecting")
   reconnectTimer = setTimeout(() => {
     reconnectTimer = undefined
-    // If we're back online, let the online handler resolve it
-    if (navigator.onLine) {
-      failures = 0
-      setState("connected")
-    } else {
+    if (!navigator.onLine) {
       setState("offline")
+      return
     }
+    // Network is up — trigger a realtime reconnect attempt.
+    // onRealtimeConnect will set "connected" when the channel truly reconnects.
+    window.dispatchEvent(new CustomEvent("vortex:realtime-retry"))
   }, delay)
 }
 

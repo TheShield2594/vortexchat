@@ -91,8 +91,12 @@ export function useRealtimeMessages(
           }
           wasConnectedRef.current = true
           onStatusChange?.("connected")
+          // Notify the connection-status FSM that realtime is healthy
+          window.dispatchEvent(new CustomEvent("vortex:realtime-connect"))
         } else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           onStatusChange?.("disconnected")
+          // Notify the connection-status FSM that realtime dropped
+          window.dispatchEvent(new CustomEvent("vortex:realtime-disconnect"))
         }
       })
 

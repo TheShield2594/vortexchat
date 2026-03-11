@@ -37,9 +37,13 @@ export function PushPermissionPrompt() {
   }
 
   async function enable() {
-    setVisible(false)
-    await subscribe()
-    localStorage.setItem(STORAGE_KEY, "1")
+    const success = await subscribe()
+    if (success) {
+      setVisible(false)
+      localStorage.setItem(STORAGE_KEY, "1")
+    }
+    // If subscribe failed silently (denied, error), keep prompt visible
+    // so the user can dismiss manually or retry
   }
 
   if (!visible) return null
@@ -54,6 +58,7 @@ export function PushPermissionPrompt() {
       }}
     >
       <button
+        type="button"
         onClick={dismiss}
         className="absolute top-2 right-2 p-1 rounded-md hover:opacity-80"
         aria-label="Dismiss notification prompt"

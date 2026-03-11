@@ -40,40 +40,82 @@ function clientId(): string {
   return `outbox-${Date.now()}-${counter}`
 }
 
+const STORAGE_KEY = "vortexchat:zustand-outbox:v1"
+
+function loadPersistedMessages(): OutboxMessage[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (m: any) =>
+        typeof m.clientId === "string" &&
+        typeof m.channelId === "string" &&
+        typeof m.content === "string",
+    )
+  } catch {
+    return []
+  }
+}
+
+function persistMessages(messages: OutboxMessage[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+  } catch {
+    // Storage full or unavailable — silently ignore
+  }
+}
+
 export const useMessageOutbox = create<OutboxState>((set, get) => ({
-  messages: [],
+  messages: loadPersistedMessages(),
 
   enqueue(channelId, content) {
     const id = clientId()
-    set((s) => ({
-      messages: [
+    set((s) => {
+      const messages = [
         ...s.messages,
         { clientId: id, channelId, content, queuedAt: new Date().toISOString(), status: "pending" as const, retries: 0 },
-      ],
-    }))
+      ]
+      persistMessages(messages)
+      return { messages }
+    })
     return id
   },
 
   markSending(cid) {
-    set((s) => ({
-      messages: s.messages.map((m) => (m.clientId === cid ? { ...m, status: "sending" as const } : m)),
-    }))
+    set((s) => {
+      const messages = s.messages.map((m) => (m.clientId === cid ? { ...m, status: "sending" as const } : m))
+      persistMessages(messages)
+      return { messages }
+    })
   },
 
   markFailed(cid, error) {
-    set((s) => ({
-      messages: s.messages.map((m) =>
+    set((s) => {
+      const messages = s.messages.map((m) =>
         m.clientId === cid ? { ...m, status: "failed" as const, error, retries: m.retries + 1 } : m,
-      ),
-    }))
+      )
+      persistMessages(messages)
+      return { messages }
+    })
   },
 
   markSent(cid) {
-    set((s) => ({ messages: s.messages.filter((m) => m.clientId !== cid) }))
+    set((s) => {
+      const messages = s.messages.filter((m) => m.clientId !== cid)
+      persistMessages(messages)
+      return { messages }
+    })
   },
 
   cancel(cid) {
-    set((s) => ({ messages: s.messages.filter((m) => m.clientId !== cid) }))
+    set((s) => {
+      const messages = s.messages.filter((m) => m.clientId !== cid)
+      persistMessages(messages)
+      return { messages }
+    })
   },
 
   forChannel(channelId) {

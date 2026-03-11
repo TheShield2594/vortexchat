@@ -104,12 +104,33 @@ self.addEventListener("message", (event) => {
   }
 })
 
-// Re-subscribe if the browser rotates push keys
+// Re-subscribe if the browser rotates push keys.
+// Performs a SW-side re-subscribe + server sync so push works even when
+// no tabs are open, then also notifies any open clients.
 self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
-    self.clients.matchAll({ type: "window" }).then((clients) => {
+    (async () => {
+      // Attempt SW-side re-subscribe using the old subscription's options
+      try {
+        const oldSub = event.oldSubscription
+        const newSub = await self.registration.pushManager.subscribe(
+          oldSub?.options ?? { userVisibleOnly: true }
+        )
+        const { endpoint, keys } = newSub.toJSON()
+        await fetch("/api/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint, keys }),
+        })
+      } catch (err) {
+        // SW-side re-subscribe failed — fall through to notify clients
+        console.warn("SW pushsubscriptionchange: re-subscribe failed", err)
+      }
+
+      // Also notify any open tabs so the client-side hook can re-subscribe
+      const clients = await self.clients.matchAll({ type: "window" })
       clients.forEach((client) => client.postMessage({ type: "PUSH_SUBSCRIPTION_CHANGED" }))
-    })
+    })()
   )
 })
 
