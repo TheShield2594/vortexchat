@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { UserPlus, Check, X, UserMinus, ShieldOff } from "lucide-react"
+import { UserPlus, Check, X, UserMinus, ShieldOff, MessageSquare } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import type { FriendWithUser } from "@/types/database"
 import { MemberSkeleton } from "@/components/ui/skeleton"
@@ -76,7 +76,7 @@ function FriendEntry({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity">
         {actions}
       </div>
     </div>
@@ -109,7 +109,7 @@ function IconButton({
   )
 }
 
-export function FriendsSidebar() {
+export function FriendsSidebar({ compact, onStartDM }: { compact?: boolean; onStartDM?: (friendId: string) => void } = {}) {
   const [friends, setFriends] = useState<FriendsData>({
     accepted: [],
     pending_received: [],
@@ -216,15 +216,17 @@ export function FriendsSidebar() {
   const pendingSentList = tab === "pending" ? friends.pending_sent : []
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "var(--app-bg-primary)" }}>
-      {/* Header */}
-      <div
-        className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: "var(--theme-bg-tertiary)" }}
-      >
-        <UserPlus className="w-5 h-5 flex-shrink-0" style={{ color: "var(--theme-text-secondary)" }} />
-        <span className="font-semibold text-white">Friends</span>
-      </div>
+    <div className="flex flex-col h-full" style={{ background: compact ? "transparent" : "var(--app-bg-primary)" }}>
+      {/* Header — hidden in compact (embedded) mode */}
+      {!compact && (
+        <div
+          className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
+          style={{ borderColor: "var(--theme-bg-tertiary)" }}
+        >
+          <UserPlus className="w-5 h-5 flex-shrink-0" style={{ color: "var(--theme-text-secondary)" }} />
+          <span className="font-semibold text-white">Friends</span>
+        </div>
+      )}
 
       {/* Add friend input */}
       <form onSubmit={handleAdd} className="px-4 py-3 flex-shrink-0">
@@ -364,6 +366,11 @@ export function FriendsSidebar() {
                         </IconButton>
                       ) : (
                         <>
+                          {onStartDM && (
+                            <IconButton onClick={() => onStartDM(entry.friend.id)} title="Message">
+                              <MessageSquare className="w-4 h-4" />
+                            </IconButton>
+                          )}
                           <IconButton onClick={() => handleBlock(entry.id)} title="Block" danger>
                             <ShieldOff className="w-4 h-4" />
                           </IconButton>
