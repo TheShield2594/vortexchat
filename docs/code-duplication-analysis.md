@@ -622,6 +622,134 @@ export function LoadingButton({ loading, children, ...props }: ButtonProps & { l
 
 ---
 
+## Finding 13 — Base64URL Encoding Duplication (passkeys)
+
+**Importance: 6/10**
+
+### What
+
+Two passkeys files implement overlapping base64url encoding logic:
+
+**`lib/auth/passkeys.ts:5-7`** (server-side, Node Buffer):
+```typescript
+export function base64url(input: Buffer | string) {
+  const buffer = Buffer.isBuffer(input) ? input : Buffer.from(input)
+  return buffer.toString("base64url")
+}
+```
+
+**`lib/auth/passkeys-client.ts:10-17`** (client-side, ArrayBuffer):
+```typescript
+function encodeBuffer(input: ArrayBuffer): string {
+  const bytes = new Uint8Array(input)
+  let str = ""
+  bytes.forEach((b) => { str += String.fromCharCode(b) })
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+```
+
+Plus `decodeBase64Url()` (lines 1–8) does the inverse. Same algorithm, different runtimes.
+
+### Remediation
+
+Export both `encodeBase64Url` and `decodeBase64Url` from a shared `lib/auth/base64url.ts` with isomorphic implementations. The server file can re-use Node's `buffer.toString("base64url")` while the client file imports the `btoa`-based version.
+
+**Effort:** Low
+**Risk:** Low
+
+---
+
+## Finding 14 — VoiceConnectionState + ReconnectInfo Type Duplication
+
+**Importance: 7/10**
+
+### What
+
+Identical type and near-identical interface defined in two files:
+
+**`lib/webrtc/use-voice.ts:35,37-42`**:
+```typescript
+export type VoiceConnectionState = "connected" | "reconnecting" | "disconnected"
+
+export interface ReconnectInfo {
+  state: VoiceConnectionState
+  attempt: number
+  maxAttempts: number
+}
+```
+
+**`lib/webrtc/voice-reconnection-manager.ts:23,25-29`**:
+```typescript
+export type VoiceConnectionState = "connected" | "reconnecting" | "disconnected"
+
+export interface ReconnectSnapshot {
+  state: VoiceConnectionState
+  attempt: number
+  maxAttempts: number
+}
+```
+
+Same type, same shape, different names (`ReconnectInfo` vs `ReconnectSnapshot`).
+
+### Remediation
+
+Define both in `lib/webrtc/voice-reconnection-manager.ts` (the canonical manager) and import from `use-voice.ts`:
+
+```diff
+// use-voice.ts
+- export type VoiceConnectionState = "connected" | "reconnecting" | "disconnected"
+- export interface ReconnectInfo { state: VoiceConnectionState; attempt: number; maxAttempts: number }
++ export type { VoiceConnectionState, ReconnectSnapshot as ReconnectInfo } from "./voice-reconnection-manager"
+```
+
+**Effort:** Trivial
+**Risk:** None — types are structurally identical.
+
+---
+
+## Finding 15 — Attachment Security Constants Overlap
+
+**Importance: 5/10**
+
+### What
+
+Two attachment files maintain separate but overlapping dangerous-file-type lists:
+
+**`lib/attachment-malware.ts:9-10`**:
+```typescript
+const HIGH_RISK_EXTENSIONS = new Set(["exe", "dll", "bat", "cmd", "js", "scr", "msi", "jar", "vbs", "ps1"])
+const HIGH_RISK_MIME_PREFIXES = ["application/x-ms", "application/x-dosexec"]
+```
+
+**`lib/attachment-validation.ts:9-56`**:
+```typescript
+const BLOCKED_EXTENSIONS = new Set(["exe", "msi", "bat", "cmd", "scr", "com", "ps1", "js", "jar", "vbs", "dll", "sh"])
+const EXECUTABLE_MIMES = new Set(["application/x-msdownload", "application/x-msdos-program", ...])
+```
+
+9 of 10 entries in `HIGH_RISK_EXTENSIONS` are also in `BLOCKED_EXTENSIONS`. If one list is updated, the other may be forgotten.
+
+### Remediation
+
+Create a shared `lib/attachment-security-constants.ts`:
+
+```typescript
+export const DANGEROUS_EXTENSIONS = new Set([
+  "exe", "dll", "bat", "cmd", "js", "scr", "msi", "jar", "vbs", "ps1", "com", "sh"
+])
+export const EXECUTABLE_MIMES = new Set([
+  "application/x-msdownload", "application/x-msdos-program",
+  "application/x-elf", "application/x-executable", "application/x-dosexec"
+])
+```
+
+Both files import from this single source.
+
+**Effort:** Low
+**Risk:** None
+
+---
+
 ## Findings Summary Table
 
 | # | Finding | Importance | Instances | Effort | Utility created? |
@@ -638,6 +766,9 @@ export function LoadingButton({ loading, children, ...props }: ButtonProps & { l
 | 10 | Image upload/preview pattern | 4/10 | 3 | Low | Extract `useFilePreview` |
 | 11 | Permission constant re-declaration | 7/10 | 1 file | Trivial | Import from `@vortex/shared` |
 | 12 | Button with loader spinner pattern | 3/10 | 20+ | Low | Extract `LoadingButton` |
+| 13 | Base64URL encoding duplication (passkeys) | 6/10 | 2 files | Low | Extract shared base64url utils |
+| 14 | VoiceConnectionState + ReconnectInfo type duplication | 7/10 | 2 files | Trivial | Re-export from manager |
+| 15 | Attachment security constants overlap | 5/10 | 2 files | Low | Extract shared constants |
 
 ---
 
@@ -646,23 +777,26 @@ export function LoadingButton({ loading, children, ...props }: ButtonProps & { l
 ### Phase 1 — Quick wins (1–2 days)
 
 1. **Finding 11** — Fix `moderation-auth.ts` hardcoded constants
-2. **Finding 4** — Replace STATUS_OPTIONS copies with shared import
-3. **Finding 9** — Consolidate localStorage helpers
+2. **Finding 14** — Consolidate VoiceConnectionState / ReconnectInfo types
+3. **Finding 4** — Replace STATUS_OPTIONS copies with shared import
+4. **Finding 9** — Consolidate localStorage helpers
 
 ### Phase 2 — High-impact refactors (3–5 days)
 
-4. **Finding 1** — Migrate API routes to `requireAuth()` / `parseJsonBody()` / `dbError()`
-5. **Finding 2** — Migrate audit log insertions to `insertAuditLog()`
-6. **Finding 3** — Unify permission auth modules
+5. **Finding 1** — Migrate API routes to `requireAuth()` / `parseJsonBody()` / `dbError()`
+6. **Finding 2** — Migrate audit log insertions to `insertAuditLog()`
+7. **Finding 3** — Unify permission auth modules
+8. **Finding 13** — Consolidate base64url encoding (passkeys)
+9. **Finding 15** — Consolidate attachment security constants
 
 ### Phase 3 — Structural improvements (1–2 weeks)
 
-7. **Finding 5** — Merge signal server room managers
-8. **Finding 6** — Extract modal boilerplate components
-9. **Finding 7** — Extract Supabase subscription hook
-10. **Finding 8** — Extract generic autocomplete hook
-11. **Finding 10** — Extract file preview hook
-12. **Finding 12** — Extract `LoadingButton` component
+10. **Finding 5** — Merge signal server room managers
+11. **Finding 6** — Extract modal boilerplate components
+12. **Finding 7** — Extract Supabase subscription hook
+13. **Finding 8** — Extract generic autocomplete hook
+14. **Finding 10** — Extract file preview hook
+15. **Finding 12** — Extract `LoadingButton` component
 
 ---
 
