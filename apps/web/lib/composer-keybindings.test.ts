@@ -6,9 +6,12 @@ const baseState = {
   hasMentionSelection: false,
   isEmojiOpen: false,
   hasEmojiSelection: false,
+  isSlashOpen: false,
+  hasSlashSelection: false,
   hasDraftContent: false,
   mentionHandledNavigation: false,
   emojiHandledNavigation: false,
+  slashHandledNavigation: false,
 }
 
 describe("resolveComposerKeybinding", () => {
@@ -21,6 +24,8 @@ describe("resolveComposerKeybinding", () => {
       closeMention: false,
       acceptEmoji: false,
       closeEmoji: false,
+      acceptSlash: false,
+      closeSlash: false,
       clearDraft: false,
     })
   })
