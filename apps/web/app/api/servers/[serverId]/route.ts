@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { hasPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import type { Json } from "@/types/database"
 import { detectMimeFromBytes } from "@/lib/attachment-validation"
+import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 
 type Params = { params: Promise<{ serverId: string }> }
 
