@@ -53,7 +53,7 @@ export default function AppealsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-6 text-white">
+    <main className="mx-auto max-w-3xl p-6 text-white" style={{ paddingTop: "max(24px, calc(env(safe-area-inset-top) + 24px))" }}>
       <h1 className="text-2xl font-semibold">Ban appeal</h1>
       <p className="mt-2 text-sm text-zinc-300">Submit one active appeal per server and track review status.</p>
 
