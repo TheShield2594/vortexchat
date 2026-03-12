@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
+import { flushSync } from "react-dom"
 import { perfLogSinceNav, perfClearNav } from "@/lib/perf"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, MoreHorizontal } from "lucide-react"
@@ -101,6 +102,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const jumpSignatureRef = useRef<string | null>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const shouldAutoScrollToLatestRef = useRef(true)
+  const prevChannelIdRef = useRef(channel.id)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
   const liveAnnouncementCounterRef = useRef(0)
@@ -142,9 +144,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     () => new Map(messages.map((m, i) => [m.id, i])),
     [messages]
   )
-
-  // Sentinel ref for observing when the user scrolls near older messages
-  const olderSentinelRef = useRef<HTMLDivElement>(null)
 
   const jumpToMessage = useCallback((messageId: string) => {
     router.replace(buildReplyJumpPath(`/channels/${serverId}/${channel.id}`, searchParams.toString(), messageId))
@@ -419,18 +418,37 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [channel.id, cacheMessages])
 
   useEffect(() => {
-    // On channel switch, check if we have a richer cache available.
-    // Read the cache imperatively to avoid re-triggering when other
-    // channels' caches update.
+    // On channel switch, merge cached messages with server-provided
+    // initialMessages to avoid surfacing stale history while preserving
+    // any extra paginated messages the cache may hold.
     const cached = useAppStore.getState().messageCache[channel.id]
-    const useCached = cached && cached.messages.length >= initialMessages.length
-    const msgs = useCached ? cached.messages : initialMessages
+
+    let msgs: typeof initialMessages
+    if (!cached || cached.messages.length === 0) {
+      msgs = initialMessages
+    } else {
+      const cachedNewest = cached.messages[cached.messages.length - 1]?.created_at ?? ""
+      const initialNewest = initialMessages[initialMessages.length - 1]?.created_at ?? ""
+      if (initialNewest > cachedNewest) {
+        // Server data is fresher — merge: deduplicate on id, sort by time
+        const byId = new Map(cached.messages.map((m) => [m.id, m]))
+        for (const m of initialMessages) byId.set(m.id, m)
+        msgs = sortMessagesChronologically([...byId.values()])
+        // Trim to display limit, keeping newest
+        if (msgs.length > DISPLAY_LIMIT) msgs = msgs.slice(msgs.length - DISPLAY_LIMIT)
+      } else if (cached.messages.length >= initialMessages.length) {
+        // Cache has at least as much coverage and is equally fresh
+        msgs = cached.messages
+      } else {
+        msgs = initialMessages
+      }
+    }
 
     messagesRef.current = msgs
     setMessages(msgs)
     previousLastMessageIdRef.current = msgs[msgs.length - 1]?.id ?? null
     setPendingNewMessageCount(0)
-    setHasMoreHistory(useCached ? msgs.length >= 50 : initialMessages.length >= 50)
+    setHasMoreHistory(msgs.length >= 50)
     for (const timer of animatedMessageTimersRef.current.values()) {
       clearTimeout(timer)
     }
@@ -438,7 +456,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setAnimatedMessageIds(new Set())
     setIsPaginating(false)
     paginationRequestRef.current = null
-    shouldAutoScrollToLatestRef.current = true
   }, [initialMessages, channel.id])
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = "auto") => {
@@ -497,30 +514,32 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         setHasMoreHistory(false)
       }
 
-      setMessages((prev) => {
-        const known = new Set(prev.map((message) => message.id))
-        const newItems = older.filter((message) => !known.has(message.id))
-        const merged = sortMessagesChronologically([...newItems, ...prev])
-        // Trim oldest messages if over display limit
-        if (merged.length > DISPLAY_LIMIT) {
-          return merged.slice(merged.length - DISPLAY_LIMIT)
-        }
-        return merged
+      // Use flushSync so React commits the DOM update synchronously,
+      // letting us measure the anchor's new position immediately after.
+      flushSync(() => {
+        setMessages((prev) => {
+          const known = new Set(prev.map((message) => message.id))
+          const newItems = older.filter((message) => !known.has(message.id))
+          const merged = sortMessagesChronologically([...newItems, ...prev])
+          // Trim oldest messages if over display limit
+          if (merged.length > DISPLAY_LIMIT) {
+            return merged.slice(merged.length - DISPLAY_LIMIT)
+          }
+          return merged
+        })
       })
 
       // Restore scroll position: measure the anchor element's new position
       // and adjust scrollTop by the delta so the viewport doesn't jump.
-      if (anchorId) {
-        queueMicrotask(() => {
-          const updatedAnchorEl = document.getElementById(`message-${anchorId}`)
-          const updatedRect = updatedAnchorEl?.getBoundingClientRect() ?? null
-          if (anchorRect && updatedRect && container) {
-            const delta = updatedRect.top - anchorRect.top
-            if (Math.abs(delta) > 2) {
-              container.scrollTop += delta
-            }
+      if (anchorId && anchorRect && container) {
+        const updatedAnchorEl = document.getElementById(`message-${anchorId}`)
+        const updatedRect = updatedAnchorEl?.getBoundingClientRect() ?? null
+        if (updatedRect) {
+          const delta = updatedRect.top - anchorRect.top
+          if (Math.abs(delta) > 2) {
+            container.scrollTop += delta
           }
-        })
+        }
       }
     })()
 
@@ -713,6 +732,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   // If there's a cached scroll position (user was scrolled up), restore it.
   // Otherwise, ensure we're at the bottom (scrollTop = 0 in column-reverse).
   useLayoutEffect(() => {
+    // Detect channel switch synchronously so the ref reset and scroll
+    // restoration are colocated and deterministic.
+    if (prevChannelIdRef.current !== channel.id) {
+      shouldAutoScrollToLatestRef.current = true
+      prevChannelIdRef.current = channel.id
+    }
+
     if (!shouldAutoScrollToLatestRef.current) return
     if (jumpToMessageId || openThreadId) return
     if (messages.length === 0) return
@@ -1534,10 +1560,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             {/* Sentinel + skeleton for loading older messages */}
             {hasMoreHistory && (
-              <div ref={olderSentinelRef} className="px-4 py-3 space-y-3">
+              <div className="px-4 py-3 space-y-3">
                 {isPaginating && (
                   <>
-                    <span className="sr-only" role="status" aria-live="polite">Loading older messages…</span>
+                    <output className="sr-only" aria-live="polite">Loading older messages…</output>
                     {Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="flex items-start gap-3">
                         <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
