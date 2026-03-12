@@ -86,21 +86,24 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const specialPaths = ["settings", "moderation", "events"]
   const isSpecialPage = isInChannel && specialPaths.includes(pathParts[2])
 
-  // Resolve the channel name — prefer the route param, fall back to store
+  // Resolve the active channel — prefer the route param, fall back to store
   const routeChannelId = pathParts[2]
-  const channelName = (() => {
+  const activeChannel = (() => {
     const serverChannels = channels[serverId]
-    if (!serverChannels) return "channel"
+    if (!serverChannels) return null
     if (routeChannelId) {
       const ch = serverChannels.find((c) => c.id === routeChannelId)
-      if (ch) return ch.name
+      if (ch) return ch
     }
     if (activeChannelId) {
       const ch = serverChannels.find((c) => c.id === activeChannelId)
-      if (ch) return ch.name
+      if (ch) return ch
     }
-    return "channel"
+    return null
   })()
+  const channelName = activeChannel?.name ?? "channel"
+  // Only text channels mount ChatArea which listens for vortex:mobile-action events
+  const isTextChannel = !activeChannel || activeChannel.type === "text"
 
   // ========== DESKTOP LAYOUT — all panels inline ==========
   if (!isMobile) {
@@ -146,16 +149,18 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
             # {channelName}
           </span>
 
-          {/* Inline action icons */}
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: "search" }))}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
-            style={{ color: "var(--theme-text-secondary)" }}
-            aria-label="Search messages"
-          >
-            <Search className="w-[18px] h-[18px]" />
-          </button>
+          {/* Inline action icons — search only shown for text channels (ChatArea) */}
+          {isTextChannel && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: "search" }))}
+              className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+              style={{ color: "var(--theme-text-secondary)" }}
+              aria-label="Search messages"
+            >
+              <Search className="w-[18px] h-[18px]" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -172,61 +177,63 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
             <Users className="w-[18px] h-[18px]" />
           </button>
 
-          {/* Overflow menu for remaining actions */}
-          <div className="relative flex-shrink-0" ref={mobileOverflowRef}>
-            <button
-              type="button"
-              onClick={() => setMobileOverflowOpen((v) => !v)}
-              className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
-              style={{ color: "var(--theme-text-secondary)" }}
-              aria-label="More channel actions"
-              aria-expanded={mobileOverflowOpen}
-              aria-haspopup="menu"
-            >
-              <MoreVertical className="w-[18px] h-[18px]" />
-            </button>
-            {mobileOverflowOpen && (
-              <div
-                role="menu"
-                aria-label="Channel actions"
-                className="absolute right-0 top-10 z-50 min-w-52 rounded-lg border p-1 shadow-xl"
-                style={{
-                  background: "var(--theme-bg-secondary)",
-                  borderColor: "var(--theme-bg-tertiary)",
-                }}
+          {/* Overflow menu — only shown for text channels where ChatArea handles the events */}
+          {isTextChannel && (
+            <div className="relative flex-shrink-0" ref={mobileOverflowRef}>
+              <button
+                type="button"
+                onClick={() => setMobileOverflowOpen((v) => !v)}
+                className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+                style={{ color: "var(--theme-text-secondary)" }}
+                aria-label="More channel actions"
+                aria-expanded={mobileOverflowOpen}
+                aria-haspopup="menu"
               >
-                {[
-                  { id: "summary", label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
-                  { id: "workspace", label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
-                  { id: "pins", label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
-                  { id: "threads", label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
-                  { id: "notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
-                  { id: "help", label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMobileOverflowOpen(false)
-                      if (item.id === "workspace") {
-                        toggleWorkspacePanel()
-                      } else if (item.id === "threads") {
-                        toggleThreadPanel()
-                      } else {
-                        window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: item.id }))
-                      }
-                    }}
-                    className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-white/10"
-                    style={{ color: item.active ? "var(--theme-accent)" : "var(--theme-text-primary)" }}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                <MoreVertical className="w-[18px] h-[18px]" />
+              </button>
+              {mobileOverflowOpen && (
+                <div
+                  role="menu"
+                  aria-label="Channel actions"
+                  className="absolute right-0 top-10 z-50 min-w-52 rounded-lg border p-1 shadow-xl"
+                  style={{
+                    background: "var(--theme-bg-secondary)",
+                    borderColor: "var(--theme-bg-tertiary)",
+                  }}
+                >
+                  {[
+                    { id: "summary", label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
+                    { id: "workspace", label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
+                    { id: "pins", label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
+                    { id: "threads", label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
+                    { id: "notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
+                    { id: "help", label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMobileOverflowOpen(false)
+                        if (item.id === "workspace") {
+                          toggleWorkspacePanel()
+                        } else if (item.id === "threads") {
+                          toggleThreadPanel()
+                        } else {
+                          window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: item.id }))
+                        }
+                      }}
+                      className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-white/10"
+                      style={{ color: item.active ? "var(--theme-accent)" : "var(--theme-text-primary)" }}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         {/* Channel content area or mobile member list */}
         {mobileMemberListOpen ? (

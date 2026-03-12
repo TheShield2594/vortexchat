@@ -365,6 +365,21 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
         </div>
       </div>}
 
+      {/* Mobile-only New Post button — desktop version is inside the header above */}
+      {isMobile && (
+        <div className="flex items-center justify-end px-4 pt-2">
+          <button
+            disabled={!canSendMessages}
+            onClick={() => setShowNewPost(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--theme-accent)', color: 'white' }}
+          >
+            <Plus className="w-4 h-4" />
+            New Post
+          </button>
+        </div>
+      )}
+
       {/* Guidelines banner */}
       <div
         className="mx-4 mt-3 px-3 py-2 rounded text-sm"
