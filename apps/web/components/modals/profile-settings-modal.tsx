@@ -2,7 +2,23 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { EmojiPicker } from "frimousse"
-import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff, Link2, ExternalLink } from "lucide-react"
+import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff, Link2, ExternalLink, Hash, Plus, GripVertical, Globe, Users } from "lucide-react"
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -16,7 +32,7 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import type { MessageDisplay, FontScale, Saturation } from "@/lib/stores/appearance-store"
-import type { UserRow } from "@/types/database"
+import type { UserRow, UserPinnedItemRow } from "@/types/database"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { STATUS_OPTIONS } from "@/lib/utils/status-options"
 
@@ -124,6 +140,32 @@ const CSS_TEMPLATE = `/**
 .message-content a { color: var(--theme-link); }
 `
 
+function SortablePinItem({ pin, onRemove }: { pin: UserPinnedItemRow; onRemove: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pin.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    background: "var(--theme-bg-secondary)",
+    border: "1px solid var(--theme-bg-tertiary)",
+  }
+  return (
+    <div ref={setNodeRef} style={style} role="listitem" className="flex items-center gap-2 px-3 py-2 rounded-lg">
+      <button type="button" {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none p-0 border-0 bg-transparent" aria-label={`Drag to reorder: ${pin.label}`}>
+        <GripVertical className="w-3.5 h-3.5 flex-shrink-0 opacity-40" style={{ color: "var(--theme-text-muted)" }} />
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium truncate" style={{ color: "var(--theme-text-primary)" }}>{pin.label}</p>
+        {pin.sublabel && <p className="text-[11px] truncate" style={{ color: "var(--theme-text-muted)" }}>{pin.sublabel}</p>}
+      </div>
+      <span className="text-[10px] px-1.5 py-0.5 rounded capitalize" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>{pin.pin_type}</span>
+      <button type="button" onClick={() => onRemove(pin.id)} className="p-1 rounded hover:bg-red-500/20 transition-colors" style={{ color: "var(--theme-danger)" }} aria-label={`Remove pin: ${pin.label}`}>
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
+
 /** Tabbed user settings dialog covering profile editing, account security (2FA, passkeys, sessions), and appearance preferences. */
 export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const router = useRouter()
@@ -149,6 +191,186 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const toSettingsPayload = useAppearanceStore((s) => s.toSettingsPayload)
+
+  // Interests / Tags
+  const [interests, setInterests] = useState<string[]>(user.interests ?? [])
+  const [interestInput, setInterestInput] = useState("")
+  const [interestSaving, setInterestSaving] = useState(false)
+  const MAX_TAGS = 15
+  const TAG_REGEX = /^[a-z0-9][a-z0-9\-]*[a-z0-9]?$/
+
+  // Pinned Items
+  const [pins, setPins] = useState<UserPinnedItemRow[]>([])
+  const [pinsLoading, setPinsLoading] = useState(true)
+  const [newPin, setNewPin] = useState<{ pin_type: UserPinnedItemRow["pin_type"]; label: string; sublabel: string; url: string }>({
+    pin_type: "link", label: "", sublabel: "", url: "",
+  })
+  const [pinSaving, setPinSaving] = useState(false)
+  const MAX_PINS = 6
+
+  // Activity visibility
+  const [activityVisibility, setActivityVisibility] = useState<"public" | "friends" | "private">(
+    (user.activity_visibility as "public" | "friends" | "private") ?? "public"
+  )
+  const [visibilitySaving, setVisibilitySaving] = useState(false)
+
+  // Load pinned items
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setPinsLoading(true)
+    fetch("/api/users/pinned")
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((json: { pins: UserPinnedItemRow[] }) => {
+        if (!cancelled) setPins(json.pins ?? [])
+      })
+      .catch(() => { /* silently fail — empty state shown */ })
+      .finally(() => { if (!cancelled) setPinsLoading(false) })
+    return () => { cancelled = true }
+  }, [open])
+
+  const addInterestTag = useCallback(() => {
+    const tag = interestInput.trim().toLowerCase()
+    if (!tag) return
+    if (tag.length > 30) {
+      toast({ variant: "destructive", title: "Tag too long", description: "Max 30 characters." })
+      return
+    }
+    if (tag.length === 1 && !/^[a-z0-9]$/.test(tag)) {
+      toast({ variant: "destructive", title: "Invalid tag", description: "Use letters, numbers, and hyphens only." })
+      return
+    }
+    if (tag.length > 1 && !TAG_REGEX.test(tag)) {
+      toast({ variant: "destructive", title: "Invalid tag", description: "Use lowercase letters, numbers, and hyphens only." })
+      return
+    }
+    if (interests.includes(tag)) {
+      toast({ variant: "destructive", title: "Duplicate tag" })
+      return
+    }
+    if (interests.length >= MAX_TAGS) {
+      toast({ variant: "destructive", title: `Maximum ${MAX_TAGS} interests allowed` })
+      return
+    }
+    setInterests((prev) => [...prev, tag])
+    setInterestInput("")
+  }, [interestInput, interests, toast])
+
+  async function saveInterests() {
+    setInterestSaving(true)
+    try {
+      const res = await fetch("/api/users/interests", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interests }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Failed to save interests")
+      }
+      toast({ title: "Interests saved!" })
+    } catch (err) {
+      toast({ variant: "destructive", title: err instanceof Error ? err.message : "Error saving interests" })
+    } finally {
+      setInterestSaving(false)
+    }
+  }
+
+  async function addPin() {
+    if (!newPin.label.trim()) {
+      toast({ variant: "destructive", title: "Label is required" })
+      return
+    }
+    setPinSaving(true)
+    try {
+      const res = await fetch("/api/users/pinned", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin_type: newPin.pin_type,
+          label: newPin.label.trim(),
+          sublabel: newPin.sublabel.trim() || null,
+          url: newPin.url.trim() || null,
+          position: pins.length > 0 ? Math.max(...pins.map((p) => p.position)) + 1 : 0,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error ?? "Failed to add pin")
+      setPins((prev) => [...prev, data.pin])
+      setNewPin({ pin_type: "link", label: "", sublabel: "", url: "" })
+      toast({ title: "Pin added!" })
+    } catch (err) {
+      toast({ variant: "destructive", title: err instanceof Error ? err.message : "Error adding pin" })
+    } finally {
+      setPinSaving(false)
+    }
+  }
+
+  async function removePin(pinId: string) {
+    const res = await fetch(`/api/users/pinned?id=${pinId}`, { method: "DELETE" })
+    if (!res.ok) {
+      toast({ variant: "destructive", title: "Failed to remove pin" })
+      return
+    }
+    setPins((prev) => prev.filter((p) => p.id !== pinId))
+  }
+
+  const pinSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  )
+
+  async function handlePinDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = pins.findIndex((p) => p.id === active.id)
+    const newIndex = pins.findIndex((p) => p.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Optimistic update
+    const previousPins = pins
+    const reordered = arrayMove(pins, oldIndex, newIndex).map((pin, i) => ({ ...pin, position: i }))
+    setPins(reordered)
+
+    // Persist each changed position
+    try {
+      const updates = reordered
+        .filter((pin, i) => previousPins[i]?.id !== pin.id)
+        .map((pin) =>
+          fetch(`/api/users/pinned?id=${pin.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ position: pin.position }),
+          })
+        )
+      const results = await Promise.all(updates)
+      if (results.some((r) => !r.ok)) throw new Error("Failed to update pin order")
+    } catch {
+      setPins(previousPins)
+      toast({ variant: "destructive", title: "Failed to reorder pins" })
+    }
+  }
+
+  async function saveActivityVisibility(value: "public" | "friends" | "private") {
+    const previousValue = activityVisibility
+    setActivityVisibility(value)
+    setVisibilitySaving(true)
+    try {
+      const res = await fetch("/api/users/activity", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility: value }),
+      })
+      if (!res.ok) throw new Error("Failed to update visibility")
+      toast({ title: "Activity visibility updated" })
+    } catch (err) {
+      setActivityVisibility(previousValue)
+      toast({ variant: "destructive", title: err instanceof Error ? err.message : "Error" })
+    } finally {
+      setVisibilitySaving(false)
+    }
+  }
 
   // Revoke blob URL on unmount to prevent memory leak
   useEffect(() => {
@@ -659,6 +881,142 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           />
                         </label>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* ── Interests / Tags ── */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                        Interests
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={saveInterests}
+                        disabled={interestSaving}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all hover:brightness-110 disabled:opacity-60"
+                        style={{ background: "var(--theme-accent)", color: "white" }}
+                      >
+                        {interestSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                        Save
+                      </button>
+                    </div>
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                      Add up to {MAX_TAGS} tags — e.g.{" "}
+                      <span style={{ color: "var(--theme-text-secondary)" }}>gaming, ai, self-hosting</span>
+                    </p>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "var(--theme-text-muted)" }} aria-hidden />
+                        <input
+                          type="text"
+                          value={interestInput}
+                          onChange={(e) => setInterestInput(e.target.value.toLowerCase().replace(/[^a-z0-9\-]/g, ""))}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addInterestTag() } }}
+                          maxLength={30}
+                          placeholder="minecraft"
+                          disabled={interests.length >= MAX_TAGS}
+                          className="w-full pl-8 pr-3 py-2 rounded-md text-sm focus:outline-none focus:ring-2"
+                          style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                          aria-label="Add interest tag"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addInterestTag}
+                        disabled={!interestInput.trim() || interests.length >= MAX_TAGS}
+                        className="flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-all hover:brightness-110 disabled:opacity-50"
+                        style={{ background: "var(--theme-bg-secondary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                        aria-label="Add tag"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add
+                      </button>
+                    </div>
+                    {interests.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5" role="list" aria-label="Your interests">
+                        {interests.map((tag) => (
+                          <span key={tag} role="listitem" className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-xs font-medium" style={{ background: "var(--theme-bg-secondary)", color: "var(--theme-text-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+                            <Hash className="w-2.5 h-2.5" aria-hidden />{tag}
+                            <button type="button" onClick={() => setInterests((prev) => prev.filter((t) => t !== tag))} className="ml-0.5 rounded-full p-0.5 hover:bg-red-500/20 hover:text-red-400 transition-colors" aria-label={`Remove ${tag}`}>
+                              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden><path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs italic" style={{ color: "var(--theme-text-muted)" }}>No interests added yet.</p>
+                    )}
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{interests.length}/{MAX_TAGS}</p>
+                  </div>
+
+                  {/* ── Pinned Items ── */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                      Pinned Items
+                    </h4>
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                      Pin up to {MAX_PINS} items to your profile.
+                    </p>
+                    {pinsLoading ? (
+                      <div className="space-y-2">
+                        {[1, 2].map((n) => (
+                          <div key={n} className="h-12 rounded-lg animate-pulse" style={{ background: "var(--theme-bg-secondary)" }} />
+                        ))}
+                      </div>
+                    ) : pins.length > 0 ? (
+                      <DndContext sensors={pinSensors} collisionDetection={closestCenter} onDragEnd={handlePinDragEnd}>
+                        <SortableContext items={pins.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                          <div className="space-y-1.5" role="list" aria-label="Pinned items">
+                            {pins.map((pin) => (
+                              <SortablePinItem key={pin.id} pin={pin} onRemove={removePin} />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                    ) : (
+                      <p className="text-xs italic" style={{ color: "var(--theme-text-muted)" }}>Nothing pinned yet.</p>
+                    )}
+                    {pins.length < MAX_PINS && (
+                      <div className="rounded-lg p-3 space-y-2.5" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+                        <p className="text-xs font-semibold" style={{ color: "var(--theme-text-secondary)" }}>Add a pin</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(["link", "message", "channel", "file"] as const).map((type) => (
+                            <button key={type} type="button" onClick={() => setNewPin((prev) => ({ ...prev, pin_type: type }))} className="py-1.5 rounded text-xs font-medium capitalize transition-all" style={{ background: newPin.pin_type === type ? "color-mix(in srgb, var(--theme-accent) 15%, var(--theme-bg-tertiary))" : "var(--theme-bg-tertiary)", border: `1px solid ${newPin.pin_type === type ? "var(--theme-accent)" : "transparent"}`, color: newPin.pin_type === type ? "var(--theme-accent)" : "var(--theme-text-muted)" }}>
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                        <input type="text" value={newPin.label} onChange={(e) => setNewPin((prev) => ({ ...prev, label: e.target.value }))} maxLength={120} placeholder="Label (required)" className="w-full px-3 py-2 rounded-md text-xs focus:outline-none focus:ring-2" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+                        <input type="text" value={newPin.sublabel} onChange={(e) => setNewPin((prev) => ({ ...prev, sublabel: e.target.value }))} maxLength={80} placeholder="Sublabel (optional)" className="w-full px-3 py-2 rounded-md text-xs focus:outline-none focus:ring-2" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+                        <input type="url" value={newPin.url} onChange={(e) => setNewPin((prev) => ({ ...prev, url: e.target.value }))} maxLength={2000} placeholder="URL (optional)" className="w-full px-3 py-2 rounded-md text-xs focus:outline-none focus:ring-2" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
+                        <button type="button" onClick={addPin} disabled={pinSaving || pinsLoading || !newPin.label.trim()} className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all hover:brightness-110 disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>
+                          {pinSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                          <Plus className="w-3 h-3" /> Add pin
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Activity Privacy ── */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                      Activity Privacy
+                    </h4>
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                      Control who can see your recent activity feed.
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { value: "public" as const, label: "Public", icon: <Globe className="w-4 h-4" />, description: "Anyone" },
+                        { value: "friends" as const, label: "Friends", icon: <Users className="w-4 h-4" />, description: "Friends only" },
+                        { value: "private" as const, label: "Private", icon: <Lock className="w-4 h-4" />, description: "Only you" },
+                      ]).map(({ value, label, icon, description }) => (
+                        <button key={value} type="button" onClick={() => saveActivityVisibility(value)} disabled={visibilitySaving} className="flex flex-col items-center gap-1 px-2 py-3 rounded-lg text-xs font-medium transition-all disabled:opacity-60" style={{ background: activityVisibility === value ? "color-mix(in srgb, var(--theme-accent) 15%, var(--theme-bg-secondary))" : "var(--theme-bg-secondary)", border: `1px solid ${activityVisibility === value ? "var(--theme-accent)" : "var(--theme-bg-tertiary)"}`, color: activityVisibility === value ? "var(--theme-accent)" : "var(--theme-text-muted)" }} aria-pressed={activityVisibility === value}>
+                          {icon}
+                          <span>{label}</span>
+                          <span className="font-normal opacity-70">{description}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
