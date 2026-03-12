@@ -184,7 +184,7 @@ export default function DiscoverPage() {
         <span className="font-semibold">Discover</span>
       </div>
 
-      <div className="bg-card px-8 py-8">
+      <div className="bg-card px-4 py-6 sm:px-8 sm:py-8">
         <h1 className="mb-1 text-2xl font-bold">Find communities and apps</h1>
         <p className="mb-4 text-sm text-muted-foreground">
           Search servers, browse the app marketplace, and check trust badges and reviews.
@@ -195,11 +195,12 @@ export default function DiscoverPage() {
             <TabsTrigger value="apps">Apps</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <div className="relative max-w-xl flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
+              inputMode="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={mode === "servers" ? "Search servers…" : "Search apps…"}
@@ -240,7 +241,7 @@ export default function DiscoverPage() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
         {loading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, index) => (
