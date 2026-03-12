@@ -22,8 +22,10 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
       {/* pb-16 md:pb-0 reserves space for the fixed MobileBottomTabBar on mobile; omitted in full-screen channel view */}
       <div className={`flex h-screen overflow-hidden md:pb-0 ${isFullScreen ? "" : "pb-16"}`} style={{ background: "var(--app-bg-primary)", paddingTop: "env(safe-area-inset-top)" }}>
         <ConnectionBanner />
-        {/* Guild rail: always visible inline; hidden in full-screen channel views on mobile */}
-        {!isFullScreen && <ServerSidebarWrapper />}
+        {/* Guild rail: always visible on desktop; hidden in full-screen channel views on mobile */}
+        <div className={isFullScreen ? "hidden md:flex" : "flex"}>
+          <ServerSidebarWrapper />
+        </div>
         <div className="flex flex-1 overflow-hidden min-w-0">
           {children}
         </div>
