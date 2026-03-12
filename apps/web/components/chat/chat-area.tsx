@@ -1540,6 +1540,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         <div
           ref={messageScrollerRef}
           className="flex-1 overflow-y-auto relative"
+          role="log"
           style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none" }}
         >
           {/* Inner wrapper — rendered in normal (top-to-bottom) order inside
