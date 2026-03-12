@@ -18,7 +18,11 @@ function escapePostgrestValue(raw: string): string {
 // Lists public servers with search, sorting, and cursor pagination
 export async function GET(req: NextRequest) {
   // Rate-limit by IP before any DB work
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip")?.trim() ||
+    req.headers.get("cf-connecting-ip")?.trim() ||
+    "unknown"
   const rl = await rateLimiter.check(`discover:${ip}`, { limit: 30, windowMs: 60_000 })
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 })
@@ -44,6 +48,7 @@ export async function GET(req: NextRequest) {
     .select("id, name, description, icon_url, member_count, invite_code, created_at")
     .eq("is_public", true)
     .order(orderCol, { ascending })
+    .order("id", { ascending })
     .limit(PAGE_SIZE + 1) // fetch one extra to detect next page
 
   // Search across name and description (sanitize for PostgREST)

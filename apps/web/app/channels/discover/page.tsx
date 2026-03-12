@@ -113,7 +113,11 @@ export default function DiscoverPage() {
     if (q) params.set("q", q)
     if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory)
     const res = await fetch(`/api/apps/discover?${params.toString()}`)
-    if (res.ok) setApps(await res.json())
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      throw new Error(`Apps API error ${res.status}: ${body}`)
+    }
+    setApps(await res.json())
   }, [])
 
   const previousCategoryRef = useRef(category)
