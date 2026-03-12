@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils/cn"
 
 interface PublicServer {
@@ -89,6 +90,10 @@ export default function DiscoverPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const router = useRouter()
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const nextCursorRef = useRef(nextCursor)
+  const loadingMoreRef = useRef(loadingMore)
+  nextCursorRef.current = nextCursor
+  loadingMoreRef.current = loadingMore
 
   const fetchServers = useCallback(async (q?: string, sortBy: SortOption = "members", cursor?: string) => {
     const params = new URLSearchParams()
@@ -168,20 +173,29 @@ export default function DiscoverPage() {
     const sentinel = sentinelRef.current
     if (!sentinel) return
 
+    let cancelled = false
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && nextCursor && !loadingMore) {
+        const cur = nextCursorRef.current
+        if (entries[0].isIntersecting && cur && !loadingMoreRef.current) {
           setLoadingMore(true)
-          fetchServers(query || undefined, sort, nextCursor)
+          fetchServers(query || undefined, sort, cur)
             .then((result) => {
-              setServers((prev) => [...prev, ...result.servers])
-              setNextCursor(result.nextCursor)
+              if (!cancelled) {
+                setServers((prev) => [...prev, ...result.servers])
+                setNextCursor(result.nextCursor)
+              }
             })
             .catch((err) => {
-              console.error("Failed to load more servers:", err)
+              if (!cancelled) {
+                console.error("Failed to load more servers:", err)
+              }
             })
             .finally(() => {
-              setLoadingMore(false)
+              if (!cancelled) {
+                setLoadingMore(false)
+              }
             })
         }
       },
@@ -189,14 +203,33 @@ export default function DiscoverPage() {
     )
 
     observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [mode, nextCursor, loadingMore, query, sort, fetchServers])
+    return () => {
+      cancelled = true
+      observer.disconnect()
+    }
+  }, [mode, nextCursor, query, sort, fetchServers])
 
   async function joinServer(inviteCode: string) {
-    const res = await fetch(`/api/invites/${inviteCode}`, { method: "POST" })
-    if (res.ok) {
-      const { serverId } = await res.json()
-      router.push(`/channels/${serverId}`)
+    try {
+      const res = await fetch(`/api/invites/${inviteCode}`, { method: "POST" })
+      if (res.ok) {
+        const { serverId } = await res.json()
+        router.push(`/channels/${serverId}`)
+      } else {
+        const body = await res.json().catch(() => null)
+        toast({
+          variant: "destructive",
+          title: "Failed to join server",
+          description: body?.error || `Something went wrong (${res.status})`,
+        })
+      }
+    } catch (err) {
+      console.error("Join server error:", err)
+      toast({
+        variant: "destructive",
+        title: "Failed to join server",
+        description: "A network error occurred. Please try again.",
+      })
     }
   }
 
