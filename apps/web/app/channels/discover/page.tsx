@@ -96,7 +96,10 @@ export default function DiscoverPage() {
     if (sortBy !== "members") params.set("sort", sortBy)
     if (cursor) params.set("cursor", cursor)
     const res = await fetch(`/api/servers/discover?${params.toString()}`)
-    if (!res.ok) return { servers: [] as PublicServer[], nextCursor: null }
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      throw new Error(`Discover API error ${res.status}: ${body}`)
+    }
     return (await res.json()) as { servers: PublicServer[]; nextCursor: string | null }
   }, [])
 
@@ -109,27 +112,40 @@ export default function DiscoverPage() {
   }, [])
 
   const previousCategoryRef = useRef(category)
+  const previousSortRef = useRef(sort)
 
   // Initial + filter/search fetch
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     const categoryChanged = previousCategoryRef.current !== category
+    const sortChanged = previousSortRef.current !== sort
 
     const execute = async () => {
       setLoading(true)
-      const [serverResult] = await Promise.all([
-        fetchServers(query || undefined, sort),
-        fetchApps(query || undefined, category),
-      ])
-      if (!cancelled) {
-        setServers(serverResult.servers)
-        setNextCursor(serverResult.nextCursor)
-        setLoading(false)
+      try {
+        const [serverResult] = await Promise.all([
+          fetchServers(query || undefined, sort),
+          fetchApps(query || undefined, category),
+        ])
+        if (!cancelled) {
+          setServers(serverResult.servers)
+          setNextCursor(serverResult.nextCursor)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to fetch discover data:", err)
+          setServers([])
+          setNextCursor(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
-    const debounceMs = query && !categoryChanged ? 300 : 0
+    const debounceMs = query && !categoryChanged && !sortChanged ? 300 : 0
     if (debounceMs > 0) {
       timer = setTimeout(execute, debounceMs)
     } else {
@@ -137,6 +153,7 @@ export default function DiscoverPage() {
     }
 
     previousCategoryRef.current = category
+    previousSortRef.current = sort
 
     return () => {
       cancelled = true
@@ -155,11 +172,17 @@ export default function DiscoverPage() {
       (entries) => {
         if (entries[0].isIntersecting && nextCursor && !loadingMore) {
           setLoadingMore(true)
-          fetchServers(query || undefined, sort, nextCursor).then((result) => {
-            setServers((prev) => [...prev, ...result.servers])
-            setNextCursor(result.nextCursor)
-            setLoadingMore(false)
-          })
+          fetchServers(query || undefined, sort, nextCursor)
+            .then((result) => {
+              setServers((prev) => [...prev, ...result.servers])
+              setNextCursor(result.nextCursor)
+            })
+            .catch((err) => {
+              console.error("Failed to load more servers:", err)
+            })
+            .finally(() => {
+              setLoadingMore(false)
+            })
         }
       },
       { rootMargin: "200px" }
@@ -204,7 +227,7 @@ export default function DiscoverPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={mode === "servers" ? "Search servers…" : "Search apps…"}
-              className="w-full rounded-lg border border-input bg-popover py-2.5 pl-9 pr-4 text-sm focus:outline-none"
+              className="w-full rounded-lg border border-input bg-popover py-2.5 pl-9 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
           </div>
           {mode === "servers" && (
@@ -213,7 +236,7 @@ export default function DiscoverPage() {
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortOption)}
-                className="rounded-lg border border-input bg-popover px-2 py-2.5 text-sm focus:outline-none"
+                className="rounded-lg border border-input bg-popover px-2 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 {SORT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
