@@ -88,8 +88,8 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
 
   // Resolve the active channel — prefer the route param, fall back to store
   const routeChannelId = pathParts[2]
+  const serverChannels = channels[serverId]
   const activeChannel = (() => {
-    const serverChannels = channels[serverId]
     if (!serverChannels) return null
     if (routeChannelId) {
       const ch = serverChannels.find((c) => c.id === routeChannelId)
@@ -101,9 +101,11 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
     }
     return null
   })()
-  const channelName = activeChannel?.name ?? "channel"
-  // Only text channels mount ChatArea which listens for vortex:mobile-action events
-  const isTextChannel = !activeChannel || activeChannel.type === "text"
+  const channelName = activeChannel?.name ?? (serverChannels ? "channel" : "")
+  // Only show text-channel actions once channel data has loaded and confirmed text type.
+  // When serverChannels is undefined the store hasn't hydrated yet — hide actions
+  // rather than flashing them for non-text channel types.
+  const isTextChannel = !!activeChannel && activeChannel.type === "text"
 
   // ========== DESKTOP LAYOUT — all panels inline ==========
   if (!isMobile) {
