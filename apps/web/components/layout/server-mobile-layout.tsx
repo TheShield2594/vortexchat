@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, Bell, CircleHelp } from "lucide-react"
+import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, CircleHelp } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
@@ -206,7 +206,6 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                     { id: "workspace", label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
                     { id: "pins", label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
                     { id: "threads", label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
-                    { id: "notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
                     { id: "help", label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
                   ].map((item) => (
                     <button

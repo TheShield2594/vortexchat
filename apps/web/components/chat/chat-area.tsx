@@ -135,7 +135,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         case "search": setShowSearchModal(true); break
         case "summary": setShowSummary((v) => !v); break
         case "pins": setShowPinnedPanel((v) => !v); break
-        case "notifications": /* handled by NotificationBell in overflow */ break
         case "help": setShowKeyboardShortcuts(true); break
       }
     }
