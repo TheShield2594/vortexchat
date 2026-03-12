@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Megaphone, Users } from "lucide-react"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -21,6 +22,7 @@ interface Props {
 
 /** Read-mostly announcement channel view where only privileged users can post. */
 export function AnnouncementChannel({ channel, initialMessages, currentUserId, serverId }: Props) {
+  const isMobile = useMobileLayout()
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore(
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList }))
   )
@@ -134,8 +136,8 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
-      {/* Channel header */}
-      <div
+      {/* Channel header — hidden on mobile where ServerMobileLayout provides it */}
+      {!isMobile && <div
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
         style={{ borderColor: 'var(--theme-bg-tertiary)' }}
       >
@@ -156,7 +158,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
             <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Announcement banner */}
       <div

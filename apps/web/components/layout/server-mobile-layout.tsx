@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { ArrowLeft, Users } from "lucide-react"
+import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, Bell, CircleHelp } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
@@ -25,18 +25,24 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const pathname = usePathname()
   const router = useRouter()
   const isMobile = useMobileLayout()
-  const { activeChannelId, channels, memberListOpen, setMemberListOpen } = useAppStore(
+  const { activeChannelId, channels, memberListOpen, setMemberListOpen, threadPanelOpen, toggleThreadPanel, workspaceOpen, toggleWorkspacePanel } = useAppStore(
     useShallow((s) => ({
       activeChannelId: s.activeChannelId,
       channels: s.channels,
       memberListOpen: s.memberListOpen,
       setMemberListOpen: s.setMemberListOpen,
+      threadPanelOpen: s.threadPanelOpen,
+      toggleThreadPanel: s.toggleThreadPanel,
+      workspaceOpen: s.workspaceOpen,
+      toggleWorkspacePanel: s.toggleWorkspacePanel,
     }))
   )
 
   // On mobile, use local state for the member list overlay so that entering
   // a channel always shows messages first. Desktop uses the persisted store value.
   const [mobileMemberListOpen, setMobileMemberListOpen] = useState(false)
+  const [mobileOverflowOpen, setMobileOverflowOpen] = useState(false)
+  const mobileOverflowRef = useRef<HTMLDivElement>(null)
 
   // Reset mobile member list whenever the channel route changes
   const routeChannelSegment = pathname.split("/").filter(Boolean)[2]
@@ -54,6 +60,23 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
       setMobileMemberListOpen(memberListOpen)
     }
   }, [isMobile, memberListOpen])
+
+  // Close mobile overflow menu on outside click
+  useEffect(() => {
+    if (!mobileOverflowOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (mobileOverflowRef.current && !mobileOverflowRef.current.contains(e.target as Node)) {
+        setMobileOverflowOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [mobileOverflowOpen])
+
+  // Close overflow when navigating
+  useEffect(() => {
+    setMobileOverflowOpen(false)
+  }, [routeChannelSegment])
 
   // Determine if we are viewing a channel (not just the server root)
   const pathParts = pathname.split("/").filter(Boolean)
@@ -99,9 +122,9 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   if (isInChannel && !isSpecialPage) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile channel header with back button */}
+        {/* Single mobile channel header — combines navigation + channel actions */}
         <div
-          className="flex items-center gap-2 px-2 py-2 border-b flex-shrink-0"
+          className="flex items-center gap-1 px-2 py-2 border-b flex-shrink-0"
           style={{
             background: "var(--theme-bg-secondary)",
             borderColor: "var(--theme-bg-tertiary)",
@@ -110,18 +133,29 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           <button
             type="button"
             onClick={() => router.push(`/channels/${serverId}`)}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
             style={{ color: "var(--theme-text-secondary)" }}
             aria-label="Back to channels"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <span
-            className="flex-1 text-sm font-semibold truncate"
+            className="flex-1 text-sm font-semibold truncate min-w-0"
             style={{ color: "var(--theme-text-primary)" }}
           >
             # {channelName}
           </span>
+
+          {/* Inline action icons */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: "search" }))}
+            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+            style={{ color: "var(--theme-text-secondary)" }}
+            aria-label="Search messages"
+          >
+            <Search className="w-[18px] h-[18px]" />
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -131,12 +165,68 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                 return next
               })
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
             style={{ color: mobileMemberListOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             aria-label="Toggle member list"
           >
-            <Users className="w-5 h-5" />
+            <Users className="w-[18px] h-[18px]" />
           </button>
+
+          {/* Overflow menu for remaining actions */}
+          <div className="relative flex-shrink-0" ref={mobileOverflowRef}>
+            <button
+              type="button"
+              onClick={() => setMobileOverflowOpen((v) => !v)}
+              className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+              style={{ color: "var(--theme-text-secondary)" }}
+              aria-label="More channel actions"
+              aria-expanded={mobileOverflowOpen}
+              aria-haspopup="menu"
+            >
+              <MoreVertical className="w-[18px] h-[18px]" />
+            </button>
+            {mobileOverflowOpen && (
+              <div
+                role="menu"
+                aria-label="Channel actions"
+                className="absolute right-0 top-10 z-50 min-w-52 rounded-lg border p-1 shadow-xl"
+                style={{
+                  background: "var(--theme-bg-secondary)",
+                  borderColor: "var(--theme-bg-tertiary)",
+                }}
+              >
+                {[
+                  { id: "summary", label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
+                  { id: "workspace", label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
+                  { id: "pins", label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
+                  { id: "threads", label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
+                  { id: "notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
+                  { id: "help", label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileOverflowOpen(false)
+                      if (item.id === "workspace") {
+                        toggleWorkspacePanel()
+                      } else if (item.id === "threads") {
+                        toggleThreadPanel()
+                      } else {
+                        window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: item.id }))
+                      }
+                    }}
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-white/10"
+                    style={{ color: item.active ? "var(--theme-accent)" : "var(--theme-text-primary)" }}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {/* Channel content area or mobile member list */}
         {mobileMemberListOpen ? (
