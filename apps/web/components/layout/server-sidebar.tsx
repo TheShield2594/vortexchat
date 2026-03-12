@@ -132,6 +132,14 @@ export function ServerSidebar() {
           </div>
         )}
 
+        {servers.length === 0 && !isLoadingServers && (
+          <div className="flex flex-col items-center gap-1 py-2 px-1">
+            <span className="text-[10px] text-center leading-tight font-medium" style={{ color: "var(--theme-text-muted)" }}>
+              No servers yet
+            </span>
+          </div>
+        )}
+
         {servers.map((server) => (
           <ServerIcon
             key={server.id}
@@ -146,19 +154,25 @@ export function ServerSidebar() {
 
         <Separator className="w-8 my-1" style={{ background: 'var(--theme-surface-elevated)' }} />
 
-        {/* Add server — primary action: accent color */}
+        {/* Add server — primary action: accent color, pulse when no servers */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               onClick={() => setShowCreateServer(true)}
               aria-label="Add a Server"
-              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group focus-ring"
-              style={{ background: 'var(--theme-bg-primary)' }}
+              className={cn(
+                "w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group focus-ring",
+                servers.length === 0 && !isLoadingServers && "ring-2 ring-offset-2 animate-pulse"
+              )}
+              style={{
+                background: servers.length === 0 && !isLoadingServers ? 'var(--theme-accent)' : 'var(--theme-bg-primary)',
+                ...(servers.length === 0 && !isLoadingServers ? { ringColor: 'var(--theme-accent)', ringOffsetColor: 'var(--theme-bg-tertiary)' } : {}),
+              }}
             >
-              <Plus className="w-6 h-6 transition-colors" style={{ color: 'var(--theme-accent)' }} />
+              <Plus className="w-6 h-6 transition-colors" style={{ color: servers.length === 0 && !isLoadingServers ? 'white' : 'var(--theme-accent)' }} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">Add a Server</TooltipContent>
+          <TooltipContent side="right">{servers.length === 0 ? "Create Your First Server" : "Add a Server"}</TooltipContent>
         </Tooltip>
 
         {/* Explore — secondary action: muted color */}

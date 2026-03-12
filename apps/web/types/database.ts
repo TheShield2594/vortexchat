@@ -27,6 +27,7 @@ export type Database = {
           appearance_settings: Json
           interests: string[]
           activity_visibility: 'public' | 'friends' | 'private'
+          onboarding_completed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -47,6 +48,7 @@ export type Database = {
           appearance_settings?: Json | null
           interests?: string[]
           activity_visibility?: 'public' | 'friends' | 'private'
+          onboarding_completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -67,6 +69,7 @@ export type Database = {
           appearance_settings?: Json | null
           interests?: string[]
           activity_visibility?: 'public' | 'friends' | 'private'
+          onboarding_completed_at?: string | null
           created_at?: string
           updated_at?: string
         }

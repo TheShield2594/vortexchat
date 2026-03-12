@@ -59,6 +59,22 @@
 | `viewport-fit=cover` + `interactive-widget` | Done | Safe-area insets + keyboard resize |
 | `format-detection: telephone=no` | Done | Prevents iOS auto-linking phone numbers |
 
+## Onboarding / First-Time Experience
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Welcome screen (post-signup) | Done | `OnboardingFlow` component, shown when no servers + `onboarding_completed_at` is null |
+| Two CTAs: Create server / Browse servers | Done | Links to template-powered creation or `/channels/discover` |
+| Server template selector in onboarding | Done | Gaming, Study, Startup, Creator templates surfaced prominently |
+| Server name + icon upload during onboarding | Done | Reuses existing icon upload to `server-icons` bucket |
+| Auto-join server after creation | Done | Owner auto-joins via existing DB trigger |
+| System bot welcome message in #general | Done | `POST /api/onboarding/welcome-message` — AutoMod posts in first text channel |
+| Invite link surfaced post-creation | Done | Invite step shows full URL with copy button |
+| `onboarding_completed_at` flag persisted | Done | `users.onboarding_completed_at` column (migration 00063) |
+| DM empty state "Find People" CTA | Done | `dm-list.tsx` — buttons for "Find People" + "New Message" |
+| Server sidebar empty state hint | Done | "No servers yet" label + pulsing "Create" button |
+| Skip onboarding option | Done | "Skip for now" link on welcome screen |
+
 ---
 
-*Last updated: 2026-03-11*
+*Last updated: 2026-03-12*
