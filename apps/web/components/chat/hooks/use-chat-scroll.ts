@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MutableRefObject } from "react"
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
 
 interface UseChatScrollArgs {
   hasMoreHistory: boolean
@@ -10,6 +10,13 @@ interface UseChatScrollArgs {
   onReachedBottom: () => void
 }
 
+/**
+ * Scroll management hook for the column-reverse message container.
+ *
+ * In a column-reverse layout, scrollTop === 0 means the user is at
+ * the very bottom (most recent messages visible).  Scrolling "up"
+ * (toward older messages) increases scrollTop.
+ */
 export function useChatScroll({
   hasMoreHistory,
   loadOlderMessages,
@@ -33,12 +40,21 @@ export function useChatScroll({
     }
 
     const onScroll = () => {
-      if (container.scrollTop < 120 && hasMoreHistory && !paginationRequestRef.current) {
+      // In column-reverse, scrollTop is 0 at bottom and increases as
+      // you scroll toward older messages.  Large scrollTop = near old
+      // messages = trigger pagination.
+      const scrollTop = container.scrollTop
+
+      // Load older messages when scrolled far enough toward history.
+      // scrollHeight - clientHeight - scrollTop gives the distance from
+      // the visual "top" (oldest messages).
+      const distanceFromOldest = container.scrollHeight - container.clientHeight - scrollTop
+      if (distanceFromOldest < 120 && hasMoreHistory && !paginationRequestRef.current) {
         void loadOlderMessages()
       }
 
-      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
-      const nextIsAtBottom = distanceFromBottom < 120
+      // In column-reverse, scrollTop near 0 = at bottom (newest messages)
+      const nextIsAtBottom = scrollTop < 120
       setIsAtBottom(nextIsAtBottom)
 
       if (scrollSaveTimerRef.current) {
@@ -70,5 +86,11 @@ export function useChatScroll({
     }
   }, [hasMoreHistory, loadOlderMessages, messageScrollerRef, onReachedBottom, paginationRequestRef, scrollStorageKey, unreadAnchorStorageKey])
 
-  return { isAtBottom, setIsAtBottom }
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    const container = messageScrollerRef.current
+    if (!container) return
+    container.scrollTo({ top: 0, behavior })
+  }, [messageScrollerRef])
+
+  return { isAtBottom, setIsAtBottom, scrollToBottom }
 }

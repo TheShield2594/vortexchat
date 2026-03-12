@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
+import { flushSync } from "react-dom"
 import { perfLogSinceNav, perfClearNav } from "@/lib/perf"
-import { useVirtualizer } from "@tanstack/react-virtual"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, MoreHorizontal } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -51,6 +51,8 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 const RECENTLY_ACTIVE_DECAY_MS = 12_000
+/** Cap displayed messages to keep the DOM manageable — older/newer trimmed on fetch. */
+const DISPLAY_LIMIT = 150
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()
@@ -100,6 +102,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const jumpSignatureRef = useRef<string | null>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const shouldAutoScrollToLatestRef = useRef(true)
+  const prevChannelIdRef = useRef(channel.id)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
   const liveAnnouncementCounterRef = useRef(0)
@@ -135,21 +138,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [channel.id, serverId])
 
-  // ── Virtual list ──────────────────────────────────────────────────────────
-  // O(1) lookup of message index by ID for virtualizer scrollToIndex
+  // ── Message index map ────────────────────────────────────────────────────
+  // O(1) lookup of message index by ID — used for jump-to-message
   const messageIndexMap = useMemo(
     () => new Map(messages.map((m, i) => [m.id, i])),
     [messages]
   )
-
-  const virtualizer = useVirtualizer({
-    count: messages.length,
-    getScrollElement: () => messageScrollerRef.current,
-    estimateSize: () => 72,
-    overscan: 8,
-    // Measure actual rendered heights for accurate positioning
-    measureElement: (el) => el?.getBoundingClientRect().height ?? 72,
-  })
 
   const jumpToMessage = useCallback((messageId: string) => {
     router.replace(buildReplyJumpPath(`/channels/${serverId}/${channel.id}`, searchParams.toString(), messageId))
@@ -255,7 +249,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         animatedMessageTimersRef.current.set(incoming.id, timer)
       }
 
-      return sortMessagesChronologically(next)
+      const sorted = sortMessagesChronologically(next)
+      // Trim to display limit, keeping newest messages
+      return sorted.length > DISPLAY_LIMIT ? sorted.slice(sorted.length - DISPLAY_LIMIT) : sorted
     })
   }, [])
 
@@ -422,11 +418,37 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [channel.id, cacheMessages])
 
   useEffect(() => {
-    messagesRef.current = initialMessages
-    setMessages(initialMessages)
-    previousLastMessageIdRef.current = initialMessages[initialMessages.length - 1]?.id ?? null
+    // On channel switch, merge cached messages with server-provided
+    // initialMessages to avoid surfacing stale history while preserving
+    // any extra paginated messages the cache may hold.
+    const cached = useAppStore.getState().messageCache[channel.id]
+
+    let msgs: typeof initialMessages
+    if (!cached || cached.messages.length === 0) {
+      msgs = initialMessages
+    } else {
+      const cachedNewest = cached.messages[cached.messages.length - 1]?.created_at ?? ""
+      const initialNewest = initialMessages[initialMessages.length - 1]?.created_at ?? ""
+      if (initialNewest > cachedNewest) {
+        // Server data is fresher — merge: deduplicate on id, sort by time
+        const byId = new Map(cached.messages.map((m) => [m.id, m]))
+        for (const m of initialMessages) byId.set(m.id, m)
+        msgs = sortMessagesChronologically([...byId.values()])
+        // Trim to display limit, keeping newest
+        if (msgs.length > DISPLAY_LIMIT) msgs = msgs.slice(msgs.length - DISPLAY_LIMIT)
+      } else if (cached.messages.length >= initialMessages.length) {
+        // Cache has at least as much coverage and is equally fresh
+        msgs = cached.messages
+      } else {
+        msgs = initialMessages
+      }
+    }
+
+    messagesRef.current = msgs
+    setMessages(msgs)
+    previousLastMessageIdRef.current = msgs[msgs.length - 1]?.id ?? null
     setPendingNewMessageCount(0)
-    setHasMoreHistory(initialMessages.length >= 50)
+    setHasMoreHistory(msgs.length >= 50)
     for (const timer of animatedMessageTimersRef.current.values()) {
       clearTimeout(timer)
     }
@@ -434,29 +456,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setAnimatedMessageIds(new Set())
     setIsPaginating(false)
     paginationRequestRef.current = null
-    shouldAutoScrollToLatestRef.current = true
-  }, [initialMessages])
+  }, [initialMessages, channel.id])
 
-  const scrollToLatest = useCallback((behavior: "auto" | "smooth" = "auto") => {
+  const scrollToLatest = useCallback((behavior: ScrollBehavior = "auto") => {
     const container = messageScrollerRef.current
     if (!container) return
-
-    const lastIndex = messagesRef.current.length - 1
-    if (lastIndex >= 0) {
-      virtualizer.scrollToIndex(lastIndex, { align: "end", behavior })
-    } else {
-      bottomRef.current?.scrollIntoView({ behavior })
-    }
-
-    requestAnimationFrame(() => {
-      const scroller = messageScrollerRef.current
-      if (!scroller) return
-      const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
-      if (maxScrollTop - scroller.scrollTop > 2) {
-        scroller.scrollTop = maxScrollTop
-      }
-    })
-  }, [virtualizer])
+    // In column-reverse, scrollTop 0 = bottom (newest messages visible).
+    container.scrollTo({ top: 0, behavior })
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -478,11 +485,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     setIsPaginating(true)
-    // Capture the ID of the top-most currently visible message so we can
-    // restore scroll position after prepending older messages.
-    const firstVisibleRange = virtualizer.range
-    const anchorIndex = firstVisibleRange?.startIndex ?? 0
-    const anchorId = currentMessages[anchorIndex]?.id ?? null
+
+    // Capture the oldest message element for scroll anchoring after prepend.
+    const anchorId = currentMessages[0]?.id ?? null
+    const anchorEl = anchorId ? document.getElementById(`message-${anchorId}`) : null
+    const anchorRect = anchorEl?.getBoundingClientRect() ?? null
 
     const paginationPromise = (async () => {
       const oldest = currentMessages[0]
@@ -503,50 +510,37 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         return
       }
 
-      // Capture scroll height before state update for the fallback path
-      const prevScrollHeight = messageScrollerRef.current?.scrollHeight ?? 0
-      const prevScrollTop = messageScrollerRef.current?.scrollTop ?? 0
-
-      setMessages((prev) => {
-        const known = new Set(prev.map((message) => message.id))
-        const newItems = older.filter((message) => !known.has(message.id))
-        const merged = [...newItems, ...prev]
-        return sortMessagesChronologically(merged)
-      })
-
       if (older.length < 50) {
         setHasMoreHistory(false)
       }
 
-      // Restore scroll: jump to where the anchor message ended up in the
-      // updated list (its index has shifted by the number of prepended messages).
-      // Use a double-rAF to ensure React has committed the state update and the
-      // virtualizer has recalculated row measurements before we scroll.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (!anchorId) return
-          const updatedMessages = messagesRef.current
-          const newAnchorIndex = updatedMessages.findIndex((m) => m.id === anchorId)
-          if (newAnchorIndex !== -1) {
-            virtualizer.scrollToIndex(newAnchorIndex, { align: "start", behavior: "auto" })
-            // After the virtualizer adjusts, apply fine-grained offset correction
-            // in case the estimated size differs from actual measured size.
-            requestAnimationFrame(() => {
-              if (!messageScrollerRef.current) return
-              const scroller = messageScrollerRef.current
-              const expectedDelta = scroller.scrollHeight - prevScrollHeight
-              const actualDelta = scroller.scrollTop - prevScrollTop
-              if (Math.abs(expectedDelta - actualDelta) > 4) {
-                scroller.scrollTop = prevScrollTop + expectedDelta
-              }
-            })
-          } else if (messageScrollerRef.current) {
-            // Fallback: shift by the measured scrollHeight delta
-            const scroller = messageScrollerRef.current
-            scroller.scrollTop = prevScrollTop + (scroller.scrollHeight - prevScrollHeight)
+      // Use flushSync so React commits the DOM update synchronously,
+      // letting us measure the anchor's new position immediately after.
+      flushSync(() => {
+        setMessages((prev) => {
+          const known = new Set(prev.map((message) => message.id))
+          const newItems = older.filter((message) => !known.has(message.id))
+          const merged = sortMessagesChronologically([...newItems, ...prev])
+          // Trim oldest messages if over display limit
+          if (merged.length > DISPLAY_LIMIT) {
+            return merged.slice(merged.length - DISPLAY_LIMIT)
           }
+          return merged
         })
       })
+
+      // Restore scroll position: measure the anchor element's new position
+      // and adjust scrollTop by the delta so the viewport doesn't jump.
+      if (anchorId && anchorRect && container) {
+        const updatedAnchorEl = document.getElementById(`message-${anchorId}`)
+        const updatedRect = updatedAnchorEl?.getBoundingClientRect() ?? null
+        if (updatedRect) {
+          const delta = updatedRect.top - anchorRect.top
+          if (Math.abs(delta) > 2) {
+            container.scrollTop += delta
+          }
+        }
+      }
     })()
 
     paginationRequestRef.current = paginationPromise
@@ -649,7 +643,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setUnreadAnchorMessageId(null)
   }, [])
 
-  const { isAtBottom } = useChatScroll({
+  const { isAtBottom, scrollToBottom } = useChatScroll({
     hasMoreHistory,
     loadOlderMessages,
     messageScrollerRef,
@@ -718,7 +712,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           const known = new Set(prev.map((m) => m.id))
           const fresh = latest.filter((m) => !known.has(m.id))
           if (fresh.length === 0) return prev
-          return sortMessagesChronologically([...prev, ...fresh])
+          const merged = sortMessagesChronologically([...prev, ...fresh])
+          return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
         })
       } catch {
         // best-effort resync
@@ -733,13 +728,35 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     flushOutbox()
   }, [isOnline, channel.id, flushOutbox, flushTrigger])
 
-  useEffect(() => {
+  // On channel switch, column-reverse naturally shows the bottom.
+  // If there's a cached scroll position (user was scrolled up), restore it.
+  // Otherwise, ensure we're at the bottom (scrollTop = 0 in column-reverse).
+  useLayoutEffect(() => {
+    // Detect channel switch synchronously so the ref reset and scroll
+    // restoration are colocated and deterministic.
+    if (prevChannelIdRef.current !== channel.id) {
+      shouldAutoScrollToLatestRef.current = true
+      prevChannelIdRef.current = channel.id
+    }
+
     if (!shouldAutoScrollToLatestRef.current) return
     if (jumpToMessageId || openThreadId) return
     if (messages.length === 0) return
     shouldAutoScrollToLatestRef.current = false
-    scrollToLatest("auto")
-  }, [channel.id, jumpToMessageId, messages.length, openThreadId, scrollToLatest])
+
+    const container = messageScrollerRef.current
+    if (!container) return
+
+    // Check for cached scroll position from a previous visit to this channel
+    const cached = useAppStore.getState().messageCache[channel.id]
+    if (cached && cached.scrollOffset > 0) {
+      // Restore where the user was (scrollOffset is scrollTop from column-reverse)
+      container.scrollTop = cached.scrollOffset
+    } else {
+      // Ensure we're at the newest messages (scrollTop = 0 in column-reverse)
+      container.scrollTop = 0
+    }
+  }, [channel.id, jumpToMessageId, messages.length, openThreadId])
 
   useEffect(() => {
     const newestMessage = messages[messages.length - 1]
@@ -748,11 +765,18 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     previousLastMessageIdRef.current = newestMessageId
     if (!hasNewMessages || !newestMessage) return
 
-    if (isAtBottom || newestMessage.author_id === currentUserId) {
+    // In column-reverse, if the user is at the bottom (scrollTop ~0), new
+    // messages appear naturally without any scrolling needed.  We only need
+    // to explicitly scroll when the user sent a message while scrolled up.
+    if (newestMessage.author_id === currentUserId && !isAtBottom) {
       scrollToLatest("smooth")
       return
     }
 
+    // Already at bottom — no scroll needed, column-reverse handles it
+    if (isAtBottom) return
+
+    // Not at bottom + message from someone else → show unread indicator
     const authorName = newestMessage.author?.display_name || newestMessage.author?.username || "Unknown"
     liveAnnouncementCounterRef.current += 1
     setLiveAnnouncement("")
@@ -771,7 +795,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       }
       return newestMessage.id
     })
-  }, [currentUserId, isAtBottom, messages, unreadAnchorStorageKey])
+  }, [currentUserId, isAtBottom, messages, scrollToLatest, unreadAnchorStorageKey])
 
   useEffect(() => {
     if (!openThreadId) return
@@ -845,15 +869,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       rafId = window.requestAnimationFrame(() => {
         if (cancelled) return
-        // Use the virtualizer index for scroll (works even if item is off-screen)
-        const targetIndex = messageIndexMap.get(jumpToMessageId)
-        if (targetIndex !== undefined) {
-          virtualizer.scrollToIndex(targetIndex, { align: "center", behavior: "auto" })
-        } else {
-          // Fallback to DOM for edge cases (e.g. outbox messages not yet in virtualizer)
-          const target = document.getElementById(`message-${jumpToMessageId}`)
-          if (target) target.scrollIntoView({ block: "center", behavior: "auto" })
-        }
+        // Scroll to the target message element in the DOM
+        const target = document.getElementById(`message-${jumpToMessageId}`)
+        if (target) target.scrollIntoView({ block: "center", behavior: "auto" })
         if (cancelled) return
         setHighlightedMessageId(jumpToMessageId)
         jumpedRef.current = true
@@ -870,7 +888,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       if (rafId !== null) window.cancelAnimationFrame(rafId)
       if (timerId) window.clearTimeout(timerId)
     }
-  }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, messageIndexMap, openThreadId, returnScrollStorageKey, toast, virtualizer])
+  }, [ensureMessageLoaded, jumpToMessageId, loadMessageContextWindow, messageIndexMap, openThreadId, returnScrollStorageKey, toast])
 
   const jumpToLatest = useCallback(() => {
     scrollToLatest("smooth")
@@ -922,7 +940,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         const known = new Set(prev.map((m) => m.id))
         const newItems = missed.filter((m) => !known.has(m.id))
         if (newItems.length === 0) return prev
-        return sortMessagesChronologically([...prev, ...newItems])
+        const merged = sortMessagesChronologically([...prev, ...newItems])
+        // Trim to display limit, keeping newest messages
+        return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
       })
     } catch {
       // Best-effort backfill — realtime events will catch up
@@ -1512,48 +1532,60 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           />
         )}
 
-        <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">
-          {/* Channel beginning header — provides clearance so the first message toolbar never clips behind the channel bar */}
-          {!hasMoreHistory && (
-            <div className="px-4 py-4">
-              <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
-                Welcome to #{channel.name}!
-              </h2>
-              <p className="text-sm text-[var(--theme-text-secondary)]">
-                This is the start of the #{channel.name} channel.
-                {channel.topic && ` ${channel.topic}`}
-              </p>
-            </div>
-          )}
-
-          <div className="pb-4">
-            {isPaginating && (
-              <div className="px-4 py-3 space-y-3">
-                <span className="sr-only" role="status" aria-live="polite">Loading older messages…</span>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
-                    <div className="flex-1 space-y-1.5 pt-0.5">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-3 w-20" />
-                        <Skeleton className="h-2.5 w-12 opacity-50" />
-                      </div>
-                      <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
-                      {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
-                    </div>
-                  </div>
-                ))}
+        {/* ── column-reverse scroll container ─────────────────────────
+             scrollTop 0 = bottom (newest messages).  The browser natively
+             anchors scroll when content grows at the start (visual bottom),
+             so new messages never cause a jarring jump.                    */}
+        <div
+          ref={messageScrollerRef}
+          className="flex-1 overflow-y-auto relative"
+          style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none" }}
+        >
+          {/* Inner wrapper — rendered in normal (top-to-bottom) order inside
+              the column-reverse parent.  Because the parent is reversed, the
+              *end* of this div (newest messages) sits at the visual bottom. */}
+          <div>
+            {/* Channel beginning header */}
+            {!hasMoreHistory && (
+              <div className="px-4 py-4">
+                <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
+                  Welcome to #{channel.name}!
+                </h2>
+                <p className="text-sm text-[var(--theme-text-secondary)]">
+                  This is the start of the #{channel.name} channel.
+                  {channel.topic && ` ${channel.topic}`}
+                </p>
               </div>
             )}
 
-            {/* Virtualized message list — only renders items near the viewport */}
-            <div
-              style={{ height: `${virtualizer.getTotalSize()}px`, width: "100%", position: "relative" }}
-            >
-              {virtualizer.getVirtualItems().map((virtualItem) => {
-                const message = messages[virtualItem.index]
-                if (!message) return null
-                const prevMessage = messages[virtualItem.index - 1]
+            {/* Sentinel + skeleton for loading older messages */}
+            {hasMoreHistory && (
+              <div className="px-4 py-3 space-y-3">
+                {isPaginating && (
+                  <>
+                    <output className="sr-only" aria-live="polite">Loading older messages…</output>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
+                        <div className="flex-1 space-y-1.5 pt-0.5">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-3 w-20" />
+                            <Skeleton className="h-2.5 w-12 opacity-50" />
+                          </div>
+                          <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
+                          {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Message list — direct DOM rendering (no virtualizer) */}
+            <div className="pb-4">
+              {messages.map((message, index) => {
+                const prevMessage = messages[index - 1]
                 const isGrouped =
                   prevMessage &&
                   prevMessage.author_id === message.author_id &&
@@ -1561,18 +1593,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000
 
                 return (
-                  <div
-                    key={virtualItem.key}
-                    data-index={virtualItem.index}
-                    ref={virtualizer.measureElement}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      transform: `translateY(${virtualItem.start}px)`,
-                    }}
-                  >
+                  <div key={message.id} id={`message-${message.id}`}>
                     {unreadDividerMessageId === message.id && (
                       <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
                         <div className="h-px flex-1 chat-area-danger-bg opacity-50" />
@@ -1658,8 +1679,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
                         if (!touched) return
 
-                        const wasAtBottom = isAtBottom
-
                         setMessages((prev) =>
                           prev.map((m) => {
                             if (m.id !== message.id) return m
@@ -1671,16 +1690,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                             }
                           })
                         )
-
-                        // Re-measure the affected item so the virtualizer
-                        // accounts for the new reaction row height, then
-                        // keep the user at the bottom if they were already there.
-                        requestAnimationFrame(() => {
-                          virtualizer.measure()
-                          if (wasAtBottom) {
-                            scrollToLatest("auto")
-                          }
-                        })
 
                         try {
                           await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
@@ -1699,8 +1708,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div ref={bottomRef} style={{ height: 1 }} />
           </div>
 
+          {/* Floating overlays — positioned absolutely within the scroll container */}
           {!isAtBottom && (
-            <div className="sticky bottom-3 px-4 flex justify-center pointer-events-none">
+            <div className="absolute bottom-3 left-0 right-0 px-4 flex justify-center pointer-events-none z-10">
               <button
                 onClick={jumpToLatest}
                 className="motion-interactive motion-press px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 pointer-events-auto chat-area-jump-latest-button"
@@ -1712,7 +1722,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           )}
 
           {showReturnToContext && jumpToMessageId && (
-            <div className="sticky bottom-14 px-4 flex justify-end">
+            <div className="absolute bottom-14 left-0 right-0 px-4 flex justify-end z-10">
               <button
                 onClick={returnToContext}
                 className="motion-interactive motion-press px-3 py-1.5 rounded-full text-xs font-semibold chat-area-return-context-button border"
