@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { MessageSquare, Plus, ArrowLeft, Users } from "lucide-react"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -23,6 +24,7 @@ type ForumView = "list" | "thread"
 
 /** Forum-style channel with a post list view and per-thread conversation drill-down. */
 export function ForumChannel({ channel, initialMessages, currentUserId, serverId, canSendMessages }: Props) {
+  const isMobile = useMobileLayout()
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore(
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList }))
   )
@@ -252,27 +254,48 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
   if (view === "thread" && activeThread) {
     return (
       <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
-        {/* Thread header */}
-        <div
-          className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
-          style={{ borderColor: 'var(--theme-bg-tertiary)' }}
-        >
-          <button
-            onClick={() => { setView("list"); setActiveThread(null) }}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
+        {/* Thread header — full version on desktop, compact back-to-list on mobile */}
+        {!isMobile ? (
+          <div
+            className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
+            style={{ borderColor: 'var(--theme-bg-tertiary)' }}
           >
-            <ArrowLeft className="w-4 h-4 text-white" />
-          </button>
-          <MessageSquare className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
-          <span className="font-semibold text-white truncate">
-            {activeThread.content?.split("\n")[0].replace(/\*\*/g, "") ?? "Thread"}
-          </span>
-          <div className="ml-auto flex items-center">
-            <button onClick={toggleMemberList} className="p-1.5 rounded hover:bg-white/10 transition-colors">
-              <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
+            <button
+              type="button"
+              onClick={() => { setView("list"); setActiveThread(null) }}
+              className="p-1 rounded hover:bg-white/10 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 text-white" />
             </button>
+            <MessageSquare className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
+            <span className="font-semibold text-white truncate">
+              {activeThread.content?.split("\n")[0].replace(/\*\*/g, "") ?? "Thread"}
+            </span>
+            <div className="ml-auto flex items-center">
+              <button type="button" onClick={toggleMemberList} className="p-1.5 rounded hover:bg-white/10 transition-colors">
+                <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div
+            className="flex items-center gap-2 px-3 py-2 border-b flex-shrink-0"
+            style={{ borderColor: 'var(--theme-bg-tertiary)' }}
+          >
+            <button
+              type="button"
+              onClick={() => { setView("list"); setActiveThread(null) }}
+              className="p-1 rounded hover:bg-white/10 transition-colors"
+              aria-label="Back to forum posts"
+            >
+              <ArrowLeft className="w-4 h-4 text-white" />
+            </button>
+            <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }} />
+            <span className="text-sm font-semibold text-white truncate">
+              {activeThread.content?.split("\n")[0].replace(/\*\*/g, "") ?? "Thread"}
+            </span>
+          </div>
+        )}
 
         {/* Original post */}
         <div className="overflow-y-auto flex-1">
@@ -334,8 +357,8 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
   // Forum post list view
   return (
     <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
-      {/* Forum header */}
-      <div
+      {/* Forum header — hidden on mobile where ServerMobileLayout provides it */}
+      {!isMobile && <div
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
         style={{ borderColor: 'var(--theme-bg-tertiary)' }}
       >
@@ -361,7 +384,23 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
             <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>
         </div>
-      </div>
+      </div>}
+
+      {/* Mobile-only New Post button — desktop version is inside the header above */}
+      {isMobile && (
+        <div className="flex items-center justify-end px-4 pt-2">
+          <button
+            type="button"
+            disabled={!canSendMessages}
+            onClick={() => setShowNewPost(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--theme-accent)', color: 'white' }}
+          >
+            <Plus className="w-4 h-4" />
+            New Post
+          </button>
+        </div>
+      )}
 
       {/* Guidelines banner */}
       <div

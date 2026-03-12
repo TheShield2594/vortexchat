@@ -37,6 +37,7 @@ import {
 } from "@/lib/chat-outbox"
 import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/reply-navigation"
 import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 
 interface Props {
   channel: ChannelRow
@@ -68,6 +69,7 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 
 /** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
+  const isMobile = useMobileLayout()
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages } = useAppStore(
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages }))
   )
@@ -123,6 +125,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     onResize()
     window.addEventListener("resize", onResize)
     return () => window.removeEventListener("resize", onResize)
+  }, [])
+
+  // Listen for action dispatches from the mobile header
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const action = (e as CustomEvent<string>).detail
+      switch (action) {
+        case "search": setShowSearchModal(true); break
+        case "summary": setShowSummary((v) => !v); break
+        case "pins": setShowPinnedPanel((v) => !v); break
+        case "help": setShowKeyboardShortcuts(true); break
+      }
+    }
+    window.addEventListener("vortex:mobile-action", handler)
+    return () => window.removeEventListener("vortex:mobile-action", handler)
   }, [])
 
   const trackCommandEvent = useCallback((eventType: "action" | "discoverability", payload: Record<string, string | number | boolean>) => {
@@ -1374,7 +1391,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className="flex flex-col flex-1 overflow-hidden chat-area-root-surface">
-        <div
+        {!isMobile && <div
           className="flex items-center gap-2 px-4 py-2.5 border-b flex-shrink-0 chat-area-header-surface"
         >
           <Hash className="w-5 h-5 flex-shrink-0 chat-area-header-hash" />
@@ -1493,7 +1510,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               )}
             </div>
           </div>
-        </div>
+        </div>}
 
         {showSearchModal && (
           <Suspense fallback={null}>

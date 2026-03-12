@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import { ImageIcon, Users } from "lucide-react"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -23,6 +24,7 @@ interface Props {
 
 /** Media-focused channel view optimized for image and file sharing with gallery-style message display. */
 export function MediaChannel({ channel, initialMessages, currentUserId, serverId, canSendMessages, requireMediaAttachments }: Props) {
+  const isMobile = useMobileLayout()
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList } = useAppStore(
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList }))
   )
@@ -135,8 +137,8 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'var(--theme-bg-primary)' }}>
-      {/* Channel header */}
-      <div
+      {/* Channel header — hidden on mobile where ServerMobileLayout provides it */}
+      {!isMobile && <div
         className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
         style={{ borderColor: 'var(--theme-bg-tertiary)' }}
       >
@@ -157,7 +159,7 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
             <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>
         </div>
-      </div>
+      </div>}
 
       <div className="px-4 py-2 text-xs border-b" style={{ borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>
         Media-first mode: attach at least one file to publish. Add optional captions for context.
