@@ -3,6 +3,22 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { EmojiPicker } from "frimousse"
 import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff, Link2, ExternalLink, Hash, Plus, GripVertical, Globe, Users } from "lucide-react"
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -124,6 +140,32 @@ const CSS_TEMPLATE = `/**
 .message-content a { color: var(--theme-link); }
 `
 
+function SortablePinItem({ pin, onRemove }: { pin: UserPinnedItemRow; onRemove: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pin.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    background: "var(--theme-bg-secondary)",
+    border: "1px solid var(--theme-bg-tertiary)",
+  }
+  return (
+    <div ref={setNodeRef} style={style} role="listitem" className="flex items-center gap-2 px-3 py-2 rounded-lg">
+      <button type="button" {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none p-0 border-0 bg-transparent" aria-label={`Drag to reorder: ${pin.label}`}>
+        <GripVertical className="w-3.5 h-3.5 flex-shrink-0 opacity-40" style={{ color: "var(--theme-text-muted)" }} />
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium truncate" style={{ color: "var(--theme-text-primary)" }}>{pin.label}</p>
+        {pin.sublabel && <p className="text-[11px] truncate" style={{ color: "var(--theme-text-muted)" }}>{pin.sublabel}</p>}
+      </div>
+      <span className="text-[10px] px-1.5 py-0.5 rounded capitalize" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>{pin.pin_type}</span>
+      <button type="button" onClick={() => onRemove(pin.id)} className="p-1 rounded hover:bg-red-500/20 transition-colors" style={{ color: "var(--theme-danger)" }} aria-label={`Remove pin: ${pin.label}`}>
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
+
 /** Tabbed user settings dialog covering profile editing, account security (2FA, passkeys, sessions), and appearance preferences. */
 export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const router = useRouter()
@@ -175,12 +217,16 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   // Load pinned items
   useEffect(() => {
     if (!open) return
+    let cancelled = false
     setPinsLoading(true)
     fetch("/api/users/pinned")
       .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((json: { pins: UserPinnedItemRow[] }) => setPins(json.pins ?? []))
+      .then((json: { pins: UserPinnedItemRow[] }) => {
+        if (!cancelled) setPins(json.pins ?? [])
+      })
       .catch(() => { /* silently fail — empty state shown */ })
-      .finally(() => setPinsLoading(false))
+      .finally(() => { if (!cancelled) setPinsLoading(false) })
+    return () => { cancelled = true }
   }, [open])
 
   const addInterestTag = useCallback(() => {
@@ -245,7 +291,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
           label: newPin.label.trim(),
           sublabel: newPin.sublabel.trim() || null,
           url: newPin.url.trim() || null,
-          position: pins.length,
+          position: pins.length > 0 ? Math.max(...pins.map((p) => p.position)) + 1 : 0,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -269,7 +315,45 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
     setPins((prev) => prev.filter((p) => p.id !== pinId))
   }
 
+  const pinSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  )
+
+  async function handlePinDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = pins.findIndex((p) => p.id === active.id)
+    const newIndex = pins.findIndex((p) => p.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Optimistic update
+    const previousPins = pins
+    const reordered = arrayMove(pins, oldIndex, newIndex).map((pin, i) => ({ ...pin, position: i }))
+    setPins(reordered)
+
+    // Persist each changed position
+    try {
+      const updates = reordered
+        .filter((pin, i) => previousPins[i]?.id !== pin.id)
+        .map((pin) =>
+          fetch(`/api/users/pinned?id=${pin.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ position: pin.position }),
+          })
+        )
+      const results = await Promise.all(updates)
+      if (results.some((r) => !r.ok)) throw new Error("Failed to update pin order")
+    } catch {
+      setPins(previousPins)
+      toast({ variant: "destructive", title: "Failed to reorder pins" })
+    }
+  }
+
   async function saveActivityVisibility(value: "public" | "friends" | "private") {
+    const previousValue = activityVisibility
     setActivityVisibility(value)
     setVisibilitySaving(true)
     try {
@@ -281,6 +365,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
       if (!res.ok) throw new Error("Failed to update visibility")
       toast({ title: "Activity visibility updated" })
     } catch (err) {
+      setActivityVisibility(previousValue)
       toast({ variant: "destructive", title: err instanceof Error ? err.message : "Error" })
     } finally {
       setVisibilitySaving(false)
@@ -879,21 +964,15 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         ))}
                       </div>
                     ) : pins.length > 0 ? (
-                      <div className="space-y-1.5" role="list" aria-label="Pinned items">
-                        {pins.map((pin) => (
-                          <div key={pin.id} role="listitem" className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-                            <GripVertical className="w-3.5 h-3.5 flex-shrink-0 opacity-40" style={{ color: "var(--theme-text-muted)" }} aria-hidden />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-medium truncate" style={{ color: "var(--theme-text-primary)" }}>{pin.label}</p>
-                              {pin.sublabel && <p className="text-[11px] truncate" style={{ color: "var(--theme-text-muted)" }}>{pin.sublabel}</p>}
-                            </div>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded capitalize" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>{pin.pin_type}</span>
-                            <button type="button" onClick={() => removePin(pin.id)} className="p-1 rounded hover:bg-red-500/20 transition-colors" style={{ color: "var(--theme-danger)" }} aria-label={`Remove pin: ${pin.label}`}>
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                      <DndContext sensors={pinSensors} collisionDetection={closestCenter} onDragEnd={handlePinDragEnd}>
+                        <SortableContext items={pins.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                          <div className="space-y-1.5" role="list" aria-label="Pinned items">
+                            {pins.map((pin) => (
+                              <SortablePinItem key={pin.id} pin={pin} onRemove={removePin} />
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </SortableContext>
+                      </DndContext>
                     ) : (
                       <p className="text-xs italic" style={{ color: "var(--theme-text-muted)" }}>Nothing pinned yet.</p>
                     )}
@@ -910,7 +989,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         <input type="text" value={newPin.label} onChange={(e) => setNewPin((prev) => ({ ...prev, label: e.target.value }))} maxLength={120} placeholder="Label (required)" className="w-full px-3 py-2 rounded-md text-xs focus:outline-none focus:ring-2" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
                         <input type="text" value={newPin.sublabel} onChange={(e) => setNewPin((prev) => ({ ...prev, sublabel: e.target.value }))} maxLength={80} placeholder="Sublabel (optional)" className="w-full px-3 py-2 rounded-md text-xs focus:outline-none focus:ring-2" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
                         <input type="url" value={newPin.url} onChange={(e) => setNewPin((prev) => ({ ...prev, url: e.target.value }))} maxLength={2000} placeholder="URL (optional)" className="w-full px-3 py-2 rounded-md text-xs focus:outline-none focus:ring-2" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
-                        <button type="button" onClick={addPin} disabled={pinSaving || !newPin.label.trim()} className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all hover:brightness-110 disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>
+                        <button type="button" onClick={addPin} disabled={pinSaving || pinsLoading || !newPin.label.trim()} className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all hover:brightness-110 disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>
                           {pinSaving && <Loader2 className="w-3 h-3 animate-spin" />}
                           <Plus className="w-3 h-3" /> Add pin
                         </button>
