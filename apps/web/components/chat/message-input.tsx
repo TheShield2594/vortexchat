@@ -1063,14 +1063,25 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                       {gifResults.map((gif) => (
                         <button
                           key={gif.id}
-                          onClick={() => {
-                            const spacer = content.trim() ? " " : ""
-                            const next = `${content}${spacer}${gif.url || gif.gifUrl}`
-                            setContent(next)
-                            setCursorPosition(next.length)
-                            onDraftChange(next)
+                          onClick={async () => {
+                            if (sending) return
+                            const gifUrl = gif.url || gif.gifUrl
+                            if (!gifUrl?.trim()) {
+                              setSendError("Cannot send empty GIF.")
+                              return
+                            }
                             setShowEmojiPicker(false)
-                            textareaRef.current?.focus()
+                            setSending(true)
+                            setSendError(null)
+                            onSent?.()
+                            try {
+                              await onSend(gifUrl)
+                            } catch (error: any) {
+                              setSendError(error?.message ?? "Failed to send GIF. Try again.")
+                            } finally {
+                              setSending(false)
+                              textareaRef.current?.focus()
+                            }
                           }}
                           className="rounded overflow-hidden hover:opacity-90 focus-ring"
                           title={gif.title}
