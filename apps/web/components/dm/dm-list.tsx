@@ -300,13 +300,38 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
         /* Channel list */
         <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
           {channels.length === 0 && (
-            <div className="px-2 py-4">
+            <div className="px-2 py-4 space-y-3">
               <BrandedEmptyState
                 icon={Users}
                 title="Your DMs are quiet"
                 description="Start a new conversation to see your messages, status updates, and call history here."
                 hint="Tip: Right-click a member and choose Message to open a DM."
               />
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("friends")
+                    const params = new URLSearchParams(searchParams.toString())
+                    params.set("tab", "friends")
+                    router.push(`${pathname}?${params.toString()}`)
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: "var(--theme-accent)", color: "white" }}
+                >
+                  <Users className="w-4 h-4" />
+                  Find People
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewDmOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
+                >
+                  <Plus className="w-4 h-4" />
+                  New Message
+                </button>
+              </div>
             </div>
           )}
           {channels.map((ch) => {

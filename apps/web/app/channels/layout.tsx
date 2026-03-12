@@ -3,6 +3,7 @@ import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { AppProvider } from "@/components/layout/app-provider"
 import { ChannelsShell } from "@/components/layout/channels-shell"
 import { MobileBottomTabBar } from "@/components/layout/mobile-bottom-tab-bar"
+import { OnboardingGate } from "@/components/onboarding/onboarding-gate"
 import type { ServerRow } from "@/types/database"
 import { perfTimer } from "@/lib/perf"
 
@@ -58,12 +59,21 @@ export default async function ChannelsLayout({
 
   rootTimer.end()
 
+  // Show onboarding for first-time users (no servers, haven't completed onboarding)
+  const needsOnboarding = servers.length === 0 && !profile.onboarding_completed_at
+
   return (
     <AppProvider user={profile} servers={servers}>
-      <ChannelsShell>
-        {children}
-      </ChannelsShell>
-      <MobileBottomTabBar />
+      {needsOnboarding ? (
+        <OnboardingGate username={profile.display_name || profile.username} userId={profile.id} />
+      ) : (
+        <>
+          <ChannelsShell>
+            {children}
+          </ChannelsShell>
+          <MobileBottomTabBar />
+        </>
+      )}
     </AppProvider>
   )
 }
