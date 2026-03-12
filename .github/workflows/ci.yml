@@ -24,13 +24,16 @@ jobs:
       - run: npm audit --audit-level=critical
 
   lint:
-    name: Lint
+    name: Lint (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
       # Run ESLint only. The style-guardrails check uses a locally-generated
@@ -41,38 +44,47 @@ jobs:
         working-directory: apps/web
 
   type-check:
-    name: Type Check
+    name: Type Check (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
       - run: npm run type-check --workspace=apps/web
       - run: npm run type-check --workspace=apps/signal
 
   test:
-    name: Tests
+    name: Tests (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
       - run: npm test --workspace=apps/web
 
   parity-gates:
-    name: Parity Gates (A11y, Focus, Critical Regressions)
+    name: Parity Gates (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
       - run: npm run test:parity:critical --workspace=apps/web
