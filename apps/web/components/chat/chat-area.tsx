@@ -87,7 +87,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
-  const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [viewportWidth, setViewportWidth] = useState(1280)
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [focusedActionIndex, setFocusedActionIndex] = useState(0)
@@ -394,29 +393,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
 
-  // Toast after sustained disconnection (30s)
-  useEffect(() => {
-    if (realtimeStatus === "disconnected") {
-      disconnectTimerRef.current = setTimeout(() => {
-        toast({
-          variant: "destructive",
-          title: "Connection lost",
-          description: "Unable to reconnect to live updates. New messages may not appear until the page is refreshed.",
-        })
-      }, 30_000)
-    } else {
-      if (disconnectTimerRef.current) {
-        clearTimeout(disconnectTimerRef.current)
-        disconnectTimerRef.current = null
-      }
-    }
-    return () => {
-      if (disconnectTimerRef.current) {
-        clearTimeout(disconnectTimerRef.current)
-        disconnectTimerRef.current = null
-      }
-    }
-  }, [realtimeStatus, toast])
+  // Connection status is handled globally by ConnectionBanner in channels-shell.
 
   // Persist last-visited channel per server for fast navigation on next session
   useEffect(() => {
@@ -1533,17 +1510,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             channelId={channel.id}
             lastReadAt={initialLastReadAt}
           />
-        )}
-
-        {realtimeStatus === "disconnected" && (
-          <div
-            className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium flex-shrink-0"
-            style={{ background: "color-mix(in srgb, var(--theme-warning) 15%, transparent)", color: "var(--theme-warning)" }}
-            role="status"
-          >
-            <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--theme-warning)" }} />
-            Reconnecting to chat&hellip;
-          </div>
         )}
 
         <div ref={messageScrollerRef} className="flex-1 overflow-y-auto relative">

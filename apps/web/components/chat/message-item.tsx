@@ -549,6 +549,17 @@ export const MessageItem = memo(function MessageItem({
                       (edited)
                     </span>
                   )}
+                  {message.pinned && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: "var(--theme-danger)" }}>
+                      <Pin className="w-3 h-3" /> Pinned
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {isGrouped && message.pinned && (
+                <div className="flex items-center gap-1 text-xs font-medium mb-0.5" style={{ color: "var(--theme-danger)" }}>
+                  <Pin className="w-3 h-3" /> Pinned
                 </div>
               )}
 
