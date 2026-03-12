@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, X } from "lucide-react"
+import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, Trash2, X } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
@@ -72,6 +72,17 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           setNotifications((prev) => [n, ...prev.slice(0, 29)])
           setUnreadCount((c) => c + 1)
           playNotification()
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const old = payload.old as { id?: string; read?: boolean }
+          if (old.id) {
+            setNotifications((prev) => prev.filter((n) => n.id !== old.id))
+            if (old.read === false) setUnreadCount((c) => Math.max(0, c - 1))
+          }
         }
       )
       .subscribe()
@@ -168,12 +179,40 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   }
 
   async function dismiss(id: string) {
-    await supabase.from("notifications").delete().eq("id", id)
-    setNotifications((prev) => {
-      const n = prev.find((x) => x.id === id)
-      if (n && !n.read) setUnreadCount((c) => Math.max(0, c - 1))
-      return prev.filter((x) => x.id !== id)
-    })
+    const target = notifications.find((x) => x.id === id)
+    // Optimistic removal
+    setNotifications((prev) => prev.filter((x) => x.id !== id))
+    if (target && !target.read) setUnreadCount((c) => Math.max(0, c - 1))
+
+    const { error } = await supabase.from("notifications").delete().eq("id", id)
+    if (error) {
+      // Rollback: re-insert at original position
+      console.error("Failed to dismiss notification:", error.message)
+      if (target) {
+        setNotifications((prev) => {
+          const restored = [...prev, target].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
+          return restored
+        })
+        if (!target.read) setUnreadCount((c) => c + 1)
+      }
+    }
+  }
+
+  async function dismissAll() {
+    const prev = notifications
+    const prevUnread = unreadCount
+    // Optimistic clear
+    setNotifications([])
+    setUnreadCount(0)
+
+    const { error } = await supabase.from("notifications").delete().eq("user_id", userId)
+    if (error) {
+      console.error("Failed to clear all notifications:", error.message)
+      setNotifications(prev)
+      setUnreadCount(prevUnread)
+    }
   }
 
   async function handleClick(n: Notification) {
@@ -277,6 +316,18 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                 >
                   <CheckCheck className="w-3.5 h-3.5" />
                   Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  onClick={dismissAll}
+                  className="flex items-center gap-1 text-xs transition-colors hover:text-white focus-ring rounded px-1"
+                  style={{ color: "var(--theme-text-muted)" }}
+                  title="Clear all notifications"
+                  aria-label="Clear all notifications"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Clear all
                 </button>
               )}
               <button
