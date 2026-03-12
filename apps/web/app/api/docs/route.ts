@@ -135,23 +135,27 @@ const OPENAPI_SPEC = {
         tags: ["Servers"],
         security: [],
         parameters: [
-          { name: "q", in: "query", schema: { type: "string" } },
-          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "q", in: "query", schema: { type: "string" }, description: "Search term matched against name and description" },
+          { name: "sort", in: "query", schema: { type: "string", enum: ["members", "newest"], default: "members" }, description: "Sort order" },
+          { name: "cursor", in: "query", schema: { type: "string", format: "uuid" }, description: "ID of the last item from the previous page" },
         ],
         responses: {
           "200": {
-            description: "List of public servers",
+            description: "Paginated list of public servers",
             content: {
               "application/json": {
                 schema: {
                   type: "object",
+                  required: ["servers", "nextCursor"],
                   properties: {
                     servers: { type: "array", items: { $ref: "#/components/schemas/Server" } },
+                    nextCursor: { type: "string", format: "uuid", nullable: true, description: "Cursor for the next page, null when no more results" },
                   },
                 },
               },
             },
           },
+          "429": { description: "Rate limit exceeded", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
         },
       },
     },

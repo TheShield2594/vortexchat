@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Users, Compass, BadgeCheck, Star } from "lucide-react"
+import { Search, Users, Compass, BadgeCheck, Star, Plus, ArrowUpDown } from "lucide-react"
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils/cn"
 
 interface PublicServer {
@@ -17,6 +18,7 @@ interface PublicServer {
   icon_url: string | null
   member_count: number
   invite_code: string
+  created_at: string
 }
 
 interface DiscoverApp {
@@ -31,6 +33,12 @@ interface DiscoverApp {
 }
 
 const APP_CATEGORIES = ["all", "productivity", "ops", "community"]
+const SORT_OPTIONS = [
+  { value: "members", label: "Most Members" },
+  { value: "newest", label: "Newest" },
+] as const
+
+type SortOption = (typeof SORT_OPTIONS)[number]["value"]
 
 function trustBadgeClass(trustBadge: DiscoverApp["trust_badge"]) {
   switch (trustBadge) {
@@ -75,14 +83,29 @@ export default function DiscoverPage() {
   const [apps, setApps] = useState<DiscoverApp[]>([])
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [mode, setMode] = useState<"servers" | "apps">("servers")
   const [category, setCategory] = useState("all")
+  const [sort, setSort] = useState<SortOption>("members")
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const router = useRouter()
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const nextCursorRef = useRef(nextCursor)
+  const loadingMoreRef = useRef(loadingMore)
+  nextCursorRef.current = nextCursor
+  loadingMoreRef.current = loadingMore
 
-  const fetchServers = useCallback(async (q?: string) => {
-    const url = q ? `/api/servers/discover?q=${encodeURIComponent(q)}` : "/api/servers/discover"
-    const res = await fetch(url)
-    if (res.ok) setServers(await res.json())
+  const fetchServers = useCallback(async (q?: string, sortBy: SortOption = "members", cursor?: string) => {
+    const params = new URLSearchParams()
+    if (q) params.set("q", q)
+    if (sortBy !== "members") params.set("sort", sortBy)
+    if (cursor) params.set("cursor", cursor)
+    const res = await fetch(`/api/servers/discover?${params.toString()}`)
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      throw new Error(`Discover API error ${res.status}: ${body}`)
+    }
+    return (await res.json()) as { servers: PublicServer[]; nextCursor: string | null }
   }, [])
 
   const fetchApps = useCallback(async (q?: string, selectedCategory = "all") => {
@@ -90,45 +113,127 @@ export default function DiscoverPage() {
     if (q) params.set("q", q)
     if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory)
     const res = await fetch(`/api/apps/discover?${params.toString()}`)
-    if (res.ok) setApps(await res.json())
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      throw new Error(`Apps API error ${res.status}: ${body}`)
+    }
+    setApps(await res.json())
   }, [])
 
   const previousCategoryRef = useRef(category)
+  const previousSortRef = useRef(sort)
 
+  // Initial + filter/search fetch
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     const categoryChanged = previousCategoryRef.current !== category
+    const sortChanged = previousSortRef.current !== sort
 
-    const runFetch = async (debounceMs: number) => {
-      if (timer) clearTimeout(timer)
-      const execute = async () => {
-        setLoading(true)
-        await Promise.all([fetchServers(query || undefined), fetchApps(query || undefined, category)])
-        if (!cancelled) setLoading(false)
-      }
-
-      if (debounceMs > 0) {
-        timer = setTimeout(execute, debounceMs)
-      } else {
-        await execute()
+    const execute = async () => {
+      setLoading(true)
+      try {
+        const [serverResult] = await Promise.all([
+          fetchServers(query || undefined, sort),
+          fetchApps(query || undefined, category),
+        ])
+        if (!cancelled) {
+          setServers(serverResult.servers)
+          setNextCursor(serverResult.nextCursor)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to fetch discover data:", err)
+          setServers([])
+          setNextCursor(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
-    runFetch(query && !categoryChanged ? 300 : 0)
+    const debounceMs = query && !categoryChanged && !sortChanged ? 300 : 0
+    if (debounceMs > 0) {
+      timer = setTimeout(execute, debounceMs)
+    } else {
+      execute()
+    }
+
     previousCategoryRef.current = category
+    previousSortRef.current = sort
 
     return () => {
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [query, fetchServers, fetchApps, category])
+  }, [query, fetchServers, fetchApps, category, sort])
+
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    if (mode !== "servers" || !nextCursor) return
+
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    let cancelled = false
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const cur = nextCursorRef.current
+        if (entries[0].isIntersecting && cur && !loadingMoreRef.current) {
+          setLoadingMore(true)
+          fetchServers(query || undefined, sort, cur)
+            .then((result) => {
+              if (!cancelled) {
+                setServers((prev) => [...prev, ...result.servers])
+                setNextCursor(result.nextCursor)
+              }
+            })
+            .catch((err) => {
+              if (!cancelled) {
+                console.error("Failed to load more servers:", err)
+              }
+            })
+            .finally(() => {
+              if (!cancelled) {
+                setLoadingMore(false)
+              }
+            })
+        }
+      },
+      { rootMargin: "200px" }
+    )
+
+    observer.observe(sentinel)
+    return () => {
+      cancelled = true
+      observer.disconnect()
+    }
+  }, [mode, nextCursor, query, sort, fetchServers])
 
   async function joinServer(inviteCode: string) {
-    const res = await fetch(`/api/invites/${inviteCode}`, { method: "POST" })
-    if (res.ok) {
-      const { serverId } = await res.json()
-      router.push(`/channels/${serverId}`)
+    try {
+      const res = await fetch(`/api/invites/${inviteCode}`, { method: "POST" })
+      if (res.ok) {
+        const { serverId } = await res.json()
+        router.push(`/channels/${serverId}`)
+      } else {
+        const body = await res.json().catch(() => null)
+        toast({
+          variant: "destructive",
+          title: "Failed to join server",
+          description: body?.error || `Something went wrong (${res.status})`,
+        })
+      }
+    } catch (err) {
+      console.error("Join server error:", err)
+      toast({
+        variant: "destructive",
+        title: "Failed to join server",
+        description: "A network error occurred. Please try again.",
+      })
     }
   }
 
@@ -139,26 +244,43 @@ export default function DiscoverPage() {
         <span className="font-semibold">Discover</span>
       </div>
 
-      <div className="bg-card px-8 py-8">
+      <div className="bg-card px-4 py-6 sm:px-8 sm:py-8">
         <h1 className="mb-1 text-2xl font-bold">Find communities and apps</h1>
         <p className="mb-4 text-sm text-muted-foreground">
           Search servers, browse the app marketplace, and check trust badges and reviews.
         </p>
-        <Tabs value={mode} onValueChange={(v) => setMode(v as "servers" | "apps")}> 
+        <Tabs value={mode} onValueChange={(v) => setMode(v as "servers" | "apps")}>
           <TabsList>
             <TabsTrigger value="servers">Servers</TabsTrigger>
             <TabsTrigger value="apps">Apps</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="relative mt-3 max-w-xl">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={mode === "servers" ? "Search servers…" : "Search apps…"}
-            className="w-full rounded-lg border border-input bg-popover py-2.5 pl-9 pr-4 text-sm focus:outline-none"
-          />
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <div className="relative max-w-xl flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              inputMode="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={mode === "servers" ? "Search servers…" : "Search apps…"}
+              className="w-full rounded-lg border border-input bg-popover py-2.5 pl-9 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            />
+          </div>
+          {mode === "servers" && (
+            <div className="flex items-center gap-1.5">
+              <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortOption)}
+                className="rounded-lg border border-input bg-popover px-2 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         {mode === "apps" && (
           <div className="mt-3 flex gap-2">
@@ -179,49 +301,74 @@ export default function DiscoverPage() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
         {loading ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, index) => (
-                <div key={index} className="rounded-lg bg-card p-4">
-                  <Skeleton className="mb-3 h-20 w-full" />
-                  <Skeleton className="mb-2 h-4 w-2/3" />
-                  <Skeleton className="mb-3 h-3 w-full" />
-                  <div className="flex justify-between">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-6 w-14" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : mode === "servers" ? (
-          servers.length === 0 ? (
-            <BrandedEmptyState
-              icon={Compass}
-              title="No servers found"
-              description="We couldn’t find public communities matching your filters yet."
-              hint="Try a broader term or switch to Apps to explore integrations."
-            />
-          ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {servers.map((server) => (
-              <div key={server.id} className="flex flex-col overflow-hidden rounded-lg bg-card transition-transform hover:scale-[1.02]">
-                <div className="flex h-20 items-center justify-center bg-popover">
-                  <ServerIcon iconUrl={server.icon_url} serverName={server.name} />
-                </div>
-                <div className="flex flex-1 flex-col p-4">
-                  <h3 className="mb-1 truncate font-semibold">{server.name}</h3>
-                  {server.description && <p className="mb-3 flex-1 line-clamp-2 text-xs text-muted-foreground">{server.description}</p>}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Users className="h-3 w-3" /><span>{server.member_count.toLocaleString()}</span></div>
-                    <Button type="button" size="sm" className="h-7 rounded px-3 text-xs" onClick={() => joinServer(server.invite_code)}>Join</Button>
-                  </div>
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="rounded-lg bg-card p-4">
+                <Skeleton className="mb-3 h-20 w-full" />
+                <Skeleton className="mb-2 h-4 w-2/3" />
+                <Skeleton className="mb-3 h-3 w-full" />
+                <div className="flex justify-between">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-6 w-14" />
                 </div>
               </div>
             ))}
           </div>
+        ) : mode === "servers" ? (
+          servers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <BrandedEmptyState
+                icon={Compass}
+                title="No servers found"
+                description={query
+                  ? "We couldn't find public communities matching your search."
+                  : "There are no public communities to discover yet."
+                }
+                hint={query
+                  ? "Try a different search term or clear your search."
+                  : "Be the first — create a server and make it public!"
+                }
+              />
+              <Button
+                variant="secondary"
+                className="mt-4"
+                onClick={() => router.push("/channels/me")}
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Create a Server
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {servers.map((server) => (
+                  <div key={server.id} className="flex flex-col overflow-hidden rounded-lg bg-card transition-transform hover:scale-[1.02]">
+                    <div className="flex h-20 items-center justify-center bg-popover">
+                      <ServerIcon iconUrl={server.icon_url} serverName={server.name} />
+                    </div>
+                    <div className="flex flex-1 flex-col p-4">
+                      <h3 className="mb-1 truncate font-semibold">{server.name}</h3>
+                      {server.description && <p className="mb-3 flex-1 line-clamp-2 text-xs text-muted-foreground">{server.description}</p>}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Users className="h-3 w-3" /><span>{server.member_count.toLocaleString()}</span></div>
+                        <Button type="button" size="sm" className="h-7 rounded px-3 text-xs" onClick={() => joinServer(server.invite_code)}>Join</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Infinite scroll sentinel */}
+              <div ref={sentinelRef} className="flex justify-center py-6">
+                {loadingMore && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                    Loading more…
+                  </div>
+                )}
+              </div>
+            </>
           )
         ) : (
           apps.length === 0 ? (
