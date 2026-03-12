@@ -1064,9 +1064,13 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                         <button
                           key={gif.id}
                           onClick={async () => {
-                            const gifUrl = gif.url || gif.gifUrl
-                            setShowEmojiPicker(false)
                             if (sending) return
+                            const gifUrl = gif.url || gif.gifUrl
+                            if (!gifUrl?.trim()) {
+                              setSendError("Cannot send empty GIF.")
+                              return
+                            }
+                            setShowEmojiPicker(false)
                             setSending(true)
                             setSendError(null)
                             onSent?.()
