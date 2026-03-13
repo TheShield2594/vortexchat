@@ -85,6 +85,7 @@
 | Web app health endpoint | Done | `GET /api/health` — checks Supabase connectivity, returns latency; 503 when degraded |
 | Markdown XSS sanitization | Done | `rehype-sanitize` with allowlist schema; only vortex-* elements + Twemoji imgs pass through |
 | CSRF protection | Done | Origin/Referer validation in `proxy.ts` for all mutation requests to `/api/*`; passthrough routes use bearer tokens |
+| Request body size limits | Done | `proxy.ts` rejects oversized payloads: 1 MB for JSON routes, 10 MB for upload routes; returns 413 |
 
 ---
 

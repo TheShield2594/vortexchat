@@ -26,6 +26,12 @@ const PUBLIC_ROUTES = [
 // HTTP methods that mutate state — require origin validation on API routes
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
 
+// Request body size limits (bytes). File-upload routes get a higher ceiling;
+// everything else caps at 1 MB which is generous for JSON payloads.
+const MAX_BODY_BYTES = 1 * 1024 * 1024         // 1 MB — JSON routes
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024       // 10 MB — file upload routes
+const UPLOAD_ROUTES = ["/api/servers/", "/api/webhooks"]  // routes that accept formData
+
 /**
  * CSRF protection: verify that mutation requests to /api/* originate from our
  * own domain. Checks the Origin header first, then falls back to Referer.
@@ -68,6 +74,19 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json(
         { error: "Cross-origin request blocked" },
         { status: 403 },
+      )
+    }
+  }
+
+  // Request body size guard — reject oversized payloads before they hit route handlers
+  if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method)) {
+    const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10)
+    const isUploadRoute = UPLOAD_ROUTES.some((route) => pathname.startsWith(route))
+    const limit = isUploadRoute ? MAX_UPLOAD_BYTES : MAX_BODY_BYTES
+    if (contentLength > limit) {
+      return NextResponse.json(
+        { error: "Request body too large" },
+        { status: 413 },
       )
     }
   }
