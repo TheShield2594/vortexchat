@@ -67,7 +67,8 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (data.emailUnverified) {
-        window.location.href = `/verify-email?email=${encodeURIComponent(form.email)}`
+        try { sessionStorage.setItem("verifyEmail", form.email) } catch {}
+        window.location.href = "/verify-email"
         return
       }
 

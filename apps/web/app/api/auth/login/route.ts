@@ -90,8 +90,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
-  // Reject unverified emails — redirect to verification page
+  // Reject unverified emails — destroy the freshly-created session so no
+  // valid tokens remain for the unverified user, then signal the client.
   if (!data.user.email_confirmed_at) {
+    await supabase.auth.signOut().catch(() => {})
     return NextResponse.json({ emailUnverified: true }, { status: 403 })
   }
 

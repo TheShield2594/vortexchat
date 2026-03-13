@@ -2,8 +2,7 @@
 
 export const dynamic = "force-dynamic"
 
-import { useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -12,11 +11,28 @@ import { Loader2, MailCheck } from "lucide-react"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 
 export default function VerifyEmailPage() {
-  const searchParams = useSearchParams()
-  const email = searchParams.get("email") || ""
+  const [email, setEmail] = useState("")
   const { toast } = useToast()
   const [resending, setResending] = useState(false)
   const supabase = createClientSupabaseClient()
+
+  // Read email from sessionStorage (set by login page), then clear it.
+  // Fall back to the current Supabase user's email for proxy-redirected users.
+  useEffect(() => {
+    let stored = ""
+    try {
+      stored = sessionStorage.getItem("verifyEmail") || ""
+      if (stored) sessionStorage.removeItem("verifyEmail")
+    } catch {}
+
+    if (stored) {
+      setEmail(stored)
+    } else {
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user?.email) setEmail(data.user.email)
+      })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleResend() {
     if (!email) {

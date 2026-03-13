@@ -78,12 +78,15 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Request body size guard — reject oversized payloads before they hit route handlers
+  // Request body size guard — reject oversized payloads before they hit route handlers.
+  // Treat absent or non-numeric Content-Length as untrusted and reject it so
+  // chunked/forged requests cannot bypass the limit.
   if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method)) {
-    const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10)
+    const raw = request.headers.get("content-length")
+    const contentLength = raw !== null ? parseInt(raw, 10) : NaN
     const isUploadRoute = UPLOAD_ROUTES.some((route) => pathname.startsWith(route))
     const limit = isUploadRoute ? MAX_UPLOAD_BYTES : MAX_BODY_BYTES
-    if (contentLength > limit) {
+    if (!Number.isFinite(contentLength) || contentLength < 0 || contentLength > limit) {
       return NextResponse.json(
         { error: "Request body too large" },
         { status: 413 },
@@ -125,6 +128,10 @@ export async function proxy(request: NextRequest) {
 
   // Block unverified users from accessing the app
   if (!user.email_confirmed_at) {
+    // API clients expect JSON, not a redirect
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "email_unverified" }, { status: 403 })
+    }
     const verifyUrl = new URL("/verify-email", request.url)
     return NextResponse.redirect(verifyUrl)
   }
