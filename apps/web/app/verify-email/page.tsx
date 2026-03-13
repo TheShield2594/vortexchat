@@ -16,23 +16,35 @@ export default function VerifyEmailPage() {
   const [resending, setResending] = useState(false)
   const supabase = createClientSupabaseClient()
 
-  // Read email from sessionStorage (set by login page), then clear it.
-  // Fall back to the current Supabase user's email for proxy-redirected users.
+  // Prefer the authenticated user's email (authoritative), fall back to
+  // sessionStorage (set by login page) for users without a session.
   useEffect(() => {
-    let stored = ""
-    try {
-      stored = sessionStorage.getItem("verifyEmail") || ""
-      if (stored) sessionStorage.removeItem("verifyEmail")
-    } catch {}
-
-    if (stored) {
-      setEmail(stored)
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) {
+        setEmail(data.user.email)
+        // Clear stale sessionStorage if present
+        try { sessionStorage.removeItem("verifyEmail") } catch {}
+        setLoading(false)
+        return
+      }
+      // No session — try sessionStorage (set moments before redirect)
+      let stored = ""
+      try {
+        stored = sessionStorage.getItem("verifyEmail") || ""
+        if (stored) sessionStorage.removeItem("verifyEmail")
+      } catch {}
+      if (stored) setEmail(stored)
       setLoading(false)
-    } else {
-      supabase.auth.getUser().then(({ data }) => {
-        if (data.user?.email) setEmail(data.user.email)
-      }).finally(() => setLoading(false))
-    }
+    }).catch(() => {
+      // Network error — try sessionStorage as last resort
+      let stored = ""
+      try {
+        stored = sessionStorage.getItem("verifyEmail") || ""
+        if (stored) sessionStorage.removeItem("verifyEmail")
+      } catch {}
+      if (stored) setEmail(stored)
+      setLoading(false)
+    })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleResend() {

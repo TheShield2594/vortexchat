@@ -465,7 +465,7 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
       if (typeof src !== "string") return null
       // Strict pattern: only allow Twemoji SVG files from the expected CDN path
       if (!/^https:\/\/cdn\.jsdelivr\.net\/gh\/twitter\/twemoji@[^/]+\/assets\/svg\/[a-f0-9-]+\.svg$/.test(src)) return null
-      return <img src={src} alt={typeof alt === "string" ? alt : ""} className="inline-block h-5 w-5 align-text-bottom" draggable={false} />
+      return <img src={src} alt={typeof alt === "string" ? alt : ""} className="inline-block h-5 w-5 align-text-bottom" draggable={false} loading="lazy" />
     },
   } as Components
 }
@@ -495,8 +495,9 @@ const sanitizeSchema = {
     "vortex-emoji": ["data-name"],
     "vortex-mention": ["data-uid"],
     "vortex-timestamp": ["data-epoch", "data-format"],
-    // Allow Twemoji img attributes from remarkUnicodeEmoji
-    img: ["src", "alt", "className", "draggable", "loading", "style"],
+    // Allow only src and alt on img — className/draggable/loading are hardcoded
+    // in the component handler, not parsed from HTML attributes
+    img: ["src", "alt"],
     code: ["className"],
   },
   // Only allow Twemoji CDN images — block all other img src values

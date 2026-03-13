@@ -62,12 +62,6 @@ function isSameOrigin(request: NextRequest): boolean {
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Machine-to-machine endpoints — pass through with zero Supabase overhead
-  // (these authenticate via bearer token / URL token, not cookies)
-  if (PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))) {
-    return NextResponse.next()
-  }
-
   // CSRF: block cross-origin mutations to API routes
   if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method)) {
     if (!isSameOrigin(request)) {
@@ -78,12 +72,13 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Request body size guard — reject oversized payloads before they hit route handlers.
-  // Treat absent or non-numeric Content-Length as untrusted and reject it so
-  // chunked/forged requests cannot bypass the limit.
+  // Request body size guard — reject oversized payloads before they hit route
+  // handlers (including passthrough routes like /api/webhooks).
+  // Missing Content-Length is treated as 0 (valid for body-less DELETE/PATCH);
+  // present but non-numeric headers are rejected.
   if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method)) {
     const raw = request.headers.get("content-length")
-    const contentLength = raw !== null && /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN
+    const contentLength = raw === null ? 0 : /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN
     const isUploadRoute = UPLOAD_ROUTES.some((route) => pathname.startsWith(route))
     const limit = isUploadRoute ? MAX_UPLOAD_BYTES : MAX_BODY_BYTES
     if (!Number.isFinite(contentLength) || contentLength < 0 || contentLength > limit) {
@@ -92,6 +87,12 @@ export async function proxy(request: NextRequest) {
         { status: 413 },
       )
     }
+  }
+
+  // Machine-to-machine endpoints — pass through with zero Supabase overhead
+  // (these authenticate via bearer token / URL token, not cookies)
+  if (PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next()
   }
 
   // Allow public routes and marketing homepage
