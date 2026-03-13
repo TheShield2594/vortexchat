@@ -18,6 +18,8 @@ const PUBLIC_ROUTES = [
   "/auth/callback",
   "/invite",
   "/verify-email",
+  "/terms",
+  "/privacy",
 ]
 
 export async function proxy(request: NextRequest) {

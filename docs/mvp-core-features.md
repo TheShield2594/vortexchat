@@ -80,6 +80,8 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Email verification enforcement | Done | `proxy.ts` blocks unverified users → `/verify-email`; login API returns `emailUnverified`; resend button on verify page |
+| Terms of Service page | Done | `/terms` — server component, public route, linked from register page |
+| Privacy Policy page | Done | `/privacy` — server component, public route, linked from register page |
 
 ---
 

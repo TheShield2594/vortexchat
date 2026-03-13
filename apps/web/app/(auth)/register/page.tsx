@@ -175,7 +175,11 @@ export default function RegisterPage() {
       </p>
 
       <p className="text-center text-xs mt-4" style={{ color: 'var(--theme-text-faint)' }}>
-        By registering, you agree to Vortex&apos;s terms of service. Keep password/magic link recovery enabled until you add a backup passkey on another device.
+        By registering, you agree to Vortex&apos;s{" "}
+        <Link href="/terms" className="underline" style={{ color: "var(--theme-accent)" }}>Terms of Service</Link>
+        {" "}and{" "}
+        <Link href="/privacy" className="underline" style={{ color: "var(--theme-accent)" }}>Privacy Policy</Link>
+        . Keep password/magic link recovery enabled until you add a backup passkey on another device.
       </p>
     </div>
   )
