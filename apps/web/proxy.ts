@@ -30,7 +30,7 @@ const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
 // everything else caps at 1 MB which is generous for JSON payloads.
 const MAX_BODY_BYTES = 1 * 1024 * 1024         // 1 MB — JSON routes
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024       // 10 MB — file upload routes
-const UPLOAD_ROUTES = ["/api/servers/", "/api/webhooks"]  // routes that accept formData
+const UPLOAD_ROUTES = ["/api/servers/"]  // routes that accept formData
 
 /**
  * CSRF protection: verify that mutation requests to /api/* originate from our
@@ -62,8 +62,11 @@ function isSameOrigin(request: NextRequest): boolean {
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // CSRF: block cross-origin mutations to API routes
-  if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method)) {
+  const isPassthrough = PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))
+
+  // CSRF: block cross-origin mutations to API routes (skip machine-auth
+  // endpoints that authenticate via bearer/URL token, not cookies)
+  if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method) && !isPassthrough) {
     if (!isSameOrigin(request)) {
       return NextResponse.json(
         { error: "Cross-origin request blocked" },
@@ -91,7 +94,7 @@ export async function proxy(request: NextRequest) {
 
   // Machine-to-machine endpoints — pass through with zero Supabase overhead
   // (these authenticate via bearer token / URL token, not cookies)
-  if (PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))) {
+  if (isPassthrough) {
     return NextResponse.next()
   }
 
