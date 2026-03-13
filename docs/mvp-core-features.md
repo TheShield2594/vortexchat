@@ -82,6 +82,7 @@
 | Email verification enforcement | Done | `proxy.ts` blocks unverified users → `/verify-email`; login API returns `emailUnverified`; resend button on verify page |
 | Terms of Service page | Done | `/terms` — server component, public route, linked from register page |
 | Privacy Policy page | Done | `/privacy` — server component, public route, linked from register page |
+| Web app health endpoint | Done | `GET /api/health` — checks Supabase connectivity, returns latency; 503 when degraded |
 
 ---
 

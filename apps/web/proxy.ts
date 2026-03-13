@@ -8,6 +8,7 @@ const PASSTHROUGH_ROUTES = [
   "/api/cron",
   "/api/channels/cleanup",
   "/api/webhooks",
+  "/api/health",
 ]
 
 // Routes that are public but still benefit from session refresh (login page, etc.)
