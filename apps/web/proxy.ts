@@ -8,6 +8,7 @@ const PASSTHROUGH_ROUTES = [
   "/api/cron",
   "/api/channels/cleanup",
   "/api/webhooks",
+  "/api/health",
 ]
 
 // Routes that are public but still benefit from session refresh (login page, etc.)
@@ -17,13 +18,83 @@ const PUBLIC_ROUTES = [
   "/api/auth",
   "/auth/callback",
   "/invite",
+  "/verify-email",
+  "/terms",
+  "/privacy",
 ]
+
+// HTTP methods that mutate state — require origin validation on API routes
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
+
+// Request body size limits (bytes). File-upload routes get a higher ceiling;
+// everything else caps at 1 MB which is generous for JSON payloads.
+const MAX_BODY_BYTES = 1 * 1024 * 1024         // 1 MB — JSON routes
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024       // 10 MB — file upload routes
+const UPLOAD_ROUTES = ["/api/servers/"]  // routes that accept formData
+
+/**
+ * CSRF protection: verify that mutation requests to /api/* originate from our
+ * own domain. Checks the Origin header first, then falls back to Referer.
+ * Returns true if the request is safe, false if it should be blocked.
+ */
+function isSameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get("origin")
+  const expectedOrigin = request.nextUrl.origin
+
+  if (origin) {
+    return origin === expectedOrigin
+  }
+
+  // Some older browsers omit Origin on same-origin POST — fall back to Referer
+  const referer = request.headers.get("referer")
+  if (referer) {
+    try {
+      return new URL(referer).origin === expectedOrigin
+    } catch {
+      return false
+    }
+  }
+
+  // No Origin or Referer — block the request (defense-in-depth)
+  return false
+}
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
+  const isPassthrough = PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))
+
+  // CSRF: block cross-origin mutations to API routes (skip machine-auth
+  // endpoints that authenticate via bearer/URL token, not cookies)
+  if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method) && !isPassthrough) {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json(
+        { error: "Cross-origin request blocked" },
+        { status: 403 },
+      )
+    }
+  }
+
+  // Request body size guard — reject oversized payloads before they hit route
+  // handlers (including passthrough routes like /api/webhooks).
+  // Missing Content-Length is treated as 0 (valid for body-less DELETE/PATCH);
+  // present but non-numeric headers are rejected.
+  if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method)) {
+    const raw = request.headers.get("content-length")
+    const contentLength = raw === null ? 0 : /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN
+    const isUploadRoute = UPLOAD_ROUTES.some((route) => pathname.startsWith(route))
+    const limit = isUploadRoute ? MAX_UPLOAD_BYTES : MAX_BODY_BYTES
+    if (!Number.isFinite(contentLength) || contentLength < 0 || contentLength > limit) {
+      return NextResponse.json(
+        { error: "Request body too large" },
+        { status: 413 },
+      )
+    }
+  }
+
   // Machine-to-machine endpoints — pass through with zero Supabase overhead
-  if (PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))) {
+  // (these authenticate via bearer token / URL token, not cookies)
+  if (isPassthrough) {
     return NextResponse.next()
   }
 
@@ -57,6 +128,16 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Block unverified users from accessing the app
+  if (!user.email_confirmed_at) {
+    // API clients expect JSON, not a redirect
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "email_unverified" }, { status: 403 })
+    }
+    const verifyUrl = new URL("/verify-email", request.url)
+    return NextResponse.redirect(verifyUrl)
   }
 
   return response

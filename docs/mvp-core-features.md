@@ -75,6 +75,19 @@
 | Server sidebar empty state hint | Done | "No servers yet" label + pulsing "Create" button |
 | Skip onboarding option | Done | "Skip for now" link on welcome screen |
 
+## Auth / Security
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Email verification enforcement | Done | `proxy.ts` blocks unverified users → `/verify-email`; login API returns `emailUnverified`; resend button on verify page |
+| Terms of Service page | Done | `/terms` — server component, public route, linked from register page |
+| Privacy Policy page | Done | `/privacy` — server component, public route, linked from register page |
+| Web app health endpoint | Done | `GET /api/health` — checks Supabase connectivity, returns latency; 503 when degraded |
+| Markdown XSS sanitization | Done | `rehype-sanitize` with allowlist schema; only vortex-* elements + Twemoji imgs pass through |
+| CSRF protection | Done | Origin/Referer validation in `proxy.ts` for all mutation requests to `/api/*`; passthrough routes use bearer tokens |
+| Request body size limits | Done | `proxy.ts` rejects oversized payloads: 1 MB for JSON routes, 10 MB for upload routes; returns 413 |
+| Input validation hardening | Done | Search query capped at 500 chars; command args at 4000; login email/password format + length checks; passkey registration field type + length validation |
+
 ---
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-03-13*

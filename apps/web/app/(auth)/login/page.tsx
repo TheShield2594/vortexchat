@@ -66,6 +66,12 @@ export default function LoginPage() {
       })
       const data = await res.json()
 
+      if (data.emailUnverified) {
+        try { sessionStorage.setItem("verifyEmail", form.email) } catch {}
+        window.location.href = "/verify-email"
+        return
+      }
+
       if (!res.ok) {
         toast({ variant: "destructive", title: "Login failed", description: data.error || "Invalid credentials" })
         return

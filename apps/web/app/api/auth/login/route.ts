@@ -20,6 +20,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
+  // Input bounds — reject obviously invalid payloads early before hitting Supabase
+  if (typeof body.email !== "string" || body.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+  }
+  if (typeof body.password !== "string" || body.password.length < 8 || body.password.length > 1000) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+  }
+
   const email = body.email.toLowerCase()
   const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null
 
@@ -80,6 +88,13 @@ export async function POST(request: Request) {
       // Swallow — failing to record shouldn't change the auth response
     }
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+  }
+
+  // Reject unverified emails — destroy the freshly-created session so no
+  // valid tokens remain for the unverified user, then signal the client.
+  if (!data.user.email_confirmed_at) {
+    await supabase.auth.signOut().catch(() => {})
+    return NextResponse.json({ emailUnverified: true }, { status: 403 })
   }
 
   // Clear failed attempts on successful login (best-effort)

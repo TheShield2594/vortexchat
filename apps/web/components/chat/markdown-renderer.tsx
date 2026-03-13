@@ -5,6 +5,7 @@ import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkBreaks from "remark-breaks"
 import rehypeRaw from "rehype-raw"
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize"
 import type { Plugin } from "unified"
 import type { Root, Text, PhrasingContent } from "mdast"
 import { visit } from "unist-util-visit"
@@ -459,10 +460,13 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
       return <SpoilerSpan>{children}</SpoilerSpan>
     },
 
-    // Suppress raw images/scripts for security
-    img() { return null },
-    script() { return null },
-    style() { return null },
+    // Images — only Twemoji SVGs pass through rehype-sanitize
+    img({ src, alt }) {
+      if (typeof src !== "string") return null
+      // Strict pattern: only allow Twemoji SVG files from the expected CDN path
+      if (!/^https:\/\/cdn\.jsdelivr\.net\/gh\/twitter\/twemoji@[^/]+\/assets\/svg\/[a-f0-9-]+\.svg$/.test(src)) return null
+      return <img src={src} alt={typeof alt === "string" ? alt : ""} className="inline-block h-5 w-5 align-text-bottom" draggable={false} loading="lazy" />
+    },
   } as Components
 }
 
@@ -476,7 +480,34 @@ function preProcessContent(content: string): string {
 // ─── Stable plugin arrays ───────────────────────────────────────────────────
 
 const remarkPlugins = [remarkGfm, remarkBreaks, remarkCustomEmoji, remarkMentions, remarkSpoiler, remarkTimestamps, remarkUnicodeEmoji]
-const rehypePlugins = [rehypeRaw]
+const sanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [
+    ...(defaultSchema.tagNames ?? []),
+    // Custom elements produced by our remark plugins
+    "vortex-emoji",
+    "vortex-mention",
+    "vortex-spoiler",
+    "vortex-timestamp",
+  ],
+  attributes: {
+    ...defaultSchema.attributes,
+    "vortex-emoji": ["data-name"],
+    "vortex-mention": ["data-uid"],
+    "vortex-timestamp": ["data-epoch", "data-format"],
+    // Allow only src and alt on img — className/draggable/loading are hardcoded
+    // in the component handler, not parsed from HTML attributes
+    img: ["src", "alt"],
+    code: ["className"],
+  },
+  // Only allow Twemoji CDN images — block all other img src values
+  protocols: {
+    ...defaultSchema.protocols,
+    src: ["https"],
+  },
+}
+
+const rehypePlugins: any[] = [rehypeRaw, [rehypeSanitize, sanitizeSchema]]
 
 // ─── Exported renderer ──────────────────────────────────────────────────────
 
