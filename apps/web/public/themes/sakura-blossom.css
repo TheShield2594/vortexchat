@@ -74,7 +74,7 @@
 /* ── Cherry blossom touches ──────────────────────────────────────────── */
 
 /* Subtle pink glow on message hover */
-.message-group:hover {
+.message-hover:hover {
   background: rgba(232, 67, 147, 0.04) !important;
 }
 
