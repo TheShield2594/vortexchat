@@ -72,9 +72,9 @@ const nextConfig = {
               "default-src 'self'",
               // Next.js requires unsafe-inline/unsafe-eval for its runtime
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' blob: data: https:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://fonts.gstatic.com",
               // Allow WebSocket connections (Supabase Realtime, Livekit) and external APIs
               "connect-src 'self' wss: https:",
               "media-src 'self' blob: https:",
