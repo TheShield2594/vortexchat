@@ -427,7 +427,7 @@ export const MessageItem = memo(function MessageItem({
           ref={containerRef}
           id={containerId}
           className={cn(
-            "relative group px-4 message-hover motion-interactive",
+            "relative group px-4 message-hover motion-interactive message-group-spacer",
             highlighted && "mention-highlight",
             animateOnMount && "message-arrival",
             isGrouped ? "py-0.5" : "pt-2.5 pb-0.5",
@@ -479,9 +479,9 @@ export const MessageItem = memo(function MessageItem({
             )
           )}
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 message-row">
             {/* Avatar or timestamp gutter */}
-            <div className="w-10 flex-shrink-0">
+            <div className="w-10 flex-shrink-0 message-cozy-avatar">
               {!isGrouped ? (
                 <UserProfilePopover
                   user={message.author}
@@ -524,7 +524,10 @@ export const MessageItem = memo(function MessageItem({
             {/* Content */}
             <div className="flex-1 min-w-0">
               {!isGrouped && (
-                <div className="flex items-baseline gap-2 mb-0.5">
+                <div className="flex items-baseline gap-2 mb-0.5 message-header">
+                  <span className="message-compact-timestamp text-xs tertiary-metadata hidden" style={{ fontSize: "10px" }}>
+                    {format(timestamp, "HH:mm")}
+                  </span>
                   <UserProfilePopover
                     user={message.author}
                     userId={message.author?.id}
@@ -538,7 +541,7 @@ export const MessageItem = memo(function MessageItem({
                       {displayName}
                     </span>
                   </UserProfilePopover>
-                  <span id={messageMetaId} className="text-xs tertiary-metadata">
+                  <span id={messageMetaId} className="text-xs tertiary-metadata message-cozy-timestamp">
                     {format(timestamp, "MM/dd/yyyy h:mm a")}
                   </span>
                   {sendStateLabel && (
@@ -555,6 +558,12 @@ export const MessageItem = memo(function MessageItem({
                     </span>
                   )}
                 </div>
+              )}
+
+              {isGrouped && (
+                <span className="message-compact-timestamp text-xs tertiary-metadata hidden" style={{ fontSize: "10px" }}>
+                  {format(timestamp, "HH:mm")}
+                </span>
               )}
 
               {isGrouped && message.pinned && (
