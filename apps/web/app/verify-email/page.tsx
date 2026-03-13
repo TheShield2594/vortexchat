@@ -43,7 +43,6 @@ export default function VerifyEmailPage() {
     }
     setResending(true)
     try {
-      const target = email || manualEmail.trim()
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: target,
@@ -115,7 +114,9 @@ export default function VerifyEmailPage() {
 
           {!loading && !email && (
             <input
+              id="manual-email"
               type="email"
+              aria-label="Email address for verification"
               placeholder="Enter your email address"
               value={manualEmail}
               onChange={(e) => setManualEmail(e.target.value)}

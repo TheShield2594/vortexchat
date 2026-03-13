@@ -461,11 +461,11 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
     },
 
     // Images — only Twemoji SVGs pass through rehype-sanitize
-    img({ src, alt, ...props }) {
+    img({ src, alt }) {
       if (typeof src !== "string") return null
       // Strict pattern: only allow Twemoji SVG files from the expected CDN path
       if (!/^https:\/\/cdn\.jsdelivr\.net\/gh\/twitter\/twemoji@[^/]+\/assets\/svg\/[a-f0-9-]+\.svg$/.test(src)) return null
-      return <img src={src} alt={typeof alt === "string" ? alt : ""} {...props} />
+      return <img src={src} alt={typeof alt === "string" ? alt : ""} className="inline-block h-5 w-5 align-text-bottom" draggable={false} />
     },
   } as Components
 }

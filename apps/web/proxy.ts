@@ -83,7 +83,7 @@ export async function proxy(request: NextRequest) {
   // chunked/forged requests cannot bypass the limit.
   if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method)) {
     const raw = request.headers.get("content-length")
-    const contentLength = raw !== null ? parseInt(raw, 10) : NaN
+    const contentLength = raw !== null && /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN
     const isUploadRoute = UPLOAD_ROUTES.some((route) => pathname.startsWith(route))
     const limit = isUploadRoute ? MAX_UPLOAD_BYTES : MAX_BODY_BYTES
     if (!Number.isFinite(contentLength) || contentLength < 0 || contentLength > limit) {
