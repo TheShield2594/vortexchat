@@ -83,30 +83,38 @@ const CSS_TEMPLATE = `/**
  * Vortex full custom theme template
  *
  * Override any variable below. Everything in the app reads from these tokens.
+ * Your CSS is injected on top of the selected preset, so you only need to
+ * override the values you want to change.
  */
 
 :root {
-  /* App shell */
+  /* ── App shell backgrounds ─────────────────────────────────────────── */
   --app-bg-primary: #313338;
   --app-bg-secondary: #2b2d31;
-  --app-bg-tertiary: #1e1f22;
-  --app-accent-color: #5865f2;
 
-  /* Semantic theme tokens */
+  /* ── Surface palette ───────────────────────────────────────────────── */
   --theme-bg-primary: #313338;
   --theme-bg-secondary: #2b2d31;
   --theme-bg-tertiary: #1e1f22;
   --theme-surface-elevated: #3f4147;
   --theme-surface-input: #383a40;
+  --theme-surface-elevation-1: #32353a;
+  --theme-surface-elevation-3: #42464d;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 35%, transparent);
 
+  /* ── Typography ────────────────────────────────────────────────────── */
   --theme-text-primary: #f2f3f5;
   --theme-text-normal: #dcddde;
   --theme-text-secondary: #b5bac1;
   --theme-text-muted: #949ba4;
-  --theme-text-faint: #4e5058;
+  --theme-text-faint: #959ca6;
   --theme-text-bright: #dbdee1;
 
+  /* ── Accent & semantic colors ──────────────────────────────────────── */
   --theme-accent: #5865f2;
+  --theme-accent-secondary: #eb459e;
   --theme-link: #00a8fc;
   --theme-success: #23a55a;
   --theme-positive: #3ba55c;
@@ -114,7 +122,7 @@ const CSS_TEMPLATE = `/**
   --theme-danger: #f23f43;
   --theme-presence-offline: #80848e;
 
-  /* Tailwind tokens (HSL values, no hsl() wrapper) */
+  /* ── Tailwind design tokens (HSL values, no hsl() wrapper) ─────── */
   --background: 223 7% 20%;
   --foreground: 220 9% 95%;
   --card: 220 7% 18%;
@@ -1694,6 +1702,12 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               label: "Carbon Glass",
               desc: "Near-black + green",
               swatches: ["#1f2124", "var(--theme-positive)", "#5b8af0"],
+            },
+            {
+              key: "oled-black",
+              label: "OLED Black",
+              desc: "True black + teal",
+              swatches: ["#000000", "#0abab5", "#00d4cf"],
             },
           ] as const).map((preset) => (
             <button
