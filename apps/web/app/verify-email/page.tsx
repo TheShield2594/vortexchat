@@ -1,7 +1,5 @@
 "use client"
 
-export const dynamic = "force-dynamic"
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -12,6 +10,8 @@ import { VortexLogo } from "@/components/ui/vortex-logo"
 
 export default function VerifyEmailPage() {
   const [email, setEmail] = useState("")
+  const [manualEmail, setManualEmail] = useState("")
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const [resending, setResending] = useState(false)
   const supabase = createClientSupabaseClient()
@@ -27,27 +27,30 @@ export default function VerifyEmailPage() {
 
     if (stored) {
       setEmail(stored)
+      setLoading(false)
     } else {
       supabase.auth.getUser().then(({ data }) => {
         if (data.user?.email) setEmail(data.user.email)
-      })
+      }).finally(() => setLoading(false))
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleResend() {
-    if (!email) {
-      toast({ variant: "destructive", title: "No email address provided" })
+    const target = email || manualEmail.trim()
+    if (!target) {
+      toast({ variant: "destructive", title: "Please enter your email address" })
       return
     }
     setResending(true)
     try {
+      const target = email || manualEmail.trim()
       const { error } = await supabase.auth.resend({
         type: "signup",
-        email,
+        email: target,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       })
       if (error) throw error
-      toast({ title: "Verification email sent!", description: `Check ${email} for a new verification link.` })
+      toast({ title: "Verification email sent!", description: `Check ${target} for a new verification link.` })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to resend", description: error.message })
     } finally {
@@ -110,11 +113,25 @@ export default function VerifyEmailPage() {
             </ul>
           </div>
 
-          {email && (
+          {!loading && !email && (
+            <input
+              type="email"
+              placeholder="Enter your email address"
+              value={manualEmail}
+              onChange={(e) => setManualEmail(e.target.value)}
+              className="w-full h-11 rounded-lg border px-3 text-sm mb-3 outline-none focus:ring-2"
+              style={{
+                borderColor: "rgba(255,255,255,0.12)",
+                background: "var(--theme-bg-tertiary)",
+                color: "var(--theme-text-primary)",
+              }}
+            />
+          )}
+          {!loading && (
             <Button
               type="button"
               onClick={handleResend}
-              disabled={resending}
+              disabled={resending || (!email && !manualEmail.trim())}
               className="auth-btn-accent w-full h-11 font-medium border-0"
             >
               {resending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
