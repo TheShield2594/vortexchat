@@ -928,10 +928,13 @@
 [data-font-scale="normal"] { font-size: 16px; }
 [data-font-scale="large"] { font-size: 17px; }
 
-/* Compact message display: tighter gaps, hide cozy-only avatars */
-[data-message-display="compact"] .message-group-spacer { margin-top: 0.125rem; }
+/* Compact message display: tighter gaps, hide avatars, show inline timestamps */
+[data-message-display="compact"] .message-group-spacer { padding-top: 0.125rem; padding-bottom: 0.125rem; }
 [data-message-display="compact"] .message-cozy-avatar { display: none; }
+[data-message-display="compact"] .message-cozy-timestamp { display: none; }
 [data-message-display="compact"] .message-compact-timestamp { display: inline; }
+[data-message-display="compact"] .message-row { gap: 0; }
+[data-message-display="compact"] .message-header { gap: 0.375rem; }
 
 /* Reduced saturation (accessibility) */
 [data-saturation="reduced"] { filter: saturate(0.6); }
