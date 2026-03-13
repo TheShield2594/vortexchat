@@ -23,12 +23,53 @@ const PUBLIC_ROUTES = [
   "/privacy",
 ]
 
+// HTTP methods that mutate state — require origin validation on API routes
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
+
+/**
+ * CSRF protection: verify that mutation requests to /api/* originate from our
+ * own domain. Checks the Origin header first, then falls back to Referer.
+ * Returns true if the request is safe, false if it should be blocked.
+ */
+function isSameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get("origin")
+  const expectedOrigin = request.nextUrl.origin
+
+  if (origin) {
+    return origin === expectedOrigin
+  }
+
+  // Some older browsers omit Origin on same-origin POST — fall back to Referer
+  const referer = request.headers.get("referer")
+  if (referer) {
+    try {
+      return new URL(referer).origin === expectedOrigin
+    } catch {
+      return false
+    }
+  }
+
+  // No Origin or Referer — block the request (defense-in-depth)
+  return false
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Machine-to-machine endpoints — pass through with zero Supabase overhead
+  // (these authenticate via bearer token / URL token, not cookies)
   if (PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))) {
     return NextResponse.next()
+  }
+
+  // CSRF: block cross-origin mutations to API routes
+  if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method)) {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json(
+        { error: "Cross-origin request blocked" },
+        { status: 403 },
+      )
+    }
   }
 
   // Allow public routes and marketing homepage
