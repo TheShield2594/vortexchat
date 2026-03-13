@@ -82,6 +82,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
+  // Reject unverified emails — redirect to verification page
+  if (!data.user.email_confirmed_at) {
+    return NextResponse.json({ emailUnverified: true }, { status: 403 })
+  }
+
   // Clear failed attempts on successful login (best-effort)
   try {
     await adminDb.rpc("clear_login_attempts", { target_email: email })

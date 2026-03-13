@@ -75,6 +75,12 @@
 | Server sidebar empty state hint | Done | "No servers yet" label + pulsing "Create" button |
 | Skip onboarding option | Done | "Skip for now" link on welcome screen |
 
+## Auth / Security
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Email verification enforcement | Done | `proxy.ts` blocks unverified users → `/verify-email`; login API returns `emailUnverified`; resend button on verify page |
+
 ---
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-03-13*

@@ -17,6 +17,7 @@ const PUBLIC_ROUTES = [
   "/api/auth",
   "/auth/callback",
   "/invite",
+  "/verify-email",
 ]
 
 export async function proxy(request: NextRequest) {
@@ -57,6 +58,12 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Block unverified users from accessing the app
+  if (!user.email_confirmed_at) {
+    const verifyUrl = new URL("/verify-email", request.url)
+    return NextResponse.redirect(verifyUrl)
   }
 
   return response
