@@ -41,6 +41,9 @@ export async function POST(
   if (!commandId || !appId) {
     return NextResponse.json({ error: "commandId and appId are required" }, { status: 400 })
   }
+  if (typeof args === "string" && args.length > 4000) {
+    return NextResponse.json({ error: "args too long (max 4000 chars)" }, { status: 400 })
+  }
 
   // Verify the command exists, is enabled, and the app is installed on this server
   const [{ data: command, error: commandError }, { data: install, error: installError }] = await Promise.all([

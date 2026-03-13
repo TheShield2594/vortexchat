@@ -15,6 +15,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing registration payload" }, { status: 400 })
   }
 
+  // Validate field types and lengths to reject garbage before DB/crypto work
+  if (typeof body.challenge !== "string" || body.challenge.length > 512) {
+    return NextResponse.json({ error: "Invalid challenge" }, { status: 400 })
+  }
+  if (typeof body.credentialId !== "string" || body.credentialId.length > 1024) {
+    return NextResponse.json({ error: "Invalid credentialId" }, { status: 400 })
+  }
+  if (typeof body.response !== "object" || body.response === null || Array.isArray(body.response)) {
+    return NextResponse.json({ error: "Invalid response" }, { status: 400 })
+  }
+  if (body.name !== undefined && (typeof body.name !== "string" || body.name.length > 100)) {
+    return NextResponse.json({ error: "Invalid passkey name" }, { status: 400 })
+  }
+  if (body.transports !== undefined && (!Array.isArray(body.transports) || body.transports.length > 10)) {
+    return NextResponse.json({ error: "Invalid transports" }, { status: 400 })
+  }
+
   const supabase = await createServerSupabaseClient()
   const db = supabase as any
   const { data: auth } = await supabase.auth.getUser()

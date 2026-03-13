@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "25", 10), 100)
 
   if (!rawQuery) return NextResponse.json({ error: "q required" }, { status: 400 })
+  if (rawQuery.length > 500) return NextResponse.json({ error: "Query too long (max 500 chars)" }, { status: 400 })
   if (!serverId && !channelId) return NextResponse.json({ error: "serverId or channelId required" }, { status: 400 })
 
   const { query, filters } = parseSearchQuery(rawQuery)
