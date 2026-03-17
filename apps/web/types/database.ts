@@ -2532,6 +2532,10 @@ export type Database = {
       }
     }
     Functions: {
+      auto_archive_inactive_threads: {
+        Args: Record<string, never>
+        Returns: number
+      }
       is_server_member: {
         Args: { p_server_id: string; p_user_id?: string }
         Returns: boolean
@@ -2573,7 +2577,7 @@ export type Database = {
         Returns: boolean
       }
       create_thread_from_message: {
-        Args: { p_message_id: string; p_name: string }
+        Args: { p_message_id: string; p_name: string; p_auto_archive_duration?: number }
         Returns: Database['public']['Tables']['threads']['Row']
       }
       get_thread_counts_by_channel: {
