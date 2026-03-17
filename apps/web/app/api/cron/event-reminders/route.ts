@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 
 /**
- * Cron job: notify RSVP'd members 15 minutes before an event starts.
- * Schedule: every 5 minutes via Vercel cron (see vercel.json)
+ * Notify RSVP'd members about events starting within 10–20 minutes.
+ * Now invoked by /api/cron/scheduled-tasks dispatcher; kept for manual use.
  */
 export async function GET(request: Request) {
   // Validate cron secret to prevent unauthorized triggers

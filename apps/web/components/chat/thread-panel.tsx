@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { X, Hash, Lock, Archive, ArchiveRestore, Users } from "lucide-react"
+import { X, Hash, Lock, Archive, ArchiveRestore, Users, Clock } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import type { ThreadRow, ThreadWithDetails, MessageWithAuthor, MessageRow } from "@/types/database"
@@ -11,6 +11,7 @@ import { useRealtimeThreadMessages } from "@/hooks/use-realtime-threads"
 import { cn } from "@/lib/utils/cn"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AUTO_ARCHIVE_OPTIONS, DEFAULT_AUTO_ARCHIVE_DURATION } from "@vortex/shared"
 
 interface Props {
   thread: ThreadRow
@@ -18,6 +19,10 @@ interface Props {
   onClose: () => void
   onThreadUpdate: (thread: ThreadRow) => void
   focusMessageId?: string | null
+}
+
+function formatAutoArchiveDuration(minutes: number): string {
+  return AUTO_ARCHIVE_OPTIONS.find((o) => o.value === minutes)?.label ?? `${minutes}m`
 }
 
 /** Slide-out panel displaying a thread's messages with real-time updates, archive/lock controls, and member management. */
@@ -192,6 +197,26 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
     }
   }
 
+  async function handleAutoArchiveDuration(duration: number) {
+    try {
+      const res = await fetch(`/api/threads/${thread.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto_archive_duration: duration }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        onThreadUpdate(updated)
+        toast({ title: `Auto-archive set to ${formatAutoArchiveDuration(duration)}` })
+      } else {
+        const data = await res.json().catch(() => null)
+        toast({ variant: "destructive", title: "Failed to update auto-archive", description: data?.error ?? "Unknown error" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to update auto-archive", description: "Network error" })
+    }
+  }
+
   async function handleThreadNotifyMode(nextMode: "all" | "mentions" | "muted") {
     const previousMode = threadNotifyMode
     const previousInherited = threadNotifyInherited
@@ -286,6 +311,13 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
     }
 
     const message = await res.json()
+
+    // If the thread was auto-unarchived by this message, update parent state
+    if (message._thread_unarchived) {
+      onThreadUpdate({ ...thread, archived: false, archived_at: null } as ThreadRow)
+      toast({ title: "Thread unarchived by your message" })
+    }
+
     setMessages((prev) => {
       if (prev.some((m) => m.id === message.id)) return prev
       return [...prev, message]
@@ -296,7 +328,9 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
     if (!isMember) setIsMember(true)
   }
 
-  const canSend = !thread.locked && !thread.archived
+  // Discord-style: locked threads block all input; archived (non-locked) threads
+  // can still receive messages, which auto-unarchives them.
+  const canSend = !thread.locked
 
   return (
     <div
@@ -372,6 +406,35 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
               <Lock className="w-3 h-3" /> Locked
             </span>
           )}
+          {(() => {
+            const duration = thread.auto_archive_duration ?? DEFAULT_AUTO_ARCHIVE_DURATION
+            return thread.owner_id === currentUserId ? (
+              <span className="flex items-center gap-1 text-xs">
+                <Clock className="w-3 h-3" style={{ color: "var(--theme-text-muted)" }} />
+                <select
+                  value={duration}
+                  onChange={(e) => handleAutoArchiveDuration(Number(e.target.value))}
+                  className="text-xs rounded px-1.5 py-0.5"
+                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)", border: "1px solid var(--theme-text-faint)" }}
+                  aria-label="Auto-archive duration"
+                >
+                  {AUTO_ARCHIVE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      Archive: {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            ) : (
+              <span
+                className="flex items-center gap-1 text-xs"
+                style={{ color: "var(--theme-text-muted)" }}
+                title={`Auto-archives after ${formatAutoArchiveDuration(duration)} of inactivity`}
+              >
+                <Clock className="w-3 h-3" /> {formatAutoArchiveDuration(duration)}
+              </span>
+            )
+          })()}
           {isMember && (
             <>
               <select
@@ -493,6 +556,14 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
       </div>
 
       {/* Input */}
+      {thread.archived && !thread.locked && (
+        <div
+          className="px-3 py-1.5 text-xs text-center"
+          style={{ color: "var(--theme-text-muted)", background: "var(--theme-bg-secondary)", borderTop: "1px solid var(--theme-bg-tertiary)" }}
+        >
+          This thread is archived. Sending a message will unarchive it.
+        </div>
+      )}
       {canSend ? (
         <MessageInput
           channelName={thread.name}
@@ -507,7 +578,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
           className="px-4 py-3 text-sm text-center flex-shrink-0"
           style={{ color: "var(--theme-text-muted)", background: "var(--theme-bg-secondary)", borderTop: "1px solid var(--theme-bg-tertiary)" }}
         >
-          {thread.locked ? "This thread is locked." : "This thread is archived."}
+          This thread is locked.
         </div>
       )}
     </div>

@@ -45,7 +45,7 @@ Gap severity:
 | Thread notification following | ✅ Thread member subscriptions via `/api/threads/[id]/members` | ✅ | ✅ | ✅ | Parity |
 | Thread-only / forum channels | ✅ `forum-channel.tsx` with sort (recent/popular/unanswered) | ✅ | ❌ | ✅ | Parity |
 | Thread permissions (public/private) | ✅ CREATE_PUBLIC_THREADS + CREATE_PRIVATE_THREADS bits | ✅ | ✅ | ✅ | Parity |
-| Thread archival (auto-archive after inactivity) | ❌ `archived` column exists but no auto-archive timer | ✅ | ✅ | ✅ | 🟡 Minor gap — threads never auto-lock |
+| Thread archival (auto-archive after inactivity) | ✅ Discord-style auto-archive cron + configurable durations (1h/24h/3d/1w) | ✅ | ✅ | ✅ | Parity |
 
 ---
 
@@ -268,7 +268,7 @@ Gap severity:
 | **4** | **Screen reader `aria-live` regions for chat** | ✅ Done | Medium | Low | `aria-live` + live announcements in `chat-area.tsx` |
 | **5** | **Data export (GDPR compliance)** | ✅ Done | High | Medium | `GET /api/users/export` + settings UI |
 | **6** | **Public bot API + token auth** | 🔴 | High | High | Introduce bot tokens, separate from user sessions. Critical for ecosystem growth but significant work. ~1-2 weeks. |
-| **7** | **Thread auto-archive** | 🟡 | Medium | Low | Add a cron job to mark threads as archived after N days of inactivity. `archived` column already exists. ~4 hours. |
+| **7** | **Thread auto-archive** | ✅ Done | Medium | Low | Discord-style auto-archive with configurable durations (1h/24h/3d/1w), cron job, auto-unarchive on message send. |
 | **8** | **Outgoing webhooks / event subscriptions** | 🟡 | Medium | Medium | Fire HTTP callbacks on message/member/reaction events. Enables Zapier/Make without a full bot API. ~2-3 days. |
 | **9** | **Channel archiving** | 🟡 | Medium | Low | Add `archived` boolean to channels table, hide from sidebar, restrict posting. ~4 hours. |
 | **10** | **Sticker packs** | 🟡 | Low | Medium | Add sticker upload/management alongside existing custom emoji system. Retention feature. ~2-3 days. |
@@ -279,7 +279,7 @@ Full implementation plans for all gaps below are in [critical-gap-implementation
 
 | # | Gap | Severity | Complexity | Plan Section |
 |---|---|---|---|---|
-| 7 | Thread auto-archive | 🟡 | S | Gap 7 — cron job, columns already exist |
+| 7 | Thread auto-archive | ✅ Done | S | Implemented — cron job + Discord-style durations |
 | 8 | Outgoing webhooks / event subscriptions | 🟡 | M | Gap 8 — new table + dispatch pipeline |
 | 9 | Channel archiving | 🟡 | S | Gap 9 — boolean column + sidebar/input gating |
 | 10 | Sticker packs | 🟡 | M | Gap 10 — extends emoji system |
@@ -315,4 +315,4 @@ Full implementation plans for all gaps below are in [critical-gap-implementation
 ---
 
 *This audit should be re-run quarterly or after major feature sprints.*
-*Last updated: 2026-03-17 — 🔴 Gaps 1–5 implemented, 🟡 implementation plans added.*
+*Last updated: 2026-03-17 — 🔴 Gaps 1–5 implemented, Gap 7 (thread auto-archive) implemented, 🟡 implementation plans added.*

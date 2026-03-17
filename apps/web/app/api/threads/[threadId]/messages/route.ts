@@ -133,7 +133,6 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
 
   if (!thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
   if (thread.locked) return NextResponse.json({ error: "Thread is locked" }, { status: 403 })
-  if (thread.archived) return NextResponse.json({ error: "Thread is archived" }, { status: 403 })
 
   const serverId = (thread.channels as { server_id?: string | null } | null)?.server_id ?? null
   if (serverId) {
@@ -141,6 +140,21 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
     if (!isAdmin && !hasPermission(permissions, "SEND_MESSAGES")) {
       return NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 })
     }
+  }
+
+  // Discord-style auto-unarchive: sending a message to an archived (non-locked)
+  // thread automatically unarchives it and resets the inactivity timer.
+  // This runs after the permission check so unauthorized users cannot unarchive threads.
+  let didUnarchive = false
+  if (thread.archived && !thread.locked) {
+    const { error: unarchiveError } = await supabase
+      .from("threads")
+      .update({ archived: false, archived_at: null })
+      .eq("id", threadId)
+    if (unarchiveError) {
+      return NextResponse.json({ error: "Failed to unarchive thread" }, { status: 500 })
+    }
+    didUnarchive = true
   }
 
   // Insert message linked to thread (channel_id = parent_channel_id for permissions)
@@ -189,5 +203,8 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
     console.warn("push delivery failed", { threadId, messageId: message.id, error })
   })
 
-  return NextResponse.json(message, { status: 201 })
+  return NextResponse.json(
+    { ...message, _thread_unarchived: didUnarchive },
+    { status: 201 }
+  )
 }

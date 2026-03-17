@@ -106,6 +106,12 @@
 |---------|--------|-------|
 | Quiet hours (notification schedule) | Done | Migration 00064; `quiet_hours_enabled/start/end/timezone` columns; `isInQuietHours()` utility; push suppressed in `sendPushToUser()`; UI in Notifications settings |
 
+## Threads
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Thread auto-archive (Discord-style) | Done | Migration 00065; `auto_archive_inactive_threads()` RPC; Vercel cron every 5 min; configurable durations: 1h, 24h, 3d, 1w; auto-unarchive on message send; duration selector in create modal + thread panel |
+
 ## Accessibility
 
 | Feature | Status | Notes |
