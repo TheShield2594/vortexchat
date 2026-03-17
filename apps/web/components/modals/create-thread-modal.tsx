@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import type { ThreadRow } from "@/types/database"
-import { AUTO_ARCHIVE_OPTIONS, DEFAULT_AUTO_ARCHIVE_DURATION } from "@vortex/shared"
+import { AUTO_ARCHIVE_OPTIONS, DEFAULT_AUTO_ARCHIVE_DURATION, type AutoArchiveDuration } from "@vortex/shared"
 
 interface Props {
   open: boolean
@@ -81,7 +81,7 @@ export function CreateThreadModal({ open, onClose, messageId, channelId, onCreat
             <Label style={{ color: "var(--theme-text-secondary)" }}>Auto-Archive After</Label>
             <select
               value={autoArchiveDuration}
-              onChange={(e) => setAutoArchiveDuration(Number(e.target.value))}
+              onChange={(e) => setAutoArchiveDuration(Number(e.target.value) as AutoArchiveDuration)}
               className="w-full rounded-md px-3 py-2 text-sm"
               style={{ background: "var(--theme-bg-tertiary)", border: "1px solid var(--theme-text-faint)", color: "white" }}
               aria-label="Auto-archive duration"
