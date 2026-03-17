@@ -6,11 +6,7 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/cron/event-reminders",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/thread-auto-archive",
+      "path": "/api/cron/scheduled-tasks",
       "schedule": "*/5 * * * *"
     }
   ]
