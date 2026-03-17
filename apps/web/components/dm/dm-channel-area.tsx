@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } fro
 import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, SmilePlus, Reply, X, ArrowLeft } from "lucide-react"
+import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Sticker, Reply, X, ArrowLeft } from "lucide-react"
+import { EmojiPicker } from "frimousse"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
@@ -63,6 +64,38 @@ interface Props {
   currentUserId: string
 }
 
+
+// GIF requests go through the server-side proxy (caching + no client-side API key exposure)
+const GIF_TRENDING_URL = "/api/gif/trending"
+const GIF_SEARCH_URL = "/api/gif/search"
+
+/** Detect if a message is a standalone GIF URL (Giphy or Tenor media link). */
+function extractGifUrl(content: string | null): string | null {
+  if (!content) return null
+  const trimmed = content.trim()
+  // Only treat messages that are a single URL (no surrounding text)
+  if (!/^https?:\/\/\S+$/.test(trimmed)) return null
+  try {
+    const parsed = new URL(trimmed)
+    const host = parsed.hostname
+    // Giphy media URLs
+    if ((host === "media.giphy.com" || host.endsWith(".giphy.com") || host === "giphy.com" || host === "i.giphy.com") && /\.(gif|webp|mp4)(\?|$)/i.test(parsed.pathname)) {
+      return trimmed
+    }
+    // Tenor media URLs
+    if ((host === "media.tenor.com" || host.endsWith(".tenor.com") || host === "tenor.com" || host === "c.tenor.com") && /\.(gif|webp|mp4)(\?|$)/i.test(parsed.pathname)) {
+      return trimmed
+    }
+    // Giphy page URLs — extract and build embeddable URL
+    if (host === "giphy.com" || host === "www.giphy.com") {
+      const idMatch = parsed.pathname.match(/-([a-zA-Z0-9]+)$/) ?? parsed.pathname.match(/\/media\/([a-zA-Z0-9]+)\//)
+      if (idMatch?.[1]) return `https://media.giphy.com/media/${idMatch[1]}/giphy.gif`
+    }
+  } catch {
+    // invalid URL
+  }
+  return null
+}
 
 const DEVICE_STORAGE_KEY = "dm-device-key-v1"
 const DEVICE_KEY_DB = "vortexchat-e2ee"
@@ -159,8 +192,17 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [pickerTab, setPickerTab] = useState<"emoji" | "gif">("emoji")
+  const [gifQuery, setGifQuery] = useState("")
+  const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
+  const [gifLoading, setGifLoading] = useState(false)
+  const [gifSuggestions, setGifSuggestions] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
+  const emojiButtonRef = useRef<HTMLButtonElement>(null)
+  const gifButtonRef = useRef<HTMLButtonElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const prevLastMsgIdRef = useRef<string | null>(null)
@@ -526,6 +568,86 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     return () => { supabase.removeChannel(ch) }
   }, [channelId, currentUserId, supabase, channel, conversationKey])
 
+  // Close emoji/GIF picker on outside click
+  useEffect(() => {
+    if (!showEmojiPicker) return
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node
+      if (!emojiPickerRef.current?.contains(target) && !emojiButtonRef.current?.contains(target) && !gifButtonRef.current?.contains(target)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown)
+    return () => document.removeEventListener("mousedown", handlePointerDown)
+  }, [showEmojiPicker])
+
+  // Fetch GIF results (trending or search)
+  useEffect(() => {
+    if (!showEmojiPicker || pickerTab !== "gif") return
+    const controller = new AbortController()
+    const timeout = setTimeout(async () => {
+      setGifLoading(true)
+      try {
+        const endpoint = gifQuery.trim()
+          ? `${GIF_SEARCH_URL}?q=${encodeURIComponent(gifQuery.trim())}`
+          : GIF_TRENDING_URL
+        const res = await fetch(endpoint, { signal: controller.signal })
+        const json = await res.json()
+        setGifResults(Array.isArray(json) ? json : [])
+      } catch {
+        setGifResults([])
+      } finally {
+        setGifLoading(false)
+      }
+    }, 400)
+    return () => { clearTimeout(timeout); controller.abort() }
+  }, [showEmojiPicker, pickerTab, gifQuery])
+
+  // Fetch GIF search autocomplete suggestions
+  useEffect(() => {
+    if (!showEmojiPicker || pickerTab !== "gif" || gifQuery.trim().length < 2) {
+      setGifSuggestions([])
+      return
+    }
+    const controller = new AbortController()
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/gif/suggestions?q=${encodeURIComponent(gifQuery.trim())}`, { signal: controller.signal })
+        const json = await res.json()
+        setGifSuggestions(Array.isArray(json) ? json : [])
+      } catch {
+        // ignore abort / network errors
+      }
+    }, 300)
+    return () => { clearTimeout(timeout); controller.abort() }
+  }, [showEmojiPicker, pickerTab, gifQuery])
+
+  async function handleSendGif(gifUrl: string) {
+    if (!gifUrl.trim() || sending) return
+    setShowEmojiPicker(false)
+    setSending(true)
+    try {
+      let outbound = gifUrl
+      if (channel?.is_encrypted) {
+        const key = conversationKey ?? await ensureConversationKey(channel)
+        if (!key) throw new Error("Missing encryption key")
+        const envelope = await encryptDmContent(gifUrl, key, channel.encryption_key_version ?? 1)
+        outbound = JSON.stringify(envelope)
+      }
+      const msg = await sendDmPayload({ content: outbound })
+      if (msg) {
+        setMessages((prev) => [...prev, msg])
+      } else {
+        toast({ variant: "destructive", title: "Failed to send GIF" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Connection error", description: "Check your internet connection and try again." })
+    } finally {
+      setSending(false)
+      inputRef.current?.focus()
+    }
+  }
+
   async function handleSend() {
     if (!content.trim() || sending) return
     setSending(true)
@@ -869,6 +991,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
           // Render image attachments inline (markdown-style links to images)
           const imageMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
+          // Detect standalone GIF URLs (Giphy/Tenor) for inline rendering
+          const gifMediaUrl = extractGifUrl(renderedContent)
 
           return (
             <div key={msg.id} data-message-id={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
@@ -938,6 +1062,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                         />
                       </a>
                       <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{imageMatch[1]}</span>
+                    </div>
+                  ) : gifMediaUrl ? (
+                    <div className="mt-1">
+                      <img
+                        src={gifMediaUrl}
+                        alt="GIF"
+                        className="max-w-sm w-full rounded-md border"
+                        style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-tertiary)" }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                      />
                     </div>
                   ) : (
                     <p className="text-sm break-words" style={{ color: decryptFailed ? "var(--theme-warning)" : "var(--theme-text-normal)" }}>
@@ -1030,7 +1164,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             </button>
           </div>
         )}
-        <div className={cn("flex items-center gap-2 px-3 py-2", replyTo ? "rounded-b-lg" : "rounded-lg")} style={{ background: "var(--theme-surface-input)" }}>
+        <div className={cn("relative flex items-center gap-2 px-3 py-2", replyTo ? "rounded-b-lg" : "rounded-lg")} style={{ background: "var(--theme-surface-input)" }}>
           {/* File upload */}
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -1064,13 +1198,229 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             className="flex-1 bg-transparent text-sm focus:outline-none"
             style={{ color: "var(--theme-text-normal)" }}
           />
+
+          {/* Emoji/GIF picker popup */}
+          {showEmojiPicker && (
+            <div
+              ref={emojiPickerRef}
+              data-state="open"
+              className="panel-surface-motion absolute bottom-14 right-2 z-50 w-[320px] rounded-lg border p-2 shadow-xl"
+              style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)" }}
+            >
+              <div className="mb-2 flex items-center gap-2" role="tablist" aria-label="Picker type">
+                <button
+                  role="tab"
+                  aria-selected={pickerTab === "emoji"}
+                  onClick={() => setPickerTab("emoji")}
+                  className="px-2 py-1 rounded text-xs font-medium"
+                  style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
+                >
+                  Emoji
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={pickerTab === "gif"}
+                  onClick={() => setPickerTab("gif")}
+                  className="px-2 py-1 rounded text-xs font-medium"
+                  style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
+                >
+                  GIFs
+                </button>
+              </div>
+
+              {pickerTab === "emoji" ? (
+                <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+                  <EmojiPicker.Root
+                    onEmojiSelect={({ emoji }) => {
+                      const el = inputRef.current
+                      const start = el ? el.selectionStart ?? content.length : content.length
+                      const end = el ? el.selectionEnd ?? start : start
+                      const next = content.slice(0, start) + emoji + content.slice(end)
+                      setContent(next)
+                      setShowEmojiPicker(false)
+                      requestAnimationFrame(() => {
+                        if (el) {
+                          el.focus()
+                          el.setSelectionRange(start + emoji.length, start + emoji.length)
+                        }
+                      })
+                    }}
+                    style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}
+                  >
+                    <div style={{ padding: "6px 6px 4px" }}>
+                      <EmojiPicker.Search
+                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          padding: "5px 10px",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          boxSizing: "border-box",
+                          background: "var(--theme-bg-tertiary)",
+                          color: "var(--theme-text-normal)",
+                          border: "none",
+                          outline: "none",
+                        }}
+                        placeholder="Search emoji…"
+                      />
+                    </div>
+                    <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+                      <EmojiPicker.Loading>
+                        <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>Loading…</div>
+                      </EmojiPicker.Loading>
+                      <EmojiPicker.Empty>
+                        {({ search }) => (
+                          <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>
+                            No emoji found for &ldquo;{search}&rdquo;
+                          </div>
+                        )}
+                      </EmojiPicker.Empty>
+                      <EmojiPicker.List
+                        components={{
+                          CategoryHeader: ({ category, ...props }) => (
+                            <div
+                              {...props}
+                              style={{
+                                padding: "3px 8px",
+                                fontSize: "10px",
+                                fontWeight: 600,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                color: "var(--theme-text-muted)",
+                                background: "var(--theme-bg-secondary)",
+                                position: "sticky",
+                                top: 0,
+                              }}
+                            >
+                              {category.label}
+                            </div>
+                          ),
+                          Emoji: ({ emoji, ...props }) => (
+                            <button
+                              type="button"
+                              {...props}
+                              data-emoji-btn=""
+                              tabIndex={-1}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "18px",
+                                width: "100%",
+                                aspectRatio: "1",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                border: "none",
+                                background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
+                                fontFamily: "var(--frimousse-emoji-font)",
+                              }}
+                            >
+                              {emoji.emoji}
+                            </button>
+                          ),
+                        }}
+                      />
+                    </EmojiPicker.Viewport>
+                    <div style={{ padding: "4px 8px 6px", display: "flex", alignItems: "center", justifyContent: "flex-end", borderTop: "1px solid var(--theme-bg-tertiary)" }}>
+                      <EmojiPicker.SkinToneSelector
+                        style={{
+                          all: "unset",
+                          cursor: "pointer",
+                          fontSize: "16px",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid var(--theme-bg-tertiary)",
+                          background: "var(--theme-bg-tertiary)",
+                        }}
+                        aria-label="Change skin tone"
+                      />
+                    </div>
+                  </EmojiPicker.Root>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    value={gifQuery}
+                    onChange={(e) => setGifQuery(e.target.value)}
+                    placeholder="Search GIFs"
+                    aria-label="Search GIFs"
+                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
+                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+                  />
+                  {gifSuggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {gifSuggestions.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setGifQuery(s)}
+                          className="px-2 py-0.5 rounded-full text-[11px] hover:opacity-80 transition-opacity"
+                          style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!gifQuery.trim() && !gifLoading && gifResults.length > 0 && (
+                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                      Trending
+                    </p>
+                  )}
+                  {gifLoading ? (
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                      {gifResults.map((gif) => (
+                        <button
+                          key={gif.id}
+                          onClick={() => {
+                            const gifUrl = gif.url || gif.gifUrl
+                            if (gifUrl?.trim()) handleSendGif(gifUrl)
+                          }}
+                          className="rounded overflow-hidden hover:opacity-90"
+                          title={gif.title}
+                          aria-label={gif.title}
+                        >
+                          <img src={gif.previewUrl} alt={gif.title} className="w-full h-16 object-cover" />
+                          <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* GIF & Emoji buttons */}
           <button
-            className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-            style={{ color: "var(--theme-text-muted)" }}
-            title="Open emoji picker"
             type="button"
+            ref={gifButtonRef}
+            onClick={() => {
+              setPickerTab("gif")
+              setShowEmojiPicker((prev) => !prev || pickerTab !== "gif")
+            }}
+            className="flex-shrink-0 rounded hover:bg-white/10 transition-colors"
+            style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
+            title="GIF"
+            aria-label="Insert GIF"
           >
-            <SmilePlus className="w-4 h-4" />
+            <Sticker className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            ref={emojiButtonRef}
+            onClick={() => {
+              setPickerTab("emoji")
+              setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
+            }}
+            className="flex-shrink-0 rounded hover:bg-white/10 transition-colors"
+            style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
+            title="Emoji"
+            aria-label="Insert emoji"
+          >
+            <Smile className="w-5 h-5" />
           </button>
           {content.trim() && (
             <button onClick={handleSend} disabled={sending} style={{ color: "var(--theme-accent)" }}>
