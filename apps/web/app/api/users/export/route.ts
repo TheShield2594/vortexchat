@@ -42,7 +42,7 @@ export async function GET() {
       .limit(10000),
     // DM messages (last 10k)
     supabase
-      .from("dm_messages")
+      .from("direct_messages")
       .select("id, dm_channel_id, content, created_at")
       .eq("sender_id", userId)
       .order("created_at", { ascending: false })
