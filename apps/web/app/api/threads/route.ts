@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   const { data: threads, error } = await supabase
     .from("threads")
-    .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, message_count, created_at, updated_at")
+    .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, auto_archive_duration, message_count, created_at, updated_at")
     .eq("parent_channel_id", channelId)
     .eq("archived", archived)
     .order("updated_at", { ascending: false })
@@ -56,10 +56,16 @@ export async function POST(request: Request) {
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
 
-  const { data: body, error: parseError } = await parseJsonBody<{ messageId?: string; channelId?: string; name: string }>(request as unknown as NextRequest)
+  const { data: body, error: parseError } = await parseJsonBody<{ messageId?: string; channelId?: string; name: string; autoArchiveDuration?: number }>(request as unknown as NextRequest)
   if (parseError) return parseError
 
-  const { messageId, channelId, name } = body
+  const { messageId, channelId, name, autoArchiveDuration } = body
+
+  // Validate auto_archive_duration if provided (Discord options: 60, 1440, 4320, 10080)
+  const validDurations = [60, 1440, 4320, 10080]
+  const duration = autoArchiveDuration && validDurations.includes(autoArchiveDuration)
+    ? autoArchiveDuration
+    : 1440
   if (!name?.trim()) return NextResponse.json({ error: "name required" }, { status: 400 })
 
   if (messageId) {
@@ -67,6 +73,7 @@ export async function POST(request: Request) {
     const { data: thread, error } = await supabase.rpc("create_thread_from_message", {
       p_message_id: messageId,
       p_name: name.trim(),
+      p_auto_archive_duration: duration,
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(thread, { status: 201 })
@@ -76,8 +83,8 @@ export async function POST(request: Request) {
     // Create standalone thread in a channel (no starter message)
     const { data: thread, error } = await supabase
       .from("threads")
-      .insert({ parent_channel_id: channelId, owner_id: user.id, name: name.trim() })
-      .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, message_count, created_at, updated_at")
+      .insert({ parent_channel_id: channelId, owner_id: user.id, name: name.trim(), auto_archive_duration: duration })
+      .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, auto_archive_duration, message_count, created_at, updated_at")
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(thread, { status: 201 })

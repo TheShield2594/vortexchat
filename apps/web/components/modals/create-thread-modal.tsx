@@ -9,6 +9,14 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import type { ThreadRow } from "@/types/database"
 
+/** Discord-compatible auto-archive duration options (in minutes). */
+const AUTO_ARCHIVE_OPTIONS = [
+  { value: 60, label: "1 Hour" },
+  { value: 1440, label: "24 Hours" },
+  { value: 4320, label: "3 Days" },
+  { value: 10080, label: "1 Week" },
+] as const
+
 interface Props {
   open: boolean
   onClose: () => void
@@ -22,6 +30,7 @@ interface Props {
 
 export function CreateThreadModal({ open, onClose, messageId, channelId, onCreated }: Props) {
   const [name, setName] = useState("")
+  const [autoArchiveDuration, setAutoArchiveDuration] = useState(1440)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
@@ -30,8 +39,8 @@ export function CreateThreadModal({ open, onClose, messageId, channelId, onCreat
     setLoading(true)
     try {
       const body = messageId
-        ? { messageId, name: name.trim() }
-        : { channelId, name: name.trim() }
+        ? { messageId, name: name.trim(), autoArchiveDuration }
+        : { channelId, name: name.trim(), autoArchiveDuration }
       const res = await fetch("/api/threads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,6 +82,26 @@ export function CreateThreadModal({ open, onClose, messageId, channelId, onCreat
               autoFocus
               style={{ background: "var(--theme-bg-tertiary)", border: "1px solid var(--theme-text-faint)", color: "white" }}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label style={{ color: "var(--theme-text-secondary)" }}>Auto-Archive After</Label>
+            <select
+              value={autoArchiveDuration}
+              onChange={(e) => setAutoArchiveDuration(Number(e.target.value))}
+              className="w-full rounded-md px-3 py-2 text-sm"
+              style={{ background: "var(--theme-bg-tertiary)", border: "1px solid var(--theme-text-faint)", color: "white" }}
+              aria-label="Auto-archive duration"
+            >
+              {AUTO_ARCHIVE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+              Thread will auto-archive after this period of inactivity.
+            </p>
           </div>
 
           <div className="flex justify-end gap-3">

@@ -61,6 +61,10 @@ export async function PATCH(request: Request, { params: paramsPromise }: Params)
   if (typeof body.locked === "boolean") updates.locked = body.locked
   if (body.name?.trim()) updates.name = body.name.trim()
   if (typeof body.auto_archive_duration === "number") {
+    const validDurations = [60, 1440, 4320, 10080]
+    if (!validDurations.includes(body.auto_archive_duration)) {
+      return NextResponse.json({ error: "Invalid auto_archive_duration. Must be 60, 1440, 4320, or 10080." }, { status: 400 })
+    }
     updates.auto_archive_duration = body.auto_archive_duration
   }
 

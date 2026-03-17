@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { MessageSquare, ChevronDown, ChevronRight, Archive, Lock } from "lucide-react"
+import { MessageSquare, ChevronDown, ChevronRight, Archive, Lock, Clock } from "lucide-react"
 import { format, formatDistanceToNow } from "date-fns"
 import type { ThreadRow } from "@/types/database"
 import { useRealtimeThreads } from "@/hooks/use-realtime-threads"
@@ -209,6 +209,14 @@ export function ThreadList({ channelId, activeThreadId, filter, onSelectThread }
   )
 }
 
+function formatDuration(minutes: number): string {
+  if (minutes === 60) return "1h"
+  if (minutes === 1440) return "24h"
+  if (minutes === 4320) return "3d"
+  if (minutes === 10080) return "1w"
+  return `${minutes}m`
+}
+
 function ThreadListItem({
   thread,
   isActive,
@@ -242,6 +250,15 @@ function ThreadListItem({
       </span>
       {thread.locked && <Lock className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-danger)" }} />}
       {thread.archived && <Archive className="w-3 h-3 flex-shrink-0" style={{ color: "var(--theme-warning)" }} />}
+      {!thread.archived && !thread.locked && thread.auto_archive_duration && (
+        <span
+          className="text-[10px] flex-shrink-0"
+          style={{ color: "var(--theme-text-faint)" }}
+          title={`Auto-archives after ${formatDuration(thread.auto_archive_duration)} of inactivity`}
+        >
+          <Clock className="w-3 h-3 inline" />
+        </span>
+      )}
       {isUnread && !isActive && (
         <span
           className="w-2 h-2 rounded-full flex-shrink-0"
