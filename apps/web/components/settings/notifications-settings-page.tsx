@@ -118,7 +118,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
   }, [userId, toast])
 
   function handleToggle(key: BooleanSettingKey) {
-    const next = { ...settings, [key]: !settings[key] }
+    const next = { ...settings, [key]: !(settings[key] as boolean) }
     setSettings(next)
     void persistSetting(next)
   }
