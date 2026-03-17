@@ -22,6 +22,9 @@
 | Trending / featured GIFs section | Done | Shows "Trending" header when browsing without a query |
 | Search autocomplete suggestions | Done | `/api/gif/suggestions` — Giphy related tags / Tenor autocomplete |
 | Dual-provider support (Giphy + Tenor) | Done | `lib/gif-provider.ts` — Tenor preferred when configured (free) |
+| Emoji picker in DMs | Done | Full frimousse emoji picker with search, categories, skin tone selector in `dm-channel-area` |
+| GIF picker in DMs | Done | Tabbed Emoji/GIF picker with search, trending, autocomplete suggestions in DM composer |
+| GIF inline rendering in DMs | Done | Standalone Giphy/Tenor URLs render as inline images in DM messages |
 | Separate "memes" picker tab | Gap | Low priority — could add as third picker tab |
 
 ## Voice / WebRTC
