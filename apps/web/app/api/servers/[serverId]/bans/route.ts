@@ -197,5 +197,15 @@ export async function DELETE(
     .eq("user_id", userId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await insertAuditLog(supabase, {
+    server_id: serverId,
+    actor_id: user.id,
+    action: "member_unban",
+    target_id: userId,
+    target_type: "user",
+    changes: {},
+  })
+
   return NextResponse.json({ message: "User unbanned" })
 }

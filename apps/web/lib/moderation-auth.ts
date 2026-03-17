@@ -13,6 +13,5 @@ export function canModerate(permissions: number): boolean {
  * `requireServerPermission` so permission resolution is never duplicated.
  */
 export async function requireModerator(serverId: string) {
-  const result = await requireServerPermission(serverId, "BAN_MEMBERS")
-  return { ...result, permissions: 0 }
+  return requireServerPermission(serverId, "BAN_MEMBERS")
 }
