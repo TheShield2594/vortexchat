@@ -134,8 +134,17 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
   if (!thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
   if (thread.locked) return NextResponse.json({ error: "Thread is locked" }, { status: 403 })
 
+  const serverId = (thread.channels as { server_id?: string | null } | null)?.server_id ?? null
+  if (serverId) {
+    const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, thread.parent_channel_id, user.id)
+    if (!isAdmin && !hasPermission(permissions, "SEND_MESSAGES")) {
+      return NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 })
+    }
+  }
+
   // Discord-style auto-unarchive: sending a message to an archived (non-locked)
   // thread automatically unarchives it and resets the inactivity timer.
+  // This runs after the permission check so unauthorized users cannot unarchive threads.
   let didUnarchive = false
   if (thread.archived && !thread.locked) {
     const { error: unarchiveError } = await supabase
@@ -146,14 +155,6 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
       return NextResponse.json({ error: "Failed to unarchive thread" }, { status: 500 })
     }
     didUnarchive = true
-  }
-
-  const serverId = (thread.channels as { server_id?: string | null } | null)?.server_id ?? null
-  if (serverId) {
-    const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, thread.parent_channel_id, user.id)
-    if (!isAdmin && !hasPermission(permissions, "SEND_MESSAGES")) {
-      return NextResponse.json({ error: "Missing SEND_MESSAGES permission" }, { status: 403 })
-    }
   }
 
   // Insert message linked to thread (channel_id = parent_channel_id for permissions)

@@ -8,12 +8,14 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
  * Schedule: every 5 minutes via Vercel cron (see vercel.json).
  */
 export async function GET(request: Request) {
-  // Validate cron secret to prevent unauthorized triggers
+  // Fail closed: require CRON_SECRET to be configured
+  if (!process.env.CRON_SECRET) {
+    console.error("[thread-auto-archive] CRON_SECRET is not configured")
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 })
+  }
+
   const authHeader = request.headers.get("authorization")
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

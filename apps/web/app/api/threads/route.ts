@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAuth, parseJsonBody } from "@/lib/utils/api-helpers"
+import { VALID_AUTO_ARCHIVE_DURATIONS, DEFAULT_AUTO_ARCHIVE_DURATION } from "@vortex/shared"
 
 /** GET /api/threads?channelId=xxx&archived=false — Lists threads for a channel, ordered by most recently updated. */
 export async function GET(request: Request) {
@@ -61,11 +62,14 @@ export async function POST(request: Request) {
 
   const { messageId, channelId, name, autoArchiveDuration } = body
 
-  // Validate auto_archive_duration if provided (Discord options: 60, 1440, 4320, 10080)
-  const validDurations = [60, 1440, 4320, 10080]
-  const duration = autoArchiveDuration && validDurations.includes(autoArchiveDuration)
-    ? autoArchiveDuration
-    : 1440
+  // Validate auto_archive_duration — reject invalid values (matches PATCH behavior)
+  if (autoArchiveDuration !== undefined && !VALID_AUTO_ARCHIVE_DURATIONS.has(autoArchiveDuration)) {
+    return NextResponse.json(
+      { error: `Invalid autoArchiveDuration. Must be one of: ${[...VALID_AUTO_ARCHIVE_DURATIONS].join(", ")}.` },
+      { status: 400 }
+    )
+  }
+  const duration = autoArchiveDuration ?? DEFAULT_AUTO_ARCHIVE_DURATION
   if (!name?.trim()) return NextResponse.json({ error: "name required" }, { status: 400 })
 
   if (messageId) {

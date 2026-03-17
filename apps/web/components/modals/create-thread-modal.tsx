@@ -8,14 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import type { ThreadRow } from "@/types/database"
-
-/** Discord-compatible auto-archive duration options (in minutes). */
-const AUTO_ARCHIVE_OPTIONS = [
-  { value: 60, label: "1 Hour" },
-  { value: 1440, label: "24 Hours" },
-  { value: 4320, label: "3 Days" },
-  { value: 10080, label: "1 Week" },
-] as const
+import { AUTO_ARCHIVE_OPTIONS, DEFAULT_AUTO_ARCHIVE_DURATION } from "@vortex/shared"
 
 interface Props {
   open: boolean
@@ -30,7 +23,7 @@ interface Props {
 
 export function CreateThreadModal({ open, onClose, messageId, channelId, onCreated }: Props) {
   const [name, setName] = useState("")
-  const [autoArchiveDuration, setAutoArchiveDuration] = useState(1440)
+  const [autoArchiveDuration, setAutoArchiveDuration] = useState(DEFAULT_AUTO_ARCHIVE_DURATION)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 

@@ -48,6 +48,25 @@ export function removePermission(permissions: number, permission: Permission): n
 
 export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
 
+// ── Thread auto-archive ─────────────────────────────────────────────────────
+/** Discord-compatible auto-archive duration options (in minutes). */
+export const AUTO_ARCHIVE_OPTIONS = [
+  { value: 60, label: "1 Hour" },
+  { value: 1440, label: "24 Hours" },
+  { value: 4320, label: "3 Days" },
+  { value: 10080, label: "1 Week" },
+] as const
+
+export type AutoArchiveDuration = (typeof AUTO_ARCHIVE_OPTIONS)[number]["value"]
+
+/** Set of valid auto-archive durations for server-side validation. */
+export const VALID_AUTO_ARCHIVE_DURATIONS: ReadonlySet<number> = new Set(
+  AUTO_ARCHIVE_OPTIONS.map((o) => o.value)
+)
+
+/** Default auto-archive duration (24 hours). */
+export const DEFAULT_AUTO_ARCHIVE_DURATION: AutoArchiveDuration = 1440
+
 export type ChannelType = 'text' | 'voice' | 'category' | 'forum' | 'stage' | 'announcement' | 'media'
 
 export interface SignalingEvents {

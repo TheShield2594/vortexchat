@@ -11,6 +11,7 @@ import { useRealtimeThreadMessages } from "@/hooks/use-realtime-threads"
 import { cn } from "@/lib/utils/cn"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AUTO_ARCHIVE_OPTIONS, DEFAULT_AUTO_ARCHIVE_DURATION } from "@vortex/shared"
 
 interface Props {
   thread: ThreadRow
@@ -19,13 +20,6 @@ interface Props {
   onThreadUpdate: (thread: ThreadRow) => void
   focusMessageId?: string | null
 }
-
-const AUTO_ARCHIVE_OPTIONS = [
-  { value: 60, label: "1 hour" },
-  { value: 1440, label: "24 hours" },
-  { value: 4320, label: "3 days" },
-  { value: 10080, label: "1 week" },
-] as const
 
 function formatAutoArchiveDuration(minutes: number): string {
   return AUTO_ARCHIVE_OPTIONS.find((o) => o.value === minutes)?.label ?? `${minutes}m`
@@ -204,15 +198,22 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
   }
 
   async function handleAutoArchiveDuration(duration: number) {
-    const res = await fetch(`/api/threads/${thread.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ auto_archive_duration: duration }),
-    })
-    if (res.ok) {
-      const updated = await res.json()
-      onThreadUpdate(updated)
-      toast({ title: `Auto-archive set to ${formatAutoArchiveDuration(duration)}` })
+    try {
+      const res = await fetch(`/api/threads/${thread.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto_archive_duration: duration }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        onThreadUpdate(updated)
+        toast({ title: `Auto-archive set to ${formatAutoArchiveDuration(duration)}` })
+      } else {
+        const data = await res.json().catch(() => null)
+        toast({ variant: "destructive", title: "Failed to update auto-archive", description: data?.error ?? "Unknown error" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to update auto-archive", description: "Network error" })
     }
   }
 
@@ -405,32 +406,35 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
               <Lock className="w-3 h-3" /> Locked
             </span>
           )}
-          {thread.owner_id === currentUserId ? (
-            <span className="flex items-center gap-1 text-xs">
-              <Clock className="w-3 h-3" style={{ color: "var(--theme-text-muted)" }} />
-              <select
-                value={thread.auto_archive_duration}
-                onChange={(e) => handleAutoArchiveDuration(Number(e.target.value))}
-                className="text-xs rounded px-1.5 py-0.5"
-                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)", border: "1px solid var(--theme-text-faint)" }}
-                aria-label="Auto-archive duration"
+          {(() => {
+            const duration = thread.auto_archive_duration ?? DEFAULT_AUTO_ARCHIVE_DURATION
+            return thread.owner_id === currentUserId ? (
+              <span className="flex items-center gap-1 text-xs">
+                <Clock className="w-3 h-3" style={{ color: "var(--theme-text-muted)" }} />
+                <select
+                  value={duration}
+                  onChange={(e) => handleAutoArchiveDuration(Number(e.target.value))}
+                  className="text-xs rounded px-1.5 py-0.5"
+                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)", border: "1px solid var(--theme-text-faint)" }}
+                  aria-label="Auto-archive duration"
+                >
+                  {AUTO_ARCHIVE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      Archive: {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            ) : (
+              <span
+                className="flex items-center gap-1 text-xs"
+                style={{ color: "var(--theme-text-muted)" }}
+                title={`Auto-archives after ${formatAutoArchiveDuration(duration)} of inactivity`}
               >
-                {AUTO_ARCHIVE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    Archive: {opt.label}
-                  </option>
-                ))}
-              </select>
-            </span>
-          ) : (
-            <span
-              className="flex items-center gap-1 text-xs"
-              style={{ color: "var(--theme-text-muted)" }}
-              title={`Auto-archives after ${formatAutoArchiveDuration(thread.auto_archive_duration)} of inactivity`}
-            >
-              <Clock className="w-3 h-3" /> {formatAutoArchiveDuration(thread.auto_archive_duration)}
-            </span>
-          )}
+                <Clock className="w-3 h-3" /> {formatAutoArchiveDuration(duration)}
+              </span>
+            )
+          })()}
           {isMember && (
             <>
               <select

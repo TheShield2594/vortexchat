@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { VALID_AUTO_ARCHIVE_DURATIONS } from "@vortex/shared"
 
 interface Params {
   params: Promise<{ threadId: string }>
@@ -41,6 +43,24 @@ export async function PATCH(request: Request, { params: paramsPromise }: Params)
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  // Fetch thread + parent channel for authorization
+  const { data: existing, error: fetchError } = await supabase
+    .from("threads")
+    .select("id, owner_id, parent_channel_id, channels(server_id)")
+    .eq("id", threadId)
+    .single()
+
+  if (fetchError || !existing) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
+
+  // Authorization: thread owner or users with MANAGE_CHANNELS permission
+  const serverId = (existing.channels as { server_id?: string | null } | null)?.server_id ?? null
+  let authorized = existing.owner_id === user.id
+  if (!authorized && serverId) {
+    const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, existing.parent_channel_id, user.id)
+    authorized = isAdmin || hasPermission(permissions, "MANAGE_CHANNELS")
+  }
+  if (!authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
   let body: {
     archived?: boolean
     locked?: boolean
@@ -61,9 +81,11 @@ export async function PATCH(request: Request, { params: paramsPromise }: Params)
   if (typeof body.locked === "boolean") updates.locked = body.locked
   if (body.name?.trim()) updates.name = body.name.trim()
   if (typeof body.auto_archive_duration === "number") {
-    const validDurations = [60, 1440, 4320, 10080]
-    if (!validDurations.includes(body.auto_archive_duration)) {
-      return NextResponse.json({ error: "Invalid auto_archive_duration. Must be 60, 1440, 4320, or 10080." }, { status: 400 })
+    if (!VALID_AUTO_ARCHIVE_DURATIONS.has(body.auto_archive_duration)) {
+      return NextResponse.json(
+        { error: `Invalid auto_archive_duration. Must be one of: ${[...VALID_AUTO_ARCHIVE_DURATIONS].join(", ")}.` },
+        { status: 400 }
+      )
     }
     updates.auto_archive_duration = body.auto_archive_duration
   }
@@ -90,6 +112,24 @@ export async function DELETE(_request: Request, { params: paramsPromise }: Param
   const supabase = await createServerSupabaseClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Fetch thread for authorization
+  const { data: existing, error: fetchError } = await supabase
+    .from("threads")
+    .select("id, owner_id, parent_channel_id, channels(server_id)")
+    .eq("id", threadId)
+    .single()
+
+  if (fetchError || !existing) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
+
+  // Authorization: thread owner or users with MANAGE_CHANNELS permission
+  const serverId = (existing.channels as { server_id?: string | null } | null)?.server_id ?? null
+  let authorized = existing.owner_id === user.id
+  if (!authorized && serverId) {
+    const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, existing.parent_channel_id, user.id)
+    authorized = isAdmin || hasPermission(permissions, "MANAGE_CHANNELS")
+  }
+  if (!authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const { error } = await supabase.from("threads").delete().eq("id", threadId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

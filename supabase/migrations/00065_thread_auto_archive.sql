@@ -32,6 +32,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION public.auto_archive_inactive_threads() TO service_role;
 
 -- ── Override create_thread_from_message to accept auto_archive_duration ──────
+-- Drop the old two-argument overload to prevent ambiguous-call runtime errors.
+DROP FUNCTION IF EXISTS public.create_thread_from_message(UUID, TEXT);
+
 CREATE OR REPLACE FUNCTION public.create_thread_from_message(
   p_message_id           UUID,
   p_name                 TEXT,
