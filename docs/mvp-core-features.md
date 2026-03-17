@@ -134,8 +134,16 @@
 | Giveaway Bot — enter/leave giveaways | Done | `/api/servers/[serverId]/apps/giveaway/[giveawayId]` with `enter`/`leave` actions |
 | Giveaway Bot — draw winners + announce | Done | Random selection, winner announcement in channel |
 | Giveaway Bot — end early, cancel, reroll | Done | Admin actions with confirmation dialogs |
-| App config panels in server settings | Done | Inline config UI for Welcome Bot + Giveaway Bot in Apps tab |
+| App config panels in server settings | Done | Inline config UI for all 4 apps in Apps tab |
 | Channel list API endpoint | Done | `GET /api/servers/[serverId]/channels` |
+| Standup Assistant — channel, schedule, questions | Done | `standup_app_configs` table, configurable questions (1-10), active days, reminder time/timezone |
+| Standup Assistant — submit & view standups | Done | `standup_entries` table, daily per-user submission, team view in config panel |
+| Standup Assistant — slash commands | Done | `/standup`, `/standupconfig`, `/standupview`, `/standupremind` |
+| Incident Bot — channel, severity levels | Done | `incident_app_configs` table, customizable severity labels |
+| Incident Bot — create & track incidents | Done | `incidents` table, status flow: investigating → identified → monitoring → resolved |
+| Incident Bot — timeline updates | Done | `incident_updates` table, status change + message history |
+| Incident Bot — channel announcements | Done | System bot posts on create, update, and resolve |
+| Incident Bot — slash commands | Done | `/incident`, `/iupdate`, `/iresolve`, `/ilist`, `/itimeline` |
 
 ---
 
