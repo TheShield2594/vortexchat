@@ -1,6 +1,6 @@
 // VortexChat Service Worker — source file.
 // In production this is processed by `scripts/build-sw.mjs` (workbox-build
-// injectManifest), which replaces self.__WB_MANIFEST with the list of
+// injectManifest), which replaces the WB_MANIFEST placeholder with the list of
 // content-hashed /_next/static/ assets and writes the result to public/sw.js.
 // In development, public/sw.js is used directly as a fallback.
 
