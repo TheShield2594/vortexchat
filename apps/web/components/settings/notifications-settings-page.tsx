@@ -61,7 +61,9 @@ export function NotificationsSettingsPage({ userId }: Props) {
         if (data && typeof data === "object") {
           const validated = { ...DEFAULT_SETTINGS }
           for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof NotificationSettingsRow)[]) {
-            if (typeof data[key] === "boolean") validated[key] = data[key] as boolean
+            const val = data[key]
+            if (typeof val === "boolean") (validated as Record<string, boolean | string>)[key] = val
+            else if (typeof val === "string") (validated as Record<string, boolean | string>)[key] = val
           }
           setSettings(validated)
           // Keep sound pref in localStorage for use-notification-sound hook
@@ -81,7 +83,9 @@ export function NotificationsSettingsPage({ userId }: Props) {
               const parsed = JSON.parse(stored) as Record<string, unknown>
               const validated = { ...DEFAULT_SETTINGS }
               for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof NotificationSettingsRow)[]) {
-                if (typeof parsed[key] === "boolean") validated[key] = parsed[key] as boolean
+                const val = parsed[key]
+                if (typeof val === "boolean") (validated as Record<string, boolean | string>)[key] = val
+                else if (typeof val === "string") (validated as Record<string, boolean | string>)[key] = val
               }
               setSettings(validated)
             }

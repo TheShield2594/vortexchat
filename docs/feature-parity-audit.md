@@ -70,8 +70,8 @@ Gap severity:
 | File uploads + storage | ✅ Supabase Storage buckets | ✅ | ✅ | ✅ | Parity |
 | Image preview + lightbox | ✅ `image-lightbox.tsx` with zoom/pan/gallery nav | ✅ | ✅ | ✅ | Parity |
 | Video embed (YouTube, etc.) | ✅ oEmbed + YouTube embed in Stage channels | ✅ | ✅ | ✅ | Parity |
-| Inline audio player | ❌ Audio files shown as download links only | ✅ | ✅ | ✅ | 🔴 Users expect to play audio inline |
-| Inline video player | ❌ Video files shown as download links only | ✅ | ✅ | ✅ | 🔴 Users expect to play video inline |
+| Inline audio player | ✅ `<audio>` in `message-item.tsx` | ✅ | ✅ | ✅ | Parity |
+| Inline video player | ✅ `<video>` in `message-item.tsx` | ✅ | ✅ | ✅ | Parity |
 | Malware scanning on uploads | ✅ `attachment-malware.ts`, scan states | ✅ | ✅ | ✅ | Parity |
 | Media channel (gallery view) | ✅ `media-channel.tsx` | ❌ | ❌ | ✅ | Parity (matches Discord forum/media) |
 | Max file size enforcement | ✅ 10 MB upload route limit in proxy.ts | ✅ | ✅ | ✅ | Parity |
@@ -103,7 +103,7 @@ Gap severity:
 | Spotlight / focus view | ✅ Click to enlarge, compact tile view | ✅ | ✅ | ✅ | Parity |
 | Annotation / drawing on screen | ❌ | ❌ | ✅ | ❌ | 🟢 Teams-only feature — skip |
 | Multi-presenter (concurrent shares) | ❌ One share at a time | ❌ | ✅ | ❌ | 🟢 Teams-only — skip |
-| Audio sharing with screen | ❌ `audio: false` in getDisplayMedia | ✅ | ✅ | ✅ | 🔴 Users expect system audio when screen sharing |
+| Audio sharing with screen | ✅ `audio: true` in getDisplayMedia + track forwarding | ✅ | ✅ | ✅ | Parity |
 | Presenter controls (pause, switch window) | ✅ Toggle on/off; auto-stop on track end | ✅ | ✅ | ✅ | Parity |
 
 ---
@@ -132,7 +132,7 @@ Gap severity:
 | Per-channel notification mode | ✅ `notificationModes` with mute per channel | ✅ | ✅ | ✅ | Parity |
 | Notification preferences (mentions, replies, etc.) | ✅ 4-level hierarchy, `notification-preferences` API | ✅ | ✅ | ✅ | Parity |
 | DND / status-based suppression | ✅ `dnd` user status | ✅ | ✅ | ✅ | Parity |
-| Notification schedule (quiet hours) | ❌ | ✅ | ✅ | ✅ | 🔴 All major platforms have scheduled DND |
+| Notification schedule (quiet hours) | ✅ `quiet-hours.ts` + settings UI | ✅ | ✅ | ✅ | Parity |
 | App badge (unread count) | ✅ `setAppBadge()` via service worker | ✅ | ✅ | ✅ | Parity |
 | Desktop notification sounds | ✅ Sound toggle in settings | ✅ | ✅ | ✅ | Parity |
 | Mobile push (native app) | ❌ PWA push only | ✅ | ✅ | ✅ | 🟡 PWA push covers most cases; native app is separate effort |
@@ -184,7 +184,7 @@ Gap severity:
 | Audit logs | ✅ `audit-log-page.tsx`, emoji/moderation/role events | ✅ | ✅ | ✅ | Parity |
 | Role management (bitmask permissions) | ✅ 20-bit Discord-style bitmask | ✅ | ✅ | ✅ | Parity |
 | Permission simulator | ✅ `permission-simulator.tsx` | ❌ | ❌ | ❌ | **Ahead** |
-| Data export (GDPR) | ❌ | ✅ | ✅ | ✅ | 🔴 Required for compliance in many markets |
+| Data export (GDPR) | ✅ `GET /api/users/export` + settings UI | ✅ | ✅ | ✅ | Parity |
 | SSO / SAML | ❌ OAuth connections only | ✅ | ✅ | ❌ | 🟡 Enterprise feature — depends on target market |
 | Vanity invite URL | ❌ | ✅ | ❌ | ✅ | 🟡 Branding feature for large communities |
 | Server boosting / premium tiers | ❌ | ✅ | ❌ | ✅ | 🟢 Intentional skip — "all features free" philosophy |
@@ -215,7 +215,7 @@ Gap severity:
 | Keyboard shortcuts | ✅ 12+ shortcuts, `keyboard-shortcuts-modal.tsx` | ✅ | ✅ | ✅ | Parity |
 | Focus trap in modals | ✅ `focus-trap.ts` | ✅ | ✅ | ✅ | Parity |
 | ARIA labels | ✅ Present on buttons, tabs, dialogs | ✅ | ✅ | ✅ | Parity |
-| Screen reader optimization | ⚠️ Partial — ARIA labels but no live regions for chat | ✅ | ✅ | ⚠️ | 🔴 Chat messages need `aria-live` for real-time updates |
+| Screen reader optimization | ✅ `aria-live` regions + live announcements in `chat-area.tsx` | ✅ | ✅ | ⚠️ | Parity |
 | High contrast mode | ❌ Saturation toggle only | ✅ | ✅ | ❌ | 🟡 Slack/Teams have it; Discord doesn't |
 | Font scaling | ✅ Small / Normal / Large | ✅ | ✅ | ✅ | Parity |
 | Reduced motion support | ✅ `prefers-reduced-motion` respected | ✅ | ✅ | ✅ | Parity |
@@ -262,11 +262,11 @@ Gap severity:
 
 | Rank | Gap | Severity | Impact | Effort | Rationale |
 |---|---|---|---|---|---|
-| **1** | **Inline audio/video player** | 🔴 | High | Low | All competitors play media inline. Just add `<audio>`/`<video>` tags in `message-item.tsx` for matching MIME types. ~2 hours. |
-| **2** | **Screen share with system audio** | 🔴 | High | Low | Change `audio: false` → `audio: true` in `getDisplayMedia()` call. ~1 hour. Huge impact for screen share usability. |
-| **3** | **Notification schedule (quiet hours)** | 🔴 | High | Medium | Add `quiet_hours_start/end` to user preferences + suppress push in the SW. All major platforms have this. ~1 day. |
-| **4** | **Screen reader `aria-live` regions for chat** | 🔴 | Medium | Low | Add `aria-live="polite"` to the chat message container. Essential for screen reader users. ~2 hours. |
-| **5** | **Data export (GDPR compliance)** | 🔴 | High | Medium | Export user messages, DMs, uploads as ZIP. Required for EU compliance. ~2-3 days. |
+| **1** | **Inline audio/video player** | ✅ Done | High | Low | `<audio>`/`<video>` in `message-item.tsx` |
+| **2** | **Screen share with system audio** | ✅ Done | High | Low | `audio: true` in `getDisplayMedia()` + track forwarding |
+| **3** | **Notification schedule (quiet hours)** | ✅ Done | High | Medium | `quiet-hours.ts` + migration + settings UI |
+| **4** | **Screen reader `aria-live` regions for chat** | ✅ Done | Medium | Low | `aria-live` + live announcements in `chat-area.tsx` |
+| **5** | **Data export (GDPR compliance)** | ✅ Done | High | Medium | `GET /api/users/export` + settings UI |
 | **6** | **Public bot API + token auth** | 🔴 | High | High | Introduce bot tokens, separate from user sessions. Critical for ecosystem growth but significant work. ~1-2 weeks. |
 | **7** | **Thread auto-archive** | 🟡 | Medium | Low | Add a cron job to mark threads as archived after N days of inactivity. `archived` column already exists. ~4 hours. |
 | **8** | **Outgoing webhooks / event subscriptions** | 🟡 | Medium | Medium | Fire HTTP callbacks on message/member/reaction events. Enables Zapier/Make without a full bot API. ~2-3 days. |
@@ -315,4 +315,4 @@ Full implementation plans for all gaps below are in [critical-gap-implementation
 ---
 
 *This audit should be re-run quarterly or after major feature sprints.*
-*Last updated: 2026-03-17 — 🟡 implementation plans added.*
+*Last updated: 2026-03-17 — 🔴 Gaps 1–5 implemented, 🟡 implementation plans added.*

@@ -1210,15 +1210,14 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
   if (isVideo && isDownloadable) {
     return (
       <div className="max-w-lg rounded overflow-hidden" style={{ background: "var(--theme-bg-tertiary)" }}>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- no caption tracks available for user-uploaded video */}
         <video
           src={downloadUrl}
           controls
           preload="metadata"
           className="rounded max-h-80 w-full"
           aria-label={attachment.filename}
-        >
-          <track kind="captions" />
-        </video>
+        />
         <div className="flex items-center gap-2 px-3 py-1.5">
           <span className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>{attachment.filename}</span>
           <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>{(attachment.size / 1024).toFixed(1)} KB</span>
@@ -1239,9 +1238,8 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
           <span className="text-sm font-medium truncate" style={{ color: "var(--theme-text-bright)" }}>{attachment.filename}</span>
           <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>{(attachment.size / 1024).toFixed(1)} KB</span>
         </div>
-        <audio src={downloadUrl} controls preload="metadata" className="w-full h-8" aria-label={attachment.filename}>
-          Your browser does not support audio playback.
-        </audio>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- no caption tracks available for user-uploaded audio */}
+        <audio src={downloadUrl} controls preload="metadata" className="w-full h-8" aria-label={attachment.filename} />
       </div>
     )
   }

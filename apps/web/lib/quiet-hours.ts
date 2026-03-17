@@ -28,8 +28,18 @@ export function isInQuietHours(
     return false
   }
 
-  const [startH, startM] = start.split(":").map(Number)
-  const [endH, endM] = end.split(":").map(Number)
+  const startParts = start.split(":")
+  const endParts = end.split(":")
+  if (startParts.length < 2 || endParts.length < 2) return false
+
+  const startH = Number(startParts[0])
+  const startM = Number(startParts[1])
+  const endH = Number(endParts[0])
+  const endM = Number(endParts[1])
+
+  if (!Number.isFinite(startH) || !Number.isFinite(startM) || !Number.isFinite(endH) || !Number.isFinite(endM)) return false
+  if (startH < 0 || startH > 23 || startM < 0 || startM > 59) return false
+  if (endH < 0 || endH > 23 || endM < 0 || endM > 59) return false
 
   const startMinutes = startH * 60 + startM
   const endMinutes = endH * 60 + endM

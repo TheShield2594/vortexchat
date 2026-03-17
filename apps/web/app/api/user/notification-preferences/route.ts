@@ -82,12 +82,18 @@ export async function PUT(req: NextRequest) {
     }
   }
 
-  // Validate timezone (basic check: non-empty string, max 64 chars)
+  // Validate timezone using Intl API
   if ("quiet_hours_timezone" in body) {
-    if (typeof body.quiet_hours_timezone !== "string" || !body.quiet_hours_timezone || (body.quiet_hours_timezone as string).length > 64) {
+    const tz = body.quiet_hours_timezone
+    if (typeof tz !== "string" || !tz || tz.length > 64) {
       return NextResponse.json({ error: "quiet_hours_timezone must be a valid IANA timezone string" }, { status: 400 })
     }
-    patch.quiet_hours_timezone = body.quiet_hours_timezone as string
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: tz })
+    } catch {
+      return NextResponse.json({ error: "quiet_hours_timezone must be a valid IANA timezone string" }, { status: 400 })
+    }
+    patch.quiet_hours_timezone = tz
   }
 
   if (Object.keys(patch).length === 0) {

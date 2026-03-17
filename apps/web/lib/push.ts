@@ -38,11 +38,16 @@ export async function sendPushToUser(
   const supabase = await createServerSupabaseClient()
 
   // Check quiet hours — suppress push if the user is in their scheduled DND window
-  const { data: quietPrefs } = await supabase
+  const { data: quietPrefs, error: quietError } = await supabase
     .from("user_notification_preferences")
     .select("quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
     .eq("user_id", userId)
     .maybeSingle()
+
+  if (quietError) {
+    console.error("Failed to fetch quiet hours preferences:", quietError.message)
+    // Continue sending — fail open rather than suppressing notifications
+  }
 
   if (quietPrefs && isInQuietHours(
     quietPrefs.quiet_hours_enabled,

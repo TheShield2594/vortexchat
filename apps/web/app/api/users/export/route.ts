@@ -16,6 +16,16 @@ export async function GET() {
 
   const userId = user.id
 
+  // Rate limit: one export per 24 hours
+  const { rateLimiter } = await import("@/lib/rate-limit")
+  const rl = await rateLimiter.check(`export:${userId}`, { limit: 1, windowMs: 24 * 60 * 60 * 1000 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Export rate limit exceeded. Please try again in 24 hours." },
+      { status: 429 }
+    )
+  }
+
   // Gather all user-owned data in parallel
   const [
     profileResult,
@@ -71,6 +81,24 @@ export async function GET() {
       .order("created_at", { ascending: false })
       .limit(5000),
   ])
+
+  // Check for query errors
+  const queryErrors = [
+    profileResult.error && `profile: ${profileResult.error.message}`,
+    messagesResult.error && `messages: ${messagesResult.error.message}`,
+    dmMessagesResult.error && `direct_messages: ${dmMessagesResult.error.message}`,
+    friendsResult.error && `friendships: ${friendsResult.error.message}`,
+    serversResult.error && `server_memberships: ${serversResult.error.message}`,
+    notifPrefsResult.error && `notification_preferences: ${notifPrefsResult.error.message}`,
+    reactionsResult.error && `reactions: ${reactionsResult.error.message}`,
+  ].filter(Boolean)
+
+  if (queryErrors.length > 0) {
+    return NextResponse.json(
+      { error: "Failed to gather export data", details: queryErrors },
+      { status: 500 }
+    )
+  }
 
   const exportData = {
     exported_at: new Date().toISOString(),

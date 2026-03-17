@@ -5,7 +5,7 @@
 
 This document provides concrete implementation plans for all 🔴 Critical and 🟡 Nice-to-have gaps.
 🔴 Gaps 1–5 have been **scaffolded** (code written). Gap 6 is planned.
-🟡 Gaps 7–25 are fully planned with file-level detail.
+🟡 Gaps 7–24 are fully planned with file-level detail.
 
 ---
 
@@ -823,12 +823,6 @@ Phone verification (level 4) would require Twilio integration — mark as out-of
   Skip to content
 </a>
 ```
-
----
-
-## Gap 25: Rich-Text Formatting Toolbar 📋 PLANNED
-
-(Duplicate of Gap 12 — see above for full plan.)
 
 ---
 

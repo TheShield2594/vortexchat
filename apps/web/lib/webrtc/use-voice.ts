@@ -1100,12 +1100,30 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
           // Add system audio track from screen share if available
           const [audioTrack] = stream.getAudioTracks()
           if (audioTrack) {
-            pc.addTrack(audioTrack, stream)
+            // Check if there's an existing screen-share audio sender to replace
+            const existingAudioSenders = pc.getSenders().filter((s) => s.track?.kind === "audio")
+            // If we have more than one audio sender (mic + previous share), replace the extra one
+            if (existingAudioSenders.length > 1) {
+              existingAudioSenders[existingAudioSenders.length - 1].replaceTrack(audioTrack)
+            } else {
+              pc.addTrack(audioTrack, stream)
+            }
           }
         })
 
         stream.getVideoTracks()[0].onended = () => {
-          screenStream.current?.getAudioTracks().forEach((t) => t.stop())
+          // Remove screen-share audio senders from peer connections
+          const shareAudioTracks = screenStream.current?.getAudioTracks() ?? []
+          if (shareAudioTracks.length > 0) {
+            peerConnections.current.forEach((pc) => {
+              pc.getSenders().forEach((s) => {
+                if (s.track && shareAudioTracks.includes(s.track)) {
+                  try { pc.removeTrack(s) } catch { /* noop */ }
+                }
+              })
+            })
+            shareAudioTracks.forEach((t) => { t.stop() })
+          }
           screenStream.current = null
           setScreenSharing(false)
         }
