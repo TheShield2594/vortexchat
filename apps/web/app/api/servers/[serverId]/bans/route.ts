@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
-
-const BAN_MEMBERS = 16
-const KICK_MEMBERS = 8
-
-function hasPermission(permissions: number, flag: number) {
-  return (permissions & flag) !== 0
-}
+import { hasPermission as checkPermission } from "@vortex/shared"
+import { aggregateMemberPermissions } from "@/lib/server-auth"
 
 // GET /api/servers/[serverId]/bans — list bans
 export async function GET(
@@ -32,11 +27,9 @@ export async function GET(
     .single()
 
   const isOwner = server?.owner_id === user.id
-  const permissions = (member as any)?.member_roles
-    ?.flatMap((mr: any) => mr.roles?.permissions ?? 0)
-    .reduce((acc: number, p: number) => acc | p, 0) ?? 0
+  const permissions = aggregateMemberPermissions((member as any)?.member_roles)
 
-  if (!isOwner && !hasPermission(permissions, BAN_MEMBERS)) {
+  if (!isOwner && !checkPermission(permissions, "BAN_MEMBERS")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -80,11 +73,9 @@ export async function POST(
       .eq("user_id", user.id)
       .single()
 
-    const permissions = (member as any)?.member_roles
-      ?.flatMap((mr: any) => mr.roles?.permissions ?? 0)
-      .reduce((acc: number, p: number) => acc | p, 0) ?? 0
+    const permissions = aggregateMemberPermissions((member as any)?.member_roles)
 
-    if (!hasPermission(permissions, BAN_MEMBERS)) {
+    if (!checkPermission(permissions, "BAN_MEMBERS")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
   }
@@ -192,11 +183,9 @@ export async function DELETE(
       .eq("user_id", user.id)
       .single()
 
-    const permissions = (member as any)?.member_roles
-      ?.flatMap((mr: any) => mr.roles?.permissions ?? 0)
-      .reduce((acc: number, p: number) => acc | p, 0) ?? 0
+    const permissions = aggregateMemberPermissions((member as any)?.member_roles)
 
-    if (!hasPermission(permissions, BAN_MEMBERS)) {
+    if (!checkPermission(permissions, "BAN_MEMBERS")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
   }
@@ -208,5 +197,20 @@ export async function DELETE(
     .eq("user_id", userId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const { error: auditError } = await insertAuditLog(supabase, {
+    server_id: serverId,
+    actor_id: user.id,
+    action: "member_unban",
+    target_id: userId,
+    target_type: "user",
+    changes: {},
+  })
+
+  if (auditError) {
+    console.warn("Failed to write unban audit log", { serverId, userId, error: auditError.message })
+    return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
+  }
+
   return NextResponse.json({ message: "User unbanned" })
 }
