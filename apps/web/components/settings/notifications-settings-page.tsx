@@ -21,7 +21,9 @@ type NotificationSettingsRow = {
   quiet_hours_timezone: string
 }
 
-const SETTING_LABELS: { key: keyof NotificationSettingsRow; label: string; description: string }[] = [
+type BooleanSettingKey = "mention_notifications" | "reply_notifications" | "friend_request_notifications" | "server_invite_notifications" | "system_notifications" | "sound_enabled" | "quiet_hours_enabled"
+
+const SETTING_LABELS: { key: BooleanSettingKey; label: string; description: string }[] = [
   { key: "mention_notifications", label: "Mentions", description: "When someone @mentions you in a channel" },
   { key: "reply_notifications", label: "Replies", description: "When someone replies to your message" },
   { key: "friend_request_notifications", label: "Friend Requests", description: "When you receive a new friend request" },
@@ -115,7 +117,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
     }
   }, [userId, toast])
 
-  function handleToggle(key: keyof NotificationSettingsRow) {
+  function handleToggle(key: BooleanSettingKey) {
     const next = { ...settings, [key]: !settings[key] }
     setSettings(next)
     void persistSetting(next)
@@ -123,6 +125,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
 
   function muteAll() {
     const next: NotificationSettingsRow = {
+      ...settings,
       mention_notifications: false,
       reply_notifications: false,
       friend_request_notifications: false,

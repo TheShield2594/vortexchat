@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json() as Record<string, unknown>
 
   // Validate: only accept boolean values for known boolean keys
-  const BOOL_KEYS: (keyof UserNotificationPreferences)[] = [
+  const BOOL_KEYS = [
     "mention_notifications",
     "reply_notifications",
     "friend_request_notifications",
@@ -59,9 +59,9 @@ export async function PUT(req: NextRequest) {
     "system_notifications",
     "sound_enabled",
     "quiet_hours_enabled",
-  ]
+  ] as const
 
-  const patch: Partial<UserNotificationPreferences> = {}
+  const patch: Record<string, boolean | string> = {}
   for (const key of BOOL_KEYS) {
     if (key in body) {
       if (typeof body[key] !== "boolean") {
