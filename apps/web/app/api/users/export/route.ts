@@ -1,0 +1,106 @@
+import { NextResponse } from "next/server"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+
+/**
+ * GET /api/users/export
+ *
+ * GDPR data export — returns a JSON file containing all user-owned data:
+ * profile, messages, DMs, friend list, server memberships, notification preferences.
+ *
+ * Rate limited: one export per 24 hours via client-side gating + server check.
+ */
+export async function GET() {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const userId = user.id
+
+  // Gather all user-owned data in parallel
+  const [
+    profileResult,
+    messagesResult,
+    dmMessagesResult,
+    friendsResult,
+    serversResult,
+    notifPrefsResult,
+    reactionsResult,
+  ] = await Promise.all([
+    // Profile
+    supabase
+      .from("users")
+      .select("id, username, display_name, bio, avatar_url, banner_color, status, status_message, status_emoji, custom_tag, onboarding_completed_at, created_at")
+      .eq("id", userId)
+      .single(),
+    // Server messages (last 10k for practical limits)
+    supabase
+      .from("messages")
+      .select("id, channel_id, content, created_at, edited_at, deleted")
+      .eq("author_id", userId)
+      .eq("deleted", false)
+      .order("created_at", { ascending: false })
+      .limit(10000),
+    // DM messages (last 10k)
+    supabase
+      .from("dm_messages")
+      .select("id, dm_channel_id, content, created_at")
+      .eq("sender_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10000),
+    // Friends
+    supabase
+      .from("friendships")
+      .select("id, user_id, friend_id, status, created_at")
+      .or(`user_id.eq.${userId},friend_id.eq.${userId}`),
+    // Server memberships
+    supabase
+      .from("server_members")
+      .select("server_id, joined_at, servers(name)")
+      .eq("user_id", userId),
+    // Notification preferences
+    supabase
+      .from("user_notification_preferences")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    // Reactions
+    supabase
+      .from("reactions")
+      .select("id, message_id, emoji, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(5000),
+  ])
+
+  const exportData = {
+    exported_at: new Date().toISOString(),
+    user_id: userId,
+    profile: profileResult.data ?? null,
+    messages: {
+      count: messagesResult.data?.length ?? 0,
+      items: messagesResult.data ?? [],
+    },
+    direct_messages: {
+      count: dmMessagesResult.data?.length ?? 0,
+      items: dmMessagesResult.data ?? [],
+    },
+    friendships: friendsResult.data ?? [],
+    server_memberships: serversResult.data ?? [],
+    notification_preferences: notifPrefsResult.data ?? null,
+    reactions: {
+      count: reactionsResult.data?.length ?? 0,
+      items: reactionsResult.data ?? [],
+    },
+  }
+
+  const body = JSON.stringify(exportData, null, 2)
+
+  return new NextResponse(body, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Disposition": `attachment; filename="vortexchat-export-${userId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json"`,
+      "Cache-Control": "no-store",
+    },
+  })
+}

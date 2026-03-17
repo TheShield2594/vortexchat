@@ -1086,7 +1086,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: { cursor: "always" } as MediaTrackConstraints,
-          audio: false,
+          audio: true,
         })
         screenStream.current = stream
         setScreenSharing(true)
@@ -1096,9 +1096,16 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
           const sender = pc.getSenders().find((s) => s.track?.kind === "video")
           if (sender) sender.replaceTrack(videoTrack)
           else pc.addTrack(videoTrack, stream)
+
+          // Add system audio track from screen share if available
+          const [audioTrack] = stream.getAudioTracks()
+          if (audioTrack) {
+            pc.addTrack(audioTrack, stream)
+          }
         })
 
         stream.getVideoTracks()[0].onended = () => {
+          screenStream.current?.getAudioTracks().forEach((t) => t.stop())
           screenStream.current = null
           setScreenSharing(false)
         }

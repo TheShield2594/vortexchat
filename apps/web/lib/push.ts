@@ -1,6 +1,7 @@
 import webpush from "web-push"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { resolveNotification } from "@/lib/notification-resolver"
+import { isInQuietHours } from "@/lib/quiet-hours"
 
 // VAPID keys — set these env vars (generate once with: npx web-push generate-vapid-keys)
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""
@@ -35,6 +36,23 @@ export async function sendPushToUser(
   ensureVapid()
 
   const supabase = await createServerSupabaseClient()
+
+  // Check quiet hours — suppress push if the user is in their scheduled DND window
+  const { data: quietPrefs } = await supabase
+    .from("user_notification_preferences")
+    .select("quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (quietPrefs && isInQuietHours(
+    quietPrefs.quiet_hours_enabled,
+    quietPrefs.quiet_hours_start,
+    quietPrefs.quiet_hours_end,
+    quietPrefs.quiet_hours_timezone,
+  )) {
+    return // suppress during quiet hours
+  }
+
   const { data: subs } = await supabase
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth")

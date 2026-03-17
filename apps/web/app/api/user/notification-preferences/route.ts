@@ -8,6 +8,10 @@ export type UserNotificationPreferences = {
   server_invite_notifications: boolean
   system_notifications: boolean
   sound_enabled: boolean
+  quiet_hours_enabled: boolean
+  quiet_hours_start: string
+  quiet_hours_end: string
+  quiet_hours_timezone: string
 }
 
 const DEFAULTS: UserNotificationPreferences = {
@@ -17,6 +21,10 @@ const DEFAULTS: UserNotificationPreferences = {
   server_invite_notifications: true,
   system_notifications: true,
   sound_enabled: true,
+  quiet_hours_enabled: false,
+  quiet_hours_start: "22:00",
+  quiet_hours_end: "08:00",
+  quiet_hours_timezone: "UTC",
 }
 
 // GET /api/user/notification-preferences
@@ -27,7 +35,7 @@ export async function GET() {
 
   const { data } = await supabase
     .from("user_notification_preferences")
-    .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled")
+    .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
     .eq("user_id", user.id)
     .maybeSingle()
 
@@ -42,7 +50,7 @@ export async function PUT(req: NextRequest) {
 
   const body = await req.json() as Record<string, unknown>
 
-  // Validate: only accept boolean values for known keys
+  // Validate: only accept boolean values for known boolean keys
   const BOOL_KEYS: (keyof UserNotificationPreferences)[] = [
     "mention_notifications",
     "reply_notifications",
@@ -50,6 +58,7 @@ export async function PUT(req: NextRequest) {
     "server_invite_notifications",
     "system_notifications",
     "sound_enabled",
+    "quiet_hours_enabled",
   ]
 
   const patch: Partial<UserNotificationPreferences> = {}
@@ -60,6 +69,25 @@ export async function PUT(req: NextRequest) {
       }
       patch[key] = body[key] as boolean
     }
+  }
+
+  // Validate quiet hours time fields (HH:MM format)
+  const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+  for (const key of ["quiet_hours_start", "quiet_hours_end"] as const) {
+    if (key in body) {
+      if (typeof body[key] !== "string" || !TIME_RE.test(body[key] as string)) {
+        return NextResponse.json({ error: `${key} must be HH:MM format` }, { status: 400 })
+      }
+      patch[key] = body[key] as string
+    }
+  }
+
+  // Validate timezone (basic check: non-empty string, max 64 chars)
+  if ("quiet_hours_timezone" in body) {
+    if (typeof body.quiet_hours_timezone !== "string" || !body.quiet_hours_timezone || (body.quiet_hours_timezone as string).length > 64) {
+      return NextResponse.json({ error: "quiet_hours_timezone must be a valid IANA timezone string" }, { status: 400 })
+    }
+    patch.quiet_hours_timezone = body.quiet_hours_timezone as string
   }
 
   if (Object.keys(patch).length === 0) {

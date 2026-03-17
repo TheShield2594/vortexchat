@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Bell, BellOff, Volume2, VolumeX } from "lucide-react"
+import { Bell, BellOff, Volume2, VolumeX, Moon } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Props {
@@ -15,6 +15,10 @@ type NotificationSettingsRow = {
   server_invite_notifications: boolean
   system_notifications: boolean
   sound_enabled: boolean
+  quiet_hours_enabled: boolean
+  quiet_hours_start: string
+  quiet_hours_end: string
+  quiet_hours_timezone: string
 }
 
 const SETTING_LABELS: { key: keyof NotificationSettingsRow; label: string; description: string }[] = [
@@ -33,6 +37,10 @@ const DEFAULT_SETTINGS: NotificationSettingsRow = {
   server_invite_notifications: true,
   system_notifications: true,
   sound_enabled: true,
+  quiet_hours_enabled: false,
+  quiet_hours_start: "22:00",
+  quiet_hours_end: "08:00",
+  quiet_hours_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
 }
 
 // localStorage key kept for sound_enabled cross-component sync
@@ -202,6 +210,103 @@ export function NotificationsSettingsPage({ userId }: Props) {
             </div>
           )
         })}
+      </section>
+
+      {/* ── Quiet hours ────────────────────────── */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+          Quiet Hours
+        </h2>
+        <p className="text-xs mb-2" style={{ color: "var(--theme-text-muted)" }}>
+          Suppress push notifications during a scheduled window each day.
+        </p>
+
+        {/* Enable toggle */}
+        <div
+          className="flex items-center justify-between px-4 py-3 rounded-lg"
+          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+        >
+          <div className="flex items-center gap-3">
+            <Moon className="w-4 h-4" style={{ color: settings.quiet_hours_enabled ? "var(--theme-accent)" : "var(--theme-text-muted)" }} />
+            <div>
+              <p className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>Enable quiet hours</p>
+              <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Notifications will be silenced during the scheduled window</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleToggle("quiet_hours_enabled")}
+            disabled={saving}
+            className="relative w-10 h-6 rounded-full transition-all focus-ring disabled:opacity-50"
+            style={{ background: settings.quiet_hours_enabled ? "var(--theme-accent)" : "var(--theme-bg-tertiary)" }}
+            role="switch"
+            aria-checked={settings.quiet_hours_enabled}
+            aria-label="Enable quiet hours"
+          >
+            <span
+              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+              style={{ transform: settings.quiet_hours_enabled ? "translateX(16px)" : "translateX(0)" }}
+            />
+          </button>
+        </div>
+
+        {/* Time pickers — only shown when enabled */}
+        {settings.quiet_hours_enabled && (
+          <div
+            className="grid grid-cols-2 gap-3 px-4 py-3 rounded-lg"
+            style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+          >
+            <label className="space-y-1">
+              <span className="text-xs font-medium" style={{ color: "var(--theme-text-muted)" }}>Start</span>
+              <input
+                type="time"
+                value={settings.quiet_hours_start}
+                onChange={(e) => {
+                  const next = { ...settings, quiet_hours_start: e.target.value }
+                  setSettings(next)
+                  void persistSetting(next)
+                }}
+                className="w-full rounded px-2 py-1.5 text-sm focus-ring"
+                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-bright)", border: "1px solid var(--theme-bg-tertiary)" }}
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium" style={{ color: "var(--theme-text-muted)" }}>End</span>
+              <input
+                type="time"
+                value={settings.quiet_hours_end}
+                onChange={(e) => {
+                  const next = { ...settings, quiet_hours_end: e.target.value }
+                  setSettings(next)
+                  void persistSetting(next)
+                }}
+                className="w-full rounded px-2 py-1.5 text-sm focus-ring"
+                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-bright)", border: "1px solid var(--theme-bg-tertiary)" }}
+              />
+            </label>
+            <div className="col-span-2">
+              <label className="space-y-1">
+                <span className="text-xs font-medium" style={{ color: "var(--theme-text-muted)" }}>Timezone</span>
+                <select
+                  value={settings.quiet_hours_timezone}
+                  onChange={(e) => {
+                    const next = { ...settings, quiet_hours_timezone: e.target.value }
+                    setSettings(next)
+                    void persistSetting(next)
+                  }}
+                  className="w-full rounded px-2 py-1.5 text-sm focus-ring"
+                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-bright)", border: "1px solid var(--theme-bg-tertiary)" }}
+                >
+                  {Intl.supportedValuesOf?.("timeZone")?.map((tz: string) => (
+                    <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>
+                  )) ?? (
+                    <option value={settings.quiet_hours_timezone}>{settings.quiet_hours_timezone}</option>
+                  )}
+                </select>
+              </label>
+            </div>
+          </div>
+        )}
       </section>
 
       <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
