@@ -6,7 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
  * slot.  Individual task routes (/api/cron/event-reminders, etc.) remain
  * available for manual or test invocations.
  *
- * Schedule: every 5 minutes via Vercel cron (see vercel.json).
+ * Schedule: daily at midnight UTC via Vercel cron (see vercel.json).
  */
 export async function GET(request: Request) {
   // Fail closed: require CRON_SECRET to be configured
@@ -37,13 +37,12 @@ export async function GET(request: Request) {
 // ── Event reminders ──────────────────────────────────────────────────────────
 async function runEventReminders(service: Awaited<ReturnType<typeof createServiceRoleClient>>) {
   const now = new Date()
-  const windowStart = new Date(now.getTime() + 10 * 60 * 1000)
-  const windowEnd = new Date(now.getTime() + 20 * 60 * 1000)
+  const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000) // next 24 hours
 
   const { data: events, error: eventsError } = await service
     .from("events")
     .select("id, title, server_id, linked_channel_id, start_at")
-    .gte("start_at", windowStart.toISOString())
+    .gte("start_at", now.toISOString())
     .lte("start_at", windowEnd.toISOString())
 
   if (eventsError) {
@@ -69,8 +68,8 @@ async function runEventReminders(service: Awaited<ReturnType<typeof createServic
     const notifications = rsvps.map((r: { user_id: string }) => ({
       user_id: r.user_id,
       type: "system" as const,
-      title: `\u23F0 Starting soon: ${event.title}`,
-      body: `${event.title} starts in about 15 minutes.`,
+      title: `\u23F0 Event today: ${event.title}`,
+      body: `${event.title} is happening today at ${new Date(event.start_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}.`,
       server_id: event.server_id,
       channel_id: event.linked_channel_id ?? null,
     }))
