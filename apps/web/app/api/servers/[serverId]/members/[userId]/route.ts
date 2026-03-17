@@ -10,7 +10,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 
-const KICK_MEMBERS = 8
+import { PERMISSIONS } from "@vortex/shared"
 
 type Params = { params: Promise<{ serverId: string; userId: string }> }
 
@@ -79,7 +79,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const isOwner = server.owner_id === user.id
   if (!isOwner) {
     const perms = await getMemberPermissions(supabase, serverId, user.id)
-    if ((perms & KICK_MEMBERS) === 0) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if ((perms & PERMISSIONS.KICK_MEMBERS) === 0) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     // Role hierarchy check: requester must outrank the target.
     // Fetch both members' role positions and compare.
