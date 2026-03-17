@@ -273,17 +273,30 @@ Gap severity:
 | **9** | **Channel archiving** | 🟡 | Medium | Low | Add `archived` boolean to channels table, hide from sidebar, restrict posting. ~4 hours. |
 | **10** | **Sticker packs** | 🟡 | Low | Medium | Add sticker upload/management alongside existing custom emoji system. Retention feature. ~2-3 days. |
 
-### Honorable Mentions (not top 10 but worth tracking)
+### All 🟡 Nice-to-Have Gaps (with implementation plans)
 
-| Gap | Severity | Notes |
-|---|---|---|
-| Video background blur | 🟡 | Requires TensorFlow.js or similar — heavy dependency; Discord doesn't have it either |
-| SSO / SAML | 🟡 | Only matters if targeting enterprise; Supabase Auth supports it via config |
-| High contrast mode | 🟡 | CSS-variable theme swap; Slack has it, Discord doesn't |
-| Rich-text formatting toolbar | 🟡 | Discord succeeds without one — markdown-only is acceptable |
-| Vanity invite URLs | 🟡 | Branding feature for large servers — simple DB column + route |
-| Skip navigation links | 🟡 | Important for keyboard-only users, trivial to add |
-| Raid protection | 🟡 | Explicit "lockdown" mode when join rate spikes — rapid_message partially covers this |
+Full implementation plans for all gaps below are in [critical-gap-implementation-plans.md](./critical-gap-implementation-plans.md).
+
+| # | Gap | Severity | Complexity | Plan Section |
+|---|---|---|---|---|
+| 7 | Thread auto-archive | 🟡 | S | Gap 7 — cron job, columns already exist |
+| 8 | Outgoing webhooks / event subscriptions | 🟡 | M | Gap 8 — new table + dispatch pipeline |
+| 9 | Channel archiving | 🟡 | S | Gap 9 — boolean column + sidebar/input gating |
+| 10 | Sticker packs | 🟡 | M | Gap 10 — extends emoji system |
+| 11 | Message scheduling | 🟡 | M | Gap 11 — DB table + cron job |
+| 12 | Rich-text formatting toolbar | 🟡 | S | Gap 12 — markdown insertion, no new deps |
+| 13 | Video background blur | 🟡 | M | Gap 13 — MediaPipe WASM (~2MB), CPU-heavy |
+| 14 | Hand raise (general voice) | 🟡 | S | Gap 14 — signaling event, no new perms |
+| 15 | Saved searches | 🟡 | S | Gap 15 — localStorage, no migration |
+| 16 | Mobile push (native app) | 🟡 | L | Gap 16 — deferred (Capacitor wrapper) |
+| 17 | Zapier/Make connector | 🟡 | S | Gap 17 — automatic once #8 built |
+| 18 | OAuth2 for third-party apps | 🟡 | L | Gap 18 — OAuth2 server, depends on #6 |
+| 19 | SSO / SAML | 🟡 | M | Gap 19 — Supabase Auth native support |
+| 20 | Vanity invite URLs | 🟡 | S | Gap 20 — single column + route |
+| 21 | Raid protection | 🟡 | M | Gap 21 — extends automod system |
+| 22 | Verification levels | 🟡 | S | Gap 22 — server setting + join gate |
+| 23 | High contrast mode | 🟡 | S | Gap 23 — CSS variable overrides |
+| 24 | Skip navigation links | 🟡 | S | Gap 24 — standard HTML skip links |
 
 ---
 
@@ -302,3 +315,4 @@ Gap severity:
 ---
 
 *This audit should be re-run quarterly or after major feature sprints.*
+*Last updated: 2026-03-17 — 🟡 implementation plans added.*
