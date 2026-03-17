@@ -219,6 +219,10 @@ export type Database = {
           server_invite_notifications: boolean
           system_notifications: boolean
           sound_enabled: boolean
+          quiet_hours_enabled: boolean
+          quiet_hours_start: string
+          quiet_hours_end: string
+          quiet_hours_timezone: string
           updated_at: string
         }
         Insert: {
@@ -229,6 +233,10 @@ export type Database = {
           server_invite_notifications?: boolean
           system_notifications?: boolean
           sound_enabled?: boolean
+          quiet_hours_enabled?: boolean
+          quiet_hours_start?: string
+          quiet_hours_end?: string
+          quiet_hours_timezone?: string
           updated_at?: string
         }
         Update: {
@@ -239,6 +247,10 @@ export type Database = {
           server_invite_notifications?: boolean
           system_notifications?: boolean
           sound_enabled?: boolean
+          quiet_hours_enabled?: boolean
+          quiet_hours_start?: string
+          quiet_hours_end?: string
+          quiet_hours_timezone?: string
           updated_at?: string
         }
         Relationships: [
