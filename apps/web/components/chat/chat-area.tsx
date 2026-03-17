@@ -791,16 +791,19 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       return
     }
 
+    // Announce new messages from other users for screen readers regardless of scroll position
+    if (newestMessage.author_id !== currentUserId) {
+      const authorName = newestMessage.author?.display_name || newestMessage.author?.username || "Unknown"
+      const preview = newestMessage.content ? `: ${newestMessage.content.slice(0, 120)}` : ""
+      liveAnnouncementCounterRef.current += 1
+      setLiveAnnouncement("")
+      queueMicrotask(() => {
+        setLiveAnnouncement(`New message from ${authorName}${preview}`)
+      })
+    }
+
     // Already at bottom — no scroll needed, column-reverse handles it
     if (isAtBottom) return
-
-    // Not at bottom + message from someone else → show unread indicator
-    const authorName = newestMessage.author?.display_name || newestMessage.author?.username || "Unknown"
-    liveAnnouncementCounterRef.current += 1
-    setLiveAnnouncement("")
-    queueMicrotask(() => {
-      setLiveAnnouncement(`New message from ${authorName}`)
-    })
 
     setPendingNewMessageCount((count) => count + 1)
     setUnreadAnchorMessageId((current) => {
@@ -1558,6 +1561,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           ref={messageScrollerRef}
           className="flex-1 overflow-y-auto relative"
           role="log"
+          aria-label="Message history"
+          aria-relevant="additions"
           style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none" }}
         >
           {/* Inner wrapper — rendered in normal (top-to-bottom) order inside

@@ -1185,6 +1185,8 @@ function getAttachmentStatusCopy(scanState: string | null | undefined) {
 function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverId }: { attachment: AttachmentRow; onOpenImage?: () => void; canManageMessages: boolean; serverId?: string }) {
   const [moderationBusy, setModerationBusy] = useState<"release" | "delete" | null>(null)
   const isImage = attachment.content_type?.startsWith("image/")
+  const isVideo = attachment.content_type?.startsWith("video/")
+  const isAudio = attachment.content_type?.startsWith("audio/")
   const statusCopy = getAttachmentStatusCopy((attachment as AttachmentRow & { scan_state?: string | null }).scan_state)
   const isDownloadable = isAttachmentDownloadAllowed((attachment as AttachmentRow & { scan_state?: "pending_scan" | "clean" | "quarantined" | "failed_scan" | null }).scan_state)
   const downloadUrl = `/api/attachments/${attachment.id}/download`
@@ -1202,6 +1204,43 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
           style={{ width: "auto", maxWidth: "100%", height: "auto", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
         />
       </button>
+    )
+  }
+
+  if (isVideo && isDownloadable) {
+    return (
+      <div className="max-w-lg rounded overflow-hidden" style={{ background: "var(--theme-bg-tertiary)" }}>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- no caption tracks available for user-uploaded video */}
+        <video
+          src={downloadUrl}
+          controls
+          preload="metadata"
+          className="rounded max-h-80 w-full"
+          aria-label={attachment.filename}
+        />
+        <div className="flex items-center gap-2 px-3 py-1.5">
+          <span className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>{attachment.filename}</span>
+          <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>{(attachment.size / 1024).toFixed(1)} KB</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (isAudio && isDownloadable) {
+    return (
+      <div className="max-w-sm rounded p-3 space-y-2" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: "var(--theme-accent)" }}>
+            <span className="text-[10px] font-bold" style={{ color: "var(--theme-text-bright)" }}>
+              {attachment.filename.split(".").pop()?.toUpperCase().slice(0, 4)}
+            </span>
+          </div>
+          <span className="text-sm font-medium truncate" style={{ color: "var(--theme-text-bright)" }}>{attachment.filename}</span>
+          <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>{(attachment.size / 1024).toFixed(1)} KB</span>
+        </div>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- no caption tracks available for user-uploaded audio */}
+        <audio src={downloadUrl} controls preload="metadata" className="w-full h-8" aria-label={attachment.filename} />
+      </div>
     )
   }
 

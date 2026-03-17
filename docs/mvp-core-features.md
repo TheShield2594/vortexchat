@@ -90,7 +90,28 @@
 | CSRF protection | Done | Origin/Referer validation in `proxy.ts` for all mutation requests to `/api/*`; passthrough routes use bearer tokens |
 | Request body size limits | Done | `proxy.ts` rejects oversized payloads: 1 MB for JSON routes, 10 MB for upload routes; returns 413 |
 | Input validation hardening | Done | Search query capped at 500 chars; command args at 4000; login email/password format + length checks; passkey registration field type + length validation |
+| GDPR data export | Done | `GET /api/users/export` — JSON download of profile, messages, DMs, friends, servers, reactions; button in Security settings |
+
+## Media Playback
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Inline audio player | Done | `<audio controls>` in `AttachmentDisplay` for `audio/*` MIME types |
+| Inline video player | Done | `<video controls>` in `AttachmentDisplay` for `video/*` MIME types |
+| Screen share system audio | Done | `getDisplayMedia({ audio: true })` in `use-voice.ts`; audio track forwarded to peers |
+
+## Notifications
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Quiet hours (notification schedule) | Done | Migration 00064; `quiet_hours_enabled/start/end/timezone` columns; `isInQuietHours()` utility; push suppressed in `sendPushToUser()`; UI in Notifications settings |
+
+## Accessibility
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Screen reader live announcements for new messages | Done | `aria-live="polite"` region announces all incoming messages with author + preview; `role="log"` with `aria-relevant="additions"` on message container |
 
 ---
 
-*Last updated: 2026-03-13*
+*Last updated: 2026-03-17*

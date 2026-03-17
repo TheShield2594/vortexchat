@@ -1086,7 +1086,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: { cursor: "always" } as MediaTrackConstraints,
-          audio: false,
+          audio: true,
         })
         screenStream.current = stream
         setScreenSharing(true)
@@ -1096,9 +1096,34 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
           const sender = pc.getSenders().find((s) => s.track?.kind === "video")
           if (sender) sender.replaceTrack(videoTrack)
           else pc.addTrack(videoTrack, stream)
+
+          // Add system audio track from screen share if available
+          const [audioTrack] = stream.getAudioTracks()
+          if (audioTrack) {
+            // Check if there's an existing screen-share audio sender to replace
+            const existingAudioSenders = pc.getSenders().filter((s) => s.track?.kind === "audio")
+            // If we have more than one audio sender (mic + previous share), replace the extra one
+            if (existingAudioSenders.length > 1) {
+              existingAudioSenders[existingAudioSenders.length - 1].replaceTrack(audioTrack)
+            } else {
+              pc.addTrack(audioTrack, stream)
+            }
+          }
         })
 
         stream.getVideoTracks()[0].onended = () => {
+          // Remove screen-share audio senders from peer connections
+          const shareAudioTracks = screenStream.current?.getAudioTracks() ?? []
+          if (shareAudioTracks.length > 0) {
+            peerConnections.current.forEach((pc) => {
+              pc.getSenders().forEach((s) => {
+                if (s.track && shareAudioTracks.includes(s.track)) {
+                  try { pc.removeTrack(s) } catch { /* noop */ }
+                }
+              })
+            })
+            shareAudioTracks.forEach((t) => { t.stop() })
+          }
           screenStream.current = null
           setScreenSharing(false)
         }
