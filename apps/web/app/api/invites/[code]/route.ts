@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 
 export async function GET(
   request: Request,
@@ -57,5 +58,48 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  // Fire-and-forget: post welcome message if Welcome Bot is configured
+  if (!error) {
+    postWelcomeMessage(server.id, user.id).catch(() => {/* non-fatal */})
+  }
+
   return NextResponse.json({ server_id: server.id, name: server.name })
+}
+
+/**
+ * Posts a welcome message in the configured welcome channel when a new member
+ * joins and the Welcome Bot app is installed + configured on the server.
+ */
+async function postWelcomeMessage(serverId: string, userId: string) {
+  const serviceClient = await createServiceRoleClient()
+
+  // Check if welcome app is configured and enabled
+  const { data: config } = await serviceClient
+    .from("welcome_app_configs")
+    .select("channel_id, welcome_message, rules, embed_color, enabled")
+    .eq("server_id", serverId)
+    .maybeSingle()
+
+  if (!config || !config.enabled || !config.channel_id) return
+
+  // Fetch user display name
+  const { data: profile } = await serviceClient
+    .from("users")
+    .select("display_name, username")
+    .eq("id", userId)
+    .single()
+
+  const memberName = profile?.display_name || profile?.username || "New Member"
+  const message = config.welcome_message.replace(/{user}/g, `**${memberName}**`)
+
+  const rules = Array.isArray(config.rules) ? config.rules as string[] : []
+  const rulesSection = rules.length > 0
+    ? "\n\n**Server Rules**\n" + rules.map((r: string, i: number) => `${i + 1}. ${r}`).join("\n")
+    : ""
+
+  await serviceClient.from("messages").insert({
+    channel_id: config.channel_id,
+    author_id: SYSTEM_BOT_ID,
+    content: message + rulesSection,
+  })
 }

@@ -118,6 +118,25 @@
 |---------|--------|-------|
 | Screen reader live announcements for new messages | Done | `aria-live="polite"` region announces all incoming messages with author + preview; `role="log"` with `aria-relevant="additions"` on message container |
 
+## App Store / Bot Apps
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| App catalog with marketplace discovery | Done | `app_catalog`, `app_catalog_public` view, `/api/apps/discover` |
+| Per-server app install/uninstall | Done | `server_app_installs`, permission-gated install/uninstall |
+| Slash command registration + autocomplete | Done | `app_commands` table, `use-slash-command-autocomplete` hook, dropdown UI |
+| Slash command execution with rate limiting | Done | `AppInteractionRuntime`, `/api/servers/[serverId]/apps/commands/execute` |
+| Welcome Bot — channel assignment, custom message, rules | Done | `welcome_app_configs` table, `/api/servers/[serverId]/apps/welcome`, auto-posts on member join |
+| Welcome Bot — DM on join option | Done | `dm_on_join` + `dm_message` fields in config |
+| Welcome Bot — embed color + preview | Done | Color picker, live preview in settings |
+| Giveaway Bot — channel assignment | Done | `giveaway_app_configs` table, `/api/servers/[serverId]/apps/giveaway` |
+| Giveaway Bot — create timed giveaways | Done | Prize, description, duration, winner count; announcement posted by system bot |
+| Giveaway Bot — enter/leave giveaways | Done | `/api/servers/[serverId]/apps/giveaway/[giveawayId]` with `enter`/`leave` actions |
+| Giveaway Bot — draw winners + announce | Done | Random selection, winner announcement in channel |
+| Giveaway Bot — end early, cancel, reroll | Done | Admin actions with confirmation dialogs |
+| App config panels in server settings | Done | Inline config UI for Welcome Bot + Giveaway Bot in Apps tab |
+| Channel list API endpoint | Done | `GET /api/servers/[serverId]/channels` |
+
 ---
 
 *Last updated: 2026-03-17*
