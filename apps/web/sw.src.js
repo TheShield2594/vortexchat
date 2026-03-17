@@ -1,12 +1,24 @@
-// VortexChat Service Worker — dev fallback.
-// In production this file is replaced by the output of `scripts/build-sw.mjs`
-// (workbox-build injectManifest), which precaches all /_next/static/ chunks.
+// VortexChat Service Worker — source file.
+// In production this is processed by `scripts/build-sw.mjs` (workbox-build
+// injectManifest), which replaces the WB_MANIFEST placeholder with the list of
+// content-hashed /_next/static/ assets and writes the result to public/sw.js.
+// In development, public/sw.js is used directly as a fallback.
 
+// ─── Cache names ────────────────────────────────────────────────────────────
 const PRECACHE = "vortexchat-precache-v3"
 const RUNTIME = "vortexchat-runtime-v3"
 const APP_SHELL = "vortexchat-shell-v3"
 const ALL_CACHES = [PRECACHE, RUNTIME, APP_SHELL]
 
+// ─── Precache manifest ───────────────────────────────────────────────────────
+// Injected by workbox-build: list of { url, revision } objects for every
+// /_next/static/ chunk produced by `next build`. Falls back to [] in dev.
+const PRECACHE_MANIFEST = self.__WB_MANIFEST || []
+const PRECACHE_URLS = PRECACHE_MANIFEST.map((e) =>
+  typeof e === "string" ? e : e.url
+)
+
+// Static app-shell assets — not content-hashed, cached separately.
 const APP_SHELL_ASSETS = [
   "/",
   "/channels/me",
@@ -15,13 +27,22 @@ const APP_SHELL_ASSETS = [
   "/icon-512.png",
 ]
 
+// ─── Install ─────────────────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
   self.skipWaiting()
   event.waitUntil(
-    caches.open(APP_SHELL).then((c) => c.addAll(APP_SHELL_ASSETS))
+    Promise.all([
+      // Content-hashed Next.js chunks — safe to cache aggressively.
+      PRECACHE_URLS.length > 0
+        ? caches.open(PRECACHE).then((c) => c.addAll(PRECACHE_URLS))
+        : Promise.resolve(),
+      // App shell — offline navigation fallback.
+      caches.open(APP_SHELL).then((c) => c.addAll(APP_SHELL_ASSETS)),
+    ])
   )
 })
 
+// ─── Activate ────────────────────────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -35,6 +56,7 @@ self.addEventListener("activate", (event) => {
   self.clients.claim()
 })
 
+// ─── Fetch ───────────────────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
   const { request } = event
   if (request.method !== "GET") return
@@ -42,6 +64,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
 
+  // Navigation — network-first, offline fallback to app shell.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
@@ -58,6 +81,22 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
+  // /_next/static/ — cache-first (URLs are content-hashed and immutable).
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((response) => {
+            caches.open(PRECACHE).then((c) => c.put(request, response.clone()))
+            return response
+          })
+      )
+    )
+    return
+  }
+
+  // Scripts, styles, fonts, images — stale-while-revalidate.
   if (["script", "style", "font", "image"].includes(request.destination)) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -73,7 +112,7 @@ self.addEventListener("fetch", (event) => {
   }
 })
 
-// Push notification handler
+// ─── Push notifications ───────────────────────────────────────────────────────
 self.addEventListener("push", (event) => {
   if (!event.data) return
 
@@ -105,6 +144,7 @@ self.addEventListener("push", (event) => {
   )
 })
 
+// ─── App badge + SW messages ──────────────────────────────────────────────────
 self.addEventListener("message", (event) => {
   if (event.data?.type === "APP_UPDATE_BADGE") {
     const count = event.data.count
@@ -121,6 +161,8 @@ self.addEventListener("message", (event) => {
   }
 })
 
+// ─── Push subscription rotation ───────────────────────────────────────────────
+// Re-subscribe if the browser rotates push keys, then sync to the server.
 self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
     (async () => {
@@ -135,7 +177,7 @@ self.addEventListener("pushsubscriptionchange", (event) => {
               subscribeOptions = { userVisibleOnly: true, applicationServerKey: key }
             }
           } catch {
-            // VAPID key fetch failed
+            // VAPID key fetch failed — proceed with userVisibleOnly only
           }
         }
         const newSub = await self.registration.pushManager.subscribe(
@@ -152,6 +194,7 @@ self.addEventListener("pushsubscriptionchange", (event) => {
         console.warn("SW pushsubscriptionchange: re-subscribe failed", err)
       }
 
+      // Notify open tabs so the client-side hook can re-subscribe.
       const clients = await self.clients.matchAll({ type: "window" })
       for (const client of clients) {
         client.postMessage({ type: "PUSH_SUBSCRIPTION_CHANGED" })
@@ -160,6 +203,7 @@ self.addEventListener("pushsubscriptionchange", (event) => {
   )
 })
 
+// ─── Notification click ───────────────────────────────────────────────────────
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
   const url = event.notification.data?.url || "/channels/me"

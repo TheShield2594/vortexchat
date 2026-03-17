@@ -1251,7 +1251,7 @@ function SortableChannelItem({
             }}
             aria-label={`${channel.type} channel ${channel.name}`}
             className={cn(
-              "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring",
+              "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring touch-manipulation",
               isActive || isVoiceActive ? "channel-active channel-sidebar-active-elevated" : "surface-hover text-muted-interactive",
               isUnread && !isActive && "channel-sidebar-unread channel-sidebar-unread-elevated"
             )}
