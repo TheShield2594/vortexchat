@@ -198,7 +198,7 @@ export async function DELETE(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  await insertAuditLog(supabase, {
+  const { error: auditError } = await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "member_unban",
@@ -206,6 +206,11 @@ export async function DELETE(
     target_type: "user",
     changes: {},
   })
+
+  if (auditError) {
+    console.warn("Failed to write unban audit log", { serverId, userId, error: auditError.message })
+    return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
+  }
 
   return NextResponse.json({ message: "User unbanned" })
 }
