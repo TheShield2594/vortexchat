@@ -61,6 +61,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [memeQuery, setMemeQuery] = useState("")
   const [memeResults, setMemeResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [memeLoading, setMemeLoading] = useState(false)
+  const [memesAvailable, setMemesAvailable] = useState<boolean | null>(null) // null = unknown yet
   const [stickerQuery, setStickerQuery] = useState("")
   const [stickerResults, setStickerResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [stickerLoading, setStickerLoading] = useState(false)
@@ -263,6 +264,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   useEffect(() => {
     if (!showEmojiPicker || pickerTab !== "meme") return
 
+    // If we already know memes are unavailable, skip fetching
+    if (memesAvailable === false) return
+
     const controller = new AbortController()
     const timeout = setTimeout(async () => {
       setMemeLoading(true)
@@ -272,7 +276,16 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           : MEME_TRENDING_URL
         const res = await fetch(endpoint, { signal: controller.signal })
         const json = await res.json()
-        setMemeResults(Array.isArray(json) ? json : [])
+        const results = Array.isArray(json) ? json : []
+        setMemeResults(results)
+        // Trending returned empty with no query → memes aren't available (Giphy fallback)
+        if (!memeQuery.trim() && results.length === 0) {
+          setMemesAvailable(false)
+          // Switch away from meme tab since it's unavailable
+          setPickerTab("gif")
+        } else if (results.length > 0) {
+          setMemesAvailable(true)
+        }
       } catch {
         setMemeResults([])
       } finally {
@@ -284,7 +297,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [showEmojiPicker, pickerTab, memeQuery])
+  }, [showEmojiPicker, pickerTab, memeQuery, memesAvailable])
 
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
@@ -942,7 +955,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 {([
                   { key: "emoji" as const, label: "Emoji", panel: "emoji-tab-panel" },
                   { key: "gif" as const, label: "GIFs", panel: "gif-tab-panel" },
-                  { key: "meme" as const, label: "Memes", panel: "meme-tab-panel" },
+                  ...(memesAvailable !== false ? [{ key: "meme" as const, label: "Memes", panel: "meme-tab-panel" }] : []),
                   { key: "sticker" as const, label: "Stickers", panel: "sticker-tab-panel" },
                 ] as const).map((tab) => (
                   <button
@@ -1162,6 +1175,12 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               )}
               {pickerTab === "meme" && (
                 <div id="meme-tab-panel" role="tabpanel" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
+                  {memesAvailable === false ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Memes are not available with the current provider.</p>
+                    </div>
+                  ) : (
+                  <>
                   <input
                     value={memeQuery}
                     onChange={(e) => setMemeQuery(e.target.value)}
@@ -1214,6 +1233,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                         </button>
                       ))}
                     </div>
+                  )}
+                  </>
                   )}
                 </div>
               )}

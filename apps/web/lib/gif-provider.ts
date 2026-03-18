@@ -87,29 +87,19 @@ export async function klipyTrendingStickers(apiKey: string, limit = 30): Promise
 }
 
 export async function klipySearchMemes(apiKey: string, query: string, limit = 30): Promise<GifResult[]> {
-  try {
-    const res = await fetchWithTimeout(
-      `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&type=memes&media_filter=gif,tinygif`
-    )
-    if (!res.ok) return []
-    const json = await res.json()
-    return (json.results ?? []).map(mapKlipy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
-  } catch {
-    return []
-  }
+  const url = `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&type=memes&media_filter=gif,tinygif`
+  const res = await fetchWithTimeout(url)
+  if (!res.ok) throw new Error(`Klipy meme search failed (${res.status})`)
+  const json = await res.json()
+  return (json.results ?? []).map(mapKlipy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
 }
 
 export async function klipyTrendingMemes(apiKey: string, limit = 30): Promise<GifResult[]> {
-  try {
-    const res = await fetchWithTimeout(
-      `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&type=memes&media_filter=gif,tinygif`
-    )
-    if (!res.ok) return []
-    const json = await res.json()
-    return (json.results ?? []).map(mapKlipy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
-  } catch {
-    return []
-  }
+  const url = `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&type=memes&media_filter=gif,tinygif`
+  const res = await fetchWithTimeout(url)
+  if (!res.ok) throw new Error(`Klipy trending memes failed (${res.status})`)
+  const json = await res.json()
+  return (json.results ?? []).map(mapKlipy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
 }
 
 export async function klipySuggestions(apiKey: string, query: string): Promise<string[]> {
