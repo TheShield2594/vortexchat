@@ -47,7 +47,7 @@ function FriendEntry({
 
   return (
     <div
-      className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-default hover:bg-white/5 transition-colors group"
+      className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-default hover:bg-white/5 transition-colors group"
     >
       <div className="relative flex-shrink-0">
         <Avatar className="w-9 h-9">
@@ -76,7 +76,10 @@ function FriendEntry({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity">
+      <div
+        className="absolute right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity rounded-md px-1 py-0.5"
+        style={{ background: "rgba(30,31,34,0.9)" }}
+      >
         {actions}
       </div>
     </div>
@@ -229,15 +232,15 @@ export function FriendsSidebar({ compact, onStartDM }: { compact?: boolean; onSt
       )}
 
       {/* Add friend input */}
-      <form onSubmit={handleAdd} className="px-4 py-3 flex-shrink-0">
-        <div className="flex gap-2">
+      <form onSubmit={handleAdd} className="px-3 py-3 flex-shrink-0">
+        <div className="flex gap-1.5">
           <input
             type="text"
             inputMode="search"
             value={addUsername}
             onChange={(e) => { setAddUsername(e.target.value); setAddStatus(null) }}
-            placeholder="Add friend by username…"
-            className="flex-1 px-3 py-2 rounded text-sm focus:outline-none"
+            placeholder="Add friend…"
+            className="flex-1 min-w-0 px-2.5 py-2 rounded text-sm focus:outline-none"
             style={{
               background: "var(--theme-bg-tertiary)",
               color: "var(--theme-text-primary)",
@@ -247,7 +250,7 @@ export function FriendsSidebar({ compact, onStartDM }: { compact?: boolean; onSt
           <button
             type="submit"
             disabled={addLoading || !addUsername.trim()}
-            className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
+            className="px-2.5 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 flex-shrink-0"
             style={{ background: "var(--theme-accent)", color: "white" }}
           >
             {addLoading ? <div className="w-4 h-4 rounded-full motion-spinner" aria-label="Sending…" /> : "Send"}
@@ -265,7 +268,7 @@ export function FriendsSidebar({ compact, onStartDM }: { compact?: boolean; onSt
 
       {/* Tabs */}
       <div
-        className="flex flex-wrap gap-1 px-4 pb-2 flex-shrink-0 border-b"
+        className="flex flex-wrap gap-1 px-3 pb-2 flex-shrink-0 border-b"
         style={{ borderColor: "var(--theme-bg-tertiary)" }}
       >
         {tabs.map((t) => (
