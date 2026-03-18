@@ -18,6 +18,7 @@ build/
 
 # Supabase local state
 .supabase/
+supabase/.temp/
 
 # MCP config (contains project-specific refs)
 .mcp.json
