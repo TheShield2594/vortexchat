@@ -261,20 +261,27 @@ Gap severity:
 
 ---
 
-## Top 10 Gaps — Prioritized by User Impact vs. Implementation Effort
+## Top 10 Priority Items (status-tracked)
+
+### Recently Closed
+
+| Rank | Gap | Impact | Effort | Rationale |
+|---|---|---|---|---|
+| **1** | **Inline audio/video player** | High | Low | `<audio>`/`<video>` in `message-item.tsx` |
+| **2** | **Screen share with system audio** | High | Low | `audio: true` in `getDisplayMedia()` + track forwarding |
+| **3** | **Notification schedule (quiet hours)** | High | Medium | `quiet-hours.ts` + migration + settings UI |
+| **4** | **Screen reader `aria-live` regions for chat** | Medium | Low | `aria-live` + live announcements in `chat-area.tsx` |
+| **5** | **Data export (GDPR compliance)** | High | Medium | `GET /api/users/export` + settings UI |
+| **7** | **Thread auto-archive** | Medium | Low | Discord-style auto-archive with configurable durations (1h/24h/3d/1w), cron job, auto-unarchive on message send. |
+| **10** | **Sticker packs** | Low | Medium | Klipy sticker API (search + trending) with tabbed picker in channels + DMs. |
+
+### Open Gaps
 
 | Rank | Gap | Severity | Impact | Effort | Rationale |
 |---|---|---|---|---|---|
-| **1** | **Inline audio/video player** | ✅ Done | High | Low | `<audio>`/`<video>` in `message-item.tsx` |
-| **2** | **Screen share with system audio** | ✅ Done | High | Low | `audio: true` in `getDisplayMedia()` + track forwarding |
-| **3** | **Notification schedule (quiet hours)** | ✅ Done | High | Medium | `quiet-hours.ts` + migration + settings UI |
-| **4** | **Screen reader `aria-live` regions for chat** | ✅ Done | Medium | Low | `aria-live` + live announcements in `chat-area.tsx` |
-| **5** | **Data export (GDPR compliance)** | ✅ Done | High | Medium | `GET /api/users/export` + settings UI |
 | **6** | **Public bot API + token auth** | 🔴 | High | High | Introduce bot tokens, separate from user sessions. Critical for ecosystem growth but significant work. ~1-2 weeks. |
-| **7** | **Thread auto-archive** | ✅ Done | Medium | Low | Discord-style auto-archive with configurable durations (1h/24h/3d/1w), cron job, auto-unarchive on message send. |
 | **8** | **Bot SDK / library** | 🔴 | High | High | Both Discord and Stoat offer multi-language SDKs. Depends on #6 (public API). ~2-3 weeks. |
 | **9** | **Raid protection (auto-detect)** | 🟡 | Medium | Medium | Discord has explicit raid mode. Extend existing automod system with join-rate detection + lockdown. ~3-5 days. |
-| **10** | **Sticker packs** | ✅ Done | Low | Medium | Klipy sticker API (search + trending) with tabbed picker in channels + DMs. |
 
 ### All 🟡 Nice-to-Have Gaps (with implementation plans)
 
@@ -282,13 +289,13 @@ Full implementation plans for all gaps below are in [critical-gap-implementation
 
 | # | Gap | Severity | Complexity | Plan Section |
 |---|---|---|---|---|
-| 9 | Raid protection | 🟡 | M | Gap 9 — extends automod system |
-| 11 | Verification levels | 🟡 | S | Gap 11 — server setting + join gate |
-| 12 | Mobile push (native app) | 🟡 | L | Gap 12 — deferred (Capacitor wrapper) |
-| 13 | Vanity invite URLs | 🟡 | S | Gap 13 — single column + route |
-| 14 | OAuth app installs | 🟡 | M | Gap 14 — Discord-style OAuth app marketplace |
-| 15 | Zapier / Make connector | 🟡 | S | Gap 15 — depends on public API (#6) |
-| 16 | OAuth2 for third-party apps | 🟡 | L | Gap 16 — OAuth2 server, depends on #6 |
+| 21 | Raid protection | 🟡 | M | Gap 21 — extends automod system |
+| 22 | Verification levels | 🟡 | S | Gap 22 — server setting + join gate |
+| 16 | Mobile push (native app) | 🟡 | L | Gap 16 — deferred (Capacitor wrapper) |
+| 20 | Vanity invite URLs | 🟡 | S | Gap 20 — single column + route |
+| 14 | OAuth app installs | 🟡 | M | No plan yet — Discord-style OAuth app marketplace |
+| 17 | Zapier / Make connector | 🟡 | S | Gap 17 — depends on public API (#6) |
+| 18 | OAuth2 for third-party apps | 🟡 | L | Gap 18 — OAuth2 server, depends on #6 |
 
 ---
 
