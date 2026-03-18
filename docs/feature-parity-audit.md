@@ -59,7 +59,7 @@ Gap severity:
 | Emoji reactions on messages | ✅ `reactions-client.ts`, real-time sync | ✅ | ✅ | ✅ | ⚠️ Partial (React perm exists, implementation limited) | **VortexChat ahead** of Stoat |
 | Custom server emoji (upload) | ✅ PNG/GIF/WEBP, 256 KB, management page, attribution | ✅ | ❌ | ✅ | ✅ | Parity |
 | Emoji autocomplete (`:name:`) | ✅ `use-emoji-autocomplete` hook | ✅ | ✅ | ✅ | ✅ | Parity |
-| GIF picker (Giphy/Tenor) | ✅ Dual provider, trending, search, suggestions | ✅ | ✅ | ✅ | ❌ | **VortexChat ahead** of Stoat |
+| GIF picker (Klipy/Giphy) | ✅ Klipy primary, Giphy fallback, trending, search, suggestions | ✅ | ✅ | ✅ | ❌ | **VortexChat ahead** of Stoat |
 | Animated emoji / stickers | ❌ GIF emoji upload works, but no sticker packs | ✅ | ✅ | ✅ | ❌ | 🟡 Sticker packs are a retention feature |
 | Super reactions / reaction effects | ❌ | ❌ | ❌ | ✅ (Nitro) | ❌ | 🟢 Intentional skip — paywall feature |
 

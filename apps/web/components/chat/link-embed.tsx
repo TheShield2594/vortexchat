@@ -22,6 +22,10 @@ function isGiphyHost(hostname: string): boolean {
     || hostname.endsWith(".gph.is")
 }
 
+function isKlipyHost(hostname: string): boolean {
+  return hostname === "klipy.com" || hostname.endsWith(".klipy.com")
+}
+
 function isEmbeddableGiphyHost(hostname: string): boolean {
   return hostname === "giphy.com"
     || hostname === "www.giphy.com"
@@ -40,7 +44,7 @@ export function extractGiphyUrl(content: string): string | null {
   if (!url) return null
   try {
     const parsed = new URL(url)
-    if (isGiphyHost(parsed.hostname)) {
+    if (isGiphyHost(parsed.hostname) || isKlipyHost(parsed.hostname)) {
       return url
     }
   } catch {
@@ -56,6 +60,10 @@ export function stripUrlFromContent(content: string, url: string): string {
 export function getEmbeddableGiphyUrl(url: string): string | null {
   try {
     const parsed = new URL(url)
+    // Klipy media URLs are directly embeddable
+    if (isKlipyHost(parsed.hostname) && /\.(gif|webp|mp4)(\?|$)/i.test(parsed.pathname)) {
+      return url
+    }
     if (!isEmbeddableGiphyHost(parsed.hostname)) {
       return null
     }

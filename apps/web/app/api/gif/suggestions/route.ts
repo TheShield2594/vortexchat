@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { detectProvider, tenorSuggestions } from "@/lib/gif-provider"
+import { detectProvider, klipySuggestions } from "@/lib/gif-provider"
 
 const GIPHY_BASE = "https://api.giphy.com/v1"
 const SUGGESTIONS_TTL_MS = 5 * 60 * 1000 // 5 minutes
@@ -25,8 +25,8 @@ export async function GET(request: NextRequest) {
   try {
     let suggestions: string[]
 
-    if (config.provider === "tenor") {
-      suggestions = await tenorSuggestions(config.apiKey, q)
+    if (config.provider === "klipy") {
+      suggestions = await klipySuggestions(config.apiKey, q)
     } else {
       // Giphy: use related tags endpoint
       const res = await fetch(

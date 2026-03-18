@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { detectProvider, giphyTrending, tenorTrending, type GifResult } from "@/lib/gif-provider"
+import { detectProvider, giphyTrending, klipyTrending, type GifResult } from "@/lib/gif-provider"
 
 const TRENDING_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
@@ -15,8 +15,8 @@ export async function GET() {
   }
 
   try {
-    const mapped = config.provider === "tenor"
-      ? await tenorTrending(config.apiKey)
+    const mapped = config.provider === "klipy"
+      ? await klipyTrending(config.apiKey)
       : await giphyTrending(config.apiKey)
 
     trendingCache = { data: mapped, expiresAt: Date.now() + TRENDING_TTL_MS, provider: config.provider }
