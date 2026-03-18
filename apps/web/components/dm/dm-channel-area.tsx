@@ -79,11 +79,11 @@ function extractGifUrl(content: string | null): string | null {
     const parsed = new URL(trimmed)
     const host = parsed.hostname
     // Klipy media URLs
-    if ((host === "klipy.com" || host.endsWith(".klipy.com")) && /\.(gif|webp|mp4)(\?|$)/i.test(parsed.pathname)) {
+    if ((host === "klipy.com" || host.endsWith(".klipy.com")) && /\.(gif|webp)(\?|$)/i.test(parsed.pathname)) {
       return trimmed
     }
     // Giphy media URLs
-    if ((host === "media.giphy.com" || host.endsWith(".giphy.com") || host === "giphy.com" || host === "i.giphy.com") && /\.(gif|webp|mp4)(\?|$)/i.test(parsed.pathname)) {
+    if ((host === "media.giphy.com" || host.endsWith(".giphy.com") || host === "giphy.com" || host === "i.giphy.com") && /\.(gif|webp)(\?|$)/i.test(parsed.pathname)) {
       return trimmed
     }
     // Giphy page URLs — extract and build embeddable URL

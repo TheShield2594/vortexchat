@@ -61,7 +61,7 @@ export function getEmbeddableGiphyUrl(url: string): string | null {
   try {
     const parsed = new URL(url)
     // Klipy media URLs are directly embeddable
-    if (isKlipyHost(parsed.hostname) && /\.(gif|webp|mp4)(\?|$)/i.test(parsed.pathname)) {
+    if (isKlipyHost(parsed.hostname) && /\.(gif|webp)(\?|$)/i.test(parsed.pathname)) {
       return url
     }
     if (!isEmbeddableGiphyHost(parsed.hostname)) {
