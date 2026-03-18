@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Sticker, Plus, MessageSquare } from "lucide-react"
+import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Plus, MessageSquare } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -30,9 +30,11 @@ interface Props {
   serverId?: string
 }
 
-// GIF requests go through the server-side proxy (caching + no client-side API key exposure)
+// GIF/sticker requests go through the server-side proxy (caching + no client-side API key exposure)
 const GIF_TRENDING_URL = "/api/gif/trending"
 const GIF_SEARCH_URL = "/api/gif/search"
+const STICKER_TRENDING_URL = "/api/sticker/trending"
+const STICKER_SEARCH_URL = "/api/sticker/search"
 
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
 export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread, serverId }: Props) {
@@ -49,11 +51,14 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [pollQuestion, setPollQuestion] = useState("")
   const [pollOptions, setPollOptions] = useState(["", ""])
   const [showPlusMenu, setShowPlusMenu] = useState(false)
-  const [pickerTab, setPickerTab] = useState<"emoji" | "gif">("emoji")
+  const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "sticker">("emoji")
   const [gifQuery, setGifQuery] = useState("")
   const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [gifLoading, setGifLoading] = useState(false)
   const [gifSuggestions, setGifSuggestions] = useState<string[]>([])
+  const [stickerQuery, setStickerQuery] = useState("")
+  const [stickerResults, setStickerResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
+  const [stickerLoading, setStickerLoading] = useState(false)
   const uploadAbortRef = useRef<AbortController | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -221,6 +226,33 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     }, 300)
     return () => { clearTimeout(timeout); controller.abort() }
   }, [showEmojiPicker, pickerTab, gifQuery])
+
+  // Fetch sticker results (trending or search)
+  useEffect(() => {
+    if (!showEmojiPicker || pickerTab !== "sticker") return
+
+    const controller = new AbortController()
+    const timeout = setTimeout(async () => {
+      setStickerLoading(true)
+      try {
+        const endpoint = stickerQuery.trim()
+          ? `${STICKER_SEARCH_URL}?q=${encodeURIComponent(stickerQuery.trim())}`
+          : STICKER_TRENDING_URL
+        const res = await fetch(endpoint, { signal: controller.signal })
+        const json = await res.json()
+        setStickerResults(Array.isArray(json) ? json : [])
+      } catch {
+        setStickerResults([])
+      } finally {
+        setStickerLoading(false)
+      }
+    }, 400)
+
+    return () => {
+      clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [showEmojiPicker, pickerTab, stickerQuery])
 
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
@@ -496,7 +528,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     const activeEl = document.activeElement as HTMLButtonElement
     const currentIdx = buttons.indexOf(activeEl)
     if (currentIdx === -1) return
-    const cols = 3
+    // Derive column count from CSS grid rather than hardcoding
+    const colsParsed = getComputedStyle(grid).gridTemplateColumns.split(/\s+/).filter(Boolean).length
+    const cols = colsParsed > 0 ? colsParsed : 3
     let nextIdx = currentIdx
     if (e.key === "ArrowRight") nextIdx = Math.min(buttons.length - 1, currentIdx + 1)
     else if (e.key === "ArrowLeft") nextIdx = Math.max(0, currentIdx - 1)
@@ -869,17 +903,17 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <div
             ref={emojiPickerRef}
             data-state="open"
-            className="panel-surface-motion fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[320px] md:rounded-lg md:border"
-            style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)" }}
+            className="panel-surface-motion fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[380px] md:rounded-lg md:border"
+            style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
           >
-              <div className="mb-2 flex items-center gap-2" role="tablist" aria-label="Picker type">
+              <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
                 <button
                   role="tab"
                   aria-selected={pickerTab === "emoji"}
                   aria-controls="emoji-tab-panel"
                   onClick={() => setPickerTab("emoji")}
-                  className="px-2 py-1 rounded text-xs font-medium focus-ring"
-                  style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold focus-ring transition-colors"
+                  style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: pickerTab === "emoji" ? "#fff" : "var(--theme-text-secondary)" }}
                 >
                   Emoji
                 </button>
@@ -888,20 +922,30 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   aria-selected={pickerTab === "gif"}
                   aria-controls="gif-tab-panel"
                   onClick={() => setPickerTab("gif")}
-                  className="px-2 py-1 rounded text-xs font-medium focus-ring"
-                  style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold focus-ring transition-colors"
+                  style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: pickerTab === "gif" ? "#fff" : "var(--theme-text-secondary)" }}
                 >
                   GIFs
                 </button>
+                <button
+                  role="tab"
+                  aria-selected={pickerTab === "sticker"}
+                  aria-controls="sticker-tab-panel"
+                  onClick={() => setPickerTab("sticker")}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold focus-ring transition-colors"
+                  style={{ background: pickerTab === "sticker" ? "var(--theme-accent)" : "transparent", color: pickerTab === "sticker" ? "#fff" : "var(--theme-text-secondary)" }}
+                >
+                  Stickers
+                </button>
               </div>
 
-              {pickerTab === "emoji" ? (
+              {pickerTab === "emoji" && (
                 <div
                   id="emoji-tab-panel"
                   role="tabpanel"
                   ref={emojiGridRef}
                   onKeyDown={handleEmojiGridKeyDown}
-                  style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}
+                  style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", minHeight: 0 }}
                 >
                   <EmojiPicker.Root
                     onEmojiSelect={({ emoji }) => {
@@ -1022,8 +1066,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     </div>
                   </EmojiPicker.Root>
                 </div>
-              ) : (
-                <div id="gif-tab-panel" role="tabpanel" className="space-y-2">
+              )}
+              {pickerTab === "gif" && (
+                <div id="gif-tab-panel" role="tabpanel" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
                   <input
                     value={gifQuery}
                     onChange={(e) => setGifQuery(e.target.value)}
@@ -1095,36 +1140,78 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   )}
                 </div>
               )}
+              {pickerTab === "sticker" && (
+                <div id="sticker-tab-panel" role="tabpanel" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
+                  <input
+                    value={stickerQuery}
+                    onChange={(e) => setStickerQuery(e.target.value)}
+                    placeholder="Search stickers"
+                    aria-label="Search stickers"
+                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
+                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+                  />
+                  {!stickerQuery.trim() && !stickerLoading && stickerResults.length > 0 && (
+                    <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+                      Trending
+                    </p>
+                  )}
+                  {stickerLoading ? (
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading stickers…</p>
+                  ) : (
+                    <div
+                      className="grid grid-cols-4 gap-2 overflow-y-auto flex-1 min-h-0"
+                      onKeyDown={handleGifGridKeyDown}
+                    >
+                      {stickerResults.map((sticker) => (
+                        <button
+                          key={sticker.id}
+                          onClick={async () => {
+                            if (sending) return
+                            const stickerUrl = sticker.url || sticker.gifUrl
+                            if (!stickerUrl?.trim()) {
+                              setSendError("Cannot send empty sticker.")
+                              return
+                            }
+                            setShowEmojiPicker(false)
+                            setSending(true)
+                            setSendError(null)
+                            onSent?.()
+                            try {
+                              await onSend(stickerUrl)
+                            } catch (error: any) {
+                              setSendError(error?.message ?? "Failed to send sticker. Try again.")
+                            } finally {
+                              setSending(false)
+                              textareaRef.current?.focus()
+                            }
+                          }}
+                          className="rounded-lg overflow-hidden hover:scale-105 transition-transform focus-ring aspect-square"
+                          style={{ background: "transparent" }}
+                          title={sticker.title}
+                          aria-label={sticker.title}
+                        >
+                          <img src={sticker.previewUrl} alt={sticker.title} className="w-full h-full object-contain" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
           </div>
         )}
 
-        {/* GIF & Emoji buttons (right side, Discord style) */}
-        <button
-          type="button"
-          onClick={() => {
-            setPickerTab("gif")
-            setShowEmojiPicker((prev) => !prev || pickerTab !== "gif")
-          }}
-          className="motion-interactive motion-press flex-shrink-0 focus-ring rounded"
-          style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
-          title="GIF"
-          aria-label="Insert GIF"
-          aria-pressed={pickerTab === "gif" && showEmojiPicker}
-        >
-          <Sticker className="w-5 h-5" />
-        </button>
+        {/* Emoji picker button (opens tabbed Emoji/GIF/Sticker picker) */}
         <button
           type="button"
           ref={emojiButtonRef}
           onClick={() => {
-            setPickerTab("emoji")
-            setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
+            setShowEmojiPicker((prev) => !prev)
           }}
           className="motion-interactive motion-press flex-shrink-0 focus-ring rounded"
-          style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
-          title="Emoji"
-          aria-label="Insert emoji"
-          aria-pressed={pickerTab === "emoji" && showEmojiPicker}
+          style={{ color: showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+          title="Emoji, GIFs & Stickers"
+          aria-label="Open emoji, GIF and sticker picker"
+          aria-pressed={showEmojiPicker}
         >
           <Smile className="w-5 h-5" />
         </button>

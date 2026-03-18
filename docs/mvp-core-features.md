@@ -26,7 +26,9 @@
 | GIF picker in DMs | Done | Tabbed Emoji/GIF picker with search, trending, autocomplete suggestions in DM composer |
 | GIF inline rendering in DMs | Done | Standalone Klipy/Giphy URLs render as inline images in DM messages |
 | app-ads.txt for Klipy ads | Done | `public/app-ads.txt` — ad inventory authorization for Klipy monetization |
-| Separate "memes" picker tab | Gap | Low priority — could add as third picker tab |
+| Sticker search (Klipy primary, Giphy fallback) | Done | `/api/sticker/search` + `/api/sticker/trending` with server-side caching |
+| Sticker picker in channels + DMs | Done | Tabbed Emoji/GIFs/Stickers picker — Discord-style unified picker |
+| Separate "memes" picker tab | Gap | Low priority — could add as fourth picker tab |
 
 ## Voice / WebRTC
 
