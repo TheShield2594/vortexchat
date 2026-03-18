@@ -31,11 +31,12 @@ interface Props {
   onClose: () => void
   server: ServerRow
   isOwner: boolean
+  canManageApps?: boolean
   channels?: Channel[]
 }
 
 /** Tabbed server settings dialog with overview, invites, emojis, webhooks, moderation, screening, and automod configuration. */
-export function ServerSettingsModal({ open, onClose, server, isOwner, channels = [] }: Props) {
+export function ServerSettingsModal({ open, onClose, server, isOwner, canManageApps, channels = [] }: Props) {
   const { toast } = useToast()
   const { updateServer, removeServer, servers } = useAppStore(
     useShallow((s) => ({ updateServer: s.updateServer, removeServer: s.removeServer, servers: s.servers }))
@@ -387,7 +388,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, channels =
             </TabsContent>
 
             <TabsContent value="apps" className="mt-0">
-              <AppsTab serverId={server.id} canManageApps={isOwner} />
+              <AppsTab serverId={server.id} canManageApps={canManageApps ?? isOwner} />
             </TabsContent>
 
             <TabsContent value="moderation" className="mt-0">

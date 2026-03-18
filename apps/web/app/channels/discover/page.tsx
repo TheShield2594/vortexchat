@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Users, Compass, BadgeCheck, Star, Plus, ArrowUpDown } from "lucide-react"
+import { Search, Users, Compass, BadgeCheck, Star, Plus, ArrowUpDown, ChevronDown, Check } from "lucide-react"
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -10,6 +10,8 @@ import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils/cn"
+import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 
 interface PublicServer {
   id: string
@@ -94,6 +96,49 @@ export default function DiscoverPage() {
   const loadingMoreRef = useRef(loadingMore)
   nextCursorRef.current = nextCursor
   loadingMoreRef.current = loadingMore
+
+  // Server picker state for app installs
+  const myServers = useAppStore(useShallow((s) => s.servers))
+  const [pickerAppId, setPickerAppId] = useState<string | null>(null)
+  const [installingTo, setInstallingTo] = useState<string | null>(null)
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!pickerAppId) return
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerAppId(null)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [pickerAppId])
+
+  async function installAppToServer(appId: string, serverId: string) {
+    setInstallingTo(serverId)
+    try {
+      const res = await fetch(`/api/servers/${serverId}/apps`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || `Install failed (${res.status})`)
+      }
+      toast({ title: "App installed successfully" })
+      setPickerAppId(null)
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Install failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    } finally {
+      setInstallingTo(null)
+    }
+  }
 
   const fetchServers = useCallback(async (q?: string, sortBy: SortOption = "members", cursor?: string) => {
     const params = new URLSearchParams()
@@ -390,6 +435,42 @@ export default function DiscoverPage() {
                 <p className="mt-2 text-xs text-muted-foreground">Category: {app.category}</p>
                 <p className="text-xs text-muted-foreground"><Star className="mr-1 inline h-3 w-3" />{app.average_rating.toFixed(1)} ({app.review_count} reviews)</p>
                 <p className="mt-2 text-xs text-muted-foreground">Permissions: {app.permissions.join(", ") || "None"}</p>
+                <div className="relative mt-3">
+                  <Button
+                    size="sm"
+                    className="h-7 w-full text-xs"
+                    onClick={() => setPickerAppId(pickerAppId === app.id ? null : app.id)}
+                    disabled={myServers.length === 0}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add to Server
+                    <ChevronDown className="ml-1 h-3 w-3" />
+                  </Button>
+                  {pickerAppId === app.id && myServers.length > 0 && (
+                    <div
+                      ref={pickerRef}
+                      className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
+                    >
+                      {myServers.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          disabled={installingTo === s.id}
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent disabled:opacity-50"
+                          onClick={() => installAppToServer(app.id, s.id)}
+                        >
+                          <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-primary text-[10px] font-bold text-primary-foreground">
+                            {s.name.slice(0, 1).toUpperCase()}
+                          </span>
+                          <span className="truncate">{s.name}</span>
+                          {installingTo === s.id && (
+                            <div className="ml-auto h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

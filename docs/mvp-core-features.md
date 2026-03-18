@@ -134,7 +134,9 @@
 | Giveaway Bot — enter/leave giveaways | Done | `/api/servers/[serverId]/apps/giveaway/[giveawayId]` with `enter`/`leave` actions |
 | Giveaway Bot — draw winners + announce | Done | Random selection, winner announcement in channel |
 | Giveaway Bot — end early, cancel, reroll | Done | Admin actions with confirmation dialogs |
-| App config panels in server settings | Done | Inline config UI for all 4 apps in Apps tab |
+| App config panels in server settings | Done | Inline config UI for all 5 apps in Apps tab |
+| Discover page app install | Done | "Add to Server" picker on `/channels/discover` Apps tab |
+| Permission-based app management | Done | `MANAGE_WEBHOOKS` / `USE_APPLICATION_COMMANDS` holders can install/uninstall (not just owners) |
 | Channel list API endpoint | Done | `GET /api/servers/[serverId]/channels` |
 | Standup Assistant — channel, schedule, questions | Done | `standup_app_configs` table, configurable questions (1-10), active days, reminder time/timezone |
 | Standup Assistant — submit & view standups | Done | `standup_entries` table, daily per-user submission, team view in config panel |
@@ -147,4 +149,4 @@
 
 ---
 
-*Last updated: 2026-03-17*
+*Last updated: 2026-03-18*

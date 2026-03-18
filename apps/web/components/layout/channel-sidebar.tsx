@@ -414,6 +414,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const userPermissions = useMemo(() => userRoles.reduce((acc, role) => acc | role.permissions, 0), [userRoles])
   const canManageChannels = isOwner || hasPermission(userPermissions, "MANAGE_CHANNELS")
   const canManageEvents = isOwner || hasPermission(userPermissions, "MANAGE_EVENTS")
+  const canManageApps = isOwner || hasPermission(userPermissions, "MANAGE_WEBHOOKS") || hasPermission(userPermissions, "USE_APPLICATION_COMMANDS")
 
   // Track unread state for all text channels in this server
   const textChannelIds = useMemo(() => channels.filter((c) => c.type === "text").map((c) => c.id), [channels])
@@ -932,6 +933,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           onClose={() => setShowServerSettings(false)}
           server={server}
           isOwner={isOwner}
+          canManageApps={canManageApps}
           channels={webhookEligibleChannels}
         />
 

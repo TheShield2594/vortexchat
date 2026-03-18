@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/server"
 
 function sanitizeIlikeQuery(value: string) {
   return value
@@ -11,14 +11,18 @@ function sanitizeIlikeQuery(value: string) {
 }
 
 // Allow unauthenticated browsing — public marketplace endpoint.
+// Uses service-role client because the app_catalog_public view has
+// security_invoker=true which requires the caller to have SELECT on
+// the underlying app_catalog table. The anon role does not, so
+// unauthenticated browse would return empty results.
 export async function GET(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
+  const supabase = await createServiceRoleClient()
   const query = req.nextUrl.searchParams.get("q")?.trim()
   const category = req.nextUrl.searchParams.get("category")?.trim()
 
   const baseBuilder = () => {
     let builder = supabase
-      .from("app_catalog_public")
+      .from("app_catalog")
       .select("id, slug, name, description, category, trust_badge, average_rating, review_count, permissions")
       .eq("is_published", true)
 
