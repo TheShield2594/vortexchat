@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import type { Database } from "@/types/database"
 import { validateInstallPermissions } from "@/lib/apps/runtime"
@@ -59,7 +59,13 @@ export async function POST(
   const { appId, requestedPermissions } = parsedBody
   if (!appId) return NextResponse.json({ error: "appId required" }, { status: 400 })
 
-  const { data: app, error: appError } = await supabase
+  // Use service-role client for DB operations — the API already verifies
+  // membership + permissions above.  The RLS policy on server_app_installs
+  // only allows server owners, but the permission model intentionally allows
+  // members with MANAGE_WEBHOOKS or USE_APPLICATION_COMMANDS too.
+  const serviceClient = await createServiceRoleClient()
+
+  const { data: app, error: appError } = await serviceClient
     .from("app_catalog")
     .select("id, install_scopes, permissions")
     .eq("id", appId)
@@ -77,7 +83,7 @@ export async function POST(
   }
   const validatedPermissions = requested
 
-  const { data, error } = await supabase
+  const { data, error } = await serviceClient
     .from("server_app_installs")
     .insert({
       app_id: app.id,
@@ -91,7 +97,7 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  await supabase.rpc("bump_app_usage", {
+  await serviceClient.rpc("bump_app_usage", {
     p_app_id: app.id,
     p_server_id: serverId,
     p_metric_key: "app.install",
@@ -116,7 +122,9 @@ export async function DELETE(
   const appId = req.nextUrl.searchParams.get("appId")
   if (!appId) return NextResponse.json({ error: "appId required" }, { status: 400 })
 
-  const { error } = await supabase
+  const serviceClient = await createServiceRoleClient()
+
+  const { error } = await serviceClient
     .from("server_app_installs")
     .delete()
     .eq("server_id", serverId)
@@ -124,7 +132,7 @@ export async function DELETE(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  await supabase.rpc("bump_app_usage", {
+  await serviceClient.rpc("bump_app_usage", {
     p_app_id: appId,
     p_server_id: serverId,
     p_metric_key: "app.uninstall",
