@@ -11,6 +11,8 @@ interface EnvVar {
   required: boolean
   /** Short description shown in the warning/error message */
   description: string
+  /** Alternative env var name that satisfies the same requirement (e.g. server-side alias) */
+  alternativeName?: string
 }
 
 const REQUIRED: EnvVar[] = [
@@ -32,7 +34,8 @@ const OPTIONAL: EnvVar[] = [
   { name: "LIVEKIT_API_SECRET", required: false, description: "LiveKit API secret for voice channels" },
   { name: "NEXT_PUBLIC_LIVEKIT_URL", required: false, description: "LiveKit server URL" },
   { name: "GEMINI_API_KEY", required: false, description: "Gemini API key for AI channel summarization and voice post-call summaries" },
-  { name: "NEXT_PUBLIC_GIPHY_API_KEY", required: false, description: "Giphy API key for GIF picker" },
+  { name: "NEXT_PUBLIC_KLIPY_API_KEY", required: false, description: "Klipy API key for GIF/sticker picker (primary provider)", alternativeName: "KLIPY_API_KEY" },
+  { name: "NEXT_PUBLIC_GIPHY_API_KEY", required: false, description: "Giphy API key for GIF picker (fallback)", alternativeName: "GIPHY_API_KEY" },
 ]
 
 export function validateEnv() {
@@ -56,7 +59,7 @@ export function validateEnv() {
   // Warn about optional vars that enable important features
   const missingOptional: string[] = []
   for (const v of OPTIONAL) {
-    if (!process.env[v.name]) {
+    if (!process.env[v.name] && !(v.alternativeName && process.env[v.alternativeName])) {
       missingOptional.push(`  ${v.name} — ${v.description}`)
     }
   }

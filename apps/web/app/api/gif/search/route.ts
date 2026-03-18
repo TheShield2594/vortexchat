@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { detectProvider, giphySearch, tenorSearch, type GifResult } from "@/lib/gif-provider"
+import { detectProvider, giphySearch, klipySearch, type GifResult } from "@/lib/gif-provider"
 
 const SEARCH_TTL_MS = 2 * 60 * 1000 // 2 minutes
 const MAX_CACHE_ENTRIES = 200
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const mapped = config.provider === "tenor"
-      ? await tenorSearch(config.apiKey, q)
+    const mapped = config.provider === "klipy"
+      ? await klipySearch(config.apiKey, q)
       : await giphySearch(config.apiKey, q)
 
     searchCache.set(cacheKey, { data: mapped, expiresAt: Date.now() + SEARCH_TTL_MS })

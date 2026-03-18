@@ -216,8 +216,8 @@ const TRUSTED_DOMAINS = new Set([
   "vortexchat.app", "www.vortexchat.app",
   "github.com", "www.github.com",
   "youtube.com", "www.youtube.com", "youtu.be",
+  "klipy.com", "media.klipy.com",
   "giphy.com", "media.giphy.com",
-  "tenor.com", "media.tenor.com",
   "wikipedia.org",
 ])
 

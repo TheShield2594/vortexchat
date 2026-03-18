@@ -69,7 +69,7 @@ interface Props {
 const GIF_TRENDING_URL = "/api/gif/trending"
 const GIF_SEARCH_URL = "/api/gif/search"
 
-/** Detect if a message is a standalone GIF URL (Giphy or Tenor media link). */
+/** Detect if a message is a standalone GIF URL (Klipy or Giphy media link). */
 function extractGifUrl(content: string | null): string | null {
   if (!content) return null
   const trimmed = content.trim()
@@ -78,12 +78,12 @@ function extractGifUrl(content: string | null): string | null {
   try {
     const parsed = new URL(trimmed)
     const host = parsed.hostname
-    // Giphy media URLs
-    if ((host === "media.giphy.com" || host.endsWith(".giphy.com") || host === "giphy.com" || host === "i.giphy.com") && /\.(gif|webp|mp4)(\?|$)/i.test(parsed.pathname)) {
+    // Klipy media URLs
+    if ((host === "klipy.com" || host.endsWith(".klipy.com")) && /\.(gif|webp)(\?|$)/i.test(parsed.pathname)) {
       return trimmed
     }
-    // Tenor media URLs
-    if ((host === "media.tenor.com" || host.endsWith(".tenor.com") || host === "tenor.com" || host === "c.tenor.com") && /\.(gif|webp|mp4)(\?|$)/i.test(parsed.pathname)) {
+    // Giphy media URLs
+    if ((host === "media.giphy.com" || host.endsWith(".giphy.com") || host === "giphy.com" || host === "i.giphy.com") && /\.(gif|webp)(\?|$)/i.test(parsed.pathname)) {
       return trimmed
     }
     // Giphy page URLs — extract and build embeddable URL
@@ -991,7 +991,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
           // Render image attachments inline (markdown-style links to images)
           const imageMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
-          // Detect standalone GIF URLs (Giphy/Tenor) for inline rendering
+          // Detect standalone GIF URLs (Klipy/Giphy) for inline rendering
           const gifMediaUrl = extractGifUrl(renderedContent)
 
           return (

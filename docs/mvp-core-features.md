@@ -18,13 +18,14 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| GIF search (Giphy) | Done | `/api/gif/search` with server-side caching |
+| GIF search (Klipy primary, Giphy fallback) | Done | `/api/gif/search` with server-side caching — Klipy is primary provider |
 | Trending / featured GIFs section | Done | Shows "Trending" header when browsing without a query |
-| Search autocomplete suggestions | Done | `/api/gif/suggestions` — Giphy related tags / Tenor autocomplete |
-| Dual-provider support (Giphy + Tenor) | Done | `lib/gif-provider.ts` — Tenor preferred when configured (free) |
+| Search autocomplete suggestions | Done | `/api/gif/suggestions` — Klipy autocomplete / Giphy related tags |
+| Dual-provider support (Klipy + Giphy) | Done | `lib/gif-provider.ts` — Klipy preferred, Giphy as fallback (Tenor removed) |
 | Emoji picker in DMs | Done | Full frimousse emoji picker with search, categories, skin tone selector in `dm-channel-area` |
 | GIF picker in DMs | Done | Tabbed Emoji/GIF picker with search, trending, autocomplete suggestions in DM composer |
-| GIF inline rendering in DMs | Done | Standalone Giphy/Tenor URLs render as inline images in DM messages |
+| GIF inline rendering in DMs | Done | Standalone Klipy/Giphy URLs render as inline images in DM messages |
+| app-ads.txt for Klipy ads | Done | `public/app-ads.txt` — ad inventory authorization for Klipy monetization |
 | Separate "memes" picker tab | Gap | Low priority — could add as third picker tab |
 
 ## Voice / WebRTC
