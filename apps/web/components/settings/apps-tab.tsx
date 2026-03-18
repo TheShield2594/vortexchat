@@ -8,6 +8,7 @@ import { WelcomeAppConfig } from "@/components/settings/welcome-app-config"
 import { GiveawayAppConfig } from "@/components/settings/giveaway-app-config"
 import { StandupAppConfig } from "@/components/settings/standup-app-config"
 import { IncidentAppConfig } from "@/components/settings/incident-app-config"
+import { ReminderAppConfig } from "@/components/settings/reminder-app-config"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -177,7 +178,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
             {installed.length === 0 && <p style={{ color: "var(--theme-text-muted)" }}>No apps installed on this server.</p>}
             {installed.map((entry) => {
               const slug = entry.app_catalog?.slug
-              const hasConfig = slug === "welcome-guide" || slug === "giveaway-bot" || slug === "standup-assistant" || slug === "incident-bot"
+              const hasConfig = slug === "welcome-guide" || slug === "giveaway-bot" || slug === "standup-assistant" || slug === "incident-bot" || slug === "reminder-bot"
               const isExpanded = expandedAppSlug === slug
               return (
                 <div key={entry.id} className="rounded border" style={{ borderColor: "var(--theme-surface-elevated)" }}>
@@ -216,6 +217,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
                       {slug === "giveaway-bot" && <GiveawayAppConfig serverId={serverId} />}
                       {slug === "standup-assistant" && <StandupAppConfig serverId={serverId} />}
                       {slug === "incident-bot" && <IncidentAppConfig serverId={serverId} />}
+                      {slug === "reminder-bot" && <ReminderAppConfig serverId={serverId} />}
                     </div>
                   )}
                 </div>
