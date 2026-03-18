@@ -90,13 +90,15 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "days_active must contain values 1-7 (Mon-Sun)" }, { status: 400 })
     }
 
-    const upsertData: Record<string, unknown> = { server_id: serverId }
-    if (channel_id !== undefined) upsertData.channel_id = channel_id
-    if (reminder_time !== undefined) upsertData.reminder_time = reminder_time
-    if (timezone !== undefined) upsertData.timezone = timezone
-    if (questions !== undefined) upsertData.questions = JSON.stringify(questions)
-    if (days_active !== undefined) upsertData.days_active = days_active
-    if (enabled !== undefined) upsertData.enabled = enabled
+    const upsertData = {
+      server_id: serverId,
+      ...(channel_id !== undefined && { channel_id }),
+      ...(reminder_time !== undefined && { reminder_time }),
+      ...(timezone !== undefined && { timezone }),
+      ...(questions !== undefined && { questions: JSON.stringify(questions) }),
+      ...(days_active !== undefined && { days_active }),
+      ...(enabled !== undefined && { enabled }),
+    }
 
     const { data, error } = await authSupabase
       .from("standup_app_configs")

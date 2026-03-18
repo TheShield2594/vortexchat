@@ -102,7 +102,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         .select("channel_id")
         .eq("server_id", serverId)
         .maybeSingle()
-      targetChannelId = config?.channel_id
+      targetChannelId = config?.channel_id ?? undefined
     }
 
     if (!targetChannelId) {

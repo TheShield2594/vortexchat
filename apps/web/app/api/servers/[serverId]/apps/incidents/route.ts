@@ -81,10 +81,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "severity_labels must be 1-10 items" }, { status: 400 })
     }
 
-    const upsertData: Record<string, unknown> = { server_id: serverId }
-    if (channel_id !== undefined) upsertData.channel_id = channel_id
-    if (severity_labels !== undefined) upsertData.severity_labels = JSON.stringify(severity_labels)
-    if (enabled !== undefined) upsertData.enabled = enabled
+    const upsertData = {
+      server_id: serverId,
+      ...(channel_id !== undefined && { channel_id }),
+      ...(severity_labels !== undefined && { severity_labels: JSON.stringify(severity_labels) }),
+      ...(enabled !== undefined && { enabled }),
+    }
 
     const { data, error } = await supabase
       .from("incident_app_configs")

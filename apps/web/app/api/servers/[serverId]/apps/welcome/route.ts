@@ -84,15 +84,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Invalid embed color format (use #RRGGBB)" }, { status: 400 })
   }
 
-  const upsertData: Record<string, unknown> = { server_id: serverId }
-  if (channel_id !== undefined) upsertData.channel_id = channel_id
-  if (welcome_message !== undefined) upsertData.welcome_message = welcome_message
-  if (rules !== undefined) upsertData.rules = JSON.stringify(rules)
-  if (embed_color !== undefined) upsertData.embed_color = embed_color
-  if (dm_on_join !== undefined) upsertData.dm_on_join = dm_on_join
-  if (dm_message !== undefined) upsertData.dm_message = dm_message
-  if (auto_role_ids !== undefined) upsertData.auto_role_ids = auto_role_ids
-  if (enabled !== undefined) upsertData.enabled = enabled
+  const upsertData = {
+    server_id: serverId,
+    ...(channel_id !== undefined && { channel_id }),
+    ...(welcome_message !== undefined && { welcome_message }),
+    ...(rules !== undefined && { rules: JSON.stringify(rules) }),
+    ...(embed_color !== undefined && { embed_color }),
+    ...(dm_on_join !== undefined && { dm_on_join }),
+    ...(dm_message !== undefined && { dm_message }),
+    ...(auto_role_ids !== undefined && { auto_role_ids }),
+    ...(enabled !== undefined && { enabled }),
+  }
 
   const { data, error: upsertError } = await supabase
     .from("welcome_app_configs")
