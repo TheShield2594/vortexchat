@@ -2,7 +2,7 @@
 -- Addresses:
 -- 1. SECURITY DEFINER functions missing SET search_path = '' (regression from 00048/00049 hardening)
 -- 2. NULL in CHECK IN-list (dead code) in user_activity_log.ref_type
--- 3. Deprecated auth.users columns in system bot migration (is_super_admin, instance_id)
+-- 3. Deprecated auth.users columns in system bot migration (moved to 00015_system_bot.sql)
 
 -- ============================================================
 -- 1. Fix search_path on SECURITY DEFINER functions
@@ -31,55 +31,11 @@ ALTER TABLE public.user_activity_log
   CHECK (ref_type IS NULL OR ref_type IN ('channel', 'server', 'message', 'file'));
 
 -- ============================================================
--- 3. Fix system bot auth.users row for newer Supabase versions
--- Remove deprecated is_super_admin column reference.
--- Use a conditional block so this is safe on both old and new schemas.
+-- 3. System bot schema-drift handling (moved to 00015_system_bot.sql)
+-- The schema detection and conditional insert logic now lives in 00015
+-- so the legacy insert never runs on newer Supabase schemas.
+-- No action needed here; 00015 handles both old and new schemas.
 -- ============================================================
-
-DO $$
-BEGIN
-  -- Only attempt the fix if the row exists and the column still exists
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'auth' AND table_name = 'users' AND column_name = 'is_super_admin'
-  ) THEN
-    -- Column exists (older Supabase), nothing to do – original migration works fine
-    NULL;
-  ELSE
-    -- Column was removed (newer Supabase). Re-insert without deprecated columns
-    -- if the row is somehow missing.
-    IF NOT EXISTS (
-      SELECT 1 FROM auth.users WHERE id = '00000000-0000-0000-0000-000000000001'
-    ) THEN
-      INSERT INTO auth.users (
-        id,
-        aud,
-        role,
-        email,
-        encrypted_password,
-        email_confirmed_at,
-        created_at,
-        updated_at,
-        raw_app_meta_data,
-        raw_user_meta_data,
-        banned_until
-      ) VALUES (
-        '00000000-0000-0000-0000-000000000001',
-        'authenticated',
-        'authenticated',
-        'automod@system.internal',
-        '',
-        NOW(),
-        NOW(),
-        NOW(),
-        '{"provider":"system","providers":["system"]}',
-        '{}',
-        'infinity'::timestamptz
-      );
-    END IF;
-  END IF;
-END;
-$$;
 
 -- Also fix search_path on prune_activity_log (from 00058, missed by 00048/00049)
 ALTER FUNCTION public.prune_activity_log() SET search_path = '';
