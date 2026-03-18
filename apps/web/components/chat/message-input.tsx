@@ -528,7 +528,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     const activeEl = document.activeElement as HTMLButtonElement
     const currentIdx = buttons.indexOf(activeEl)
     if (currentIdx === -1) return
-    const cols = 3
+    // Derive column count from CSS grid rather than hardcoding
+    const colsParsed = getComputedStyle(grid).gridTemplateColumns.split(/\s+/).filter(Boolean).length
+    const cols = colsParsed > 0 ? colsParsed : 3
     let nextIdx = currentIdx
     if (e.key === "ArrowRight") nextIdx = Math.min(buttons.length - 1, currentIdx + 1)
     else if (e.key === "ArrowLeft") nextIdx = Math.max(0, currentIdx - 1)

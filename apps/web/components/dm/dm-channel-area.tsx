@@ -1241,8 +1241,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             >
               <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
                 <button
+                  id="dm-picker-emoji-tab"
                   role="tab"
                   aria-selected={pickerTab === "emoji"}
+                  aria-controls="dm-picker-emoji-panel"
                   onClick={() => setPickerTab("emoji")}
                   className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
                   style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: pickerTab === "emoji" ? "#fff" : "var(--theme-text-secondary)" }}
@@ -1250,8 +1252,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   Emoji
                 </button>
                 <button
+                  id="dm-picker-gif-tab"
                   role="tab"
                   aria-selected={pickerTab === "gif"}
+                  aria-controls="dm-picker-gif-panel"
                   onClick={() => setPickerTab("gif")}
                   className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
                   style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: pickerTab === "gif" ? "#fff" : "var(--theme-text-secondary)" }}
@@ -1259,8 +1263,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   GIFs
                 </button>
                 <button
+                  id="dm-picker-sticker-tab"
                   role="tab"
                   aria-selected={pickerTab === "sticker"}
+                  aria-controls="dm-picker-sticker-panel"
                   onClick={() => setPickerTab("sticker")}
                   className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
                   style={{ background: pickerTab === "sticker" ? "var(--theme-accent)" : "transparent", color: pickerTab === "sticker" ? "#fff" : "var(--theme-text-secondary)" }}
@@ -1270,7 +1276,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
               </div>
 
               {pickerTab === "emoji" && (
-                <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", minHeight: 0 }}>
+                <div id="dm-picker-emoji-panel" role="tabpanel" aria-labelledby="dm-picker-emoji-tab" style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", minHeight: 0 }}>
                   <EmojiPicker.Root
                     onEmojiSelect={({ emoji }) => {
                       const el = inputRef.current
@@ -1381,7 +1387,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 </div>
               )}
               {pickerTab === "gif" && (
-                <div className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
+                <div id="dm-picker-gif-panel" role="tabpanel" aria-labelledby="dm-picker-gif-tab" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
                   <input
                     value={gifQuery}
                     onChange={(e) => setGifQuery(e.target.value)}
@@ -1433,7 +1439,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 </div>
               )}
               {pickerTab === "sticker" && (
-                <div className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
+                <div id="dm-picker-sticker-panel" role="tabpanel" aria-labelledby="dm-picker-sticker-tab" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
                   <input
                     value={stickerQuery}
                     onChange={(e) => setStickerQuery(e.target.value)}

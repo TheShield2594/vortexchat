@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server"
 import { detectProvider, giphyTrendingStickers, klipyTrendingStickers, type GifResult } from "@/lib/gif-provider"
+import { requireAuth } from "@/lib/utils/api-helpers"
 
 const TRENDING_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
 let trendingCache: { data: GifResult[]; expiresAt: number; provider: string } | null = null
 
 export async function GET() {
+  const { error: authError } = await requireAuth()
+  if (authError) return authError
+
   const config = detectProvider()
   if (!config) return NextResponse.json([])
 
