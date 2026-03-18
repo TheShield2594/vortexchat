@@ -2507,6 +2507,315 @@ export type Database = {
         }
         Relationships: []
       }
+      welcome_app_configs: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string | null
+          welcome_message: string
+          rules: Json
+          embed_color: string
+          dm_on_join: boolean
+          dm_message: string | null
+          auto_role_ids: string[]
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id?: string | null
+          welcome_message?: string
+          rules?: Json
+          embed_color?: string
+          dm_on_join?: boolean
+          dm_message?: string | null
+          auto_role_ids?: string[]
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string | null
+          welcome_message?: string
+          rules?: Json
+          embed_color?: string
+          dm_on_join?: boolean
+          dm_message?: string | null
+          auto_role_ids?: string[]
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      giveaway_app_configs: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string | null
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id?: string | null
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string | null
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      giveaways: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string
+          title: string
+          description: string | null
+          prize: string
+          winners_count: number
+          ends_at: string
+          created_by: string
+          status: string
+          winner_ids: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id: string
+          title: string
+          description?: string | null
+          prize: string
+          winners_count?: number
+          ends_at: string
+          created_by: string
+          status?: string
+          winner_ids?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string
+          title?: string
+          description?: string | null
+          prize?: string
+          winners_count?: number
+          ends_at?: string
+          created_by?: string
+          status?: string
+          winner_ids?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      giveaway_entries: {
+        Row: {
+          id: string
+          giveaway_id: string
+          user_id: string
+          entered_at: string
+        }
+        Insert: {
+          id?: string
+          giveaway_id: string
+          user_id: string
+          entered_at?: string
+        }
+        Update: {
+          id?: string
+          giveaway_id?: string
+          user_id?: string
+          entered_at?: string
+        }
+        Relationships: []
+      }
+      standup_app_configs: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string | null
+          reminder_time: string
+          timezone: string
+          questions: Json
+          days_active: number[]
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id?: string | null
+          reminder_time?: string
+          timezone?: string
+          questions?: Json
+          days_active?: number[]
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string | null
+          reminder_time?: string
+          timezone?: string
+          questions?: Json
+          days_active?: number[]
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      standup_entries: {
+        Row: {
+          id: string
+          server_id: string
+          user_id: string
+          answers: Json
+          standup_date: string
+          submitted_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          user_id: string
+          answers?: Json
+          standup_date?: string
+          submitted_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          user_id?: string
+          answers?: Json
+          standup_date?: string
+          submitted_at?: string
+        }
+        Relationships: []
+      }
+      incident_app_configs: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string | null
+          enabled: boolean
+          severity_labels: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id?: string | null
+          enabled?: boolean
+          severity_labels?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string | null
+          enabled?: boolean
+          severity_labels?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      incidents: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string
+          title: string
+          description: string | null
+          severity: string
+          status: string
+          commander_id: string | null
+          created_by: string
+          resolved_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id: string
+          title: string
+          description?: string | null
+          severity?: string
+          status?: string
+          commander_id?: string | null
+          created_by: string
+          resolved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string
+          title?: string
+          description?: string | null
+          severity?: string
+          status?: string
+          commander_id?: string | null
+          created_by?: string
+          resolved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      incident_updates: {
+        Row: {
+          id: string
+          incident_id: string
+          author_id: string
+          status: string
+          message: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          incident_id: string
+          author_id: string
+          status: string
+          message: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          incident_id?: string
+          author_id?: string
+          status?: string
+          message?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       app_catalog_public: {

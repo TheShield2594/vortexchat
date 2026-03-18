@@ -1,9 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { BadgeCheck, Shield, Star, Trash2 } from "lucide-react"
+import { BadgeCheck, Shield, Star, Trash2, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
+import { WelcomeAppConfig } from "@/components/settings/welcome-app-config"
+import { GiveawayAppConfig } from "@/components/settings/giveaway-app-config"
+import { StandupAppConfig } from "@/components/settings/standup-app-config"
+import { IncidentAppConfig } from "@/components/settings/incident-app-config"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -62,6 +66,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
   const [loading, setLoading] = useState(true)
   const [busyAppId, setBusyAppId] = useState<string | null>(null)
   const [pendingUninstallId, setPendingUninstallId] = useState<string | null>(null)
+  const [expandedAppSlug, setExpandedAppSlug] = useState<string | null>(null)
 
   async function refresh() {
     setLoading(true)
@@ -170,27 +175,52 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
         {loading ? <p style={{ color: "var(--theme-text-muted)" }}>Loading apps…</p> : (
           <div className="grid gap-3">
             {installed.length === 0 && <p style={{ color: "var(--theme-text-muted)" }}>No apps installed on this server.</p>}
-            {installed.map((entry) => (
-              <div key={entry.id} className="rounded border p-3" style={{ borderColor: "var(--theme-surface-elevated)" }}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium" style={{ color: "var(--theme-text-bright)" }}>{entry.app_catalog?.name ?? entry.app_id}</p>
-                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-                      Scopes: {entry.install_scopes.join(", ")} · Permissions: {entry.granted_permissions.join(", ")}
-                    </p>
+            {installed.map((entry) => {
+              const slug = entry.app_catalog?.slug
+              const hasConfig = slug === "welcome-guide" || slug === "giveaway-bot" || slug === "standup-assistant" || slug === "incident-bot"
+              const isExpanded = expandedAppSlug === slug
+              return (
+                <div key={entry.id} className="rounded border" style={{ borderColor: "var(--theme-surface-elevated)" }}>
+                  <div className="flex items-center justify-between p-3">
+                    <div>
+                      <p className="font-medium" style={{ color: "var(--theme-text-bright)" }}>{entry.app_catalog?.name ?? entry.app_id}</p>
+                      <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                        Scopes: {entry.install_scopes.join(", ")} · Permissions: {entry.granted_permissions.join(", ")}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      {hasConfig && canManageApps && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Configure ${entry.app_catalog?.name ?? entry.app_id}`}
+                          onClick={() => setExpandedAppSlug(isExpanded ? null : slug!)}
+                        >
+                          <Settings className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={!canManageApps || busyAppId === entry.app_id}
+                        aria-label={`Uninstall ${entry.app_catalog?.name ?? entry.app_id}`}
+                        onClick={() => setPendingUninstallId(entry.app_id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={!canManageApps || busyAppId === entry.app_id}
-                    aria-label={`Uninstall ${entry.app_catalog?.name ?? entry.app_id}`}
-                    onClick={() => setPendingUninstallId(entry.app_id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {isExpanded && (
+                    <div className="border-t px-3 py-4" style={{ borderColor: "var(--theme-surface-elevated)" }}>
+                      {slug === "welcome-guide" && <WelcomeAppConfig serverId={serverId} />}
+                      {slug === "giveaway-bot" && <GiveawayAppConfig serverId={serverId} />}
+                      {slug === "standup-assistant" && <StandupAppConfig serverId={serverId} />}
+                      {slug === "incident-bot" && <IncidentAppConfig serverId={serverId} />}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
