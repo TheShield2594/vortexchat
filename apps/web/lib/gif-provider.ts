@@ -1,4 +1,4 @@
-/** Abstraction over GIF providers (Klipy primary, Giphy fallback). */
+/** Abstraction over GIF/sticker providers (Klipy primary, Giphy fallback). */
 
 const FETCH_TIMEOUT_MS = 4000
 
@@ -60,6 +60,32 @@ export async function klipyTrending(apiKey: string, limit = 20): Promise<GifResu
   }
 }
 
+export async function klipySearchStickers(apiKey: string, query: string, limit = 20): Promise<GifResult[]> {
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&type=stickers&media_filter=gif,tinygif`
+    )
+    if (!res.ok) return []
+    const json = await res.json()
+    return (json.results ?? []).map(mapKlipy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
+  } catch {
+    return []
+  }
+}
+
+export async function klipyTrendingStickers(apiKey: string, limit = 20): Promise<GifResult[]> {
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&type=stickers&media_filter=gif,tinygif`
+    )
+    if (!res.ok) return []
+    const json = await res.json()
+    return (json.results ?? []).map(mapKlipy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
+  } catch {
+    return []
+  }
+}
+
 export async function klipySuggestions(apiKey: string, query: string): Promise<string[]> {
   try {
     const res = await fetchWithTimeout(
@@ -107,6 +133,32 @@ export async function giphyTrending(apiKey: string, limit = 20): Promise<GifResu
   try {
     const res = await fetchWithTimeout(
       `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}&rating=pg-13`
+    )
+    if (!res.ok) return []
+    const json = await res.json()
+    return (json.data ?? []).map(mapGiphy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
+  } catch {
+    return []
+  }
+}
+
+export async function giphySearchStickers(apiKey: string, query: string, limit = 20): Promise<GifResult[]> {
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.giphy.com/v1/stickers/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=pg-13`
+    )
+    if (!res.ok) return []
+    const json = await res.json()
+    return (json.data ?? []).map(mapGiphy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
+  } catch {
+    return []
+  }
+}
+
+export async function giphyTrendingStickers(apiKey: string, limit = 20): Promise<GifResult[]> {
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.giphy.com/v1/stickers/trending?api_key=${apiKey}&limit=${limit}&rating=pg-13`
     )
     if (!res.ok) return []
     const json = await res.json()

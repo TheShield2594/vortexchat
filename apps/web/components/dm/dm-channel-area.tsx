@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } fro
 import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Sticker, Reply, X, ArrowLeft } from "lucide-react"
+import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
 import { EmojiPicker } from "frimousse"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
@@ -65,9 +65,11 @@ interface Props {
 }
 
 
-// GIF requests go through the server-side proxy (caching + no client-side API key exposure)
+// GIF/sticker requests go through the server-side proxy (caching + no client-side API key exposure)
 const GIF_TRENDING_URL = "/api/gif/trending"
 const GIF_SEARCH_URL = "/api/gif/search"
+const STICKER_TRENDING_URL = "/api/sticker/trending"
+const STICKER_SEARCH_URL = "/api/sticker/search"
 
 /** Detect if a message is a standalone GIF URL (Klipy or Giphy media link). */
 function extractGifUrl(content: string | null): string | null {
@@ -193,16 +195,19 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [editContent, setEditContent] = useState("")
   const [uploadingFile, setUploadingFile] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [pickerTab, setPickerTab] = useState<"emoji" | "gif">("emoji")
+  const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "sticker">("emoji")
   const [gifQuery, setGifQuery] = useState("")
   const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [gifLoading, setGifLoading] = useState(false)
   const [gifSuggestions, setGifSuggestions] = useState<string[]>([])
+  const [stickerQuery, setStickerQuery] = useState("")
+  const [stickerResults, setStickerResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
+  const [stickerLoading, setStickerLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
-  const gifButtonRef = useRef<HTMLButtonElement>(null)
+
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const prevLastMsgIdRef = useRef<string | null>(null)
@@ -573,7 +578,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     if (!showEmojiPicker) return
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Node
-      if (!emojiPickerRef.current?.contains(target) && !emojiButtonRef.current?.contains(target) && !gifButtonRef.current?.contains(target)) {
+      if (!emojiPickerRef.current?.contains(target) && !emojiButtonRef.current?.contains(target)) {
         setShowEmojiPicker(false)
       }
     }
@@ -621,6 +626,33 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     }, 300)
     return () => { clearTimeout(timeout); controller.abort() }
   }, [showEmojiPicker, pickerTab, gifQuery])
+
+  // Fetch sticker results (trending or search)
+  useEffect(() => {
+    if (!showEmojiPicker || pickerTab !== "sticker") return
+
+    const controller = new AbortController()
+    const timeout = setTimeout(async () => {
+      setStickerLoading(true)
+      try {
+        const endpoint = stickerQuery.trim()
+          ? `${STICKER_SEARCH_URL}?q=${encodeURIComponent(stickerQuery.trim())}`
+          : STICKER_TRENDING_URL
+        const res = await fetch(endpoint, { signal: controller.signal })
+        const json = await res.json()
+        setStickerResults(Array.isArray(json) ? json : [])
+      } catch {
+        setStickerResults([])
+      } finally {
+        setStickerLoading(false)
+      }
+    }, 400)
+
+    return () => {
+      clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [showEmojiPicker, pickerTab, stickerQuery])
 
   async function handleSendGif(gifUrl: string) {
     if (!gifUrl.trim() || sending) return
@@ -1204,16 +1236,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             <div
               ref={emojiPickerRef}
               data-state="open"
-              className="panel-surface-motion absolute bottom-14 right-2 z-50 w-[320px] rounded-lg border p-2 shadow-xl"
-              style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)" }}
+              className="panel-surface-motion absolute bottom-14 right-2 z-50 flex flex-col w-[380px] rounded-lg border p-2 shadow-xl"
+              style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
             >
-              <div className="mb-2 flex items-center gap-2" role="tablist" aria-label="Picker type">
+              <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
                 <button
                   role="tab"
                   aria-selected={pickerTab === "emoji"}
                   onClick={() => setPickerTab("emoji")}
-                  className="px-2 py-1 rounded text-xs font-medium"
-                  style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+                  style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: pickerTab === "emoji" ? "#fff" : "var(--theme-text-secondary)" }}
                 >
                   Emoji
                 </button>
@@ -1221,15 +1253,24 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   role="tab"
                   aria-selected={pickerTab === "gif"}
                   onClick={() => setPickerTab("gif")}
-                  className="px-2 py-1 rounded text-xs font-medium"
-                  style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: "var(--theme-text-primary)" }}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+                  style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: pickerTab === "gif" ? "#fff" : "var(--theme-text-secondary)" }}
                 >
                   GIFs
                 </button>
+                <button
+                  role="tab"
+                  aria-selected={pickerTab === "sticker"}
+                  onClick={() => setPickerTab("sticker")}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+                  style={{ background: pickerTab === "sticker" ? "var(--theme-accent)" : "transparent", color: pickerTab === "sticker" ? "#fff" : "var(--theme-text-secondary)" }}
+                >
+                  Stickers
+                </button>
               </div>
 
-              {pickerTab === "emoji" ? (
-                <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+              {pickerTab === "emoji" && (
+                <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", minHeight: 0 }}>
                   <EmojiPicker.Root
                     onEmojiSelect={({ emoji }) => {
                       const el = inputRef.current
@@ -1338,8 +1379,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     </div>
                   </EmojiPicker.Root>
                 </div>
-              ) : (
-                <div className="space-y-2">
+              )}
+              {pickerTab === "gif" && (
+                <div className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
                   <input
                     value={gifQuery}
                     onChange={(e) => setGifQuery(e.target.value)}
@@ -1390,35 +1432,58 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   )}
                 </div>
               )}
+              {pickerTab === "sticker" && (
+                <div className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
+                  <input
+                    value={stickerQuery}
+                    onChange={(e) => setStickerQuery(e.target.value)}
+                    placeholder="Search stickers"
+                    aria-label="Search stickers"
+                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
+                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+                  />
+                  {!stickerQuery.trim() && !stickerLoading && stickerResults.length > 0 && (
+                    <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+                      Trending
+                    </p>
+                  )}
+                  {stickerLoading ? (
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading stickers…</p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2 overflow-y-auto flex-1 min-h-0">
+                      {stickerResults.map((sticker) => (
+                        <button
+                          key={sticker.id}
+                          onClick={() => {
+                            const stickerUrl = sticker.url || sticker.gifUrl
+                            if (stickerUrl?.trim()) handleSendGif(stickerUrl)
+                          }}
+                          className="rounded-lg overflow-hidden hover:scale-105 transition-transform aspect-square"
+                          style={{ background: "transparent" }}
+                          title={sticker.title}
+                          aria-label={sticker.title}
+                        >
+                          <img src={sticker.previewUrl} alt={sticker.title} className="w-full h-full object-contain" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* GIF & Emoji buttons */}
-          <button
-            type="button"
-            ref={gifButtonRef}
-            onClick={() => {
-              setPickerTab("gif")
-              setShowEmojiPicker((prev) => !prev || pickerTab !== "gif")
-            }}
-            className="flex-shrink-0 rounded hover:bg-white/10 transition-colors"
-            style={{ color: pickerTab === "gif" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
-            title="GIF"
-            aria-label="Insert GIF"
-          >
-            <Sticker className="w-5 h-5" />
-          </button>
+          {/* Emoji picker button (opens tabbed Emoji/GIF/Sticker picker) */}
           <button
             type="button"
             ref={emojiButtonRef}
             onClick={() => {
-              setPickerTab("emoji")
-              setShowEmojiPicker((prev) => !prev || pickerTab !== "emoji")
+              setShowEmojiPicker((prev) => !prev)
             }}
             className="flex-shrink-0 rounded hover:bg-white/10 transition-colors"
-            style={{ color: pickerTab === "emoji" && showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
-            title="Emoji"
-            aria-label="Insert emoji"
+            style={{ color: showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
+            title="Emoji, GIFs & Stickers"
+            aria-label="Open emoji, GIF and sticker picker"
           >
             <Smile className="w-5 h-5" />
           </button>

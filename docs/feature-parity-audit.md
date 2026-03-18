@@ -60,7 +60,7 @@ Gap severity:
 | Custom server emoji (upload) | ✅ PNG/GIF/WEBP, 256 KB, management page, attribution | ✅ | ❌ | ✅ | ✅ | Parity |
 | Emoji autocomplete (`:name:`) | ✅ `use-emoji-autocomplete` hook | ✅ | ✅ | ✅ | ✅ | Parity |
 | GIF picker (Klipy/Giphy) | ✅ Klipy primary, Giphy fallback, trending, search, suggestions | ✅ | ✅ | ✅ | ❌ | **VortexChat ahead** of Stoat |
-| Animated emoji / stickers | ❌ GIF emoji upload works, but no sticker packs | ✅ | ✅ | ✅ | ❌ | 🟡 Sticker packs are a retention feature |
+| Animated emoji / stickers | ✅ Klipy sticker API (search + trending), tabbed picker in channels + DMs | ✅ | ✅ | ✅ | ❌ | **VortexChat ahead** of Stoat |
 | Super reactions / reaction effects | ❌ | ❌ | ❌ | ✅ (Nitro) | ❌ | 🟢 Intentional skip — paywall feature |
 
 ---
@@ -274,7 +274,7 @@ Gap severity:
 | **7** | **Thread auto-archive** | ✅ Done | Medium | Low | Discord-style auto-archive with configurable durations (1h/24h/3d/1w), cron job, auto-unarchive on message send. |
 | **8** | **Outgoing webhooks / event subscriptions** | 🟡 | Medium | Medium | Fire HTTP callbacks on message/member/reaction events. Enables Zapier/Make without a full bot API. ~2-3 days. |
 | **9** | **Channel archiving** | 🟡 | Medium | Low | Add `archived` boolean to channels table, hide from sidebar, restrict posting. ~4 hours. |
-| **10** | **Sticker packs** | 🟡 | Low | Medium | Add sticker upload/management alongside existing custom emoji system. Retention feature. ~2-3 days. |
+| **10** | **Sticker packs** | ✅ Done | Low | Medium | Klipy sticker API (search + trending) with tabbed picker in channels + DMs. |
 
 ### All 🟡 Nice-to-Have Gaps (with implementation plans)
 
@@ -285,7 +285,7 @@ Full implementation plans for all gaps below are in [critical-gap-implementation
 | 7 | Thread auto-archive | ✅ Done | S | Implemented — cron job + Discord-style durations |
 | 8 | Outgoing webhooks / event subscriptions | 🟡 | M | Gap 8 — new table + dispatch pipeline |
 | 9 | Channel archiving | 🟡 | S | Gap 9 — boolean column + sidebar/input gating |
-| 10 | Sticker packs | 🟡 | M | Gap 10 — extends emoji system |
+| 10 | Sticker packs | ✅ Done | M | Klipy sticker API — tabbed picker |
 | 11 | Message scheduling | 🟡 | M | Gap 11 — DB table + cron job |
 | 12 | Rich-text formatting toolbar | 🟡 | S | Gap 12 — markdown insertion, no new deps |
 | 13 | Video background blur | 🟡 | M | Gap 13 — MediaPipe WASM (~2MB), CPU-heavy |
