@@ -275,6 +275,8 @@ Gap severity:
 | **7** | **Thread auto-archive** | Medium | Low | Discord-style auto-archive with configurable durations (1h/24h/3d/1w), cron job, auto-unarchive on message send. |
 | **10** | **Sticker packs** | Low | Medium | Klipy sticker API (search + trending) with tabbed picker in channels + DMs. |
 
+Note: ranks 6, 8, and 9 are intentionally omitted here because they remain open — see the "Open Gaps" section below.
+
 ### Open Gaps
 
 | Rank | Gap | Severity | Impact | Effort | Rationale |
@@ -285,17 +287,17 @@ Gap severity:
 
 ### All 🟡 Nice-to-Have Gaps (with implementation plans)
 
-Full implementation plans for all gaps below are in [critical-gap-implementation-plans.md](./critical-gap-implementation-plans.md).
+Full implementation plans for most gaps below are in [critical-gap-implementation-plans.md](./critical-gap-implementation-plans.md).
 
 | # | Gap | Severity | Complexity | Plan Section |
 |---|---|---|---|---|
-| 21 | Raid protection | 🟡 | M | Gap 21 — extends automod system |
-| 22 | Verification levels | 🟡 | S | Gap 22 — server setting + join gate |
-| 16 | Mobile push (native app) | 🟡 | L | Gap 16 — deferred (Capacitor wrapper) |
-| 20 | Vanity invite URLs | 🟡 | S | Gap 20 — single column + route |
 | 14 | OAuth app installs | 🟡 | M | No plan yet — Discord-style OAuth app marketplace |
+| 16 | Mobile push (native app) | 🟡 | L | Gap 16 — deferred (Capacitor wrapper) |
 | 17 | Zapier / Make connector | 🟡 | S | Gap 17 — depends on public API (#6) |
 | 18 | OAuth2 for third-party apps | 🟡 | L | Gap 18 — OAuth2 server, depends on #6 |
+| 20 | Vanity invite URLs | 🟡 | S | Gap 20 — single column + route |
+| 21 | Raid protection | 🟡 | M | Gap 21 — extends automod system |
+| 22 | Verification levels | 🟡 | S | Gap 22 — server setting + join gate |
 
 ---
 
