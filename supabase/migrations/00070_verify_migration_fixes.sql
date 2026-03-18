@@ -10,6 +10,7 @@
 -- 00054: join_server_by_invite – uses SET search_path = public (should be '')
 -- 00065: auto_archive_inactive_threads – missing SET search_path entirely
 -- 00065: create_thread_from_message – missing SET search_path entirely
+-- 00058: prune_activity_log – missing SET search_path (trigger function hardening)
 -- ============================================================
 
 ALTER FUNCTION public.reorder_channels(UUID, JSONB) SET search_path = '';
