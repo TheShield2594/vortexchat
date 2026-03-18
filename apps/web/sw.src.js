@@ -5,9 +5,9 @@
 // In development, public/sw.js is used directly as a fallback.
 
 // ─── Cache names ────────────────────────────────────────────────────────────
-const PRECACHE = "vortexchat-precache-v3"
-const RUNTIME = "vortexchat-runtime-v3"
-const APP_SHELL = "vortexchat-shell-v3"
+const PRECACHE = "vortexchat-precache-v4"
+const RUNTIME = "vortexchat-runtime-v4"
+const APP_SHELL = "vortexchat-shell-v4"
 const ALL_CACHES = [PRECACHE, RUNTIME, APP_SHELL]
 
 // ─── Precache manifest ───────────────────────────────────────────────────────
@@ -69,8 +69,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone()
-          caches.open(APP_SHELL).then((c) => c.put("/channels/me", copy))
+          if (response.ok && response.type !== "error") {
+            const copy = response.clone()
+            caches.open(APP_SHELL).then((c) => c.put("/channels/me", copy))
+          }
           return response
         })
         .catch(async () => {
@@ -88,7 +90,9 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            caches.open(PRECACHE).then((c) => c.put(request, response.clone()))
+            if (response.ok) {
+              caches.open(PRECACHE).then((c) => c.put(request, response.clone()))
+            }
             return response
           })
       )
@@ -102,7 +106,9 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then((cached) => {
         const fetchPromise = fetch(request)
           .then((response) => {
-            caches.open(RUNTIME).then((c) => c.put(request, response.clone()))
+            if (response.ok) {
+              caches.open(RUNTIME).then((c) => c.put(request, response.clone()))
+            }
             return response
           })
           .catch(() => cached)

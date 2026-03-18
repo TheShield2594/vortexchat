@@ -2,9 +2,9 @@
 // In production this file is replaced by the output of `scripts/build-sw.mjs`
 // (workbox-build injectManifest), which precaches all /_next/static/ chunks.
 
-const PRECACHE = "vortexchat-precache-v3"
-const RUNTIME = "vortexchat-runtime-v3"
-const APP_SHELL = "vortexchat-shell-v3"
+const PRECACHE = "vortexchat-precache-v4"
+const RUNTIME = "vortexchat-runtime-v4"
+const APP_SHELL = "vortexchat-shell-v4"
 const ALL_CACHES = [PRECACHE, RUNTIME, APP_SHELL]
 
 const APP_SHELL_ASSETS = [
@@ -46,8 +46,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone()
-          caches.open(APP_SHELL).then((c) => c.put("/channels/me", copy))
+          if (response.ok && response.type !== "error") {
+            const copy = response.clone()
+            caches.open(APP_SHELL).then((c) => c.put("/channels/me", copy))
+          }
           return response
         })
         .catch(async () => {
@@ -63,7 +65,9 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then((cached) => {
         const fetchPromise = fetch(request)
           .then((response) => {
-            caches.open(RUNTIME).then((c) => c.put(request, response.clone()))
+            if (response.ok) {
+              caches.open(RUNTIME).then((c) => c.put(request, response.clone()))
+            }
             return response
           })
           .catch(() => cached)
