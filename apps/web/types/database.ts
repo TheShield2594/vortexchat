@@ -2816,6 +2816,69 @@ export type Database = {
         }
         Relationships: []
       }
+      reminder_app_configs: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string | null
+          max_reminders_per_user: number
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id?: string | null
+          max_reminders_per_user?: number
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string | null
+          max_reminders_per_user?: number
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reminders: {
+        Row: {
+          id: string
+          server_id: string
+          channel_id: string
+          user_id: string
+          message: string
+          remind_at: string
+          delivered: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          channel_id: string
+          user_id: string
+          message: string
+          remind_at: string
+          delivered?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          channel_id?: string
+          user_id?: string
+          message?: string
+          remind_at?: string
+          delivered?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       app_catalog_public: {
