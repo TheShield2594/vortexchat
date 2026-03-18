@@ -56,7 +56,7 @@ Gap severity:
 | Feature | VortexChat | Slack | Teams | Discord | Stoat | Notes / Gap Severity |
 |---|---|---|---|---|---|---|
 | Unicode emoji picker | ✅ frimousse picker with search, categories, skin tones | ✅ | ✅ | ✅ | ✅ | Parity |
-| Emoji reactions on messages | ✅ `reactions-client.ts`, real-time sync | ✅ | ✅ | ✅ | ✅ React perm | Parity |
+| Emoji reactions on messages | ✅ `reactions-client.ts`, real-time sync | ✅ | ✅ | ✅ | ⚠️ Partial (React perm exists, implementation limited) | **VortexChat ahead** of Stoat |
 | Custom server emoji (upload) | ✅ PNG/GIF/WEBP, 256 KB, management page, attribution | ✅ | ❌ | ✅ | ✅ | Parity |
 | Emoji autocomplete (`:name:`) | ✅ `use-emoji-autocomplete` hook | ✅ | ✅ | ✅ | ✅ | Parity |
 | GIF picker (Giphy/Tenor) | ✅ Dual provider, trending, search, suggestions | ✅ | ✅ | ✅ | ❌ | **VortexChat ahead** of Stoat |
@@ -86,7 +86,7 @@ Gap severity:
 |---|---|---|---|---|---|---|
 | Voice channels (always-on) | ✅ WebRTC P2P + LiveKit SFU dual mode | ❌ | ❌ | ✅ | ✅ Connect+Speak perms | Parity (Discord model) |
 | DM voice calls | ✅ `dm-call.tsx`, `incoming-call-ui.tsx` | ✅ | ✅ | ✅ | ✅ | Parity |
-| Multi-participant video | ✅ Camera toggle, 720p, adaptive grid | ✅ | ✅ | ✅ | ✅ Video perm | Parity |
+| Multi-participant video | ✅ Camera toggle, 720p, adaptive grid | ✅ | ✅ | ✅ | ⚠️ Built but not deployed on flagship | **VortexChat ahead** of Stoat |
 | Voice activity detection | ✅ hark.js speaking indicators | ✅ | ✅ | ✅ | ⚠️ Basic | Parity |
 | Noise suppression | ✅ Audio pipeline compressor + noise gate; LiveKit native | ✅ | ✅ | ✅ | ❌ | **VortexChat ahead** of Stoat |
 | Stage channels (speaker/audience) | ✅ `stage` channel type, request-to-speak | ❌ | ❌ | ✅ | ❌ | **VortexChat ahead** of Stoat |
@@ -101,7 +101,7 @@ Gap severity:
 
 | Feature | VortexChat | Slack | Teams | Discord | Stoat | Notes / Gap Severity |
 |---|---|---|---|---|---|---|
-| Screen sharing (getDisplayMedia) | ✅ Separate screen stream track | ✅ | ✅ | ✅ | ✅ | Parity |
+| Screen sharing (getDisplayMedia) | ✅ Separate screen stream track | ✅ | ✅ | ✅ | ⚠️ Built but not deployed on flagship | **VortexChat ahead** of Stoat |
 | Spotlight / focus view | ✅ Click to enlarge, compact tile view | ✅ | ✅ | ✅ | ⚠️ Basic | Parity |
 | Annotation / drawing on screen | ❌ | ❌ | ✅ | ❌ | ❌ | 🟢 Teams-only feature — skip |
 | Multi-presenter (concurrent shares) | ❌ One share at a time | ❌ | ✅ | ❌ | ❌ | 🟢 Teams-only — skip |
@@ -239,7 +239,7 @@ Gap severity:
 | iOS splash screens | ✅ 8 device sizes | ✅ | ✅ | ❌ | ❌ | **VortexChat ahead** of Stoat |
 | Web Share API | ✅ `navigator.share()` in context menu | ✅ | ✅ | ❌ | ❌ | **VortexChat ahead** of Stoat |
 | Input modes (`inputmode`) | ✅ Search, email, numeric | ✅ | ✅ | ❌ | ❌ | **VortexChat ahead** of Stoat |
-| Native mobile app | ❌ PWA only | ✅ | ✅ | ✅ | ⚠️ Third-party (Clerotri) | 🟢 Intentional — PWA-first strategy |
+| Native mobile app | ❌ PWA only | ✅ | ✅ | ✅ | ✅ Android (Kotlin) + iOS | 🟢 Intentional — PWA-first strategy |
 | Push on PWA (iOS 16.4+) | ✅ VAPID-based | ❌ | ❌ | ❌ | ❌ | **Ahead** on PWA push |
 
 ---
@@ -322,9 +322,11 @@ Full implementation plans for all gaps below are in [critical-gap-implementation
 
 | Feature | Stoat | VortexChat |
 |---|---|---|
-| Public bot SDK (multi-language) | ✅ revolt.js, revolt.py, Rust crate | ❌ Internal API only |
-| Self-hostable (open source) | ✅ Docker Compose, full FOSS | ❌ SaaS only |
+| Public bot SDK (multi-language) | ✅ JS, Python, Rust, Go, C#, Swift + community libs | ❌ Internal API only |
+| Self-hostable (open source) | ✅ Docker Compose, full FOSS (AGPL-3.0) | ❌ SaaS only |
 | Masquerade (alt identity posting) | ✅ Unique feature | ❌ |
+| Platform bridges (Discord, Matrix) | ✅ revcord, matrix-appservice-revolt | ❌ |
+| Native mobile apps | ✅ Android (Kotlin) + iOS | ❌ PWA only |
 
 ---
 
