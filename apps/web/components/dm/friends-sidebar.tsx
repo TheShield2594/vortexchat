@@ -265,7 +265,7 @@ export function FriendsSidebar({ compact, onStartDM }: { compact?: boolean; onSt
 
       {/* Tabs */}
       <div
-        className="flex gap-1 px-4 pb-2 flex-shrink-0 border-b"
+        className="flex flex-wrap gap-1 px-4 pb-2 flex-shrink-0 border-b"
         style={{ borderColor: "var(--theme-bg-tertiary)" }}
       >
         {tabs.map((t) => (
