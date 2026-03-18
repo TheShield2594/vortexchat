@@ -34,7 +34,7 @@ function mapKlipy(gif: Record<string, any>): GifResult {
   }
 }
 
-export async function klipySearch(apiKey: string, query: string, limit = 20): Promise<GifResult[]> {
+export async function klipySearch(apiKey: string, query: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
       `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&media_filter=gif,tinygif`
@@ -47,7 +47,7 @@ export async function klipySearch(apiKey: string, query: string, limit = 20): Pr
   }
 }
 
-export async function klipyTrending(apiKey: string, limit = 20): Promise<GifResult[]> {
+export async function klipyTrending(apiKey: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
       `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&media_filter=gif,tinygif`
@@ -60,7 +60,7 @@ export async function klipyTrending(apiKey: string, limit = 20): Promise<GifResu
   }
 }
 
-export async function klipySearchStickers(apiKey: string, query: string, limit = 20): Promise<GifResult[]> {
+export async function klipySearchStickers(apiKey: string, query: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
       `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&type=stickers&media_filter=gif,tinygif`
@@ -73,7 +73,7 @@ export async function klipySearchStickers(apiKey: string, query: string, limit =
   }
 }
 
-export async function klipyTrendingStickers(apiKey: string, limit = 20): Promise<GifResult[]> {
+export async function klipyTrendingStickers(apiKey: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
       `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&type=stickers&media_filter=gif,tinygif`
@@ -84,6 +84,22 @@ export async function klipyTrendingStickers(apiKey: string, limit = 20): Promise
   } catch {
     return []
   }
+}
+
+export async function klipySearchMemes(apiKey: string, query: string, limit = 30): Promise<GifResult[]> {
+  const url = `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&type=memes&media_filter=gif,tinygif`
+  const res = await fetchWithTimeout(url)
+  if (!res.ok) throw new Error(`Klipy meme search failed (${res.status})`)
+  const json = await res.json()
+  return (json.results ?? []).map(mapKlipy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
+}
+
+export async function klipyTrendingMemes(apiKey: string, limit = 30): Promise<GifResult[]> {
+  const url = `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&type=memes&media_filter=gif,tinygif`
+  const res = await fetchWithTimeout(url)
+  if (!res.ok) throw new Error(`Klipy trending memes failed (${res.status})`)
+  const json = await res.json()
+  return (json.results ?? []).map(mapKlipy).filter((g: GifResult) => g.previewUrl && (g.url || g.gifUrl))
 }
 
 export async function klipySuggestions(apiKey: string, query: string): Promise<string[]> {
@@ -116,7 +132,7 @@ function mapGiphy(gif: Record<string, any>): GifResult {
   }
 }
 
-export async function giphySearch(apiKey: string, query: string, limit = 20): Promise<GifResult[]> {
+export async function giphySearch(apiKey: string, query: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
       `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=pg-13`
@@ -129,7 +145,7 @@ export async function giphySearch(apiKey: string, query: string, limit = 20): Pr
   }
 }
 
-export async function giphyTrending(apiKey: string, limit = 20): Promise<GifResult[]> {
+export async function giphyTrending(apiKey: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
       `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}&rating=pg-13`
@@ -142,7 +158,7 @@ export async function giphyTrending(apiKey: string, limit = 20): Promise<GifResu
   }
 }
 
-export async function giphySearchStickers(apiKey: string, query: string, limit = 20): Promise<GifResult[]> {
+export async function giphySearchStickers(apiKey: string, query: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
       `https://api.giphy.com/v1/stickers/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=pg-13`
@@ -155,7 +171,7 @@ export async function giphySearchStickers(apiKey: string, query: string, limit =
   }
 }
 
-export async function giphyTrendingStickers(apiKey: string, limit = 20): Promise<GifResult[]> {
+export async function giphyTrendingStickers(apiKey: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
       `https://api.giphy.com/v1/stickers/trending?api_key=${apiKey}&limit=${limit}&rating=pg-13`

@@ -33,6 +33,8 @@ interface Props {
 // GIF/sticker requests go through the server-side proxy (caching + no client-side API key exposure)
 const GIF_TRENDING_URL = "/api/gif/trending"
 const GIF_SEARCH_URL = "/api/gif/search"
+const MEME_TRENDING_URL = "/api/meme/trending"
+const MEME_SEARCH_URL = "/api/meme/search"
 const STICKER_TRENDING_URL = "/api/sticker/trending"
 const STICKER_SEARCH_URL = "/api/sticker/search"
 
@@ -51,11 +53,15 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [pollQuestion, setPollQuestion] = useState("")
   const [pollOptions, setPollOptions] = useState(["", ""])
   const [showPlusMenu, setShowPlusMenu] = useState(false)
-  const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "sticker">("emoji")
+  const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "meme" | "sticker">("emoji")
   const [gifQuery, setGifQuery] = useState("")
   const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [gifLoading, setGifLoading] = useState(false)
   const [gifSuggestions, setGifSuggestions] = useState<string[]>([])
+  const [memeQuery, setMemeQuery] = useState("")
+  const [memeResults, setMemeResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
+  const [memeLoading, setMemeLoading] = useState(false)
+  const [memesAvailable, setMemesAvailable] = useState<boolean | null>(null) // null = unknown yet
   const [stickerQuery, setStickerQuery] = useState("")
   const [stickerResults, setStickerResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [stickerLoading, setStickerLoading] = useState(false)
@@ -253,6 +259,45 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       controller.abort()
     }
   }, [showEmojiPicker, pickerTab, stickerQuery])
+
+  // Fetch meme results (trending or search)
+  useEffect(() => {
+    if (!showEmojiPicker || pickerTab !== "meme") return
+
+    // If we already know memes are unavailable, skip fetching
+    if (memesAvailable === false) return
+
+    const controller = new AbortController()
+    const timeout = setTimeout(async () => {
+      setMemeLoading(true)
+      try {
+        const endpoint = memeQuery.trim()
+          ? `${MEME_SEARCH_URL}?q=${encodeURIComponent(memeQuery.trim())}`
+          : MEME_TRENDING_URL
+        const res = await fetch(endpoint, { signal: controller.signal })
+        const json = await res.json()
+        const results = Array.isArray(json) ? json : []
+        setMemeResults(results)
+        // Trending returned empty with no query → memes aren't available (Giphy fallback)
+        if (!memeQuery.trim() && results.length === 0) {
+          setMemesAvailable(false)
+          // Switch away from meme tab since it's unavailable
+          setPickerTab("gif")
+        } else if (results.length > 0) {
+          setMemesAvailable(true)
+        }
+      } catch {
+        setMemeResults([])
+      } finally {
+        setMemeLoading(false)
+      }
+    }, 400)
+
+    return () => {
+      clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [showEmojiPicker, pickerTab, memeQuery, memesAvailable])
 
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
@@ -907,36 +952,24 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
           >
               <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
-                <button
-                  role="tab"
-                  aria-selected={pickerTab === "emoji"}
-                  aria-controls="emoji-tab-panel"
-                  onClick={() => setPickerTab("emoji")}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold focus-ring transition-colors"
-                  style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: pickerTab === "emoji" ? "#fff" : "var(--theme-text-secondary)" }}
-                >
-                  Emoji
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={pickerTab === "gif"}
-                  aria-controls="gif-tab-panel"
-                  onClick={() => setPickerTab("gif")}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold focus-ring transition-colors"
-                  style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: pickerTab === "gif" ? "#fff" : "var(--theme-text-secondary)" }}
-                >
-                  GIFs
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={pickerTab === "sticker"}
-                  aria-controls="sticker-tab-panel"
-                  onClick={() => setPickerTab("sticker")}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold focus-ring transition-colors"
-                  style={{ background: pickerTab === "sticker" ? "var(--theme-accent)" : "transparent", color: pickerTab === "sticker" ? "#fff" : "var(--theme-text-secondary)" }}
-                >
-                  Stickers
-                </button>
+                {([
+                  { key: "emoji" as const, label: "Emoji", panel: "emoji-tab-panel" },
+                  { key: "gif" as const, label: "GIFs", panel: "gif-tab-panel" },
+                  ...(memesAvailable !== false ? [{ key: "meme" as const, label: "Memes", panel: "meme-tab-panel" }] : []),
+                  { key: "sticker" as const, label: "Stickers", panel: "sticker-tab-panel" },
+                ] as const).map((tab) => (
+                  <button
+                    key={tab.key}
+                    role="tab"
+                    aria-selected={pickerTab === tab.key}
+                    aria-controls={tab.panel}
+                    onClick={() => setPickerTab(tab.key)}
+                    className="px-3 py-1.5 rounded-md text-xs font-semibold focus-ring transition-colors"
+                    style={{ background: pickerTab === tab.key ? "var(--theme-accent)" : "transparent", color: pickerTab === tab.key ? "#fff" : "var(--theme-text-secondary)" }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
               {pickerTab === "emoji" && (
@@ -1074,12 +1107,12 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     onChange={(e) => setGifQuery(e.target.value)}
                     placeholder="Search GIFs"
                     aria-label="Search GIFs"
-                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
+                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
                     style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   />
                   {/* Search autocomplete suggestions */}
                   {gifSuggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 shrink-0">
                       {gifSuggestions.map((s) => (
                         <button
                           key={s}
@@ -1094,7 +1127,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   )}
                   {/* Section header */}
                   {!gifQuery.trim() && !gifLoading && gifResults.length > 0 && (
-                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
                       Trending
                     </p>
                   )}
@@ -1102,7 +1135,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
                   ) : (
                     <div
-                      className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto"
+                      className="grid grid-cols-3 gap-2 overflow-y-auto flex-1 min-h-0"
                       onKeyDown={handleGifGridKeyDown}
                     >
                       {gifResults.map((gif) => (
@@ -1137,6 +1170,71 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                         </button>
                       ))}
                     </div>
+                  )}
+                </div>
+              )}
+              {pickerTab === "meme" && (
+                <div id="meme-tab-panel" role="tabpanel" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
+                  {memesAvailable === false ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Memes are not available with the current provider.</p>
+                    </div>
+                  ) : (
+                  <>
+                  <input
+                    value={memeQuery}
+                    onChange={(e) => setMemeQuery(e.target.value)}
+                    placeholder="Search memes"
+                    aria-label="Search memes"
+                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
+                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+                  />
+                  {!memeQuery.trim() && !memeLoading && memeResults.length > 0 && (
+                    <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+                      Trending
+                    </p>
+                  )}
+                  {memeLoading ? (
+                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading memes…</p>
+                  ) : (
+                    <div
+                      className="grid grid-cols-3 gap-2 overflow-y-auto flex-1 min-h-0"
+                      onKeyDown={handleGifGridKeyDown}
+                    >
+                      {memeResults.map((meme) => (
+                        <button
+                          key={meme.id}
+                          onClick={async () => {
+                            if (sending) return
+                            const memeUrl = meme.url || meme.gifUrl
+                            if (!memeUrl?.trim()) {
+                              setSendError("Cannot send empty meme.")
+                              return
+                            }
+                            setShowEmojiPicker(false)
+                            setSending(true)
+                            setSendError(null)
+                            onSent?.()
+                            try {
+                              await onSend(memeUrl)
+                            } catch (error: any) {
+                              setSendError(error?.message ?? "Failed to send meme. Try again.")
+                            } finally {
+                              setSending(false)
+                              textareaRef.current?.focus()
+                            }
+                          }}
+                          className="rounded overflow-hidden hover:opacity-90 focus-ring"
+                          title={meme.title}
+                          aria-label={meme.title}
+                        >
+                          <img src={meme.previewUrl} alt={meme.title} className="w-full h-16 object-cover" />
+                          <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{meme.title || "Meme"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  </>
                   )}
                 </div>
               )}
