@@ -66,7 +66,8 @@ self.addEventListener("fetch", (event) => {
         const fetchPromise = fetch(request)
           .then((response) => {
             if (response.ok) {
-              caches.open(RUNTIME).then((c) => c.put(request, response.clone()))
+              const copy = response.clone()
+              caches.open(RUNTIME).then((c) => c.put(request, copy))
             }
             return response
           })
