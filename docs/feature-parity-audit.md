@@ -294,14 +294,14 @@ Full implementation plans for all gaps below are in [critical-gap-implementation
 
 ## Areas Where VortexChat Is **Ahead**
 
-| Feature | VortexChat | Competitors (incl. Stoat) |
+| Feature | VortexChat | Discord & Stoat |
 |---|---|---|
 | Voice intelligence (transcripts + summaries) | ✅ Full pipeline with consent | Neither Discord nor Stoat has this |
-| Permission simulator | ✅ Test permissions before applying | Nobody else has this (including Stoat) |
+| Permission simulator | ✅ Test permissions before applying | Neither Discord nor Stoat has this |
 | Server templates (import/export) | ✅ 4 built-in + JSON portability | Discord has basic templates; Stoat has none |
-| Moderation timeline (per-member) | ✅ Full action history | Nobody else has this (including Stoat) |
-| Temporary channels (auto-expire) | ✅ | Nobody else has this (including Stoat) |
-| PWA push on iOS | ✅ VAPID + SW-based | Competitors rely on native apps; Stoat PWA lacks push |
+| Moderation timeline (per-member) | ✅ Full action history | Neither Discord nor Stoat has this |
+| Temporary channels (auto-expire) | ✅ | Neither Discord nor Stoat has this |
+| PWA push on iOS | ✅ VAPID + SW-based | Discord uses native apps; Stoat PWA lacks push |
 | All features free (no paywall) | ✅ | Stoat also free; Discord gates features behind Nitro |
 | Threads & forum channels | ✅ Full thread system + forum channels | Stoat has no threads or forums |
 | AutoMod system | ✅ Keyword/regex filters, anti-spam, review queue | Stoat lacks AutoMod entirely |
