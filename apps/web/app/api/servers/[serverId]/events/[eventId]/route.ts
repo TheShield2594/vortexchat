@@ -99,8 +99,7 @@ export async function PATCH(
     action: body.cancelled ? "event_cancelled" : "event_updated",
     target_id: params.eventId,
     target_type: "event",
-    before: before,
-    after: after,
+    changes: { before, after },
   })
 
   // Notify attendees
@@ -164,8 +163,10 @@ export async function DELETE(
     action: "event_deleted",
     target_id: params.eventId,
     target_type: "event",
-    before: { title: event.title, start_at: event.start_at, created_by: event.created_by },
-    after: null,
+    changes: {
+      before: { title: event.title, start_at: event.start_at, created_by: event.created_by },
+      after: null,
+    },
   })
 
   // Notify attendees

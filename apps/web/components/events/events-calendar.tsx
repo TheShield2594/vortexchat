@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronLeft, ChevronRight, Pencil, Trash2, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { expandEventOccurrences, formatInTimeZone } from "@/lib/events"
 import type { EventOccurrence } from "@/lib/events"
+import { useToast } from "@/components/ui/use-toast"
 import { EventCard } from "./event-card"
 
 type ViewMode = "month" | "week" | "list"
@@ -41,6 +42,7 @@ export function EventsCalendar({
   canManageEvents?: boolean
   currentUserId: string
 }) {
+  const { toast } = useToast()
   const [events, setEvents] = useState<any[]>([])
   const [view, setView] = useState<ViewMode>("month")
   const [popover, setPopover] = useState<{ eventId: string; rect: DOMRect } | null>(null)
@@ -194,20 +196,36 @@ export function EventsCalendar({
   }
 
   async function deleteEvent(eventId: string) {
-    const res = await fetch(`/api/servers/${serverId}/events/${eventId}`, { method: "DELETE" })
-    if (res.ok) {
-      setEvents((prev) => prev.filter((e) => e.id !== eventId))
-      setPopover(null)
+    try {
+      const res = await fetch(`/api/servers/${serverId}/events/${eventId}`, { method: "DELETE" })
+      if (res.ok) {
+        setEvents((prev) => prev.filter((e) => e.id !== eventId))
+        setPopover(null)
+      } else {
+        const data = await res.json().catch(() => null)
+        toast({ variant: "destructive", title: "Failed to delete event", description: data?.error ?? "Something went wrong" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to delete event", description: "A network error occurred" })
     }
   }
 
   async function updateEvent(eventId: string, updates: Record<string, any>) {
-    const res = await fetch(`/api/servers/${serverId}/events/${eventId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    })
-    if (res.ok) await load()
+    try {
+      const res = await fetch(`/api/servers/${serverId}/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      })
+      if (res.ok) {
+        await load()
+      } else {
+        const data = await res.json().catch(() => null)
+        toast({ variant: "destructive", title: "Failed to update event", description: data?.error ?? "Something went wrong" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to update event", description: "A network error occurred" })
+    }
   }
 
   function canEditEvent(event: any): boolean {
@@ -539,7 +557,11 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
             </Button>
           )}
           {onDelete && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs text-red-400 hover:text-red-300" onClick={() => onDelete(occ.eventId)}>
+            <Button size="sm" variant="secondary" className="h-7 text-xs text-red-400 hover:text-red-300" onClick={() => {
+              if (window.confirm("Are you sure you want to delete this event? This cannot be undone.")) {
+                onDelete(occ.eventId)
+              }
+            }}>
               <Trash2 className="mr-1 h-3 w-3" />
               Delete
             </Button>

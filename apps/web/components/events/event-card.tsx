@@ -241,7 +241,11 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => onDelete(event.id)}
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to delete this event? This cannot be undone.")) {
+                      onDelete(event.id)
+                    }
+                  }}
                   className="h-7 text-xs text-red-500 hover:text-red-400"
                 >
                   <Trash2 className="mr-1 h-3.5 w-3.5" />
