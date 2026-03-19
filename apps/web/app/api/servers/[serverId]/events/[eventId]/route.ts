@@ -75,10 +75,37 @@ export async function PATCH(
   if (body.capacity !== undefined) updatePayload.capacity = body.capacity
   if (body.cancelled !== undefined) updatePayload.cancelled_at = body.cancelled ? new Date().toISOString() : null
 
+  // Compute the actual diff — only keep fields that differ from the existing event
+  const before: Record<string, any> = {}
+  const after: Record<string, any> = {}
+  for (const key of Object.keys(updatePayload)) {
+    const oldVal = existing?.[key] ?? null
+    const newVal = updatePayload[key] ?? null
+    // For cancelled_at, compare null vs truthy rather than exact timestamps
+    if (key === "cancelled_at") {
+      if ((!oldVal && !newVal) || (!!oldVal && !!newVal)) continue
+    } else if (String(oldVal) === String(newVal)) {
+      continue
+    }
+    before[key] = oldVal
+    after[key] = newVal
+  }
+
+  // Nothing actually changed — return the existing event without side effects
+  if (Object.keys(after).length === 0) {
+    return NextResponse.json({ id: existing?.id, title: existing?.title, linked_channel_id: existing?.linked_channel_id })
+  }
+
+  // Only include changed fields in the DB update
+  const filteredPayload: Record<string, any> = {}
+  for (const key of Object.keys(after)) {
+    filteredPayload[key] = updatePayload[key]
+  }
+
   // Use service client to bypass RLS (creator may not have MANAGE_EVENTS role permission)
   const { data: updated, error } = await service
     .from("events")
-    .update(updatePayload)
+    .update(filteredPayload)
     .eq("id", params.eventId)
     .eq("server_id", params.serverId)
     .select("id,title,linked_channel_id")
@@ -87,13 +114,7 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Audit log
-  const before: Record<string, any> = {}
-  const after: Record<string, any> = {}
-  for (const key of Object.keys(updatePayload)) {
-    before[key] = existing?.[key]
-    after[key] = updatePayload[key]
-  }
-  await service.from("audit_logs").insert({
+  const { error: auditError } = await service.from("audit_logs").insert({
     server_id: params.serverId,
     actor_id: user.id,
     action: body.cancelled ? "event_cancelled" : "event_updated",
@@ -101,6 +122,10 @@ export async function PATCH(
     target_type: "event",
     changes: { before, after },
   })
+  if (auditError) {
+    console.warn("Failed to write event audit log", { eventId: params.eventId, error: auditError.message })
+    return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
+  }
 
   // Notify attendees
   const { data: attendees } = await supabase
@@ -110,7 +135,7 @@ export async function PATCH(
     .in("status", ["going", "maybe", "waitlist"])
 
   if (attendees?.length) {
-    await service.from("notifications").insert(
+    const { error: notifyError } = await service.from("notifications").insert(
       attendees.map((attendee: any) => ({
         user_id: attendee.user_id,
         type: "system" as const,
@@ -120,6 +145,9 @@ export async function PATCH(
         channel_id: updated.linked_channel_id,
       }))
     )
+    if (notifyError) {
+      console.warn("Failed to send event update notifications", { eventId: params.eventId, error: notifyError.message })
+    }
   }
 
   return NextResponse.json(updated)
@@ -157,7 +185,7 @@ export async function DELETE(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Audit log
-  await service.from("audit_logs").insert({
+  const { error: auditError } = await service.from("audit_logs").insert({
     server_id: params.serverId,
     actor_id: user.id,
     action: "event_deleted",
@@ -168,10 +196,14 @@ export async function DELETE(
       after: null,
     },
   })
+  if (auditError) {
+    console.warn("Failed to write event delete audit log", { eventId: params.eventId, error: auditError.message })
+    return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
+  }
 
   // Notify attendees
   if (attendees?.length) {
-    await service.from("notifications").insert(
+    const { error: notifyError } = await service.from("notifications").insert(
       attendees.map((attendee: any) => ({
         user_id: attendee.user_id,
         type: "system" as const,
@@ -181,6 +213,9 @@ export async function DELETE(
         channel_id: event.linked_channel_id,
       }))
     )
+    if (notifyError) {
+      console.warn("Failed to send event delete notifications", { eventId: params.eventId, error: notifyError.message })
+    }
   }
 
   return NextResponse.json({ success: true })

@@ -149,7 +149,7 @@ export function EventsCalendar({
           startAt: new Date(startAt).toISOString(),
           endAt: new Date(endAt).toISOString(),
           recurrence,
-          recurrenceUntil: recurrence !== "none" && recurrenceUntil ? new Date(recurrenceUntil).toISOString() : undefined,
+          recurrenceUntil: recurrence !== "none" && recurrenceUntil ? recurrenceUntil : undefined,
           capacity: capacity ? parseInt(capacity, 10) : undefined,
           linkedChannelId: linkedChannelId || undefined,
           eventType,
@@ -429,20 +429,23 @@ export function EventsCalendar({
       {view === "week" && <WeekView occurrences={occurrences} events={events} range={range} timezone={timezone} rsvp={rsvp} onClickEvent={(eventId, rect) => setPopover(popover?.eventId === eventId ? null : { eventId, rect })} />}
       {view === "list" && <ListView occurrences={occurrences} events={events} timezone={timezone} rsvp={rsvp} serverId={serverId} canEditEvent={canEditEvent} onDelete={deleteEvent} onCancel={(id) => updateEvent(id, { cancelled: true })} />}
 
-      {popover && (
-        <EventPopover
-          eventId={popover.eventId}
-          anchorRect={popover.rect}
-          occurrences={occurrences}
-          events={events}
-          timezone={timezone}
-          rsvp={rsvp}
-          onClose={() => setPopover(null)}
-          canEdit={canEditEvent(events.find((e) => e.id === popover.eventId))}
-          onDelete={deleteEvent}
-          onCancel={(id) => updateEvent(id, { cancelled: true })}
-        />
-      )}
+      {popover && (() => {
+        const popoverEvent = events.find((e) => e.id === popover.eventId)
+        return (
+          <EventPopover
+            eventId={popover.eventId}
+            anchorRect={popover.rect}
+            occurrences={occurrences}
+            events={events}
+            timezone={timezone}
+            rsvp={rsvp}
+            onClose={() => setPopover(null)}
+            canEdit={popoverEvent ? canEditEvent(popoverEvent) : false}
+            onDelete={deleteEvent}
+            onCancel={(id) => updateEvent(id, { cancelled: true })}
+          />
+        )
+      })()}
     </div>
   )
 }
