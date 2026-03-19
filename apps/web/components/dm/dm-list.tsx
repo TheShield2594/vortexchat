@@ -69,6 +69,7 @@ interface NewDmDialogProps {
 function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
   const [friends, setFriends] = useState<FriendWithUser[]>([])
   const [loading, setLoading] = useState(false)
+  const [pendingFriendId, setPendingFriendId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -109,8 +110,16 @@ function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
               return (
                 <button
                   key={entry.id}
-                  onClick={async () => { if (await onSelectFriend(friend.id)) onOpenChange(false) }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg interactive-list-item surface-hover text-left"
+                  disabled={pendingFriendId !== null}
+                  onClick={async () => {
+                    setPendingFriendId(friend.id)
+                    try {
+                      if (await onSelectFriend(friend.id)) onOpenChange(false)
+                    } finally {
+                      setPendingFriendId(null)
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg interactive-list-item surface-hover text-left disabled:opacity-50"
                 >
                   <Avatar className="w-8 h-8 flex-shrink-0">
                     {friend.avatar_url && <AvatarImage src={friend.avatar_url} />}
@@ -159,6 +168,10 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const fetchChannels = useCallback(async () => {
     try {
       const res = await fetch("/api/dm/channels")
+      if (res.status === 401) {
+        window.location.href = "/login"
+        return
+      }
       if (res.ok) {
         const data = await res.json()
         setChannels(data)
