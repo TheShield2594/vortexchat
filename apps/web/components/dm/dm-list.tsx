@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils/cn"
 import { format, isToday } from "date-fns"
 import { Skeleton, ChannelRowSkeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
+import { toast } from "@/components/ui/use-toast"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FriendsSidebar } from "./friends-sidebar"
@@ -62,19 +63,27 @@ function StatusDot({ status }: { status: string }) {
 interface NewDmDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelectFriend: (friendId: string) => void
+  onSelectFriend: (friendId: string) => Promise<boolean>
 }
 
 function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
   const [friends, setFriends] = useState<FriendWithUser[]>([])
   const [loading, setLoading] = useState(false)
+  const [pendingFriendId, setPendingFriendId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
     fetch("/api/friends")
-      .then((r) => r.json())
+      .then((r) => {
+        if (r.status === 401) {
+          window.location.href = "/login"
+          return { accepted: [] }
+        }
+        return r.ok ? r.json() : { accepted: [] }
+      })
       .then((data) => setFriends(data.accepted ?? []))
+      .catch(() => { /* network failure — ignore */ })
       .finally(() => setLoading(false))
   }, [open])
 
@@ -101,8 +110,16 @@ function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
               return (
                 <button
                   key={entry.id}
-                  onClick={() => { onSelectFriend(friend.id); onOpenChange(false) }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg interactive-list-item surface-hover text-left"
+                  disabled={pendingFriendId !== null}
+                  onClick={async () => {
+                    setPendingFriendId(friend.id)
+                    try {
+                      if (await onSelectFriend(friend.id)) onOpenChange(false)
+                    } finally {
+                      setPendingFriendId(null)
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg interactive-list-item surface-hover text-left disabled:opacity-50"
                 >
                   <Avatar className="w-8 h-8 flex-shrink-0">
                     {friend.avatar_url && <AvatarImage src={friend.avatar_url} />}
@@ -149,15 +166,25 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const inFlightRefreshRef = useRef<Promise<void> | null>(null)
 
   const fetchChannels = useCallback(async () => {
-    const res = await fetch("/api/dm/channels")
-    if (res.ok) {
-      const data = await res.json()
-      setChannels(data)
-      // Push DM unread count to store (consumed by useTabUnreadTitle)
-      const unread = (data as DMChannel[]).filter((ch) => ch.is_unread).length
-      useAppStore.getState().setDmUnreadCount(unread)
+    try {
+      const res = await fetch("/api/dm/channels")
+      if (res.status === 401) {
+        window.location.href = "/login"
+        return
+      }
+      if (res.ok) {
+        const data = await res.json()
+        setChannels(data)
+        // Push DM unread count to store (consumed by useTabUnreadTitle)
+        const unread = (data as DMChannel[]).filter((ch) => ch.is_unread).length
+        useAppStore.getState().setDmUnreadCount(unread)
+      }
+    } catch {
+      // Network failure (e.g. "Load failed" on Mobile Safari when backgrounded)
+      // — silently ignore; channels will refresh on next successful fetch
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   const refreshChannels = useCallback(() => {
@@ -207,17 +234,34 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
     return () => { supabase.removeChannel(ch) }
   }, [supabase, refreshChannels, channelIdsStr, currentUserId])
 
-  async function startDM(friendId: string) {
-    const res = await fetch("/api/dm/channels", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userIds: [friendId] }),
-    })
-    if (res.ok) {
-      const { id } = await res.json()
-      router.push(`/channels/me/${id}`)
-      onNavigate?.()
-      refreshChannels()
+  async function startDM(friendId: string): Promise<boolean> {
+    try {
+      const res = await fetch("/api/dm/channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: [friendId] }),
+      })
+      if (res.ok) {
+        const { id } = await res.json()
+        router.push(`/channels/me/${id}`)
+        onNavigate?.()
+        refreshChannels()
+        return true
+      }
+      const body = await res.json().catch(() => ({}))
+      toast({
+        variant: "destructive",
+        title: "Could not start conversation",
+        description: body.error || "Something went wrong. Please try again.",
+      })
+      return false
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Could not start conversation",
+        description: "Network error. Please check your connection.",
+      })
+      return false
     }
   }
 
