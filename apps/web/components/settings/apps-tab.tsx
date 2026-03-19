@@ -228,30 +228,38 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
 
         <div>
           <h4 className="text-md font-semibold mb-2" style={{ color: "var(--theme-text-bright)" }}>Marketplace quick install</h4>
-          <div className="grid gap-3">
-            {market.filter((app) => !installedIds.has(app.id)).map((app) => (
-              <div key={app.id} className="rounded border p-3 flex items-center justify-between" style={{ borderColor: "var(--theme-surface-elevated)" }}>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p style={{ color: "var(--theme-text-bright)" }}>{app.name}</p>
-                    {app.trust_badge && (
-                      <BadgeCheck className="w-4 h-4" style={{ color: "var(--theme-success)" }} aria-label="Verified app" />
-                    )}
+          {(() => {
+            const visibleApps = market.filter((app) => !installedIds.has(app.id))
+            if (visibleApps.length === 0) {
+              return <p style={{ color: "var(--theme-text-muted)" }}>All discoverable apps are installed.</p>
+            }
+            return (
+              <div className="grid gap-3">
+                {visibleApps.map((app) => (
+                  <div key={app.id} className="rounded border p-3 flex items-center justify-between" style={{ borderColor: "var(--theme-surface-elevated)" }}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p style={{ color: "var(--theme-text-bright)" }}>{app.name}</p>
+                        {app.trust_badge && (
+                          <BadgeCheck className="w-4 h-4" style={{ color: "var(--theme-success)" }} aria-label="Verified app" />
+                        )}
+                      </div>
+                      <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                        <Shield className="w-3 h-3 inline mr-1" />{app.category} · <Star className="w-3 h-3 inline mr-1" />{app.average_rating.toFixed(1)} ({app.review_count})
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={!canManageApps || busyAppId === app.id}
+                      onClick={() => install(app.id)}
+                    >
+                      Install
+                    </Button>
                   </div>
-                  <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-                    <Shield className="w-3 h-3 inline mr-1" />{app.category} · <Star className="w-3 h-3 inline mr-1" />{app.average_rating.toFixed(1)} ({app.review_count})
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  disabled={!canManageApps || busyAppId === app.id}
-                  onClick={() => install(app.id)}
-                >
-                  Install
-                </Button>
+                ))}
               </div>
-            ))}
-          </div>
+            )
+          })()}
         </div>
       </div>
     </>
