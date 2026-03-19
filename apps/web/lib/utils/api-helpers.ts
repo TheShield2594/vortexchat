@@ -27,7 +27,24 @@ export async function requireAuth() {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+
+  if (authError && !user) {
+    const status = (authError as { status?: number }).status
+    const code = (authError as { code?: string }).code
+    const cause = (authError as { cause?: unknown }).cause
+
+    const isNetworkError =
+      (typeof status === "number" && (status === 502 || status === 503 || status === 504))
+      || (typeof code === "string" && (code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "ETIMEDOUT"))
+      || (cause instanceof TypeError)
+      || /fetch failed|econnrefused|network/i.test(authError.message ?? "")
+
+    if (isNetworkError) {
+      return { supabase, user: null, error: apiError("Auth service temporarily unavailable", 502) } as const
+    }
+  }
 
   if (!user) {
     return { supabase, user: null, error: unauthorized() } as const
