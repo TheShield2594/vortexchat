@@ -229,7 +229,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
         <div>
           <h4 className="text-md font-semibold mb-2" style={{ color: "var(--theme-text-bright)" }}>Marketplace quick install</h4>
           <div className="grid gap-3">
-            {market.slice(0, 6).map((app) => (
+            {market.filter((app) => !installedIds.has(app.id)).map((app) => (
               <div key={app.id} className="rounded border p-3 flex items-center justify-between" style={{ borderColor: "var(--theme-surface-elevated)" }}>
                 <div>
                   <div className="flex items-center gap-2">
@@ -244,10 +244,10 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
                 </div>
                 <Button
                   size="sm"
-                  disabled={!canManageApps || installedIds.has(app.id) || busyAppId === app.id}
+                  disabled={!canManageApps || busyAppId === app.id}
                   onClick={() => install(app.id)}
                 >
-                  {installedIds.has(app.id) ? "Installed" : "Install"}
+                  Install
                 </Button>
               </div>
             ))}
