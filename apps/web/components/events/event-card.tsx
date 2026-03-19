@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Calendar, Clock, ExternalLink, Mic, Users } from "lucide-react"
+import { Calendar, Clock, ExternalLink, Mic, Repeat, Trash2, Users, XCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { formatInTimeZone } from "@/lib/events"
@@ -16,6 +16,9 @@ interface EventCardProps {
   serverId: string
   onRsvp: (eventId: string, status: "going" | "maybe" | "not_going") => Promise<void>
   compact?: boolean
+  canEdit?: boolean
+  onDelete?: (eventId: string) => Promise<void>
+  onCancel?: (eventId: string) => Promise<void>
 }
 
 function useCountdown(startAt: Date): string {
@@ -46,7 +49,7 @@ function computeLabel(startAt: Date): string {
   return `Starts in ${days}d`
 }
 
-export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compact = false }: EventCardProps) {
+export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compact = false, canEdit = false, onDelete, onCancel }: EventCardProps) {
   const router = useRouter()
   const countdown = useCountdown(occurrence.startAt)
   const myStatus: RsvpStatus = event?.myRsvp?.status ?? null
@@ -125,6 +128,19 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
             </span>
           )}
         </div>
+
+        {/* Recurrence badge */}
+        {event.recurrence && event.recurrence !== "none" && (
+          <div className="flex items-center gap-1 text-xs text-indigo-400">
+            <Repeat className="h-3 w-3" />
+            <span className="capitalize">Repeats {event.recurrence}</span>
+            {event.recurrence_until && (
+              <span className="text-zinc-500">
+                until {new Date(event.recurrence_until).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="flex items-center gap-3 text-xs text-zinc-400">
@@ -206,6 +222,33 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
               <ExternalLink className="h-3.5 w-3.5" />
               Join Event
             </a>
+          )}
+
+          {canEdit && (
+            <div className="ml-auto flex gap-1">
+              {!event.cancelled_at && onCancel && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onCancel(event.id)}
+                  className="h-7 text-xs text-yellow-500 hover:text-yellow-400"
+                >
+                  <XCircle className="mr-1 h-3.5 w-3.5" />
+                  Cancel
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onDelete(event.id)}
+                  className="h-7 text-xs text-red-500 hover:text-red-400"
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
