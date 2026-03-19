@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/utils/api-helpers"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import type { Database } from "@/types/database"
 import { validateInstallPermissions } from "@/lib/apps/runtime"
@@ -23,9 +24,8 @@ export async function GET(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const { data, error } = await supabase
     .from("server_app_installs")
@@ -42,9 +42,8 @@ export async function POST(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const manager = await canManageApps(supabase, serverId, user.id)
   if (!manager.allowed) return NextResponse.json({ error: "Missing permissions to install apps." }, { status: 403 })
@@ -112,9 +111,8 @@ export async function DELETE(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
 
   const manager = await canManageApps(supabase, serverId, user.id)
   if (!manager.allowed) return NextResponse.json({ error: "Missing permissions to uninstall apps." }, { status: 403 })

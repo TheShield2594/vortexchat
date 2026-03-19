@@ -47,17 +47,19 @@ async function readErrorMessage(res: Response) {
     const payload = await res.json()
     if (payload?.error) return String(payload.error)
   } catch {
-    // fallback to text
-  }
-
-  try {
-    const text = await res.text()
-    if (text) return text
-  } catch {
-    // ignore
+    // fallback below
   }
 
   return `Request failed (${res.status})`
+}
+
+async function fetchWithRetry(url: string, init?: RequestInit, retries = 1): Promise<Response> {
+  const res = await fetch(url, init)
+  if (retries > 0 && (res.status === 502 || res.status === 503 || res.status === 401)) {
+    await new Promise((r) => setTimeout(r, 1000))
+    return fetchWithRetry(url, init, retries - 1)
+  }
+  return res
 }
 
 export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
@@ -73,8 +75,8 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
     setLoading(true)
     try {
       const [installedRes, marketRes] = await Promise.all([
-        fetch(`/api/servers/${serverId}/apps`),
-        fetch(`/api/apps/discover`),
+        fetchWithRetry(`/api/servers/${serverId}/apps`),
+        fetchWithRetry(`/api/apps/discover`),
       ])
 
       if (!installedRes.ok) throw new Error(await readErrorMessage(installedRes))
