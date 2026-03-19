@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Plus, MessageSquare } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
@@ -9,6 +9,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useMentionAutocomplete } from "@/hooks/use-mention-autocomplete"
 import { useEmojiAutocomplete } from "@/hooks/use-emoji-autocomplete"
 import { useSlashCommandAutocomplete, type SlashCommand } from "@/hooks/use-slash-command-autocomplete"
+import { BUILT_IN_SLASH_COMMANDS, getAvailableBuiltInCommands, getTextInsertionForBuiltIn, type BuiltInSlashCommand } from "@/lib/built-in-slash-commands"
 import { MentionSuggestions } from "@/components/chat/mention-suggestions"
 import { EmojiSuggestions } from "@/components/chat/emoji-suggestions"
 import { SlashCommandSuggestions } from "@/components/chat/slash-command-suggestions"
@@ -46,6 +47,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [sending, setSending] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiGridRef = useRef<HTMLDivElement>(null)
@@ -98,14 +100,32 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const emoji = useEmojiAutocomplete({ content, cursorPosition, serverEmojis })
 
   // Slash command autocomplete (`/command` prefix trigger)
-  const [slashCommands, setSlashCommands] = useState<SlashCommand[]>([])
+  const [appCommands, setAppCommands] = useState<SlashCommand[]>([])
+  const [userPermissions, setUserPermissions] = useState(0)
+  const [isServerOwner, setIsServerOwner] = useState(false)
   useEffect(() => {
     if (!serverId) return
     fetch(`/api/servers/${serverId}/apps/commands`)
-      .then((res) => res.ok ? res.json() : [])
-      .then((data: SlashCommand[]) => setSlashCommands(Array.isArray(data) ? data : []))
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!data) return
+        // New format: { commands, permissions, isOwner }
+        if (data.commands) {
+          setAppCommands(Array.isArray(data.commands) ? data.commands : [])
+          setUserPermissions(data.permissions ?? 0)
+          setIsServerOwner(data.isOwner ?? false)
+        } else if (Array.isArray(data)) {
+          // Backwards compat with old format
+          setAppCommands(data)
+        }
+      })
       .catch(() => {/* non-fatal */})
   }, [serverId])
+  // Merge permission-filtered built-in commands with app commands
+  const slashCommands = useMemo(() => {
+    const builtIns = getAvailableBuiltInCommands(userPermissions, isServerOwner, !!onCreateThread)
+    return [...builtIns, ...appCommands]
+  }, [appCommands, userPermissions, isServerOwner, onCreateThread])
   const slash = useSlashCommandAutocomplete({ content, cursorPosition, commands: slashCommands })
 
   function getPreviewUrl(file: File): string {
@@ -303,37 +323,289 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     if ((!content.trim() && files.length === 0) || sending) return
 
     // Detect slash command invocation: `/commandName [args]`
-    if (serverId && content.startsWith("/")) {
+    if (content.startsWith("/")) {
       const [commandToken, ...argParts] = content.trim().split(/\s+/)
       const commandName = commandToken.slice(1).toLowerCase()
-      const matchedCommand = slashCommands.find((cmd) => cmd.commandName.toLowerCase() === commandName)
-      if (matchedCommand) {
-        setSending(true)
-        setSendError(null)
-        const savedContent = content
-        setContent("")
-        onDraftChange("")
-        if (textareaRef.current) textareaRef.current.style.height = "28px"
-        onSent?.()
-        try {
-          const res = await fetch(`/api/servers/${serverId}/apps/commands/execute`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ commandId: matchedCommand.id, appId: matchedCommand.appId, args: argParts.join(" ") }),
-          })
-          if (!res.ok) {
-            const payload = await res.json().catch(() => ({}))
-            throw new Error(payload?.error ?? `Command failed (${res.status})`)
+      const args = argParts.join(" ")
+
+      // Check built-in commands first
+      const matchedBuiltIn = BUILT_IN_SLASH_COMMANDS.find((cmd) => cmd.commandName.toLowerCase() === commandName)
+      if (matchedBuiltIn) {
+        // Text-insertion commands (shrug, tableflip, etc.) — send as regular message
+        const textInsert = getTextInsertionForBuiltIn(commandName, args)
+        if (textInsert !== null) {
+          if (!textInsert.trim() && files.length === 0) return // e.g. /spoiler with no args
+          setContent(textInsert)
+          // Fall through to normal send below with replaced content
+          const savedContent = textInsert
+          setSending(true)
+          setSendError(null)
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          onSent?.()
+          try {
+            await onSend(savedContent, files.length > 0 ? files : undefined)
+            setFiles([])
+            for (const url of fileUrlCache.current.values()) URL.revokeObjectURL(url)
+            fileUrlCache.current.clear()
+          } catch (error: any) {
+            setContent(savedContent)
+            onDraftChange(savedContent)
+            setSendError(error?.message ?? "Message send failed. Try again.")
+          } finally {
+            setSending(false)
+            textareaRef.current?.focus()
           }
-        } catch (error: any) {
-          setContent(savedContent)
-          onDraftChange(savedContent)
-          setSendError(error?.message ?? "Command failed. Try again.")
-        } finally {
-          setSending(false)
-          textareaRef.current?.focus()
+          return
         }
-        return
+
+        // UI-trigger commands — open the relevant picker/creator
+        if (commandName === "giphy" || commandName === "gif") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          setPickerTab("gif")
+          setGifQuery(args)
+          setShowEmojiPicker(true)
+          return
+        }
+        if (commandName === "meme") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          setPickerTab("meme")
+          setMemeQuery(args)
+          setShowEmojiPicker(true)
+          return
+        }
+        if (commandName === "sticker") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          setPickerTab("sticker")
+          setStickerQuery(args)
+          setShowEmojiPicker(true)
+          return
+        }
+        if (commandName === "poll") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          if (pollOptions.length === 0) setPollOptions(["", ""])
+          if (args) setPollQuestion(args)
+          setShowPollCreator(true)
+          return
+        }
+        if (commandName === "thread") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          onCreateThread?.()
+          return
+        }
+        if (commandName === "nick") {
+          if (!serverId || !args.trim()) {
+            setSendError("/nick requires a nickname. Usage: /nick YourNewNick")
+            return
+          }
+          setSending(true)
+          setSendError(null)
+          setSendSuccess(null)
+          const savedContent = content
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          try {
+            const res = await fetch(`/api/servers/${serverId}/members/me/nickname`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ nickname: args.trim() }),
+            })
+            if (!res.ok) {
+              const payload = await res.json().catch(() => ({}))
+              throw new Error(payload?.error ?? `Failed to update nickname (${res.status})`)
+            }
+            setSendError(null)
+            setSendSuccess(`Nickname updated to "${args.trim()}"`)
+            setTimeout(() => setSendSuccess(null), 3000)
+          } catch (error: any) {
+            setContent(savedContent)
+            onDraftChange(savedContent)
+            setSendError(error?.message ?? "Failed to update nickname.")
+          } finally {
+            setSending(false)
+            textareaRef.current?.focus()
+          }
+          return
+        }
+
+        // --- Moderation commands ---
+        if (commandName === "kick") {
+          if (!serverId) return
+          const targetUsername = args.split(/\s+/)[0]
+          const reason = args.slice(targetUsername.length).trim()
+          if (!targetUsername) { setSendError("Usage: /kick @username [reason]"); return }
+          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
+          if (!target) { setSendError(`User "${targetUsername}" not found in this server.`); return }
+          setSending(true); setSendError(null)
+          const savedContent = content
+          setContent(""); onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          try {
+            const url = `/api/servers/${serverId}/members/${target.user_id}${reason ? `?reason=${encodeURIComponent(reason)}` : ""}`
+            const res = await fetch(url, { method: "DELETE" })
+            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Kick failed (${res.status})`) }
+          } catch (error: any) {
+            setContent(savedContent); onDraftChange(savedContent)
+            setSendError(error?.message ?? "Failed to kick member.")
+          } finally { setSending(false); textareaRef.current?.focus() }
+          return
+        }
+
+        if (commandName === "ban") {
+          if (!serverId) return
+          const targetUsername = args.split(/\s+/)[0]
+          const reason = args.slice(targetUsername.length).trim()
+          if (!targetUsername) { setSendError("Usage: /ban @username [reason]"); return }
+          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
+          if (!target) { setSendError(`User "${targetUsername}" not found in this server.`); return }
+          setSending(true); setSendError(null)
+          const savedContent = content
+          setContent(""); onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          try {
+            const res = await fetch(`/api/servers/${serverId}/bans`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: target.user_id, reason: reason || undefined }),
+            })
+            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Ban failed (${res.status})`) }
+          } catch (error: any) {
+            setContent(savedContent); onDraftChange(savedContent)
+            setSendError(error?.message ?? "Failed to ban member.")
+          } finally { setSending(false); textareaRef.current?.focus() }
+          return
+        }
+
+        if (commandName === "unban") {
+          if (!serverId) return
+          const targetInput = args.split(/\s+/)[0]
+          if (!targetInput) { setSendError("Usage: /unban @username or /unban <userId>"); return }
+          setSending(true); setSendError(null)
+          const savedContent = content
+          setContent(""); onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          try {
+            // Banned users aren't in the members list, so resolve from the ban list
+            const strippedName = targetInput.replace(/^@/, "")
+            // If it looks like a UUID, use it directly; otherwise fetch the ban list
+            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            let targetUserId: string | null = uuidPattern.test(strippedName) ? strippedName : null
+            if (!targetUserId) {
+              const bansRes = await fetch(`/api/servers/${serverId}/bans`)
+              if (!bansRes.ok) throw new Error("Failed to fetch ban list")
+              const bans: Array<{ user_id: string; username?: string; display_name?: string }> = await bansRes.json()
+              const match = bans.find((b) => b.username === strippedName || b.display_name === strippedName || b.user_id === strippedName)
+              if (!match) { throw new Error(`User "${targetInput}" not found in the ban list.`) }
+              targetUserId = match.user_id
+            }
+            const res = await fetch(`/api/servers/${serverId}/bans?userId=${targetUserId}`, { method: "DELETE" })
+            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Unban failed (${res.status})`) }
+          } catch (error: any) {
+            setContent(savedContent); onDraftChange(savedContent)
+            setSendError(error?.message ?? "Failed to unban member.")
+          } finally { setSending(false); textareaRef.current?.focus() }
+          return
+        }
+
+        if (commandName === "timeout") {
+          if (!serverId) return
+          // /timeout @username duration [reason]  — duration in minutes
+          const parts = args.split(/\s+/)
+          const targetUsername = parts[0]
+          const durationStr = parts[1]
+          const reason = parts.slice(2).join(" ")
+          if (!targetUsername || !durationStr) { setSendError("Usage: /timeout @username <minutes> [reason]"); return }
+          const durationMinutes = parseInt(durationStr, 10)
+          if (isNaN(durationMinutes) || durationMinutes <= 0) { setSendError("Duration must be a positive number of minutes."); return }
+          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
+          if (!target) { setSendError(`User "${targetUsername}" not found in this server.`); return }
+          setSending(true); setSendError(null)
+          const savedContent = content
+          setContent(""); onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          try {
+            const res = await fetch(`/api/servers/${serverId}/members/${target.user_id}/timeout`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ duration_seconds: durationMinutes * 60, reason: reason || undefined }),
+            })
+            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Timeout failed (${res.status})`) }
+          } catch (error: any) {
+            setContent(savedContent); onDraftChange(savedContent)
+            setSendError(error?.message ?? "Failed to timeout member.")
+          } finally { setSending(false); textareaRef.current?.focus() }
+          return
+        }
+
+        if (commandName === "mute") {
+          if (!serverId) return
+          const targetUsername = args.split(/\s+/)[0]
+          if (!targetUsername) { setSendError("Usage: /mute @username"); return }
+          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
+          if (!target) { setSendError(`User "${targetUsername}" not found in this server.`); return }
+          // Mute uses the timeout endpoint with a short reason identifier
+          setSending(true); setSendError(null)
+          const savedContent = content
+          setContent(""); onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          try {
+            const res = await fetch(`/api/servers/${serverId}/members/${target.user_id}/timeout`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ duration_seconds: 600, reason: "Muted via /mute command" }),
+            })
+            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Mute failed (${res.status})`) }
+          } catch (error: any) {
+            setContent(savedContent); onDraftChange(savedContent)
+            setSendError(error?.message ?? "Failed to mute member.")
+          } finally { setSending(false); textareaRef.current?.focus() }
+          return
+        }
+      }
+
+      // App-installed commands (require serverId)
+      if (serverId) {
+        const matchedCommand = appCommands.find((cmd) => cmd.commandName.toLowerCase() === commandName)
+        if (matchedCommand) {
+          setSending(true)
+          setSendError(null)
+          const savedContent = content
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          onSent?.()
+          try {
+            const res = await fetch(`/api/servers/${serverId}/apps/commands/execute`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ commandId: matchedCommand.id, appId: matchedCommand.appId, args }),
+            })
+            if (!res.ok) {
+              const payload = await res.json().catch(() => ({}))
+              throw new Error(payload?.error ?? `Command failed (${res.status})`)
+            }
+          } catch (error: any) {
+            setContent(savedContent)
+            onDraftChange(savedContent)
+            setSendError(error?.message ?? "Command failed. Try again.")
+          } finally {
+            setSending(false)
+            textareaRef.current?.focus()
+          }
+          return
+        }
       }
     }
 
@@ -695,7 +967,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         </div>
       )}
 
-      {(uploadProgress !== null || sendError) && (
+      {(uploadProgress !== null || sendError || sendSuccess) && (
         <div className={cn("px-3 py-2", files.length > 0 ? "rounded-none" : "rounded-t")} style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
           {uploadProgress !== null && (
             <div>
@@ -717,6 +989,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 </button>
               </div>
             </div>
+          )}
+          {sendSuccess && (
+            <p className="text-[11px]" style={{ color: "var(--theme-success, #43b581)" }}>{sendSuccess}</p>
           )}
           {sendError && (
             <p className="text-[11px]" style={{ color: "var(--theme-danger)" }}>{sendError}</p>
@@ -802,7 +1077,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       <div
         className={cn(
           "relative flex items-center gap-2 rounded-lg px-3 py-2",
-          replyTo || files.length > 0 || uploadProgress !== null || Boolean(sendError) ? "rounded-t-none" : ""
+          replyTo || files.length > 0 || uploadProgress !== null || Boolean(sendError) || Boolean(sendSuccess) ? "rounded-t-none" : ""
         )}
         style={{
           background: "var(--theme-surface-input)",
@@ -934,9 +1209,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onBlur={() => setInputFocused(false)}
             placeholder={replyTo
               ? `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`
-              : slashCommands.length > 0
-                ? `Message #${channelName} — @ mention, : emoji, / command`
-                : `Message #${channelName} — @ to mention, : for emoji`
+              : `Message #${channelName} — @ mention, : emoji, / command`
             }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none block"

@@ -48,7 +48,7 @@ export function useSlashCommandAutocomplete({ content, cursorPosition, commands 
             cmd.commandName.toLowerCase().startsWith(lower) ||
             (cmd.description?.toLowerCase().includes(lower) ?? false)
         )
-        .slice(0, 10)
+        .slice(0, 25)
     },
     [commands]
   )
