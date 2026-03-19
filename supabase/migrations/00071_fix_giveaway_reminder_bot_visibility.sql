@@ -22,13 +22,14 @@ VALUES (
   TRUE
 )
 ON CONFLICT (slug) DO UPDATE SET
-  name        = EXCLUDED.name,
-  description = EXCLUDED.description,
-  category    = EXCLUDED.category,
-  permissions = EXCLUDED.permissions,
-  trust_badge = EXCLUDED.trust_badge,
-  identity    = EXCLUDED.identity,
-  is_published = TRUE;
+  name           = EXCLUDED.name,
+  description    = EXCLUDED.description,
+  category       = EXCLUDED.category,
+  install_scopes = EXCLUDED.install_scopes,
+  permissions    = EXCLUDED.permissions,
+  trust_badge    = EXCLUDED.trust_badge,
+  identity       = EXCLUDED.identity,
+  is_published   = TRUE;
 
 INSERT INTO public.app_catalog (slug, name, description, category, install_scopes, permissions, trust_badge, identity, is_published)
 VALUES (
@@ -43,13 +44,14 @@ VALUES (
   TRUE
 )
 ON CONFLICT (slug) DO UPDATE SET
-  name        = EXCLUDED.name,
-  description = EXCLUDED.description,
-  category    = EXCLUDED.category,
-  permissions = EXCLUDED.permissions,
-  trust_badge = EXCLUDED.trust_badge,
-  identity    = EXCLUDED.identity,
-  is_published = TRUE;
+  name           = EXCLUDED.name,
+  description    = EXCLUDED.description,
+  category       = EXCLUDED.category,
+  install_scopes = EXCLUDED.install_scopes,
+  permissions    = EXCLUDED.permissions,
+  trust_badge    = EXCLUDED.trust_badge,
+  identity       = EXCLUDED.identity,
+  is_published   = TRUE;
 
 -- Ensure rate limits exist for both apps
 INSERT INTO public.app_rate_limits (app_id, requests_per_minute, burst)
