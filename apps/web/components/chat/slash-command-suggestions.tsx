@@ -12,13 +12,13 @@ interface Props {
 export function SlashCommandSuggestions({ commands, selectedIndex, onSelect }: Props) {
   const listRef = useRef<HTMLDivElement>(null)
 
-  if (commands.length === 0) return null
-
   // Scroll selected item into view
   useEffect(() => {
     const el = listRef.current?.children[selectedIndex] as HTMLElement | undefined
     el?.scrollIntoView({ block: "nearest" })
   }, [selectedIndex])
+
+  if (commands.length === 0) return null
 
   return (
     <div

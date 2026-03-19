@@ -47,6 +47,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [sending, setSending] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiGridRef = useRef<HTMLDivElement>(null)
@@ -410,6 +411,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           }
           setSending(true)
           setSendError(null)
+          setSendSuccess(null)
           const savedContent = content
           setContent("")
           onDraftChange("")
@@ -424,6 +426,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               const payload = await res.json().catch(() => ({}))
               throw new Error(payload?.error ?? `Failed to update nickname (${res.status})`)
             }
+            setSendError(null)
+            setSendSuccess(`Nickname updated to "${args.trim()}"`)
+            setTimeout(() => setSendSuccess(null), 3000)
           } catch (error: any) {
             setContent(savedContent)
             onDraftChange(savedContent)
@@ -485,16 +490,27 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
         if (commandName === "unban") {
           if (!serverId) return
-          const targetUsername = args.split(/\s+/)[0]
-          if (!targetUsername) { setSendError("Usage: /unban @username"); return }
-          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
-          if (!target) { setSendError(`User "${targetUsername}" not found. Note: they may already be removed from the member list.`); return }
+          const targetInput = args.split(/\s+/)[0]
+          if (!targetInput) { setSendError("Usage: /unban @username or /unban <userId>"); return }
           setSending(true); setSendError(null)
           const savedContent = content
           setContent(""); onDraftChange("")
           if (textareaRef.current) textareaRef.current.style.height = "28px"
           try {
-            const res = await fetch(`/api/servers/${serverId}/bans?userId=${target.user_id}`, { method: "DELETE" })
+            // Banned users aren't in the members list, so resolve from the ban list
+            const strippedName = targetInput.replace(/^@/, "")
+            // If it looks like a UUID, use it directly; otherwise fetch the ban list
+            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            let targetUserId: string | null = uuidPattern.test(strippedName) ? strippedName : null
+            if (!targetUserId) {
+              const bansRes = await fetch(`/api/servers/${serverId}/bans`)
+              if (!bansRes.ok) throw new Error("Failed to fetch ban list")
+              const bans: Array<{ user_id: string; username?: string; display_name?: string }> = await bansRes.json()
+              const match = bans.find((b) => b.username === strippedName || b.display_name === strippedName || b.user_id === strippedName)
+              if (!match) { throw new Error(`User "${targetInput}" not found in the ban list.`) }
+              targetUserId = match.user_id
+            }
+            const res = await fetch(`/api/servers/${serverId}/bans?userId=${targetUserId}`, { method: "DELETE" })
             if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Unban failed (${res.status})`) }
           } catch (error: any) {
             setContent(savedContent); onDraftChange(savedContent)
@@ -951,7 +967,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         </div>
       )}
 
-      {(uploadProgress !== null || sendError) && (
+      {(uploadProgress !== null || sendError || sendSuccess) && (
         <div className={cn("px-3 py-2", files.length > 0 ? "rounded-none" : "rounded-t")} style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
           {uploadProgress !== null && (
             <div>
@@ -973,6 +989,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 </button>
               </div>
             </div>
+          )}
+          {sendSuccess && (
+            <p className="text-[11px]" style={{ color: "var(--theme-success, #43b581)" }}>{sendSuccess}</p>
           )}
           {sendError && (
             <p className="text-[11px]" style={{ color: "var(--theme-danger)" }}>{sendError}</p>
@@ -1058,7 +1077,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       <div
         className={cn(
           "relative flex items-center gap-2 rounded-lg px-3 py-2",
-          replyTo || files.length > 0 || uploadProgress !== null || Boolean(sendError) ? "rounded-t-none" : ""
+          replyTo || files.length > 0 || uploadProgress !== null || Boolean(sendError) || Boolean(sendSuccess) ? "rounded-t-none" : ""
         )}
         style={{
           background: "var(--theme-surface-input)",

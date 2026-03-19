@@ -38,12 +38,16 @@ export async function GET(
       .eq("server_id", serverId),
   ])
 
+  if (!serverResult.data) {
+    return NextResponse.json({ error: "Server not found" }, { status: 404 })
+  }
+
   if (!memberResult.data) {
     return NextResponse.json({ error: "Not a member" }, { status: 403 })
   }
 
   const permissions = aggregateMemberPermissions((memberResult.data as any)?.member_roles ?? [])
-  const isOwner = serverResult.data?.owner_id === user.id
+  const isOwner = serverResult.data.owner_id === user.id
 
   // Build app commands list
   let appCommands: Array<{ id: string; appId: string; appName: string; commandName: string; description: string | null }> = []

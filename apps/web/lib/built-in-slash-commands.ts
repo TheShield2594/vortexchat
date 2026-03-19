@@ -56,7 +56,7 @@ export const BUILT_IN_SLASH_COMMANDS: BuiltInSlashCommand[] = [
   def("ban", "Ban a member from the server", "BAN_MEMBERS"),
   def("unban", "Unban a member from the server", "BAN_MEMBERS"),
   def("timeout", "Timeout a member (prevent them from chatting)", "MODERATE_MEMBERS"),
-  def("mute", "Mute a member in voice channels", "MUTE_MEMBERS"),
+  def("mute", "Timeout a member for 10 minutes", "MUTE_MEMBERS"),
 ]
 
 /**
