@@ -150,6 +150,9 @@
 | Incident Bot — timeline updates | Done | `incident_updates` table, status change + message history |
 | Incident Bot — channel announcements | Done | System bot posts on create, update, and resolve |
 | Incident Bot — slash commands | Done | `/incident`, `/iupdate`, `/iresolve`, `/ilist`, `/itimeline` |
+| Reminder Bot — personal reminders (up to 24h) | Done | `reminders` table, `reminder_app_configs`, per-user max limit |
+| Reminder Bot — slash commands | Done | `/reminder`, `/reminders`, `/rcancel` |
+| Giveaway Bot + Reminder Bot marketplace visibility | Done | Fixed via migration 00071 — upsert ensures `is_published = TRUE` (00066/00068 used `ON CONFLICT DO NOTHING` which silently skipped rows) |
 
 ---
 
