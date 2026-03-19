@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Plus, MessageSquare } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
@@ -9,6 +9,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useMentionAutocomplete } from "@/hooks/use-mention-autocomplete"
 import { useEmojiAutocomplete } from "@/hooks/use-emoji-autocomplete"
 import { useSlashCommandAutocomplete, type SlashCommand } from "@/hooks/use-slash-command-autocomplete"
+import { BUILT_IN_SLASH_COMMANDS, getTextInsertionForBuiltIn, type BuiltInSlashCommand } from "@/lib/built-in-slash-commands"
 import { MentionSuggestions } from "@/components/chat/mention-suggestions"
 import { EmojiSuggestions } from "@/components/chat/emoji-suggestions"
 import { SlashCommandSuggestions } from "@/components/chat/slash-command-suggestions"
@@ -98,14 +99,22 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const emoji = useEmojiAutocomplete({ content, cursorPosition, serverEmojis })
 
   // Slash command autocomplete (`/command` prefix trigger)
-  const [slashCommands, setSlashCommands] = useState<SlashCommand[]>([])
+  const [appCommands, setAppCommands] = useState<SlashCommand[]>([])
   useEffect(() => {
     if (!serverId) return
     fetch(`/api/servers/${serverId}/apps/commands`)
       .then((res) => res.ok ? res.json() : [])
-      .then((data: SlashCommand[]) => setSlashCommands(Array.isArray(data) ? data : []))
+      .then((data: SlashCommand[]) => setAppCommands(Array.isArray(data) ? data : []))
       .catch(() => {/* non-fatal */})
   }, [serverId])
+  // Merge built-in commands with app commands — built-in first, then app-specific
+  const slashCommands = useMemo(() => {
+    // Filter out built-in /thread when onCreateThread isn't available
+    const builtIns = onCreateThread
+      ? BUILT_IN_SLASH_COMMANDS
+      : BUILT_IN_SLASH_COMMANDS.filter((cmd) => cmd.commandName !== "thread")
+    return [...builtIns, ...appCommands]
+  }, [appCommands, onCreateThread])
   const slash = useSlashCommandAutocomplete({ content, cursorPosition, commands: slashCommands })
 
   function getPreviewUrl(file: File): string {
@@ -303,37 +312,152 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     if ((!content.trim() && files.length === 0) || sending) return
 
     // Detect slash command invocation: `/commandName [args]`
-    if (serverId && content.startsWith("/")) {
+    if (content.startsWith("/")) {
       const [commandToken, ...argParts] = content.trim().split(/\s+/)
       const commandName = commandToken.slice(1).toLowerCase()
-      const matchedCommand = slashCommands.find((cmd) => cmd.commandName.toLowerCase() === commandName)
-      if (matchedCommand) {
-        setSending(true)
-        setSendError(null)
-        const savedContent = content
-        setContent("")
-        onDraftChange("")
-        if (textareaRef.current) textareaRef.current.style.height = "28px"
-        onSent?.()
-        try {
-          const res = await fetch(`/api/servers/${serverId}/apps/commands/execute`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ commandId: matchedCommand.id, appId: matchedCommand.appId, args: argParts.join(" ") }),
-          })
-          if (!res.ok) {
-            const payload = await res.json().catch(() => ({}))
-            throw new Error(payload?.error ?? `Command failed (${res.status})`)
+      const args = argParts.join(" ")
+
+      // Check built-in commands first
+      const matchedBuiltIn = BUILT_IN_SLASH_COMMANDS.find((cmd) => cmd.commandName.toLowerCase() === commandName)
+      if (matchedBuiltIn) {
+        // Text-insertion commands (shrug, tableflip, etc.) — send as regular message
+        const textInsert = getTextInsertionForBuiltIn(commandName, args)
+        if (textInsert !== null) {
+          if (!textInsert.trim() && files.length === 0) return // e.g. /spoiler with no args
+          setContent(textInsert)
+          // Fall through to normal send below with replaced content
+          const savedContent = textInsert
+          setSending(true)
+          setSendError(null)
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          onSent?.()
+          try {
+            await onSend(savedContent, files.length > 0 ? files : undefined)
+            setFiles([])
+            for (const url of fileUrlCache.current.values()) URL.revokeObjectURL(url)
+            fileUrlCache.current.clear()
+          } catch (error: any) {
+            setContent(savedContent)
+            onDraftChange(savedContent)
+            setSendError(error?.message ?? "Message send failed. Try again.")
+          } finally {
+            setSending(false)
+            textareaRef.current?.focus()
           }
-        } catch (error: any) {
-          setContent(savedContent)
-          onDraftChange(savedContent)
-          setSendError(error?.message ?? "Command failed. Try again.")
-        } finally {
-          setSending(false)
-          textareaRef.current?.focus()
+          return
         }
-        return
+
+        // UI-trigger commands — open the relevant picker/creator
+        if (commandName === "giphy" || commandName === "gif") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          setPickerTab("gif")
+          setGifQuery(args)
+          setShowEmojiPicker(true)
+          return
+        }
+        if (commandName === "meme") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          setPickerTab("meme")
+          setMemeQuery(args)
+          setShowEmojiPicker(true)
+          return
+        }
+        if (commandName === "sticker") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          setPickerTab("sticker")
+          setStickerQuery(args)
+          setShowEmojiPicker(true)
+          return
+        }
+        if (commandName === "poll") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          if (pollOptions.length === 0) setPollOptions(["", ""])
+          if (args) setPollQuestion(args)
+          setShowPollCreator(true)
+          return
+        }
+        if (commandName === "thread") {
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          onCreateThread?.()
+          return
+        }
+        if (commandName === "nick") {
+          // Nickname change — dispatch to the server settings
+          if (!serverId || !args.trim()) {
+            setSendError("/nick requires a nickname. Usage: /nick YourNewNick")
+            return
+          }
+          setSending(true)
+          setSendError(null)
+          const savedContent = content
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          try {
+            const res = await fetch(`/api/servers/${serverId}/members/me/nickname`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ nickname: args.trim() }),
+            })
+            if (!res.ok) {
+              const payload = await res.json().catch(() => ({}))
+              throw new Error(payload?.error ?? `Failed to update nickname (${res.status})`)
+            }
+          } catch (error: any) {
+            setContent(savedContent)
+            onDraftChange(savedContent)
+            setSendError(error?.message ?? "Failed to update nickname.")
+          } finally {
+            setSending(false)
+            textareaRef.current?.focus()
+          }
+          return
+        }
+      }
+
+      // App-installed commands (require serverId)
+      if (serverId) {
+        const matchedCommand = appCommands.find((cmd) => cmd.commandName.toLowerCase() === commandName)
+        if (matchedCommand) {
+          setSending(true)
+          setSendError(null)
+          const savedContent = content
+          setContent("")
+          onDraftChange("")
+          if (textareaRef.current) textareaRef.current.style.height = "28px"
+          onSent?.()
+          try {
+            const res = await fetch(`/api/servers/${serverId}/apps/commands/execute`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ commandId: matchedCommand.id, appId: matchedCommand.appId, args }),
+            })
+            if (!res.ok) {
+              const payload = await res.json().catch(() => ({}))
+              throw new Error(payload?.error ?? `Command failed (${res.status})`)
+            }
+          } catch (error: any) {
+            setContent(savedContent)
+            onDraftChange(savedContent)
+            setSendError(error?.message ?? "Command failed. Try again.")
+          } finally {
+            setSending(false)
+            textareaRef.current?.focus()
+          }
+          return
+        }
       }
     }
 
@@ -934,9 +1058,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onBlur={() => setInputFocused(false)}
             placeholder={replyTo
               ? `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`
-              : slashCommands.length > 0
-                ? `Message #${channelName} — @ mention, : emoji, / command`
-                : `Message #${channelName} — @ to mention, : for emoji`
+              : `Message #${channelName} — @ mention, : emoji, / command`
             }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none block"
