@@ -73,8 +73,9 @@ function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
     if (!open) return
     setLoading(true)
     fetch("/api/friends")
-      .then((r) => r.json())
+      .then((r) => r.ok ? r.json() : Promise.resolve({ accepted: [] }))
       .then((data) => setFriends(data.accepted ?? []))
+      .catch(() => { /* network failure — ignore */ })
       .finally(() => setLoading(false))
   }, [open])
 
@@ -149,15 +150,21 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const inFlightRefreshRef = useRef<Promise<void> | null>(null)
 
   const fetchChannels = useCallback(async () => {
-    const res = await fetch("/api/dm/channels")
-    if (res.ok) {
-      const data = await res.json()
-      setChannels(data)
-      // Push DM unread count to store (consumed by useTabUnreadTitle)
-      const unread = (data as DMChannel[]).filter((ch) => ch.is_unread).length
-      useAppStore.getState().setDmUnreadCount(unread)
+    try {
+      const res = await fetch("/api/dm/channels")
+      if (res.ok) {
+        const data = await res.json()
+        setChannels(data)
+        // Push DM unread count to store (consumed by useTabUnreadTitle)
+        const unread = (data as DMChannel[]).filter((ch) => ch.is_unread).length
+        useAppStore.getState().setDmUnreadCount(unread)
+      }
+    } catch {
+      // Network failure (e.g. "Load failed" on Mobile Safari when backgrounded)
+      // — silently ignore; channels will refresh on next successful fetch
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   const refreshChannels = useCallback(() => {
@@ -208,16 +215,20 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   }, [supabase, refreshChannels, channelIdsStr, currentUserId])
 
   async function startDM(friendId: string) {
-    const res = await fetch("/api/dm/channels", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userIds: [friendId] }),
-    })
-    if (res.ok) {
-      const { id } = await res.json()
-      router.push(`/channels/me/${id}`)
-      onNavigate?.()
-      refreshChannels()
+    try {
+      const res = await fetch("/api/dm/channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: [friendId] }),
+      })
+      if (res.ok) {
+        const { id } = await res.json()
+        router.push(`/channels/me/${id}`)
+        onNavigate?.()
+        refreshChannels()
+      }
+    } catch {
+      // Network failure — silently ignore
     }
   }
 
