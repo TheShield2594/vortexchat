@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils/cn"
 import { format, isToday } from "date-fns"
 import { Skeleton, ChannelRowSkeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
+import { toast } from "@/components/ui/use-toast"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FriendsSidebar } from "./friends-sidebar"
@@ -62,7 +63,7 @@ function StatusDot({ status }: { status: string }) {
 interface NewDmDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelectFriend: (friendId: string) => void
+  onSelectFriend: (friendId: string) => Promise<boolean>
 }
 
 function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
@@ -73,7 +74,13 @@ function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
     if (!open) return
     setLoading(true)
     fetch("/api/friends")
-      .then((r) => r.ok ? r.json() : Promise.resolve({ accepted: [] }))
+      .then((r) => {
+        if (r.status === 401) {
+          window.location.href = "/login"
+          return { accepted: [] }
+        }
+        return r.ok ? r.json() : { accepted: [] }
+      })
       .then((data) => setFriends(data.accepted ?? []))
       .catch(() => { /* network failure — ignore */ })
       .finally(() => setLoading(false))
@@ -102,7 +109,7 @@ function NewDmDialog({ open, onOpenChange, onSelectFriend }: NewDmDialogProps) {
               return (
                 <button
                   key={entry.id}
-                  onClick={() => { onSelectFriend(friend.id); onOpenChange(false) }}
+                  onClick={async () => { if (await onSelectFriend(friend.id)) onOpenChange(false) }}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-lg interactive-list-item surface-hover text-left"
                 >
                   <Avatar className="w-8 h-8 flex-shrink-0">
@@ -214,7 +221,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
     return () => { supabase.removeChannel(ch) }
   }, [supabase, refreshChannels, channelIdsStr, currentUserId])
 
-  async function startDM(friendId: string) {
+  async function startDM(friendId: string): Promise<boolean> {
     try {
       const res = await fetch("/api/dm/channels", {
         method: "POST",
@@ -226,9 +233,22 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
         router.push(`/channels/me/${id}`)
         onNavigate?.()
         refreshChannels()
+        return true
       }
+      const body = await res.json().catch(() => ({}))
+      toast({
+        variant: "destructive",
+        title: "Could not start conversation",
+        description: body.error || "Something went wrong. Please try again.",
+      })
+      return false
     } catch {
-      // Network failure — silently ignore
+      toast({
+        variant: "destructive",
+        title: "Could not start conversation",
+        description: "Network error. Please check your connection.",
+      })
+      return false
     }
   }
 
