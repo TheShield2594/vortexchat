@@ -241,7 +241,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
                       <div className="flex items-center gap-2">
                         <p style={{ color: "var(--theme-text-bright)" }}>{app.name}</p>
                         {app.trust_badge && (
-                          <BadgeCheck className="w-4 h-4" style={{ color: "var(--theme-success)" }} aria-label={`${app.trust_badge!.charAt(0).toUpperCase()}${app.trust_badge!.slice(1)} app`} />
+                          <BadgeCheck className="w-4 h-4" style={{ color: "var(--theme-success)" }} aria-label={`${app.trust_badge.charAt(0).toUpperCase()}${app.trust_badge.slice(1)} app`} />
                         )}
                       </div>
                       <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
