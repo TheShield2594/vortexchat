@@ -2,16 +2,25 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { expandEventOccurrences, formatInTimeZone } from "@/lib/events"
 import type { EventOccurrence } from "@/lib/events"
+import { useToast } from "@/components/ui/use-toast"
 import { EventCard } from "./event-card"
 
 type ViewMode = "month" | "week" | "list"
 type EventType = "general" | "voice" | "external"
+type Recurrence = "none" | "daily" | "weekly" | "monthly"
+
+const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
+  { value: "none", label: "Does not repeat" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+]
 
 function toLocalDatetime(date: Date): string {
   const y = date.getFullYear()
@@ -26,11 +35,14 @@ export function EventsCalendar({
   serverId,
   channels,
   canManageEvents = false,
+  currentUserId,
 }: {
   serverId: string
   channels: Array<{ id: string; name: string; type?: string }>
   canManageEvents?: boolean
+  currentUserId: string
 }) {
+  const { toast } = useToast()
   const [events, setEvents] = useState<any[]>([])
   const [view, setView] = useState<ViewMode>("month")
   const [popover, setPopover] = useState<{ eventId: string; rect: DOMRect } | null>(null)
@@ -50,6 +62,8 @@ export function EventsCalendar({
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [recurrence, setRecurrence] = useState<Recurrence>("none")
+  const [recurrenceUntil, setRecurrenceUntil] = useState("")
 
   const voiceChannels = channels.filter((ch) => ch.type === "voice")
 
@@ -99,6 +113,8 @@ export function EventsCalendar({
     setExternalUrl("")
     setVoiceChannelId("")
     setBannerFile(null)
+    setRecurrence("none")
+    setRecurrenceUntil("")
     setShowForm(false)
   }
 
@@ -132,7 +148,8 @@ export function EventsCalendar({
           timezone,
           startAt: new Date(startAt).toISOString(),
           endAt: new Date(endAt).toISOString(),
-          recurrence: "none",
+          recurrence,
+          recurrenceUntil: recurrence !== "none" && recurrenceUntil ? recurrenceUntil : undefined,
           capacity: capacity ? parseInt(capacity, 10) : undefined,
           linkedChannelId: linkedChannelId || undefined,
           eventType,
@@ -176,6 +193,43 @@ export function EventsCalendar({
     } catch {
       setEvents(prevEvents)
     }
+  }
+
+  async function deleteEvent(eventId: string) {
+    try {
+      const res = await fetch(`/api/servers/${serverId}/events/${eventId}`, { method: "DELETE" })
+      if (res.ok) {
+        setEvents((prev) => prev.filter((e) => e.id !== eventId))
+        setPopover(null)
+      } else {
+        const data = await res.json().catch(() => null)
+        toast({ variant: "destructive", title: "Failed to delete event", description: data?.error ?? "Something went wrong" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to delete event", description: "A network error occurred" })
+    }
+  }
+
+  async function updateEvent(eventId: string, updates: Record<string, any>) {
+    try {
+      const res = await fetch(`/api/servers/${serverId}/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      })
+      if (res.ok) {
+        await load()
+      } else {
+        const data = await res.json().catch(() => null)
+        toast({ variant: "destructive", title: "Failed to update event", description: data?.error ?? "Something went wrong" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to update event", description: "A network error occurred" })
+    }
+  }
+
+  function canEditEvent(event: any): boolean {
+    return canManageEvents || event.created_by === currentUserId
   }
 
   return (
@@ -290,6 +344,34 @@ export function EventsCalendar({
             </div>
           </div>
 
+          {/* Recurrence */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="event-recurrence">Repeat</Label>
+              <select
+                id="event-recurrence"
+                value={recurrence}
+                onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+                className="flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-sm text-zinc-100"
+              >
+                {RECURRENCE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            {recurrence !== "none" && (
+              <div className="space-y-1">
+                <Label htmlFor="event-recurrence-until">Repeat until (optional)</Label>
+                <Input
+                  id="event-recurrence-until"
+                  type="date"
+                  value={recurrenceUntil}
+                  onChange={(e) => setRecurrenceUntil(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
           {/* External URL field */}
           {eventType === "external" && (
             <div className="space-y-1">
@@ -345,19 +427,25 @@ export function EventsCalendar({
 
       {view === "month" && <MonthView occurrences={occurrences} events={events} anchor={anchor} timezone={timezone} rsvp={rsvp} onClickEvent={(eventId, rect) => setPopover(popover?.eventId === eventId ? null : { eventId, rect })} />}
       {view === "week" && <WeekView occurrences={occurrences} events={events} range={range} timezone={timezone} rsvp={rsvp} onClickEvent={(eventId, rect) => setPopover(popover?.eventId === eventId ? null : { eventId, rect })} />}
-      {view === "list" && <ListView occurrences={occurrences} events={events} timezone={timezone} rsvp={rsvp} serverId={serverId} />}
+      {view === "list" && <ListView occurrences={occurrences} events={events} timezone={timezone} rsvp={rsvp} serverId={serverId} canEditEvent={canEditEvent} onDelete={deleteEvent} onCancel={(id) => updateEvent(id, { cancelled: true })} />}
 
-      {popover && (
-        <EventPopover
-          eventId={popover.eventId}
-          anchorRect={popover.rect}
-          occurrences={occurrences}
-          events={events}
-          timezone={timezone}
-          rsvp={rsvp}
-          onClose={() => setPopover(null)}
-        />
-      )}
+      {popover && (() => {
+        const popoverEvent = events.find((e) => e.id === popover.eventId)
+        return (
+          <EventPopover
+            eventId={popover.eventId}
+            anchorRect={popover.rect}
+            occurrences={occurrences}
+            events={events}
+            timezone={timezone}
+            rsvp={rsvp}
+            onClose={() => setPopover(null)}
+            canEdit={popoverEvent ? canEditEvent(popoverEvent) : false}
+            onDelete={deleteEvent}
+            onCancel={(id) => updateEvent(id, { cancelled: true })}
+          />
+        )
+      })()}
     </div>
   )
 }
@@ -383,7 +471,7 @@ function formatTime12h(date: Date): string {
 const POPOVER_W = 340
 const POPOVER_GAP = 8
 
-function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp, onClose }: {
+function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp, onClose, canEdit, onDelete, onCancel }: {
   eventId: string
   anchorRect: DOMRect
   occurrences: EventOccurrence[]
@@ -391,6 +479,9 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
   timezone: string
   rsvp: RsvpFn
   onClose: () => void
+  canEdit?: boolean
+  onDelete?: (eventId: string) => Promise<void>
+  onCancel?: (eventId: string) => Promise<void>
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const occ = occurrences.find((o) => o.eventId === eventId)
@@ -461,6 +552,25 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
           {myStatus === "not_going" ? "\u2713 Not going" : "Not going"}
         </Button>
       </div>
+      {canEdit && (
+        <div className="mt-2 flex gap-2 border-t border-zinc-700/50 pt-2">
+          {!full.cancelled_at && onCancel && (
+            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onCancel(occ.eventId)}>
+              Cancel event
+            </Button>
+          )}
+          {onDelete && (
+            <Button size="sm" variant="secondary" className="h-7 text-xs text-red-400 hover:text-red-300" onClick={() => {
+              if (window.confirm("Are you sure you want to delete this event? This cannot be undone.")) {
+                onDelete(occ.eventId)
+              }
+            }}>
+              <Trash2 className="mr-1 h-3 w-3" />
+              Delete
+            </Button>
+          )}
+        </div>
+      )}
     </div>,
     document.body
   )
@@ -588,7 +698,7 @@ function WeekView({ occurrences, events, range, onClickEvent }: ViewProps & { ra
 
 // ── List view ────────────────────────────────────────────────────────────────
 
-function ListView({ occurrences, events, timezone, rsvp, serverId }: Omit<ViewProps, "onClickEvent"> & { serverId: string }) {
+function ListView({ occurrences, events, timezone, rsvp, serverId, canEditEvent, onDelete, onCancel }: Omit<ViewProps, "onClickEvent"> & { serverId: string; canEditEvent: (event: any) => boolean; onDelete: (eventId: string) => Promise<void>; onCancel: (eventId: string) => Promise<void> }) {
   const grouped = useMemo(() => {
     const map = new Map<string, EventOccurrence[]>()
     for (const occ of occurrences) {
@@ -620,6 +730,9 @@ function ListView({ occurrences, events, timezone, rsvp, serverId }: Omit<ViewPr
                   timezone={timezone}
                   serverId={serverId}
                   onRsvp={rsvp}
+                  canEdit={canEditEvent(full)}
+                  onDelete={onDelete}
+                  onCancel={onCancel}
                 />
               )
             })}

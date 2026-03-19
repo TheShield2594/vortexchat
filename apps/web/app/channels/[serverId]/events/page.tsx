@@ -46,7 +46,7 @@ export default async function ServerEventsPage({ params: paramsPromise }: { para
 
   return (
     <main className="flex-1 overflow-y-auto bg-zinc-950">
-      <EventsCalendar serverId={params.serverId} channels={channels ?? []} canManageEvents={canManageEvents} />
+      <EventsCalendar serverId={params.serverId} channels={channels ?? []} canManageEvents={canManageEvents} currentUserId={user.id} />
     </main>
   )
 }
