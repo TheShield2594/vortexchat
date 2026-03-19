@@ -230,7 +230,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
           <h4 className="text-md font-semibold mb-2" style={{ color: "var(--theme-text-bright)" }}>Marketplace quick install</h4>
           {(() => {
             const visibleApps = market.filter((app) => !installedIds.has(app.id))
-            if (visibleApps.length === 0) {
+            if (!loading && visibleApps.length === 0) {
               return <p style={{ color: "var(--theme-text-muted)" }}>All discoverable apps are installed.</p>
             }
             return (
@@ -241,7 +241,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
                       <div className="flex items-center gap-2">
                         <p style={{ color: "var(--theme-text-bright)" }}>{app.name}</p>
                         {app.trust_badge && (
-                          <BadgeCheck className="w-4 h-4" style={{ color: "var(--theme-success)" }} aria-label="Verified app" />
+                          <BadgeCheck className="w-4 h-4" style={{ color: "var(--theme-success)" }} aria-label={`${app.trust_badge!.charAt(0).toUpperCase()}${app.trust_badge!.slice(1)} app`} />
                         )}
                       </div>
                       <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
