@@ -53,11 +53,16 @@ async function readErrorMessage(res: Response) {
   return `Request failed (${res.status})`
 }
 
-async function fetchWithRetry(url: string, init?: RequestInit, retries = 1): Promise<Response> {
+async function fetchWithRetry(
+  url: string,
+  init?: RequestInit,
+  retries = 1,
+  retryStatusCodes: number[] = [502, 503],
+): Promise<Response> {
   const res = await fetch(url, init)
-  if (retries > 0 && (res.status === 502 || res.status === 503 || res.status === 401)) {
+  if (retries > 0 && retryStatusCodes.includes(res.status)) {
     await new Promise((r) => setTimeout(r, 1000))
-    return fetchWithRetry(url, init, retries - 1)
+    return fetchWithRetry(url, init, retries - 1, retryStatusCodes)
   }
   return res
 }

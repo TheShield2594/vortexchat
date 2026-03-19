@@ -27,6 +27,11 @@ export async function GET(
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
 
+  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+  if (!isAdmin && permissions === 0) {
+    return NextResponse.json({ error: "Not a member of this server" }, { status: 403 })
+  }
+
   const { data, error } = await supabase
     .from("server_app_installs")
     .select("id, app_id, install_scopes, granted_permissions, installed_at, app_catalog(name, slug, trust_badge)")
