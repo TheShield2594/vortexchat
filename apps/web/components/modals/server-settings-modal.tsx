@@ -505,8 +505,14 @@ export function EmojisTab({ serverId }: { serverId: string }) {
         const error = await res.json().catch(() => null)
         toast({ variant: "destructive", title: error?.error || "Failed to upload emoji" })
       }
-    } catch {
-      toast({ variant: "destructive", title: "Network error — please try again" })
+    } catch (error) {
+      const isNetwork = error instanceof TypeError && /fetch|network/i.test(error.message)
+      toast({
+        variant: "destructive",
+        title: isNetwork
+          ? "Network error — please try again"
+          : (error instanceof Error ? error.message : "Failed to upload emoji"),
+      })
     } finally {
       setUploading(false)
     }
