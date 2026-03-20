@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
+interface MembershipRow {
+  server_id: string
+  servers: { id: string; name: string; icon_url: string | null }
+}
+
 /** GET /api/emojis/all — Returns all custom emojis across every server the
  *  authenticated user belongs to. Results are grouped by server so the picker
  *  can display them under server-name headers. */
@@ -15,15 +20,16 @@ export async function GET(_req: NextRequest) {
     .select("server_id, servers!inner(id, name, icon_url)")
     .eq("user_id", user.id)
 
-  if (memErr) return NextResponse.json({ error: memErr.message }, { status: 500 })
+  if (memErr) {
+    console.error("Failed to fetch memberships for emoji lookup:", memErr.message)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
   if (!memberships || memberships.length === 0) return NextResponse.json([], { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" } })
 
-  const serverIds = memberships.map((m: any) => m.server_id)
-  const serverMap = new Map<string, { id: string; name: string; icon_url: string | null }>(
-    memberships.map((m: any) => {
-      const s = m.servers
-      return [m.server_id, { id: s.id as string, name: s.name as string, icon_url: (s.icon_url ?? null) as string | null }]
-    })
+  const rows = memberships as unknown as MembershipRow[]
+  const serverIds = rows.map((m) => m.server_id)
+  const serverMap = new Map<string, MembershipRow["servers"]>(
+    rows.map((m) => [m.server_id, m.servers])
   )
 
   // Fetch all custom emojis across those servers in a single query
@@ -33,7 +39,10 @@ export async function GET(_req: NextRequest) {
     .in("server_id", serverIds)
     .order("name")
 
-  if (emojiErr) return NextResponse.json({ error: emojiErr.message }, { status: 500 })
+  if (emojiErr) {
+    console.error("Failed to fetch server emojis:", emojiErr.message)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 
   // Group by server
   const grouped: Array<{

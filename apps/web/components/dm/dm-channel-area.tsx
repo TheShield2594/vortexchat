@@ -205,6 +205,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [stickerResults, setStickerResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [stickerLoading, setStickerLoading] = useState(false)
   const [allServerEmojis, setAllServerEmojis] = useState<Array<{ server: { id: string; name: string; icon_url: string | null }; emojis: Array<{ id: string; name: string; image_url: string }> }>>([])
+  const emojiFetchedRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -216,8 +217,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const topRef = useRef<HTMLDivElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const { toast } = useToast()
-  const { currentUser } = useAppStore(
-    useShallow((s) => ({ currentUser: s.currentUser }))
+  const { currentUser, serverCount } = useAppStore(
+    useShallow((s) => ({ currentUser: s.currentUser, serverCount: s.servers.length }))
   )
 
   const { playNotification } = useNotificationSound()
@@ -656,17 +657,27 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     }
   }, [showEmojiPicker, pickerTab, stickerQuery])
 
+  // Invalidate the emoji cache when server membership changes
+  useEffect(() => {
+    emojiFetchedRef.current = false
+  }, [serverCount])
+
   // Fetch custom emojis from all servers the user belongs to when picker opens
   useEffect(() => {
     if (!showEmojiPicker || pickerTab !== "emoji") return
-    if (allServerEmojis.length > 0) return // already fetched
+    if (emojiFetchedRef.current) return
     const controller = new AbortController()
     fetch("/api/emojis/all", { signal: controller.signal })
       .then((res) => res.ok ? res.json() : [])
-      .then((data) => { if (Array.isArray(data)) setAllServerEmojis(data) })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAllServerEmojis(data)
+          emojiFetchedRef.current = true
+        }
+      })
       .catch(() => {/* ignore abort/network */})
     return () => controller.abort()
-  }, [showEmojiPicker, pickerTab]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showEmojiPicker, pickerTab, serverCount])
 
   async function handleSendGif(gifUrl: string) {
     if (!gifUrl.trim() || sending) return

@@ -1,7 +1,5 @@
 "use client"
 
-import { useState } from "react"
-
 interface CustomEmoji {
   id: string
   name: string
@@ -33,7 +31,7 @@ export function CustomEmojiGrid({ emojis, groups, search, onSelect }: Props) {
     const filtered = groups
       .map((g) => ({
         ...g,
-        emojis: query ? g.emojis.filter((e) => e.name.includes(query)) : g.emojis,
+        emojis: query ? g.emojis.filter((e) => e.name.toLowerCase().includes(query)) : g.emojis,
       }))
       .filter((g) => g.emojis.length > 0)
 
@@ -67,7 +65,7 @@ export function CustomEmojiGrid({ emojis, groups, search, onSelect }: Props) {
   }
 
   if (emojis && emojis.length > 0) {
-    const filtered = query ? emojis.filter((e) => e.name.includes(query)) : emojis
+    const filtered = query ? emojis.filter((e) => e.name.toLowerCase().includes(query)) : emojis
     if (filtered.length === 0) return null
 
     return (
@@ -106,46 +104,39 @@ function EmojiGrid({ emojis, onSelect }: { emojis: CustomEmoji[]; onSelect: (e: 
         padding: "2px 4px",
       }}
     >
+      <style>{`.custom-emoji-btn:hover { background: var(--theme-surface-elevated) !important; }`}</style>
       {emojis.map((e) => (
-        <EmojiButton key={e.id} emoji={e} onSelect={onSelect} />
+        <button
+          key={e.id}
+          type="button"
+          data-emoji-btn=""
+          className="custom-emoji-btn"
+          tabIndex={-1}
+          onClick={() => onSelect(e)}
+          title={`:${e.name}:`}
+          aria-label={`:${e.name}:`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+            aspectRatio: "1",
+            borderRadius: "4px",
+            cursor: "pointer",
+            border: "none",
+            background: "transparent",
+            padding: "4px",
+          }}
+        >
+          <img
+            src={e.image_url}
+            alt={`:${e.name}:`}
+            loading="lazy"
+            draggable={false}
+            style={{ width: "22px", height: "22px", objectFit: "contain" }}
+          />
+        </button>
       ))}
     </div>
-  )
-}
-
-function EmojiButton({ emoji, onSelect }: { key?: string; emoji: CustomEmoji; onSelect: (e: CustomEmoji) => void }) {
-  const [hover, setHover] = useState(false)
-
-  return (
-    <button
-      type="button"
-      data-emoji-btn=""
-      tabIndex={-1}
-      onClick={() => onSelect(emoji)}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      title={`:${emoji.name}:`}
-      aria-label={`:${emoji.name}:`}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "100%",
-        aspectRatio: "1",
-        borderRadius: "4px",
-        cursor: "pointer",
-        border: "none",
-        background: hover ? "var(--theme-surface-elevated)" : "transparent",
-        padding: "4px",
-      }}
-    >
-      <img
-        src={emoji.image_url}
-        alt={`:${emoji.name}:`}
-        loading="lazy"
-        draggable={false}
-        style={{ width: "22px", height: "22px", objectFit: "contain" }}
-      />
-    </button>
   )
 }
