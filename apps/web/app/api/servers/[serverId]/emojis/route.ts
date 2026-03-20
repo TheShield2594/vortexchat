@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 
 const CUSTOM_EMOJI_LIMIT = 50
@@ -48,7 +48,7 @@ export async function POST(
 
   // Verify membership and MANAGE_EMOJIS permission
   const perms = await getMemberPermissions(supabase, serverId, user.id)
-  if (perms.permissions === 0 && !perms.isOwner) {
+  if (!perms.isMember) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
   if (!perms.isOwner && !hasPermission(perms.permissions, "MANAGE_EMOJIS")) {
@@ -121,7 +121,7 @@ export async function DELETE(
 
   // Verify membership and permissions
   const perms = await getMemberPermissions(supabase, serverId, user.id)
-  if (perms.permissions === 0 && !perms.isOwner) {
+  if (!perms.isMember) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -140,13 +140,19 @@ export async function DELETE(
     return NextResponse.json({ error: "You need the Manage Emojis permission to delete emoji" }, { status: 403 })
   }
 
+  // Use service-role client for storage + DB deletion when the user is just
+  // the uploader (they pass the API auth check above but RLS only allows
+  // MANAGE_EMOJIS / ADMINISTRATOR, not uploader self-delete).
+  const canBypassRls = perms.isOwner || hasPermission(perms.permissions, "MANAGE_EMOJIS")
+  const deleteClient = canBypassRls ? supabase : await createServiceRoleClient()
+
   // Derive storage path from image_url (last two segments: serverId/name.ext)
   const urlParts = emoji.image_url.split("/")
   const storagePath = urlParts.slice(-2).join("/")
-  const { error: storageError } = await supabase.storage.from("server-emojis").remove([storagePath])
+  const { error: storageError } = await deleteClient.storage.from("server-emojis").remove([storagePath])
   if (storageError) console.error("Failed to remove emoji from storage:", storageError.message)
 
-  const { error } = await supabase
+  const { error } = await deleteClient
     .from("server_emojis")
     .delete()
     .eq("id", emojiId)
