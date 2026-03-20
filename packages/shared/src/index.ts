@@ -24,6 +24,7 @@ export const PERMISSIONS = {
   SEND_MESSAGES_IN_THREADS:  1 << 17,  // 131072
   USE_APPLICATION_COMMANDS:  1 << 18,  // 262144
   MENTION_EVERYONE:          1 << 19,  // 524288
+  MANAGE_EMOJIS:             1 << 20,  // 1048576
 } as const
 
 export type Permission = keyof typeof PERMISSIONS

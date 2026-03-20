@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 
 const CUSTOM_EMOJI_LIMIT = 50
 
@@ -45,14 +46,14 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Verify membership
-  const { data: member } = await supabase
-    .from("server_members")
-    .select("user_id")
-    .eq("server_id", serverId)
-    .eq("user_id", user.id)
-    .single()
-  if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  // Verify membership and MANAGE_EMOJIS permission
+  const perms = await getMemberPermissions(supabase, serverId, user.id)
+  if (perms.permissions === 0 && !perms.isOwner) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+  if (!perms.isOwner && !hasPermission(perms.permissions, "MANAGE_EMOJIS")) {
+    return NextResponse.json({ error: "You need the Manage Emojis permission to upload emoji" }, { status: 403 })
+  }
 
   const formData = await req.formData()
   const file = formData.get("file") as File | null
@@ -118,14 +119,11 @@ export async function DELETE(
   const emojiId = req.nextUrl.searchParams.get("emojiId")
   if (!emojiId) return NextResponse.json({ error: "emojiId required" }, { status: 400 })
 
-  // Verify membership
-  const { data: memberRow } = await supabase
-    .from("server_members")
-    .select("user_id")
-    .eq("server_id", serverId)
-    .eq("user_id", user.id)
-    .maybeSingle()
-  if (!memberRow) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  // Verify membership and permissions
+  const perms = await getMemberPermissions(supabase, serverId, user.id)
+  if (perms.permissions === 0 && !perms.isOwner) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
   // Fetch the emoji to check ownership and get storage path
   const { data: emoji } = await supabase
@@ -136,15 +134,11 @@ export async function DELETE(
     .maybeSingle()
   if (!emoji) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  // Check server ownership via servers table or allow uploader to delete their own
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", serverId)
-    .maybeSingle()
-  const isOwner = server?.owner_id === user.id
+  // Allow owner, uploader, or users with MANAGE_EMOJIS permission
   const isUploader = emoji.uploader_id === user.id
-  if (!isOwner && !isUploader) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (!perms.isOwner && !isUploader && !hasPermission(perms.permissions, "MANAGE_EMOJIS")) {
+    return NextResponse.json({ error: "You need the Manage Emojis permission to delete emoji" }, { status: 403 })
+  }
 
   // Derive storage path from image_url (last two segments: serverId/name.ext)
   const urlParts = emoji.image_url.split("/")
