@@ -13,6 +13,8 @@ export type { Permission } from "@vortex/shared"
 export interface MemberPerms {
   /** True when the user is the server owner (bypasses all permission checks). */
   isOwner: boolean
+  /** True when the user has a row in server_members for this server. */
+  isMember: boolean
   /** OR-combined bitmask of all roles the member holds. */
   permissions: number
   /** Convenience: true if isOwner OR has ADMINISTRATOR bit. */
@@ -27,7 +29,7 @@ export interface MemberPerms {
  * Fetch the owner of `serverId` and the effective permission bitmask for `userId`
  * (ORed across every role assigned to the member).
  *
- * Returns `{ isOwner: false, permissions: 0, isAdmin: false, ownerId: null, screeningEnabled: false }`
+ * Returns `{ isOwner: false, isMember: false, permissions: 0, isAdmin: false, ownerId: null, screeningEnabled: false }`
  * when the user is not a member of the server.
  *
  * Throws on infrastructure (DB) failures so callers surface a 500 instead of
@@ -56,6 +58,7 @@ export async function getMemberPermissions(
 
   const ownerId: string | null = server?.owner_id ?? null
   const isOwner = ownerId === userId
+  const isMember = member !== null || isOwner
 
   const rawPerms: number[] =
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,13 +66,15 @@ export async function getMemberPermissions(
       mr.roles?.permissions != null ? [mr.roles.permissions] : []
     ) ?? []
 
-  if (defaultRole?.permissions != null) rawPerms.push(defaultRole.permissions)
+  // Only include default role permissions for actual members — non-members
+  // must not inherit any server permissions from the @everyone role.
+  if (isMember && defaultRole?.permissions != null) rawPerms.push(defaultRole.permissions)
 
   const permissions = computePermissions(rawPerms)
   const isAdmin = isOwner || !!(permissions & PERMISSIONS.ADMINISTRATOR)
   const screeningEnabled: boolean = !!(server as any)?.screening_enabled
 
-  return { isOwner, permissions, isAdmin, ownerId, screeningEnabled }
+  return { isOwner, isMember, permissions, isAdmin, ownerId, screeningEnabled }
 }
 
 /**

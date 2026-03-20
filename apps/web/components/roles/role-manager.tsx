@@ -33,6 +33,7 @@ const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { key: "MANAGE_ROLES",            label: "Manage Roles",             description: "Create, edit, and assign roles below this one" },
       { key: "MANAGE_WEBHOOKS",         label: "Manage Webhooks",          description: "Create and delete webhooks" },
       { key: "MANAGE_EVENTS",           label: "Manage Events",            description: "Create, edit, and cancel server events" },
+      { key: "MANAGE_EMOJIS",           label: "Manage Emojis",            description: "Upload, edit, and delete custom server emojis" },
       { key: "VIEW_CHANNELS",           label: "View Channels",            description: "See channels and receive messages" },
     ],
   },

@@ -7,7 +7,7 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Custom emoji upload (PNG/GIF/WEBP, 256 KB) | Done | `POST /api/servers/[serverId]/emojis` |
+| Custom emoji upload (PNG/GIF/WEBP, 256 KB) | Done | `POST /api/servers/[serverId]/emojis` — gated by `MANAGE_EMOJIS` permission (bit 20) |
 | Emoji autocomplete (`:name:`) | Done | `use-emoji-autocomplete` hook |
 | Emoji management page in server settings | Done | `EmojisTab` in server-settings-modal |
 | Emoji attribution — uploader name & date | Done | API returns `uploader` join; shown in management UI |
