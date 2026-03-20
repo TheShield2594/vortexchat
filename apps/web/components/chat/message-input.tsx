@@ -15,6 +15,7 @@ import { EmojiSuggestions } from "@/components/chat/emoji-suggestions"
 import { SlashCommandSuggestions } from "@/components/chat/slash-command-suggestions"
 import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
 import { useServerEmojis } from "@/components/chat/server-emoji-context"
+import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { EmojiPicker } from "frimousse"
 
 interface Props {
@@ -1300,6 +1301,28 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                       />
                     </div>
                     <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+                      {serverEmojis.length > 0 && (
+                        <CustomEmojiGrid
+                          emojis={serverEmojis}
+                          onSelect={(emoji) => {
+                            const textarea = textareaRef.current
+                            const start = textarea ? textarea.selectionStart ?? content.length : content.length
+                            const end = textarea ? textarea.selectionEnd ?? start : start
+                            const insertion = `:${emoji.name}: `
+                            const next = content.slice(0, start) + insertion + content.slice(end)
+                            setContent(next)
+                            setCursorPosition(start + insertion.length)
+                            onDraftChange(next)
+                            setShowEmojiPicker(false)
+                            requestAnimationFrame(() => {
+                              if (textarea) {
+                                textarea.focus()
+                                textarea.setSelectionRange(start + insertion.length, start + insertion.length)
+                              }
+                            })
+                          }}
+                        />
+                      )}
                       <EmojiPicker.Loading>
                         <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>Loading…</div>
                       </EmojiPicker.Loading>

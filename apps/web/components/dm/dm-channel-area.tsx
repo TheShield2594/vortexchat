@@ -6,6 +6,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
 import { EmojiPicker } from "frimousse"
+import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
@@ -203,6 +204,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [stickerQuery, setStickerQuery] = useState("")
   const [stickerResults, setStickerResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
   const [stickerLoading, setStickerLoading] = useState(false)
+  const [allServerEmojis, setAllServerEmojis] = useState<Array<{ server: { id: string; name: string; icon_url: string | null }; emojis: Array<{ id: string; name: string; image_url: string }> }>>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -653,6 +655,18 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       controller.abort()
     }
   }, [showEmojiPicker, pickerTab, stickerQuery])
+
+  // Fetch custom emojis from all servers the user belongs to when picker opens
+  useEffect(() => {
+    if (!showEmojiPicker || pickerTab !== "emoji") return
+    if (allServerEmojis.length > 0) return // already fetched
+    const controller = new AbortController()
+    fetch("/api/emojis/all", { signal: controller.signal })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => { if (Array.isArray(data)) setAllServerEmojis(data) })
+      .catch(() => {/* ignore abort/network */})
+    return () => controller.abort()
+  }, [showEmojiPicker, pickerTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSendGif(gifUrl: string) {
     if (!gifUrl.trim() || sending) return
@@ -1313,6 +1327,26 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                       />
                     </div>
                     <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+                      {allServerEmojis.length > 0 && (
+                        <CustomEmojiGrid
+                          groups={allServerEmojis}
+                          onSelect={(emoji) => {
+                            const el = inputRef.current
+                            const start = el ? el.selectionStart ?? content.length : content.length
+                            const end = el ? el.selectionEnd ?? start : start
+                            const insertion = `:${emoji.name}: `
+                            const next = content.slice(0, start) + insertion + content.slice(end)
+                            setContent(next)
+                            setShowEmojiPicker(false)
+                            requestAnimationFrame(() => {
+                              if (el) {
+                                el.focus()
+                                el.setSelectionRange(start + insertion.length, start + insertion.length)
+                              }
+                            })
+                          }}
+                        />
+                      )}
                       <EmojiPicker.Loading>
                         <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>Loading…</div>
                       </EmojiPicker.Loading>
