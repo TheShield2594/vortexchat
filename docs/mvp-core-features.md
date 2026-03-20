@@ -13,6 +13,8 @@
 | Emoji attribution — uploader name & date | Done | API returns `uploader` join; shown in management UI |
 | Audit logging for emoji upload/delete | Done | `audit_logs` entries with `emoji_uploaded` / `emoji_deleted` actions |
 | CDN cache-bust on emoji delete | Done | `CDN-Cache-Control: no-store` header on DELETE response |
+| Custom emojis in emoji picker (channels) | Done | Server custom emojis shown as "Custom" section at top of emoji picker in `message-input` |
+| Custom emojis in emoji picker (DMs) | Done | All server custom emojis fetched via `GET /api/emojis/all` and shown grouped by server in DM picker |
 
 ## GIF / Media Picker
 
