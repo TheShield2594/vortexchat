@@ -426,12 +426,12 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
 
     // Custom elements from our remark plugins (passed through rehype-raw)
     "vortex-emoji": ({ node, ...props }: any) => {
-      const name = props["data-name"] ?? node?.properties?.dataName ?? ""
+      const name = props.dataName ?? props["data-name"] ?? node?.properties?.dataName ?? ""
       return <ServerEmojiImage name={name} size={emojiSize} />
     },
 
     "vortex-mention": ({ node, ...props }: any) => {
-      const uid = props["data-uid"] ?? node?.properties?.dataUid ?? ""
+      const uid = props.dataUid ?? props["data-uid"] ?? node?.properties?.dataUid ?? ""
       const isSelfMention = uid === currentUserId
       const member = members.find((m) => m.user_id === uid)
       const displayLabel = member?.nickname ?? member?.display_name ?? member?.username ?? uid
@@ -451,8 +451,8 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
     },
 
     "vortex-timestamp": ({ node, ...props }: any) => {
-      const epoch = parseInt(props["data-epoch"] ?? node?.properties?.dataEpoch ?? "0", 10)
-      const format = props["data-format"] ?? node?.properties?.dataFormat ?? "f"
+      const epoch = parseInt(props.dataEpoch ?? props["data-epoch"] ?? node?.properties?.dataEpoch ?? "0", 10)
+      const format = props.dataFormat ?? props["data-format"] ?? node?.properties?.dataFormat ?? "f"
       return <TimestampDisplay epoch={epoch} format={format} />
     },
 
@@ -492,9 +492,9 @@ const sanitizeSchema = {
   ],
   attributes: {
     ...defaultSchema.attributes,
-    "vortex-emoji": ["data-name"],
-    "vortex-mention": ["data-uid"],
-    "vortex-timestamp": ["data-epoch", "data-format"],
+    "vortex-emoji": ["dataName"],
+    "vortex-mention": ["dataUid"],
+    "vortex-timestamp": ["dataEpoch", "dataFormat"],
     // Allow only src and alt on img — className/draggable/loading are hardcoded
     // in the component handler, not parsed from HTML attributes
     img: ["src", "alt"],
