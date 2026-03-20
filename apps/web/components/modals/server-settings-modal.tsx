@@ -486,25 +486,30 @@ export function EmojisTab({ serverId }: { serverId: string }) {
       return
     }
     setUploading(true)
-    const form = new FormData()
-    form.append("file", file)
-    form.append("name", newName.trim())
-    const res = await fetch(`/api/servers/${serverId}/emojis`, { method: "POST", body: form })
-    if (res.ok) {
-      const emoji = await res.json()
-      setEmojis((prev) => {
-        const withoutSameName = prev.filter((entry) => entry.name !== emoji.name)
-        return [...withoutSameName, emoji].sort((a, b) => a.name.localeCompare(b.name))
-      })
-      setNewName("")
-      setSelectedFile(null)
-      if (fileRef.current) fileRef.current.value = ""
-      toast({ title: "Emoji uploaded" })
-    } else {
-      const error = await res.json().catch(() => null)
-      toast({ variant: "destructive", title: error?.error || "Failed to upload emoji" })
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      form.append("name", newName.trim())
+      const res = await fetch(`/api/servers/${serverId}/emojis`, { method: "POST", body: form })
+      if (res.ok) {
+        const emoji = await res.json()
+        setEmojis((prev) => {
+          const withoutSameName = prev.filter((entry) => entry.name !== emoji.name)
+          return [...withoutSameName, emoji].sort((a, b) => a.name.localeCompare(b.name))
+        })
+        setNewName("")
+        setSelectedFile(null)
+        if (fileRef.current) fileRef.current.value = ""
+        toast({ title: "Emoji uploaded" })
+      } else {
+        const error = await res.json().catch(() => null)
+        toast({ variant: "destructive", title: error?.error || "Failed to upload emoji" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Network error — please try again" })
+    } finally {
+      setUploading(false)
     }
-    setUploading(false)
   }
 
   async function handleDelete(id: string) {
@@ -549,6 +554,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
             }}
           />
           <button
+            type="button"
             onClick={() => fileRef.current?.click()}
             className="px-3 py-2 rounded text-sm transition-colors"
             style={{ background: 'var(--theme-surface-input)', color: 'var(--theme-text-secondary)' }}
@@ -556,6 +562,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
             {selectedFile ? selectedFile.name : "Choose file"}
           </button>
           <button
+            type="button"
             onClick={handleUpload}
             disabled={uploading || !newName.trim() || !selectedFile || emojis.length >= CUSTOM_EMOJI_LIMIT}
             className="px-3 py-2 rounded text-sm font-semibold disabled:opacity-50"
