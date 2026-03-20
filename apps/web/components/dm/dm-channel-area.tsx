@@ -196,6 +196,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [editContent, setEditContent] = useState("")
   const [uploadingFile, setUploadingFile] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [emojiSearch, setEmojiSearch] = useState("")
   const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "sticker">("emoji")
   const [gifQuery, setGifQuery] = useState("")
   const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
@@ -578,7 +579,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   // Close emoji/GIF picker on outside click
   useEffect(() => {
-    if (!showEmojiPicker) return
+    if (!showEmojiPicker) {
+      setEmojiSearch("")
+      return
+    }
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Node
       if (!emojiPickerRef.current?.contains(target) && !emojiButtonRef.current?.contains(target)) {
@@ -1335,12 +1339,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                           outline: "none",
                         }}
                         placeholder="Search emoji…"
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmojiSearch(e.target.value)}
                       />
                     </div>
                     <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
                       {allServerEmojis.length > 0 && (
                         <CustomEmojiGrid
                           groups={allServerEmojis}
+                          search={emojiSearch}
                           onSelect={(emoji) => {
                             const el = inputRef.current
                             const start = el ? el.selectionStart ?? content.length : content.length

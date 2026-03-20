@@ -104,7 +104,6 @@ function EmojiGrid({ emojis, onSelect }: { emojis: CustomEmoji[]; onSelect: (e: 
         padding: "2px 4px",
       }}
     >
-      <style>{`.custom-emoji-btn:hover { background: var(--theme-surface-elevated) !important; }`}</style>
       {emojis.map((e) => (
         <button
           key={e.id}

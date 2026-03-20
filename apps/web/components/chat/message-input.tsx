@@ -51,6 +51,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [sendSuccess, setSendSuccess] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [emojiSearch, setEmojiSearch] = useState("")
   const emojiGridRef = useRef<HTMLDivElement>(null)
   const [showPollCreator, setShowPollCreator] = useState(false)
   const [pollQuestion, setPollQuestion] = useState("")
@@ -162,7 +163,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   }, [draft])
 
   useEffect(() => {
-    if (!showEmojiPicker) return
+    if (!showEmojiPicker) {
+      setEmojiSearch("")
+      return
+    }
 
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Node
@@ -1289,6 +1293,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                           outline: "none",
                         }}
                         placeholder="Search emoji…"
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmojiSearch(e.target.value)}
                         onKeyDown={(e) => {
                           if ((e.key === "Tab" && !e.shiftKey) || e.key === "ArrowDown") {
                             const firstBtn = emojiGridRef.current?.querySelector<HTMLButtonElement>("[data-emoji-btn]")
@@ -1304,6 +1309,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                       {serverEmojis.length > 0 && (
                         <CustomEmojiGrid
                           emojis={serverEmojis}
+                          search={emojiSearch}
                           onSelect={(emoji) => {
                             const textarea = textareaRef.current
                             const start = textarea ? textarea.selectionStart ?? content.length : content.length
