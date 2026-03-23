@@ -1,3 +1,5 @@
+# VortexChat
+
 <p align="center">
   <img src="favicon_io/android-chrome-192x192.png" alt="VortexChat" width="80" />
 </p>
@@ -21,6 +23,7 @@
 ## Features
 
 ### Messaging
+
 - **Real-time messaging** — Supabase Realtime (Postgres CDC), zero polling
 - **Reactions** — emoji reactions, live-synced across clients
 - **Replies & threads** — reply to messages, edit, soft-delete; full threaded conversations with auto-archive
@@ -29,6 +32,7 @@
 - **Slash commands** — built-in channel command bar
 
 ### Servers & Channels
+
 - **Servers** — create/join with invite codes, icon uploads
 - **Server discovery** — public server directory
 - **Server templates** — import/export reusable server configurations (Gaming, Study, Startup, Creator starters)
@@ -37,6 +41,7 @@
 - **Webhooks** — incoming webhook support per channel
 
 ### Voice & Video
+
 - **Voice chat** — dual-mode: P2P WebRTC (self-hosted signal server) or LiveKit SFU
 - **Voice activity detection** — speaking indicators via hark.js
 - **Screen share** — `getDisplayMedia`, streamed over WebRTC/LiveKit
@@ -44,6 +49,7 @@
 - **Voice intelligence** — AI-powered transcripts and summaries
 
 ### Social
+
 - **Direct messages** — 1:1 DMs with real-time updates and optional E2EE
 - **Friends** — friend requests, suggestions, status
 - **Profiles** — display name, bio, status, custom tag, banner color
@@ -51,6 +57,7 @@
 - **Blocking** — user blocking with configurable policy enforcement
 
 ### Platform
+
 - **Auth** — email/password + magic link via Supabase Auth
 - **Push notifications** — Web Push via VAPID
 - **PWA** — installable progressive web app with offline support
