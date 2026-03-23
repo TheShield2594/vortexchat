@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useConnectionsCallback } from "@/hooks/use-connections-callback"
 import { Loader2, Upload, Camera, ExternalLink, Link2, Check, Hash, Plus, Trash2, GripVertical, Globe, Users, Lock } from "lucide-react"
 import { SteamIcon, YouTubeIcon } from "@/components/icons/social-icons"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -23,6 +24,7 @@ const BANNER_PRESETS = [
 export function ProfileSettingsPage({ user }: Props) {
   const { toast } = useToast()
   const router = useRouter()
+
   const [supabase] = useState(() => createClientSupabaseClient())
   const { setCurrentUser } = useAppStore()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -63,16 +65,19 @@ export function ProfileSettingsPage({ user }: Props) {
   )
   const [visibilitySaving, setVisibilitySaving] = useState(false)
 
-  useEffect(() => {
-    const loadConnections = async () => {
-      const res = await fetch("/api/users/connections", { cache: "no-store" })
-      const payload = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setConnections(payload.connections ?? [])
-      }
+  const loadConnections = useCallback(async () => {
+    const res = await fetch("/api/users/connections", { cache: "no-store" })
+    const payload = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setConnections(payload.connections ?? [])
     }
-    loadConnections()
   }, [])
+
+  useEffect(() => {
+    loadConnections()
+  }, [loadConnections])
+
+  useConnectionsCallback(loadConnections, toast, router)
 
   useEffect(() => {
     setPinsLoading(true)

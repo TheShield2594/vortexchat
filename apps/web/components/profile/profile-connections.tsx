@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { ExternalLink } from "lucide-react"
 import { SteamIcon, YouTubeIcon } from "@/components/icons/social-icons"
 
@@ -50,22 +50,38 @@ export function ProfileConnections({ userId }: ProfileConnectionsProps): React.R
   const [connections, setConnections] = useState<ConnectionRow[]>([])
   const [loaded, setLoaded] = useState(false)
 
-  const loadConnections = useCallback(async (): Promise<void> => {
-    try {
-      const res = await fetch(`/api/users/connections/public?userId=${encodeURIComponent(userId)}`, { cache: "no-store" })
-      if (!res.ok) return
-      const payload = await res.json()
-      setConnections(payload.connections ?? [])
-    } catch {
-      // silently ignore
-    } finally {
-      setLoaded(true)
-    }
-  }, [userId])
-
   useEffect(() => {
-    loadConnections()
-  }, [loadConnections])
+    const controller = new AbortController()
+    setConnections([])
+    setLoaded(false)
+
+    async function load(): Promise<void> {
+      try {
+        const res = await fetch(
+          `/api/users/connections/public?userId=${encodeURIComponent(userId)}`,
+          { cache: "no-store", signal: controller.signal },
+        )
+        if (!res.ok) {
+          console.error("Failed to load public connections", { status: res.status, userId })
+          return
+        }
+        const payload = await res.json()
+        if (!controller.signal.aborted) {
+          setConnections(payload.connections ?? [])
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return
+        console.error("Error loading public connections", { userId, error: err instanceof Error ? err.message : String(err) })
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoaded(true)
+        }
+      }
+    }
+
+    load()
+    return () => controller.abort()
+  }, [userId])
 
   if (!loaded || connections.length === 0) return null
 

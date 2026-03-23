@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
+import { useConnectionsCallback } from "@/hooks/use-connections-callback"
 import { EmojiPicker } from "frimousse"
 import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff, Link2, ExternalLink, Hash, Plus, GripVertical, Globe, Users } from "lucide-react"
 import {
@@ -1091,6 +1092,8 @@ type ConnectionRow = {
 
 function ConnectionsSection() {
   const { toast } = useToast()
+
+  const router = useRouter()
   const [connections, setConnections] = useState<ConnectionRow[]>([])
 
   const loadConnections = useCallback(async () => {
@@ -1102,6 +1105,8 @@ function ConnectionsSection() {
   useEffect(() => {
     loadConnections()
   }, [loadConnections])
+
+  useConnectionsCallback(loadConnections, toast, router)
 
   async function connectSteam() {
     const next = window.location.pathname + window.location.search

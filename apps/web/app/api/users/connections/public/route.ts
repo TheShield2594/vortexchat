@@ -5,15 +5,11 @@ import { isUserConnectionsTableMissing } from "@/lib/supabase/user-connections-e
 /**
  * GET /api/users/connections/public?userId=<uuid>
  * Returns the public connections for a given user (visible on their profile panel).
- * Requires the caller to be authenticated.
+ * Accessible to both authenticated and anonymous visitors.
  */
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const supabase = await createServerSupabaseClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
