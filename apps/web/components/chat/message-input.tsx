@@ -17,7 +17,7 @@ import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
 import { useServerEmojis } from "@/components/chat/server-emoji-context"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { EmojiPicker } from "frimousse"
-import { MAX_ATTACHMENT_BYTES } from "@/lib/attachment-validation"
+import { MAX_ATTACHMENT_BYTES, validateFileClient } from "@/lib/attachment-validation"
 
 interface Props {
   channelName: string
@@ -769,26 +769,37 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     })
   }
 
-  function filterOversizedFiles(incoming: File[]): File[] {
-    const maxMB = Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024))
-    const oversized = incoming.filter((f) => f.size > MAX_ATTACHMENT_BYTES)
-    if (oversized.length > 0) {
-      const names = oversized.map((f) => f.name).join(", ")
-      setSendError(`File${oversized.length > 1 ? "s" : ""} too large (max ${maxMB} MB): ${names}`)
+  function validateAndFilterFiles(incoming: File[]): File[] {
+    const accepted: File[] = []
+    const errors: string[] = []
+    for (const file of incoming) {
+      const error = validateFileClient(file)
+      if (error) {
+        errors.push(error)
+      } else {
+        accepted.push(file)
+      }
     }
-    return incoming.filter((f) => f.size <= MAX_ATTACHMENT_BYTES)
+    if (errors.length > 0) {
+      setSendError(errors.join("; "))
+    } else {
+      setSendError(null)
+    }
+    return accepted
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = filterOversizedFiles(Array.from(e.target.files ?? []))
+    const selected = validateAndFilterFiles(Array.from(e.target.files ?? []))
     if (selected.length > 0) setFiles((prev) => [...prev, ...selected])
     e.target.value = ""
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
+    dragCounterRef.current = 0
     setIsDraggingOver(false)
-    const dropped = filterOversizedFiles(Array.from(e.dataTransfer.files))
+    if (e.dataTransfer.files.length === 0) return
+    const dropped = validateAndFilterFiles(Array.from(e.dataTransfer.files))
     if (dropped.length > 0) setFiles((prev) => [...prev, ...dropped])
   }
 
@@ -796,7 +807,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     const items = Array.from(e.clipboardData.items)
     const imageItems = items.filter((item) => item.type.startsWith("image/"))
     if (imageItems.length > 0) {
-      const imageFiles = filterOversizedFiles(
+      const imageFiles = validateAndFilterFiles(
         imageItems.map((item) => item.getAsFile()).filter(Boolean) as File[]
       )
       if (imageFiles.length > 0) setFiles((prev) => [...prev, ...imageFiles])
@@ -925,8 +936,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       className="px-4 pb-4 flex-shrink-0 relative"
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
-      onDragEnter={(e) => { e.preventDefault(); dragCounterRef.current += 1; setIsDraggingOver(true) }}
-      onDragLeave={(e) => { e.preventDefault(); dragCounterRef.current -= 1; if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setIsDraggingOver(false) } }}
+      onDragEnter={(e) => { e.preventDefault(); if (e.dataTransfer.types.includes("Files")) { dragCounterRef.current += 1; setIsDraggingOver(true) } }}
+      onDragLeave={(e) => { e.preventDefault(); if (e.dataTransfer.types.includes("Files")) { dragCounterRef.current -= 1; if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setIsDraggingOver(false) } } }}
     >
       {/* Drag-and-drop overlay */}
       {isDraggingOver && (

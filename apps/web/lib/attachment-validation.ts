@@ -10,6 +10,34 @@ const ALLOWED_MIME_TYPES = new Set([
 ])
 
 /**
+ * Client-side validation of a File object against allowed MIME types,
+ * dangerous extensions, and size limits.  Returns an error string or null.
+ */
+export function validateFileClient(file: File): string | null {
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    const maxMB = Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024))
+    return `File too large (max ${maxMB} MB): ${file.name}`
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase()
+  if (ext && DANGEROUS_EXTENSIONS.has(ext)) {
+    return `.${ext} files are blocked for safety.`
+  }
+
+  const mime = (file.type || "").toLowerCase()
+  if (mime) {
+    const mimeAllowed =
+      ALLOWED_MIME_TYPES.has(mime) ||
+      ALLOWED_MIME_PREFIXES.some((prefix) => mime.startsWith(prefix))
+    if (!mimeAllowed) {
+      return `Unsupported file type: ${file.name} (${mime})`
+    }
+  }
+
+  return null
+}
+
+/**
  * Magic bytes signatures for server-side MIME type detection.
  * Used to verify that a file's actual content matches its claimed extension/type.
  */
