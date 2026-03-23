@@ -112,7 +112,7 @@ export function ServerSidebar() {
                   : 'var(--theme-bg-primary)',
               }}
             >
-              <VortexLogo size={24} />
+              <VortexLogo size={32} />
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right">Direct Messages</TooltipContent>
