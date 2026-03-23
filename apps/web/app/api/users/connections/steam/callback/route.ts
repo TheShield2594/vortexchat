@@ -68,15 +68,21 @@ async function fetchSteamProfile(steamId: string): Promise<{ displayName: string
       const data = (await gamesRes.value.json()) as SteamOwnedGamesResponse
       result.gameCount = data?.response?.game_count ?? null
     }
-  } catch {
-    // Non-critical — we still save the connection without enrichment
+  } catch (err) {
+    console.error("Steam enrichment failed", { steamId, error: err instanceof Error ? err.message : String(err) })
   }
 
   return result
 }
 
+function sanitizeNextPath(raw: string): string {
+  if (!raw || !/^\/(?!\/)/.test(raw) || raw.includes("://")) return "/"
+  return raw
+}
+
 function buildRedirect(base: URL, nextPath: string, status: string) {
-  const target = new URL(nextPath, base.origin)
+  const safe = sanitizeNextPath(nextPath)
+  const target = new URL(safe, base.origin)
   target.searchParams.set("connections", status)
   return target
 }
@@ -84,52 +90,60 @@ function buildRedirect(base: URL, nextPath: string, status: string) {
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const nextPath = url.searchParams.get("next") || "/"
-  const state = url.searchParams.get("state")
 
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  try {
+    const state = url.searchParams.get("state")
 
-  if (authError || !user) {
-    return NextResponse.redirect(buildRedirect(url, nextPath, "steam_auth_required"))
+    const supabase = await createServerSupabaseClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.redirect(buildRedirect(url, nextPath, "steam_auth_required"))
+    }
+
+    const cookieStore = await cookies()
+    const expectedState = cookieStore.get("steam_oauth_state")?.value
+
+    if (!state || !expectedState || state !== expectedState) {
+      return NextResponse.redirect(buildRedirect(url, nextPath, "steam_state_invalid"))
+    }
+
+    const isValid = await verifySteamAssertion(url.searchParams)
+    if (!isValid) {
+      return NextResponse.redirect(buildRedirect(url, nextPath, "steam_verification_failed"))
+    }
+
+    const steamId = extractSteamId(url.searchParams.get("openid.claimed_id"))
+    if (!steamId) {
+      return NextResponse.redirect(buildRedirect(url, nextPath, "steam_missing_id"))
+    }
+
+    const steamProfile = await fetchSteamProfile(steamId)
+
+    const { error } = await supabase
+      .from("user_connections")
+      .upsert({
+        user_id: user.id,
+        provider: "steam",
+        provider_user_id: steamId,
+        username: steamProfile.displayName || steamId,
+        display_name: steamProfile.displayName || `Steam #${steamId}`,
+        profile_url: `https://steamcommunity.com/profiles/${steamId}`,
+        metadata: {
+          linked_via: "openid",
+          ...(steamProfile.gameCount !== null ? { game_count: steamProfile.gameCount } : {}),
+          ...(steamProfile.avatarUrl ? { avatar_url: steamProfile.avatarUrl } : {}),
+        },
+      }, { onConflict: "user_id,provider" })
+
+    const status = !error ? "steam_linked" : isUserConnectionsTableMissing(error) ? "connections_storage_unavailable" : "steam_save_failed"
+    const response = NextResponse.redirect(buildRedirect(url, nextPath, status))
+    response.cookies.delete("steam_oauth_state")
+    return response
+  } catch (err) {
+    console.error("Steam callback error", { route: "GET /api/users/connections/steam/callback", error: err instanceof Error ? err.message : String(err) })
+    const response = NextResponse.redirect(buildRedirect(url, nextPath, "steam_error"))
+    response.cookies.delete("steam_oauth_state")
+    return response
   }
-
-  const cookieStore = await cookies()
-  const expectedState = cookieStore.get("steam_oauth_state")?.value
-
-  if (!state || !expectedState || state !== expectedState) {
-    return NextResponse.redirect(buildRedirect(url, nextPath, "steam_state_invalid"))
-  }
-
-  const isValid = await verifySteamAssertion(url.searchParams)
-  if (!isValid) {
-    return NextResponse.redirect(buildRedirect(url, nextPath, "steam_verification_failed"))
-  }
-
-  const steamId = extractSteamId(url.searchParams.get("openid.claimed_id"))
-  if (!steamId) {
-    return NextResponse.redirect(buildRedirect(url, nextPath, "steam_missing_id"))
-  }
-
-  const steamProfile = await fetchSteamProfile(steamId)
-
-  const { error } = await supabase
-    .from("user_connections")
-    .upsert({
-      user_id: user.id,
-      provider: "steam",
-      provider_user_id: steamId,
-      username: steamProfile.displayName || steamId,
-      display_name: steamProfile.displayName || `Steam #${steamId}`,
-      profile_url: `https://steamcommunity.com/profiles/${steamId}`,
-      metadata: {
-        linked_via: "openid",
-        ...(steamProfile.gameCount !== null ? { game_count: steamProfile.gameCount } : {}),
-        ...(steamProfile.avatarUrl ? { avatar_url: steamProfile.avatarUrl } : {}),
-      },
-    }, { onConflict: "user_id,provider" })
-
-  const status = !error ? "steam_linked" : isUserConnectionsTableMissing(error) ? "connections_storage_unavailable" : "steam_save_failed"
-  const response = NextResponse.redirect(buildRedirect(url, nextPath, status))
-  response.cookies.delete("steam_oauth_state")
-  return response
 }
