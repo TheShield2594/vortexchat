@@ -19,6 +19,29 @@ const PROVIDER_CONFIG: Record<string, { icon: React.ComponentType<React.SVGProps
   youtube: { icon: YouTubeIcon, label: "YouTube", color: "#FF0000" },
 }
 
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`
+  return n.toLocaleString()
+}
+
+function getConnectionDetail(provider: string, meta: Record<string, unknown>): string | null {
+  if (provider === "steam" && meta.game_count != null) {
+    return `${Number(meta.game_count).toLocaleString()} games`
+  }
+  if (provider === "youtube") {
+    const parts: string[] = []
+    if (meta.subscriber_count != null) {
+      parts.push(`${formatCount(Number(meta.subscriber_count))} subscribers`)
+    }
+    if (meta.video_count != null) {
+      parts.push(`${formatCount(Number(meta.video_count))} videos`)
+    }
+    return parts.length > 0 ? parts.join(" · ") : null
+  }
+  return null
+}
+
 interface ProfileConnectionsProps {
   userId: string
 }
@@ -53,9 +76,8 @@ export function ProfileConnections({ userId }: ProfileConnectionsProps): React.R
         {connections.map((connection) => {
           const config = PROVIDER_CONFIG[connection.provider]
           const Icon = config?.icon
-          const gameCount = connection.provider === "steam" && connection.metadata?.game_count != null
-            ? Number(connection.metadata.game_count)
-            : null
+          const meta = connection.metadata ?? {}
+          const detail = getConnectionDetail(connection.provider, meta)
 
           return (
             <div
@@ -77,7 +99,7 @@ export function ProfileConnections({ userId }: ProfileConnectionsProps): React.R
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {config?.label ?? connection.provider}
-                  {gameCount !== null && ` · ${gameCount.toLocaleString()} games`}
+                  {detail && ` · ${detail}`}
                 </p>
               </div>
               {connection.profile_url && (
