@@ -4,12 +4,21 @@ interface VortexLogoProps {
   /** Pixel size for width and height. Default 32. */
   size?: number
   className?: string
+  /**
+   * Supports CSS custom properties to theme the gradient:
+   *   --vortex-start  (default #00e5ff)
+   *   --vortex-mid    (default #0088e0)
+   *   --vortex-end    (default #0044cc)
+   */
   style?: CSSProperties
 }
 
 /**
  * Vortex tornado logomark — a stylised tornado/vortex funnel with a
  * cyan-to-blue gradient, horizontal bands tapering to a sharp V-point.
+ *
+ * Theme via CSS custom properties on `style`:
+ *   `style={{ '--vortex-start': 'var(--theme-accent)' } as CSSProperties}`
  */
 export function VortexLogo({ size = 32, className, style }: VortexLogoProps) {
   return (
@@ -24,9 +33,9 @@ export function VortexLogo({ size = 32, className, style }: VortexLogoProps) {
     >
       <defs>
         <linearGradient id="vortex-lg" x1="0.5" y1="0" x2="0.5" y2="1">
-          <stop offset="0%" stopColor="#00e5ff" />
-          <stop offset="45%" stopColor="#0088e0" />
-          <stop offset="100%" stopColor="#0044cc" />
+          <stop offset="0%" stopColor="var(--vortex-start, #00e5ff)" />
+          <stop offset="45%" stopColor="var(--vortex-mid, #0088e0)" />
+          <stop offset="100%" stopColor="var(--vortex-end, #0044cc)" />
         </linearGradient>
       </defs>
 
@@ -62,7 +71,7 @@ export function VortexLogo({ size = 32, className, style }: VortexLogoProps) {
         fill="url(#vortex-lg)"
         opacity="0.55"
       />
-      <path d="M 248 425 L 256 460 L 264 425 Z" fill="#0044cc" />
+      <path d="M 248 425 L 256 460 L 264 425 Z" fill="var(--vortex-end, #0044cc)" />
     </svg>
   )
 }
