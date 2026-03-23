@@ -28,8 +28,8 @@ const THEME_PRESET_OPTIONS: {
   surface: string
 }[] = [
   {
-    value: "discord",
-    label: "Discord",
+    value: "twilight",
+    label: "Twilight",
     description: "Classic dark theme with blue accent",
     accent: "#5865F2",
     bg: "#313338",

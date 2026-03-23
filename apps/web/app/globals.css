@@ -662,7 +662,7 @@
 /* Theme presets – every preset declares all tokens so switching themes is
    fully self-contained with no leftover values from a previous preset. */
 
-[data-theme-preset="discord"] {
+[data-theme-preset="twilight"] {
   /* Core surface palette */
   --background: 223 7% 20%;
   --foreground: 220 9% 95%;

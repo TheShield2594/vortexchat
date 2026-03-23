@@ -1660,13 +1660,13 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
       <div>
         <h3 className="text-base font-semibold text-white mb-1">Theme Presets</h3>
         <p className="text-sm mb-4" style={{ color: "var(--theme-text-muted)" }}>
-          Pick a skin — changes apply instantly. Layer your own CSS on top for full BetterDiscord-style customization.
+          Pick a skin — changes apply instantly. Layer your own CSS on top for full customization.
         </p>
         <div className="grid grid-cols-2 gap-3">
           {([
             {
-              key: "discord",
-              label: "Discord Classic",
+              key: "twilight",
+              label: "Twilight",
               desc: "Familiar dark blue-grey",
               swatches: ["var(--theme-bg-primary)", "var(--theme-accent)", "var(--theme-success)"],
             },

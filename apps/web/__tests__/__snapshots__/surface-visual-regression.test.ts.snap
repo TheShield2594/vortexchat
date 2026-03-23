@@ -21,7 +21,7 @@ exports[`next-gen layered depth visual system > keeps dark-mode presets contrast
     "active": "var(--theme-surface-elevation-3)",
     "focusShift": "color-mix(in srgb, var(--theme-accent) 35%, transparent)",
     "passive": "var(--theme-surface-elevation-1)",
-    "preset": "discord",
+    "preset": "twilight",
   },
   {
     "active": "var(--theme-surface-elevation-3)",
