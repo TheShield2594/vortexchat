@@ -1,101 +1,127 @@
-# VortexChat
+<p align="center">
+  <img src="favicon_io/android-chrome-192x192.png" alt="VortexChat" width="80" />
+</p>
 
-A full-featured real-time chat platform built with Next.js 15, Supabase, and WebRTC/LiveKit.
+<h1 align="center">VortexChat</h1>
 
-[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/TheShield2594/vortexchat?utm_source=oss&utm_medium=github&utm_campaign=TheShield2594%2Fvortexchat&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
+<p align="center">
+  A full-featured, open-source real-time chat platform — think Discord, built with Next.js, Supabase, and WebRTC.
+</p>
+
+<p align="center">
+  <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/TheShield2594/vortexchat?utm_source=oss&utm_medium=github&utm_campaign=TheShield2594%2Fvortexchat&labelColor=171717&color=FF570A&label=CodeRabbit+Reviews" alt="CodeRabbit Reviews" /></a>
+  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20Realtime-3ecf8e?logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License" />
+</p>
 
 ---
 
 ## Features
 
 ### Messaging
-- **Auth** — Email/password + magic link via Supabase Auth
-- **Real-time Messaging** — Supabase Realtime (Postgres CDC), no polling
-- **Reactions** — Emoji reactions, live-synced
-- **Replies & Threads** — Reply to messages, edit, soft-delete; full threaded conversations
-- **File Uploads** — Images and files via Supabase Storage
-- **Search** — Full-text message search
+- **Real-time messaging** — Supabase Realtime (Postgres CDC), zero polling
+- **Reactions** — emoji reactions, live-synced across clients
+- **Replies & threads** — reply to messages, edit, soft-delete; full threaded conversations with auto-archive
+- **File uploads** — images and files via Supabase Storage with malware scanning
+- **Search** — full-text message search + local search index
+- **Slash commands** — built-in channel command bar
 
 ### Servers & Channels
-- **Servers** — Create/join servers with invite codes, icon uploads
-- **Server Discovery** — Public server directory
-- **Server Templates** — Import/export reusable server configurations
-- **Channels** — Text channels, voice channels, category grouping
-- **Roles** — Full bitmask permission system (Discord-style), free colors
-- **Webhooks** — Incoming webhook support per channel
+- **Servers** — create/join with invite codes, icon uploads
+- **Server discovery** — public server directory
+- **Server templates** — import/export reusable server configurations (Gaming, Study, Startup, Creator starters)
+- **Channel types** — text, voice, forum, stage, announcement, media, categories
+- **Roles** — 21-bit bitmask permission system (Discord-style), free color picker
+- **Webhooks** — incoming webhook support per channel
 
 ### Voice & Video
-- **Voice Chat** — Dual-mode: P2P WebRTC (self-hosted signal server) or LiveKit SFU (set `NEXT_PUBLIC_LIVEKIT_URL`)
-- **Voice Activity Detection** — Speaking indicators via hark.js
-- **Screen Share** — getDisplayMedia, streamed over WebRTC/LiveKit
-- **DM Calls** — Voice calls in direct messages
-- **Voice Intelligence** — AI-powered transcripts and summaries
+- **Voice chat** — dual-mode: P2P WebRTC (self-hosted signal server) or LiveKit SFU
+- **Voice activity detection** — speaking indicators via hark.js
+- **Screen share** — `getDisplayMedia`, streamed over WebRTC/LiveKit
+- **DM calls** — voice calls in direct messages
+- **Voice intelligence** — AI-powered transcripts and summaries
 
 ### Social
-- **Direct Messages** — 1:1 DMs with real-time updates
-- **Friends** — Friend requests, suggestions, status
-- **Profiles** — Display name, bio, status, custom tag, banner color
-- **Member List** — Online/offline presence via Supabase Realtime Presence
+- **Direct messages** — 1:1 DMs with real-time updates and optional E2EE
+- **Friends** — friend requests, suggestions, status
+- **Profiles** — display name, bio, status, custom tag, banner color
+- **Member list** — online/offline presence via Supabase Realtime Presence
+- **Blocking** — user blocking with configurable policy enforcement
 
 ### Platform
-- **Push Notifications** — Web Push via VAPID
-- **PWA** — Installable progressive web app
-- **Moderation** — Reports, appeals, moderation timeline, member timeouts
-- **Admin Panel** — Activity timeline, permission simulator
-- **Roles & Permissions** — 20-bit Discord-style bitmask, no paywall
-- **Rate Limiting** — Upstash Redis-backed rate limiting on API routes
-- **Error Monitoring** — Sentry integration
-- **Offline / Outbox** — Message consistency with reconnect replay (see [docs/message-consistency-model.md](./docs/message-consistency-model.md))
+- **Auth** — email/password + magic link via Supabase Auth
+- **Push notifications** — Web Push via VAPID
+- **PWA** — installable progressive web app with offline support
+- **Moderation** — reports, appeals, moderation timeline, member timeouts
+- **Admin panel** — activity timeline, permission simulator
+- **Rate limiting** — Upstash Redis-backed rate limiting on API routes
+- **Error monitoring** — Sentry integration
+- **Offline / outbox** — message consistency with reconnect replay ([docs](./docs/message-consistency-model.md))
+- **Quiet hours** — configurable notification suppression
+- **GIFs & stickers** — GIF provider integration, sticker and meme support
 
 ---
 
-## Stack
+## Tech Stack
 
 | Layer | Tech |
 |---|---|
-| Frontend | Next.js 15 (App Router), React 19, Tailwind CSS, shadcn/ui |
-| Database | Supabase Cloud (PostgreSQL + Realtime + Storage) |
-| Auth | Supabase Auth |
-| Voice signaling | Node.js + Socket.IO (+ Redis adapter for clustering) |
-| Voice transport | WebRTC (RTCPeerConnection) or LiveKit SFU |
-| State management | Zustand |
-| Rate limiting | Upstash Redis |
-| Monitoring | Sentry |
-| Deployment | Vercel (web) · Railway (signal) · Supabase Cloud (DB) |
+| **Frontend** | Next.js 16 (App Router), React 19, Tailwind CSS, Radix UI |
+| **Database** | Supabase (PostgreSQL + Realtime + Storage) |
+| **Auth** | Supabase Auth |
+| **Voice signaling** | Node.js + Socket.IO (+ Redis adapter for clustering) |
+| **Voice transport** | WebRTC (P2P) or LiveKit (SFU) |
+| **State** | Zustand |
+| **Rate limiting** | Upstash Redis |
+| **Monitoring** | Sentry |
+| **Build** | Turborepo (npm workspaces) |
+| **Deployment** | Vercel (web) · Railway (signal) · Supabase Cloud (DB) |
 
 ---
 
-## Quick Start (Local Dev)
+## Quick Start
 
-### 1. Start Supabase locally
-```bash
-npx supabase start
-# Apply migrations
-npx supabase db push
-```
+### Prerequisites
 
-### 2. Configure environment
-```bash
-cp apps/web/.env.local.example apps/web/.env.local
-cp apps/signal/.env.example apps/signal/.env
-# Edit both files with your Supabase keys (from `npx supabase status`)
-```
+- Node.js 18+
+- npm 10+
+- Supabase CLI (`npx supabase`)
 
-### 3. Install dependencies
+### 1. Clone & install
+
 ```bash
+git clone https://github.com/TheShield2594/vortexchat.git
+cd vortexchat
 npm install
 ```
 
-### 4. Run dev servers
-```bash
-# Terminal 1 — Next.js web app
-cd apps/web && npm run dev
+### 2. Start Supabase locally
 
-# Terminal 2 — WebRTC signaling server
-cd apps/signal && npm run dev
+```bash
+npx supabase start
+npx supabase db push    # apply migrations
 ```
 
-Open http://localhost:3000
+### 3. Configure environment
+
+```bash
+cp apps/web/.env.local.example apps/web/.env.local
+cp apps/signal/.env.example apps/signal/.env
+# Fill in your Supabase keys (from `npx supabase status`)
+```
+
+### 4. Run dev servers
+
+```bash
+# Both at once (via Turborepo)
+npm run dev
+
+# Or individually:
+npm run web       # Next.js on http://localhost:3000
+npm run signal    # WebRTC signaling server
+```
 
 > **LiveKit (optional):** Set `NEXT_PUBLIC_LIVEKIT_URL` in `apps/web/.env.local` to switch voice from P2P WebRTC to a LiveKit SFU. If unset, the self-hosted signal server is used.
 
@@ -106,82 +132,83 @@ Open http://localhost:3000
 ```
 vortexchat/
 ├── apps/
-│   ├── web/                  # Next.js 15 frontend + API routes
+│   ├── web/                    # Next.js 16 frontend + API routes
 │   │   ├── app/
-│   │   │   ├── (auth)/       # login, register
-│   │   │   ├── channels/     # main app
-│   │   │   ├── discover/     # server discovery
-│   │   │   ├── appeals/      # moderation appeals
-│   │   │   └── settings/     # user settings
+│   │   │   ├── (auth)/         # Login, register
+│   │   │   ├── api/            # 30+ REST endpoints
+│   │   │   ├── channels/       # Main chat interface
+│   │   │   ├── discover/       # Server discovery
+│   │   │   ├── appeals/        # Moderation appeals
+│   │   │   ├── settings/       # User settings
+│   │   │   ├── invite/         # Invite link handler
+│   │   │   └── ...             # Privacy, terms, verify-email, etc.
 │   │   ├── components/
-│   │   │   ├── chat/         # MessageItem, ChatArea, MessageInput
-│   │   │   ├── voice/        # VoiceChannel, voice intelligence
-│   │   │   ├── dm/           # DM area, DM calls
-│   │   │   ├── roles/        # RoleManager
-│   │   │   ├── moderation/   # Moderation timeline
-│   │   │   ├── admin/        # Admin panel, permission simulator
-│   │   │   ├── notifications/# Notification bell
-│   │   │   ├── layout/       # ServerSidebar, ChannelSidebar, MemberList
-│   │   │   └── modals/       # Create server/channel, profile, settings
-│   │   ├── lib/
-│   │   │   ├── supabase/     # client, server, proxy helpers
-│   │   │   ├── webrtc/       # useVoice, useLivekitVoice, useUnifiedVoice hooks
-│   │   │   ├── voice/        # Audio settings, voice intelligence
-│   │   │   └── stores/       # Zustand app store
-│   │   └── vercel.json       # Vercel build config
-│   └── signal/               # Node.js WebRTC signaling server
+│   │   │   ├── chat/           # MessageItem, ChatArea, MessageInput
+│   │   │   ├── voice/          # VoiceChannel, voice intelligence
+│   │   │   ├── dm/             # DM area, DM calls
+│   │   │   ├── roles/          # RoleManager
+│   │   │   ├── moderation/     # Moderation timeline
+│   │   │   ├── admin/          # Admin panel, permission simulator
+│   │   │   ├── notifications/  # Notification bell, push prompts
+│   │   │   ├── layout/         # ServerSidebar, ChannelSidebar, MemberList
+│   │   │   ├── modals/         # Create server/channel, profile, settings
+│   │   │   ├── onboarding/     # New user onboarding
+│   │   │   └── ui/             # Shared UI primitives (Radix-based)
+│   │   └── lib/
+│   │       ├── supabase/       # Client, server, proxy helpers
+│   │       ├── webrtc/         # useVoice, useLivekitVoice, useUnifiedVoice
+│   │       ├── voice/          # Audio settings, voice intelligence
+│   │       ├── stores/         # Zustand state management
+│   │       └── ...             # Permissions, moderation, utils, etc.
+│   └── signal/                 # Node.js WebRTC signaling server
 │       └── src/
-│           ├── index.ts      # Socket.IO server
-│           ├── rooms.ts      # Room state management
-│           ├── redis-rooms.ts# Redis-backed room state (clustering)
+│           ├── index.ts        # Socket.IO server entry
+│           ├── rooms.ts        # In-memory room state
+│           ├── redis-rooms.ts  # Redis-backed room state (clustering)
 │           └── voice-state-sync.ts
 ├── packages/
-│   └── shared/               # Shared types + permission bitmasks
+│   └── shared/                 # Shared types, permission bitmasks, utilities
+│       └── src/index.ts        # PERMISSIONS, helpers, ChannelType, etc.
 ├── supabase/
-│   └── migrations/           # SQL migrations + RLS policies
-├── docker-compose.yml        # Local dev only
-└── deploy/                   # Deployment guide (Vercel + Railway + Supabase Cloud)
+│   └── migrations/             # SQL migrations + RLS policies
+├── scripts/                    # Dev tooling (dep cycles, parity reports, etc.)
+├── docs/                       # Architecture docs, feature tracking
+├── deploy/                     # Deployment guide (Vercel + Railway + Supabase)
+├── .github/workflows/          # CI + parity reporting
+├── turbo.json                  # Turborepo pipeline config
+├── docker-compose.yml          # Local dev services
+└── CONTRIBUTING.md             # Contribution guidelines
 ```
 
 ---
 
-## Deployment
+## Permissions
 
-See [deploy/README.md](./deploy/README.md) for full deployment instructions.
+Defined in [`packages/shared/src/index.ts`](./packages/shared/src/index.ts) and imported via `@vortex/shared`. Never hardcode permission bits.
 
-**Summary:**
-- **Web app** → [Vercel](https://vercel.com) — connect repo, set root directory to `apps/web`
-- **Signal server** → [Railway](https://railway.app) — deploys from `apps/signal/Dockerfile`
-- **Database / Auth / Storage** → [Supabase Cloud](https://supabase.com)
-
----
-
-## Permissions Bitmask
-
-Permissions are defined in `packages/shared/src/index.ts` and imported via `@vortex/shared`. Never hardcode permission bits.
-
-```
-VIEW_CHANNELS              = 1 << 0   // 1
-SEND_MESSAGES              = 1 << 1   // 2
-MANAGE_MESSAGES            = 1 << 2   // 4
-KICK_MEMBERS               = 1 << 3   // 8
-BAN_MEMBERS                = 1 << 4   // 16
-MANAGE_ROLES               = 1 << 5   // 32
-MANAGE_CHANNELS            = 1 << 6   // 64
-ADMINISTRATOR              = 1 << 7   // 128
-CONNECT_VOICE              = 1 << 8   // 256
-SPEAK                      = 1 << 9   // 512
-MUTE_MEMBERS               = 1 << 10  // 1024
-STREAM                     = 1 << 11  // 2048
-MANAGE_WEBHOOKS            = 1 << 12  // 4096
-MANAGE_EVENTS              = 1 << 13  // 8192
-MODERATE_MEMBERS           = 1 << 14  // 16384  (timeout users)
-CREATE_PUBLIC_THREADS      = 1 << 15  // 32768
-CREATE_PRIVATE_THREADS     = 1 << 16  // 65536
-SEND_MESSAGES_IN_THREADS   = 1 << 17  // 131072
-USE_APPLICATION_COMMANDS   = 1 << 18  // 262144
-MENTION_EVERYONE           = 1 << 19  // 524288
-```
+| Permission | Bit | Value |
+|---|---|---|
+| `VIEW_CHANNELS` | 0 | 1 |
+| `SEND_MESSAGES` | 1 | 2 |
+| `MANAGE_MESSAGES` | 2 | 4 |
+| `KICK_MEMBERS` | 3 | 8 |
+| `BAN_MEMBERS` | 4 | 16 |
+| `MANAGE_ROLES` | 5 | 32 |
+| `MANAGE_CHANNELS` | 6 | 64 |
+| `ADMINISTRATOR` | 7 | 128 |
+| `CONNECT_VOICE` | 8 | 256 |
+| `SPEAK` | 9 | 512 |
+| `MUTE_MEMBERS` | 10 | 1024 |
+| `STREAM` | 11 | 2048 |
+| `MANAGE_WEBHOOKS` | 12 | 4096 |
+| `MANAGE_EVENTS` | 13 | 8192 |
+| `MODERATE_MEMBERS` | 14 | 16384 |
+| `CREATE_PUBLIC_THREADS` | 15 | 32768 |
+| `CREATE_PRIVATE_THREADS` | 16 | 65536 |
+| `SEND_MESSAGES_IN_THREADS` | 17 | 131072 |
+| `USE_APPLICATION_COMMANDS` | 18 | 262144 |
+| `MENTION_EVERYONE` | 19 | 524288 |
+| `MANAGE_EMOJIS` | 20 | 1048576 |
 
 `ADMINISTRATOR` overrides all other permissions. All features are free — no paywall.
 
@@ -189,22 +216,31 @@ MENTION_EVERYONE           = 1 << 19  // 524288
 
 ## Server Templates
 
-VortexChat supports reusable **server templates** for import/export:
+VortexChat supports reusable **server templates** for quick setup:
 
-- Template schema includes `metadata`, `roles`, `categories`, `channels`, and channel-level permission overrides.
-- Metadata supports `source`, `version`, and `created_by`.
-- Built-in starter templates available in the UI: **Gaming**, **Study**, **Startup**, and **Creator**.
-- Import flow validates JSON, shows a diff preview, and applies transactionally (via `create_server_from_template` / `apply_server_template`).
-- Unsupported permission names/fields are normalized or ignored with warnings so imports degrade gracefully.
-- Export flow serializes the current server into a reusable template JSON document.
-
-API entrypoint: `POST /api/server-templates` — modes: `validate`, `preview`, `apply`, `create-server`, `export`.
+- Built-in starters: **Gaming**, **Study**, **Startup**, and **Creator**
+- Templates include roles, categories, channels, and permission overrides
+- Import validates JSON, shows a diff preview, and applies transactionally
+- Export serializes any server into a reusable template
+- API: `POST /api/server-templates` — modes: `validate`, `preview`, `apply`, `create-server`, `export`
 
 ---
 
-## Messaging Consistency
+## Deployment
 
-Offline/outbox semantics, reconnect replay rules, and conflict handling are documented in [`docs/message-consistency-model.md`](./docs/message-consistency-model.md).
+See [`deploy/README.md`](./deploy/README.md) for full instructions.
+
+| Service | Platform |
+|---|---|
+| Web app | [Vercel](https://vercel.com) — root directory `apps/web` |
+| Signal server | [Railway](https://railway.app) — from `apps/signal/Dockerfile` |
+| Database / Auth / Storage | [Supabase Cloud](https://supabase.com) |
+
+---
+
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for development guidelines and conventions.
 
 ---
 
