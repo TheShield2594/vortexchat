@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { data, error } = await supabase
     .from("channels")
-    .select("id, name, type, position, category_id")
+    .select("id, name, type, position, parent_id")
     .eq("server_id", serverId)
     .order("position", { ascending: true })
 
