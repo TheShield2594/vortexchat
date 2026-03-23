@@ -408,8 +408,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
 
-  // Connection status is handled globally by ConnectionBanner in channels-shell.
-
   // Persist last-visited channel per server for fast navigation on next session
   useEffect(() => {
     try {
