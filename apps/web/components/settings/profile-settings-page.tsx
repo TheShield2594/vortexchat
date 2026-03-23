@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Upload, Camera, ExternalLink, Link2, Gamepad2, Youtube, Check, Hash, Plus, Trash2, GripVertical, Globe, Users, Lock } from "lucide-react"
+import { Loader2, Upload, Camera, ExternalLink, Link2, Check, Hash, Plus, Trash2, GripVertical, Globe, Users, Lock } from "lucide-react"
+import { SteamIcon, YouTubeIcon } from "@/components/icons/social-icons"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -532,7 +533,7 @@ export function ProfileSettingsPage({ user }: Props) {
             }}
             aria-label={steamConnection ? "Manage Steam connection" : "Connect Steam"}
           >
-            <Gamepad2 className="w-6 h-6" />
+            <SteamIcon className="w-6 h-6" />
             {steamConnection && (
               <span className="absolute -top-1 -right-1 rounded-full p-0.5" style={{ background: "var(--theme-success)", color: "white" }}>
                 <Check className="w-3 h-3" />
@@ -551,7 +552,7 @@ export function ProfileSettingsPage({ user }: Props) {
             }}
             aria-label={youtubeConnection ? "Manage YouTube connection" : "Connect YouTube"}
           >
-            <Youtube className="w-6 h-6" />
+            <YouTubeIcon className="w-6 h-6" />
             {youtubeConnection && (
               <span className="absolute -top-1 -right-1 rounded-full p-0.5" style={{ background: "var(--theme-success)", color: "white" }}>
                 <Check className="w-3 h-3" />
