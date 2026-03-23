@@ -18,7 +18,6 @@ export const metadata: Metadata = {
       { url: "/favicon.ico", sizes: "any" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icon.svg", type: "image/svg+xml" },
     ],
     apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     shortcut: "/favicon.ico",
@@ -50,14 +49,14 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head>
         <meta name="format-detection" content="telephone=no" />
-        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1170-2532.svg" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
-        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1284-2778.svg" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
-        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1125-2436.svg" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
-        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1242-2688.svg" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
-        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1536-2048.svg" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" />
-        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1668-2224.svg" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" />
-        <link rel="apple-touch-startup-image" href="/startup/apple-splash-2048-2732.svg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
-        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1290-2796.svg" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1170-2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1284-2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1125-2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1242-2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
+        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1536-2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1668-2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/startup/apple-splash-2048-2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
+        <link rel="apple-touch-startup-image" href="/startup/apple-splash-1290-2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" />
       </head>
       <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`} style={{ background: "var(--theme-bg-primary)" }}>
         <a href="#main-content" className="skip-nav-link">Skip to main content</a>
