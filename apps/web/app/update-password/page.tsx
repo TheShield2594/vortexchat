@@ -79,7 +79,7 @@ export default function UpdatePasswordPage() {
         <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
           <div className="mb-8 text-center">
             <div className="mb-4 flex justify-center">
-              <VortexLogo size={48} style={{ color: "var(--theme-accent)" } as React.CSSProperties} />
+              <VortexLogo size={48} />
             </div>
             <div className="mb-3 flex justify-center">
               <div

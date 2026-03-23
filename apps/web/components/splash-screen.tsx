@@ -57,16 +57,14 @@ export function SplashScreen() {
           animation: "splash-pulse 1.6s ease-in-out infinite",
         }}
       >
-        <span
-          style={{
-            fontSize: 48,
-            fontWeight: 700,
-            color: "#00e5ff",
-            fontFamily: "var(--font-display), system-ui, sans-serif",
-          }}
-        >
-          V
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/icon-192.png"
+          alt=""
+          width={56}
+          height={56}
+          style={{ borderRadius: 8 }}
+        />
       </div>
       <p
         style={{

@@ -82,7 +82,7 @@ export default function RegisterPage() {
     <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
-          <VortexLogo size={48} style={{ color: 'var(--theme-accent)' } as React.CSSProperties} />
+          <VortexLogo size={48} />
         </div>
         <h1 className="text-2xl font-bold font-display" style={{ color: 'var(--theme-text-bright)' }}>Create an account</h1>
         <p style={{ color: 'var(--theme-text-secondary)' }} className="text-sm mt-1">

@@ -85,7 +85,7 @@ export default function VerifyEmailPage() {
         <div className="auth-surface rounded-2xl border p-8 shadow-2xl backdrop-blur">
           <div className="text-center mb-6">
             <div className="flex justify-center mb-4">
-              <VortexLogo size={48} style={{ color: "var(--theme-accent)" } as React.CSSProperties} />
+              <VortexLogo size={48} />
             </div>
             <div className="mb-4 flex justify-center">
               <MailCheck className="h-12 w-12" style={{ color: "var(--theme-accent)" }} />

@@ -112,10 +112,7 @@ export function ServerSidebar() {
                   : 'var(--theme-bg-primary)',
               }}
             >
-              <VortexLogo
-                size={24}
-                style={{ color: activeServerId === null ? 'var(--theme-accent)' : 'var(--theme-text-muted)' } as React.CSSProperties}
-              />
+              <VortexLogo size={24} />
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right">Direct Messages</TooltipContent>
