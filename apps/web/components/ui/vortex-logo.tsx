@@ -8,46 +8,61 @@ interface VortexLogoProps {
 }
 
 /**
- * Vortex spiral logomark — three concentric 270° arcs with a center dot,
- * open at the top, creating the visual sense of a rotating vortex pulling
- * inward. Color inherits from `currentColor`.
+ * Vortex tornado logomark — a stylised tornado/vortex funnel with a
+ * cyan-to-blue gradient, horizontal bands tapering to a sharp V-point.
  */
 export function VortexLogo({ size = 32, className, style }: VortexLogoProps) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 32 32"
+      viewBox="0 0 512 512"
       fill="none"
       aria-hidden="true"
       className={className}
       style={style}
     >
-      {/* Outer arc — 270° clockwise, opens at top (12 o'clock) */}
+      <defs>
+        <linearGradient id="vortex-lg" x1="0.5" y1="0" x2="0.5" y2="1">
+          <stop offset="0%" stopColor="#00e5ff" />
+          <stop offset="45%" stopColor="#0088e0" />
+          <stop offset="100%" stopColor="#0044cc" />
+        </linearGradient>
+      </defs>
+
+      {/* Top spiral / torus ring */}
+      <ellipse cx="262" cy="108" rx="128" ry="52" fill="url(#vortex-lg)" />
+      <ellipse cx="272" cy="104" rx="76" ry="28" fill="white" />
       <path
-        d="M 28 16 A 12 12 0 1 1 16 4"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
+        d="M 152 96 C 168 62, 240 48, 300 66 C 260 56, 200 66, 182 100 C 172 108, 156 106, 152 96 Z"
+        fill="url(#vortex-lg)"
       />
-      {/* Middle arc — 270° clockwise */}
       <path
-        d="M 23 16 A 7 7 0 1 1 16 9"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        opacity="0.65"
+        d="M 340 72 C 365 62, 395 68, 404 88 C 395 76, 370 68, 345 76 Z"
+        fill="url(#vortex-lg)"
+        opacity="0.85"
       />
-      {/* Inner arc — 270° clockwise */}
+
+      {/* Funnel body */}
       <path
-        d="M 19 16 A 3 3 0 1 1 16 13"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        opacity="0.35"
+        d="M 142 138 L 256 448 L 370 138 C 330 154, 182 154, 142 138 Z"
+        fill="url(#vortex-lg)"
+        opacity="0.28"
       />
-      {/* Center dot */}
-      <circle cx="16" cy="16" r="1.75" fill="currentColor" />
+
+      {/* Horizontal bands */}
+      <path d="M 106 182 C 172 166, 340 166, 406 182 C 340 198, 172 198, 106 182 Z" fill="url(#vortex-lg)" opacity="0.95" />
+      <path d="M 144 228 C 200 214, 312 214, 368 228 C 312 242, 200 242, 144 228 Z" fill="url(#vortex-lg)" opacity="0.85" />
+      <path d="M 178 270 C 222 258, 290 258, 334 270 C 290 282, 222 282, 178 270 Z" fill="url(#vortex-lg)" opacity="0.75" />
+      <path d="M 208 308 C 236 298, 276 298, 304 308 C 276 318, 236 318, 208 308 Z" fill="url(#vortex-lg)" opacity="0.65" />
+
+      {/* Bottom V-point */}
+      <path
+        d="M 226 334 L 256 448 L 286 334 C 272 344, 240 344, 226 334 Z"
+        fill="url(#vortex-lg)"
+        opacity="0.55"
+      />
+      <path d="M 248 425 L 256 460 L 264 425 Z" fill="#0044cc" />
     </svg>
   )
 }
