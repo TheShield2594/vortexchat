@@ -1,7 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1668" height="2224" viewBox="0 0 1668 2224">
   <rect width="100%" height="100%" fill="#1b1f31"/>
-  <circle cx="1668" cy="2224" r="1" fill="none"/>
-  <circle cx="834" cy="1072" r="208" fill="#00e5ff" opacity="0.2"/>
-  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#00e5ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="166" font-weight="700">V</text>
-  <text x="50%" y="1292" dominant-baseline="middle" text-anchor="middle" fill="#e2e8f0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="83" font-weight="600">VortexChat</text>
+  <g transform="translate(693.2, 931.2) scale(0.55)">
+    
+  <defs>
+    <linearGradient id="vg" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="45%" stop-color="#0088e0"/>
+      <stop offset="100%" stop-color="#0044cc"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="262" cy="108" rx="128" ry="52" fill="url(#vg)"/>
+  <ellipse cx="272" cy="104" rx="76" ry="28" fill="#1b1f31"/>
+  <path d="M 152 96 C 168 62, 240 48, 300 66 C 260 56, 200 66, 182 100 C 172 108, 156 106, 152 96 Z" fill="url(#vg)"/>
+  <path d="M 340 72 C 365 62, 395 68, 404 88 C 395 76, 370 68, 345 76 Z" fill="url(#vg)" opacity="0.85"/>
+  <path d="M 142 138 L 256 448 L 370 138 C 330 154, 182 154, 142 138 Z" fill="url(#vg)" opacity="0.28"/>
+  <path d="M 106 182 C 172 166, 340 166, 406 182 C 340 198, 172 198, 106 182 Z" fill="url(#vg)" opacity="0.95"/>
+  <path d="M 144 228 C 200 214, 312 214, 368 228 C 312 242, 200 242, 144 228 Z" fill="url(#vg)" opacity="0.85"/>
+  <path d="M 178 270 C 222 258, 290 258, 334 270 C 290 282, 222 282, 178 270 Z" fill="url(#vg)" opacity="0.75"/>
+  <path d="M 208 308 C 236 298, 276 298, 304 308 C 276 318, 236 318, 208 308 Z" fill="url(#vg)" opacity="0.65"/>
+  <path d="M 226 334 L 256 448 L 286 334 C 272 344, 240 344, 226 334 Z" fill="url(#vg)" opacity="0.55"/>
+  <path d="M 248 425 L 256 460 L 264 425 Z" fill="#0044cc"/>
+
+  </g>
+  <text x="50%" y="1202.4" dominant-baseline="middle" text-anchor="middle" fill="#e2e8f0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="56" font-weight="600">VortexChat</text>
 </svg>
