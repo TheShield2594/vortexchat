@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Upload, Camera, ExternalLink, Link2, Gamepad2, Youtube, Check, Hash, Plus, Trash2, GripVertical, Globe, Users, Lock } from "lucide-react"
+import { Loader2, Upload, Camera, ExternalLink, Link2, Check, Hash, Plus, Trash2, GripVertical, Globe, Users, Lock } from "lucide-react"
+import { SteamIcon, YouTubeIcon } from "@/components/icons/social-icons"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -38,9 +39,6 @@ export function ProfileSettingsPage({ user }: Props) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [connections, setConnections] = useState<Array<{ id: string; provider: string; provider_user_id: string; username: string | null; display_name: string | null; profile_url: string | null }>>([])
-  const [connectionLoading, setConnectionLoading] = useState(false)
-  const [connectionUsername, setConnectionUsername] = useState("")
-  const [connectionProfileUrl, setConnectionProfileUrl] = useState("")
   const [activeConnectionPrompt, setActiveConnectionPrompt] = useState<"steam" | "youtube" | null>(null)
 
   // Interests / Tags
@@ -265,24 +263,9 @@ export function ProfileSettingsPage({ user }: Props) {
     window.location.href = `/api/users/connections/steam/start?next=${encodeURIComponent(next)}`
   }
 
-  async function connectYouTube(e: React.FormEvent) {
-    e.preventDefault()
-    setConnectionLoading(true)
-    const res = await fetch("/api/users/connections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "youtube", username: connectionUsername, profile_url: connectionProfileUrl }),
-    })
-    const payload = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      toast({ variant: "destructive", title: "Failed to connect YouTube", description: payload.error || "Please try again" })
-      setConnectionLoading(false)
-      return
-    }
-    setConnectionUsername("")
-    setConnectionProfileUrl("")
-    setConnections((prev) => [...prev.filter((item) => item.provider !== "youtube"), payload.connection])
-    setConnectionLoading(false)
+  async function connectYouTube() {
+    const next = window.location.pathname + window.location.search
+    window.location.href = `/api/users/connections/youtube/start?next=${encodeURIComponent(next)}`
   }
 
   async function removeConnection(id: string) {
@@ -532,7 +515,7 @@ export function ProfileSettingsPage({ user }: Props) {
             }}
             aria-label={steamConnection ? "Manage Steam connection" : "Connect Steam"}
           >
-            <Gamepad2 className="w-6 h-6" />
+            <SteamIcon className="w-6 h-6" />
             {steamConnection && (
               <span className="absolute -top-1 -right-1 rounded-full p-0.5" style={{ background: "var(--theme-success)", color: "white" }}>
                 <Check className="w-3 h-3" />
@@ -551,7 +534,7 @@ export function ProfileSettingsPage({ user }: Props) {
             }}
             aria-label={youtubeConnection ? "Manage YouTube connection" : "Connect YouTube"}
           >
-            <Youtube className="w-6 h-6" />
+            <YouTubeIcon className="w-6 h-6" />
             {youtubeConnection && (
               <span className="absolute -top-1 -right-1 rounded-full p-0.5" style={{ background: "var(--theme-success)", color: "white" }}>
                 <Check className="w-3 h-3" />
@@ -580,13 +563,11 @@ export function ProfileSettingsPage({ user }: Props) {
               <h3 className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>YouTube</h3>
               <button type="button" className="text-xs" style={{ color: "var(--theme-text-muted)" }} onClick={() => setActiveConnectionPrompt(null)}>Close</button>
             </div>
-            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Add the channel details needed for your connection.</p>
+            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Sign in with Google to link your YouTube channel. We only read your channel name and stats.</p>
             {youtubeConnection && <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>Connected as {youtubeConnection.display_name || youtubeConnection.username || youtubeConnection.provider_user_id}</p>}
-            <form onSubmit={connectYouTube} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
-              <input value={connectionUsername} onChange={(e) => setConnectionUsername(e.target.value)} placeholder="YouTube username (optional)" className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
-              <input value={connectionProfileUrl} onChange={(e) => setConnectionProfileUrl(e.target.value)} placeholder="https://youtube.com/@yourchannel" required className="rounded-md px-3 py-2 text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }} />
-              <button type="submit" disabled={connectionLoading} className="px-4 py-2 rounded-md text-sm font-medium disabled:opacity-60" style={{ background: "var(--theme-accent)", color: "white" }}>{connectionLoading ? "Connecting..." : "Connect YouTube"}</button>
-            </form>
+            <button type="button" onClick={connectYouTube} className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium" style={{ background: "var(--theme-accent)", color: "white" }}>
+              <Link2 className="w-4 h-4" /> {youtubeConnection ? "Reconnect YouTube" : "Connect YouTube"}
+            </button>
           </div>
         )}
 

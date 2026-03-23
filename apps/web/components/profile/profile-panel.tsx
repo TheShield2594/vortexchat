@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
-import { Calendar, MessageSquare, Shield, UserMinus, UserPlus, X } from "lucide-react"
+import { Calendar, ExternalLink, MessageSquare, Shield, UserMinus, UserPlus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -25,6 +25,7 @@ import { PERMISSIONS } from "@vortex/shared"
 import { ProfileInterestTags } from "@/components/profile/profile-interest-tags"
 import { ProfilePinnedItems } from "@/components/profile/profile-pinned-items"
 import { ProfileActivity } from "@/components/profile/profile-activity"
+import { ProfileConnections } from "@/components/profile/profile-connections"
 
 type FriendshipStatus = "none" | "friends" | "pending_sent" | "pending_received" | "blocked" | "self"
 
@@ -279,6 +280,11 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                 ))}
               </div>
             </section>
+          )}
+
+          {/* Connections */}
+          {user?.id && (
+            <ProfileConnections userId={user.id} />
           )}
 
           {/* Interests / Tags */}

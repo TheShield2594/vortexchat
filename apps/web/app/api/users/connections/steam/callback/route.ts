@@ -25,6 +25,56 @@ function extractSteamId(claimedId: string | null) {
   return match?.[1] ?? null
 }
 
+interface SteamPlayerSummary {
+  personaname?: string
+  avatarfull?: string
+}
+
+interface SteamOwnedGamesResponse {
+  response?: { game_count?: number }
+}
+
+interface SteamPlayerSummaryResponse {
+  response?: { players?: SteamPlayerSummary[] }
+}
+
+/** Fetch Steam profile summary + owned game count when STEAM_WEB_API_KEY is set. */
+async function fetchSteamProfile(steamId: string): Promise<{ displayName: string | null; avatarUrl: string | null; gameCount: number | null }> {
+  const apiKey = process.env.STEAM_WEB_API_KEY
+  if (!apiKey) return { displayName: null, avatarUrl: null, gameCount: null }
+
+  const result: { displayName: string | null; avatarUrl: string | null; gameCount: number | null } = {
+    displayName: null,
+    avatarUrl: null,
+    gameCount: null,
+  }
+
+  try {
+    const [summaryRes, gamesRes] = await Promise.allSettled([
+      fetch(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${apiKey}&steamids=${steamId}`, { cache: "no-store" }),
+      fetch(`https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json`, { cache: "no-store" }),
+    ])
+
+    if (summaryRes.status === "fulfilled" && summaryRes.value.ok) {
+      const data = (await summaryRes.value.json()) as SteamPlayerSummaryResponse
+      const player = data?.response?.players?.[0]
+      if (player) {
+        result.displayName = player.personaname ?? null
+        result.avatarUrl = player.avatarfull ?? null
+      }
+    }
+
+    if (gamesRes.status === "fulfilled" && gamesRes.value.ok) {
+      const data = (await gamesRes.value.json()) as SteamOwnedGamesResponse
+      result.gameCount = data?.response?.game_count ?? null
+    }
+  } catch {
+    // Non-critical — we still save the connection without enrichment
+  }
+
+  return result
+}
+
 function buildRedirect(base: URL, nextPath: string, status: string) {
   const target = new URL(nextPath, base.origin)
   target.searchParams.set("connections", status)
@@ -60,16 +110,22 @@ export async function GET(request: Request) {
     return NextResponse.redirect(buildRedirect(url, nextPath, "steam_missing_id"))
   }
 
+  const steamProfile = await fetchSteamProfile(steamId)
+
   const { error } = await supabase
     .from("user_connections")
     .upsert({
       user_id: user.id,
       provider: "steam",
       provider_user_id: steamId,
-      username: steamId,
-      display_name: `Steam #${steamId}`,
+      username: steamProfile.displayName || steamId,
+      display_name: steamProfile.displayName || `Steam #${steamId}`,
       profile_url: `https://steamcommunity.com/profiles/${steamId}`,
-      metadata: { linked_via: "openid" },
+      metadata: {
+        linked_via: "openid",
+        ...(steamProfile.gameCount !== null ? { game_count: steamProfile.gameCount } : {}),
+        ...(steamProfile.avatarUrl ? { avatar_url: steamProfile.avatarUrl } : {}),
+      },
     }, { onConflict: "user_id,provider" })
 
   const status = !error ? "steam_linked" : isUserConnectionsTableMissing(error) ? "connections_storage_unavailable" : "steam_save_failed"

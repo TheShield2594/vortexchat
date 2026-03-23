@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { isUserConnectionsTableMissing, USER_CONNECTIONS_SETUP_HINT } from "@/lib/supabase/user-connections-errors"
 
-const MANUAL_PROVIDERS = ["github", "x", "twitch", "youtube", "reddit", "website"] as const
+const MANUAL_PROVIDERS = ["github", "x", "twitch", "reddit", "website"] as const
 type ManualProvider = (typeof MANUAL_PROVIDERS)[number]
 const MANUAL_PROVIDER_SET = new Set<string>(MANUAL_PROVIDERS)
 
