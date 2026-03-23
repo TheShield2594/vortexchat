@@ -583,14 +583,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       setEmojiSearch("")
       return
     }
-    function handlePointerDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       if (!emojiPickerRef.current?.contains(target) && !emojiButtonRef.current?.contains(target)) {
         setShowEmojiPicker(false)
       }
     }
-    document.addEventListener("mousedown", handlePointerDown)
-    return () => document.removeEventListener("mousedown", handlePointerDown)
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
   }, [showEmojiPicker])
 
   // Fetch GIF results (trending or search)
@@ -1265,7 +1265,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             <div
               ref={emojiPickerRef}
               data-state="open"
-              className="panel-surface-motion absolute bottom-14 right-2 z-50 flex flex-col w-[380px] rounded-lg border p-2 shadow-xl"
+              className="panel-surface-motion fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-2 md:w-[380px] md:rounded-lg md:border"
               style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
             >
               <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">

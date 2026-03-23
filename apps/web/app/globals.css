@@ -578,6 +578,10 @@
     animation-name: none !important;
   }
 
+  .upload-progress-bar {
+    transition-duration: 0ms !important;
+  }
+
   .typing-dot,
   .speaking-ring,
   .speaking-waveform,
@@ -940,6 +944,11 @@
 [data-saturation="reduced"] { filter: saturate(0.6); }
 [data-saturation="reduced"] video,
 [data-saturation="reduced"] img { filter: saturate(1.67); }
+
+/* Upload progress bar transition */
+.upload-progress-bar {
+  transition: width 120ms linear;
+}
 
 /* Typing indicator animation */
 @keyframes typing-dot {

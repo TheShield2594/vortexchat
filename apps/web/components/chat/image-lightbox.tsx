@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { useReducedMotion } from "@/hooks/use-reduced-motion"
 
 interface ImageLightboxProps {
   src: string
@@ -19,6 +20,7 @@ interface ImageLightboxProps {
  * left/right arrow navigation between images, and Escape to close.
  */
 export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: ImageLightboxProps) {
+  const reducedMotion = useReducedMotion()
   const imageList = images && images.length > 0 ? images : [{ src, alt }]
   const [currentIndex, setCurrentIndex] = useState(Math.min(initialIndex, imageList.length - 1))
   const [zoom, setZoom] = useState(1)
@@ -224,7 +226,7 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
           style={{
             transform: `scale(${zoom})`,
             transformOrigin: `${panOrigin.x}% ${panOrigin.y}%`,
-            transition: zoom === 1 ? "transform 0.2s ease-out" : "none",
+            transition: zoom === 1 && !reducedMotion ? "transform 0.2s ease-out" : "none",
           }}
         />
       </div>

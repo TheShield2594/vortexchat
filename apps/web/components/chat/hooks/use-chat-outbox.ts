@@ -85,6 +85,33 @@ export function useChatOutbox({
     }
   }, [channelId])
 
+  // Flush any pending draft to localStorage when the tab is closed, navigated away,
+  // or backgrounded.  Component unmount cleanup above handles channel switches.
+  // beforeunload covers desktop tab close; visibilitychange covers mobile/background
+  // close where beforeunload may not fire; pagehide covers bfcache navigation.
+  useEffect(() => {
+    function handleUnloadOrHide(): void {
+      if (draftPersistTimerRef.current) {
+        setDraft(channelId, draftRef.current)
+        clearTimeout(draftPersistTimerRef.current)
+        draftPersistTimerRef.current = null
+      }
+    }
+    function handleVisibilityChange(): void {
+      if (document.visibilityState === "hidden") {
+        handleUnloadOrHide()
+      }
+    }
+    window.addEventListener("beforeunload", handleUnloadOrHide)
+    window.addEventListener("pagehide", handleUnloadOrHide)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => {
+      window.removeEventListener("beforeunload", handleUnloadOrHide)
+      window.removeEventListener("pagehide", handleUnloadOrHide)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [channelId])
+
   useEffect(() => {
     const onOnline = () => setIsOnline(true)
     const onOffline = () => setIsOnline(false)

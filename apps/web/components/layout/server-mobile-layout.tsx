@@ -64,13 +64,13 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // Close mobile overflow menu on outside click
   useEffect(() => {
     if (!mobileOverflowOpen) return
-    const handleClick = (e: MouseEvent) => {
+    const handleClick = (e: PointerEvent) => {
       if (mobileOverflowRef.current && !mobileOverflowRef.current.contains(e.target as Node)) {
         setMobileOverflowOpen(false)
       }
     }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
+    document.addEventListener("pointerdown", handleClick)
+    return () => document.removeEventListener("pointerdown", handleClick)
   }, [mobileOverflowOpen])
 
   // Close overflow when navigating

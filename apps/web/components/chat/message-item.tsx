@@ -292,7 +292,7 @@ export const MessageItem = memo(function MessageItem({
   useEffect(() => {
     if (!showActions && !showEmojiPicker) return
 
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: PointerEvent) {
       const target = e.target as Node
       // Ignore clicks inside the message container or the portaled emoji picker
       if (containerRef.current?.contains(target)) return
@@ -310,10 +310,10 @@ export const MessageItem = memo(function MessageItem({
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("pointerdown", handleClickOutside)
     document.addEventListener("keydown", handleKeyDown)
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("pointerdown", handleClickOutside)
       document.removeEventListener("keydown", handleKeyDown)
     }
   }, [showActions, showEmojiPicker])

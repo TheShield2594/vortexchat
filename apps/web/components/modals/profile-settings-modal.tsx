@@ -392,13 +392,13 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
 
   useEffect(() => {
     if (!showStatusEmojiPicker) return
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: PointerEvent) {
       if (!statusEmojiPickerRef.current?.contains(e.target as Node)) {
         setShowStatusEmojiPicker(false)
       }
     }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
+    document.addEventListener("pointerdown", handleClickOutside)
+    return () => document.removeEventListener("pointerdown", handleClickOutside)
   }, [showStatusEmojiPicker])
 
   async function handleSave() {
