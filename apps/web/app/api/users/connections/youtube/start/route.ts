@@ -24,7 +24,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     const url = new URL(request.url)
-    const origin = url.origin
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    const origin = appUrl ? appUrl.replace(/\/+$/, "") : url.origin
     const next = sanitizeNextPath(url.searchParams.get("next") || "/")
     const state = randomBytes(16).toString("hex")
 

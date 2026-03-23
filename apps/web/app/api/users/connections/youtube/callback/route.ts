@@ -121,7 +121,9 @@ export async function GET(request: Request): Promise<NextResponse> {
       return NextResponse.redirect(buildRedirect(url, nextPath, "youtube_no_code"))
     }
 
-    const redirectUri = `${url.origin}/api/users/connections/youtube/callback`
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    const origin = appUrl ? appUrl.replace(/\/+$/, "") : url.origin
+    const redirectUri = `${origin}/api/users/connections/youtube/callback`
     const accessToken = await exchangeCodeForToken(code, redirectUri)
     if (!accessToken) {
       return NextResponse.redirect(buildRedirect(url, nextPath, "youtube_token_failed"))
