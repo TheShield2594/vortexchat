@@ -2,9 +2,9 @@
 // In production this file is replaced by the output of `scripts/build-sw.mjs`
 // (workbox-build injectManifest), which precaches all /_next/static/ chunks.
 
-const PRECACHE = "vortexchat-precache-v4"
-const RUNTIME = "vortexchat-runtime-v4"
-const APP_SHELL = "vortexchat-shell-v4"
+const PRECACHE = "vortexchat-precache-v5"
+const RUNTIME = "vortexchat-runtime-v5"
+const APP_SHELL = "vortexchat-shell-v5"
 const ALL_CACHES = [PRECACHE, RUNTIME, APP_SHELL]
 
 const APP_SHELL_ASSETS = [
