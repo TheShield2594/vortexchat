@@ -208,7 +208,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
                 className="w-20 h-20 rounded-3xl flex items-center justify-center"
                 style={{ background: "color-mix(in srgb, var(--theme-accent) 20%, var(--theme-bg-secondary))" }}
               >
-                <VortexLogo size={40} style={{ color: "var(--theme-accent)" } as React.CSSProperties} />
+                <VortexLogo size={40} />
               </div>
             </div>
 

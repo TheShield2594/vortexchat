@@ -187,7 +187,7 @@ export default async function HomePage() {
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3 md:px-10">
           <div className="flex items-center gap-2.5">
-            <VortexLogo size={22} style={{ color: "var(--theme-accent)" } as React.CSSProperties} />
+            <VortexLogo size={22} />
             <span className="text-base font-bold tracking-tight font-display" style={{ color: "var(--theme-text-bright)" }}>
               VortexChat
             </span>
@@ -363,7 +363,6 @@ export default async function HomePage() {
               >
                 <VortexLogo
                   size={52}
-                  style={{ color: "var(--theme-accent)" } as React.CSSProperties}
                   className="drop-shadow-[0_0_12px_var(--theme-accent)]"
                 />
               </div>
@@ -732,7 +731,7 @@ export default async function HomePage() {
           style={{ background: "color-mix(in srgb, var(--theme-accent) 12%, transparent)" }}
           aria-hidden="true"
         >
-          <VortexLogo size={28} style={{ color: "var(--theme-accent)" } as React.CSSProperties} />
+          <VortexLogo size={28} />
         </div>
         <h2
           id="cta-heading"
@@ -778,7 +777,7 @@ export default async function HomePage() {
             {/* Brand */}
             <div className="max-w-xs">
               <div className="mb-3 flex items-center gap-2">
-                <VortexLogo size={20} style={{ color: "var(--theme-accent)" } as React.CSSProperties} />
+                <VortexLogo size={20} />
                 <span className="font-bold font-display" style={{ color: "var(--theme-text-bright)" }}>
                   VortexChat
                 </span>
