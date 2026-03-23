@@ -6,17 +6,60 @@ export type ConnectionState = "connected" | "disconnected" | "reconnecting" | "o
 
 // --- External store (singleton) ---------------------------------------------------
 
-let state: ConnectionState = "connected"
+/** The state visible to the UI (delayed by grace period for transient disconnects). */
+let visibleState: ConnectionState = "connected"
+/** The real FSM state (updated immediately). */
+let internalState: ConnectionState = "connected"
 const listeners = new Set<() => void>()
 
-function setState(next: ConnectionState) {
-  if (next === state) return
-  state = next
+/** Grace period before surfacing a disconnect to the UI (ms).
+ *  If reconnection completes within this window the user never sees a banner. */
+const GRACE_PERIOD_MS = 2500
+let graceTimer: ReturnType<typeof setTimeout> | undefined
+
+function setVisibleState(next: ConnectionState): void {
+  if (next === visibleState) return
+  visibleState = next
   for (const l of listeners) l()
 }
 
+function cancelGrace(): void {
+  if (graceTimer) {
+    clearTimeout(graceTimer)
+    graceTimer = undefined
+  }
+}
+
+/** Transition the FSM.  "connected" is applied immediately (and cancels any
+ *  pending grace timer).  All other states are deferred by the grace period so
+ *  transient reconnections stay invisible to the user. */
+function setState(next: ConnectionState): void {
+  internalState = next
+
+  if (next === "connected") {
+    // Good news — show immediately & cancel any pending degraded-state reveal.
+    cancelGrace()
+    setVisibleState("connected")
+    return
+  }
+
+  // For non-connected states, only surface after the grace period.
+  // If a grace timer is already ticking, let it run — the latest internal
+  // state will be picked up when it fires.
+  if (!graceTimer) {
+    graceTimer = setTimeout(() => {
+      graceTimer = undefined
+      // Reveal whatever the current internal state is (it may have changed
+      // since the timer was scheduled).
+      if (internalState !== "connected") {
+        setVisibleState(internalState)
+      }
+    }, GRACE_PERIOD_MS)
+  }
+}
+
 function getSnapshot(): ConnectionState {
-  return state
+  return visibleState
 }
 
 function getServerSnapshot(): ConnectionState {
@@ -119,6 +162,7 @@ export function useConnectionStatus(): {
       window.removeEventListener("vortex:realtime-disconnect", onRealtimeDisconnect)
       window.removeEventListener("vortex:realtime-connect", onRealtimeConnect)
       cancelReconnect()
+      cancelGrace()
     }
   }, [])
 

@@ -126,10 +126,18 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
 
     const onVisibility = () => {
       if (document.hidden) {
-        persistStatus("offline", { persistUserRecord: false, rememberExplicit: false })
+        // Tab hidden → mark as idle (not offline). The user is still reachable;
+        // they just aren't actively looking at the tab — matching Discord/Slack
+        // behaviour where switching tabs shows a yellow idle indicator, not a
+        // full "offline" state.
+        if (currentStatusRef.current === "online") {
+          persistStatus("idle", { persistUserRecord: false, rememberExplicit: false })
+        }
         return
       }
 
+      // Tab regained focus — restore the user's explicit status if they had one,
+      // otherwise go back to "online" and restart the idle timer.
       if (explicitStatusRef.current === "idle" || explicitStatusRef.current === "dnd" || explicitStatusRef.current === "invisible") {
         persistStatus(explicitStatusRef.current)
         return

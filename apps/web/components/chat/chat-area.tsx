@@ -38,6 +38,7 @@ import {
 import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/reply-navigation"
 import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { ConnectionBanner } from "@/components/connection-banner"
 
 interface Props {
   channel: ChannelRow
@@ -1514,6 +1515,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </div>
           </div>
         </div>}
+
+        <ConnectionBanner />
 
         {showSearchModal && (
           <Suspense fallback={null}>
