@@ -41,5 +41,11 @@ exports[`next-gen layered depth visual system > keeps dark-mode presets contrast
     "passive": "var(--theme-surface-elevation-1)",
     "preset": "carbon",
   },
+  {
+    "active": "var(--theme-surface-elevation-3)",
+    "focusShift": "color-mix(in srgb, var(--theme-accent) 32%, transparent)",
+    "passive": "var(--theme-surface-elevation-1)",
+    "preset": "frost",
+  },
 ]
 `;

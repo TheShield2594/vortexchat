@@ -67,6 +67,14 @@ const THEME_PRESET_OPTIONS: {
     bg: "#000000",
     surface: "#080808",
   },
+  {
+    value: "frost",
+    label: "Frost",
+    description: "Cool slate-blue with warm amber accent",
+    accent: "#e0a526",
+    bg: "#1a2332",
+    surface: "#151d2a",
+  },
 ]
 
 export function AppearanceSettingsPage() {

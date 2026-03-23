@@ -27,21 +27,21 @@ import { VortexLogo } from "@/components/ui/vortex-logo"
 // ── SEO / OpenGraph ───────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  title: "VortexChat — Free Discord & Slack Alternative | Chat, Voice, Servers",
+  title: "VortexChat — Free Open-Source Chat Platform | Chat, Voice, Servers",
   description:
-    "VortexChat is the open, free-forever alternative to Discord and Slack. Real-time messaging, crystal-clear voice & video, organized servers, and end-to-end privacy — no Nitro, no paywalls.",
+    "VortexChat is a free-forever, open-source chat platform. Real-time messaging, crystal-clear voice & video, organized servers, and end-to-end privacy — no paywalls.",
   openGraph: {
-    title: "VortexChat — Free Discord & Slack Alternative",
+    title: "VortexChat — Free Open-Source Chat Platform",
     description:
-      "Real-time messaging, voice/video, servers, and E2E privacy. Free forever — no Nitro, no paywalls.",
+      "Real-time messaging, voice/video, servers, and E2E privacy. Free forever — no paywalls.",
     type: "website",
     siteName: "VortexChat",
   },
   twitter: {
     card: "summary_large_image",
-    title: "VortexChat — Free Discord & Slack Alternative",
+    title: "VortexChat — Free Open-Source Chat Platform",
     description:
-      "Real-time messaging, voice/video, servers, and E2E privacy. Free forever — no Nitro, no paywalls.",
+      "Real-time messaging, voice/video, servers, and E2E privacy. Free forever — no paywalls.",
   },
   alternates: {
     canonical: "/",
@@ -154,11 +154,12 @@ const themes = [
   { name: "Midnight Neon", accent: "#00e5ff", bg: "#1b1f31", label: "Default" },
   { name: "Synthwave", accent: "#f92aad", bg: "#2a1e46", label: "" },
   { name: "Carbon", accent: "#3ba55c", bg: "#1f2124", label: "" },
-  { name: "Discord", accent: "#5865f2", bg: "#313338", label: "" },
+  { name: "Twilight", accent: "#5865f2", bg: "#313338", label: "" },
+  { name: "Frost", accent: "#e0a526", bg: "#1a2332", label: "" },
 ]
 
 const steps = [
-  { num: "01", title: "Create your free account", body: "Sign up in seconds with a passkey or email. No credit card, no Nitro upsell." },
+  { num: "01", title: "Create your free account", body: "Sign up in seconds with a passkey or email. No credit card, no upsells." },
   { num: "02", title: "Join or create a server", body: "Browse public servers, accept an invite link, or spin up your own from a template." },
   { num: "03", title: "Start chatting", body: "Text, voice, video, reactions — everything works out of the box. Invite your people." },
 ]
@@ -237,7 +238,7 @@ export default async function HomePage() {
                 color: "var(--theme-accent)",
               }}
             >
-              Free forever · Open source · No Nitro
+              Free forever · Open source · No paywalls
             </div>
 
             <h1
@@ -245,8 +246,8 @@ export default async function HomePage() {
               className="text-4xl font-extrabold leading-[1.1] tracking-tight font-display md:text-6xl"
               style={{ color: "var(--theme-text-bright)" }}
             >
-              The free &amp; open{" "}
-              <span style={{ color: "var(--theme-accent)" }}>Discord alternative</span>
+              The free &amp; open-source{" "}
+              <span style={{ color: "var(--theme-accent)" }}>chat platform</span>
             </h1>
 
             <p
@@ -741,8 +742,8 @@ export default async function HomePage() {
           Ready to find your community?
         </h2>
         <p className="mb-8 text-base max-w-md mx-auto" style={{ color: "var(--theme-text-secondary)" }}>
-          Free forever. No credit card. Passkey-secured from day one. Join the open alternative to
-          Discord and Slack.
+          Free forever. No credit card. Passkey-secured from day one. Join the open-source chat
+          platform built for everyone.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
@@ -783,7 +784,7 @@ export default async function HomePage() {
                 </span>
               </div>
               <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-muted)" }}>
-                The free and open alternative to Discord and Slack. Built for communities, teams, and
+                The free and open-source chat platform. Built for communities, teams, and
                 creators.
               </p>
             </div>

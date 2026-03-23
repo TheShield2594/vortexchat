@@ -927,6 +927,59 @@
   --theme-presence-offline: #5a7070;
 }
 
+[data-theme-preset="frost"] {
+  /* Core surface palette — cool slate-blue */
+  --background: 213 25% 13%;
+  --foreground: 210 20% 95%;
+  --card: 213 22% 16%;
+  --card-foreground: 210 20% 95%;
+  --popover: 213 28% 10%;
+  --popover-foreground: 210 20% 95%;
+  /* Brand / interactive — warm amber */
+  --primary: 42 82% 52%;
+  --primary-foreground: 213 30% 8%;
+  --secondary: 213 18% 20%;
+  --secondary-foreground: 210 14% 72%;
+  --accent: 42 82% 52%;
+  --accent-foreground: 213 30% 8%;
+  /* Neutral */
+  --muted: 213 14% 26%;
+  --muted-foreground: 210 12% 60%;
+  --border: 213 14% 22%;
+  --input: 213 18% 16%;
+  --ring: 42 82% 52%;
+  /* Destructive */
+  --destructive: 359 87% 57%;
+  --destructive-foreground: 0 0% 100%;
+  /* App-specific surfaces */
+  --app-bg-primary: #1a2332;
+  --app-bg-secondary: #151d2a;
+  --theme-bg-primary: #1a2332;
+  --theme-bg-secondary: #151d2a;
+  --theme-bg-tertiary: #101820;
+  --theme-surface-elevated: #243040;
+  --theme-surface-input: #28354a;
+  --theme-surface-elevation-1: #1f2a38;
+  --theme-surface-elevation-3: #2a3748;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 32%, transparent);
+  --theme-text-primary: #e8ecf2;
+  --theme-text-normal: #d4dae4;
+  --theme-text-secondary: #a8b4c4;
+  --theme-text-muted: #8494a8;
+  --theme-text-faint: #7a8a9e;
+  --theme-text-bright: #f4f6fa;
+  --theme-accent: #e0a526;
+  --theme-accent-secondary: #5ba4e6;
+  --theme-link: #5ba4e6;
+  --theme-success: #3dba6a;
+  --theme-positive: #5cc47e;
+  --theme-warning: #e0a526;
+  --theme-danger: #e05252;
+  --theme-presence-offline: #6e7f92;
+}
+
 /* Font scale */
 [data-font-scale="small"] { font-size: 14px; }
 [data-font-scale="normal"] { font-size: 16px; }

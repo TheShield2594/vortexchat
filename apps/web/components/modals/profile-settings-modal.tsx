@@ -1694,6 +1694,12 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               desc: "True black + teal",
               swatches: ["#000000", "#0abab5", "#00d4cf"],
             },
+            {
+              key: "frost",
+              label: "Frost",
+              desc: "Slate-blue + amber",
+              swatches: ["#1a2332", "#e0a526", "#5ba4e6"],
+            },
           ] as const).map((preset) => (
             <button
               type="button"

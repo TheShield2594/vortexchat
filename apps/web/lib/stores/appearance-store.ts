@@ -6,7 +6,7 @@ import { persist } from "zustand/middleware"
 export type MessageDisplay = "cozy" | "compact"
 export type FontScale = "small" | "normal" | "large"
 export type Saturation = "normal" | "reduced"
-export type ThemePreset = "twilight" | "midnight-neon" | "synthwave" | "carbon" | "oled-black"
+export type ThemePreset = "twilight" | "midnight-neon" | "synthwave" | "carbon" | "oled-black" | "frost"
 
 export interface AppearanceSettings {
   messageDisplay?: MessageDisplay
@@ -41,7 +41,7 @@ const DEFAULTS: Required<AppearanceSettings> = {
   customCss: "",
 }
 
-const THEME_PRESETS: ThemePreset[] = ["twilight", "midnight-neon", "synthwave", "carbon", "oled-black"]
+const THEME_PRESETS: ThemePreset[] = ["twilight", "midnight-neon", "synthwave", "carbon", "oled-black", "frost"]
 const MESSAGE_DISPLAY_MODES: MessageDisplay[] = ["cozy", "compact"]
 const FONT_SCALES: FontScale[] = ["small", "normal", "large"]
 const SATURATION_LEVELS: Saturation[] = ["normal", "reduced"]
