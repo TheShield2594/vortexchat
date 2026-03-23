@@ -28,8 +28,8 @@ const THEME_PRESET_OPTIONS: {
   surface: string
 }[] = [
   {
-    value: "discord",
-    label: "Discord",
+    value: "twilight",
+    label: "Twilight",
     description: "Classic dark theme with blue accent",
     accent: "#5865F2",
     bg: "#313338",
@@ -66,6 +66,14 @@ const THEME_PRESET_OPTIONS: {
     accent: "#0abab5",
     bg: "#000000",
     surface: "#080808",
+  },
+  {
+    value: "frost",
+    label: "Frost",
+    description: "Cool slate-blue with warm amber accent",
+    accent: "#e0a526",
+    bg: "#1a2332",
+    surface: "#151d2a",
   },
 ]
 
