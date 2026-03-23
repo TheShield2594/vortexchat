@@ -40,7 +40,7 @@ describe("next-gen layered depth visual system", () => {
   })
 
   it("keeps dark-mode presets contrast-safe with layered surface tokens", () => {
-    const presets = ["twilight", "midnight-neon", "synthwave", "carbon", "frost"]
+    const presets = ["twilight", "midnight-neon", "synthwave", "carbon", "oled-black", "frost"]
     const snapshot = presets.map((preset) => ({
       preset,
       passive: readVar(`\\[data-theme-preset=\"${preset}\"\\]`, "--theme-surface-passive"),

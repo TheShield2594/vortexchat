@@ -682,7 +682,7 @@ export default async function HomePage() {
                 Your interface, your vibe.
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                Four hand-crafted themes ship with every account. Switch instantly — no refresh
+                {themes.length} hand-crafted themes ship with every account. Switch instantly — no refresh
                 required. All free.
               </p>
             </div>
