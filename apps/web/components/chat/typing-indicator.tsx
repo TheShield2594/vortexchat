@@ -21,7 +21,7 @@ export function TypingIndicator({ users }: TypingIndicatorProps) {
   }
 
   return (
-    <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0 composer-presence-rail overflow-hidden" style={{ minHeight: "24px" }} aria-hidden="true">
+    <div className="px-4 py-1 flex items-center gap-1.5 flex-shrink-0 composer-presence-rail overflow-hidden" style={{ minHeight: "24px" }} role="status" aria-live="polite">
       <span className="flex gap-0.5 items-end" aria-hidden="true">
         <span className="typing-dot" />
         <span className="typing-dot" />

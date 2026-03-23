@@ -17,6 +17,7 @@ import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
 import { useServerEmojis } from "@/components/chat/server-emoji-context"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { EmojiPicker } from "frimousse"
+import { MAX_ATTACHMENT_BYTES } from "@/lib/attachment-validation"
 
 interface Props {
   channelName: string
@@ -50,6 +51,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [sendError, setSendError] = useState<string | null>(null)
   const [sendSuccess, setSendSuccess] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const dragCounterRef = useRef(0)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [emojiSearch, setEmojiSearch] = useState("")
   const emojiGridRef = useRef<HTMLDivElement>(null)
@@ -168,7 +171,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       return
     }
 
-    function handlePointerDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       const clickedInsidePicker = emojiPickerRef.current?.contains(target)
       const clickedToggleButton = emojiButtonRef.current?.contains(target)
@@ -177,14 +180,14 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       }
     }
 
-    document.addEventListener("mousedown", handlePointerDown)
-    return () => document.removeEventListener("mousedown", handlePointerDown)
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
   }, [showEmojiPicker])
 
   useEffect(() => {
     if (!showPollCreator) return
 
-    function handlePointerDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       const clickedInsidePollCreator = pollCreatorRef.current?.contains(target)
       if (!clickedInsidePollCreator) {
@@ -193,14 +196,14 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       }
     }
 
-    document.addEventListener("mousedown", handlePointerDown)
-    return () => document.removeEventListener("mousedown", handlePointerDown)
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
   }, [showPollCreator])
 
   useEffect(() => {
     if (!showPlusMenu) return
 
-    function handlePointerDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       const clickedInsideMenu = plusMenuRef.current?.contains(target)
       const clickedButton = plusButtonRef.current?.contains(target)
@@ -209,8 +212,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       }
     }
 
-    document.addEventListener("mousedown", handlePointerDown)
-    return () => document.removeEventListener("mousedown", handlePointerDown)
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
   }, [showPlusMenu])
 
   useEffect(() => {
@@ -766,26 +769,37 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     })
   }
 
+  function filterOversizedFiles(incoming: File[]): File[] {
+    const maxMB = Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024))
+    const oversized = incoming.filter((f) => f.size > MAX_ATTACHMENT_BYTES)
+    if (oversized.length > 0) {
+      const names = oversized.map((f) => f.name).join(", ")
+      setSendError(`File${oversized.length > 1 ? "s" : ""} too large (max ${maxMB} MB): ${names}`)
+    }
+    return incoming.filter((f) => f.size <= MAX_ATTACHMENT_BYTES)
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(e.target.files ?? [])
-    setFiles((prev) => [...prev, ...selected])
+    const selected = filterOversizedFiles(Array.from(e.target.files ?? []))
+    if (selected.length > 0) setFiles((prev) => [...prev, ...selected])
     e.target.value = ""
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
-    const dropped = Array.from(e.dataTransfer.files)
-    setFiles((prev) => [...prev, ...dropped])
+    setIsDraggingOver(false)
+    const dropped = filterOversizedFiles(Array.from(e.dataTransfer.files))
+    if (dropped.length > 0) setFiles((prev) => [...prev, ...dropped])
   }
 
   function handlePaste(e: React.ClipboardEvent) {
     const items = Array.from(e.clipboardData.items)
     const imageItems = items.filter((item) => item.type.startsWith("image/"))
     if (imageItems.length > 0) {
-      const imageFiles = imageItems
-        .map((item) => item.getAsFile())
-        .filter(Boolean) as File[]
-      setFiles((prev) => [...prev, ...imageFiles])
+      const imageFiles = filterOversizedFiles(
+        imageItems.map((item) => item.getAsFile()).filter(Boolean) as File[]
+      )
+      if (imageFiles.length > 0) setFiles((prev) => [...prev, ...imageFiles])
     }
   }
 
@@ -907,7 +921,20 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   }
 
   return (
-    <div className="px-4 pb-4 flex-shrink-0" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
+    <div
+      className="px-4 pb-4 flex-shrink-0 relative"
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+      onDragEnter={(e) => { e.preventDefault(); dragCounterRef.current += 1; setIsDraggingOver(true) }}
+      onDragLeave={(e) => { e.preventDefault(); dragCounterRef.current -= 1; if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setIsDraggingOver(false) } }}
+    >
+      {/* Drag-and-drop overlay */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg pointer-events-none" style={{ background: "color-mix(in srgb, var(--theme-accent) 10%, transparent)", border: "2px dashed var(--theme-accent)" }}>
+          <span className="text-sm font-medium" style={{ color: "var(--theme-accent)" }}>Drop files here</span>
+        </div>
+      )}
+
       {/* Reply indicator */}
       {replyTo && (
         <div
@@ -961,7 +988,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   if (url) { URL.revokeObjectURL(url); fileUrlCache.current.delete(files[i]) }
                   setFiles((prev) => prev.filter((_, j) => j !== i))
                 }}
-                className="motion-interactive absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
+                className="motion-interactive absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
                 style={{ background: "var(--theme-danger)" }}
                 aria-label={`Remove ${file.name}`}
               >
@@ -977,7 +1004,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           {uploadProgress !== null && (
             <div>
               <div className="h-1.5 rounded" style={{ background: "var(--theme-bg-tertiary)" }}>
-                <div className="h-1.5 rounded" style={{ width: `${uploadProgress}%`, background: "var(--theme-accent)", transition: "width 120ms linear" }} />
+                <div className="h-1.5 rounded upload-progress-bar" style={{ width: `${uploadProgress}%`, background: "var(--theme-accent)" }} />
               </div>
               <div className="flex items-center justify-between mt-1">
                 <p className="text-[10px]" style={{ color: "var(--theme-text-muted)" }}>Uploading attachments… {Math.round(uploadProgress)}%</p>

@@ -488,11 +488,11 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
   const full = events.find((e) => e.id === eventId)
 
   useEffect(() => {
-    function handler(e: MouseEvent) {
+    function handler(e: PointerEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose()
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("pointerdown", handler)
+    return () => document.removeEventListener("pointerdown", handler)
   }, [onClose])
 
   useEffect(() => {

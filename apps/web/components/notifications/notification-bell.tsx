@@ -97,11 +97,11 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   // Close on outside click
   useEffect(() => {
     if (!open) return
-    function handler(e: MouseEvent) {
+    function handler(e: PointerEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("pointerdown", handler)
+    return () => document.removeEventListener("pointerdown", handler)
   }, [open])
 
   useEffect(() => {

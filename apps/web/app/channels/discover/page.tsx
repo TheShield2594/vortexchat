@@ -106,13 +106,13 @@ export default function DiscoverPage() {
   // Close picker on outside click
   useEffect(() => {
     if (!pickerAppId) return
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: PointerEvent) {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         setPickerAppId(null)
       }
     }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
+    document.addEventListener("pointerdown", handleClick)
+    return () => document.removeEventListener("pointerdown", handleClick)
   }, [pickerAppId])
 
   async function installAppToServer(appId: string, serverId: string) {

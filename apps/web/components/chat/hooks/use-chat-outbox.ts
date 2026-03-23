@@ -85,6 +85,21 @@ export function useChatOutbox({
     }
   }, [channelId])
 
+  // Flush any pending draft to localStorage when the tab is closed or navigated away.
+  // Component unmount cleanup above handles channel switches, but beforeunload fires
+  // when the browser tab is closed mid-typing before the debounce timer completes.
+  useEffect(() => {
+    function handleBeforeUnload(): void {
+      if (draftPersistTimerRef.current) {
+        setDraft(channelId, draftRef.current)
+        clearTimeout(draftPersistTimerRef.current)
+        draftPersistTimerRef.current = null
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [channelId])
+
   useEffect(() => {
     const onOnline = () => setIsOnline(true)
     const onOffline = () => setIsOnline(false)

@@ -814,7 +814,7 @@ function VoiceSettingsPanel({
   const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    function handlePointerDown(event: MouseEvent | TouchEvent) {
+    function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node | null
       if (!panelRef.current || !target) return
       // If click was on the settings button, let the button's onClick handle the toggle
@@ -826,13 +826,11 @@ function VoiceSettingsPanel({
       if (event.key === "Escape") onClose()
     }
 
-    document.addEventListener("mousedown", handlePointerDown)
-    document.addEventListener("touchstart", handlePointerDown)
+    document.addEventListener("pointerdown", handlePointerDown)
     document.addEventListener("keydown", handleKeyDown)
 
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown)
-      document.removeEventListener("touchstart", handlePointerDown)
+      document.removeEventListener("pointerdown", handlePointerDown)
       document.removeEventListener("keydown", handleKeyDown)
     }
   }, [onClose, settingsButtonRef])

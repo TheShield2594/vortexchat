@@ -65,7 +65,7 @@ export function MobileSwipeArea() {
 
   return (
     <div
-      className="md:hidden fixed inset-y-0 left-0 z-30 w-5"
+      className="md:hidden fixed inset-y-0 left-0 z-30 w-12"
       aria-hidden="true"
       {...swipe}
     />

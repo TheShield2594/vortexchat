@@ -1,6 +1,6 @@
 import { DANGEROUS_EXTENSIONS, EXECUTABLE_MIMES } from "@/lib/attachment-security-constants"
 
-const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
+export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/"]
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
