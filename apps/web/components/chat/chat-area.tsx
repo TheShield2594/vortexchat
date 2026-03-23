@@ -38,6 +38,7 @@ import {
 import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/reply-navigation"
 import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { ConnectionBanner } from "@/components/connection-banner"
 
 interface Props {
   channel: ChannelRow
@@ -406,8 +407,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setActiveChannel(null)
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
-
-  // Connection status is handled globally by ConnectionBanner in channels-shell.
 
   // Persist last-visited channel per server for fast navigation on next session
   useEffect(() => {
@@ -1514,6 +1513,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </div>
           </div>
         </div>}
+
+        <ConnectionBanner />
 
         {showSearchModal && (
           <Suspense fallback={null}>
