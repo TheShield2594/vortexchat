@@ -15,14 +15,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     // Verify the user is a member of this server
-    const { data: member } = await supabase
+    const { data: member, error: memberError } = await supabase
       .from("server_members")
       .select("user_id")
       .eq("server_id", serverId)
       .eq("user_id", user.id)
       .maybeSingle()
 
-    if (!member) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (memberError) return NextResponse.json({ error: memberError.message }, { status: 500 })
+    if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { data, error } = await supabase
       .from("channels")
