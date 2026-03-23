@@ -24,7 +24,18 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     const url = new URL(request.url)
-    const origin = url.origin
+    let origin = url.origin
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    if (appUrl) {
+      try {
+        const parsed = new URL(appUrl)
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          origin = parsed.origin
+        }
+      } catch {
+        // Invalid NEXT_PUBLIC_APP_URL — fall back to request origin
+      }
+    }
     const next = sanitizeNextPath(url.searchParams.get("next") || "/")
     const state = randomBytes(16).toString("hex")
 
