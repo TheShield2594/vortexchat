@@ -1,13 +1,9 @@
 import { randomBytes } from "crypto"
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { sanitizeNextPath } from "@/lib/auth/sanitize-redirect"
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-
-function sanitizeNextPath(raw: string): string {
-  if (!raw || !/^\/(?!\/)/.test(raw) || raw.includes("://")) return "/"
-  return raw
-}
 
 /**
  * GET /api/users/connections/youtube/start?next=/settings

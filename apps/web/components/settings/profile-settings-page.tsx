@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
+import { useConnectionsCallback } from "@/hooks/use-connections-callback"
 import { Loader2, Upload, Camera, ExternalLink, Link2, Check, Hash, Plus, Trash2, GripVertical, Globe, Users, Lock } from "lucide-react"
 import { SteamIcon, YouTubeIcon } from "@/components/icons/social-icons"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -23,7 +24,7 @@ const BANNER_PRESETS = [
 export function ProfileSettingsPage({ user }: Props) {
   const { toast } = useToast()
   const router = useRouter()
-  const searchParams = useSearchParams()
+
   const [supabase] = useState(() => createClientSupabaseClient())
   const { setCurrentUser } = useAppStore()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -76,23 +77,7 @@ export function ProfileSettingsPage({ user }: Props) {
     loadConnections()
   }, [loadConnections])
 
-  useEffect(() => {
-    const status = searchParams.get("connections")
-    if (!status) return
-
-    if (status === "youtube_linked" || status === "steam_linked") {
-      const provider = status.startsWith("youtube") ? "YouTube" : "Steam"
-      toast({ title: `${provider} connected!` })
-      loadConnections()
-    } else if (status.startsWith("youtube_") || status.startsWith("steam_")) {
-      const provider = status.startsWith("youtube") ? "YouTube" : "Steam"
-      toast({ variant: "destructive", title: `Failed to connect ${provider}`, description: status.replace(/_/g, " ") })
-    }
-
-    const url = new URL(window.location.href)
-    url.searchParams.delete("connections")
-    router.replace(url.pathname + url.search, { scroll: false })
-  }, [searchParams, toast, loadConnections, router])
+  useConnectionsCallback(loadConnections, toast, router)
 
   useEffect(() => {
     setPinsLoading(true)

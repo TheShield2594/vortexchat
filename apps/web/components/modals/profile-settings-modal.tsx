@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
+import { useConnectionsCallback } from "@/hooks/use-connections-callback"
 import { EmojiPicker } from "frimousse"
 import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff, Link2, ExternalLink, Hash, Plus, GripVertical, Globe, Users } from "lucide-react"
 import {
@@ -19,7 +20,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1091,7 +1092,7 @@ type ConnectionRow = {
 
 function ConnectionsSection() {
   const { toast } = useToast()
-  const searchParams = useSearchParams()
+
   const router = useRouter()
   const [connections, setConnections] = useState<ConnectionRow[]>([])
 
@@ -1105,23 +1106,7 @@ function ConnectionsSection() {
     loadConnections()
   }, [loadConnections])
 
-  useEffect(() => {
-    const status = searchParams.get("connections")
-    if (!status) return
-
-    if (status === "youtube_linked" || status === "steam_linked") {
-      const provider = status.startsWith("youtube") ? "YouTube" : "Steam"
-      toast({ title: `${provider} connected!` })
-      loadConnections()
-    } else if (status.startsWith("youtube_") || status.startsWith("steam_")) {
-      const provider = status.startsWith("youtube") ? "YouTube" : "Steam"
-      toast({ variant: "destructive", title: `Failed to connect ${provider}`, description: status.replace(/_/g, " ") })
-    }
-
-    const url = new URL(window.location.href)
-    url.searchParams.delete("connections")
-    router.replace(url.pathname + url.search, { scroll: false })
-  }, [searchParams, toast, loadConnections, router])
+  useConnectionsCallback(loadConnections, toast, router)
 
   async function connectSteam() {
     const next = window.location.pathname + window.location.search

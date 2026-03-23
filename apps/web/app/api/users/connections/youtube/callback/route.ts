@@ -32,10 +32,7 @@ interface YouTubeChannelListResponse {
   items?: YouTubeChannel[]
 }
 
-function sanitizeNextPath(raw: string): string {
-  if (!raw || !/^\/(?!\/)/.test(raw) || raw.includes("://")) return "/"
-  return raw
-}
+import { sanitizeNextPath } from "@/lib/auth/sanitize-redirect"
 
 function buildRedirect(base: URL, nextPath: string, status: string): URL {
   const safe = sanitizeNextPath(nextPath)
