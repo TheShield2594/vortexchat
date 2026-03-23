@@ -1,5 +1,12 @@
 import { useId, type CSSProperties } from "react"
 
+interface VortexCSSVars {
+  "--vortex-start"?: string
+  "--vortex-mid"?: string
+  "--vortex-end"?: string
+}
+type VortexStyle = CSSProperties & VortexCSSVars
+
 interface VortexLogoProps {
   /** Pixel size for width and height. Default 32. */
   size?: number
@@ -12,7 +19,7 @@ interface VortexLogoProps {
    *
    * For convenience, setting `color` maps to `--vortex-start` automatically.
    */
-  style?: CSSProperties
+  style?: VortexStyle
 }
 
 /**
@@ -28,9 +35,9 @@ export function VortexLogo({ size = 32, className, style }: VortexLogoProps) {
   const reactId = useId()
   const gradId = `vortex-lg-${reactId.replace(/:/g, "")}`
 
-  const resolvedStyle: CSSProperties =
-    style?.color && !(style as Record<string, unknown>)["--vortex-start"]
-      ? { ...style, "--vortex-start": style.color } as CSSProperties
+  const resolvedStyle: VortexStyle =
+    style?.color && !style["--vortex-start"]
+      ? { ...style, "--vortex-start": style.color }
       : style ?? {}
 
   return (
