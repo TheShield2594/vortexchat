@@ -121,8 +121,18 @@ export async function GET(request: Request): Promise<NextResponse> {
       return NextResponse.redirect(buildRedirect(url, nextPath, "youtube_no_code"))
     }
 
+    let origin = url.origin
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
-    const origin = appUrl ? appUrl.replace(/\/+$/, "") : url.origin
+    if (appUrl) {
+      try {
+        const parsed = new URL(appUrl)
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          origin = parsed.origin
+        }
+      } catch {
+        // Invalid NEXT_PUBLIC_APP_URL — fall back to request origin
+      }
+    }
     const redirectUri = `${origin}/api/users/connections/youtube/callback`
     const accessToken = await exchangeCodeForToken(code, redirectUri)
     if (!accessToken) {
