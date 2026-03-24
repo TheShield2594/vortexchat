@@ -91,12 +91,12 @@ const ACTION_CATEGORY: Record<string, string> = {
   appeal_status_changed: "moderation",
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  role: "text-purple-400",
-  permissions: "text-blue-400",
-  settings: "text-yellow-400",
-  moderation: "text-red-400",
-  automod: "text-orange-400",
+const CATEGORY_CSS_VARS: Record<string, string> = {
+  role: "--theme-cat-role",
+  permissions: "--theme-cat-channel",
+  settings: "--theme-cat-server",
+  moderation: "--theme-cat-member",
+  automod: "--theme-cat-automod",
 }
 
 const ALL_ACTIONS = Object.keys(ACTION_LABELS)
@@ -273,7 +273,8 @@ export function AdminActivityTimeline({ serverId }: { serverId: string }) {
                 setSelectedCategory((prev) => (prev === cat ? "" : cat))
                 setSelectedActions([])
               }}
-              className={`capitalize ${CATEGORY_COLORS[cat] ?? ""}`}
+              className="capitalize"
+              style={CATEGORY_CSS_VARS[cat] ? { color: `var(${CATEGORY_CSS_VARS[cat]})` } : undefined}
             >
               {cat}
             </Button>
@@ -324,7 +325,7 @@ export function AdminActivityTimeline({ serverId }: { serverId: string }) {
         {events.map((event) => {
           const isOpen = !!expanded[event.id]
           const category = ACTION_CATEGORY[event.action] ?? "other"
-          const colorClass = CATEGORY_COLORS[category] ?? "text-zinc-400"
+          const catVar = CATEGORY_CSS_VARS[category] ?? "--theme-cat-other"
 
           return (
             <article
@@ -339,10 +340,10 @@ export function AdminActivityTimeline({ serverId }: { serverId: string }) {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-sm font-semibold ${colorClass}`}>
+                    <span className="text-sm font-semibold" style={{ color: `var(${catVar})` }}>
                       {ACTION_LABELS[event.action] ?? event.action}
                     </span>
-                    <span className="text-xs text-zinc-500 capitalize">{category}</span>
+                    <span className="text-xs capitalize" style={{ color: "var(--theme-text-muted)" }}>{category}</span>
                   </div>
                   <p className="text-xs text-zinc-400 mt-0.5 truncate">
                     <span className="text-zinc-300">{actorName(event)}</span>
