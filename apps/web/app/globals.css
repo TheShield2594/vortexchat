@@ -1171,13 +1171,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-presence-offline: #585b70;
 }
 
-/* ── Color mode overrides — placed after presets with :root prefix for higher
-   specificity so they reliably override preset tokens when the user forces a
-   color scheme that differs from the selected preset. ───────────────────── */
+/* ── Color mode overrides — scoped to the default "twilight" preset so they
+   do NOT clobber themes that already define a complete token set.  Each theme
+   preset declares every token it needs, so a generic light/dark override must
+   not interfere. ────────────────────────────────────────────────────────── */
 
 /* System: follow OS preference */
 @media (prefers-color-scheme: light) {
-  :root[data-color-mode="system"] {
+  :root[data-color-mode="system"][data-theme-preset="twilight"] {
     --background: 0 0% 100%;
     --foreground: 0 0% 9%;
     --card: 0 0% 98%;
@@ -1218,7 +1219,7 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-color-mode="system"] {
+  :root[data-color-mode="system"][data-theme-preset="twilight"] {
     --background: 223 7% 20%;
     --foreground: 220 9% 95%;
     --card: 220 7% 18%;
@@ -1255,8 +1256,8 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   }
 }
 
-/* Forced light mode */
-:root[data-color-mode="light"] {
+/* Forced light mode — only for the default theme; other presets are self-contained */
+:root[data-color-mode="light"][data-theme-preset="twilight"] {
   --background: 0 0% 100%;
   --foreground: 0 0% 9%;
   --card: 0 0% 98%;
@@ -1295,8 +1296,8 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   color-scheme: light;
 }
 
-/* Forced dark mode */
-:root[data-color-mode="dark"] {
+/* Forced dark mode — only for the default theme; other presets are self-contained */
+:root[data-color-mode="dark"][data-theme-preset="twilight"] {
   --background: 223 7% 20%;
   --foreground: 220 9% 95%;
   --card: 220 7% 18%;
