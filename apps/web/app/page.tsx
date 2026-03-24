@@ -23,6 +23,8 @@ import {
 } from "lucide-react"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { VortexLogo } from "@/components/ui/vortex-logo"
+import { ScrollReveal } from "@/components/ui/scroll-reveal"
+import { ChatMockup } from "@/components/ui/chat-mockup"
 
 // ── SEO / OpenGraph ───────────────────────────────────────────────────────────
 
@@ -173,14 +175,24 @@ const steps = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  try {
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
-  if (!error && user) {
-    redirect("/channels/me")
+    if (!error && user) {
+      redirect("/channels/me")
+    }
+  } catch (err: unknown) {
+    // redirect() throws a Next.js internal error with a NEXT_REDIRECT digest — rethrow it
+    const digest = (err as { digest?: string })?.digest
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err
+    }
+    // Auth check failed — fall through to render the landing page
+    console.error("[HomePage] Auth check failed:", err instanceof Error ? err.message : "unknown error")
   }
 
   return (
@@ -252,16 +264,16 @@ export default async function HomePage() {
               className="text-4xl font-extrabold leading-[1.1] tracking-tight font-display md:text-6xl"
               style={{ color: "var(--theme-text-bright)" }}
             >
-              The free &amp; open-source{" "}
-              <span style={{ color: "var(--theme-accent)" }}>chat platform</span>
+              Where your community{" "}
+              <span style={{ color: "var(--theme-accent)" }}>actually lives</span>
             </h1>
 
             <p
               className="mt-5 text-lg md:text-xl leading-relaxed"
               style={{ color: "var(--theme-text-secondary)" }}
             >
-              VortexChat gives your community real-time messaging, voice &amp; video channels, organized
-              servers, and end-to-end privacy — all completely free, forever.
+              Real-time chat, crystal-clear voice, and organized servers — without the paywall tax.
+              Open-source, passkey-secured, and free forever.
             </p>
 
             <ul className="mt-5 space-y-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
@@ -299,126 +311,63 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Right — animated vortex motif */}
-          <div
-            className="mt-14 lg:mt-0 flex-shrink-0 flex items-center justify-center"
-            aria-hidden="true"
-          >
-            <div className="relative" style={{ width: 300, height: 300 }}>
-              <div
-                className="absolute inset-0 rounded-full vortex-glow"
-                style={{ background: "var(--theme-accent)", filter: "blur(64px)", opacity: 0.18 }}
-              />
-              <div
-                className="absolute vortex-orbit-slow"
-                style={{
-                  inset: 12, borderRadius: "50%",
-                  border: "2px solid var(--theme-accent)",
-                  borderTopColor: "transparent", borderRightColor: "transparent",
-                  opacity: 0.5,
-                }}
-              />
-              <div
-                className="absolute vortex-orbit-rev"
-                style={{
-                  inset: 56, borderRadius: "50%",
-                  border: "2px solid var(--theme-accent-secondary)",
-                  borderBottomColor: "transparent", borderLeftColor: "transparent",
-                  opacity: 0.45,
-                }}
-              />
-              <div
-                className="absolute vortex-orbit"
-                style={{
-                  inset: 96, borderRadius: "50%",
-                  border: "2px solid var(--theme-accent)",
-                  borderTopColor: "transparent", borderLeftColor: "transparent",
-                  opacity: 0.35, animationDuration: "3s",
-                }}
-              />
-              {/* Floating feature icons orbiting */}
-              <div
-                className="absolute vortex-orbit-slow"
-                style={{ inset: 0, borderRadius: "50%" }}
-              >
-                <div
-                  className="absolute rounded-lg p-2"
-                  style={{
-                    top: 0, left: "50%", transform: "translateX(-50%) translateY(-50%)",
-                    background: "var(--theme-bg-secondary)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-                  }}
-                >
-                  <MessageSquare className="h-4 w-4" style={{ color: "var(--theme-accent)" }} />
-                </div>
-                <div
-                  className="absolute rounded-lg p-2"
-                  style={{
-                    bottom: 0, left: "50%", transform: "translateX(-50%) translateY(50%)",
-                    background: "var(--theme-bg-secondary)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-                  }}
-                >
-                  <Mic2 className="h-4 w-4" style={{ color: "var(--theme-accent-secondary)" }} />
-                </div>
-              </div>
-              <div
-                className="absolute"
-                style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
-              >
-                <VortexLogo
-                  size={52}
-                  className="drop-shadow-[0_0_12px_var(--theme-accent)]"
-                />
-              </div>
-            </div>
+          {/* Right — chat UI preview */}
+          <div className="mt-14 lg:mt-0 flex-shrink-0 relative">
+            {/* Glow behind mockup */}
+            <div
+              className="absolute inset-0 rounded-full pointer-events-none vortex-glow"
+              style={{ background: "var(--theme-accent)", filter: "blur(80px)", opacity: 0.12 }}
+              aria-hidden="true"
+            />
+            <ChatMockup />
           </div>
         </div>
       </section>
 
       {/* ── Core Feature Grid ─────────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-6 py-16 md:px-10" aria-labelledby="features-heading">
-        <div className="mb-10">
-          <p
-            className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
-            style={{ color: "var(--theme-accent)" }}
-          >
-            Everything you need
-          </p>
-          <h2
-            id="features-heading"
-            className="text-2xl font-bold font-display"
-            style={{ color: "var(--theme-text-bright)" }}
-          >
-            One platform. Zero paywalls.
-          </h2>
-        </div>
+        <ScrollReveal>
+          <div className="mb-10">
+            <p
+              className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
+              style={{ color: "var(--theme-accent)" }}
+            >
+              Everything you need
+            </p>
+            <h2
+              id="features-heading"
+              className="text-2xl font-bold font-display"
+              style={{ color: "var(--theme-text-bright)" }}
+            >
+              One platform. Zero paywalls.
+            </h2>
+          </div>
+        </ScrollReveal>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {coreFeatures.map(({ icon: Icon, title, description }) => (
-            <article
-              key={title}
-              className="rounded-xl border p-6 transition-colors hover:border-[color-mix(in_srgb,var(--theme-accent)_20%,transparent)]"
-              style={{
-                borderColor: "rgba(255,255,255,0.06)",
-                background: "var(--theme-bg-secondary)",
-              }}
-            >
-              <div
-                className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg"
-                style={{ background: "color-mix(in srgb, var(--theme-accent) 12%, transparent)" }}
+          {coreFeatures.map(({ icon: Icon, title, description }, i) => (
+            <ScrollReveal key={title} delay={i * 80}>
+              <article
+                className="h-full rounded-xl border p-6 transition-colors hover:border-[color-mix(in_srgb,var(--theme-accent)_20%,transparent)]"
+                style={{
+                  borderColor: "rgba(255,255,255,0.06)",
+                  background: "var(--theme-bg-secondary)",
+                }}
               >
-                <Icon aria-hidden="true" className="h-5 w-5" style={{ color: "var(--theme-accent)" }} />
-              </div>
-              <h3 className="mb-2 font-semibold font-display" style={{ color: "var(--theme-text-bright)" }}>
-                {title}
-              </h3>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                {description}
-              </p>
-            </article>
+                <div
+                  className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg"
+                  style={{ background: "color-mix(in srgb, var(--theme-accent) 12%, transparent)" }}
+                >
+                  <Icon aria-hidden="true" className="h-5 w-5" style={{ color: "var(--theme-accent)" }} />
+                </div>
+                <h3 className="mb-2 font-semibold font-display" style={{ color: "var(--theme-text-bright)" }}>
+                  {title}
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
+                  {description}
+                </p>
+              </article>
+            </ScrollReveal>
           ))}
         </div>
       </section>
@@ -446,37 +395,37 @@ export default async function HomePage() {
             </h2>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-3">
+          <div className="relative grid gap-6 sm:grid-cols-3">
+            {/* Connector line — spans between step circles */}
+            <div
+              className="absolute hidden sm:block top-5 left-[16.67%] right-[16.67%] h-px"
+              style={{ background: "rgba(255,255,255,0.08)" }}
+              aria-hidden="true"
+            />
             {steps.map((step, i) => (
-              <div key={step.num} className="relative flex flex-col items-center text-center">
-                {/* Connector line */}
-                {i < steps.length - 1 && (
+              <ScrollReveal key={step.num} delay={i * 120}>
+                <div className="relative flex flex-col items-center text-center">
                   <div
-                    className="absolute hidden sm:block top-5 left-[calc(50%+2rem)] right-0 h-px"
-                    style={{ background: "rgba(255,255,255,0.08)" }}
-                    aria-hidden="true"
-                  />
-                )}
-                <div
-                  className="mb-4 flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold font-display"
-                  style={{
-                    borderColor: "color-mix(in srgb, var(--theme-accent) 30%, transparent)",
-                    background: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
-                    color: "var(--theme-accent)",
-                  }}
-                >
-                  {step.num}
+                    className="relative z-10 mb-4 flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold font-display"
+                    style={{
+                      borderColor: "color-mix(in srgb, var(--theme-accent) 30%, transparent)",
+                      background: "color-mix(in srgb, var(--theme-accent) 10%, var(--theme-bg-secondary))",
+                      color: "var(--theme-accent)",
+                    }}
+                  >
+                    {step.num}
+                  </div>
+                  <h3
+                    className="mb-2 font-semibold font-display"
+                    style={{ color: "var(--theme-text-bright)" }}
+                  >
+                    {step.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
+                    {step.body}
+                  </p>
                 </div>
-                <h3
-                  className="mb-2 font-semibold font-display"
-                  style={{ color: "var(--theme-text-bright)" }}
-                >
-                  {step.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                  {step.body}
-                </p>
-              </div>
+              </ScrollReveal>
             ))}
           </div>
 
@@ -494,45 +443,48 @@ export default async function HomePage() {
 
       {/* ── Use Cases ────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-6 py-16 md:px-10" aria-labelledby="use-cases-heading">
-        <div className="mb-10">
-          <p
-            className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
-            style={{ color: "var(--theme-accent)" }}
-          >
-            Built for everyone
-          </p>
-          <h2
-            id="use-cases-heading"
-            className="text-2xl font-bold font-display"
-            style={{ color: "var(--theme-text-bright)" }}
-          >
-            Guilds, teams, or fan clubs — VortexChat fits.
-          </h2>
-        </div>
+        <ScrollReveal>
+          <div className="mb-10">
+            <p
+              className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
+              style={{ color: "var(--theme-accent)" }}
+            >
+              Built for everyone
+            </p>
+            <h2
+              id="use-cases-heading"
+              className="text-2xl font-bold font-display"
+              style={{ color: "var(--theme-text-bright)" }}
+            >
+              Guilds, teams, or fan clubs — VortexChat fits.
+            </h2>
+          </div>
+        </ScrollReveal>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {useCases.map(({ icon: Icon, label, description, accent }) => (
-            <div
-              key={label}
-              className="rounded-xl border p-5"
-              style={{
-                borderColor: hexToRgba(accent, 0.18),
-                background: "var(--theme-bg-secondary)",
-              }}
-            >
+          {useCases.map(({ icon: Icon, label, description, accent }, i) => (
+            <ScrollReveal key={label} delay={i * 80}>
               <div
-                className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg"
-                style={{ background: hexToRgba(accent, 0.12) }}
+                className="h-full rounded-xl border p-5"
+                style={{
+                  borderColor: hexToRgba(accent, 0.18),
+                  background: "var(--theme-bg-secondary)",
+                }}
               >
-                <Icon aria-hidden="true" className="h-5 w-5" style={{ color: accent }} />
+                <div
+                  className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg"
+                  style={{ background: hexToRgba(accent, 0.12) }}
+                >
+                  <Icon aria-hidden="true" className="h-5 w-5" style={{ color: accent }} />
+                </div>
+                <h3 className="mb-1.5 font-semibold font-display" style={{ color: "var(--theme-text-bright)" }}>
+                  {label}
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
+                  {description}
+                </p>
               </div>
-              <h3 className="mb-1.5 font-semibold font-display" style={{ color: "var(--theme-text-bright)" }}>
-                {label}
-              </h3>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                {description}
-              </p>
-            </div>
+            </ScrollReveal>
           ))}
         </div>
       </section>
@@ -544,6 +496,7 @@ export default async function HomePage() {
         aria-labelledby="open-source-heading"
       >
         <div className="mx-auto max-w-6xl px-6 py-16 md:px-10">
+          <ScrollReveal>
           <div className="rounded-2xl border p-8 md:p-12 relative overflow-hidden"
             style={{
               borderColor: "color-mix(in srgb, var(--theme-accent) 18%, transparent)",
@@ -623,111 +576,164 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
+          </ScrollReveal>
         </div>
       </section>
 
-      {/* ── Under-the-hood differentiators ───────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 py-16 md:px-10" aria-labelledby="differentiators-heading">
-        <div className="mb-10">
-          <p
-            className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
-            style={{ color: "var(--theme-accent)" }}
-          >
-            Built different
-          </p>
-          <h2
-            id="differentiators-heading"
-            className="text-2xl font-bold font-display"
-            style={{ color: "var(--theme-text-bright)" }}
-          >
-            Under the hood.
-          </h2>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {differentiators.map(({ icon: Icon, title, description }) => (
-            <article
-              key={title}
-              className="rounded-xl border p-5"
-              style={{
-                borderColor: "rgba(255,255,255,0.06)",
-                background: "var(--theme-bg-secondary)",
-              }}
-            >
-              <div
-                className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg"
-                style={{ background: "color-mix(in srgb, var(--theme-accent) 10%, transparent)" }}
-              >
-                <Icon aria-hidden="true" className="h-4 w-4" style={{ color: "var(--theme-accent)" }} />
-              </div>
-              <h3 className="mb-1.5 font-semibold text-sm font-display" style={{ color: "var(--theme-text-bright)" }}>
-                {title}
-              </h3>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                {description}
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Themes teaser ────────────────────────────────────────────────── */}
+      {/* ── Themes teaser (moved up — strong differentiator) ────────────── */}
       <section
         className="border-t"
         style={{ borderColor: "rgba(255,255,255,0.06)", background: "var(--theme-bg-secondary)" }}
         aria-labelledby="themes-heading"
       >
         <div className="mx-auto max-w-6xl px-6 py-14 md:px-10">
-          <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-            <div className="max-w-sm">
-              <h2
-                id="themes-heading"
-                className="mb-2 text-2xl font-bold font-display"
-                style={{ color: "var(--theme-text-bright)" }}
-              >
-                Your interface, your vibe.
-              </h2>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                Endless customization options — hand-crafted themes, custom accent colors, and full CSS
-                overrides ship with every account. Switch instantly, no refresh required. All free.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {themes.map((theme) => {
-                const isLight = theme.label === "Light"
-                return (
-                <div
-                  key={theme.name}
-                  className="flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-medium"
-                  style={{
-                    background: theme.bg,
-                    borderColor: hexToRgba(theme.accent, 0.25),
-                    color: isLight ? "#1e293b" : "#e6ecff",
-                  }}
+          <ScrollReveal>
+            <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+              <div className="max-w-sm">
+                <p
+                  className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
+                  style={{ color: "var(--theme-accent)" }}
                 >
-                  <span
-                    className="inline-block h-3 w-3 flex-shrink-0 rounded-full"
-                    style={{ background: theme.accent, boxShadow: `0 0 6px ${hexToRgba(theme.accent, 0.5)}` }}
-                    aria-hidden="true"
-                  />
-                  <span>{theme.name}</span>
-                  {theme.label && (
+                  Make it yours
+                </p>
+                <h2
+                  id="themes-heading"
+                  className="mb-2 text-2xl font-bold font-display"
+                  style={{ color: "var(--theme-text-bright)" }}
+                >
+                  Your interface, your vibe.
+                </h2>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
+                  Endless customization options — hand-crafted themes, custom accent colors, and full CSS
+                  overrides ship with every account. Switch instantly, no refresh required. All free.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {themes.map((theme) => {
+                  const isLight = theme.label === "Light"
+                  return (
+                  <div
+                    key={theme.name}
+                    className="flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-medium"
+                    style={{
+                      background: theme.bg,
+                      borderColor: hexToRgba(theme.accent, 0.25),
+                      color: isLight ? "#1e293b" : "#e6ecff",
+                    }}
+                  >
                     <span
-                      className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                      style={{
-                        background: hexToRgba(theme.accent, 0.13),
-                        color: theme.accent,
-                        border: `1px solid ${hexToRgba(theme.accent, 0.27)}`,
-                      }}
-                    >
-                      {theme.label}
-                    </span>
-                  )}
-                </div>
-                )
-              })}
+                      className="inline-block h-3 w-3 flex-shrink-0 rounded-full"
+                      style={{ background: theme.accent, boxShadow: `0 0 6px ${hexToRgba(theme.accent, 0.5)}` }}
+                      aria-hidden="true"
+                    />
+                    <span>{theme.name}</span>
+                    {theme.label && (
+                      <span
+                        className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                        style={{
+                          background: hexToRgba(theme.accent, 0.13),
+                          color: theme.accent,
+                          border: `1px solid ${hexToRgba(theme.accent, 0.27)}`,
+                        }}
+                      >
+                        {theme.label}
+                      </span>
+                    )}
+                  </div>
+                  )
+                })}
+              </div>
             </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ── Under-the-hood differentiators ───────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-6 py-16 md:px-10" aria-labelledby="differentiators-heading">
+        <ScrollReveal>
+          <div className="mb-10">
+            <p
+              className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
+              style={{ color: "var(--theme-accent)" }}
+            >
+              Built different
+            </p>
+            <h2
+              id="differentiators-heading"
+              className="text-2xl font-bold font-display"
+              style={{ color: "var(--theme-text-bright)" }}
+            >
+              Under the hood.
+            </h2>
           </div>
+        </ScrollReveal>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {differentiators.map(({ icon: Icon, title, description }, i) => (
+            <ScrollReveal key={title} delay={i * 80}>
+              <article
+                className="h-full rounded-xl border p-5"
+                style={{
+                  borderColor: "rgba(255,255,255,0.06)",
+                  background: "var(--theme-bg-secondary)",
+                }}
+              >
+                <div
+                  className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg"
+                  style={{ background: "color-mix(in srgb, var(--theme-accent) 10%, transparent)" }}
+                >
+                  <Icon aria-hidden="true" className="h-4 w-4" style={{ color: "var(--theme-accent)" }} />
+                </div>
+                <h3 className="mb-1.5 font-semibold text-sm font-display" style={{ color: "var(--theme-text-bright)" }}>
+                  {title}
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
+                  {description}
+                </p>
+              </article>
+            </ScrollReveal>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Social Proof ──────────────────────────────────────────────── */}
+      <section
+        className="border-t"
+        style={{ borderColor: "rgba(255,255,255,0.06)", background: "var(--theme-bg-secondary)" }}
+        aria-labelledby="social-proof-heading"
+      >
+        <div className="mx-auto max-w-6xl px-6 py-14 md:px-10">
+          <ScrollReveal>
+            <h2 id="social-proof-heading" className="sr-only">Community</h2>
+            <div className="grid gap-6 sm:grid-cols-3 text-center">
+              {[
+                { stat: "100%", label: "Open Source", sublabel: "Every line, every commit" },
+                { stat: "11", label: "Hand-crafted Themes", sublabel: "Switch instantly, all free" },
+                { stat: "0", label: "Paywalls", sublabel: "Every feature, every user" },
+              ].map(({ stat, label, sublabel }) => (
+                <div key={label}>
+                  <p
+                    className="text-3xl font-extrabold font-display md:text-4xl"
+                    style={{ color: "var(--theme-accent)" }}
+                  >
+                    {stat}
+                  </p>
+                  <p
+                    className="mt-1 text-sm font-semibold"
+                    style={{ color: "var(--theme-text-bright)" }}
+                  >
+                    {label}
+                  </p>
+                  <p
+                    className="mt-0.5 text-xs"
+                    style={{ color: "var(--theme-text-muted)" }}
+                  >
+                    {sublabel}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
@@ -736,6 +742,7 @@ export default async function HomePage() {
         className="mx-auto max-w-6xl px-6 py-20 text-center md:px-10"
         aria-labelledby="cta-heading"
       >
+        <ScrollReveal>
         <div
           className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full mb-5"
           style={{ background: "color-mix(in srgb, var(--theme-accent) 12%, transparent)" }}
@@ -774,6 +781,7 @@ export default async function HomePage() {
             Sign In
           </Link>
         </div>
+        </ScrollReveal>
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
@@ -808,6 +816,8 @@ export default async function HomePage() {
                   {[
                     { label: "Sign Up", href: "/register" },
                     { label: "Sign In", href: "/login" },
+                    { label: "Features", href: "/#features-heading" },
+                    { label: "Themes", href: "/#themes-heading" },
                   ].map(({ label, href }) => (
                     <li key={label}>
                       <Link
@@ -822,6 +832,32 @@ export default async function HomePage() {
                 </ul>
               </nav>
 
+              <nav aria-label="Resources">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                  Resources
+                </p>
+                <ul className="space-y-2">
+                  {[
+                    { label: "Documentation", href: "https://github.com/TheShield2594/vortexchat/wiki", external: true },
+                    { label: "Changelog", href: "https://github.com/TheShield2594/vortexchat/releases", external: true },
+                    { label: "Contributing", href: "https://github.com/TheShield2594/vortexchat/blob/main/CONTRIBUTING.md", external: true },
+                  ].map(({ label, href, external }) => (
+                    <li key={label}>
+                      <a
+                        href={href}
+                        target={external ? "_blank" : undefined}
+                        rel={external ? "noopener noreferrer" : undefined}
+                        className="inline-flex items-center gap-1 text-sm transition-colors hover:opacity-80"
+                        style={{ color: "var(--theme-text-secondary)" }}
+                      >
+                        {label}
+                        {external && <ExternalLink className="h-3 w-3 opacity-50" aria-hidden="true" />}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+
               <nav aria-label="Company links">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
                   Company
@@ -829,8 +865,8 @@ export default async function HomePage() {
                 <ul className="space-y-2">
                   {[
                     { label: "GitHub", href: "https://github.com/TheShield2594/vortexchat", external: true },
-                    { label: "Terms of Service", href: "/terms" },
-                    { label: "Privacy Policy", href: "/privacy" },
+                    { label: "Terms of Service", href: "/terms", external: false },
+                    { label: "Privacy Policy", href: "/privacy", external: false },
                   ].map(({ label, href, external }) => (
                     <li key={label}>
                       {external ? (
