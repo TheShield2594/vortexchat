@@ -1,9 +1,9 @@
 /**
- * Skyrim — VortexChat custom theme
+ * Frosthearth — VortexChat custom theme
  *
- * Inspired by the cold, rugged Nord aesthetic of The Elder Scrolls V: Skyrim.
- * Dark stone grays, aged parchment text, frosty blue accents, and warm
- * hearthfire golds evoke tavern notice boards and ancient Dragon Walls.
+ * A frozen-tundra-meets-warm-tavern aesthetic. Dark hewn stone surfaces,
+ * aged parchment text, icy blue accents, and warm golden highlights
+ * inspired by Nordic fantasy worlds.
  *
  * HOW TO USE:
  *   1. Open Profile Settings → Appearance tab
@@ -40,7 +40,7 @@
   --theme-text-faint: #6d6456;
   --theme-text-bright: #f5eedf;
 
-  /* ── Accent & semantic — frost magic & hearthfire ────────────────────── */
+  /* ── Accent & semantic — ice & hearthfire ─────────────────────────────── */
   --theme-accent: #6eafc8;
   --theme-accent-secondary: #c8a24e;
   --theme-link: #7dbfd6;
@@ -72,7 +72,7 @@
   --destructive-foreground: 36 30% 95%;
 }
 
-/* ── Nord frost accents ────────────────────────────────────────────────── */
+/* ── Frosthearth accents ───────────────────────────────────────────────── */
 
 /* Cold stone hover on messages */
 .message-hover:hover {
@@ -99,7 +99,7 @@ textarea:focus {
   color: var(--theme-link);
 }
 
-/* ── Dragon Wall embellishments (optional decorative touches) ──────── */
+/* ── Stone & iron embellishments (optional decorative touches) ─────── */
 
 /* Subtle top-border accent on the chat header — like a carved stone lintel */
 .chat-area-header-surface {
