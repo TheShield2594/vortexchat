@@ -10,6 +10,7 @@ interface EventRow {
   server_id: string
   title: string
   description: string | null
+  location: string | null
   event_type: string | null
   external_url: string | null
   banner_url: string | null
@@ -28,7 +29,7 @@ interface EventRow {
   created_at: string
   updated_at: string
   event_hosts: Array<{ user_id: string }>
-  event_rsvps: Array<{ user_id: string; status: string }>
+  event_rsvps: Array<{ user_id: string; status: string; users?: { id: string; display_name: string | null; avatar_url: string | null } }>
 }
 
 export async function GET(
@@ -48,10 +49,10 @@ export async function GET(
   let query = (supabase
     .from("events")
     .select(
-      "id, server_id, title, description, event_type, external_url, banner_url, " +
+      "id, server_id, title, description, location, event_type, external_url, banner_url, " +
       "linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, " +
       "recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, " +
-      "created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status)"
+      "created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status,users(id,display_name,avatar_url))"
     ) as any)
     .eq("server_id", params.serverId)
     .order("start_at", { ascending: true })
@@ -71,9 +72,18 @@ export async function GET(
         maybe: rsvps.filter((r) => r.status === "maybe").length,
         notGoing: rsvps.filter((r) => r.status === "not_going").length,
         waitlist: rsvps.filter((r) => r.status === "waitlist").length,
+        interested: rsvps.filter((r) => r.status === "interested").length,
       },
       myRsvp: rsvps.find((r) => r.user_id === user.id) ?? null,
       hosts: (event.event_hosts ?? []).map((h) => h.user_id),
+      attendees: rsvps
+        .filter((r: any) => r.status === "going" || r.status === "maybe" || r.status === "interested")
+        .map((r: any) => ({
+          user_id: r.user_id,
+          status: r.status,
+          display_name: r.users?.display_name ?? null,
+          avatar_url: r.users?.avatar_url ?? null,
+        })),
     }
   })
 
@@ -115,6 +125,7 @@ export async function POST(
     server_id: params.serverId,
     title,
     description: body.description ?? null,
+    location: body.location ?? null,
     event_type: eventType,
     external_url: eventType === "external" ? (body.externalUrl ?? null) : null,
     banner_url: body.bannerUrl ?? null,

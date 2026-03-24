@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
-type RsvpStatus = "going" | "maybe" | "not_going" | "waitlist"
+type RsvpStatus = "interested" | "going" | "maybe" | "not_going" | "waitlist"
 
 export async function POST(
   request: Request,
@@ -28,7 +28,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const validStatuses: RsvpStatus[] = ["going", "maybe", "not_going"]
+  const validStatuses: RsvpStatus[] = ["interested", "going", "maybe", "not_going"]
   if (!validStatuses.includes(body.status as RsvpStatus)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 })
   }
@@ -67,6 +67,37 @@ export async function POST(
     )
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Auto-promote from waitlist when a "going" spot opens up
+  if (requestedStatus !== "going" && event.capacity) {
+    // Check if there's now room
+    const { count: goingCount } = await supabase
+      .from("event_rsvps")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", params.eventId)
+      .eq("status", "going")
+
+    if ((goingCount ?? 0) < event.capacity) {
+      // Find the next person on the waitlist (by waitlist_position, then created_at)
+      const { data: nextWaitlisted } = await supabase
+        .from("event_rsvps")
+        .select("user_id")
+        .eq("event_id", params.eventId)
+        .eq("status", "waitlist")
+        .order("waitlist_position", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .single()
+
+      if (nextWaitlisted) {
+        await supabase
+          .from("event_rsvps")
+          .update({ status: "going", waitlist_position: null })
+          .eq("event_id", params.eventId)
+          .eq("user_id", nextWaitlisted.user_id)
+      }
+    }
+  }
 
   return NextResponse.json({ status: resolvedStatus })
 }

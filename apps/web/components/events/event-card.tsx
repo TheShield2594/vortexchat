@@ -1,20 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Calendar, Clock, ExternalLink, Mic, Repeat, Trash2, Users, XCircle } from "lucide-react"
+import { Calendar, Clock, ExternalLink, MapPin, Mic, Repeat, Trash2, Users, XCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { formatInTimeZone } from "@/lib/events"
 import type { EventOccurrence } from "@/lib/events"
 
-type RsvpStatus = "going" | "maybe" | "not_going" | "waitlist" | null
+type RsvpStatus = "interested" | "going" | "maybe" | "not_going" | "waitlist" | null
 
 interface EventCardProps {
   event: any
   occurrence: EventOccurrence
   timezone: string
   serverId: string
-  onRsvp: (eventId: string, status: "going" | "maybe" | "not_going") => Promise<void>
+  onRsvp: (eventId: string, status: "interested" | "going" | "maybe" | "not_going") => Promise<void>
   compact?: boolean
   canEdit?: boolean
   onDelete?: (eventId: string) => Promise<void>
@@ -53,7 +53,7 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
   const router = useRouter()
   const countdown = useCountdown(occurrence.startAt)
   const myStatus: RsvpStatus = event?.myRsvp?.status ?? null
-  const interestedCount = (event?.stats?.going ?? 0) + (event?.stats?.maybe ?? 0)
+  const interestedCount = (event?.stats?.going ?? 0) + (event?.stats?.maybe ?? 0) + (event?.stats?.interested ?? 0)
 
   const isLive = countdown === "\uD83D\uDD34 Live now"
   const isEnded = countdown === "Ended"
@@ -129,6 +129,14 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
           )}
         </div>
 
+        {/* Location */}
+        {event.location && (
+          <div className="flex items-center gap-1.5 text-sm text-zinc-400">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+            <span>{event.location}</span>
+          </div>
+        )}
+
         {/* Recurrence badge */}
         {event.recurrence && event.recurrence !== "none" && (
           <div className="flex items-center gap-1 text-xs text-indigo-400">
@@ -158,9 +166,39 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
           )}
         </div>
 
+        {/* Attendees */}
+        {event.attendees?.length > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-1.5">
+              {event.attendees.slice(0, 8).map((a: any) => (
+                <div key={a.user_id} className="h-6 w-6 rounded-full border-2 border-zinc-900 bg-zinc-700 overflow-hidden" title={a.display_name ?? "User"}>
+                  {a.avatar_url ? (
+                    <img src={a.avatar_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-[10px] text-zinc-300">
+                      {(a.display_name ?? "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {event.attendees.length > 8 && (
+              <span className="text-xs text-zinc-500">+{event.attendees.length - 8} more</span>
+            )}
+          </div>
+        )}
+
         {/* RSVP buttons */}
         {!isEnded && (
           <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={myStatus === "interested" ? "default" : "secondary"}
+              onClick={() => onRsvp(event.id, "interested")}
+              className="h-7 text-xs"
+            >
+              {myStatus === "interested" ? "\u2713 Interested" : "Interested"}
+            </Button>
             <Button
               size="sm"
               variant={myStatus === "going" ? "default" : "secondary"}
