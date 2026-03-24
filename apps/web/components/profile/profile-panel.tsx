@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react"
-import { useRouter } from "next/navigation"
+import { useMemo, type CSSProperties } from "react"
 import { Calendar, ExternalLink, MessageSquare, Shield, UserMinus, UserPlus, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -16,9 +15,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useToast } from "@/components/ui/use-toast"
-import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 import { sanitizeBannerColor } from "@/lib/banner-color"
+import { useFriendshipActions } from "@/hooks/use-friendship-actions"
 import { getStatusLabel } from "@/lib/presence-status"
 import type { RoleRow } from "@/types/database"
 import { PERMISSIONS } from "@vortex/shared"
@@ -26,8 +24,6 @@ import { ProfileInterestTags } from "@/components/profile/profile-interest-tags"
 import { ProfilePinnedItems } from "@/components/profile/profile-pinned-items"
 import { ProfileActivity } from "@/components/profile/profile-activity"
 import { ProfileConnections } from "@/components/profile/profile-connections"
-
-type FriendshipStatus = "none" | "friends" | "pending_sent" | "pending_received" | "blocked" | "self"
 
 interface ProfileUser {
   id: string
@@ -66,101 +62,45 @@ function getJoinedDate(rawDate?: string) {
 
 /** Expanded member profile panel shown from the member list. */
 export function ProfilePanel({ user, displayName, status, roles = [], currentUserId, onClose }: ProfilePanelProps) {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [actionLoading, setActionLoading] = useState<"message" | "friend" | null>(null)
-  const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>("none")
-  const [friendshipId, setFriendshipId] = useState<string | null>(null)
-  const initials = displayName.slice(0, 2).toUpperCase()
-  const isOtherUser = Boolean(user?.id && currentUserId && user.id !== currentUserId)
+  const {
+    friendshipStatus,
+    actionLoading,
+    isOtherUser,
+    handleMessage,
+    handleAddFriend,
+    handleRemoveFriend,
+  } = useFriendshipActions({
+    userId: user?.id,
+    username: user?.username,
+    currentUserId,
+    fetchOnMount: true,
+  })
 
-  useEffect(() => {
-    if (!isOtherUser || !user?.id) return
-    let cancelled = false
-    fetch(`/api/friends/status?userId=${user.id}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((json: { status: FriendshipStatus; friendshipId?: string } | null) => {
-        if (!json || cancelled) return
-        setFriendshipStatus(json.status)
-        setFriendshipId(json.friendshipId ?? null)
-      })
-      .catch(() => { /* silently ignore */ })
-    return () => { cancelled = true }
-  }, [user?.id, isOtherUser])
+  const initials = displayName.slice(0, 2).toUpperCase()
   const joined = useMemo(() => getJoinedDate(user?.created_at), [user?.created_at])
   const statusExpired = Boolean(user?.status_expires_at && new Date(user.status_expires_at).getTime() <= Date.now())
   const customStatus = !statusExpired ? [user?.status_emoji, user?.status_message].filter(Boolean).join(" ").trim() : ""
   const bannerColor = sanitizeBannerColor(user?.banner_color)
   const isAdmin = roles.some((role) => Boolean(role.permissions & PERMISSIONS.ADMINISTRATOR))
 
-  async function handleMessage() {
-    if (!user?.id || actionLoading) return
-    setActionLoading("message")
-    try {
-      await openDmChannel(user.id, router, toast)
-    } catch (error) {
-      console.error("Failed to open DM:", error)
-      toast({
-        variant: "destructive",
-        title: error instanceof Error ? error.message : "Network error while opening DM",
-      })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  async function handleAddFriend() {
-    if (!user?.username || actionLoading) return
-    setActionLoading("friend")
-    try {
-      await sendFriendRequest(user.username, toast)
-      setFriendshipStatus("pending_sent")
-    } catch (error) {
-      console.error("Failed to send friend request:", error)
-      toast({
-        variant: "destructive",
-        title: error instanceof Error ? error.message : "Network error while adding friend",
-      })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  async function handleRemoveFriend() {
-    if (!friendshipId || actionLoading) return
-    setActionLoading("friend")
-    try {
-      const res = await fetch(`/api/friends?id=${friendshipId}`, { method: "DELETE" })
-      const json = await res.json()
-      if (res.ok) {
-        toast({ title: "Friend removed" })
-        setFriendshipStatus("none")
-        setFriendshipId(null)
-      } else {
-        toast({ variant: "destructive", title: json.error || "Failed to remove friend" })
-      }
-    } catch (error) {
-      console.error("Failed to remove friend:", error)
-      toast({
-        variant: "destructive",
-        title: error instanceof Error ? error.message : "Network error while removing friend",
-      })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
   return (
-    <div className="w-80 shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
+    <div
+      className="w-80 shrink-0 flex flex-col overflow-hidden"
+      style={{ background: "var(--theme-bg-secondary)", borderRight: "1px solid var(--theme-bg-tertiary)" }}
+    >
       <div
-        className="h-24 relative bg-primary/20"
-        style={bannerColor ? { "--profile-banner-color": bannerColor } as CSSProperties : undefined}
+        className="h-24 relative"
+        style={{
+          background: bannerColor || "color-mix(in srgb, var(--theme-accent) 20%, var(--theme-bg-secondary))",
+          ...(bannerColor ? { "--profile-banner-color": bannerColor } as CSSProperties : {}),
+        }}
       >
         {bannerColor && <div className="absolute inset-0 bg-[var(--profile-banner-color)]" />}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-2 right-2 p-1.5 rounded-full bg-background/70 text-foreground hover:bg-background transition-colors"
+          className="absolute top-2 right-2 p-1.5 rounded-full transition-colors"
+          style={{ background: "color-mix(in srgb, var(--theme-bg-primary) 70%, transparent)", color: "var(--theme-text-normal)" }}
           aria-label="Close profile"
         >
           <X className="w-3.5 h-3.5" />
@@ -168,9 +108,9 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
       </div>
 
       <div className="px-4 -mt-10 relative">
-        <Avatar className="w-20 h-20 ring-4 ring-card">
+        <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "var(--theme-bg-secondary)" } as CSSProperties}>
           {user?.avatar_url && <AvatarImage src={user.avatar_url} />}
-          <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-semibold">
+          <AvatarFallback className="text-2xl font-semibold" style={{ background: "var(--theme-accent)", color: "white" }}>
             {initials}
           </AvatarFallback>
         </Avatar>
@@ -180,12 +120,12 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
         <div className="px-4 pt-2 pb-4 space-y-3">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-xl font-bold text-foreground truncate">{displayName}</h3>
+              <h3 className="text-xl font-bold truncate" style={{ color: "var(--theme-text-normal)" }}>{displayName}</h3>
               {isAdmin && (
-                <Shield className="w-4 h-4 text-primary" />
+                <Shield className="w-4 h-4" style={{ color: "var(--theme-accent)" }} />
               )}
             </div>
-            {user?.username && <p className="text-sm text-muted-foreground">@{user.username}</p>}
+            {user?.username && <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>@{user.username}</p>}
           </div>
 
           {isOtherUser && (
@@ -194,7 +134,8 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                 type="button"
                 onClick={handleMessage}
                 disabled={actionLoading === "message"}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                style={{ background: "var(--theme-accent)", color: "white" }}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 Message
@@ -205,7 +146,8 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                     <button
                       type="button"
                       disabled={actionLoading === "friend"}
-                      className="px-3 py-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+                      className="px-3 py-2 rounded-lg hover:opacity-90 disabled:opacity-50"
+                      style={{ background: "var(--theme-danger)", color: "white" }}
                       aria-label="Remove friend"
                     >
                       <UserMinus className="w-4 h-4" />
@@ -222,7 +164,8 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleRemoveFriend}
-                        className="bg-destructive text-destructive-foreground hover:opacity-90"
+                        className="hover:opacity-90"
+                        style={{ background: "var(--theme-danger)", color: "white" }}
                       >
                         Remove
                       </AlertDialogAction>
@@ -234,7 +177,8 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                   type="button"
                   onClick={handleAddFriend}
                   disabled={actionLoading === "friend" || friendshipStatus === "pending_sent"}
-                  className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-muted disabled:opacity-50"
+                  className="px-3 py-2 rounded-lg disabled:opacity-50 hover:brightness-125 transition-all"
+                  style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   aria-label={friendshipStatus === "pending_sent" ? "Friend request sent" : "Add friend"}
                   title={friendshipStatus === "pending_sent" ? "Friend request sent" : "Add friend"}
                 >
@@ -244,37 +188,38 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
             </div>
           )}
 
-          <section className="rounded-xl bg-secondary/60 p-3">
-            <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-1.5">STATUS</h4>
-            <p className="text-sm text-foreground">{getStatusLabel(status)}</p>
-            {customStatus && <p className="text-sm text-muted-foreground mt-1">{customStatus}</p>}
+          <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+            <h4 className="text-[11px] font-semibold tracking-wider mb-1.5" style={{ color: "var(--theme-text-muted)" }}>STATUS</h4>
+            <p className="text-sm" style={{ color: "var(--theme-text-normal)" }}>{getStatusLabel(status)}</p>
+            {customStatus && <p className="text-sm mt-1" style={{ color: "var(--theme-text-muted)" }}>{customStatus}</p>}
           </section>
 
           {user?.bio && (
-            <section className="rounded-xl bg-secondary/60 p-3">
-              <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-1.5">ABOUT ME</h4>
-              <p className="text-sm text-foreground leading-relaxed">{user.bio}</p>
+            <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+              <h4 className="text-[11px] font-semibold tracking-wider mb-1.5" style={{ color: "var(--theme-text-muted)" }}>ABOUT ME</h4>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-normal)" }}>{user.bio}</p>
             </section>
           )}
 
-          <section className="rounded-xl bg-secondary/60 p-3">
-            <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-1.5">MEMBER SINCE</h4>
-            <div className="flex items-center gap-2 text-sm text-foreground">
-              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+            <h4 className="text-[11px] font-semibold tracking-wider mb-1.5" style={{ color: "var(--theme-text-muted)" }}>MEMBER SINCE</h4>
+            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-normal)" }}>
+              <Calendar className="w-3.5 h-3.5" style={{ color: "var(--theme-text-muted)" }} />
               {joined}
             </div>
           </section>
 
           {roles.length > 0 && (
-            <section className="rounded-xl bg-secondary/60 p-3">
-              <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-2">ROLES</h4>
+            <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+              <h4 className="text-[11px] font-semibold tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>ROLES</h4>
               <div className="flex flex-wrap gap-1.5">
                 {roles.map((role) => (
                   <span
                     key={role.id}
-                    className="text-xs inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary text-secondary-foreground"
+                    className="text-xs inline-flex items-center gap-1 px-2 py-1 rounded-full"
+                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   >
-                    <span className="w-2 h-2 rounded-full bg-primary" />
+                    <span className="w-2 h-2 rounded-full" style={{ background: role.color || "var(--theme-accent)" }} />
                     {role.name}
                   </span>
                 ))}
@@ -289,24 +234,24 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
 
           {/* Interests / Tags */}
           {(user?.interests && user.interests.length > 0) && (
-            <section className="rounded-xl bg-secondary/60 p-3">
-              <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-2">INTERESTS</h4>
+            <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+              <h4 className="text-[11px] font-semibold tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>INTERESTS</h4>
               <ProfileInterestTags tags={user.interests} />
             </section>
           )}
 
           {/* Pinned Items */}
           {user?.id && (
-            <section className="rounded-xl bg-secondary/60 p-3">
-              <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-2">PINNED</h4>
+            <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+              <h4 className="text-[11px] font-semibold tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>PINNED</h4>
               <ProfilePinnedItems userId={user.id} />
             </section>
           )}
 
           {/* Recent Activity */}
           {user?.id && (
-            <section className="rounded-xl bg-secondary/60 p-3">
-              <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-2">RECENT ACTIVITY</h4>
+            <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+              <h4 className="text-[11px] font-semibold tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>RECENT ACTIVITY</h4>
               <ProfileActivity userId={user.id} />
             </section>
           )}
