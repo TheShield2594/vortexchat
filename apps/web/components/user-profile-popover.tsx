@@ -1,7 +1,5 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { MessageSquare, UserMinus, UserPlus } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
@@ -16,11 +14,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 import { getStatusColor, getStatusLabel } from "@/lib/presence-status"
-
-type FriendshipStatus = "none" | "friends" | "pending_sent" | "pending_received" | "blocked" | "self"
+import { useFriendshipActions } from "@/hooks/use-friendship-actions"
 
 interface UserProfileData {
   username: string
@@ -58,93 +54,24 @@ export function UserProfilePopover({
   children,
 }: UserProfilePopoverProps) {
   const initials = displayName.slice(0, 2).toUpperCase()
-  const showActions = userId && currentUserId && userId !== currentUserId
-  const router = useRouter()
-  const { toast } = useToast()
-  const [actionLoading, setActionLoading] = useState<"message" | "friend" | null>(null)
-  const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>("none")
-  const [friendshipId, setFriendshipId] = useState<string | null>(null)
-  const [statusLoaded, setStatusLoaded] = useState(false)
 
-  async function fetchFriendshipStatus() {
-    if (!showActions || statusLoaded) return
-    try {
-      const res = await fetch(`/api/friends/status?userId=${userId}`)
-      if (res.ok) {
-        const json = await res.json() as { status: FriendshipStatus; friendshipId?: string }
-        setFriendshipStatus(json.status)
-        setFriendshipId(json.friendshipId ?? null)
-      }
-    } catch {
-      // silently ignore; default to "none"
-    } finally {
-      setStatusLoaded(true)
-    }
-  }
-
-  async function handleMessage() {
-    if (!userId || actionLoading) return
-    setActionLoading("message")
-    try {
-      const res = await fetch("/api/dm/channels", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userIds: [userId] }),
-      })
-      const payload = await res.json().catch(() => ({ error: "Failed to open DM" })) as { id?: string; error?: string }
-      if (res.ok && payload.id) {
-        router.push(`/channels/me/${payload.id}`)
-      } else {
-        toast({ variant: "destructive", title: payload.error || "Failed to open DM" })
-      }
-    } catch {
-      toast({ variant: "destructive", title: "Failed to open DM" })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  async function handleAddFriend() {
-    if (!user?.username || actionLoading) return
-    setActionLoading("friend")
-    try {
-      const res = await fetch("/api/friends", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: user.username }),
-      })
-      const json = await res.json()
-      if (res.ok) {
-        toast({ title: json.message })
-        setFriendshipStatus("pending_sent")
-      } else {
-        toast({ variant: res.status === 409 ? "default" : "destructive", title: json.error || json.message })
-      }
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  async function handleRemoveFriend() {
-    if (!friendshipId || actionLoading) return
-    setActionLoading("friend")
-    try {
-      const res = await fetch(`/api/friends?id=${friendshipId}`, { method: "DELETE" })
-      const json = await res.json()
-      if (res.ok) {
-        toast({ title: "Friend removed" })
-        setFriendshipStatus("none")
-        setFriendshipId(null)
-      } else {
-        toast({ variant: "destructive", title: json.error || "Failed to remove friend" })
-      }
-    } finally {
-      setActionLoading(null)
-    }
-  }
+  const {
+    friendshipStatus,
+    actionLoading,
+    isOtherUser: showActions,
+    handleMessage,
+    handleAddFriend,
+    handleRemoveFriend,
+    fetchStatus,
+  } = useFriendshipActions({
+    userId,
+    username: user?.username ?? undefined,
+    currentUserId,
+    fetchOnMount: false,
+  })
 
   return (
-    <Popover onOpenChange={(open: boolean) => { if (open) fetchFriendshipStatus() }}>
+    <Popover onOpenChange={(open: boolean) => { if (open) fetchStatus() }}>
       <PopoverTrigger asChild>
         {children}
       </PopoverTrigger>

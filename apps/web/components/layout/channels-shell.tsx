@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { MobileNavProvider } from "./mobile-nav"
 import { ServerSidebarWrapper } from "./server-sidebar-wrapper"
 import { setupMobileBackGuard } from "@/utils/mobile-navigation"
-import { isFullScreenChannel } from "./mobile-bottom-tab-bar"
+import { isFullScreenChannel } from "@/lib/utils/navigation"
 
 export function ChannelsShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

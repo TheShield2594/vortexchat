@@ -124,7 +124,7 @@ export function ServerSidebar() {
         {servers.length === 0 && isLoadingServers && (
           <div className="w-full flex flex-col items-center gap-2 py-1">
             {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-12 w-12 rounded-2xl" />
+              <Skeleton key={index} className="h-12 w-12 rounded-full" />
             ))}
           </div>
         )}
@@ -176,7 +176,7 @@ export function ServerSidebar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={() => router.push("/discover")}
+              onClick={() => router.push("/channels/discover")}
               aria-label="Explore Public Servers"
               className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}
@@ -222,7 +222,7 @@ function ServerIcon({
     .slice(0, 2)
     .toUpperCase()
 
-  const [copyShortcutLabel, setCopyShortcutLabel] = useState("Ctrl+C")
+  const [copyShortcutLabel, setCopyShortcutLabel] = useState<string | null>(null)
 
   useEffect(() => {
     const platform = navigator.platform || navigator.userAgent || ""
@@ -310,7 +310,7 @@ function ServerIcon({
           toast({ title: "Server ID copied!" })
         }}>
           <Clipboard className="w-4 h-4 mr-2" /> Copy Server ID
-          <ContextMenuShortcut>{copyShortcutLabel}</ContextMenuShortcut>
+          {copyShortcutLabel && <ContextMenuShortcut>{copyShortcutLabel}</ContextMenuShortcut>}
         </ContextMenuItem>
         {!isOwner && (
           <>

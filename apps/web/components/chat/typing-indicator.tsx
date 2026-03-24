@@ -27,7 +27,7 @@ export function TypingIndicator({ users }: TypingIndicatorProps) {
         <span className="typing-dot" />
         <span className="typing-dot" />
       </span>
-      <span className="text-xs text-muted-foreground truncate min-w-0 block">
+      <span className="text-xs truncate min-w-0 block" style={{ color: "var(--theme-text-muted)" }}>
         {buildTypingText(users)}
       </span>
     </div>

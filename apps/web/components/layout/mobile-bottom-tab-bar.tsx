@@ -5,29 +5,13 @@ import { usePathname } from "next/navigation"
 import { MessagesSquare, Bell, UserRound } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
-
-const RESERVED_PREFIXES = [
-  "/channels/me",
-  "/channels/notifications",
-  "/channels/you",
-  "/channels/friends",
-  "/channels/discover",
-  "/channels/servers",
-  "/channels/profile",
-]
+import { isFullScreenChannel } from "@/lib/utils/navigation"
 
 const TABS = [
   { href: "/channels/me", label: "Messages", icon: MessagesSquare },
   { href: "/channels/notifications", label: "Notifications", icon: Bell },
   { href: "/channels/you", label: "You", icon: UserRound },
 ]
-
-function isServerRoute(pathname: string): boolean {
-  return (
-    pathname.startsWith("/channels/") &&
-    !RESERVED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  )
-}
 
 function isTabActive(href: string, pathname: string): boolean {
   if (href === "/channels/me") {
@@ -40,18 +24,10 @@ function isTabActive(href: string, pathname: string): boolean {
   return pathname === href
 }
 
-/** True when the user is inside a full-screen channel view (server channel or DM conversation). */
-export function isFullScreenChannel(pathname: string): boolean {
-  // /channels/me/:channelId — DM conversation
-  if (pathname.startsWith("/channels/me/") && pathname.split("/").length >= 4) return true
-  // /channels/:serverId/:channelId — server channel (not a reserved route)
-  if (isServerRoute(pathname) && pathname.split("/").length >= 4) return true
-  return false
-}
-
 export function MobileBottomTabBar() {
   const pathname = usePathname()
   const notificationUnreadCount = useAppStore((s) => s.notificationUnreadCount)
+  const dmUnreadCount = useAppStore((s) => s.dmUnreadCount)
 
   // Hide the bottom nav when viewing a channel (full-screen message view)
   if (isFullScreenChannel(pathname)) return null
@@ -69,7 +45,9 @@ export function MobileBottomTabBar() {
       <ul className="grid grid-cols-3 h-16">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = isTabActive(href, pathname)
-          const showBadge = href === "/channels/notifications" && notificationUnreadCount > 0
+          const showNotifBadge = href === "/channels/notifications" && notificationUnreadCount > 0
+          const showDmBadge = href === "/channels/me" && dmUnreadCount > 0
+          const badgeCount = showNotifBadge ? notificationUnreadCount : showDmBadge ? dmUnreadCount : 0
           return (
             <li key={label}>
               <Link
@@ -80,12 +58,12 @@ export function MobileBottomTabBar() {
               >
                 <span className="relative">
                   <Icon className="h-5 w-5" />
-                  {showBadge && (
+                  {badgeCount > 0 && (
                     <span
                       className="absolute -top-1 -right-2 min-w-[16px] h-4 rounded-full flex items-center justify-center text-[10px] font-bold px-0.5"
                       style={{ background: "var(--theme-danger)", color: "white" }}
                     >
-                      {notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}
+                      {badgeCount > 99 ? "99+" : badgeCount}
                     </span>
                   )}
                 </span>

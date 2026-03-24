@@ -4,13 +4,13 @@ import { useSelectedLayoutSegment } from "next/navigation"
 import { DMList } from "./dm-list"
 import { UserPanel } from "@/components/layout/user-panel"
 
-function DMNavContent({ onNavigate }: { onNavigate?: () => void }) {
+function DMNavContent({ showUserPanel = true, onNavigate }: { showUserPanel?: boolean; onNavigate?: () => void }) {
   return (
     <>
       <div className="flex-1 min-h-0">
         <DMList onNavigate={onNavigate} />
       </div>
-      <UserPanel />
+      {showUserPanel && <UserPanel />}
     </>
   )
 }
@@ -43,7 +43,7 @@ export function MeShell({ children }: { children: React.ReactNode }) {
             className="flex flex-1 flex-col overflow-hidden"
             style={{ background: "var(--app-bg-secondary)" }}
           >
-            <DMNavContent />
+            <DMNavContent showUserPanel={false} />
           </div>
         )}
       </div>
