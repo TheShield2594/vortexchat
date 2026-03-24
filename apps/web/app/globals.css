@@ -1813,7 +1813,7 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   [data-theme-preset="frosthearth"] [contenteditable="true"]:focus-visible {
     transition-duration: 0ms !important;
   }
-
+}
 
 /* ── Color mode overrides — scoped to the default "twilight" preset so they
    do NOT clobber themes that already define a complete token set.  Each theme
