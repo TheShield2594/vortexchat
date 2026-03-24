@@ -1,0 +1,177 @@
+/**
+ * Frosthearth — VortexChat custom theme
+ *
+ * A frozen-tundra-meets-warm-tavern aesthetic. Dark hewn stone surfaces,
+ * aged parchment text, icy blue accents, and warm golden highlights
+ * inspired by Nordic fantasy worlds.
+ *
+ * HOW TO USE:
+ *   1. Open Profile Settings → Appearance tab
+ *   2. Scroll to "Custom CSS"
+ *   3. Click "Clear" to remove any existing CSS
+ *   4. Paste the entire contents of this file into the textarea
+ *   5. Click "Save Theme & Appearance"
+ *
+ * You can layer this on top of any preset — the custom CSS always wins.
+ */
+
+:root {
+  /* ── App shell backgrounds — dark hewn stone ─────────────────────────── */
+  --app-bg-primary: #1c1e1f;
+  --app-bg-secondary: #161819;
+  --app-bg-deepest: #1a1b1d;
+
+  /* ── Surface palette — weathered stone & iron ────────────────────────── */
+  --theme-bg-primary: #1c1e1f;
+  --theme-bg-secondary: #161819;
+  --theme-bg-tertiary: #111213;
+  --theme-surface-elevated: #2a2c2e;
+  --theme-surface-input: #242627;
+  --theme-surface-elevation-1: #212324;
+  --theme-surface-elevation-2: #2a2c2e;
+  --theme-surface-elevation-3: #303234;
+  --theme-surface-elevation-4: #383a3c;
+  --theme-surface-elevation-5: #404244;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+
+  /* ── Typography — aged parchment & candlelight ───────────────────────── */
+  --theme-text-primary: #e8dcc8;
+  --theme-text-normal: #d4c9b5;
+  --theme-text-secondary: #b0a590;
+  --theme-text-muted: #8a806e;
+  --theme-text-faint: #6d6456;
+  --theme-text-bright: #f5eedf;
+
+  /* ── Accent & semantic — ice & hearthfire ─────────────────────────────── */
+  --theme-accent: #6eafc8;
+  --theme-accent-secondary: #c8a24e;
+  --theme-link: #7dbfd6;
+  --theme-success: #6b9e4d;
+  --theme-positive: #7aad5a;
+  --theme-warning: #d4a740;
+  --theme-danger: #a83c3c;
+  --theme-presence-offline: #6b6459;
+
+  /* ── Mention-self tokens ─────────────────────────────────────────────── */
+  --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 60%, white);
+  --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
+  --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
+
+  /* ── Shadow elevations ───────────────────────────────────────────────── */
+  --theme-shadow-elevation-1: 0 1px 2px color-mix(in srgb, black 22%, transparent),
+    0 0 0 1px color-mix(in srgb, white 4%, transparent) inset;
+  --theme-shadow-elevation-2: 0 4px 12px color-mix(in srgb, black 28%, transparent),
+    0 1px 0 color-mix(in srgb, white 6%, transparent) inset;
+  --theme-shadow-elevation-3: 0 8px 24px color-mix(in srgb, black 34%, transparent),
+    0 1px 0 color-mix(in srgb, white 8%, transparent) inset;
+  --theme-shadow-elevation-4: 0 14px 32px color-mix(in srgb, black 38%, transparent),
+    0 1px 0 color-mix(in srgb, white 10%, transparent) inset;
+  --theme-shadow-elevation-5: 0 24px 42px color-mix(in srgb, black 45%, transparent),
+    0 1px 0 color-mix(in srgb, white 12%, transparent) inset;
+
+  /* ── Opacity & misc design tokens ────────────────────────────────────── */
+  --theme-opacity-overlay: 0.72;
+  --theme-opacity-muted: 0.7;
+  --color-tertiary-metadata: #8a806e;
+  --radius: 0.5rem;
+
+  /* ── Motion timing & easing ──────────────────────────────────────────── */
+  --motion-duration-instant: 80ms;
+  --motion-duration-fast: 120ms;
+  --motion-duration-standard: 180ms;
+  --motion-duration-panel: 220ms;
+  --motion-duration-slow: 320ms;
+  --motion-duration-skeleton: 1600ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --motion-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --motion-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Interaction state tokens ────────────────────────────────────────── */
+  --motion-hover-bg: color-mix(in srgb, var(--theme-text-primary) 5%, transparent);
+  --motion-hover-bg-md: color-mix(in srgb, var(--theme-text-primary) 8%, transparent);
+  --motion-press-scale: 0.97;
+  --motion-select-bg: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-elevated));
+  --motion-skeleton-base: color-mix(in srgb, var(--theme-text-primary) 6%, transparent);
+  --motion-skeleton-shimmer: color-mix(in srgb, var(--theme-text-primary) 12%, transparent);
+
+  /* ── Tailwind design tokens (HSL — no hsl() wrapper) ─────────────── */
+  --background: 200 4% 11%;
+  --foreground: 36 30% 85%;
+  --card: 200 5% 9%;
+  --card-foreground: 36 30% 85%;
+  --popover: 200 5% 7%;
+  --popover-foreground: 36 30% 85%;
+  --primary: 200 40% 60%;
+  --primary-foreground: 36 30% 95%;
+  --secondary: 200 4% 14%;
+  --secondary-foreground: 36 16% 63%;
+  --accent: 200 40% 60%;
+  --accent-foreground: 36 30% 95%;
+  --muted: 200 4% 20%;
+  --muted-foreground: 36 14% 48%;
+  --border: 200 4% 18%;
+  --input: 200 4% 12%;
+  --ring: 200 40% 60%;
+  --destructive: 0 48% 45%;
+  --destructive-foreground: 36 30% 95%;
+}
+
+/* ── Frosthearth accents ───────────────────────────────────────────────── */
+
+/* Cold stone hover on messages */
+[data-message].message-hover:hover {
+  background: color-mix(in srgb, var(--theme-accent) 5%, transparent);
+}
+
+/* Weathered iron scrollbar */
+:root ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--theme-text-secondary) 25%, transparent);
+  border-radius: 2px;
+}
+:root ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--theme-text-secondary) 40%, transparent);
+}
+
+/* Frost glow on focused inputs */
+:root input:focus,
+:root textarea:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+}
+
+/* Parchment-colored links */
+.message-content a {
+  color: var(--theme-link);
+}
+
+/* ── Stone & iron embellishments (optional decorative touches) ─────── */
+
+/* Subtle top-border accent on the chat header — like a carved stone lintel */
+.chat-area .chat-area-header-surface {
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-accent) 12%, transparent);
+}
+
+/* Channel sidebar items get a warm hearthfire hover */
+nav .interactive-list-item:hover {
+  background: color-mix(in srgb, var(--theme-accent-secondary) 8%, transparent);
+}
+
+/* Active channel — faint gold underline like an enchantment glow */
+nav .channel-active {
+  background: color-mix(in srgb, var(--theme-accent-secondary) 12%, transparent);
+  border-left: 2px solid var(--theme-accent-secondary);
+}
+
+/* Server sidebar icon backgrounds — darkest stone */
+aside .server-sidebar-icon-bg {
+  background: var(--app-bg-deepest);
+}
+
+/* Mention highlights — warm amber */
+.message-content .mention-highlight {
+  background: color-mix(in srgb, var(--theme-accent-secondary) 10%, transparent);
+  border-left-color: var(--theme-accent-secondary);
+}
