@@ -23,26 +23,30 @@ function validateTags(tags: unknown): { valid: true; tags: string[] } | { valid:
 
 /** PUT /api/users/interests — replace the authenticated user's full interests list */
 export async function PUT(request: Request) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const supabase = await createServerSupabaseClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json().catch(() => null)
-  if (!body || !("interests" in body)) {
-    return NextResponse.json({ error: "Request body must include an `interests` array" }, { status: 400 })
+    const body = await request.json().catch(() => null)
+    if (!body || !("interests" in body)) {
+      return NextResponse.json({ error: "Request body must include an `interests` array" }, { status: 400 })
+    }
+
+    const result = validateTags(body.interests)
+    if (!result.valid) return NextResponse.json({ error: result.error }, { status: 422 })
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({ interests: result.tags, updated_at: new Date().toISOString() })
+      .eq("id", user.id)
+      .select("id, interests")
+      .single()
+
+    if (error) return NextResponse.json({ error: "Failed to save interests" }, { status: 500 })
+
+    return NextResponse.json(data)
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  const result = validateTags(body.interests)
-  if (!result.valid) return NextResponse.json({ error: result.error }, { status: 422 })
-
-  const { data, error } = await supabase
-    .from("users")
-    .update({ interests: result.tags, updated_at: new Date().toISOString() })
-    .eq("id", user.id)
-    .select("id, interests")
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  return NextResponse.json(data)
 }

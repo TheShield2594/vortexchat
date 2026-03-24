@@ -10,6 +10,7 @@ const MIN_PASSWORD_LENGTH = 12
  * Optionally revokes all other sessions after the change.
  */
 export async function PATCH(request: Request) {
+  try {
   const supabase = await createServerSupabaseClient()
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -76,7 +77,7 @@ export async function PATCH(request: Request) {
   })
 
   if (updateError) {
-    return NextResponse.json({ error: updateError.message || "Failed to update password" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to update password" }, { status: 500 })
   }
 
   // Optionally revoke all other sessions (keeps the current one active)
@@ -89,4 +90,7 @@ export async function PATCH(request: Request) {
   }
 
   return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
