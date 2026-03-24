@@ -44,8 +44,8 @@ export async function openDmChannel(userId: string, router: RouterLike, toast: T
   router.push(`/channels/me/${channelId}`)
 }
 
-/** Sends a friend request and shows toast feedback (409 remains non-destructive). */
-export async function sendFriendRequest(username: string, toast: ToastFn): Promise<void> {
+/** Sends a friend request and shows toast feedback (409 remains non-destructive). Returns true on success. */
+export async function sendFriendRequest(username: string, toast: ToastFn): Promise<boolean> {
   const response = await fetch("/api/friends", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -64,4 +64,6 @@ export async function sendFriendRequest(username: string, toast: ToastFn): Promi
     variant: response.ok || response.status === 409 ? "default" : "destructive",
     title,
   })
+
+  return response.ok
 }

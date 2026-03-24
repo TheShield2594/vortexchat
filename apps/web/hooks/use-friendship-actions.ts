@@ -84,13 +84,10 @@ export function useFriendshipActions({
     if (!userId || actionLoading) return
     setActionLoading("message")
     try {
+      // openDmChannel handles its own toast on errors
       await openDmChannel(userId, router, toast)
     } catch (error) {
       console.error("Failed to open DM:", error)
-      toast({
-        variant: "destructive",
-        title: error instanceof Error ? error.message : "Network error while opening DM",
-      })
     } finally {
       setActionLoading(null)
     }
@@ -100,14 +97,13 @@ export function useFriendshipActions({
     if (!username || actionLoading) return
     setActionLoading("friend")
     try {
-      await sendFriendRequest(username, toast)
-      setFriendshipStatus("pending_sent")
+      // sendFriendRequest handles its own toast feedback
+      const success = await sendFriendRequest(username, toast)
+      if (success) {
+        setFriendshipStatus("pending_sent")
+      }
     } catch (error) {
       console.error("Failed to send friend request:", error)
-      toast({
-        variant: "destructive",
-        title: error instanceof Error ? error.message : "Network error while adding friend",
-      })
     } finally {
       setActionLoading(null)
     }
@@ -118,14 +114,20 @@ export function useFriendshipActions({
     setActionLoading("friend")
     try {
       const res = await fetch(`/api/friends?id=${friendshipId}`, { method: "DELETE" })
-      const json = await res.json()
-      if (res.ok) {
-        toast({ title: "Friend removed" })
-        setFriendshipStatus("none")
-        setFriendshipId(null)
-      } else {
-        toast({ variant: "destructive", title: json.error || "Failed to remove friend" })
+      let errorMessage = "Failed to remove friend"
+      try {
+        const json = await res.json()
+        if (res.ok) {
+          toast({ title: "Friend removed" })
+          setFriendshipStatus("none")
+          setFriendshipId(null)
+          return
+        }
+        errorMessage = json.error || errorMessage
+      } catch {
+        // Response was not valid JSON
       }
+      toast({ variant: "destructive", title: errorMessage })
     } catch (error) {
       console.error("Failed to remove friend:", error)
       toast({

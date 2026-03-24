@@ -176,7 +176,7 @@ export function ServerSidebar() {
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={() => router.push("/channels/discover")}
+              onClick={() => { setActiveServer(null); router.push("/channels/discover") }}
               aria-label="Explore Public Servers"
               className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}

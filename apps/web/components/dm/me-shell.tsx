@@ -4,7 +4,7 @@ import { useSelectedLayoutSegment } from "next/navigation"
 import { DMList } from "./dm-list"
 import { UserPanel } from "@/components/layout/user-panel"
 
-function DMNavContent({ showUserPanel = true, onNavigate }: { showUserPanel?: boolean; onNavigate?: () => void }) {
+function DMNavContent({ showUserPanel = true, onNavigate }: { showUserPanel?: boolean; onNavigate?: () => void }): React.ReactElement {
   return (
     <>
       <div className="flex-1 min-h-0">
