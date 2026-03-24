@@ -38,7 +38,7 @@ export function UpcomingEventsWidget({ serverId, timezone = "UTC" }: UpcomingEve
 
   useEffect(() => { void loadEvents() }, [serverId])
 
-  async function handleRsvp(eventId: string, status: "going" | "maybe" | "not_going") {
+  async function handleRsvp(eventId: string, status: "interested" | "going" | "maybe" | "not_going") {
     await fetch(`/api/servers/${serverId}/events/${eventId}/rsvp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -4,7 +4,7 @@ export interface EventModel {
   id: string
   title: string
   description: string | null
-  location: string | null
+  location?: string | null
   timezone: string
   start_at: string
   end_at: string

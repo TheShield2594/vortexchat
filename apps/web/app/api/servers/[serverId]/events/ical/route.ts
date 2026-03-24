@@ -12,7 +12,7 @@ export async function GET(
 
   const { data: events, error } = await supabase
     .from("events")
-    .select("id,title,description,timezone,start_at,end_at,recurrence,recurrence_until,capacity,cancelled_at")
+    .select("id,title,description,location,timezone,start_at,end_at,recurrence,recurrence_until,capacity,cancelled_at")
     .eq("server_id", params.serverId)
     .is("cancelled_at", null)
     .order("start_at", { ascending: true })
