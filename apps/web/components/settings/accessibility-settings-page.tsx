@@ -217,7 +217,7 @@ export function AccessibilitySettingsPage(): React.ReactElement {
           <div className="flex gap-3 items-center">
             <button
               type="button"
-              className="px-4 py-2 rounded text-sm focus-visible:outline-none"
+              className="px-4 py-2 rounded text-sm"
               style={{ background: "var(--theme-bg-secondary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
             >
               Tab to me

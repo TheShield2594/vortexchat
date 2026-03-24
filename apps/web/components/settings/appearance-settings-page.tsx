@@ -90,12 +90,12 @@ const THEME_PRESET_OPTIONS: {
   textPrimary: string
   textMuted: string
 }[] = [
-  { value: "twilight", label: "Twilight", description: "Classic dark with blue accent", accent: "#5865F2", bg: "#313338", surface: "#2b2d31", textPrimary: "#f2f3f5", textMuted: "#949ba4" },
-  { value: "midnight-neon", label: "Midnight Neon", description: "Deep dark with vibrant neon", accent: "#a78bfa", bg: "#0f0f14", surface: "#1a1a24", textPrimary: "#e8e6f0", textMuted: "#6b6880" },
-  { value: "synthwave", label: "Synthwave", description: "Retro 80s with pink & cyan", accent: "#f472b6", bg: "#1a0a2e", surface: "#21143d", textPrimary: "#f0e6ff", textMuted: "#9b7ec8" },
-  { value: "carbon", label: "Carbon", description: "Minimal gray with teal accent", accent: "#2dd4bf", bg: "#171717", surface: "#1f1f1f", textPrimary: "#e5e5e5", textMuted: "#737373" },
-  { value: "oled-black", label: "OLED Black", description: "True black with Tiffany blue", accent: "#0abab5", bg: "#000000", surface: "#080808", textPrimary: "#e0e0e0", textMuted: "#666666" },
-  { value: "frost", label: "Frost", description: "Cool slate with warm amber", accent: "#e0a526", bg: "#1a2332", surface: "#151d2a", textPrimary: "#d8e3f0", textMuted: "#7a8ba0" },
+  { value: "twilight", label: "Twilight", description: "Classic dark with blue accent", accent: "#5865f2", bg: "#313338", surface: "#2b2d31", textPrimary: "#f2f3f5", textMuted: "#949ba4" },
+  { value: "midnight-neon", label: "Midnight Neon", description: "Deep dark with vibrant neon", accent: "#00e5ff", bg: "#1b1f31", surface: "#151829", textPrimary: "#e6ecff", textMuted: "#8f9bbf" },
+  { value: "synthwave", label: "Synthwave", description: "Retro 80s with pink & cyan", accent: "#f92aad", bg: "#2a1e46", surface: "#23193b", textPrimary: "#f5edff", textMuted: "#a990d0" },
+  { value: "carbon", label: "Carbon", description: "Minimal gray with teal accent", accent: "#3ba55c", bg: "#1f2124", surface: "#191b1e", textPrimary: "#e7eaee", textMuted: "#98a0ab" },
+  { value: "oled-black", label: "OLED Black", description: "True black with Tiffany blue", accent: "#0abab5", bg: "#000000", surface: "#080808", textPrimary: "#f0f4f4", textMuted: "#7a9898" },
+  { value: "frost", label: "Frost", description: "Cool slate with warm amber", accent: "#e0a526", bg: "#1a2332", surface: "#151d2a", textPrimary: "#e8ecf2", textMuted: "#8494a8" },
   { value: "clarity", label: "Clarity", description: "Clean & minimal light theme", accent: "#2563eb", bg: "#ffffff", surface: "#f8f9fa", textPrimary: "#1a1a1a", textMuted: "#9ca3af" },
   { value: "velvet-dusk", label: "Velvet Dusk", description: "Soft pastel tones on dark canvas", accent: "#cba6f7", bg: "#1e1e2e", surface: "#181825", textPrimary: "#cdd6f4", textMuted: "#7f849c" },
 ]
@@ -338,10 +338,18 @@ export function AppearanceSettingsPage(): React.ReactElement {
 
   const handleAccentInput = useCallback((raw: string): void => {
     setCustomAccent(raw)
-    if (/^#[0-9a-fA-F]{6}$/.test(raw.trim())) {
-      store.setAccentColorOverride(raw.trim())
+    const trimmed = raw.trim()
+    if (trimmed === "") {
+      store.setAccentColorOverride("")
+    } else if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+      store.setAccentColorOverride(trimmed)
     }
   }, [store])
+
+  // Keep local input in sync with store changes (e.g. reset, theme switch)
+  useEffect(() => {
+    setCustomAccent(store.accentColorOverride ?? "")
+  }, [store.accentColorOverride])
 
   const handleResetDefaults = useCallback((): void => {
     store.resetToDefaults()

@@ -7,6 +7,7 @@ import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { usePresenceSync } from "@/hooks/use-presence-sync"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
+import { useGifAutoplay } from "@/hooks/use-gif-autoplay"
 import type { UserRow, ServerRow } from "@/types/database"
 
 interface AppProviderProps {
@@ -74,6 +75,7 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
       root.style.setProperty("--theme-accent", accentColorOverride)
     } else {
       root.style.removeProperty("--theme-accent-override")
+      root.style.removeProperty("--theme-accent")
     }
 
     const customCssStyleId = "vortex-custom-theme-css"
@@ -95,6 +97,9 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
 
   // Auto-sync presence: marks user online on mount, offline on tab close
   usePresenceSync(user?.id ?? null, user?.status ?? "online")
+
+  // GIF autoplay: freeze/restore GIF images based on user preference
+  useGifAutoplay(gifAutoplay)
 
   // Register service worker + push notifications if previously granted
   usePushNotifications()

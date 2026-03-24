@@ -93,7 +93,7 @@ interface AppearanceState {
   setSyncToAccount: (v: boolean) => void
   resetToDefaults: () => void
   hydrateFromSettings: (settings?: AppearanceSettings | null, userId?: string | null) => void
-  toSettingsPayload: () => Required<AppearanceSettings>
+  toSettingsPayload: () => Omit<Required<AppearanceSettings>, "syncToAccount">
 }
 
 const DEFAULTS: Required<AppearanceSettings> = {
@@ -254,7 +254,6 @@ export const useAppearanceStore = create<AppearanceState>()(
           imagePreviews: s.imagePreviews,
           notificationBadgeStyle: s.notificationBadgeStyle,
           focusIndicator: s.focusIndicator,
-          syncToAccount: s.syncToAccount,
         }
       },
     }),
@@ -283,8 +282,6 @@ export const useAppearanceStore = create<AppearanceState>()(
         notificationBadgeStyle: state.notificationBadgeStyle,
         focusIndicator: state.focusIndicator,
         syncToAccount: state.syncToAccount,
-        hasHydratedFromProfile: state.hasHydratedFromProfile,
-        lastHydratedUserId: state.lastHydratedUserId,
       }),
     }
   )

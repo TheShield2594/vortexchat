@@ -200,6 +200,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const avatarRef = useRef<HTMLInputElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const toSettingsPayload = useAppearanceStore((s) => s.toSettingsPayload)
+  const syncToAccount = useAppearanceStore((s) => s.syncToAccount)
 
   // Interests / Tags
   const [interests, setInterests] = useState<string[]>(user.interests ?? [])
@@ -431,7 +432,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
-        appearance_settings: toSettingsPayload(),
+        ...(syncToAccount ? { appearance_settings: toSettingsPayload() } : {}),
       }
 
       const res = await fetch("/api/users/profile", {
