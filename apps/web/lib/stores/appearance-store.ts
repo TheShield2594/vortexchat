@@ -67,6 +67,7 @@ interface AppearanceState {
   notificationBadgeStyle: NotificationBadgeStyle
   focusIndicator: FocusIndicator
   syncToAccount: boolean
+  previousFontFamily: FontFamily | null
   hasHydratedFromProfile: boolean
   lastHydratedUserId: string | null
   setMessageDisplay: (v: MessageDisplay) => void
@@ -174,6 +175,7 @@ export const useAppearanceStore = create<AppearanceState>()(
   persist(
     (set, get) => ({
       ...DEFAULTS,
+      previousFontFamily: null,
       hasHydratedFromProfile: false,
       lastHydratedUserId: null,
       setMessageDisplay: (v) => set({ messageDisplay: v }),
@@ -183,7 +185,15 @@ export const useAppearanceStore = create<AppearanceState>()(
       setReducedMotion: (v) => set({ reducedMotion: v }),
       setTimestampFormat: (v) => set({ timestampFormat: v }),
       setCustomCss: (v) => set({ customCss: sanitizeCustomCss(v) }),
-      setFontFamily: (v) => set({ fontFamily: v }),
+      setFontFamily: (v) => {
+        const current = get().fontFamily
+        const updates: Partial<AppearanceState> = { fontFamily: v }
+        // Save previous non-dyslexia font so we can restore it when dyslexia mode is toggled off
+        if (v === "dyslexia" && current !== "dyslexia") {
+          updates.previousFontFamily = current
+        }
+        set(updates)
+      },
       setLineHeight: (v) => set({ lineHeight: v }),
       setCodeFont: (v) => set({ codeFont: v }),
       setColorMode: (v) => set({ colorMode: v }),
@@ -203,32 +213,43 @@ export const useAppearanceStore = create<AppearanceState>()(
         const state = get()
         if (state.hasHydratedFromProfile && state.lastHydratedUserId === userId) return
 
-        set({
-          themePreset: validateEnum(settings?.themePreset, THEME_PRESETS, DEFAULTS.themePreset),
-          messageDisplay: validateEnum(settings?.messageDisplay, MESSAGE_DISPLAY_MODES, DEFAULTS.messageDisplay),
-          fontScale: validateEnum(settings?.fontScale, FONT_SCALES, DEFAULTS.fontScale),
-          saturation: validateEnum(settings?.saturation, SATURATION_LEVELS, DEFAULTS.saturation),
-          reducedMotion: validateEnum(settings?.reducedMotion, REDUCED_MOTION_MODES, DEFAULTS.reducedMotion),
-          timestampFormat: validateEnum(settings?.timestampFormat, TIMESTAMP_FORMATS, DEFAULTS.timestampFormat),
-          fontFamily: validateEnum(settings?.fontFamily, FONT_FAMILIES, DEFAULTS.fontFamily),
-          lineHeight: validateEnum(settings?.lineHeight, LINE_HEIGHTS, DEFAULTS.lineHeight),
-          codeFont: validateEnum(settings?.codeFont, CODE_FONTS, DEFAULTS.codeFont),
-          colorMode: validateEnum(settings?.colorMode, COLOR_MODES, DEFAULTS.colorMode),
-          chatBubbleStyle: validateEnum(settings?.chatBubbleStyle, CHAT_BUBBLE_STYLES, DEFAULTS.chatBubbleStyle),
-          messageGrouping: validateEnum(settings?.messageGrouping, MESSAGE_GROUPINGS, DEFAULTS.messageGrouping),
-          emojiSize: validateEnum(settings?.emojiSize, EMOJI_SIZES, DEFAULTS.emojiSize),
-          notificationBadgeStyle: validateEnum(settings?.notificationBadgeStyle, NOTIFICATION_BADGE_STYLES, DEFAULTS.notificationBadgeStyle),
-          focusIndicator: validateEnum(settings?.focusIndicator, FOCUS_INDICATORS, DEFAULTS.focusIndicator),
-          accentColorOverride: sanitizeAccentColor(settings?.accentColorOverride),
-          highContrast: validateBool(settings?.highContrast, DEFAULTS.highContrast),
-          gifAutoplay: validateBool(settings?.gifAutoplay, DEFAULTS.gifAutoplay),
-          linkPreviews: validateBool(settings?.linkPreviews, DEFAULTS.linkPreviews),
-          imagePreviews: validateBool(settings?.imagePreviews, DEFAULTS.imagePreviews),
-          syncToAccount: validateBool(settings?.syncToAccount, DEFAULTS.syncToAccount),
-          customCss: sanitizeCustomCss(settings?.customCss),
+        // If settings is null/undefined/empty, mark as hydrated but don't
+        // clobber existing local preferences with defaults.
+        if (!settings || Object.keys(settings).length === 0) {
+          set({ hasHydratedFromProfile: true, lastHydratedUserId: userId })
+          return
+        }
+
+        // Only merge keys that are explicitly present in the incoming settings
+        // object. Missing keys preserve the current local browser values.
+        const updates: Partial<AppearanceState> = {
           hasHydratedFromProfile: true,
           lastHydratedUserId: userId,
-        })
+        }
+        if (settings.themePreset !== undefined) updates.themePreset = validateEnum(settings.themePreset, THEME_PRESETS, state.themePreset)
+        if (settings.messageDisplay !== undefined) updates.messageDisplay = validateEnum(settings.messageDisplay, MESSAGE_DISPLAY_MODES, state.messageDisplay)
+        if (settings.fontScale !== undefined) updates.fontScale = validateEnum(settings.fontScale, FONT_SCALES, state.fontScale)
+        if (settings.saturation !== undefined) updates.saturation = validateEnum(settings.saturation, SATURATION_LEVELS, state.saturation)
+        if (settings.reducedMotion !== undefined) updates.reducedMotion = validateEnum(settings.reducedMotion, REDUCED_MOTION_MODES, state.reducedMotion)
+        if (settings.timestampFormat !== undefined) updates.timestampFormat = validateEnum(settings.timestampFormat, TIMESTAMP_FORMATS, state.timestampFormat)
+        if (settings.fontFamily !== undefined) updates.fontFamily = validateEnum(settings.fontFamily, FONT_FAMILIES, state.fontFamily)
+        if (settings.lineHeight !== undefined) updates.lineHeight = validateEnum(settings.lineHeight, LINE_HEIGHTS, state.lineHeight)
+        if (settings.codeFont !== undefined) updates.codeFont = validateEnum(settings.codeFont, CODE_FONTS, state.codeFont)
+        if (settings.colorMode !== undefined) updates.colorMode = validateEnum(settings.colorMode, COLOR_MODES, state.colorMode)
+        if (settings.chatBubbleStyle !== undefined) updates.chatBubbleStyle = validateEnum(settings.chatBubbleStyle, CHAT_BUBBLE_STYLES, state.chatBubbleStyle)
+        if (settings.messageGrouping !== undefined) updates.messageGrouping = validateEnum(settings.messageGrouping, MESSAGE_GROUPINGS, state.messageGrouping)
+        if (settings.emojiSize !== undefined) updates.emojiSize = validateEnum(settings.emojiSize, EMOJI_SIZES, state.emojiSize)
+        if (settings.notificationBadgeStyle !== undefined) updates.notificationBadgeStyle = validateEnum(settings.notificationBadgeStyle, NOTIFICATION_BADGE_STYLES, state.notificationBadgeStyle)
+        if (settings.focusIndicator !== undefined) updates.focusIndicator = validateEnum(settings.focusIndicator, FOCUS_INDICATORS, state.focusIndicator)
+        if (settings.accentColorOverride !== undefined) updates.accentColorOverride = sanitizeAccentColor(settings.accentColorOverride)
+        if (settings.highContrast !== undefined) updates.highContrast = validateBool(settings.highContrast, state.highContrast)
+        if (settings.gifAutoplay !== undefined) updates.gifAutoplay = validateBool(settings.gifAutoplay, state.gifAutoplay)
+        if (settings.linkPreviews !== undefined) updates.linkPreviews = validateBool(settings.linkPreviews, state.linkPreviews)
+        if (settings.imagePreviews !== undefined) updates.imagePreviews = validateBool(settings.imagePreviews, state.imagePreviews)
+        if (settings.syncToAccount !== undefined) updates.syncToAccount = validateBool(settings.syncToAccount, state.syncToAccount)
+        if (settings.customCss !== undefined) updates.customCss = sanitizeCustomCss(settings.customCss)
+
+        set(updates)
       },
       toSettingsPayload: () => {
         const s = get()
@@ -282,6 +303,7 @@ export const useAppearanceStore = create<AppearanceState>()(
         notificationBadgeStyle: state.notificationBadgeStyle,
         focusIndicator: state.focusIndicator,
         syncToAccount: state.syncToAccount,
+        previousFontFamily: state.previousFontFamily,
       }),
     }
   )

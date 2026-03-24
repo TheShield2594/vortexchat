@@ -43,8 +43,19 @@ export function useGifAutoplay(enabled: boolean): void {
       const originalSrc = src
       img.dataset.originalGifSrc = originalSrc
 
+      // Per-image abort controller — covers both the load listener and hover
+      // listeners so cleanup cancels any pending work for this image.
+      const imgAc = new AbortController()
+      controllers.push(imgAc)
+
       // Wait for the image to load so we can draw its first frame
       const doFreeze = (): void => {
+        // Guard: if cleanup already ran, don't proceed
+        if (imgAc.signal.aborted) {
+          delete img.dataset.originalGifSrc
+          return
+        }
+
         try {
           const canvas = document.createElement("canvas")
           canvas.width = img.naturalWidth || img.width || 200
@@ -62,26 +73,23 @@ export function useGifAutoplay(enabled: boolean): void {
         }
 
         // Hover to play, leave to pause
-        const ac = new AbortController()
-        controllers.push(ac)
-
         img.addEventListener("mouseenter", () => {
           if (img.dataset.originalGifSrc) {
             img.src = img.dataset.originalGifSrc
           }
-        }, { signal: ac.signal })
+        }, { signal: imgAc.signal })
 
         img.addEventListener("mouseleave", () => {
           if (img.dataset.staticSrc) {
             img.src = img.dataset.staticSrc
           }
-        }, { signal: ac.signal })
+        }, { signal: imgAc.signal })
       }
 
       if (img.complete && img.naturalWidth > 0) {
         doFreeze()
       } else {
-        img.addEventListener("load", doFreeze, { once: true })
+        img.addEventListener("load", doFreeze, { once: true, signal: imgAc.signal })
       }
     }
 

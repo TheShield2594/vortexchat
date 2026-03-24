@@ -3,6 +3,7 @@
 import React from "react"
 import Link from "next/link"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
+import { useAutoSyncAppearance } from "@/hooks/use-auto-sync-appearance"
 import type { ReducedMotion, Saturation, FocusIndicator } from "@/lib/stores/appearance-store"
 
 /* ─── Option definitions ──────────────────────────────── */
@@ -152,6 +153,7 @@ function ToggleSwitch({
 /* ─── Main component ──────────────────────────────────── */
 export function AccessibilitySettingsPage(): React.ReactElement {
   const store = useAppearanceStore()
+  useAutoSyncAppearance()
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -270,7 +272,7 @@ export function AccessibilitySettingsPage(): React.ReactElement {
           ) : (
             <button
               type="button"
-              onClick={() => store.setFontFamily("system")}
+              onClick={() => store.setFontFamily(store.previousFontFamily ?? "system")}
               className="px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0"
               style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
             >

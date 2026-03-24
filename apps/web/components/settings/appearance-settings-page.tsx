@@ -2,6 +2,7 @@
 
 import React, { useRef, useCallback, useState, useEffect } from "react"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
+import { useAutoSyncAppearance } from "@/hooks/use-auto-sync-appearance"
 import type {
   MessageDisplay, FontScale, FontFamily, LineHeight, CodeFont,
   ThemePreset, ColorMode, ChatBubbleStyle, MessageGrouping,
@@ -297,6 +298,7 @@ function ScrollArrow({ direction, onClick }: { direction: "left" | "right"; onCl
 /* ─── Main component ──────────────────────────────────── */
 export function AppearanceSettingsPage(): React.ReactElement {
   const store = useAppearanceStore()
+  useAutoSyncAppearance()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)

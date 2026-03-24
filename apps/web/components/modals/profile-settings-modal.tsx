@@ -432,7 +432,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
-        ...(syncToAccount ? { appearance_settings: toSettingsPayload() } : {}),
+        appearance_settings: syncToAccount ? toSettingsPayload() : null,
       }
 
       const res = await fetch("/api/users/profile", {

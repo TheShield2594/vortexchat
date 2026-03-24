@@ -1178,6 +1178,25 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 /* System: follow OS preference */
 @media (prefers-color-scheme: light) {
   :root[data-color-mode="system"] {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 220 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 9% 46%;
+    --accent: 220 70% 50%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 9% 46%;
+    --border: 220 13% 91%;
+    --input: 220 14% 96%;
+    --ring: 220 70% 50%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
     --theme-bg-primary: #ffffff;
     --theme-bg-secondary: #f5f5f5;
     --theme-bg-tertiary: #eeeeee;
@@ -1200,6 +1219,23 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 
 @media (prefers-color-scheme: dark) {
   :root[data-color-mode="system"] {
+    --background: 223 7% 20%;
+    --foreground: 220 9% 95%;
+    --card: 220 7% 18%;
+    --card-foreground: 220 9% 95%;
+    --popover: 220 7% 14%;
+    --popover-foreground: 220 9% 95%;
+    --primary: 235 86% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 6% 18%;
+    --secondary-foreground: 215 8% 73%;
+    --muted: 220 5% 30%;
+    --muted-foreground: 215 8% 60%;
+    --border: 220 6% 25%;
+    --input: 220 6% 18%;
+    --ring: 235 86% 65%;
+    --destructive: 359 87% 57%;
+    --destructive-foreground: 0 0% 100%;
     --theme-bg-primary: #313338;
     --theme-bg-secondary: #2b2d31;
     --theme-bg-tertiary: #1e1f22;
@@ -1221,6 +1257,25 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 
 /* Forced light mode */
 :root[data-color-mode="light"] {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 220 70% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 9% 46%;
+  --accent: 220 70% 50%;
+  --accent-foreground: 0 0% 100%;
+  --muted: 220 14% 93%;
+  --muted-foreground: 220 9% 46%;
+  --border: 220 13% 91%;
+  --input: 220 14% 96%;
+  --ring: 220 70% 50%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
   --theme-bg-primary: #ffffff;
   --theme-bg-secondary: #f5f5f5;
   --theme-bg-tertiary: #eeeeee;
@@ -1242,6 +1297,23 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 
 /* Forced dark mode */
 :root[data-color-mode="dark"] {
+  --background: 223 7% 20%;
+  --foreground: 220 9% 95%;
+  --card: 220 7% 18%;
+  --card-foreground: 220 9% 95%;
+  --popover: 220 7% 14%;
+  --popover-foreground: 220 9% 95%;
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 6% 18%;
+  --secondary-foreground: 215 8% 73%;
+  --muted: 220 5% 30%;
+  --muted-foreground: 215 8% 60%;
+  --border: 220 6% 25%;
+  --input: 220 6% 18%;
+  --ring: 235 86% 65%;
+  --destructive: 359 87% 57%;
+  --destructive-foreground: 0 0% 100%;
   --theme-bg-primary: #313338;
   --theme-bg-secondary: #2b2d31;
   --theme-bg-tertiary: #1e1f22;
