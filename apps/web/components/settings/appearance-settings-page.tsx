@@ -81,7 +81,7 @@ const ACCENT_PRESETS = [
   "#f97316", "#06b6d4",
 ]
 
-const THEME_PRESET_OPTIONS: {
+export const THEME_PRESET_OPTIONS: {
   value: ThemePreset
   label: string
   description: string

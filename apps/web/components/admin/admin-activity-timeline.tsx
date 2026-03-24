@@ -93,9 +93,9 @@ const ACTION_CATEGORY: Record<string, string> = {
 
 const CATEGORY_CSS_VARS: Record<string, string> = {
   role: "--theme-cat-role",
-  permissions: "--theme-cat-member",
+  permissions: "--theme-cat-channel",
   settings: "--theme-cat-server",
-  moderation: "--theme-cat-message",
+  moderation: "--theme-cat-member",
   automod: "--theme-cat-automod",
 }
 

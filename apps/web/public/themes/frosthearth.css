@@ -76,7 +76,7 @@
   --theme-opacity-muted: 0.7;
   --color-tertiary-metadata: #9a8f7c;
   --theme-radius: 0.5rem;
-  --radius: 0.5rem;
+  --radius: var(--theme-radius);
 
   /* ── Motion timing & easing ──────────────────────────────────────────── */
   --motion-duration-instant: 80ms;

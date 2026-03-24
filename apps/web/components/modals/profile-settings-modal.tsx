@@ -33,6 +33,7 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import type { MessageDisplay, FontScale, Saturation } from "@/lib/stores/appearance-store"
+import { THEME_PRESET_OPTIONS } from "@/components/settings/appearance-settings-page"
 import type { UserRow, UserPinnedItemRow } from "@/types/database"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { STATUS_OPTIONS } from "@/lib/utils/status-options"
@@ -1664,88 +1665,27 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
           Pick a skin — changes apply instantly. Layer your own CSS on top for full customization.
         </p>
         <div className="grid grid-cols-2 gap-3">
-          {([
-            {
-              key: "twilight",
-              label: "Twilight",
-              desc: "Familiar dark blue-grey",
-              swatches: ["var(--theme-bg-primary)", "var(--theme-accent)", "var(--theme-success)"],
-            },
-            {
-              key: "midnight-neon",
-              label: "Midnight Neon",
-              desc: "Deep navy + cyan glow",
-              swatches: ["#1b1f31", "#00e5ff", "#f700ff"],
-            },
-            {
-              key: "synthwave",
-              label: "Synthwave",
-              desc: "Retro purple + pink",
-              swatches: ["#2a1e46", "#f92aad", "#7c3aed"],
-            },
-            {
-              key: "carbon",
-              label: "Carbon Glass",
-              desc: "Near-black + green",
-              swatches: ["#1f2124", "var(--theme-positive)", "#5b8af0"],
-            },
-            {
-              key: "oled-black",
-              label: "OLED Black",
-              desc: "True black + teal",
-              swatches: ["#000000", "#0abab5", "#00d4cf"],
-            },
-            {
-              key: "frost",
-              label: "Frost",
-              desc: "Slate-blue + amber",
-              swatches: ["#1a2332", "#e0a526", "#5ba4e6"],
-            },
-            {
-              key: "clarity",
-              label: "Clarity",
-              desc: "Clean minimal light",
-              swatches: ["#ffffff", "#2563eb", "#7c3aed"],
-            },
-            {
-              key: "velvet-dusk",
-              label: "Velvet Dusk",
-              desc: "Soft pastel dark",
-              swatches: ["#1e1e2e", "#cba6f7", "#f5c2e7"],
-            },
-            {
-              key: "terminal",
-              label: "Terminal",
-              desc: "Green phosphor CRT",
-              swatches: ["#000900", "#4aef98", "#39ff14"],
-            },
-            {
-              key: "frosthearth",
-              label: "Frosthearth",
-              desc: "Nordic frost + tavern",
-              swatches: ["#1c1e1f", "#6eafc8", "#c8a24e"],
-            },
-          ] as const).map((preset) => (
+          {THEME_PRESET_OPTIONS.map((preset) => (
             <button
               type="button"
-              key={preset.key}
-              onClick={() => setThemePreset(preset.key)}
+              key={preset.value}
+              onClick={() => setThemePreset(preset.value)}
               className="rounded-lg border px-3 py-2.5 text-left flex flex-col gap-2"
               style={{
-                background: themePreset === preset.key ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
-                borderColor: themePreset === preset.key ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
-                color: themePreset === preset.key ? "var(--theme-text-primary)" : "var(--theme-text-secondary)",
+                background: themePreset === preset.value ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
+                borderColor: themePreset === preset.value ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
+                color: themePreset === preset.value ? "var(--theme-text-primary)" : "var(--theme-text-secondary)",
               }}
             >
               <div className="flex items-center justify-between w-full">
                 <span className="text-sm font-medium">{preset.label}</span>
                 <div className="flex gap-1">
-                  {preset.swatches.map((color) => (
+                  {[preset.bg, preset.accent, preset.textMuted].map((color) => (
                     <span key={color} className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ background: color }} />
                   ))}
                 </div>
               </div>
-              <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{preset.desc}</span>
+              <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{preset.description}</span>
             </button>
           ))}
         </div>
