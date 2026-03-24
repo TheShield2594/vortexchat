@@ -21,18 +21,23 @@ export async function POST(
     .single()
   if (!member) return NextResponse.json({ error: "Not a member" }, { status: 403 })
 
-  let body: { status: string }
+  let body: unknown
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
+  if (typeof body !== "object" || body === null || !("status" in body) || typeof (body as Record<string, unknown>).status !== "string") {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
   const validStatuses: RsvpStatus[] = ["interested", "going", "maybe", "not_going", "waitlist"]
-  if (!validStatuses.includes(body.status as RsvpStatus)) {
+  const rawStatus = (body as Record<string, unknown>).status as string
+  if (!validStatuses.includes(rawStatus as RsvpStatus)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 })
   }
-  const requestedStatus = body.status as RsvpStatus
+  const requestedStatus = rawStatus as RsvpStatus
 
   // Fetch event for capacity check
   const { data: event } = await supabase
@@ -46,13 +51,18 @@ export async function POST(
   let resolvedStatus: RsvpStatus = requestedStatus
 
   // Fetch the user's current RSVP (if any) before making changes
-  const { data: currentRsvp } = await supabase
+  const { data: currentRsvp, error: rsvpFetchError } = await supabase
     .from("event_rsvps")
     .select("status")
     .eq("event_id", params.eventId)
     .eq("user_id", user.id)
-    .single()
-  const previousStatus = (currentRsvp?.status as RsvpStatus | undefined) ?? null
+    .maybeSingle()
+  if (rsvpFetchError) {
+    return NextResponse.json({ error: "Failed to fetch current RSVP" }, { status: 500 })
+  }
+  const previousStatus: RsvpStatus | null = currentRsvp
+    ? (currentRsvp.status as RsvpStatus)
+    : null
 
   // If going and capacity is set, check if at capacity
   if (requestedStatus === "going" && event.capacity) {
@@ -79,33 +89,10 @@ export async function POST(
 
   // Auto-promote from waitlist only when someone leaves the "going" status
   if (previousStatus === "going" && requestedStatus !== "going" && event.capacity) {
-    // Check if there's now room
-    const { count: goingCount } = await supabase
-      .from("event_rsvps")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", params.eventId)
-      .eq("status", "going")
-
-    if ((goingCount ?? 0) < event.capacity) {
-      // Find the next person on the waitlist (by waitlist_position, then created_at)
-      const { data: nextWaitlisted } = await supabase
-        .from("event_rsvps")
-        .select("user_id")
-        .eq("event_id", params.eventId)
-        .eq("status", "waitlist")
-        .order("waitlist_position", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .single()
-
-      if (nextWaitlisted) {
-        await supabase
-          .from("event_rsvps")
-          .update({ status: "going", waitlist_position: null })
-          .eq("event_id", params.eventId)
-          .eq("user_id", nextWaitlisted.user_id)
-      }
-    }
+    await supabase.rpc("promote_from_waitlist", {
+      p_event_id: params.eventId,
+      p_event_capacity: event.capacity,
+    })
   }
 
   return NextResponse.json({ status: resolvedStatus })
