@@ -66,6 +66,7 @@ export async function PATCH(
   const updatePayload: Record<string, any> = {}
   if (body.title !== undefined) updatePayload.title = body.title
   if (body.description !== undefined) updatePayload.description = body.description
+  if (body.location !== undefined) updatePayload.location = body.location
   if (body.linkedChannelId !== undefined) updatePayload.linked_channel_id = body.linkedChannelId
   if (body.startAt !== undefined) updatePayload.start_at = body.startAt
   if (body.endAt !== undefined) updatePayload.end_at = body.endAt

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,13 +13,15 @@ import { EventCard } from "./event-card"
 
 type ViewMode = "month" | "week" | "list"
 type EventType = "general" | "voice" | "external"
-type Recurrence = "none" | "daily" | "weekly" | "monthly"
+type Recurrence = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly"
 
 const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
   { value: "none", label: "Does not repeat" },
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Every two weeks" },
   { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
 ]
 
 function toLocalDatetime(date: Date): string {
@@ -52,20 +54,19 @@ export function EventsCalendar({
   // Form state
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+  const [location, setLocation] = useState("")
   const [startAt, setStartAt] = useState(() => toLocalDatetime(new Date(Date.now() + 24 * 60 * 60 * 1000)))
   const [endAt, setEndAt] = useState(() => toLocalDatetime(new Date(Date.now() + 25 * 60 * 60 * 1000)))
   const [capacity, setCapacity] = useState("")
   const [linkedChannelId, setLinkedChannelId] = useState(channels[0]?.id ?? "")
   const [eventType, setEventType] = useState<EventType>("general")
   const [externalUrl, setExternalUrl] = useState("")
-  const [voiceChannelId, setVoiceChannelId] = useState("")
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [creating, setCreating] = useState(false)
   const [recurrence, setRecurrence] = useState<Recurrence>("none")
   const [recurrenceUntil, setRecurrenceUntil] = useState("")
 
-  const voiceChannels = channels.filter((ch) => ch.type === "voice")
 
   async function load() {
     const res = await fetch(`/api/servers/${serverId}/events`, { cache: "no-store" })
@@ -105,13 +106,13 @@ export function EventsCalendar({
   function resetForm() {
     setTitle("")
     setDescription("")
+    setLocation("")
     setStartAt(toLocalDatetime(new Date(Date.now() + 24 * 60 * 60 * 1000)))
     setEndAt(toLocalDatetime(new Date(Date.now() + 25 * 60 * 60 * 1000)))
     setCapacity("")
     setLinkedChannelId(channels[0]?.id ?? "")
     setEventType("general")
     setExternalUrl("")
-    setVoiceChannelId("")
     setBannerFile(null)
     setRecurrence("none")
     setRecurrenceUntil("")
@@ -145,6 +146,7 @@ export function EventsCalendar({
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || undefined,
+          location: location.trim() || undefined,
           timezone,
           startAt: new Date(startAt).toISOString(),
           endAt: new Date(endAt).toISOString(),
@@ -154,7 +156,7 @@ export function EventsCalendar({
           linkedChannelId: linkedChannelId || undefined,
           eventType,
           externalUrl: eventType === "external" ? externalUrl : undefined,
-          voiceChannelId: eventType === "voice" ? voiceChannelId || undefined : undefined,
+          voiceChannelId: eventType === "voice" && linkedChannelId ? linkedChannelId : undefined,
           bannerUrl: bannerUrl ?? undefined,
           notifyMembers: true,
         }),
@@ -169,7 +171,7 @@ export function EventsCalendar({
     }
   }
 
-  async function rsvp(eventId: string, status: "going" | "maybe" | "not_going") {
+  async function rsvp(eventId: string, status: "interested" | "going" | "maybe" | "not_going") {
     const prevEvents = events
     setEvents((prev) => prev.map((e) => {
       if (e.id !== eventId) return e
@@ -312,6 +314,11 @@ export function EventsCalendar({
             <Input id="event-desc" placeholder="What's this event about?" value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
 
+          <div className="space-y-1">
+            <Label htmlFor="event-location">Location (optional)</Label>
+            <Input id="event-location" placeholder="Where is this event?" value={location} onChange={(e) => setLocation(e.target.value)} />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="event-start">Start</Label>
@@ -321,6 +328,31 @@ export function EventsCalendar({
               <Label htmlFor="event-end">End</Label>
               <Input id="event-end" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
             </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-xs text-zinc-400 self-center mr-1">Duration:</span>
+            {[
+              { label: "30m", mins: 30 },
+              { label: "1h", mins: 60 },
+              { label: "2h", mins: 120 },
+              { label: "3h", mins: 180 },
+              { label: "All day", mins: 1440 },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  if (startAt) {
+                    const s = new Date(startAt)
+                    setEndAt(toLocalDatetime(new Date(s.getTime() + preset.mins * 60_000)))
+                  }
+                }}
+                className="rounded px-2 py-0.5 text-xs border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
+              >
+                {preset.label}
+              </button>
+            ))}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -337,9 +369,11 @@ export function EventsCalendar({
                 className="flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-sm text-zinc-100"
               >
                 <option value="">None</option>
-                {channels.map((ch) => (
-                  <option key={ch.id} value={ch.id}>#{ch.name}</option>
-                ))}
+                {channels
+                  .filter((ch) => ch.type === "voice" || ch.type === "forum")
+                  .map((ch) => (
+                    <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                  ))}
               </select>
             </div>
           </div>
@@ -386,23 +420,6 @@ export function EventsCalendar({
             </div>
           )}
 
-          {/* Voice channel selector */}
-          {eventType === "voice" && (
-            <div className="space-y-1">
-              <Label htmlFor="event-voice-channel">Voice Channel</Label>
-              <select
-                id="event-voice-channel"
-                value={voiceChannelId}
-                onChange={(e) => setVoiceChannelId(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-sm text-zinc-100"
-              >
-                <option value="">Select a voice channel</option>
-                {(voiceChannels.length > 0 ? voiceChannels : channels).map((ch) => (
-                  <option key={ch.id} value={ch.id}>{ch.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Banner upload */}
           <div className="space-y-1">
@@ -443,6 +460,7 @@ export function EventsCalendar({
             canEdit={popoverEvent ? canEditEvent(popoverEvent) : false}
             onDelete={deleteEvent}
             onCancel={(id) => updateEvent(id, { cancelled: true })}
+            serverId={serverId}
           />
         )
       })()}
@@ -452,7 +470,7 @@ export function EventsCalendar({
 
 // ── Shared types for sub-views ───────────────────────────────────────────────
 
-type RsvpFn = (eventId: string, status: "going" | "maybe" | "not_going") => Promise<void>
+type RsvpFn = (eventId: string, status: "interested" | "going" | "maybe" | "not_going") => Promise<void>
 
 type ViewProps = {
   occurrences: EventOccurrence[]
@@ -471,7 +489,7 @@ function formatTime12h(date: Date): string {
 const POPOVER_W = 340
 const POPOVER_GAP = 8
 
-function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp, onClose, canEdit, onDelete, onCancel }: {
+function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp, onClose, canEdit, onDelete, onCancel, serverId }: {
   eventId: string
   anchorRect: DOMRect
   occurrences: EventOccurrence[]
@@ -482,6 +500,7 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
   canEdit?: boolean
   onDelete?: (eventId: string) => Promise<void>
   onCancel?: (eventId: string) => Promise<void>
+  serverId: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const occ = occurrences.find((o) => o.eventId === eventId)
@@ -535,13 +554,39 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
       <div className="text-sm text-zinc-300 mt-2">
         {formatInTimeZone(occ.startAt.toISOString(), timezone)} &rarr; {formatInTimeZone(occ.endAt.toISOString(), timezone)}
       </div>
+      {full.location && (
+        <div className="text-sm text-zinc-400 mt-1">{full.location}</div>
+      )}
       <div className="mt-1.5 text-xs text-zinc-400">
         Capacity: {full.capacity ?? "unlimited"} &middot; Going: {full.stats?.going ?? 0} &middot; Waitlist: {full.stats?.waitlist ?? 0}
       </div>
+      {full.attendees?.length > 0 && (
+        <div className="mt-2 flex items-center gap-1">
+          <div className="flex -space-x-1.5">
+            {full.attendees.slice(0, 5).map((a: any) => (
+              <div key={a.user_id} className="h-6 w-6 rounded-full border-2 border-zinc-900 bg-zinc-700 overflow-hidden" title={a.display_name ?? "User"}>
+                {a.avatar_url ? (
+                  <img src={a.avatar_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-[10px] text-zinc-300">
+                    {(a.display_name ?? "?")[0].toUpperCase()}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {full.attendees.length > 5 && (
+            <span className="text-xs text-zinc-500">+{full.attendees.length - 5} more</span>
+          )}
+        </div>
+      )}
       {myStatus === "waitlist" && (
         <div className="mt-1.5 text-xs text-yellow-400">You are on the waitlist</div>
       )}
       <div className="mt-3 flex gap-2">
+        <Button size="sm" variant={myStatus === "interested" ? "default" : "secondary"} onClick={() => rsvp(occ.eventId, "interested")}>
+          {myStatus === "interested" ? "\u2713 Interested" : "Interested"}
+        </Button>
         <Button size="sm" variant={myStatus === "going" ? "default" : "secondary"} onClick={() => rsvp(occ.eventId, "going")}>
           {myStatus === "going" ? "\u2713 Going" : "Going"}
         </Button>
@@ -552,35 +597,53 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
           {myStatus === "not_going" ? "\u2713 Not going" : "Not going"}
         </Button>
       </div>
-      {canEdit && (
-        <div className="mt-2 flex gap-2 border-t border-zinc-700/50 pt-2">
-          {!full.cancelled_at && onCancel && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onCancel(occ.eventId)}>
-              Cancel event
-            </Button>
-          )}
-          {onDelete && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs text-red-400 hover:text-red-300" onClick={() => {
-              if (window.confirm("Are you sure you want to delete this event? This cannot be undone.")) {
-                onDelete(occ.eventId)
-              }
-            }}>
-              <Trash2 className="mr-1 h-3 w-3" />
-              Delete
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-700/50 pt-2">
+        {!full.cancelled_at && onCancel && canEdit && (
+          <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onCancel(occ.eventId)}>
+            Cancel event
+          </Button>
+        )}
+        {onDelete && canEdit && (
+          <Button size="sm" variant="secondary" className="h-7 text-xs text-red-400 hover:text-red-300" onClick={() => {
+            if (window.confirm("Are you sure you want to delete this event? This cannot be undone.")) {
+              onDelete(occ.eventId)
+            }
+          }}>
+            <Trash2 className="mr-1 h-3 w-3" />
+            Delete
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="secondary"
+          className="h-7 text-xs"
+          onClick={() => window.open(`/api/servers/${serverId}/events/${occ.eventId}/ical`, "_blank")}
+        >
+          <Calendar className="mr-1 h-3 w-3" />
+          Add to calendar
+        </Button>
+      </div>
     </div>,
     document.body
   )
+}
+
+function eventTypeColors(eventType: string | undefined): string {
+  switch (eventType) {
+    case "voice":
+      return "bg-green-900/40 text-green-200 border-green-800/50 hover:bg-green-800/50"
+    case "external":
+      return "bg-purple-900/40 text-purple-200 border-purple-800/50 hover:bg-purple-800/50"
+    default:
+      return "bg-blue-900/40 text-blue-200 border-blue-800/50 hover:bg-blue-800/50"
+  }
 }
 
 // ── Month view ───────────────────────────────────────────────────────────────
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-function MonthView({ occurrences, anchor, onClickEvent }: ViewProps & { anchor: Date }) {
+function MonthView({ occurrences, events, anchor, onClickEvent }: ViewProps & { anchor: Date }) {
   const today = new Date()
   const year = anchor.getFullYear()
   const month = anchor.getMonth()
@@ -616,16 +679,19 @@ function MonthView({ occurrences, anchor, onClickEvent }: ViewProps & { anchor: 
                   <div className={`text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday(cell.day) ? "bg-blue-600 text-white" : "text-zinc-400"}`}>
                     {cell.day}
                   </div>
-                  {dayEvents.map((occ) => (
-                    <button
-                      key={`${occ.eventId}-${occ.startAt.toISOString()}`}
-                      type="button"
-                      onClick={(e) => onClickEvent(occ.eventId, (e.currentTarget as HTMLElement).getBoundingClientRect())}
-                      className="text-xs w-full text-left rounded px-1.5 py-0.5 mb-0.5 truncate border cursor-pointer transition-colors bg-blue-900/40 text-blue-200 border-blue-800/50 hover:bg-blue-800/50"
-                    >
-                      {occ.title}
-                    </button>
-                  ))}
+                  {dayEvents.map((occ) => {
+                    const ev = events.find((e) => e.id === occ.eventId)
+                    return (
+                      <button
+                        key={`${occ.eventId}-${occ.startAt.toISOString()}`}
+                        type="button"
+                        onClick={(e) => onClickEvent(occ.eventId, (e.currentTarget as HTMLElement).getBoundingClientRect())}
+                        className={`text-xs w-full text-left rounded px-1.5 py-0.5 mb-0.5 truncate border cursor-pointer transition-colors ${eventTypeColors(ev?.event_type)}`}
+                      >
+                        {occ.title}
+                      </button>
+                    )
+                  })}
                 </>
               )}
             </div>
@@ -680,11 +746,11 @@ function WeekView({ occurrences, events, range, onClickEvent }: ViewProps & { ra
                     key={`${occ.eventId}-${occ.startAt.toISOString()}`}
                     type="button"
                     onClick={(e) => onClickEvent(occ.eventId, (e.currentTarget as HTMLElement).getBoundingClientRect())}
-                    className="text-xs w-full text-left rounded p-1.5 mb-1 border cursor-pointer transition-colors bg-blue-900/40 text-blue-200 border-blue-800/50 hover:bg-blue-800/50"
+                    className={`text-xs w-full text-left rounded p-1.5 mb-1 border cursor-pointer transition-colors ${eventTypeColors(full?.event_type)}`}
                   >
                     <div className="font-medium truncate">{occ.title}</div>
-                    <div className="text-blue-300/70 mt-0.5">{formatTime12h(occ.startAt)}</div>
-                    {full && <div className="text-blue-300/50 mt-0.5">{full.stats?.going ?? 0} going</div>}
+                    <div className="opacity-70 mt-0.5">{formatTime12h(occ.startAt)}</div>
+                    {full && <div className="opacity-50 mt-0.5">{full.stats?.going ?? 0} going</div>}
                   </button>
                 )
               })}

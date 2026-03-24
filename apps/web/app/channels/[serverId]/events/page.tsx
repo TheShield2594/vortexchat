@@ -24,7 +24,7 @@ export default async function ServerEventsPage({ params: paramsPromise }: { para
       .single(),
     supabase
       .from("channels")
-      .select("id,name")
+      .select("id,name,type")
       .eq("server_id", params.serverId),
     supabase
       .from("roles")

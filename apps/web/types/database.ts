@@ -2192,11 +2192,12 @@ export type Database = {
           server_id: string
           title: string
           description: string | null
+          location: string | null
           linked_channel_id: string | null
           start_at: string
           end_at: string
           timezone: string
-          recurrence: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
           recurrence_until: string | null
           capacity: number | null
           create_voice_channel: boolean
@@ -2213,6 +2214,7 @@ export type Database = {
           server_id: string
           title: string
           description?: string | null
+          location?: string | null
           linked_channel_id?: string | null
           start_at: string
           end_at: string
@@ -2234,6 +2236,7 @@ export type Database = {
           server_id?: string
           title?: string
           description?: string | null
+          location?: string | null
           linked_channel_id?: string | null
           start_at?: string
           end_at?: string
@@ -2274,7 +2277,7 @@ export type Database = {
         Row: {
           event_id: string
           user_id: string
-          status: 'going' | 'maybe' | 'not_going' | 'waitlist'
+          status: 'interested' | 'going' | 'maybe' | 'not_going' | 'waitlist'
           waitlist_position: number | null
           created_at: string
           updated_at: string
@@ -2282,7 +2285,7 @@ export type Database = {
         Insert: {
           event_id: string
           user_id: string
-          status: 'going' | 'maybe' | 'not_going' | 'waitlist'
+          status: 'interested' | 'going' | 'maybe' | 'not_going' | 'waitlist'
           waitlist_position?: number | null
           created_at?: string
           updated_at?: string

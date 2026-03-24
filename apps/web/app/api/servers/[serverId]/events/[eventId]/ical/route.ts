@@ -22,13 +22,14 @@ export async function GET(
   // 00060_events_enhancements.sql are not yet in the generated Supabase types.
   const { data: event } = await (supabase
     .from("events")
-    .select("id, title, description, start_at, end_at, server_id") as any)
+    .select("id, title, description, location, start_at, end_at, server_id") as any)
     .eq("id", params.eventId)
     .eq("server_id", params.serverId)
     .single() as { data: {
       id: string
       title: string
       description: string | null
+      location?: string | null
       start_at: string
       end_at: string | null
       server_id: string
@@ -64,6 +65,7 @@ export async function GET(
     `DTSTART:${formatIcalDate(start)}`,
     `DTEND:${formatIcalDate(end)}`,
     `SUMMARY:${escapeIcal(event.title)}`,
+    event.location ? `LOCATION:${escapeIcal(event.location)}` : "",
     event.description ? `DESCRIPTION:${escapeIcal(event.description)}` : "",
     `URL:${url}`,
     `DTSTAMP:${formatIcalDate(new Date())}`,
