@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 
 type RsvpStatus = "interested" | "going" | "maybe" | "not_going" | "waitlist"
 
@@ -95,11 +95,12 @@ export async function POST(
 
   // Auto-promote from waitlist only when someone leaves the "going" status.
   // Promotion is non-fatal — the RSVP change already committed successfully.
+  // Uses service-role client since promote_from_waitlist is restricted to service_role.
   if (previousStatus === "going" && requestedStatus !== "going" && event.capacity) {
     try {
-      const { error: promoteError } = await supabase.rpc("promote_from_waitlist", {
+      const service = await createServiceRoleClient()
+      const { error: promoteError } = await service.rpc("promote_from_waitlist", {
         p_event_id: params.eventId,
-        p_event_capacity: event.capacity,
       })
       if (promoteError) {
         console.error("promote_from_waitlist failed (non-fatal)", {

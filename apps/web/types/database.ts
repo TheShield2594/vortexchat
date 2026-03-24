@@ -3009,7 +3009,7 @@ export type Database = {
         Returns: undefined
       }
       promote_from_waitlist: {
-        Args: { p_event_id: string; p_event_capacity: number }
+        Args: { p_event_id: string; p_event_capacity?: number }
         Returns: string | null
       }
       set_event_capacity_and_promote: {

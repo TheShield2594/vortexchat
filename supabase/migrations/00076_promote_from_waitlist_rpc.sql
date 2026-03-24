@@ -3,7 +3,7 @@
 -- to serialize concurrent promotions.
 CREATE OR REPLACE FUNCTION public.promote_from_waitlist(
   p_event_id UUID,
-  p_event_capacity INTEGER
+  p_event_capacity INTEGER DEFAULT NULL
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -11,11 +11,18 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_event_capacity INTEGER;
   v_going_count INTEGER;
   v_promoted_user_id UUID;
 BEGIN
-  -- Lock the parent event row to serialize all promotions for this event
-  PERFORM id FROM public.events WHERE id = p_event_id FOR UPDATE;
+  -- Lock the parent event row and read authoritative capacity
+  SELECT capacity INTO v_event_capacity
+  FROM public.events WHERE id = p_event_id FOR UPDATE;
+
+  -- If event has no capacity limit, nothing to promote into
+  IF v_event_capacity IS NULL THEN
+    RETURN NULL;
+  END IF;
 
   -- Count current "going" RSVPs (no FOR UPDATE needed — event lock serializes)
   SELECT COUNT(*)
@@ -24,7 +31,7 @@ BEGIN
   WHERE event_id = p_event_id AND status = 'going';
 
   -- Only promote if there's room
-  IF v_going_count >= p_event_capacity THEN
+  IF v_going_count >= v_event_capacity THEN
     RETURN NULL;
   END IF;
 

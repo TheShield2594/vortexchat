@@ -103,35 +103,57 @@ export async function PATCH(
     filteredPayload[key] = updatePayload[key]
   }
 
-  // Use service client to bypass RLS (creator may not have MANAGE_EVENTS role permission)
-  const { data: updated, error } = await service
-    .from("events")
-    .update(filteredPayload)
-    .eq("id", params.eventId)
-    .eq("server_id", params.serverId)
-    .select("id,title,linked_channel_id")
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // When capacity is increased (or set for the first time), atomically promote waitlisted users
+  // Detect capacity increase before the update — the RPC will handle capacity atomically
   const oldCapacity = existing?.capacity as number | null
   const newCapacity = filteredPayload.capacity as number | undefined
-  if (newCapacity !== undefined) {
-    const capacityIncreased = oldCapacity === null || (typeof newCapacity === "number" && newCapacity > oldCapacity)
-    if (capacityIncreased) {
-      const { error: promoteError } = await service.rpc("set_event_capacity_and_promote", {
-        p_event_id: params.eventId,
-        p_server_id: params.serverId,
-        p_new_capacity: newCapacity,
+  const capacityIncreased = newCapacity !== undefined &&
+    (oldCapacity === null || (typeof newCapacity === "number" && newCapacity > oldCapacity))
+
+  // Exclude capacity from the regular update if it increased — the RPC will set it atomically
+  const nonCapacityPayload = { ...filteredPayload }
+  if (capacityIncreased) {
+    delete nonCapacityPayload.capacity
+  }
+
+  // Use service client to bypass RLS (creator may not have MANAGE_EVENTS role permission)
+  // Only run the update if there are non-capacity fields to change
+  let updated: { id: string; title: string; linked_channel_id: string | null }
+  if (Object.keys(nonCapacityPayload).length > 0) {
+    const { data, error } = await service
+      .from("events")
+      .update(nonCapacityPayload)
+      .eq("id", params.eventId)
+      .eq("server_id", params.serverId)
+      .select("id,title,linked_channel_id")
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    updated = data
+  } else {
+    updated = { id: existing?.id, title: existing?.title, linked_channel_id: existing?.linked_channel_id }
+  }
+
+  // When capacity increased, atomically set capacity and promote waitlisted users
+  if (capacityIncreased) {
+    const { error: promoteError } = await service.rpc("set_event_capacity_and_promote", {
+      p_event_id: params.eventId,
+      p_server_id: params.serverId,
+      p_new_capacity: newCapacity,
+    })
+    if (promoteError) {
+      console.warn("set_event_capacity_and_promote failed", {
+        eventId: params.eventId,
+        error: promoteError.message,
       })
-      if (promoteError) {
-        console.warn("set_event_capacity_and_promote failed", {
-          eventId: params.eventId,
-          error: promoteError.message,
-        })
-      }
+      return NextResponse.json({ error: "Failed to update capacity" }, { status: 500 })
     }
+  } else if (newCapacity !== undefined && !capacityIncreased) {
+    // Capacity decreased or stayed the same — just update the field (no promotions needed)
+    const { error } = await service
+      .from("events")
+      .update({ capacity: newCapacity })
+      .eq("id", params.eventId)
+      .eq("server_id", params.serverId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
   // Audit log
