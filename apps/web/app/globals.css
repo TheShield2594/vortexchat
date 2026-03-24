@@ -980,6 +980,104 @@
   --theme-presence-offline: #6e7f92;
 }
 
+/* ── Clarity — minimalist light theme inspired by Notion / Linear ── */
+[data-theme-preset="clarity"] {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 220 70% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 9% 46%;
+  --accent: 220 70% 50%;
+  --accent-foreground: 0 0% 100%;
+  --muted: 220 14% 93%;
+  --muted-foreground: 220 9% 46%;
+  --border: 220 13% 91%;
+  --input: 220 14% 96%;
+  --ring: 220 70% 50%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --app-bg-primary: #ffffff;
+  --app-bg-secondary: #f8f9fa;
+  --theme-bg-primary: #ffffff;
+  --theme-bg-secondary: #f8f9fa;
+  --theme-bg-tertiary: #f1f3f5;
+  --theme-surface-elevated: #ffffff;
+  --theme-surface-input: #f1f3f5;
+  --theme-surface-elevation-1: #f8f9fa;
+  --theme-surface-elevation-3: #e9ecef;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 12%, transparent);
+  --theme-text-primary: #1a1a1a;
+  --theme-text-normal: #37352f;
+  --theme-text-secondary: #6b7280;
+  --theme-text-muted: #9ca3af;
+  --theme-text-faint: #b0b8c4;
+  --theme-text-bright: #111111;
+  --theme-accent: #2563eb;
+  --theme-accent-secondary: #7c3aed;
+  --theme-link: #2563eb;
+  --theme-success: #16a34a;
+  --theme-positive: #22c55e;
+  --theme-warning: #d97706;
+  --theme-danger: #dc2626;
+  --theme-presence-offline: #9ca3af;
+}
+
+/* ── Velvet Dusk — soft pastel dark theme ── */
+[data-theme-preset="velvet-dusk"] {
+  --background: 240 21% 12%;
+  --foreground: 226 64% 88%;
+  --card: 240 21% 15%;
+  --card-foreground: 226 64% 88%;
+  --popover: 240 21% 10%;
+  --popover-foreground: 226 64% 88%;
+  --primary: 267 84% 81%;
+  --primary-foreground: 240 21% 12%;
+  --secondary: 240 17% 20%;
+  --secondary-foreground: 227 35% 70%;
+  --accent: 267 84% 81%;
+  --accent-foreground: 240 21% 12%;
+  --muted: 240 17% 24%;
+  --muted-foreground: 228 24% 58%;
+  --border: 240 17% 22%;
+  --input: 240 17% 16%;
+  --ring: 267 84% 81%;
+  --destructive: 343 81% 75%;
+  --destructive-foreground: 240 21% 12%;
+  --app-bg-primary: #1e1e2e;
+  --app-bg-secondary: #181825;
+  --theme-bg-primary: #1e1e2e;
+  --theme-bg-secondary: #181825;
+  --theme-bg-tertiary: #11111b;
+  --theme-surface-elevated: #313244;
+  --theme-surface-input: #45475a;
+  --theme-surface-elevation-1: #292a3c;
+  --theme-surface-elevation-3: #3b3c50;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 25%, transparent);
+  --theme-text-primary: #cdd6f4;
+  --theme-text-normal: #bac2de;
+  --theme-text-secondary: #a6adc8;
+  --theme-text-muted: #7f849c;
+  --theme-text-faint: #6c7086;
+  --theme-text-bright: #f5e0dc;
+  --theme-accent: #cba6f7;
+  --theme-accent-secondary: #f5c2e7;
+  --theme-link: #89b4fa;
+  --theme-success: #a6e3a1;
+  --theme-positive: #a6e3a1;
+  --theme-warning: #f9e2af;
+  --theme-danger: #f38ba8;
+  --theme-presence-offline: #585b70;
+}
+
 /* Font scale */
 [data-font-scale="small"] { font-size: 14px; }
 [data-font-scale="normal"] { font-size: 16px; }
@@ -997,6 +1095,16 @@
 [data-saturation="reduced"] { filter: saturate(0.6); }
 [data-saturation="reduced"] video,
 [data-saturation="reduced"] img { filter: saturate(1.67); }
+
+/* Reduced motion (accessibility) — explicit override beyond OS-level prefers-reduced-motion */
+[data-reduced-motion="on"] *,
+[data-reduced-motion="on"] *::before,
+[data-reduced-motion="on"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
 
 /* Upload progress bar transition */
 .upload-progress-bar {
