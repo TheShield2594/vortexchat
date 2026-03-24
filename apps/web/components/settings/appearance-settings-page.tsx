@@ -81,7 +81,7 @@ const ACCENT_PRESETS = [
   "#f97316", "#06b6d4",
 ]
 
-const THEME_PRESET_OPTIONS: {
+export const THEME_PRESET_OPTIONS: {
   value: ThemePreset
   label: string
   description: string
@@ -102,7 +102,7 @@ const THEME_PRESET_OPTIONS: {
   { value: "velvet-dusk", label: "Velvet Dusk", description: "Soft pastel tones on dark canvas", accent: "#cba6f7", bg: "#1e1e2e", surface: "#181825", textPrimary: "#cdd6f4", textMuted: "#7f849c", supportsColorMode: false },
   { value: "terminal", label: "Terminal", description: "Green phosphor CRT terminal", accent: "#4aef98", bg: "#000900", surface: "#001a05", textPrimary: "#4aef98", textMuted: "#4aef9859", supportsColorMode: false },
   { value: "sakura-blossom", label: "Sakura Blossom", description: "Warm cherry-blossom with rose accents", accent: "#e84393", bg: "#2b1a2e", surface: "#231525", textPrimary: "#fef0f5", textMuted: "#b08a9e", supportsColorMode: false },
-  { value: "frosthearth", label: "Frosthearth", description: "Nordic fantasy — ice blue & hearthfire gold", accent: "#6eafc8", bg: "#1c1e1f", surface: "#161819", textPrimary: "#e8dcc8", textMuted: "#8a806e", supportsColorMode: false },
+  { value: "frosthearth", label: "Frosthearth", description: "Nordic frost meets warm tavern", accent: "#6eafc8", bg: "#1c1e1f", surface: "#161819", textPrimary: "#e8dcc8", textMuted: "#9a8f7c", supportsColorMode: false },
 ]
 
 /* ─── Mock chat preview data ──────────────────────────── */

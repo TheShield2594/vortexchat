@@ -86,6 +86,14 @@
     --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 60%, white);
     --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
     --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
+    /* ── Audit-log / category semantic colors ──────────────────────────── */
+    --theme-cat-member: #60a5fa;
+    --theme-cat-role: #c084fc;
+    --theme-cat-channel: #22d3ee;
+    --theme-cat-message: #4ade80;
+    --theme-cat-server: #facc15;
+    --theme-cat-automod: #fb923c;
+    --theme-cat-other: #a1a1aa;
   }
 }
 
@@ -818,6 +826,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   --color-tertiary-metadata: #949ba4;
+  --theme-cat-member: #5b8fd9;
+  --theme-cat-role: #b085d8;
+  --theme-cat-channel: #5ab8c8;
+  --theme-cat-message: #3ba55c;
+  --theme-cat-server: #f0b132;
+  --theme-cat-automod: #e08050;
+  --theme-cat-other: #80848e;
+
 }
 
 [data-theme-preset="midnight-neon"] {
@@ -883,6 +899,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   --color-tertiary-metadata: #8f9bbf;
+  --theme-cat-member: #60a5fa;
+  --theme-cat-role: #c084fc;
+  --theme-cat-channel: #22d3ee;
+  --theme-cat-message: #3ddc97;
+  --theme-cat-server: #ffb84d;
+  --theme-cat-automod: #fb923c;
+  --theme-cat-other: #6f7898;
+
 }
 
 [data-theme-preset="synthwave"] {
@@ -948,6 +972,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   --color-tertiary-metadata: #a990d0;
+  --theme-cat-member: #7eb8f0;
+  --theme-cat-role: #d4a0f7;
+  --theme-cat-channel: #50e5ff;
+  --theme-cat-message: #5ae6a9;
+  --theme-cat-server: #ffc266;
+  --theme-cat-automod: #ff9e5c;
+  --theme-cat-other: #8674a8;
+
 }
 
 [data-theme-preset="carbon"] {
@@ -1013,6 +1045,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   --color-tertiary-metadata: #98a0ab;
+  --theme-cat-member: #5ca0d0;
+  --theme-cat-role: #a080c0;
+  --theme-cat-channel: #50b8c8;
+  --theme-cat-message: #3ba55c;
+  --theme-cat-server: #d19c4c;
+  --theme-cat-automod: #c88050;
+  --theme-cat-other: #7d858f;
+
 }
 
 [data-theme-preset="oled-black"] {
@@ -1078,6 +1118,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   --color-tertiary-metadata: #7a9898;
+  --theme-cat-member: #40b0c8;
+  --theme-cat-role: #a088c0;
+  --theme-cat-channel: #0abab5;
+  --theme-cat-message: #30c97a;
+  --theme-cat-server: #e5a020;
+  --theme-cat-automod: #d08848;
+  --theme-cat-other: #5a7070;
+
 }
 
 [data-theme-preset="frost"] {
@@ -1143,6 +1191,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   --color-tertiary-metadata: #8494a8;
+  --theme-cat-member: #5ba4e6;
+  --theme-cat-role: #a080d0;
+  --theme-cat-channel: #40a8c0;
+  --theme-cat-message: #3dba6a;
+  --theme-cat-server: #e0a526;
+  --theme-cat-automod: #d08850;
+  --theme-cat-other: #6e7f92;
+
 }
 
 /* ── Clarity — minimalist light theme inspired by Notion / Linear ── */
@@ -1204,6 +1260,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 12%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 40%, transparent);
   --color-tertiary-metadata: #9ca3af;
+  --theme-cat-member: #2563eb;
+  --theme-cat-role: #7c3aed;
+  --theme-cat-channel: #0891b2;
+  --theme-cat-message: #16a34a;
+  --theme-cat-server: #d97706;
+  --theme-cat-automod: #ea580c;
+  --theme-cat-other: #6b7280;
+
 }
 
 /* ── Velvet Dusk — soft pastel dark theme ── */
@@ -1265,6 +1329,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   --color-tertiary-metadata: #7f849c;
+  --theme-cat-member: #89b4fa;
+  --theme-cat-role: #cba6f7;
+  --theme-cat-channel: #89dceb;
+  --theme-cat-message: #a6e3a1;
+  --theme-cat-server: #f9e2af;
+  --theme-cat-automod: #fab387;
+  --theme-cat-other: #585b70;
+
 }
 
 /* ── Terminal — green phosphor CRT terminal ── */
@@ -1326,6 +1398,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: rgba(255, 255, 51, 0.12);
   --theme-mention-self-border: rgba(255, 255, 51, 0.35);
   --color-tertiary-metadata: rgba(74, 239, 152, 0.35);
+  --theme-cat-member: rgba(74, 239, 152, 0.7);
+  --theme-cat-role: rgba(74, 239, 152, 0.6);
+  --theme-cat-channel: rgba(74, 239, 152, 0.7);
+  --theme-cat-message: rgba(57, 255, 20, 0.7);
+  --theme-cat-server: rgba(255, 255, 51, 0.7);
+  --theme-cat-automod: rgba(255, 180, 50, 0.7);
+  --theme-cat-other: rgba(74, 239, 152, 0.35);
   --radius: 0rem;
 }
 
@@ -1388,9 +1467,16 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
   --color-tertiary-metadata: #b08a9e;
+  --theme-cat-member: #fd79a8;
+  --theme-cat-role: #e84393;
+  --theme-cat-channel: #f8a5c2;
+  --theme-cat-message: #55efc4;
+  --theme-cat-server: #fdcb6e;
+  --theme-cat-automod: #ff6b6b;
+  --theme-cat-other: #b08a9e;
 }
 
-/* ── Frosthearth — frozen tundra meets warm tavern ── */
+/* ── Frosthearth — Nordic frost meets warm tavern ── */
 [data-theme-preset="frosthearth"] {
   --background: 200 4% 11%;
   --foreground: 36 30% 85%;
@@ -1413,7 +1499,6 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --destructive-foreground: 36 30% 95%;
   --app-bg-primary: #1c1e1f;
   --app-bg-secondary: #161819;
-  --app-bg-deepest: #1a1b1d;
   --theme-bg-primary: #1c1e1f;
   --theme-bg-secondary: #161819;
   --theme-bg-tertiary: #111213;
@@ -1437,8 +1522,8 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-text-primary: #e8dcc8;
   --theme-text-normal: #d4c9b5;
   --theme-text-secondary: #b0a590;
-  --theme-text-muted: #8a806e;
-  --theme-text-faint: #6d6456;
+  --theme-text-muted: #9a8f7c;
+  --theme-text-faint: #7e7466;
   --theme-text-bright: #f5eedf;
   --theme-accent: #6eafc8;
   --theme-accent-secondary: #c8a24e;
@@ -1451,7 +1536,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 60%, white);
   --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
   --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
-  --color-tertiary-metadata: #8a806e;
+  --color-tertiary-metadata: #9a8f7c;
+  --theme-cat-member: #6eafc8;
+  --theme-cat-role: #b898c8;
+  --theme-cat-channel: #6eafc8;
+  --theme-cat-message: #6b9e4d;
+  --theme-cat-server: #c8a24e;
+  --theme-cat-automod: #d4a740;
+  --theme-cat-other: #9a8f7c;
   /* Frosthearth interaction helpers */
   --frosthearth-focus-ring: color-mix(in srgb, var(--theme-accent) 26%, transparent);
   --frosthearth-focus-outline: color-mix(in srgb, var(--theme-accent) 72%, white);
@@ -1721,7 +1813,7 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   [data-theme-preset="frosthearth"] [contenteditable="true"]:focus-visible {
     transition-duration: 0ms !important;
   }
-}
+
 
 /* ── Color mode overrides — scoped to the default "twilight" preset so they
    do NOT clobber themes that already define a complete token set.  Each theme

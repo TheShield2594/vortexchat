@@ -139,32 +139,41 @@ const ACTION_CATEGORY: Record<string, Category> = {
   appeal_status_changed: "other",
 }
 
-const CATEGORY_STYLES: Record<Category, { label: string; color: string; bg: string }> = {
-  member: { label: "Members", color: "text-blue-400", bg: "bg-blue-900/20 border-blue-800" },
-  role: { label: "Roles", color: "text-purple-400", bg: "bg-purple-900/20 border-purple-800" },
-  channel: { label: "Channels", color: "text-cyan-400", bg: "bg-cyan-900/20 border-cyan-800" },
-  message: { label: "Messages", color: "text-green-400", bg: "bg-green-900/20 border-green-800" },
-  server: { label: "Server", color: "text-yellow-400", bg: "bg-yellow-900/20 border-yellow-800" },
-  automod: { label: "AutoMod", color: "text-orange-400", bg: "bg-orange-900/20 border-orange-800" },
-  other: { label: "Other", color: "text-zinc-400", bg: "bg-zinc-900/20 border-zinc-700" },
+const CATEGORY_STYLES: Record<Category, { label: string; cssVar: string }> = {
+  member: { label: "Members", cssVar: "--theme-cat-member" },
+  role: { label: "Roles", cssVar: "--theme-cat-role" },
+  channel: { label: "Channels", cssVar: "--theme-cat-channel" },
+  message: { label: "Messages", cssVar: "--theme-cat-message" },
+  server: { label: "Server", cssVar: "--theme-cat-server" },
+  automod: { label: "AutoMod", cssVar: "--theme-cat-automod" },
+  other: { label: "Other", cssVar: "--theme-cat-other" },
+}
+
+function actionIconCssVar(action: string): string {
+  const category = ACTION_CATEGORY[action] ?? "other"
+  return CATEGORY_STYLES[category].cssVar
 }
 
 function actionIcon(action: string) {
   const size = "w-4 h-4"
-  if (action === "member_join") return <UserPlus className={`${size} text-blue-400`} />
-  if (action === "member_leave") return <UserMinus className={`${size} text-zinc-400`} />
-  if (action === "member_kick") return <UserX className={`${size} text-yellow-400`} />
-  if (action === "member_ban") return <Ban className={`${size} text-red-400`} />
-  if (action === "member_unban") return <Shield className={`${size} text-green-400`} />
-  if (action.startsWith("member_timeout")) return <UserCheck className={`${size} text-orange-400`} />
-  if (action.startsWith("role_")) return <ShieldAlert className={`${size} text-purple-400`} />
-  if (action.startsWith("channel_")) return <Hash className={`${size} text-cyan-400`} />
-  if (action.startsWith("message_")) return <MessageSquare className={`${size} text-green-400`} />
-  if (action.startsWith("webhook_")) return <Webhook className={`${size} text-yellow-400`} />
-  if (action === "invite_created") return <UserPlus className={`${size} text-yellow-400`} />
-  if (action.startsWith("automod_")) return <Zap className={`${size} text-orange-400`} />
-  if (action.startsWith("server_") || action.startsWith("moderation_")) return <Mic className={`${size} text-yellow-400`} />
-  return <Activity className={`${size} text-zinc-400`} />
+  const color = `var(${actionIconCssVar(action)})`
+  const Icon = (() => {
+    if (action === "member_join") return UserPlus
+    if (action === "member_leave") return UserMinus
+    if (action === "member_kick") return UserX
+    if (action === "member_ban") return Ban
+    if (action === "member_unban") return Shield
+    if (action.startsWith("member_timeout")) return UserCheck
+    if (action.startsWith("role_")) return ShieldAlert
+    if (action.startsWith("channel_")) return Hash
+    if (action.startsWith("message_")) return MessageSquare
+    if (action.startsWith("webhook_")) return Webhook
+    if (action === "invite_created") return UserPlus
+    if (action.startsWith("automod_")) return Zap
+    if (action.startsWith("server_") || action.startsWith("moderation_")) return Mic
+    return Activity
+  })()
+  return <Icon className={size} style={{ color }} />
 }
 
 // ---------------------------------------------------------------------------
@@ -284,10 +293,17 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-sm font-semibold ${catStyle.color}`}>
+            <span className="text-sm font-semibold" style={{ color: `var(${catStyle.cssVar})` }}>
               {ACTION_LABELS[entry.action] ?? entry.action}
             </span>
-            <span className={`text-xs border rounded px-1.5 py-0.5 ${catStyle.bg} ${catStyle.color}`}>
+            <span
+              className="text-xs border rounded px-1.5 py-0.5"
+              style={{
+                color: `var(${catStyle.cssVar})`,
+                borderColor: `color-mix(in srgb, var(${catStyle.cssVar}) 40%, transparent)`,
+                background: `color-mix(in srgb, var(${catStyle.cssVar}) 12%, transparent)`,
+              }}
+            >
               {catStyle.label}
             </span>
           </div>
@@ -535,7 +551,8 @@ export function AuditLogPage({ serverId }: { serverId: string }) {
                   setSelectedCategory((prev) => (prev === cat ? "" : cat))
                   setSelectedAction("")
                 }}
-                className={`capitalize text-xs ${selectedCategory === cat ? "" : style.color}`}
+                className="capitalize text-xs"
+                style={selectedCategory === cat ? undefined : { color: `var(${style.cssVar})` }}
               >
                 {style.label}
               </Button>
