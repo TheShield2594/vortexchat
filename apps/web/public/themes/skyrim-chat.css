@@ -102,7 +102,7 @@ textarea:focus {
 /* ── Dragon Wall embellishments (optional decorative touches) ──────── */
 
 /* Subtle top-border accent on the chat header — like a carved stone lintel */
-.chat-area-header {
+.chat-area-header-surface {
   border-bottom: 1px solid rgba(110, 175, 200, 0.12) !important;
 }
 
@@ -117,9 +117,9 @@ textarea:focus {
   border-left: 2px solid #c8a24e !important;
 }
 
-/* Server sidebar — darkest stone, like a dungeon wall */
-.server-sidebar {
-  background: #111213 !important;
+/* Server sidebar icon backgrounds — darkest stone, like a dungeon wall */
+.server-sidebar-icon-bg {
+  background: #1a1b1d !important;
 }
 
 /* Mention highlights — warm enchantment amber */
