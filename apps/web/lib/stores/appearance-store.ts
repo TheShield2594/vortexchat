@@ -6,7 +6,7 @@ import { persist } from "zustand/middleware"
 export type MessageDisplay = "cozy" | "compact"
 export type FontScale = "small" | "normal" | "large"
 export type Saturation = "normal" | "reduced"
-export type ThemePreset = "twilight" | "midnight-neon" | "synthwave" | "carbon" | "oled-black" | "frost" | "clarity" | "velvet-dusk" | "terminal"
+export type ThemePreset = "twilight" | "midnight-neon" | "synthwave" | "carbon" | "oled-black" | "frost" | "clarity" | "velvet-dusk" | "terminal" | "sakura-blossom" | "frosthearth"
 export type ReducedMotion = "system" | "on" | "off"
 export type TimestampFormat = "12h" | "24h"
 export type FontFamily = "system" | "inter" | "mono" | "dyslexia"
@@ -122,7 +122,7 @@ const DEFAULTS: Required<AppearanceSettings> = {
   syncToAccount: false,
 }
 
-const THEME_PRESETS: ThemePreset[] = ["twilight", "midnight-neon", "synthwave", "carbon", "oled-black", "frost", "clarity", "velvet-dusk", "terminal"]
+const THEME_PRESETS: ThemePreset[] = ["twilight", "midnight-neon", "synthwave", "carbon", "oled-black", "frost", "clarity", "velvet-dusk", "terminal", "sakura-blossom", "frosthearth"]
 const MESSAGE_DISPLAY_MODES: MessageDisplay[] = ["cozy", "compact"]
 const FONT_SCALES: FontScale[] = ["small", "normal", "large"]
 const SATURATION_LEVELS: Saturation[] = ["normal", "reduced"]

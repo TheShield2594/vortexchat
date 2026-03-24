@@ -90,16 +90,19 @@ const THEME_PRESET_OPTIONS: {
   surface: string
   textPrimary: string
   textMuted: string
+  supportsColorMode: boolean
 }[] = [
-  { value: "twilight", label: "Twilight", description: "Classic dark with blue accent", accent: "#5865f2", bg: "#313338", surface: "#2b2d31", textPrimary: "#f2f3f5", textMuted: "#949ba4" },
-  { value: "midnight-neon", label: "Midnight Neon", description: "Deep dark with vibrant neon", accent: "#00e5ff", bg: "#1b1f31", surface: "#151829", textPrimary: "#e6ecff", textMuted: "#8f9bbf" },
-  { value: "synthwave", label: "Synthwave", description: "Retro 80s with pink & cyan", accent: "#f92aad", bg: "#2a1e46", surface: "#23193b", textPrimary: "#f5edff", textMuted: "#a990d0" },
-  { value: "carbon", label: "Carbon", description: "Minimal gray with teal accent", accent: "#3ba55c", bg: "#1f2124", surface: "#191b1e", textPrimary: "#e7eaee", textMuted: "#98a0ab" },
-  { value: "oled-black", label: "OLED Black", description: "True black with Tiffany blue", accent: "#0abab5", bg: "#000000", surface: "#080808", textPrimary: "#f0f4f4", textMuted: "#7a9898" },
-  { value: "frost", label: "Frost", description: "Cool slate with warm amber", accent: "#e0a526", bg: "#1a2332", surface: "#151d2a", textPrimary: "#e8ecf2", textMuted: "#8494a8" },
-  { value: "clarity", label: "Clarity", description: "Clean & minimal light theme", accent: "#2563eb", bg: "#ffffff", surface: "#f8f9fa", textPrimary: "#1a1a1a", textMuted: "#9ca3af" },
-  { value: "velvet-dusk", label: "Velvet Dusk", description: "Soft pastel tones on dark canvas", accent: "#cba6f7", bg: "#1e1e2e", surface: "#181825", textPrimary: "#cdd6f4", textMuted: "#7f849c" },
-  { value: "terminal", label: "Terminal", description: "Green phosphor CRT terminal", accent: "#4aef98", bg: "#000900", surface: "#001a05", textPrimary: "#4aef98", textMuted: "#4aef9859" },
+  { value: "twilight", label: "Twilight", description: "Classic dark with blue accent", accent: "#5865f2", bg: "#313338", surface: "#2b2d31", textPrimary: "#f2f3f5", textMuted: "#949ba4", supportsColorMode: true },
+  { value: "midnight-neon", label: "Midnight Neon", description: "Deep dark with vibrant neon", accent: "#00e5ff", bg: "#1b1f31", surface: "#151829", textPrimary: "#e6ecff", textMuted: "#8f9bbf", supportsColorMode: false },
+  { value: "synthwave", label: "Synthwave", description: "Retro 80s with pink & cyan", accent: "#f92aad", bg: "#2a1e46", surface: "#23193b", textPrimary: "#f5edff", textMuted: "#a990d0", supportsColorMode: false },
+  { value: "carbon", label: "Carbon", description: "Minimal gray with teal accent", accent: "#3ba55c", bg: "#1f2124", surface: "#191b1e", textPrimary: "#e7eaee", textMuted: "#98a0ab", supportsColorMode: false },
+  { value: "oled-black", label: "OLED Black", description: "True black with Tiffany blue", accent: "#0abab5", bg: "#000000", surface: "#080808", textPrimary: "#f0f4f4", textMuted: "#7a9898", supportsColorMode: false },
+  { value: "frost", label: "Frost", description: "Cool slate with warm amber", accent: "#e0a526", bg: "#1a2332", surface: "#151d2a", textPrimary: "#e8ecf2", textMuted: "#8494a8", supportsColorMode: false },
+  { value: "clarity", label: "Clarity", description: "Clean & minimal light theme", accent: "#2563eb", bg: "#ffffff", surface: "#f8f9fa", textPrimary: "#1a1a1a", textMuted: "#9ca3af", supportsColorMode: false },
+  { value: "velvet-dusk", label: "Velvet Dusk", description: "Soft pastel tones on dark canvas", accent: "#cba6f7", bg: "#1e1e2e", surface: "#181825", textPrimary: "#cdd6f4", textMuted: "#7f849c", supportsColorMode: false },
+  { value: "terminal", label: "Terminal", description: "Green phosphor CRT terminal", accent: "#4aef98", bg: "#000900", surface: "#001a05", textPrimary: "#4aef98", textMuted: "#4aef9859", supportsColorMode: false },
+  { value: "sakura-blossom", label: "Sakura Blossom", description: "Warm cherry-blossom with rose accents", accent: "#e84393", bg: "#2b1a2e", surface: "#231525", textPrimary: "#fef0f5", textMuted: "#b08a9e", supportsColorMode: false },
+  { value: "frosthearth", label: "Frosthearth", description: "Nordic fantasy — ice blue & hearthfire gold", accent: "#6eafc8", bg: "#1c1e1f", surface: "#161819", textPrimary: "#e8dcc8", textMuted: "#8a806e", supportsColorMode: false },
 ]
 
 /* ─── Mock chat preview data ──────────────────────────── */
@@ -236,42 +239,50 @@ function ToggleSwitch({
 }
 
 /* ─── Theme preview mini-chat ──────────────────────────── */
-function ThemePreviewChat({ theme }: { theme: typeof THEME_PRESET_OPTIONS[number] }): React.ReactElement {
+function ThemePreviewChat({ theme, useLiveTokens }: { theme: typeof THEME_PRESET_OPTIONS[number]; useLiveTokens?: boolean }): React.ReactElement {
+  // When useLiveTokens is true (active theme), read from CSS custom properties
+  // so custom CSS overrides and accent color changes are reflected in real time.
+  const bg = useLiveTokens ? "var(--theme-bg-primary)" : theme.bg
+  const surface = useLiveTokens ? "var(--theme-bg-secondary)" : theme.surface
+  const accent = useLiveTokens ? "var(--theme-accent)" : theme.accent
+  const textPrimary = useLiveTokens ? "var(--theme-text-primary)" : theme.textPrimary
+  const textMuted = useLiveTokens ? "var(--theme-text-muted)" : theme.textMuted
+
   return (
     <div
       className="rounded-xl overflow-hidden border shadow-lg w-full"
       aria-hidden="true"
-      style={{ background: theme.bg, borderColor: `color-mix(in srgb, ${theme.textMuted} 20%, transparent)`, maxHeight: 320 }}
+      style={{ background: bg, borderColor: useLiveTokens ? "var(--theme-bg-tertiary)" : `color-mix(in srgb, ${theme.textMuted} 20%, transparent)`, maxHeight: 320 }}
     >
       <div className="flex h-full" style={{ minHeight: 260 }}>
-        <div className="w-[140px] shrink-0 p-2.5 space-y-1 hidden sm:block" style={{ background: theme.surface }}>
-          <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: theme.textMuted }}>Channels</div>
+        <div className="w-[140px] shrink-0 p-2.5 space-y-1 hidden sm:block" style={{ background: surface }}>
+          <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: textMuted }}>Channels</div>
           {MOCK_CHANNELS.map((ch) => (
-            <div key={ch} className="text-xs px-2 py-1 rounded" style={{ color: ch === "general" ? theme.textPrimary : theme.textMuted, background: ch === "general" ? `color-mix(in srgb, ${theme.textMuted} 15%, transparent)` : "transparent", fontWeight: ch === "general" ? 600 : 400 }}>
+            <div key={ch} className="text-xs px-2 py-1 rounded" style={{ color: ch === "general" ? textPrimary : textMuted, background: ch === "general" ? (useLiveTokens ? "color-mix(in srgb, var(--theme-text-muted) 15%, transparent)" : `color-mix(in srgb, ${theme.textMuted} 15%, transparent)`) : "transparent", fontWeight: ch === "general" ? 600 : 400 }}>
               # {ch}
             </div>
           ))}
         </div>
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="px-3 py-2 text-xs font-semibold border-b flex items-center gap-1.5" style={{ color: theme.textPrimary, borderColor: `color-mix(in srgb, ${theme.textMuted} 12%, transparent)`, background: theme.bg }}>
-            <span style={{ color: theme.textMuted }}>#</span> general
+          <div className="px-3 py-2 text-xs font-semibold border-b flex items-center gap-1.5" style={{ color: textPrimary, borderColor: useLiveTokens ? "var(--theme-bg-tertiary)" : `color-mix(in srgb, ${theme.textMuted} 12%, transparent)`, background: bg }}>
+            <span style={{ color: textMuted }}>#</span> general
           </div>
           <div className="flex-1 px-3 py-2 space-y-2.5 overflow-hidden">
             {MOCK_MESSAGES.map((msg, i) => (
               <div key={i} className="flex items-start gap-2">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: `color-mix(in srgb, ${theme.accent} 30%, ${theme.surface})`, color: theme.accent }}>{msg.avatar}</div>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: useLiveTokens ? "color-mix(in srgb, var(--theme-accent) 30%, var(--theme-bg-secondary))" : `color-mix(in srgb, ${theme.accent} 30%, ${theme.surface})`, color: accent }}>{msg.avatar}</div>
                 <div className="min-w-0">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-xs font-semibold" style={{ color: theme.accent }}>{msg.user}</span>
-                    <span className="text-[10px]" style={{ color: theme.textMuted }}>{msg.time}</span>
+                    <span className="text-xs font-semibold" style={{ color: accent }}>{msg.user}</span>
+                    <span className="text-[10px]" style={{ color: textMuted }}>{msg.time}</span>
                   </div>
-                  <p className="text-xs leading-relaxed" style={{ color: theme.textPrimary }}>{msg.text}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: textPrimary }}>{msg.text}</p>
                 </div>
               </div>
             ))}
           </div>
           <div className="px-3 py-2">
-            <div className="rounded-lg px-3 py-1.5 text-xs" style={{ background: theme.surface, color: theme.textMuted }}>Message #general</div>
+            <div className="rounded-lg px-3 py-1.5 text-xs" style={{ background: surface, color: textMuted }}>Message #general</div>
           </div>
         </div>
       </div>
@@ -375,7 +386,7 @@ export function AppearanceSettingsPage(): React.ReactElement {
       {/* ── Theme Selector ──────────────────────────────── */}
       <section className="space-y-4">
         <SectionHeading>Theme</SectionHeading>
-        <ThemePreviewChat theme={activeTheme} />
+        <ThemePreviewChat theme={activeTheme} useLiveTokens />
         <div className="text-center">
           <p className="text-base font-semibold" style={{ color: "var(--theme-text-bright)" }}>{activeTheme.label}</p>
           <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{activeTheme.description}</p>
@@ -439,12 +450,16 @@ export function AppearanceSettingsPage(): React.ReactElement {
       <SectionDivider />
 
       {/* ── Color Mode ──────────────────────────────────── */}
-      <section className="space-y-3">
-        <SectionHeading>Color Mode</SectionHeading>
-        <RadioGroup name="colorMode" options={COLOR_MODE_OPTIONS} value={store.colorMode} onChange={store.setColorMode} />
-      </section>
+      {activeTheme.supportsColorMode && (
+        <>
+          <section className="space-y-3">
+            <SectionHeading>Color Mode</SectionHeading>
+            <RadioGroup name="colorMode" options={COLOR_MODE_OPTIONS} value={store.colorMode} onChange={store.setColorMode} />
+          </section>
 
-      <SectionDivider />
+          <SectionDivider />
+        </>
+      )}
 
       {/* ── Accent Color ────────────────────────────────── */}
       <section className="space-y-3">
