@@ -175,14 +175,24 @@ const steps = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  try {
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
-  if (!error && user) {
-    redirect("/channels/me")
+    if (!error && user) {
+      redirect("/channels/me")
+    }
+  } catch (err: unknown) {
+    // redirect() throws a Next.js internal error with a NEXT_REDIRECT digest — rethrow it
+    const digest = (err as { digest?: string })?.digest
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err
+    }
+    // Auth check failed — fall through to render the landing page
+    console.error("[HomePage] Auth check failed:", err instanceof Error ? err.message : "unknown error")
   }
 
   return (

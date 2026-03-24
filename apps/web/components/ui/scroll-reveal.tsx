@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, type ReactNode } from "react"
+import { useEffect, useRef, type ReactNode, type ReactElement } from "react"
 
 interface ScrollRevealProps {
   children: ReactNode
@@ -8,7 +8,7 @@ interface ScrollRevealProps {
   delay?: number
 }
 
-export function ScrollReveal({ children, className = "", delay = 0 }: ScrollRevealProps) {
+export function ScrollReveal({ children, className = "", delay = 0 }: ScrollRevealProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -23,10 +23,12 @@ export function ScrollReveal({ children, className = "", delay = 0 }: ScrollReve
       return
     }
 
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setTimeout(() => {
+          timeoutId = setTimeout(() => {
             el.style.transition = "opacity 0.6s ease-out, transform 0.6s ease-out"
             el.style.opacity = "1"
             el.style.transform = "translateY(0)"
@@ -38,7 +40,12 @@ export function ScrollReveal({ children, className = "", delay = 0 }: ScrollReve
     )
 
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId)
+      }
+      observer.disconnect()
+    }
   }, [delay])
 
   return (
