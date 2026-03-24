@@ -15,7 +15,7 @@ function DMNavContent({ showUserPanel = true, onNavigate }: { showUserPanel?: bo
   )
 }
 
-export function MeShell({ children }: { children: React.ReactNode }) {
+export function MeShell({ children }: { children: React.ReactNode }): React.ReactElement {
   // useSelectedLayoutSegment returns the channelId segment when on /channels/me/[channelId]
   const segment = useSelectedLayoutSegment()
   const isInConversation = !!segment

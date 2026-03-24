@@ -23,7 +23,7 @@ interface UseFriendshipActionsReturn {
   handleMessage: () => Promise<void>
   handleAddFriend: () => Promise<void>
   handleRemoveFriend: () => Promise<void>
-  fetchStatus: () => Promise<void>
+  fetchStatus: (forceRefresh?: boolean) => Promise<void>
 }
 
 /** Shared hook for friendship status fetching and friend/message actions used by ProfilePanel and UserProfilePopover. */
@@ -42,8 +42,8 @@ export function useFriendshipActions({
 
   const isOtherUser = Boolean(userId && currentUserId && userId !== currentUserId)
 
-  const fetchStatus = useCallback(async (): Promise<void> => {
-    if (!isOtherUser || !userId || statusLoaded) return
+  const fetchStatus = useCallback(async (forceRefresh = false): Promise<void> => {
+    if (!isOtherUser || !userId || (statusLoaded && !forceRefresh)) return
     try {
       const res = await fetch(`/api/friends/status?userId=${userId}`)
       if (res.ok) {
@@ -59,25 +59,10 @@ export function useFriendshipActions({
   }, [userId, isOtherUser, statusLoaded])
 
   useEffect(() => {
-    if (!fetchOnMount) return
-    let cancelled = false
-    const run = async (): Promise<void> => {
-      if (!isOtherUser || !userId) return
-      try {
-        const res = await fetch(`/api/friends/status?userId=${userId}`)
-        if (res.ok && !cancelled) {
-          const json = (await res.json()) as { status: FriendshipStatus; friendshipId?: string }
-          setFriendshipStatus(json.status)
-          setFriendshipId(json.friendshipId ?? null)
-        }
-      } catch {
-        // silently ignore
-      } finally {
-        if (!cancelled) setStatusLoaded(true)
-      }
-    }
-    run()
-    return () => { cancelled = true }
+    if (!fetchOnMount || !isOtherUser || !userId) return
+    // Force-refresh on mount to bypass the statusLoaded guard
+    fetchStatus(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run on mount-relevant deps, not fetchStatus identity
   }, [userId, isOtherUser, fetchOnMount])
 
   const handleMessage = useCallback(async (): Promise<void> => {

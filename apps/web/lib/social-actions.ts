@@ -52,13 +52,21 @@ export async function sendFriendRequest(username: string, toast: ToastFn): Promi
     body: JSON.stringify({ username }),
   })
 
-  const payload = await parseJsonResponse(response)
-  const title =
-    typeof payload.message === "string"
-      ? payload.message
-      : typeof payload.error === "string"
-        ? payload.error
-        : "Request completed"
+  let title = "Request completed"
+  try {
+    const payload = await parseJsonResponse(response)
+    title =
+      typeof payload.message === "string"
+        ? payload.message
+        : typeof payload.error === "string"
+          ? payload.error
+          : title
+  } catch {
+    // Malformed or non-JSON response — use fallback title
+    if (!response.ok) {
+      title = response.statusText || "Request failed"
+    }
+  }
 
   toast({
     variant: response.ok || response.status === 409 ? "default" : "destructive",
