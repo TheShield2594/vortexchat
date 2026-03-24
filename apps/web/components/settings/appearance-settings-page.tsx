@@ -101,10 +101,11 @@ const MOCK_MESSAGES = [
 ]
 
 /* ─── Theme preview mini-chat ──────────────────────────── */
-function ThemePreviewChat({ theme }: { theme: typeof THEME_PRESET_OPTIONS[number] }) {
+function ThemePreviewChat({ theme }: { theme: typeof THEME_PRESET_OPTIONS[number] }): React.ReactElement {
   return (
     <div
       className="rounded-xl overflow-hidden border shadow-lg w-full"
+      aria-hidden="true"
       style={{
         background: theme.bg,
         borderColor: `color-mix(in srgb, ${theme.textMuted} 20%, transparent)`,
@@ -203,7 +204,7 @@ function ThemePreviewChat({ theme }: { theme: typeof THEME_PRESET_OPTIONS[number
 }
 
 /* ─── Scroll arrows for the theme strip ──────────────── */
-function ScrollArrow({ direction, onClick }: { direction: "left" | "right"; onClick: () => void }) {
+function ScrollArrow({ direction, onClick }: { direction: "left" | "right"; onClick: () => void }): React.ReactElement {
   return (
     <button
       type="button"
@@ -261,6 +262,15 @@ export function AppearanceSettingsPage(): React.ReactElement {
     el.scrollBy({ left: direction === "left" ? -200 : 200, behavior: "smooth" })
   }, [])
 
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>): void => {
+    const el = scrollRef.current
+    if (!el) return
+    if (e.deltaY === 0) return
+    e.preventDefault()
+    el.scrollLeft += e.deltaY
+    updateScrollState()
+  }, [updateScrollState])
+
   return (
     <div className="space-y-8">
       <div>
@@ -299,6 +309,7 @@ export function AppearanceSettingsPage(): React.ReactElement {
           <div
             ref={scrollRef}
             onScroll={updateScrollState}
+            onWheel={handleWheel}
             className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin"
             style={{
               scrollSnapType: "x mandatory",
@@ -314,6 +325,7 @@ export function AppearanceSettingsPage(): React.ReactElement {
                   key={theme.value}
                   type="button"
                   aria-pressed={isActive}
+                  aria-label={theme.label}
                   onClick={() => setThemePreset(theme.value)}
                   className="relative shrink-0 rounded-lg overflow-hidden transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 group"
                   style={{
@@ -370,7 +382,7 @@ export function AppearanceSettingsPage(): React.ReactElement {
 
                   {/* Theme label on hover */}
                   <div
-                    className="absolute inset-x-0 bottom-0 text-[9px] font-semibold text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute inset-x-0 bottom-0 text-[9px] font-semibold text-center py-0.5 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
                     style={{
                       background: `linear-gradient(transparent, ${theme.bg}ee)`,
                       color: theme.textPrimary,
