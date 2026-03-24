@@ -1,0 +1,129 @@
+/**
+ * Skyrim — VortexChat custom theme
+ *
+ * Inspired by the cold, rugged Nord aesthetic of The Elder Scrolls V: Skyrim.
+ * Dark stone grays, aged parchment text, frosty blue accents, and warm
+ * hearthfire golds evoke tavern notice boards and ancient Dragon Walls.
+ *
+ * HOW TO USE:
+ *   1. Open Profile Settings → Appearance tab
+ *   2. Scroll to "Custom CSS"
+ *   3. Click "Clear" to remove any existing CSS
+ *   4. Paste the entire contents of this file into the textarea
+ *   5. Click "Save Theme & Appearance"
+ *
+ * You can layer this on top of any preset — the custom CSS always wins.
+ */
+
+:root {
+  /* ── App shell backgrounds — dark hewn stone ─────────────────────────── */
+  --app-bg-primary: #1c1e1f;
+  --app-bg-secondary: #161819;
+
+  /* ── Surface palette — weathered stone & iron ────────────────────────── */
+  --theme-bg-primary: #1c1e1f;
+  --theme-bg-secondary: #161819;
+  --theme-bg-tertiary: #111213;
+  --theme-surface-elevated: #2a2c2e;
+  --theme-surface-input: #242627;
+  --theme-surface-elevation-1: #212324;
+  --theme-surface-elevation-3: #303234;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+
+  /* ── Typography — aged parchment & candlelight ───────────────────────── */
+  --theme-text-primary: #e8dcc8;
+  --theme-text-normal: #d4c9b5;
+  --theme-text-secondary: #b0a590;
+  --theme-text-muted: #8a806e;
+  --theme-text-faint: #6d6456;
+  --theme-text-bright: #f5eedf;
+
+  /* ── Accent & semantic — frost magic & hearthfire ────────────────────── */
+  --theme-accent: #6eafc8;
+  --theme-accent-secondary: #c8a24e;
+  --theme-link: #7dbfd6;
+  --theme-success: #6b9e4d;
+  --theme-positive: #7aad5a;
+  --theme-warning: #d4a740;
+  --theme-danger: #a83c3c;
+  --theme-presence-offline: #6b6459;
+
+  /* ── Tailwind design tokens (HSL — no hsl() wrapper) ─────────────── */
+  --background: 200 4% 11%;
+  --foreground: 36 30% 85%;
+  --card: 200 5% 9%;
+  --card-foreground: 36 30% 85%;
+  --popover: 200 5% 7%;
+  --popover-foreground: 36 30% 85%;
+  --primary: 200 40% 60%;
+  --primary-foreground: 36 30% 95%;
+  --secondary: 200 4% 14%;
+  --secondary-foreground: 36 16% 63%;
+  --accent: 200 40% 60%;
+  --accent-foreground: 36 30% 95%;
+  --muted: 200 4% 20%;
+  --muted-foreground: 36 14% 48%;
+  --border: 200 4% 18%;
+  --input: 200 4% 12%;
+  --ring: 200 40% 60%;
+  --destructive: 0 48% 45%;
+  --destructive-foreground: 36 30% 95%;
+}
+
+/* ── Nord frost accents ────────────────────────────────────────────────── */
+
+/* Cold stone hover on messages */
+.message-hover:hover {
+  background: rgba(110, 175, 200, 0.05) !important;
+}
+
+/* Weathered iron scrollbar */
+::-webkit-scrollbar-thumb {
+  background: rgba(176, 165, 144, 0.25) !important;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(176, 165, 144, 0.4) !important;
+}
+
+/* Frost glow on focused inputs */
+input:focus,
+textarea:focus {
+  box-shadow: 0 0 0 2px rgba(110, 175, 200, 0.2) !important;
+}
+
+/* Parchment-colored links */
+.message-content a {
+  color: var(--theme-link);
+}
+
+/* ── Dragon Wall embellishments (optional decorative touches) ──────── */
+
+/* Subtle top-border accent on the chat header — like a carved stone lintel */
+.chat-area-header {
+  border-bottom: 1px solid rgba(110, 175, 200, 0.12) !important;
+}
+
+/* Channel sidebar items get a warm hearthfire hover */
+.interactive-list-item:hover {
+  background: rgba(200, 162, 78, 0.08) !important;
+}
+
+/* Active channel — faint gold underline like an enchantment glow */
+.channel-active {
+  background: rgba(200, 162, 78, 0.12) !important;
+  border-left: 2px solid #c8a24e !important;
+}
+
+/* Server sidebar — darkest stone, like a dungeon wall */
+.server-sidebar {
+  background: #111213 !important;
+}
+
+/* Mention highlights — warm enchantment amber */
+.mention-highlight {
+  background: rgba(200, 162, 78, 0.1) !important;
+  border-left-color: #c8a24e !important;
+}
