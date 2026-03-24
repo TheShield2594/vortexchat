@@ -90,7 +90,7 @@ const coreFeatures = [
     icon: Gift,
     title: "Free Forever",
     description:
-      "No Nitro. No paywall. Every feature available to every user from day one — including custom themes, reactions, and file uploads.",
+      "No premium tiers. No paywall. Every feature available to every user from day one — including custom themes, reactions, and file uploads.",
   },
   {
     icon: FileJson2,
@@ -156,6 +156,12 @@ const themes = [
   { name: "Carbon", accent: "#3ba55c", bg: "#1f2124", label: "" },
   { name: "Twilight", accent: "#5865f2", bg: "#313338", label: "" },
   { name: "Frost", accent: "#e0a526", bg: "#1a2332", label: "" },
+  { name: "OLED Black", accent: "#0abab5", bg: "#000000", label: "" },
+  { name: "Clarity", accent: "#2563eb", bg: "#f8fafc", label: "Light" },
+  { name: "Velvet Dusk", accent: "#cba6f7", bg: "#1e1e2e", label: "" },
+  { name: "Terminal", accent: "#4aef98", bg: "#000900", label: "" },
+  { name: "Sakura Blossom", accent: "#e84393", bg: "#1a1218", label: "" },
+  { name: "Frosthearth", accent: "#6eafc8", bg: "#1a1e24", label: "" },
 ]
 
 const steps = [
@@ -569,7 +575,7 @@ export default async function HomePage() {
                   className="mb-3 text-2xl font-bold font-display md:text-3xl"
                   style={{ color: "var(--theme-text-bright)" }}
                 >
-                  No Nitro. No paywalls. Ever.
+                  No premium tiers. No paywalls. Ever.
                 </h2>
                 <p className="text-base leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
                   Every feature — custom themes, file uploads, video calls, server templates — is
@@ -682,19 +688,21 @@ export default async function HomePage() {
                 Your interface, your vibe.
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                {themes.length} hand-crafted themes ship with every account. Switch instantly — no refresh
-                required. All free.
+                Endless customization options — hand-crafted themes, custom accent colors, and full CSS
+                overrides ship with every account. Switch instantly, no refresh required. All free.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              {themes.map((theme) => (
+              {themes.map((theme) => {
+                const isLight = theme.label === "Light"
+                return (
                 <div
                   key={theme.name}
                   className="flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm font-medium"
                   style={{
                     background: theme.bg,
                     borderColor: hexToRgba(theme.accent, 0.25),
-                    color: "#e6ecff",
+                    color: isLight ? "#1e293b" : "#e6ecff",
                   }}
                 >
                   <span
@@ -716,7 +724,8 @@ export default async function HomePage() {
                     </span>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
