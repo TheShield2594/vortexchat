@@ -93,7 +93,8 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Auto-promote from waitlist only when someone leaves the "going" status
+  // Auto-promote from waitlist only when someone leaves the "going" status.
+  // Promotion is non-fatal — the RSVP change already committed successfully.
   if (previousStatus === "going" && requestedStatus !== "going" && event.capacity) {
     try {
       const { error: promoteError } = await supabase.rpc("promote_from_waitlist", {
@@ -101,24 +102,24 @@ export async function POST(
         p_event_capacity: event.capacity,
       })
       if (promoteError) {
-        console.error("promote_from_waitlist failed", {
+        console.error("promote_from_waitlist failed (non-fatal)", {
           route: "POST /events/[eventId]/rsvp",
           eventId: params.eventId,
           userId: user.id,
-          action: "promote_from_waitlist",
+          previousStatus,
+          requestedStatus,
           error: promoteError.message,
         })
-        return NextResponse.json({ error: "Failed to promote from waitlist" }, { status: 500 })
       }
     } catch (err) {
-      console.error("promote_from_waitlist threw", {
+      console.error("promote_from_waitlist threw (non-fatal)", {
         route: "POST /events/[eventId]/rsvp",
         eventId: params.eventId,
         userId: user.id,
-        action: "promote_from_waitlist",
+        previousStatus,
+        requestedStatus,
         error: err instanceof Error ? err.message : String(err),
       })
-      return NextResponse.json({ error: "Failed to promote from waitlist" }, { status: 500 })
     }
   }
 
