@@ -49,7 +49,7 @@ function OtpInput({
   disabled?: boolean
 }) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-  const digits = value.padEnd(6, "").slice(0, 6).split("")
+  const digits = value.padEnd(6, " ").slice(0, 6).split("")
 
   // Focus first box on mount
   useEffect(() => {
@@ -450,7 +450,7 @@ export default function LoginPage() {
       <div className="relative mb-4">
         <Button
           type="button"
-          disabled={passkeyLoading || formBusy}
+          disabled={formBusy}
           onClick={handlePasskeyLogin}
           className="auth-btn-accent h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
         >
@@ -515,7 +515,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  disabled={forgotLoading || formBusy}
+                  disabled={formBusy}
                   className="text-xs transition-colors hover:underline disabled:opacity-60"
                   style={{ color: "var(--theme-accent)" }}
                 >
@@ -546,7 +546,7 @@ export default function LoginPage() {
             </div>
             <Button
               type="submit"
-              disabled={loading || formBusy}
+              disabled={formBusy}
               className="auth-btn-accent h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Log In with Password
@@ -556,7 +556,7 @@ export default function LoginPage() {
           <Button
             type="button"
             variant="outline"
-            disabled={magicLinkLoading || formBusy}
+            disabled={formBusy}
             onClick={handleMagicLink}
             className="mt-4 h-10 w-full transition-colors"
             style={{
