@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 
 type RsvpStatus = "interested" | "going" | "maybe" | "not_going" | "waitlist"
 
@@ -13,37 +13,62 @@ export async function POST(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Verify membership
-  const { data: member } = await supabase
+  const { data: member, error: memberError } = await supabase
     .from("server_members")
     .select("server_id")
     .eq("server_id", params.serverId)
     .eq("user_id", user.id)
     .single()
+  if (memberError && memberError.code !== "PGRST116") {
+    return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
+  }
   if (!member) return NextResponse.json({ error: "Not a member" }, { status: 403 })
 
-  let body: { status: string }
+  let body: unknown
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const validStatuses: RsvpStatus[] = ["interested", "going", "maybe", "not_going"]
-  if (!validStatuses.includes(body.status as RsvpStatus)) {
+  if (typeof body !== "object" || body === null || !("status" in body) || typeof (body as Record<string, unknown>).status !== "string") {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  const validStatuses: RsvpStatus[] = ["interested", "going", "maybe", "not_going", "waitlist"]
+  const rawStatus = (body as Record<string, unknown>).status as string
+  if (!validStatuses.includes(rawStatus as RsvpStatus)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 })
   }
-  const requestedStatus = body.status as RsvpStatus
+  const requestedStatus = rawStatus as RsvpStatus
 
   // Fetch event for capacity check
-  const { data: event } = await supabase
+  const { data: event, error: eventError } = await supabase
     .from("events")
     .select("id, capacity")
     .eq("id", params.eventId)
     .eq("server_id", params.serverId)
     .single()
+  if (eventError && eventError.code !== "PGRST116") {
+    return NextResponse.json({ error: "Failed to fetch event" }, { status: 500 })
+  }
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 })
 
   let resolvedStatus: RsvpStatus = requestedStatus
+
+  // Fetch the user's current RSVP (if any) before making changes
+  const { data: currentRsvp, error: rsvpFetchError } = await supabase
+    .from("event_rsvps")
+    .select("status")
+    .eq("event_id", params.eventId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (rsvpFetchError) {
+    return NextResponse.json({ error: "Failed to fetch current RSVP" }, { status: 500 })
+  }
+  const previousStatus: RsvpStatus | null = currentRsvp
+    ? (currentRsvp.status as RsvpStatus)
+    : null
 
   // If going and capacity is set, check if at capacity
   if (requestedStatus === "going" && event.capacity) {
@@ -68,34 +93,34 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Auto-promote from waitlist when a "going" spot opens up
-  if (requestedStatus !== "going" && event.capacity) {
-    // Check if there's now room
-    const { count: goingCount } = await supabase
-      .from("event_rsvps")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", params.eventId)
-      .eq("status", "going")
-
-    if ((goingCount ?? 0) < event.capacity) {
-      // Find the next person on the waitlist (by waitlist_position, then created_at)
-      const { data: nextWaitlisted } = await supabase
-        .from("event_rsvps")
-        .select("user_id")
-        .eq("event_id", params.eventId)
-        .eq("status", "waitlist")
-        .order("waitlist_position", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .single()
-
-      if (nextWaitlisted) {
-        await supabase
-          .from("event_rsvps")
-          .update({ status: "going", waitlist_position: null })
-          .eq("event_id", params.eventId)
-          .eq("user_id", nextWaitlisted.user_id)
+  // Auto-promote from waitlist only when someone leaves the "going" status.
+  // Promotion is non-fatal — the RSVP change already committed successfully.
+  // Uses service-role client since promote_from_waitlist is restricted to service_role.
+  if (previousStatus === "going" && requestedStatus !== "going" && event.capacity) {
+    try {
+      const service = await createServiceRoleClient()
+      const { error: promoteError } = await service.rpc("promote_from_waitlist", {
+        p_event_id: params.eventId,
+      })
+      if (promoteError) {
+        console.error("promote_from_waitlist failed (non-fatal)", {
+          route: "POST /events/[eventId]/rsvp",
+          eventId: params.eventId,
+          userId: user.id,
+          previousStatus,
+          requestedStatus,
+          error: promoteError.message,
+        })
       }
+    } catch (err) {
+      console.error("promote_from_waitlist threw (non-fatal)", {
+        route: "POST /events/[eventId]/rsvp",
+        eventId: params.eventId,
+        userId: user.id,
+        previousStatus,
+        requestedStatus,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 

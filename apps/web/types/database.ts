@@ -2219,7 +2219,7 @@ export type Database = {
           start_at: string
           end_at: string
           timezone?: string
-          recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrence?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
           recurrence_until?: string | null
           capacity?: number | null
           create_voice_channel?: boolean
@@ -2241,7 +2241,7 @@ export type Database = {
           start_at?: string
           end_at?: string
           timezone?: string
-          recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrence?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
           recurrence_until?: string | null
           capacity?: number | null
           create_voice_channel?: boolean
@@ -2293,7 +2293,7 @@ export type Database = {
         Update: {
           event_id?: string
           user_id?: string
-          status?: 'going' | 'maybe' | 'not_going' | 'waitlist'
+          status?: 'interested' | 'going' | 'maybe' | 'not_going' | 'waitlist'
           waitlist_position?: number | null
           created_at?: string
           updated_at?: string
@@ -3007,6 +3007,14 @@ export type Database = {
       reorder_channels: {
         Args: { p_server_id: string; p_updates: Json }
         Returns: undefined
+      }
+      promote_from_waitlist: {
+        Args: { p_event_id: string; p_event_capacity?: number }
+        Returns: string | null
+      }
+      set_event_capacity_and_promote: {
+        Args: { p_event_id: string; p_server_id: string; p_new_capacity: number }
+        Returns: number
       }
     }
     Enums: {
