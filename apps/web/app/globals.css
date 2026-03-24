@@ -1642,6 +1642,7 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 /* ── Frosthearth — frozen tundra + warm tavern signature behaviors ─────── */
 [data-theme-preset="frosthearth"] [data-message].message-hover:hover {
   background: var(--frosthearth-hover-cool);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--theme-accent) 35%, transparent);
 }
 
 [data-theme-preset="frosthearth"] ::-webkit-scrollbar-thumb {
@@ -1691,9 +1692,6 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   background-attachment: fixed;
 }
 
-[data-theme-preset="frosthearth"] [data-message].message-hover:hover {
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--theme-accent) 35%, transparent);
-}
 
 [data-theme-preset="frosthearth"] .message-content :is(code, pre) {
   border: 1px solid color-mix(in srgb, var(--theme-accent-secondary) 20%, transparent);
