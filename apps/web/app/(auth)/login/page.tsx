@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, ShieldCheck, Sparkles, KeyRound } from "lucide-react"
+import { Loader2, ShieldCheck, Sparkles, KeyRound, Eye, EyeOff, Info } from "lucide-react"
 import { startPasskeyLogin, supportsPasskeys } from "@/lib/auth/passkeys-client"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 
@@ -38,6 +38,80 @@ function AccentBadge({
   )
 }
 
+// ── OTP Input — 6 individual digit boxes ────────────────────────────────────
+function OtpInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (val: string) => void
+  disabled?: boolean
+}) {
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const digits = value.padEnd(6, " ").slice(0, 6).split("")
+
+  // Focus first box on mount
+  useEffect(() => {
+    inputRefs.current[0]?.focus()
+  }, [])
+
+  const handleChange = useCallback(
+    (index: number, char: string) => {
+      if (!/^\d?$/.test(char)) return
+      const next = digits.slice()
+      next[index] = char
+      const joined = next.join("").replace(/ /g, "")
+      onChange(joined)
+      if (char && index < 5) {
+        inputRefs.current[index + 1]?.focus()
+      }
+    },
+    [digits, onChange],
+  )
+
+  const handleKeyDown = useCallback(
+    (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Backspace" && !digits[index] && index > 0) {
+        inputRefs.current[index - 1]?.focus()
+      }
+    },
+    [digits],
+  )
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      e.preventDefault()
+      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6)
+      onChange(pasted)
+      const focusIdx = Math.min(pasted.length, 5)
+      inputRefs.current[focusIdx]?.focus()
+    },
+    [onChange],
+  )
+
+  return (
+    <div className="flex justify-center gap-2" onPaste={handlePaste}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <input
+          key={i}
+          ref={(el: HTMLInputElement | null) => { inputRefs.current[i] = el }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={digits[i]?.trim() ?? ""}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange(i, e.target.value)}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(i, e)}
+          disabled={disabled}
+          aria-label={`Digit ${i + 1}`}
+          className="auth-input h-12 w-10 rounded-lg border text-center text-xl font-semibold focus:ring-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ caretColor: "transparent" }}
+        />
+      ))}
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const searchParams = useSearchParams()
   const isNewUser = searchParams.get("registered") === "true"
@@ -48,12 +122,17 @@ export default function LoginPage() {
   const [forgotLoading, setForgotLoading] = useState(false)
   const [policy, setPolicy] = useState<{ passkey_first?: boolean; enforce_passkey?: boolean; fallback_password?: boolean; fallback_magic_link?: boolean }>({})
   const [form, setForm] = useState({ email: "", password: "" })
+  const [showPassword, setShowPassword] = useState(false)
   const [step, setStep] = useState<LoginStep>("credentials")
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
   const [totpCode, setTotpCode] = useState("")
   const [recoveryCode, setRecoveryCode] = useState("")
   const [mfaLoading, setMfaLoading] = useState(false)
+  const [showPasskeyInfo, setShowPasskeyInfo] = useState(false)
   const supabase = createClientSupabaseClient()
+
+  // Derive combined "any submission in flight" flag for disabling the whole form
+  const formBusy = loading || magicLinkLoading || passkeyLoading || forgotLoading
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -92,8 +171,9 @@ export default function LoginPage() {
       // Only allow relative paths to prevent open-redirect attacks
       const safeDest = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : "/channels/me"
       window.location.href = safeDest
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Login failed", description: error.message || "Something went wrong" })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Something went wrong"
+      toast({ variant: "destructive", title: "Login failed", description: message })
     } finally {
       setLoading(false)
     }
@@ -123,8 +203,9 @@ export default function LoginPage() {
       }
       const rd = searchParams.get("redirect")
       window.location.href = rd && rd.startsWith("/") && !rd.startsWith("//") ? rd : "/channels/me"
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Verification failed", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Verification failed"
+      toast({ variant: "destructive", title: "Verification failed", description: message })
     } finally {
       setMfaLoading(false)
     }
@@ -151,8 +232,9 @@ export default function LoginPage() {
       // Session cookies are now set by the redeem endpoint — navigate to the app
       const rd = searchParams.get("redirect")
       window.location.href = rd && rd.startsWith("/") && !rd.startsWith("//") ? rd : "/channels/me"
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Recovery failed", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Recovery failed"
+      toast({ variant: "destructive", title: "Recovery failed", description: message })
     } finally {
       setMfaLoading(false)
     }
@@ -175,8 +257,9 @@ export default function LoginPage() {
       })
       if (error) throw error
       toast({ title: "Magic link sent!", description: `Check ${form.email} for your login link.` })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to send magic link", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to send magic link"
+      toast({ variant: "destructive", title: "Failed to send magic link", description: message })
     } finally {
       setMagicLinkLoading(false)
     }
@@ -194,8 +277,9 @@ export default function LoginPage() {
       })
       if (error) throw error
       toast({ title: "Reset link sent!", description: `Check ${form.email} for a password reset link.` })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to send reset link", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to send reset link"
+      toast({ variant: "destructive", title: "Failed to send reset link", description: message })
     } finally {
       setForgotLoading(false)
     }
@@ -210,8 +294,9 @@ export default function LoginPage() {
     try {
       const resolvedPolicy = await startPasskeyLogin(form.email || undefined, "Trusted browser")
       if (resolvedPolicy) setPolicy(resolvedPolicy)
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Passkey login failed", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Passkey login failed"
+      toast({ variant: "destructive", title: "Passkey login failed", description: message })
     } finally {
       setPasskeyLoading(false)
     }
@@ -241,19 +326,7 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleMfaVerify} className="space-y-4">
-          <div className="flex justify-center">
-            {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={totpCode}
-              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="000000"
-              autoFocus
-              className="auth-input w-48 rounded-lg border px-4 py-3 text-center text-2xl tracking-[0.3em]"
-            />
-          </div>
+          <OtpInput value={totpCode} onChange={setTotpCode} disabled={mfaLoading} />
           <Button
             type="submit"
             disabled={totpCode.length !== 6 || mfaLoading}
@@ -321,6 +394,7 @@ export default function LoginPage() {
               onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
               placeholder="XXXX-XXXX"
               autoFocus
+              disabled={mfaLoading}
               className="auth-input h-10 border text-center font-mono text-lg tracking-wider"
             />
           </div>
@@ -369,37 +443,45 @@ export default function LoginPage() {
           {isNewUser ? "Verify your email" : "Welcome back!"}
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
-          {isNewUser ? "Check your inbox for a verification link, then log in below." : "We're so excited to see you again!"}
+          {isNewUser ? "Check your inbox for a verification link, then log in below." : "Sign in to your account"}
         </p>
       </div>
 
-      <div
-        className="mb-4 rounded-lg border p-3 text-sm"
-        style={{
-          borderColor: "rgba(255,255,255,0.08)",
-          background: "var(--theme-bg-tertiary)",
-          color: "var(--theme-text-secondary)",
-        }}
-      >
-        <p className="mb-1 flex items-center gap-2 font-medium" style={{ color: "var(--theme-text-primary)" }}>
-          <ShieldCheck className="h-4 w-4" style={{ color: "var(--theme-success)" }} />
-          Passkey-first security
-        </p>
-        <p>Use your device passkey for phishing-resistant sign in. If your policy allows it, password and magic link remain available as backups.</p>
+      <div className="relative mb-4">
+        <Button
+          type="button"
+          disabled={formBusy}
+          onClick={handlePasskeyLogin}
+          className="auth-btn-accent h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
+        >
+          {passkeyLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Continue with Passkey
+        </Button>
+        <button
+          type="button"
+          onClick={() => setShowPasskeyInfo(!showPasskeyInfo)}
+          className="absolute right-0 -bottom-5 flex items-center gap-1 text-xs transition-colors"
+          style={{ color: "var(--theme-text-secondary)" }}
+          aria-label="About passkeys"
+        >
+          <Info className="h-3 w-3" /> What are passkeys?
+        </button>
+        {showPasskeyInfo && (
+          <div
+            className="mt-6 rounded-lg border p-3 text-xs"
+            style={{
+              borderColor: "rgba(255,255,255,0.08)",
+              background: "var(--theme-bg-tertiary)",
+              color: "var(--theme-text-secondary)",
+            }}
+          >
+            Passkeys use your device biometrics (fingerprint, face) for phishing-resistant sign in. If your policy allows it, password and magic link remain available as backups.
+          </div>
+        )}
       </div>
-
-      <Button
-        type="button"
-        disabled={passkeyLoading}
-        onClick={handlePasskeyLogin}
-        className="auth-btn-accent mb-4 h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
-      >
-        {passkeyLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Continue with Passkey
-      </Button>
 
       {showFallbacks && (
         <>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div className="space-y-2">
               <Label
                 htmlFor="email"
@@ -408,6 +490,7 @@ export default function LoginPage() {
               >
                 Email <span style={{ color: "var(--theme-danger)" }}>*</span>
               </Label>
+              {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
               <Input
                 id="email"
                 type="email"
@@ -415,6 +498,8 @@ export default function LoginPage() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
+                autoFocus
+                disabled={formBusy}
                 className="auth-input h-10 border"
               />
             </div>
@@ -430,25 +515,38 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  disabled={forgotLoading}
+                  disabled={formBusy}
                   className="text-xs transition-colors hover:underline disabled:opacity-60"
                   style={{ color: "var(--theme-accent)" }}
                 >
-                  {forgotLoading ? "Sending…" : "Forgot password?"}
+                  {forgotLoading ? "Sending\u2026" : "Forgot password?"}
                 </button>
               </div>
-              <Input
-                id="password"
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-                className="auth-input h-10 border"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                  disabled={formBusy}
+                  className="auth-input h-10 border pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: "var(--theme-text-secondary)" }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={formBusy}
               className="auth-btn-accent h-11 w-full border-0 font-medium transition-opacity hover:opacity-90"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Log In with Password
@@ -458,7 +556,7 @@ export default function LoginPage() {
           <Button
             type="button"
             variant="outline"
-            disabled={magicLinkLoading}
+            disabled={formBusy}
             onClick={handleMagicLink}
             className="mt-4 h-10 w-full transition-colors"
             style={{
