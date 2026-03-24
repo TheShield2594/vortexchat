@@ -98,11 +98,14 @@ export function NotificationsSettingsPage({ userId }: Props) {
   const persistSetting = useCallback(async (next: NotificationSettingsRow) => {
     setSaving(true)
     try {
-      await fetch("/api/user/notification-preferences", {
+      const res = await fetch("/api/user/notification-preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(next),
       })
+      if (!res.ok) {
+        throw new Error("Failed to save preference")
+      }
       // Mirror sound setting to localStorage so use-notification-sound hook picks it up
       if (typeof window !== "undefined") {
         try {

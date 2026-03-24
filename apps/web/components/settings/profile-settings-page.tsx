@@ -166,12 +166,16 @@ export function ProfileSettingsPage({ user }: Props) {
   }
 
   async function removePin(pinId: string) {
-    const res = await fetch(`/api/users/pinned?id=${pinId}`, { method: "DELETE" })
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/users/pinned?id=${pinId}`, { method: "DELETE" })
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Failed to remove pin" })
+        return
+      }
+      setPins((prev) => prev.filter((p) => p.id !== pinId))
+    } catch {
       toast({ variant: "destructive", title: "Failed to remove pin" })
-      return
     }
-    setPins((prev) => prev.filter((p) => p.id !== pinId))
   }
 
   async function saveActivityVisibility(value: "public" | "friends" | "private") {
@@ -274,12 +278,16 @@ export function ProfileSettingsPage({ user }: Props) {
   }
 
   async function removeConnection(id: string) {
-    const res = await fetch(`/api/users/connections?id=${id}`, { method: "DELETE" })
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/users/connections?id=${id}`, { method: "DELETE" })
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Failed to remove connection" })
+        return
+      }
+      setConnections((prev) => prev.filter((item) => item.id !== id))
+    } catch {
       toast({ variant: "destructive", title: "Failed to remove connection" })
-      return
     }
-    setConnections((prev) => prev.filter((item) => item.id !== id))
   }
 
   const steamConnection = connections.find((item) => item.provider === "steam")

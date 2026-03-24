@@ -10,6 +10,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
  * Rate limited: one export per 24 hours via client-side gating + server check.
  */
 export async function GET() {
+  try {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -95,7 +96,7 @@ export async function GET() {
 
   if (queryErrors.length > 0) {
     return NextResponse.json(
-      { error: "Failed to gather export data", details: queryErrors },
+      { error: "Failed to gather export data" },
       { status: 500 }
     )
   }
@@ -131,4 +132,7 @@ export async function GET() {
       "Cache-Control": "no-store",
     },
   })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
