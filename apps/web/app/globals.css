@@ -658,6 +658,99 @@
 
 /* ─── Appearance settings ─────────────────────────────────────────────────── */
 
+/* ── Font family ─────────────────────────────────────────────────────────── */
+[data-font-family="system"] { --vortex-font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+[data-font-family="inter"] { --vortex-font-body: "Inter", system-ui, sans-serif; }
+[data-font-family="mono"] { --vortex-font-body: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+[data-font-family="dyslexia"] { --vortex-font-body: "OpenDyslexic", system-ui, sans-serif; letter-spacing: 0.04em; }
+
+html[data-font-family] body { font-family: var(--vortex-font-body); }
+
+/* ── Line height ─────────────────────────────────────────────────────────── */
+[data-line-height="tight"] { --vortex-line-height: 1.35; }
+[data-line-height="normal"] { --vortex-line-height: 1.5; }
+[data-line-height="relaxed"] { --vortex-line-height: 1.75; }
+
+html[data-line-height] body { line-height: var(--vortex-line-height); }
+
+/* ── Code font ───────────────────────────────────────────────────────────── */
+[data-code-font="default"] { --vortex-font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+[data-code-font="fira-code"] { --vortex-font-code: "Fira Code", ui-monospace, monospace; }
+[data-code-font="jetbrains-mono"] { --vortex-font-code: "JetBrains Mono", ui-monospace, monospace; }
+[data-code-font="cascadia"] { --vortex-font-code: "Cascadia Code", ui-monospace, monospace; }
+
+.message-content code,
+.message-content pre code { font-family: var(--vortex-font-code, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace); }
+
+/* ── Chat bubble style ───────────────────────────────────────────────────── */
+[data-chat-bubble-style="bubble"] .message-row .message-bubble {
+  background: var(--theme-surface-elevation-2);
+  border-radius: 16px 16px 16px 4px;
+  padding: 8px 14px;
+  max-width: 80%;
+  width: fit-content;
+}
+
+[data-chat-bubble-style="bubble"] .message-row.message-own .message-bubble {
+  border-radius: 16px 16px 4px 16px;
+  background: color-mix(in srgb, var(--theme-accent) 20%, var(--theme-surface-elevation-2));
+  margin-left: auto;
+}
+
+/* ── Emoji size ──────────────────────────────────────────────────────────── */
+[data-emoji-size="small"] .emoji-only { font-size: 1.5rem; }
+[data-emoji-size="normal"] .emoji-only { font-size: 2.5rem; }
+[data-emoji-size="large"] .emoji-only { font-size: 3.5rem; }
+
+/* ── GIF autoplay ────────────────────────────────────────────────────────── */
+/* GIF pause/play is handled by the useGifAutoplay hook in JS (canvas-based
+   static frame extraction + hover restore). This CSS hides the original img
+   when a static preview overlay is active so there's no double-render. */
+[data-gif-autoplay="false"] .gif-container--paused > img { visibility: hidden; }
+[data-gif-autoplay="false"] .gif-container--paused > .gif-static-preview { visibility: visible; }
+
+/* ── High contrast mode ──────────────────────────────────────────────────── */
+[data-high-contrast="true"] {
+  --theme-text-primary: #ffffff;
+  --theme-text-secondary: #e0e0e0;
+  --theme-text-muted: #c0c0c0;
+  --theme-text-faint: #b0b0b0;
+  --theme-text-bright: #ffffff;
+  --theme-text-normal: #f0f0f0;
+  --theme-bg-primary: #000000;
+  --theme-bg-secondary: #0a0a0a;
+  --theme-bg-tertiary: #141414;
+  --theme-surface-elevated: #1a1a1a;
+  --theme-border: #555555;
+}
+
+[data-high-contrast="true"] *:focus-visible {
+  outline: 3px solid var(--theme-accent) !important;
+  outline-offset: 2px;
+}
+
+/* ── Focus indicator styles ──────────────────────────────────────────────── */
+[data-focus-indicator="high-contrast"] *:focus-visible {
+  outline: 3px solid var(--theme-accent) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-accent) 30%, transparent) !important;
+}
+
+[data-focus-indicator="outline"] *:focus-visible {
+  outline: 2px dashed var(--theme-text-primary) !important;
+  outline-offset: 3px;
+}
+
+/* ── Notification badge style ────────────────────────────────────────────── */
+[data-notification-badge-style="dot"] .notification-badge-count { display: none; }
+[data-notification-badge-style="dot"] .notification-badge {
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  border-radius: 50%;
+  font-size: 0;
+  padding: 0;
+}
 
 /* Theme presets – every preset declares all tokens so switching themes is
    fully self-contained with no leftover values from a previous preset. */
@@ -1076,6 +1169,167 @@
   --theme-warning: #f9e2af;
   --theme-danger: #f38ba8;
   --theme-presence-offline: #585b70;
+}
+
+/* ── Color mode overrides — placed after presets with :root prefix for higher
+   specificity so they reliably override preset tokens when the user forces a
+   color scheme that differs from the selected preset. ───────────────────── */
+
+/* System: follow OS preference */
+@media (prefers-color-scheme: light) {
+  :root[data-color-mode="system"] {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 220 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 9% 46%;
+    --accent: 220 70% 50%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 9% 46%;
+    --border: 220 13% 91%;
+    --input: 220 14% 96%;
+    --ring: 220 70% 50%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --theme-bg-primary: #ffffff;
+    --theme-bg-secondary: #f5f5f5;
+    --theme-bg-tertiary: #eeeeee;
+    --theme-surface-elevated: #fafafa;
+    --theme-surface-input: #e8e8e8;
+    --theme-surface-elevation-1: #f0f0f0;
+    --theme-surface-elevation-2: #e8e8e8;
+    --theme-surface-elevation-3: #e0e0e0;
+    --theme-text-primary: #1a1a1a;
+    --theme-text-secondary: #555555;
+    --theme-text-muted: #888888;
+    --theme-text-bright: #000000;
+    --theme-text-normal: #333333;
+    --theme-text-faint: #999999;
+    --app-bg-primary: #ffffff;
+    --app-bg-secondary: #f5f5f5;
+    color-scheme: light;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-color-mode="system"] {
+    --background: 223 7% 20%;
+    --foreground: 220 9% 95%;
+    --card: 220 7% 18%;
+    --card-foreground: 220 9% 95%;
+    --popover: 220 7% 14%;
+    --popover-foreground: 220 9% 95%;
+    --primary: 235 86% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 6% 18%;
+    --secondary-foreground: 215 8% 73%;
+    --muted: 220 5% 30%;
+    --muted-foreground: 215 8% 60%;
+    --border: 220 6% 25%;
+    --input: 220 6% 18%;
+    --ring: 235 86% 65%;
+    --destructive: 359 87% 57%;
+    --destructive-foreground: 0 0% 100%;
+    --theme-bg-primary: #313338;
+    --theme-bg-secondary: #2b2d31;
+    --theme-bg-tertiary: #1e1f22;
+    --theme-surface-elevated: #3f4147;
+    --theme-surface-input: #383a40;
+    --theme-surface-elevation-1: #32353a;
+    --theme-surface-elevation-3: #42464d;
+    --theme-text-primary: #f2f3f5;
+    --theme-text-secondary: #b5bac1;
+    --theme-text-muted: #949ba4;
+    --theme-text-bright: #dbdee1;
+    --theme-text-normal: #dcddde;
+    --theme-text-faint: #959ca6;
+    --app-bg-primary: #313338;
+    --app-bg-secondary: #2b2d31;
+    color-scheme: dark;
+  }
+}
+
+/* Forced light mode */
+:root[data-color-mode="light"] {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 220 70% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 9% 46%;
+  --accent: 220 70% 50%;
+  --accent-foreground: 0 0% 100%;
+  --muted: 220 14% 93%;
+  --muted-foreground: 220 9% 46%;
+  --border: 220 13% 91%;
+  --input: 220 14% 96%;
+  --ring: 220 70% 50%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --theme-bg-primary: #ffffff;
+  --theme-bg-secondary: #f5f5f5;
+  --theme-bg-tertiary: #eeeeee;
+  --theme-surface-elevated: #fafafa;
+  --theme-surface-input: #e8e8e8;
+  --theme-surface-elevation-1: #f0f0f0;
+  --theme-surface-elevation-2: #e8e8e8;
+  --theme-surface-elevation-3: #e0e0e0;
+  --theme-text-primary: #1a1a1a;
+  --theme-text-secondary: #555555;
+  --theme-text-muted: #888888;
+  --theme-text-bright: #000000;
+  --theme-text-normal: #333333;
+  --theme-text-faint: #999999;
+  --app-bg-primary: #ffffff;
+  --app-bg-secondary: #f5f5f5;
+  color-scheme: light;
+}
+
+/* Forced dark mode */
+:root[data-color-mode="dark"] {
+  --background: 223 7% 20%;
+  --foreground: 220 9% 95%;
+  --card: 220 7% 18%;
+  --card-foreground: 220 9% 95%;
+  --popover: 220 7% 14%;
+  --popover-foreground: 220 9% 95%;
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 6% 18%;
+  --secondary-foreground: 215 8% 73%;
+  --muted: 220 5% 30%;
+  --muted-foreground: 215 8% 60%;
+  --border: 220 6% 25%;
+  --input: 220 6% 18%;
+  --ring: 235 86% 65%;
+  --destructive: 359 87% 57%;
+  --destructive-foreground: 0 0% 100%;
+  --theme-bg-primary: #313338;
+  --theme-bg-secondary: #2b2d31;
+  --theme-bg-tertiary: #1e1f22;
+  --theme-surface-elevated: #3f4147;
+  --theme-surface-input: #383a40;
+  --theme-surface-elevation-1: #32353a;
+  --theme-surface-elevation-3: #42464d;
+  --theme-text-primary: #f2f3f5;
+  --theme-text-secondary: #b5bac1;
+  --theme-text-muted: #949ba4;
+  --theme-text-bright: #dbdee1;
+  --theme-text-normal: #dcddde;
+  --theme-text-faint: #959ca6;
+  --app-bg-primary: #313338;
+  --app-bg-secondary: #2b2d31;
+  color-scheme: dark;
 }
 
 /* Font scale */
