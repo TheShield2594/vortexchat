@@ -40,8 +40,8 @@
   --theme-text-primary: #e8dcc8;
   --theme-text-normal: #d4c9b5;
   --theme-text-secondary: #b0a590;
-  --theme-text-muted: #8a806e;
-  --theme-text-faint: #6d6456;
+  --theme-text-muted: #9a8f7c;
+  --theme-text-faint: #7e7466;
   --theme-text-bright: #f5eedf;
 
   /* ── Accent & semantic — ice & hearthfire ─────────────────────────────── */
@@ -74,7 +74,8 @@
   /* ── Opacity & misc design tokens ────────────────────────────────────── */
   --theme-opacity-overlay: 0.72;
   --theme-opacity-muted: 0.7;
-  --color-tertiary-metadata: #8a806e;
+  --color-tertiary-metadata: #9a8f7c;
+  --theme-radius: 0.5rem;
   --radius: 0.5rem;
 
   /* ── Motion timing & easing ──────────────────────────────────────────── */
@@ -134,9 +135,10 @@
 
 /* ── Frosthearth accents ───────────────────────────────────────────────── */
 
-/* Cold stone hover on messages */
+/* Cold stone hover on messages — icy tint + carved-stone left edge */
 [data-message].message-hover:hover {
   background: var(--frosthearth-hover-cool);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--theme-accent) 35%, transparent);
 }
 
 /* Weathered iron scrollbar */
@@ -149,7 +151,7 @@
 }
 
 /* Firefox scrollbar parity */
-* {
+html {
   scrollbar-color: var(--frosthearth-scrollbar-thumb) transparent;
 }
 
@@ -210,11 +212,6 @@ body {
   background-attachment: fixed;
 }
 
-/* Message cards gain a carved-stone edge on hover */
-[data-message].message-hover:hover {
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--theme-accent) 35%, transparent);
-}
-
 /* “Runed parchment” look for inline/preformatted code inside messages */
 .message-content :is(code, pre) {
   border: 1px solid color-mix(in srgb, var(--theme-accent-secondary) 20%, transparent);
@@ -225,6 +222,13 @@ body {
 
 .message-content code {
   color: color-mix(in srgb, var(--theme-text-bright) 90%, var(--theme-accent-secondary));
+}
+
+/* Disable fixed background on mobile to avoid repaint jank */
+@media (max-width: 768px) {
+  body {
+    background-attachment: initial;
+  }
 }
 
 /* Respect reduced motion preference in custom CSS too */

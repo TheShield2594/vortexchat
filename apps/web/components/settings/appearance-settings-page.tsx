@@ -100,6 +100,7 @@ const THEME_PRESET_OPTIONS: {
   { value: "clarity", label: "Clarity", description: "Clean & minimal light theme", accent: "#2563eb", bg: "#ffffff", surface: "#f8f9fa", textPrimary: "#1a1a1a", textMuted: "#9ca3af" },
   { value: "velvet-dusk", label: "Velvet Dusk", description: "Soft pastel tones on dark canvas", accent: "#cba6f7", bg: "#1e1e2e", surface: "#181825", textPrimary: "#cdd6f4", textMuted: "#7f849c" },
   { value: "terminal", label: "Terminal", description: "Green phosphor CRT terminal", accent: "#4aef98", bg: "#000900", surface: "#001a05", textPrimary: "#4aef98", textMuted: "#4aef9859" },
+  { value: "frosthearth", label: "Frosthearth", description: "Nordic frost meets warm tavern", accent: "#6eafc8", bg: "#1c1e1f", surface: "#161819", textPrimary: "#e8dcc8", textMuted: "#9a8f7c" },
 ]
 
 /* ─── Mock chat preview data ──────────────────────────── */

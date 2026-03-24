@@ -86,6 +86,14 @@
     --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 60%, white);
     --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
     --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
+    /* ── Audit-log / category semantic colors ──────────────────────────── */
+    --theme-cat-member: #60a5fa;
+    --theme-cat-role: #c084fc;
+    --theme-cat-channel: #22d3ee;
+    --theme-cat-message: #4ade80;
+    --theme-cat-server: #facc15;
+    --theme-cat-automod: #fb923c;
+    --theme-cat-other: #a1a1aa;
   }
 }
 
@@ -806,6 +814,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-warning: #f0b132;
   --theme-danger: #f23f43;
   --theme-presence-offline: #80848e;
+  --color-tertiary-metadata: #949ba4;
+  --theme-cat-member: #5b8fd9;
+  --theme-cat-role: #b085d8;
+  --theme-cat-channel: #5ab8c8;
+  --theme-cat-message: #3ba55c;
+  --theme-cat-server: #f0b132;
+  --theme-cat-automod: #e08050;
+  --theme-cat-other: #80848e;
 }
 
 [data-theme-preset="midnight-neon"] {
@@ -859,6 +875,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-warning: #ffb84d;
   --theme-danger: #ff5d73;
   --theme-presence-offline: #6f7898;
+  --color-tertiary-metadata: #8f9bbf;
+  --theme-cat-member: #60a5fa;
+  --theme-cat-role: #c084fc;
+  --theme-cat-channel: #22d3ee;
+  --theme-cat-message: #3ddc97;
+  --theme-cat-server: #ffb84d;
+  --theme-cat-automod: #fb923c;
+  --theme-cat-other: #6f7898;
 }
 
 [data-theme-preset="synthwave"] {
@@ -912,6 +936,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-warning: #ffc266;
   --theme-danger: #ff5f8c;
   --theme-presence-offline: #8674a8;
+  --color-tertiary-metadata: #a990d0;
+  --theme-cat-member: #7eb8f0;
+  --theme-cat-role: #d4a0f7;
+  --theme-cat-channel: #50e5ff;
+  --theme-cat-message: #5ae6a9;
+  --theme-cat-server: #ffc266;
+  --theme-cat-automod: #ff9e5c;
+  --theme-cat-other: #8674a8;
 }
 
 [data-theme-preset="carbon"] {
@@ -965,6 +997,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-warning: #d19c4c;
   --theme-danger: #d65257;
   --theme-presence-offline: #7d858f;
+  --color-tertiary-metadata: #98a0ab;
+  --theme-cat-member: #5ca0d0;
+  --theme-cat-role: #a080c0;
+  --theme-cat-channel: #50b8c8;
+  --theme-cat-message: #3ba55c;
+  --theme-cat-server: #d19c4c;
+  --theme-cat-automod: #c88050;
+  --theme-cat-other: #7d858f;
 }
 
 [data-theme-preset="oled-black"] {
@@ -1018,6 +1058,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-warning: #e5a020;
   --theme-danger: #e8404a;
   --theme-presence-offline: #5a7070;
+  --color-tertiary-metadata: #7a9898;
+  --theme-cat-member: #40b0c8;
+  --theme-cat-role: #a088c0;
+  --theme-cat-channel: #0abab5;
+  --theme-cat-message: #30c97a;
+  --theme-cat-server: #e5a020;
+  --theme-cat-automod: #d08848;
+  --theme-cat-other: #5a7070;
 }
 
 [data-theme-preset="frost"] {
@@ -1071,6 +1119,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-warning: #e0a526;
   --theme-danger: #e05252;
   --theme-presence-offline: #6e7f92;
+  --color-tertiary-metadata: #8494a8;
+  --theme-cat-member: #5ba4e6;
+  --theme-cat-role: #a080d0;
+  --theme-cat-channel: #40a8c0;
+  --theme-cat-message: #3dba6a;
+  --theme-cat-server: #e0a526;
+  --theme-cat-automod: #d08850;
+  --theme-cat-other: #6e7f92;
 }
 
 /* ── Clarity — minimalist light theme inspired by Notion / Linear ── */
@@ -1120,6 +1176,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-warning: #d97706;
   --theme-danger: #dc2626;
   --theme-presence-offline: #9ca3af;
+  --color-tertiary-metadata: #9ca3af;
+  --theme-cat-member: #2563eb;
+  --theme-cat-role: #7c3aed;
+  --theme-cat-channel: #0891b2;
+  --theme-cat-message: #16a34a;
+  --theme-cat-server: #d97706;
+  --theme-cat-automod: #ea580c;
+  --theme-cat-other: #6b7280;
 }
 
 /* ── Velvet Dusk — soft pastel dark theme ── */
@@ -1169,6 +1233,14 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-warning: #f9e2af;
   --theme-danger: #f38ba8;
   --theme-presence-offline: #585b70;
+  --color-tertiary-metadata: #7f849c;
+  --theme-cat-member: #89b4fa;
+  --theme-cat-role: #cba6f7;
+  --theme-cat-channel: #89dceb;
+  --theme-cat-message: #a6e3a1;
+  --theme-cat-server: #f9e2af;
+  --theme-cat-automod: #fab387;
+  --theme-cat-other: #585b70;
 }
 
 /* ── Terminal — green phosphor CRT terminal ── */
@@ -1221,7 +1293,75 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-shadow-elevation-1: 0 0 4px rgba(74, 239, 152, 0.06);
   --theme-shadow-elevation-2: 0 0 8px rgba(74, 239, 152, 0.06);
   --theme-shadow-elevation-3: 0 0 14px rgba(74, 239, 152, 0.08);
+  --color-tertiary-metadata: rgba(74, 239, 152, 0.35);
+  --theme-cat-member: rgba(74, 239, 152, 0.7);
+  --theme-cat-role: rgba(74, 239, 152, 0.6);
+  --theme-cat-channel: rgba(74, 239, 152, 0.7);
+  --theme-cat-message: rgba(57, 255, 20, 0.7);
+  --theme-cat-server: rgba(255, 255, 51, 0.7);
+  --theme-cat-automod: rgba(255, 180, 50, 0.7);
+  --theme-cat-other: rgba(74, 239, 152, 0.35);
   --radius: 0rem;
+}
+
+/* ── Frosthearth — Nordic frost meets warm tavern ── */
+[data-theme-preset="frosthearth"] {
+  --background: 200 4% 11%;
+  --foreground: 36 30% 85%;
+  --card: 200 5% 9%;
+  --card-foreground: 36 30% 85%;
+  --popover: 200 5% 7%;
+  --popover-foreground: 36 30% 85%;
+  --primary: 200 40% 60%;
+  --primary-foreground: 36 30% 95%;
+  --secondary: 200 4% 14%;
+  --secondary-foreground: 36 16% 63%;
+  --accent: 200 40% 60%;
+  --accent-foreground: 36 30% 95%;
+  --muted: 200 4% 20%;
+  --muted-foreground: 36 14% 48%;
+  --border: 200 4% 18%;
+  --input: 200 4% 12%;
+  --ring: 200 40% 60%;
+  --destructive: 0 48% 45%;
+  --destructive-foreground: 36 30% 95%;
+  --app-bg-primary: #1c1e1f;
+  --app-bg-secondary: #161819;
+  --theme-bg-primary: #1c1e1f;
+  --theme-bg-secondary: #161819;
+  --theme-bg-tertiary: #111213;
+  --theme-surface-elevated: #2a2c2e;
+  --theme-surface-input: #242627;
+  --theme-surface-elevation-1: #212324;
+  --theme-surface-elevation-2: #2a2c2e;
+  --theme-surface-elevation-3: #303234;
+  --theme-surface-elevation-4: #383a3c;
+  --theme-surface-elevation-5: #404244;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  --theme-text-primary: #e8dcc8;
+  --theme-text-normal: #d4c9b5;
+  --theme-text-secondary: #b0a590;
+  --theme-text-muted: #9a8f7c;
+  --theme-text-faint: #7e7466;
+  --theme-text-bright: #f5eedf;
+  --theme-accent: #6eafc8;
+  --theme-accent-secondary: #c8a24e;
+  --theme-link: #7dbfd6;
+  --theme-success: #6b9e4d;
+  --theme-positive: #7aad5a;
+  --theme-warning: #d4a740;
+  --theme-danger: #a83c3c;
+  --theme-presence-offline: #6b6459;
+  --color-tertiary-metadata: #9a8f7c;
+  --theme-cat-member: #6eafc8;
+  --theme-cat-role: #b898c8;
+  --theme-cat-channel: #6eafc8;
+  --theme-cat-message: #6b9e4d;
+  --theme-cat-server: #c8a24e;
+  --theme-cat-automod: #d4a740;
+  --theme-cat-other: #9a8f7c;
 }
 
 /* ── Color mode overrides — scoped to the default "twilight" preset so they

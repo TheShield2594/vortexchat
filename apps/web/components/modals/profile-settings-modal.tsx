@@ -1701,6 +1701,30 @@ function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving
               desc: "Slate-blue + amber",
               swatches: ["#1a2332", "#e0a526", "#5ba4e6"],
             },
+            {
+              key: "clarity",
+              label: "Clarity",
+              desc: "Clean minimal light",
+              swatches: ["#ffffff", "#2563eb", "#7c3aed"],
+            },
+            {
+              key: "velvet-dusk",
+              label: "Velvet Dusk",
+              desc: "Soft pastel dark",
+              swatches: ["#1e1e2e", "#cba6f7", "#f5c2e7"],
+            },
+            {
+              key: "terminal",
+              label: "Terminal",
+              desc: "Green phosphor CRT",
+              swatches: ["#000900", "#4aef98", "#39ff14"],
+            },
+            {
+              key: "frosthearth",
+              label: "Frosthearth",
+              desc: "Nordic frost + tavern",
+              swatches: ["#1c1e1f", "#6eafc8", "#c8a24e"],
+            },
           ] as const).map((preset) => (
             <button
               type="button"
