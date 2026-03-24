@@ -8,6 +8,7 @@ import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Spa
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useShallow } from "zustand/react/shallow"
 import type { AttachmentRow, ChannelRow, MessageWithAuthor, ThreadRow } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
@@ -70,6 +71,7 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 
 /** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
+  const messageGrouping = useAppearanceStore((s) => s.messageGrouping)
   const isMobile = useMobileLayout()
   const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages } = useAppStore(
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages }))
@@ -1611,11 +1613,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             <div className="pb-4">
               {messages.map((message, index) => {
                 const prevMessage = messages[index - 1]
+                const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
                 const isGrouped =
+                  messageGrouping !== "never" &&
                   prevMessage &&
                   prevMessage.author_id === message.author_id &&
                   new Date(message.created_at).getTime() -
-                    new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000
+                    new Date(prevMessage.created_at).getTime() < groupingThresholdMs
 
                 return (
                   <div key={message.id} id={`message-${message.id}`}>

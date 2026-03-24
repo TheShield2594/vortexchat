@@ -261,10 +261,10 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           </span>
           {unreadCount > 0 && (
             <span
-              className="min-w-[18px] h-[18px] rounded-full px-1 text-[10px] font-bold flex items-center justify-center"
+              className="notification-badge min-w-[18px] h-[18px] rounded-full px-1 text-[10px] font-bold flex items-center justify-center"
               style={{ background: "var(--theme-danger)", color: "white" }}
             >
-              {unreadCount > 99 ? "99+" : unreadCount}
+              <span className="notification-badge-count">{unreadCount > 99 ? "99+" : unreadCount}</span>
             </span>
           )}
         </button>
@@ -282,10 +282,10 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
             <span
-              className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center text-xs font-bold px-0.5"
+              className="notification-badge absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center text-xs font-bold px-0.5"
               style={{ background: "var(--theme-danger)", color: "white", fontSize: "10px" }}
             >
-              {unreadCount > 99 ? "99+" : unreadCount}
+              <span className="notification-badge-count">{unreadCount > 99 ? "99+" : unreadCount}</span>
             </span>
           )}
         </button>

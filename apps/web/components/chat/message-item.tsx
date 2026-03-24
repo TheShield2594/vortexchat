@@ -481,7 +481,7 @@ export const MessageItem = memo(function MessageItem({
             )
           )}
 
-          <div className="flex gap-3 message-row">
+          <div className={cn("flex gap-3 message-row", isOwn && "message-own")}>
             {/* Avatar or timestamp gutter */}
             <div className="w-10 flex-shrink-0 message-cozy-avatar">
               {!isGrouped ? (
@@ -524,7 +524,7 @@ export const MessageItem = memo(function MessageItem({
             </div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 message-bubble">
               {!isGrouped && (
                 <div className="flex items-baseline gap-2 mb-0.5 message-header">
                   <span className="message-compact-timestamp text-xs tertiary-metadata hidden" style={{ fontSize: "10px" }}>
