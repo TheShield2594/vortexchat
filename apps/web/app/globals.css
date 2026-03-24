@@ -1171,6 +1171,59 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-presence-offline: #585b70;
 }
 
+/* ── Terminal — green phosphor CRT terminal ── */
+[data-theme-preset="terminal"] {
+  --background: 136 100% 2%;
+  --foreground: 148 85% 61%;
+  --card: 136 100% 2%;
+  --card-foreground: 148 85% 61%;
+  --popover: 136 100% 1%;
+  --popover-foreground: 148 85% 61%;
+  --primary: 148 85% 61%;
+  --primary-foreground: 136 100% 2%;
+  --secondary: 136 50% 5%;
+  --secondary-foreground: 148 70% 50%;
+  --accent: 148 85% 61%;
+  --accent-foreground: 136 100% 2%;
+  --muted: 136 30% 10%;
+  --muted-foreground: 148 50% 35%;
+  --border: 148 60% 12%;
+  --input: 136 100% 3%;
+  --ring: 148 85% 61%;
+  --destructive: 354 85% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --app-bg-primary: #000900;
+  --app-bg-secondary: #000900;
+  --theme-bg-primary: #000900;
+  --theme-bg-secondary: #000900;
+  --theme-bg-tertiary: #000900;
+  --theme-surface-elevated: #001a05;
+  --theme-surface-input: #001a05;
+  --theme-surface-elevation-1: #000900;
+  --theme-surface-elevation-3: #002a0a;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: rgba(74, 239, 152, 0.15);
+  --theme-text-primary: rgb(74, 239, 152);
+  --theme-text-normal: rgb(74, 239, 152);
+  --theme-text-secondary: rgba(74, 239, 152, 0.6);
+  --theme-text-muted: rgba(74, 239, 152, 0.35);
+  --theme-text-faint: rgba(74, 239, 152, 0.25);
+  --theme-text-bright: rgb(140, 255, 200);
+  --theme-accent: rgb(74, 239, 152);
+  --theme-accent-secondary: rgba(74, 239, 152, 0.6);
+  --theme-link: rgb(140, 255, 200);
+  --theme-success: rgb(57, 255, 20);
+  --theme-positive: rgb(74, 239, 152);
+  --theme-warning: rgb(255, 255, 51);
+  --theme-danger: rgb(212, 18, 39);
+  --theme-presence-offline: rgba(74, 239, 152, 0.25);
+  --theme-shadow-elevation-1: 0 0 4px rgba(74, 239, 152, 0.06);
+  --theme-shadow-elevation-2: 0 0 8px rgba(74, 239, 152, 0.06);
+  --theme-shadow-elevation-3: 0 0 14px rgba(74, 239, 152, 0.08);
+  --radius: 0rem;
+}
+
 /* ── Color mode overrides — scoped to the default "twilight" preset so they
    do NOT clobber themes that already define a complete token set.  Each theme
    preset declares every token it needs, so a generic light/dark override must
