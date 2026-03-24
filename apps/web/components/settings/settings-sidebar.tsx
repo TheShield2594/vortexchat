@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Keyboard,
   Volume2,
+  Accessibility,
 } from "lucide-react"
 import type { UserRow } from "@/types/database"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -28,6 +29,7 @@ const NAV_SECTIONS = [
     items: [
       { href: "/settings/profile", label: "My Profile", icon: User },
       { href: "/settings/appearance", label: "Appearance", icon: Palette },
+      { href: "/settings/accessibility", label: "Accessibility", icon: Accessibility },
       { href: "/settings/notifications", label: "Notifications", icon: Bell },
       { href: "/settings/voice", label: "Voice & Video", icon: Volume2 },
       { href: "/settings/security", label: "Security & Privacy", icon: Shield },
