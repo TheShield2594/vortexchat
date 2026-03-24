@@ -46,15 +46,21 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const triggerRef = useRef<HTMLButtonElement>(null)
 
   const loadNotifications = useCallback(async () => {
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(30)
-    if (data) {
-      setNotifications(data as Notification[])
-      setUnreadCount(data.filter((n) => !n.read).length)
+    try {
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(30)
+      if (data) {
+        setNotifications(data as Notification[])
+        setUnreadCount(data.filter((n) => !n.read).length)
+      }
+    } catch (error) {
+      console.error("Failed to load notifications:", error)
+      setNotifications([])
+      setUnreadCount(0)
     }
   }, [userId, supabase])
 

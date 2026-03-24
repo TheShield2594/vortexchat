@@ -1611,9 +1611,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
             {/* Message list — direct DOM rendering (no virtualizer) */}
             <div className="pb-4">
-              {messages.map((message, index) => {
-                const prevMessage = messages[index - 1]
+              {(() => {
                 const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
+                return messages.map((message, index) => {
+                const prevMessage = messages[index - 1]
                 const isGrouped =
                   messageGrouping !== "never" &&
                   prevMessage &&
@@ -1732,7 +1733,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     />
                   </div>
                 )
-              })}
+              })
+              })()}
             </div>
             <div ref={bottomRef} style={{ height: 1 }} />
           </div>
