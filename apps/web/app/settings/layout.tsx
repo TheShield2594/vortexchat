@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { SettingsResponsiveContent } from "@/components/settings/settings-responsive-content"
+import { SettingsAppearanceProvider } from "@/components/settings/settings-appearance-provider"
 
 /** Full-page settings layout — two-panel on desktop, stacked nav on mobile */
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
@@ -20,13 +21,15 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   if (profileError || !profile) redirect("/login")
 
   return (
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: "var(--theme-bg-primary)", paddingTop: "env(safe-area-inset-top)" }}
-    >
-      <SettingsResponsiveContent user={profile}>
-        {children}
-      </SettingsResponsiveContent>
-    </div>
+    <SettingsAppearanceProvider>
+      <div
+        className="flex h-screen overflow-hidden"
+        style={{ background: "var(--theme-bg-primary)", paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <SettingsResponsiveContent user={profile}>
+          {children}
+        </SettingsResponsiveContent>
+      </div>
+    </SettingsAppearanceProvider>
   )
 }
