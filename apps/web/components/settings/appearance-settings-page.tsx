@@ -2,7 +2,7 @@
 
 import React, { useRef, useCallback, useState, useEffect } from "react"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
-import type { MessageDisplay, FontScale, Saturation, ThemePreset } from "@/lib/stores/appearance-store"
+import type { MessageDisplay, FontScale, Saturation, ThemePreset, ReducedMotion, TimestampFormat } from "@/lib/stores/appearance-store"
 
 const MESSAGE_DISPLAY_OPTIONS: { value: MessageDisplay; label: string; description: string }[] = [
   { value: "cozy", label: "Cozy", description: "Avatars shown — comfortable reading" },
@@ -18,6 +18,17 @@ const FONT_SCALE_OPTIONS: { value: FontScale; label: string }[] = [
 const SATURATION_OPTIONS: { value: Saturation; label: string }[] = [
   { value: "reduced", label: "Reduced" },
   { value: "normal", label: "Normal" },
+]
+
+const REDUCED_MOTION_OPTIONS: { value: ReducedMotion; label: string; description: string }[] = [
+  { value: "system", label: "System", description: "Follow your OS preference" },
+  { value: "on", label: "On", description: "Disable all animations" },
+  { value: "off", label: "Off", description: "Always show animations" },
+]
+
+const TIMESTAMP_FORMAT_OPTIONS: { value: TimestampFormat; label: string; example: string }[] = [
+  { value: "12h", label: "12-hour", example: "2:41 PM" },
+  { value: "24h", label: "24-hour", example: "14:41" },
 ]
 
 const THEME_PRESET_OPTIONS: {
@@ -89,6 +100,26 @@ const THEME_PRESET_OPTIONS: {
     surface: "#151d2a",
     textPrimary: "#d8e3f0",
     textMuted: "#7a8ba0",
+  },
+  {
+    value: "clarity",
+    label: "Clarity",
+    description: "Clean & minimal light theme",
+    accent: "#2563eb",
+    bg: "#ffffff",
+    surface: "#f8f9fa",
+    textPrimary: "#1a1a1a",
+    textMuted: "#9ca3af",
+  },
+  {
+    value: "velvet-dusk",
+    label: "Velvet Dusk",
+    description: "Soft pastel tones on dark canvas",
+    accent: "#cba6f7",
+    bg: "#1e1e2e",
+    surface: "#181825",
+    textPrimary: "#cdd6f4",
+    textMuted: "#7f849c",
   },
 ]
 
@@ -233,7 +264,7 @@ function ScrollArrow({ direction, onClick }: { direction: "left" | "right"; onCl
 
 /* ─── Main component ──────────────────────────────────── */
 export function AppearanceSettingsPage(): React.ReactElement {
-  const { messageDisplay, fontScale, saturation, themePreset, setMessageDisplay, setFontScale, setSaturation, setThemePreset } = useAppearanceStore()
+  const { messageDisplay, fontScale, saturation, themePreset, reducedMotion, timestampFormat, setMessageDisplay, setFontScale, setSaturation, setThemePreset, setReducedMotion, setTimestampFormat } = useAppearanceStore()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -489,6 +520,69 @@ export function AppearanceSettingsPage(): React.ReactElement {
               }}
             >
               {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Reduced Motion ────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+          Reduced Motion
+        </h2>
+        <div className="space-y-2">
+          {REDUCED_MOTION_OPTIONS.map(({ value, label, description }) => (
+            <label
+              key={value}
+              className="flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-all"
+              style={{
+                background: reducedMotion === value
+                  ? "color-mix(in srgb, var(--theme-accent) 12%, var(--theme-bg-secondary))"
+                  : "var(--theme-bg-secondary)",
+                border: `1px solid ${reducedMotion === value ? "var(--theme-accent)" : "var(--theme-bg-tertiary)"}`,
+              }}
+            >
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>{label}</p>
+                <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{description}</p>
+              </div>
+              <input
+                type="radio"
+                name="reducedMotion"
+                value={value}
+                checked={reducedMotion === value}
+                onChange={() => setReducedMotion(value)}
+                className="accent-[var(--theme-accent)]"
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Timestamp Format ──────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+          Timestamp Format
+        </h2>
+        <div className="flex items-center gap-2">
+          {TIMESTAMP_FORMAT_OPTIONS.map(({ value, label, example }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={timestampFormat === value}
+              onClick={() => setTimestampFormat(value)}
+              className="flex-1 py-2.5 rounded text-sm transition-all"
+              style={{
+                background: timestampFormat === value
+                  ? "var(--theme-accent)"
+                  : "var(--theme-bg-secondary)",
+                color: timestampFormat === value ? "white" : "var(--theme-text-secondary)",
+                border: `1px solid ${timestampFormat === value ? "var(--theme-accent)" : "var(--theme-bg-tertiary)"}`,
+                fontWeight: timestampFormat === value ? 600 : 400,
+              }}
+            >
+              <span>{label}</span>
+              <span className="block text-xs opacity-70 mt-0.5">{example}</span>
             </button>
           ))}
         </div>

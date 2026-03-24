@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast"
 import type { MessageWithAuthor, AttachmentRow, ThreadRow } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useShallow } from "zustand/react/shallow"
 import { LinkEmbed, extractFirstUrl, extractGiphyUrl, getEmbeddableGiphyUrl, stripUrlFromContent } from "@/components/chat/link-embed"
 import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
@@ -281,6 +282,7 @@ export const MessageItem = memo(function MessageItem({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
   const { toast } = useToast()
+  const timestampFormat = useAppearanceStore((s) => s.timestampFormat)
   const containerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
   const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
@@ -512,7 +514,7 @@ export const MessageItem = memo(function MessageItem({
                     className="text-xs opacity-0 group-hover:opacity-100 motion-interactive block text-right tertiary-metadata"
                     style={{ fontSize: "10px" }}
                   >
-                    {format(timestamp, "HH:mm")}
+                    {format(timestamp, timestampFormat === "24h" ? "HH:mm" : "h:mm a")}
                   </span>
                   {sendStateLabel && (
                     <span className={cn("message-state-morph text-[10px]", sendState && `is-${sendState}`)}>{sendStateLabel}</span>
@@ -526,7 +528,7 @@ export const MessageItem = memo(function MessageItem({
               {!isGrouped && (
                 <div className="flex items-baseline gap-2 mb-0.5 message-header">
                   <span className="message-compact-timestamp text-xs tertiary-metadata hidden" style={{ fontSize: "10px" }}>
-                    {format(timestamp, "HH:mm")}
+                    {format(timestamp, timestampFormat === "24h" ? "HH:mm" : "h:mm a")}
                   </span>
                   <UserProfilePopover
                     user={message.author}
@@ -542,7 +544,7 @@ export const MessageItem = memo(function MessageItem({
                     </span>
                   </UserProfilePopover>
                   <span id={messageMetaId} className="text-xs tertiary-metadata message-cozy-timestamp">
-                    {format(timestamp, "MM/dd/yyyy h:mm a")}
+                    {format(timestamp, timestampFormat === "24h" ? "MM/dd/yyyy HH:mm" : "MM/dd/yyyy h:mm a")}
                   </span>
                   {sendStateLabel && (
                     <span className={cn("message-state-morph", sendState && `is-${sendState}`)}>{sendStateLabel}</span>
@@ -562,7 +564,7 @@ export const MessageItem = memo(function MessageItem({
 
               {isGrouped && (
                 <span className="message-compact-timestamp text-xs tertiary-metadata hidden" style={{ fontSize: "10px" }}>
-                  {format(timestamp, "HH:mm")}
+                  {format(timestamp, timestampFormat === "24h" ? "HH:mm" : "h:mm a")}
                 </span>
               )}
 

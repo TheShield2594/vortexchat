@@ -6,13 +6,17 @@ import { persist } from "zustand/middleware"
 export type MessageDisplay = "cozy" | "compact"
 export type FontScale = "small" | "normal" | "large"
 export type Saturation = "normal" | "reduced"
-export type ThemePreset = "twilight" | "midnight-neon" | "synthwave" | "carbon" | "oled-black" | "frost"
+export type ThemePreset = "twilight" | "midnight-neon" | "synthwave" | "carbon" | "oled-black" | "frost" | "clarity" | "velvet-dusk"
+export type ReducedMotion = "system" | "on" | "off"
+export type TimestampFormat = "12h" | "24h"
 
 export interface AppearanceSettings {
   messageDisplay?: MessageDisplay
   fontScale?: FontScale
   saturation?: Saturation
   themePreset?: ThemePreset
+  reducedMotion?: ReducedMotion
+  timestampFormat?: TimestampFormat
   customCss?: string
 }
 
@@ -21,6 +25,8 @@ interface AppearanceState {
   fontScale: FontScale
   saturation: Saturation
   themePreset: ThemePreset
+  reducedMotion: ReducedMotion
+  timestampFormat: TimestampFormat
   customCss: string
   hasHydratedFromProfile: boolean
   lastHydratedUserId: string | null
@@ -28,6 +34,8 @@ interface AppearanceState {
   setFontScale: (v: FontScale) => void
   setSaturation: (v: Saturation) => void
   setThemePreset: (v: ThemePreset) => void
+  setReducedMotion: (v: ReducedMotion) => void
+  setTimestampFormat: (v: TimestampFormat) => void
   setCustomCss: (v: string) => void
   hydrateFromSettings: (settings?: AppearanceSettings | null, userId?: string | null) => void
   toSettingsPayload: () => Required<AppearanceSettings>
@@ -38,13 +46,17 @@ const DEFAULTS: Required<AppearanceSettings> = {
   fontScale: "normal",
   saturation: "normal",
   themePreset: "twilight",
+  reducedMotion: "system",
+  timestampFormat: "12h",
   customCss: "",
 }
 
-const THEME_PRESETS: ThemePreset[] = ["twilight", "midnight-neon", "synthwave", "carbon", "oled-black", "frost"]
+const THEME_PRESETS: ThemePreset[] = ["twilight", "midnight-neon", "synthwave", "carbon", "oled-black", "frost", "clarity", "velvet-dusk"]
 const MESSAGE_DISPLAY_MODES: MessageDisplay[] = ["cozy", "compact"]
 const FONT_SCALES: FontScale[] = ["small", "normal", "large"]
 const SATURATION_LEVELS: Saturation[] = ["normal", "reduced"]
+const REDUCED_MOTION_MODES: ReducedMotion[] = ["system", "on", "off"]
+const TIMESTAMP_FORMATS: TimestampFormat[] = ["12h", "24h"]
 
 function sanitizeCustomCss(value: unknown): string {
   if (typeof value !== "string") return ""
@@ -72,6 +84,8 @@ export const useAppearanceStore = create<AppearanceState>()(
       setFontScale: (v) => set({ fontScale: v }),
       setSaturation: (v) => set({ saturation: v }),
       setThemePreset: (v) => set({ themePreset: v }),
+      setReducedMotion: (v) => set({ reducedMotion: v }),
+      setTimestampFormat: (v) => set({ timestampFormat: v }),
       setCustomCss: (v) => set({ customCss: sanitizeCustomCss(v) }),
       hydrateFromSettings: (settings, userId = null) => {
         const state = get()
@@ -89,20 +103,28 @@ export const useAppearanceStore = create<AppearanceState>()(
         const saturation = SATURATION_LEVELS.includes(settings?.saturation as Saturation)
           ? (settings?.saturation as Saturation)
           : DEFAULTS.saturation
+        const reducedMotion = REDUCED_MOTION_MODES.includes(settings?.reducedMotion as ReducedMotion)
+          ? (settings?.reducedMotion as ReducedMotion)
+          : DEFAULTS.reducedMotion
+        const timestampFormat = TIMESTAMP_FORMATS.includes(settings?.timestampFormat as TimestampFormat)
+          ? (settings?.timestampFormat as TimestampFormat)
+          : DEFAULTS.timestampFormat
 
         set({
           themePreset,
           messageDisplay,
           fontScale,
           saturation,
+          reducedMotion,
+          timestampFormat,
           customCss: sanitizeCustomCss(settings?.customCss),
           hasHydratedFromProfile: true,
           lastHydratedUserId: userId,
         })
       },
       toSettingsPayload: () => {
-        const { messageDisplay, fontScale, saturation, themePreset, customCss } = get()
-        return { messageDisplay, fontScale, saturation, themePreset, customCss: sanitizeCustomCss(customCss) }
+        const { messageDisplay, fontScale, saturation, themePreset, reducedMotion, timestampFormat, customCss } = get()
+        return { messageDisplay, fontScale, saturation, themePreset, reducedMotion, timestampFormat, customCss: sanitizeCustomCss(customCss) }
       },
     }),
     {
@@ -112,6 +134,8 @@ export const useAppearanceStore = create<AppearanceState>()(
         fontScale: state.fontScale,
         saturation: state.saturation,
         themePreset: state.themePreset,
+        reducedMotion: state.reducedMotion,
+        timestampFormat: state.timestampFormat,
         customCss: state.customCss,
         hasHydratedFromProfile: state.hasHydratedFromProfile,
         lastHydratedUserId: state.lastHydratedUserId,

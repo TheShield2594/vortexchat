@@ -20,8 +20,8 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
   const { setCurrentUser, setServers, setIsLoadingServers, loadNotificationSettings } = useAppStore(
     useShallow((s) => ({ setCurrentUser: s.setCurrentUser, setServers: s.setServers, setIsLoadingServers: s.setIsLoadingServers, loadNotificationSettings: s.loadNotificationSettings }))
   )
-  const { messageDisplay, fontScale, saturation, themePreset, customCss, hydrateFromSettings } = useAppearanceStore(
-    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, themePreset: s.themePreset, customCss: s.customCss, hydrateFromSettings: s.hydrateFromSettings }))
+  const { messageDisplay, fontScale, saturation, themePreset, reducedMotion, customCss, hydrateFromSettings } = useAppearanceStore(
+    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, themePreset: s.themePreset, reducedMotion: s.reducedMotion, customCss: s.customCss, hydrateFromSettings: s.hydrateFromSettings }))
   )
 
   useEffect(() => {
@@ -39,6 +39,7 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     root.dataset.fontScale = fontScale
     root.dataset.saturation = saturation
     root.dataset.themePreset = themePreset
+    root.dataset.reducedMotion = reducedMotion
 
     const customCssStyleId = "vortex-custom-theme-css"
     let styleTag = document.getElementById(customCssStyleId) as HTMLStyleElement | null
@@ -50,7 +51,7 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     styleTag.textContent = customCss.trim()
     // No cleanup: attributes and style tag persist until the app unmounts (page unload).
     // Removing them on every dependency change caused a visible theme flash on each re-render.
-  }, [messageDisplay, fontScale, saturation, themePreset, customCss])
+  }, [messageDisplay, fontScale, saturation, themePreset, reducedMotion, customCss])
 
   // Auto-sync presence: marks user online on mount, offline on tab close
   usePresenceSync(user?.id ?? null, user?.status ?? "online")
