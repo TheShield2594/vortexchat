@@ -54,7 +54,14 @@ export function usePushNotifications() {
       }
       return true
     } catch (e) {
-      console.warn("Push notification setup failed:", e)
+      // AbortError is expected when the push service is unavailable (dev,
+      // unsupported browsers, restricted environments).  Log at debug
+      // level to avoid spamming the console.
+      if (e instanceof DOMException && e.name === "AbortError") {
+        console.debug("Push subscription unavailable (push service error) — skipping")
+      } else {
+        console.warn("Push notification setup failed:", e)
+      }
       return false
     }
   }, [])
