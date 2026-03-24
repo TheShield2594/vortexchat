@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useCallback, useState, useEffect } from "react"
+import React, { useRef, useCallback, useState, useEffect } from "react"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import type { MessageDisplay, FontScale, Saturation, ThemePreset } from "@/lib/stores/appearance-store"
 
@@ -231,7 +231,7 @@ function ScrollArrow({ direction, onClick }: { direction: "left" | "right"; onCl
 }
 
 /* ─── Main component ──────────────────────────────────── */
-export function AppearanceSettingsPage(): JSX.Element {
+export function AppearanceSettingsPage(): React.ReactElement {
   const { messageDisplay, fontScale, saturation, themePreset, setMessageDisplay, setFontScale, setSaturation, setThemePreset } = useAppearanceStore()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
