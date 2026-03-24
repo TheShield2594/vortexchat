@@ -28,7 +28,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const validStatuses: RsvpStatus[] = ["interested", "going", "maybe", "not_going"]
+  const validStatuses: RsvpStatus[] = ["interested", "going", "maybe", "not_going", "waitlist"]
   if (!validStatuses.includes(body.status as RsvpStatus)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 })
   }
@@ -44,6 +44,15 @@ export async function POST(
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 })
 
   let resolvedStatus: RsvpStatus = requestedStatus
+
+  // Fetch the user's current RSVP (if any) before making changes
+  const { data: currentRsvp } = await supabase
+    .from("event_rsvps")
+    .select("status")
+    .eq("event_id", params.eventId)
+    .eq("user_id", user.id)
+    .single()
+  const previousStatus = (currentRsvp?.status as RsvpStatus | undefined) ?? null
 
   // If going and capacity is set, check if at capacity
   if (requestedStatus === "going" && event.capacity) {
@@ -68,8 +77,8 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Auto-promote from waitlist when a "going" spot opens up
-  if (requestedStatus !== "going" && event.capacity) {
+  // Auto-promote from waitlist only when someone leaves the "going" status
+  if (previousStatus === "going" && requestedStatus !== "going" && event.capacity) {
     // Check if there's now room
     const { count: goingCount } = await supabase
       .from("event_rsvps")
