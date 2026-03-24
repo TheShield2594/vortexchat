@@ -9,6 +9,7 @@ import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeThreadMessages } from "@/hooks/use-realtime-threads"
 import { cn } from "@/lib/utils/cn"
+import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AUTO_ARCHIVE_OPTIONS, DEFAULT_AUTO_ARCHIVE_DURATION } from "@vortex/shared"
@@ -27,6 +28,7 @@ function formatAutoArchiveDuration(minutes: number): string {
 
 /** Slide-out panel displaying a thread's messages with real-time updates, archive/lock controls, and member management. */
 export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, focusMessageId }: Props) {
+  const messageGrouping = useAppearanceStore((s) => s.messageGrouping)
   const [messages, setMessages] = useState<MessageWithAuthor[]>([])
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [draft, setDraftContent] = useState("")
@@ -484,12 +486,14 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
           <div className="pb-4">
             {messages.map((message, i) => {
               const prevMessage = messages[i - 1]
+              const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
               const isGrouped =
+                messageGrouping !== "never" &&
                 prevMessage &&
                 prevMessage.author_id === message.author_id &&
                 new Date(message.created_at).getTime() -
                   new Date(prevMessage.created_at).getTime() <
-                  5 * 60 * 1000
+                  groupingThresholdMs
 
               return (
                 <MessageItem
