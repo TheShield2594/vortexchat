@@ -7,6 +7,18 @@ import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 
 type FriendshipStatus = "none" | "friends" | "pending_sent" | "pending_received" | "blocked" | "self"
 
+const VALID_FRIENDSHIP_STATUSES: ReadonlySet<string> = new Set<FriendshipStatus>([
+  "none", "friends", "pending_sent", "pending_received", "blocked", "self",
+])
+
+function isFriendshipResponse(payload: unknown): payload is { status: FriendshipStatus; friendshipId?: string } {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false
+  const obj = payload as Record<string, unknown>
+  if (typeof obj.status !== "string" || !VALID_FRIENDSHIP_STATUSES.has(obj.status)) return false
+  if (obj.friendshipId !== undefined && typeof obj.friendshipId !== "string") return false
+  return true
+}
+
 interface UseFriendshipActionsOptions {
   userId?: string
   username?: string
@@ -47,12 +59,16 @@ export function useFriendshipActions({
     try {
       const res = await fetch(`/api/friends/status?userId=${userId}`)
       if (res.ok) {
-        const json = (await res.json()) as { status: FriendshipStatus; friendshipId?: string }
-        setFriendshipStatus(json.status)
-        setFriendshipId(json.friendshipId ?? null)
+        const payload: unknown = await res.json()
+        if (isFriendshipResponse(payload)) {
+          setFriendshipStatus(payload.status)
+          setFriendshipId(payload.friendshipId ?? null)
+        } else {
+          console.error("[fetch friendship status] Unexpected response shape for userId:", userId)
+        }
       }
-    } catch {
-      // silently ignore; default to "none"
+    } catch (err) {
+      console.error("[fetch friendship status] Failed for userId:", userId, err)
     } finally {
       setStatusLoaded(true)
     }
@@ -99,18 +115,21 @@ export function useFriendshipActions({
     setActionLoading("friend")
     try {
       const res = await fetch(`/api/friends?id=${friendshipId}`, { method: "DELETE" })
+      if (res.ok) {
+        toast({ title: "Friend removed" })
+        setFriendshipStatus("none")
+        setFriendshipId(null)
+        return
+      }
+      // Non-ok: try to extract error message from response body
       let errorMessage = "Failed to remove friend"
       try {
         const json = await res.json()
-        if (res.ok) {
-          toast({ title: "Friend removed" })
-          setFriendshipStatus("none")
-          setFriendshipId(null)
-          return
+        if (json && typeof json.error === "string") {
+          errorMessage = json.error
         }
-        errorMessage = json.error || errorMessage
       } catch {
-        // Response was not valid JSON
+        // Response was not valid JSON — use fallback
       }
       toast({ variant: "destructive", title: errorMessage })
     } catch (error) {
