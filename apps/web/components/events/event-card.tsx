@@ -133,7 +133,7 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
         {event.recurrence && event.recurrence !== "none" && (
           <div className="flex items-center gap-1 text-xs text-indigo-400">
             <Repeat className="h-3 w-3" />
-            <span className="capitalize">Repeats {event.recurrence}</span>
+            <span className="capitalize">Repeats {event.recurrence === "biweekly" ? "every two weeks" : event.recurrence}</span>
             {event.recurrence_until && (
               <span className="text-zinc-500">
                 until {new Date(event.recurrence_until).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}

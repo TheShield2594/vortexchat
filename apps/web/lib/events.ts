@@ -1,4 +1,4 @@
-export type EventRecurrence = "none" | "daily" | "weekly" | "monthly"
+export type EventRecurrence = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly"
 
 export interface EventModel {
   id: string
@@ -25,7 +25,9 @@ function stepDate(date: Date, recurrence: EventRecurrence): Date {
   const next = new Date(date)
   if (recurrence === "daily") next.setUTCDate(next.getUTCDate() + 1)
   if (recurrence === "weekly") next.setUTCDate(next.getUTCDate() + 7)
+  if (recurrence === "biweekly") next.setUTCDate(next.getUTCDate() + 14)
   if (recurrence === "monthly") next.setUTCMonth(next.getUTCMonth() + 1)
+  if (recurrence === "yearly") next.setUTCFullYear(next.getUTCFullYear() + 1)
   return next
 }
 
@@ -103,11 +105,18 @@ export function buildICal(events: EventModel[]): string {
     lines.push(`DTSTART:${start}`)
     lines.push(`DTEND:${end}`)
     if (event.recurrence !== "none") {
-      const freq = event.recurrence.toUpperCase()
+      let freq: string
+      let interval = ""
+      if (event.recurrence === "biweekly") {
+        freq = "WEEKLY"
+        interval = ";INTERVAL=2"
+      } else {
+        freq = event.recurrence.toUpperCase()
+      }
       const until = event.recurrence_until
         ? `;UNTIL=${new Date(event.recurrence_until).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")}`
         : ""
-      lines.push(`RRULE:FREQ=${freq}${until}`)
+      lines.push(`RRULE:FREQ=${freq}${interval}${until}`)
     }
     lines.push("END:VEVENT")
   }

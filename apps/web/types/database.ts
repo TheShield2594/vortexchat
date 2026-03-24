@@ -2196,7 +2196,7 @@ export type Database = {
           start_at: string
           end_at: string
           timezone: string
-          recurrence: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
           recurrence_until: string | null
           capacity: number | null
           create_voice_channel: boolean

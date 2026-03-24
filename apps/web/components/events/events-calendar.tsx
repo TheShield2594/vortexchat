@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,13 +13,15 @@ import { EventCard } from "./event-card"
 
 type ViewMode = "month" | "week" | "list"
 type EventType = "general" | "voice" | "external"
-type Recurrence = "none" | "daily" | "weekly" | "monthly"
+type Recurrence = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly"
 
 const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
   { value: "none", label: "Does not repeat" },
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Every two weeks" },
   { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
 ]
 
 function toLocalDatetime(date: Date): string {
@@ -58,14 +60,12 @@ export function EventsCalendar({
   const [linkedChannelId, setLinkedChannelId] = useState(channels[0]?.id ?? "")
   const [eventType, setEventType] = useState<EventType>("general")
   const [externalUrl, setExternalUrl] = useState("")
-  const [voiceChannelId, setVoiceChannelId] = useState("")
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [creating, setCreating] = useState(false)
   const [recurrence, setRecurrence] = useState<Recurrence>("none")
   const [recurrenceUntil, setRecurrenceUntil] = useState("")
 
-  const voiceChannels = channels.filter((ch) => ch.type === "voice")
 
   async function load() {
     const res = await fetch(`/api/servers/${serverId}/events`, { cache: "no-store" })
@@ -111,7 +111,6 @@ export function EventsCalendar({
     setLinkedChannelId(channels[0]?.id ?? "")
     setEventType("general")
     setExternalUrl("")
-    setVoiceChannelId("")
     setBannerFile(null)
     setRecurrence("none")
     setRecurrenceUntil("")
@@ -154,7 +153,7 @@ export function EventsCalendar({
           linkedChannelId: linkedChannelId || undefined,
           eventType,
           externalUrl: eventType === "external" ? externalUrl : undefined,
-          voiceChannelId: eventType === "voice" ? voiceChannelId || undefined : undefined,
+          voiceChannelId: eventType === "voice" && linkedChannelId ? linkedChannelId : undefined,
           bannerUrl: bannerUrl ?? undefined,
           notifyMembers: true,
         }),
@@ -337,9 +336,11 @@ export function EventsCalendar({
                 className="flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-sm text-zinc-100"
               >
                 <option value="">None</option>
-                {channels.map((ch) => (
-                  <option key={ch.id} value={ch.id}>#{ch.name}</option>
-                ))}
+                {channels
+                  .filter((ch) => ch.type === "voice" || ch.type === "forum")
+                  .map((ch) => (
+                    <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                  ))}
               </select>
             </div>
           </div>
@@ -386,23 +387,6 @@ export function EventsCalendar({
             </div>
           )}
 
-          {/* Voice channel selector */}
-          {eventType === "voice" && (
-            <div className="space-y-1">
-              <Label htmlFor="event-voice-channel">Voice Channel</Label>
-              <select
-                id="event-voice-channel"
-                value={voiceChannelId}
-                onChange={(e) => setVoiceChannelId(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-sm text-zinc-100"
-              >
-                <option value="">Select a voice channel</option>
-                {(voiceChannels.length > 0 ? voiceChannels : channels).map((ch) => (
-                  <option key={ch.id} value={ch.id}>{ch.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Banner upload */}
           <div className="space-y-1">
@@ -443,6 +427,7 @@ export function EventsCalendar({
             canEdit={popoverEvent ? canEditEvent(popoverEvent) : false}
             onDelete={deleteEvent}
             onCancel={(id) => updateEvent(id, { cancelled: true })}
+            serverId={serverId}
           />
         )
       })()}
@@ -471,7 +456,7 @@ function formatTime12h(date: Date): string {
 const POPOVER_W = 340
 const POPOVER_GAP = 8
 
-function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp, onClose, canEdit, onDelete, onCancel }: {
+function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp, onClose, canEdit, onDelete, onCancel, serverId }: {
   eventId: string
   anchorRect: DOMRect
   occurrences: EventOccurrence[]
@@ -482,6 +467,7 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
   canEdit?: boolean
   onDelete?: (eventId: string) => Promise<void>
   onCancel?: (eventId: string) => Promise<void>
+  serverId: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const occ = occurrences.find((o) => o.eventId === eventId)
@@ -552,25 +538,32 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
           {myStatus === "not_going" ? "\u2713 Not going" : "Not going"}
         </Button>
       </div>
-      {canEdit && (
-        <div className="mt-2 flex gap-2 border-t border-zinc-700/50 pt-2">
-          {!full.cancelled_at && onCancel && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onCancel(occ.eventId)}>
-              Cancel event
-            </Button>
-          )}
-          {onDelete && (
-            <Button size="sm" variant="secondary" className="h-7 text-xs text-red-400 hover:text-red-300" onClick={() => {
-              if (window.confirm("Are you sure you want to delete this event? This cannot be undone.")) {
-                onDelete(occ.eventId)
-              }
-            }}>
-              <Trash2 className="mr-1 h-3 w-3" />
-              Delete
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="mt-2 flex flex-wrap gap-2 border-t border-zinc-700/50 pt-2">
+        {!full.cancelled_at && onCancel && canEdit && (
+          <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onCancel(occ.eventId)}>
+            Cancel event
+          </Button>
+        )}
+        {onDelete && canEdit && (
+          <Button size="sm" variant="secondary" className="h-7 text-xs text-red-400 hover:text-red-300" onClick={() => {
+            if (window.confirm("Are you sure you want to delete this event? This cannot be undone.")) {
+              onDelete(occ.eventId)
+            }
+          }}>
+            <Trash2 className="mr-1 h-3 w-3" />
+            Delete
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="secondary"
+          className="h-7 text-xs"
+          onClick={() => window.open(`/api/servers/${serverId}/events/${occ.eventId}/ical`, "_blank")}
+        >
+          <Calendar className="mr-1 h-3 w-3" />
+          Add to calendar
+        </Button>
+      </div>
     </div>,
     document.body
   )
