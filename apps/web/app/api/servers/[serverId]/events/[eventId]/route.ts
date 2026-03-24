@@ -114,6 +114,30 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // When capacity is increased (or set for the first time), promote waitlisted users
+  const oldCapacity = existing?.capacity as number | null
+  const newCapacity = filteredPayload.capacity as number | undefined
+  if (newCapacity !== undefined) {
+    const capacityIncreased = oldCapacity === null || (typeof newCapacity === "number" && newCapacity > oldCapacity)
+    if (capacityIncreased) {
+      let promoted = true
+      while (promoted) {
+        const { data: promotedUserId, error: promoteError } = await service.rpc("promote_from_waitlist", {
+          p_event_id: params.eventId,
+          p_event_capacity: newCapacity,
+        })
+        if (promoteError) {
+          console.warn("promote_from_waitlist failed during capacity increase", {
+            eventId: params.eventId,
+            error: promoteError.message,
+          })
+          break
+        }
+        promoted = promotedUserId !== null
+      }
+    }
+  }
+
   // Audit log
   const { error: auditError } = await service.from("audit_logs").insert({
     server_id: params.serverId,

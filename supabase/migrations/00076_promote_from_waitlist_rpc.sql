@@ -49,3 +49,8 @@ BEGIN
   RETURN v_promoted_user_id;
 END;
 $$;
+
+-- Partial index for fast waitlist candidate lookup ordered by position/created_at
+CREATE INDEX IF NOT EXISTS event_rsvps_waitlist_order_idx
+  ON public.event_rsvps (event_id, waitlist_position, created_at)
+  WHERE status = 'waitlist';

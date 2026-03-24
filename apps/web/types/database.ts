@@ -3008,6 +3008,10 @@ export type Database = {
         Args: { p_server_id: string; p_updates: Json }
         Returns: undefined
       }
+      promote_from_waitlist: {
+        Args: { p_event_id: string; p_event_capacity: number }
+        Returns: string | null
+      }
     }
     Enums: {
       app_trust_badge: 'verified' | 'partner' | 'internal'

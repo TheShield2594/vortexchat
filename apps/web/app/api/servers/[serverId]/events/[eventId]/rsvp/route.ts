@@ -13,12 +13,15 @@ export async function POST(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   // Verify membership
-  const { data: member } = await supabase
+  const { data: member, error: memberError } = await supabase
     .from("server_members")
     .select("server_id")
     .eq("server_id", params.serverId)
     .eq("user_id", user.id)
     .single()
+  if (memberError && memberError.code !== "PGRST116") {
+    return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
+  }
   if (!member) return NextResponse.json({ error: "Not a member" }, { status: 403 })
 
   let body: unknown
@@ -40,12 +43,15 @@ export async function POST(
   const requestedStatus = rawStatus as RsvpStatus
 
   // Fetch event for capacity check
-  const { data: event } = await supabase
+  const { data: event, error: eventError } = await supabase
     .from("events")
     .select("id, capacity")
     .eq("id", params.eventId)
     .eq("server_id", params.serverId)
     .single()
+  if (eventError && eventError.code !== "PGRST116") {
+    return NextResponse.json({ error: "Failed to fetch event" }, { status: 500 })
+  }
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 })
 
   let resolvedStatus: RsvpStatus = requestedStatus
@@ -89,10 +95,31 @@ export async function POST(
 
   // Auto-promote from waitlist only when someone leaves the "going" status
   if (previousStatus === "going" && requestedStatus !== "going" && event.capacity) {
-    await supabase.rpc("promote_from_waitlist", {
-      p_event_id: params.eventId,
-      p_event_capacity: event.capacity,
-    })
+    try {
+      const { error: promoteError } = await supabase.rpc("promote_from_waitlist", {
+        p_event_id: params.eventId,
+        p_event_capacity: event.capacity,
+      })
+      if (promoteError) {
+        console.error("promote_from_waitlist failed", {
+          route: "POST /events/[eventId]/rsvp",
+          eventId: params.eventId,
+          userId: user.id,
+          action: "promote_from_waitlist",
+          error: promoteError.message,
+        })
+        return NextResponse.json({ error: "Failed to promote from waitlist" }, { status: 500 })
+      }
+    } catch (err) {
+      console.error("promote_from_waitlist threw", {
+        route: "POST /events/[eventId]/rsvp",
+        eventId: params.eventId,
+        userId: user.id,
+        action: "promote_from_waitlist",
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return NextResponse.json({ error: "Failed to promote from waitlist" }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ status: resolvedStatus })
