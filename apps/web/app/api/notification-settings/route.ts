@@ -100,7 +100,14 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "serverId, channelId, or threadId required" }, { status: 400 })
     }
 
-    const row: Record<string, string> = { user_id: user.id, mode: String(mode), updated_at: new Date().toISOString() }
+    const row: {
+      user_id: string
+      mode: string
+      updated_at: string
+      server_id?: string | null
+      channel_id?: string | null
+      thread_id?: string | null
+    } = { user_id: user.id, mode: String(mode), updated_at: new Date().toISOString() }
     if (threadId) {
       row.thread_id = threadId as string
     } else if (serverId) {
