@@ -20,12 +20,13 @@ function getStringField(formData: FormData, name: string): string | null {
   return null
 }
 
-/** Validate that a URL string is a valid http/https URL. Returns null if invalid. */
+/** Validate that a URL string is a valid http/https URL. Returns the normalized URL or null. */
 function validateUrl(raw: string): string | null {
   try {
     const parsed = new URL(raw)
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null
-    return raw.length > MAX_SHARE_URL_LENGTH ? raw.slice(0, MAX_SHARE_URL_LENGTH) : raw
+    const normalized = parsed.href
+    return normalized.length > MAX_SHARE_URL_LENGTH ? normalized.slice(0, MAX_SHARE_URL_LENGTH) : normalized
   } catch {
     return null
   }

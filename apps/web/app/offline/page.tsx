@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 
 const RECONNECT_DELAY_MS = 2000
 
-export default function OfflinePage() {
+export default function OfflinePage(): React.ReactElement {
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : false
   )
@@ -15,8 +15,8 @@ export default function OfflinePage() {
   useEffect(() => {
     setIsOnline(navigator.onLine)
 
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
+    const handleOnline = (): void => setIsOnline(true)
+    const handleOffline = (): void => setIsOnline(false)
 
     window.addEventListener("online", handleOnline)
     window.addEventListener("offline", handleOffline)
