@@ -28,6 +28,9 @@ export function useSwipe({ onSwipeLeft, onSwipeRight, minDistance = 56, maxCross
         if (dx <= -minDistance) onSwipeLeft?.()
         if (dx >= minDistance) onSwipeRight?.()
       },
+      onTouchCancel: (_event: React.TouchEvent<HTMLElement>): void => {
+        startRef.current = null
+      },
     }),
     [maxCrossAxis, minDistance, onSwipeLeft, onSwipeRight]
   )

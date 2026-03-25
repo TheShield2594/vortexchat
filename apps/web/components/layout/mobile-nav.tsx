@@ -83,7 +83,7 @@ export function MobileDrawer({ children }: { children: React.ReactNode }) {
       </div>
       {/* Mobile: slide-in drawer */}
       <div
-        className={`md:hidden fixed top-0 left-0 bottom-0 z-50 flex transform transition-transform duration-200 ${
+        className={`md:hidden fixed top-0 left-0 bottom-0 z-50 flex transform motion-safe:transition-transform motion-safe:duration-200 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
