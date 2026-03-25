@@ -12,7 +12,8 @@ export async function GET(): Promise<NextResponse> {
       return NextResponse.json({ error: "VAPID key not configured" }, { status: 500 })
     }
     return NextResponse.json({ key })
-  } catch {
+  } catch (err) {
+    console.error("[api/push/vapid-key] Failed to retrieve VAPID key:", err)
     return NextResponse.json({ error: "Failed to retrieve VAPID key" }, { status: 500 })
   }
 }

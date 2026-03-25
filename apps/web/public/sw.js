@@ -122,16 +122,18 @@ self.addEventListener("push", (event) => {
   )
 })
 
+function updateAppBadge(count) {
+  if (!navigator.setAppBadge) return
+  if (count > 0) {
+    navigator.setAppBadge(count)
+  } else {
+    navigator.clearAppBadge()
+  }
+}
+
 self.addEventListener("message", (event) => {
   if (event.data?.type === "APP_UPDATE_BADGE") {
-    const count = event.data.count
-    if (navigator.setAppBadge) {
-      if (count > 0) {
-        navigator.setAppBadge(count)
-      } else {
-        navigator.clearAppBadge()
-      }
-    }
+    updateAppBadge(event.data.count)
   }
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting()
@@ -207,14 +209,10 @@ self.addEventListener("periodicsync", (event) => {
       fetch("/api/notifications/unread-count", { credentials: "same-origin" })
         .then(async (res) => {
           if (!res.ok) return
-          const { count } = await res.json()
-          if (navigator.setAppBadge) {
-            if (count > 0) {
-              navigator.setAppBadge(count)
-            } else {
-              navigator.clearAppBadge()
-            }
-          }
+          const data = await res.json()
+          const count = data?.count
+          if (typeof count !== "number" || !isFinite(count)) return
+          updateAppBadge(count)
         })
         .catch(() => {})
     )
