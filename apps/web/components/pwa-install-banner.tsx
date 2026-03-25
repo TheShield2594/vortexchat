@@ -15,9 +15,6 @@ export function PwaInstallBanner() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    // Only show on mobile and only if never dismissed before
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-    if (!isMobile) return
     if (localStorage.getItem(STORAGE_KEY)) return
 
     const handler = (e: Event) => {

@@ -28,66 +28,85 @@ export function SplashScreen() {
   if (!mounted) return null
 
   return (
-    <div
-      aria-hidden
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 99999,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#1b1f31",
-        transition: "opacity 300ms ease-out",
-        opacity: fading ? 0 : 1,
-        pointerEvents: "auto",
-      }}
-    >
-      {/* Glow ring */}
+    <>
       <div
+        aria-hidden
         style={{
-          width: 96,
-          height: 96,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(0,229,255,0.25) 0%, transparent 70%)",
+          position: "fixed",
+          inset: 0,
+          zIndex: 99999,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          animation: "splash-pulse 1.6s ease-in-out infinite",
+          background: "#1b1f31",
+          transition: "opacity 300ms ease-out",
+          opacity: fading ? 0 : 1,
+          pointerEvents: "auto",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/icon-192.png"
-          alt=""
-          width={56}
-          height={56}
-          style={{ borderRadius: 8 }}
-        />
-      </div>
-      <p
-        style={{
-          marginTop: 16,
-          fontSize: 14,
-          color: "#8f9bbf",
-          fontFamily: "var(--font-body), system-ui, sans-serif",
-          letterSpacing: "0.05em",
-        }}
-      >
-        Loading VortexChat…
-      </p>
-      <style>{`
-        @keyframes splash-pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.08); opacity: 0.8; }
-        }
-        @media (prefers-reduced-motion: reduce) {
+        {/* Glow ring */}
+        <div
+          style={{
+            width: 96,
+            height: 96,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(0,229,255,0.25) 0%, transparent 70%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "splash-pulse 1.6s ease-in-out infinite",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icon-192.png"
+            alt=""
+            width={56}
+            height={56}
+            style={{ borderRadius: 8 }}
+          />
+        </div>
+        <p
+          style={{
+            marginTop: 16,
+            fontSize: 14,
+            color: "#8f9bbf",
+            fontFamily: "var(--font-body), system-ui, sans-serif",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Loading VortexChat…
+        </p>
+        <style>{`
           @keyframes splash-pulse {
-            0%, 100% { transform: none; opacity: 1; }
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.08); opacity: 0.8; }
           }
-        }
-      `}</style>
-    </div>
+          @media (prefers-reduced-motion: reduce) {
+            @keyframes splash-pulse {
+              0%, 100% { transform: none; opacity: 1; }
+            }
+          }
+        `}</style>
+      </div>
+      <span
+        role="status"
+        aria-live="polite"
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          whiteSpace: "nowrap",
+          borderWidth: 0,
+        }}
+      >
+        Loading VortexChat
+      </span>
+    </>
   )
 }
