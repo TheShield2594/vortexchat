@@ -30,6 +30,8 @@ export function MobileBottomTabBar() {
   const pathname = usePathname()
   const notificationUnreadCount = useAppStore((s) => s.notificationUnreadCount)
   const dmUnreadCount = useAppStore((s) => s.dmUnreadCount)
+  const serverHasUnread = useAppStore((s) => s.serverHasUnread)
+  const serverUnreadCount = Object.values(serverHasUnread).filter(Boolean).length
 
   // Hide the bottom nav when viewing a channel (full-screen message view)
   if (isFullScreenChannel(pathname)) return null
@@ -49,7 +51,8 @@ export function MobileBottomTabBar() {
           const active = isTabActive(href, pathname)
           const showNotifBadge = href === "/channels/notifications" && notificationUnreadCount > 0
           const showDmBadge = href === "/channels/me" && dmUnreadCount > 0
-          const badgeCount = showNotifBadge ? notificationUnreadCount : showDmBadge ? dmUnreadCount : 0
+          const showServerBadge = href === "/channels/servers" && serverUnreadCount > 0
+          const badgeCount = showNotifBadge ? notificationUnreadCount : showDmBadge ? dmUnreadCount : showServerBadge ? serverUnreadCount : 0
           return (
             <li key={label}>
               <Link

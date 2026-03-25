@@ -30,7 +30,7 @@ export function SplashScreen() {
   return (
     <>
       <div
-        aria-hidden
+        aria-hidden="true"
         style={{
           position: "fixed",
           inset: 0,
