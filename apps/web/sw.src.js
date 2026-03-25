@@ -22,6 +22,7 @@ const PRECACHE_URLS = PRECACHE_MANIFEST.map((e) =>
 const APP_SHELL_ASSETS = [
   "/",
   "/channels/me",
+  "/offline",
   "/manifest.json",
   "/icon-192.png",
   "/icon-512.png",
@@ -77,7 +78,11 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(async () => {
           const cache = await caches.open(APP_SHELL)
-          return (await cache.match("/channels/me")) || (await cache.match("/"))
+          return (
+            (await cache.match("/channels/me")) ||
+            (await cache.match("/offline")) ||
+            (await cache.match("/"))
+          )
         })
     )
     return
@@ -139,6 +144,11 @@ self.addEventListener("push", (event) => {
     tag,
   } = data
 
+  const actions = url !== "/channels/me" ? [
+    { action: "open", title: "Open" },
+    { action: "dismiss", title: "Dismiss" },
+  ] : []
+
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
@@ -148,6 +158,8 @@ self.addEventListener("push", (event) => {
       data: { url },
       renotify: true,
       requireInteraction: false,
+      actions,
+      silent: false,
     })
   )
 })
@@ -214,6 +226,10 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 // ─── Notification click ───────────────────────────────────────────────────────
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
+
+  // Handle action buttons — "dismiss" just closes
+  if (event.action === "dismiss") return
+
   const url = event.notification.data?.url || "/channels/me"
 
   event.waitUntil(
@@ -229,4 +245,30 @@ self.addEventListener("notificationclick", (event) => {
         }
       })
   )
+})
+
+// ─── Periodic background sync ─────────────────────────────────────────────────
+// Fires when the browser grants a periodic sync opportunity.
+// Used to refresh unread counts and prefetch latest messages so the app
+// opens instantly with fresh data.
+self.addEventListener("periodicsync", (event) => {
+  if (event.tag === "vortex-refresh-unread") {
+    event.waitUntil(
+      fetch("/api/notifications/unread-count", { credentials: "same-origin" })
+        .then(async (res) => {
+          if (!res.ok) return
+          const { count } = await res.json()
+          if (navigator.setAppBadge) {
+            if (count > 0) {
+              navigator.setAppBadge(count)
+            } else {
+              navigator.clearAppBadge()
+            }
+          }
+        })
+        .catch(() => {
+          // Sync failed — silently ignore, will retry next interval
+        })
+    )
+  }
 })

@@ -60,6 +60,9 @@ export function useSwRegistration() {
         pollTimer = setInterval(() => {
           reg.update().catch(() => {})
         }, SW_UPDATE_POLL_MS)
+
+        // Register periodic background sync for unread badge updates
+        registerPeriodicSync(reg)
       })
       .catch((err) => {
         console.warn("SW registration failed:", err)
@@ -97,4 +100,26 @@ export function useSwRegistration() {
   }, [])
 
   return { updateAvailable, applyUpdate }
+}
+
+/** Request periodic background sync to keep unread badges fresh when the app is closed. */
+async function registerPeriodicSync(registration: ServiceWorkerRegistration): Promise<void> {
+  try {
+    const periodicSync = (registration as ServiceWorkerRegistration & {
+      periodicSync?: { register: (tag: string, opts: { minInterval: number }) => Promise<void> }
+    }).periodicSync
+
+    if (!periodicSync) return
+
+    const status = await navigator.permissions.query({
+      name: "periodic-background-sync" as PermissionName,
+    })
+    if (status.state !== "granted") return
+
+    await periodicSync.register("vortex-refresh-unread", {
+      minInterval: 60 * 60 * 1000, // 1 hour minimum
+    })
+  } catch {
+    // Periodic sync not supported or permission denied — silently ignore
+  }
 }

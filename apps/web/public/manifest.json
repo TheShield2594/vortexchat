@@ -5,7 +5,13 @@
   "start_url": "/channels/me",
   "id": "/channels/me",
   "display": "standalone",
-  "display_override": ["window-controls-overlay"],
+  "display_override": ["window-controls-overlay", "tabbed"],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
   "background_color": "#1b1f31",
   "theme_color": "#00e5ff",
   "orientation": "natural",
