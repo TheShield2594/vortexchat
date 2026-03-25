@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button"
 const RECONNECT_DELAY_MS = 2000
 
 export default function OfflinePage() {
-  const [isOnline, setIsOnline] = useState(false)
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : false
+  )
   const [reconnected, setReconnected] = useState(false)
 
   useEffect(() => {

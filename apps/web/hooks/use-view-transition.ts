@@ -45,7 +45,6 @@ export function useViewTransition(): UseViewTransitionReturn {
           doNavigate()
         } catch (err) {
           console.error("[useViewTransition] Navigation failed during transition:", err)
-          doNavigate()
         }
       })
     },

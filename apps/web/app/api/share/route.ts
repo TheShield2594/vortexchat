@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 
 /** Maximum length for shared text to keep redirect URLs under browser limits. */
 const MAX_SHARE_TEXT_LENGTH = 1000
+const MAX_SHARE_URL_LENGTH = 2000
+const MAX_SHARE_TITLE_LENGTH = 200
+
+/** Strip control characters (except newlines) from a string. */
+function sanitize(value: string): string {
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+}
 
 /** Type-safe extraction of a string field from FormData (rejects File values). */
 function getStringField(formData: FormData, name: string): string | null {
@@ -10,6 +18,17 @@ function getStringField(formData: FormData, name: string): string | null {
   if (typeof value === "string") return value
   // FormData.get() can return a File object — reject it for string fields
   return null
+}
+
+/** Validate that a URL string is a valid http/https URL. Returns null if invalid. */
+function validateUrl(raw: string): string | null {
+  try {
+    const parsed = new URL(raw)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null
+    return raw.length > MAX_SHARE_URL_LENGTH ? raw.slice(0, MAX_SHARE_URL_LENGTH) : raw
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -43,13 +62,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const truncated = text.length > MAX_SHARE_TEXT_LENGTH
         ? text.slice(0, MAX_SHARE_TEXT_LENGTH)
         : text
-      baseUrl.searchParams.set("share_text", truncated)
+      baseUrl.searchParams.set("share_text", sanitize(truncated))
     }
-    if (url) baseUrl.searchParams.set("share_url", url)
-    if (title) baseUrl.searchParams.set("share_title", title)
+    if (url) {
+      const validUrl = validateUrl(url)
+      if (validUrl) {
+        baseUrl.searchParams.set("share_url", validUrl)
+      }
+    }
+    if (title) {
+      const truncatedTitle = title.length > MAX_SHARE_TITLE_LENGTH
+        ? title.slice(0, MAX_SHARE_TITLE_LENGTH)
+        : title
+      baseUrl.searchParams.set("share_title", sanitize(truncatedTitle))
+    }
 
     return NextResponse.redirect(baseUrl, 303)
-  } catch {
-    return NextResponse.json({ error: "Failed to process shared content" }, { status: 400 })
+  } catch (err) {
+    const isClientError = err instanceof TypeError || err instanceof RangeError
+    const status = isClientError ? 400 : 500
+    const message = isClientError ? "Invalid shared content" : "Failed to process shared content"
+    console.error("[api/share] Failed to process shared content:", err)
+    return NextResponse.json({ error: message }, { status })
   }
 }
