@@ -146,7 +146,8 @@ export function detectMimeFromBytes(buffer: Uint8Array): string | null {
  * NOTE: This function should only be called server-side. It fetches attachment content
  * from signed URLs to inspect the file headers.
  *
- * // TODO: AV scanning requires external service integration
+ * Future: Server owners will be able to configure a VirusTotal API key in server
+ * settings for optional malware scanning of uploaded attachments.
  */
 export async function validateAttachmentContent(
   attachments: AttachmentInput[]
