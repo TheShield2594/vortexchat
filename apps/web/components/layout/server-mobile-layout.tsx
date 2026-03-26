@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, CircleHelp } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { useSwipe } from "@/hooks/use-swipe"
 
 interface Props {
   serverId: string
@@ -107,6 +108,12 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // rather than flashing them for non-text channel types.
   const isTextChannel = !!activeChannel && activeChannel.type === "text"
 
+  // Swipe right to navigate back to the channel list on mobile
+  const navigateBack = useCallback(() => {
+    router.push(`/channels/${serverId}`)
+  }, [router, serverId])
+  const swipeHandlers = useSwipe({ onSwipeRight: navigateBack })
+
   // ========== DESKTOP LAYOUT — all panels inline ==========
   if (!isMobile) {
     return (
@@ -126,7 +133,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // ========== MOBILE LAYOUT — shows sidebar OR content ==========
   if (isInChannel && !isSpecialPage) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
         {/* Single mobile channel header — combines navigation + channel actions */}
         <div
           className="flex items-center gap-1 px-2 py-2 border-b flex-shrink-0"
@@ -250,7 +257,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
 
   if (isSpecialPage) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
         {/* Special pages (settings/moderation/events) */}
         <div
           className="flex items-center gap-2 px-2 py-2 border-b flex-shrink-0"

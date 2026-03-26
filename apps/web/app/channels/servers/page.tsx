@@ -94,7 +94,7 @@ export default function ServersPage() {
           <button
             type="button"
             onClick={() => router.push("/channels/discover")}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors hidden md:flex"
             style={{ color: "var(--theme-text-muted)" }}
             title="Discover servers"
           >
