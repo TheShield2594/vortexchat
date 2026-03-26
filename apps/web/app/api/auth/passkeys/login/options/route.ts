@@ -50,7 +50,15 @@ export async function POST(request: Request) {
     }
 
     const { email } = (await request.json().catch(() => ({}))) as { email?: string }
+
+    // Basic email format validation before any DB lookup
+    if (email !== undefined && (typeof email !== "string" || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 })
+    }
+
     const supabase = await createServiceRoleClient()
+    // Service-role client lacks generated DB types — cast required for untyped table access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
 
     let userId: string | null = null
@@ -79,7 +87,7 @@ export async function POST(request: Request) {
     const origin = getOrigin()
     const rpID = getRpId(origin)
 
-    await db.from("auth_challenges").insert({
+    const { error: challengeError } = await db.from("auth_challenges").insert({
       user_id: userId,
       flow: "login",
       challenge,
@@ -87,6 +95,10 @@ export async function POST(request: Request) {
       origin,
       expires_at: expiresAt,
     })
+    if (challengeError) {
+      console.error("[passkey-options] challenge insert failed:", challengeError.message)
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
 
     // Only query credentials for a specific user — never expose the full table
     let credentials: Array<{ credential_id: string }> = []

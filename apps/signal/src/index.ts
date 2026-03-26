@@ -160,9 +160,13 @@ if (REDIS_URL) {
 const voiceStateSync = supabase ? createVoiceStateSync(supabase) : null
 
 // ─── Session re-validation cache for signaling events ────────────────────────
-// Re-validate the auth token periodically (every 30s) instead of on every event
+// Re-validate the auth token periodically (every 30s) instead of on every event.
 const SESSION_REVALIDATION_TTL_MS = 30_000
-// Maximum age of a cached entry that can be used as fallback on transient errors
+// Maximum age of a cached entry that can be used as fallback on transient auth
+// service errors. SECURITY TRADE-OFF: a revoked token may remain authorized for
+// up to this window if the auth service is unreachable. Review this TTL against
+// your threat model — lower values are safer but increase the risk of
+// disconnecting users during auth service outages.
 const SESSION_FALLBACK_MAX_AGE_MS = 120_000
 const sessionValidationCache = new Map<string, { validatedAt: number; userId: string }>()
 
@@ -188,7 +192,10 @@ async function validateSession(socket: Socket): Promise<boolean> {
   } catch (err) {
     // On transient errors, allow only if we have a recent cached validation
     if (cached && Date.now() - cached.validatedAt < SESSION_FALLBACK_MAX_AGE_MS) {
-      logger.warn({ socketId: socket.id, err }, "session revalidation failed — using cached validation")
+      logger.warn(
+        { socketId: socket.id, userId: cached.userId, cachedAgeMs: Date.now() - cached.validatedAt, err },
+        "session revalidation failed — using cached validation (session_fallback_used)"
+      )
       return true
     }
     logger.error({ socketId: socket.id, err }, "session revalidation failed — no recent cache, denying")
@@ -348,13 +355,15 @@ io.on("connection", (socket: Socket) => {
 
       // Queue Supabase voice_states upsert
       if (supabase && voiceStateSync) {
-        const { data: channel } = await supabase
+        const { data: channel, error: channelError } = await supabase
           .from("channels")
           .select("server_id")
           .eq("id", channelId)
           .maybeSingle()
 
-        if (channel) {
+        if (channelError) {
+          logger.error({ channelId, err: channelError.message }, "failed to resolve channel for voice state upsert")
+        } else if (channel) {
           voiceStateSync.enqueueUpsert({
             user_id: userId,
             channel_id: channelId,
@@ -510,6 +519,7 @@ io.on("connection", (socket: Socket) => {
       if (!checkSocketRate(socket.id, "voiceState")) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
+      if (!(await verifyChannelMembership(peer))) return
 
       await rooms.updatePeer(peer.channelId, socket.id, { speaking })
       socket.to(peer.channelId).emit("peer-speaking", { peerId: socket.id, speaking })
