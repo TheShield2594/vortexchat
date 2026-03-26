@@ -38,18 +38,20 @@ class SocketRateLimiter {
       }
     }
   }
+
+  cleanup(maxAgeMs: number): void {
+    const cutoff = Date.now() - maxAgeMs
+    for (const [key, entry] of this.windows) {
+      entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
+      if (entry.timestamps.length === 0) this.windows.delete(key)
+    }
+  }
 }
 
 const socketLimiter = new SocketRateLimiter()
 
 // Periodic cleanup of stale entries
-setInterval(() => {
-  const cutoff = Date.now() - 120_000
-  for (const [key, entry] of socketLimiter["windows"]) {
-    entry.timestamps = entry.timestamps.filter((t: number) => t > cutoff)
-    if (entry.timestamps.length === 0) socketLimiter["windows"].delete(key)
-  }
-}, 60_000)
+setInterval(() => socketLimiter.cleanup(120_000), 60_000)
 
 // Rate limit presets (limit, windowMs)
 const RATE_LIMITS = {
@@ -262,31 +264,48 @@ io.on("connection", (socket: Socket) => {
 
   /** Verify sender and recipient are in the same channel before relaying */
   async function validateSignalingPeer(to: string): Promise<boolean> {
-    const senderRoom = await findPeerRoom(socket.id)
-    if (!senderRoom) return false
-    const recipientPeer = await rooms.getPeer(senderRoom.channelId, to)
-    return !!recipientPeer
+    try {
+      const senderRoom = await findPeerRoom(socket.id)
+      if (!senderRoom) return false
+      const recipientPeer = await rooms.getPeer(senderRoom.channelId, to)
+      return !!recipientPeer
+    } catch (err) {
+      logger.error({ socketId: socket.id, to, err }, "validateSignalingPeer failed")
+      return false
+    }
   }
 
   socket.on("offer", async ({ to, offer }: { to: string; offer: RTCSessionDescriptionInit }) => {
-    if (!checkSocketRate(socket.id, "signaling")) return
-    if (!to || !offer) return
-    if (!(await validateSignalingPeer(to))) return
-    io.to(to).emit("offer", { from: socket.id, offer })
+    try {
+      if (!checkSocketRate(socket.id, "signaling")) return
+      if (!to || !offer) return
+      if (!(await validateSignalingPeer(to))) return
+      io.to(to).emit("offer", { from: socket.id, offer })
+    } catch (err) {
+      logger.error({ socketId: socket.id, event: "offer", err }, "signaling handler error")
+    }
   })
 
   socket.on("answer", async ({ to, answer }: { to: string; answer: RTCSessionDescriptionInit }) => {
-    if (!checkSocketRate(socket.id, "signaling")) return
-    if (!to || !answer) return
-    if (!(await validateSignalingPeer(to))) return
-    io.to(to).emit("answer", { from: socket.id, answer })
+    try {
+      if (!checkSocketRate(socket.id, "signaling")) return
+      if (!to || !answer) return
+      if (!(await validateSignalingPeer(to))) return
+      io.to(to).emit("answer", { from: socket.id, answer })
+    } catch (err) {
+      logger.error({ socketId: socket.id, event: "answer", err }, "signaling handler error")
+    }
   })
 
   socket.on("ice-candidate", async ({ to, candidate }: { to: string; candidate: RTCIceCandidateInit }) => {
-    if (!checkSocketRate(socket.id, "signaling")) return
-    if (!to || !candidate) return
-    if (!(await validateSignalingPeer(to))) return
-    io.to(to).emit("ice-candidate", { from: socket.id, candidate })
+    try {
+      if (!checkSocketRate(socket.id, "signaling")) return
+      if (!to || !candidate) return
+      if (!(await validateSignalingPeer(to))) return
+      io.to(to).emit("ice-candidate", { from: socket.id, candidate })
+    } catch (err) {
+      logger.error({ socketId: socket.id, event: "ice-candidate", err }, "signaling handler error")
+    }
   })
 
   // ─── Voice state events ─────────────────────────────────────────────────────
@@ -299,32 +318,38 @@ io.on("connection", (socket: Socket) => {
   async function verifyChannelMembership(peer: { channelId: string; userId: string }): Promise<boolean> {
     if (!supabase) return true // skip if no DB configured
 
-    const { data: channel } = await supabase
-      .from("channels")
-      .select("server_id")
-      .eq("id", peer.channelId)
-      .single()
+    try {
+      const { data: channel } = await supabase
+        .from("channels")
+        .select("server_id")
+        .eq("id", peer.channelId)
+        .single()
 
-    if (!channel) {
-      await handleLeave(socket, peer.channelId)
-      return false
+      if (!channel) {
+        await handleLeave(socket, peer.channelId)
+        return false
+      }
+
+      const { data: member } = await supabase
+        .from("server_members")
+        .select("user_id")
+        .eq("server_id", channel.server_id)
+        .eq("user_id", peer.userId)
+        .single()
+
+      if (!member) {
+        logger.warn({ userId: peer.userId, channelId: peer.channelId }, "evicting user — no longer a server member")
+        socket.emit("error", { message: "You are no longer a member of this server" })
+        await handleLeave(socket, peer.channelId)
+        return false
+      }
+
+      return true
+    } catch (err) {
+      // Fail open on DB/network errors — don't evict users due to transient failures
+      logger.error({ userId: peer.userId, channelId: peer.channelId, err }, "verifyChannelMembership DB error — failing open")
+      return true
     }
-
-    const { data: member } = await supabase
-      .from("server_members")
-      .select("user_id")
-      .eq("server_id", channel.server_id)
-      .eq("user_id", peer.userId)
-      .single()
-
-    if (!member) {
-      logger.warn({ userId: peer.userId, channelId: peer.channelId }, "evicting user — no longer a server member")
-      socket.emit("error", { message: "You are no longer a member of this server" })
-      await handleLeave(socket, peer.channelId)
-      return false
-    }
-
-    return true
   }
 
   socket.on("speaking", async ({ speaking }: { speaking: boolean }) => {

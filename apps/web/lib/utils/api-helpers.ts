@@ -112,6 +112,14 @@ export function apiError(message: string, status = 500) {
   return NextResponse.json({ error: message }, { status })
 }
 
+/** Structured context for dbError logging */
+interface DbErrorContext {
+  route?: string
+  userId?: string
+  action?: string
+  detail?: string
+}
+
 /**
  * Convert a Supabase error into a 500 response.
  * Returns a generic message to avoid leaking DB schema details to clients.
@@ -120,10 +128,12 @@ export function apiError(message: string, status = 500) {
  * Replace the 50+ copies of:
  *   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
  */
-export function dbError(error: { message: string } | null, context?: string) {
+export function dbError(error: { message: string } | null, context?: string | DbErrorContext): NextResponse | null {
   if (!error) return null
-  if (context) {
+  if (typeof context === "string") {
     console.error(`[dbError] ${context}:`, error.message)
+  } else if (context) {
+    console.error("[dbError]", { ...context, message: error.message })
   }
   return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 }

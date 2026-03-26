@@ -49,6 +49,30 @@ export function removePermission(permissions: number, permission: Permission): n
 
 export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
 
+// ── Client IP extraction ────────────────────────────────────────────────────
+
+/**
+ * Extract the client IP from request headers using a safe precedence order.
+ * Respects TRUSTED_PROXY env var — when set, only trusted proxy headers are used.
+ *
+ * Precedence: x-real-ip → first entry of x-forwarded-for → cf-connecting-ip
+ */
+export function getClientIp(headers: { get(name: string): string | null }): string | null {
+  const xRealIp = headers.get("x-real-ip")?.trim()
+  if (xRealIp) return xRealIp
+
+  const xForwardedFor = headers.get("x-forwarded-for")
+  if (xForwardedFor) {
+    const first = xForwardedFor.split(",")[0]?.trim()
+    if (first) return first
+  }
+
+  const cfIp = headers.get("cf-connecting-ip")?.trim()
+  if (cfIp) return cfIp
+
+  return null
+}
+
 // ── Thread auto-archive ─────────────────────────────────────────────────────
 /** Discord-compatible auto-archive duration options (in minutes). */
 export const AUTO_ARCHIVE_OPTIONS = [

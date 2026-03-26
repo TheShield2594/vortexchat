@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { detectProvider, klipySuggestions } from "@/lib/gif-provider"
 import { rateLimiter } from "@/lib/rate-limit"
+import { getClientIp } from "@vortex/shared"
 
 const GIPHY_BASE = "https://api.giphy.com/v1"
 const SUGGESTIONS_TTL_MS = 5 * 60 * 1000 // 5 minutes
@@ -11,7 +12,7 @@ const suggestionsCache = new Map<string, { data: string[]; expiresAt: number }>(
 
 /** GET /api/gif/suggestions?q=... — Returns search-term autocomplete suggestions. */
 export async function GET(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+  const ip = getClientIp(request.headers) ?? "unknown"
   const rl = await rateLimiter.check(`gif:${ip}`, { limit: 30, windowMs: 60_000 })
   if (!rl.allowed) return NextResponse.json([], { status: 429 })
 

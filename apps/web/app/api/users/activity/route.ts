@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false })
     .limit(FEED_LIMIT)
 
-  if (activityError) return NextResponse.json({ error: "Failed to log activity" }, { status: 500 })
+  if (activityError) return NextResponse.json({ error: "Failed to fetch activity" }, { status: 500 })
 
   return NextResponse.json({ activity: activity ?? [] })
 }

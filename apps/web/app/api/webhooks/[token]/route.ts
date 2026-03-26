@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { rateLimiter } from "@/lib/rate-limit"
+import { getClientIp } from "@vortex/shared"
 
 export const dynamic = "force-dynamic"
 
@@ -25,6 +26,17 @@ export async function POST(
 ) {
   try {
     const { token } = await params
+
+    // Coarse IP-level rate limit — 60 webhook calls per minute per IP
+    const ip = getClientIp(req.headers) ?? "unknown"
+    try {
+      const ipRl = await rateLimiter.check(`webhook_ip:${ip}`, { limit: 60, windowMs: 60_000 })
+      if (!ipRl.allowed) {
+        return NextResponse.json({ error: "Rate limited" }, { status: 429 })
+      }
+    } catch {
+      // Fail open — don't block webhooks if rate limiter is down
+    }
 
     // Rate limit per webhook token — 30 messages per minute
     const rl = await rateLimiter.check(`webhook:${token}`, { limit: 30, windowMs: 60_000 })
@@ -59,6 +71,20 @@ export async function POST(
     }
 
     const { content, username, avatar_url, embeds } = body
+
+    // Runtime type validation
+    if (content !== undefined && typeof content !== "string") {
+      return NextResponse.json({ error: "content must be a string" }, { status: 400 })
+    }
+    if (username !== undefined && typeof username !== "string") {
+      return NextResponse.json({ error: "username must be a string" }, { status: 400 })
+    }
+    if (avatar_url !== undefined && typeof avatar_url !== "string") {
+      return NextResponse.json({ error: "avatar_url must be a string" }, { status: 400 })
+    }
+    if (embeds !== undefined && !Array.isArray(embeds)) {
+      return NextResponse.json({ error: "embeds must be an array" }, { status: 400 })
+    }
 
     if (!content && (!embeds || embeds.length === 0)) {
       return NextResponse.json({ error: "content or embeds required" }, { status: 400 })
@@ -130,7 +156,8 @@ export async function GET(
 
     if (error || !webhook) return NextResponse.json({ error: "Unknown webhook" }, { status: 404 })
     return NextResponse.json({ id: webhook.id, name: webhook.name, channel_id: webhook.channel_id })
-  } catch {
+  } catch (err) {
+    console.error("[webhook GET]", err instanceof Error ? err.message : "Unknown error")
     return NextResponse.json({ error: "internal server error" }, { status: 500 })
   }
 }

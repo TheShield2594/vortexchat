@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { detectProvider, giphyTrending, klipyTrending, type GifResult } from "@/lib/gif-provider"
 import { rateLimiter } from "@/lib/rate-limit"
+import { getClientIp } from "@vortex/shared"
 
 const TRENDING_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
@@ -8,7 +9,7 @@ const TRENDING_TTL_MS = 10 * 60 * 1000 // 10 minutes
 let trendingCache: { data: GifResult[]; expiresAt: number; provider: string } | null = null
 
 export async function GET(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+  const ip = getClientIp(request.headers) ?? "unknown"
   const rl = await rateLimiter.check(`gif:${ip}`, { limit: 30, windowMs: 60_000 })
   if (!rl.allowed) return NextResponse.json([], { status: 429 })
 

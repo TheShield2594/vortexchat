@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
+import { getClientIp } from "@vortex/shared"
 
 const PAGE_SIZE = 24
 
@@ -18,11 +19,7 @@ function escapePostgrestValue(raw: string): string {
 // Lists public servers with search, sorting, and cursor pagination
 export async function GET(req: NextRequest) {
   // Rate-limit by IP before any DB work
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip")?.trim() ||
-    req.headers.get("cf-connecting-ip")?.trim() ||
-    "unknown"
+  const ip = getClientIp(req.headers) ?? "unknown"
   const rl = await rateLimiter.check(`discover:${ip}`, { limit: 30, windowMs: 60_000 })
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 })

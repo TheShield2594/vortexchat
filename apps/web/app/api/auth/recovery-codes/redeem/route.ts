@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { verifyRecoveryCode } from "@/lib/auth/recovery-codes"
 import { rateLimiter } from "@/lib/rate-limit"
+import { getClientIp } from "@vortex/shared"
 
 /**
  * POST /api/auth/recovery-codes/redeem
@@ -11,7 +12,7 @@ import { rateLimiter } from "@/lib/rate-limit"
  */
 export async function POST(request: Request) {
   // Rate limit: 5 recovery code attempts per 15 minutes per IP (stricter — this is an MFA bypass path)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
+  const ip = getClientIp(request.headers) ?? "unknown"
   const rl = await rateLimiter.check(`recovery-redeem:${ip}`, { limit: 5, windowMs: 15 * 60_000 })
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 })
