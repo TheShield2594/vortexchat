@@ -3,6 +3,7 @@ import { lookup } from "dns/promises"
 import { request as httpRequest } from "node:http"
 import { request as httpsRequest } from "node:https"
 import type { IncomingHttpHeaders } from "node:http"
+import { rateLimiter } from "@/lib/rate-limit"
 
 // Simple Open Graph scraper — fetches a URL and returns title, description, image, siteName
 // Runs server-side to avoid CORS issues and to not expose the target URL to analytics.
@@ -147,6 +148,13 @@ async function validateHost(parsedUrl: URL): Promise<ValidatedHost | NextRespons
 }
 
 export async function GET(req: NextRequest) {
+  // Rate limit by IP — 30 requests per minute (SSRF-sensitive endpoint)
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+  const rl = await rateLimiter.check(`oembed:${ip}`, { limit: 30, windowMs: 60_000 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Rate limited" }, { status: 429 })
+  }
+
   const url = req.nextUrl.searchParams.get("url")
   if (!url) return NextResponse.json({ error: "url required" }, { status: 400 })
 

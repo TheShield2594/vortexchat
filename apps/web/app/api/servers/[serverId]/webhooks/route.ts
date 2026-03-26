@@ -23,7 +23,7 @@ export async function GET(
     .eq("server_id", serverId)
     .order("created_at")
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch webhooks" }, { status: 500 })
   // Token is omitted from list responses — it is only returned at creation time
   return NextResponse.json(data ?? [])
 }
@@ -60,7 +60,7 @@ export async function POST(
     .select("id, name, token, channel_id, created_at")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to create webhook" }, { status: 500 })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
   return NextResponse.json({ ...data, url: `${appUrl}/api/webhooks/${data.token}` }, { status: 201 })
 }
@@ -89,6 +89,6 @@ export async function DELETE(
     .eq("id", webhookId)
     .eq("server_id", serverId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete webhook" }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

@@ -61,7 +61,7 @@ export async function GET(
   if (to) query = query.lte("start_at", to)
 
   const { data, error } = await query as { data: EventRow[] | null; error: any }
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
 
   const events = (data ?? []).map((event) => {
     const rsvps = event.event_rsvps ?? []
@@ -148,7 +148,7 @@ export async function POST(
     .select("*")
     .single() as any) as { data: any; error: any }
 
-  if (error || !created) return NextResponse.json({ error: error?.message ?? "Failed to create event" }, { status: 500 })
+  if (error || !created) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 
   if (hosts.length > 0) {
     await supabase.from("event_hosts").insert(

@@ -24,7 +24,7 @@ export async function GET() {
     `)
     .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 
   const accepted: any[] = []
   const pending_received: any[] = []
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
           .from("friendships")
           .update({ status: "accepted" })
           .eq("id", existing.id)
-        if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+        if (updateErr) return NextResponse.json({ error: "Failed to send request" }, { status: 500 })
 
         // Notify the original requester that their request was auto-accepted (fire-and-forget)
         Promise.resolve().then(async () => {
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     .from("friendships")
     .insert({ requester_id: user.id, addressee_id: target.id, status: "pending" })
 
-  if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
+  if (insertErr) return NextResponse.json({ error: "Failed to send request" }, { status: 500 })
 
   // Notify the addressee of the incoming friend request (fire-and-forget)
   Promise.resolve().then(async () => {
@@ -208,7 +208,7 @@ export async function PATCH(req: NextRequest) {
       .from("friendships")
       .update({ status: "accepted" })
       .eq("id", friendshipId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 
     // Notify the original requester that their request was accepted (fire-and-forget)
     Promise.resolve().then(async () => {
@@ -256,7 +256,7 @@ export async function PATCH(req: NextRequest) {
       .from("friendships")
       .delete()
       .eq("id", friendshipId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
     return NextResponse.json({ message: "Friend request declined" })
   }
 
@@ -268,14 +268,14 @@ export async function PATCH(req: NextRequest) {
         .from("friendships")
         .update({ status: "blocked" })
         .eq("id", friendshipId)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
     } else {
       // addressee is blocking the requester — need to swap direction so current user is requester
       const { error } = await supabase
         .from("friendships")
         .update({ status: "blocked", requester_id: user.id, addressee_id: row.requester_id })
         .eq("id", friendshipId)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
     }
     return NextResponse.json({ message: "User blocked" })
   }
@@ -309,7 +309,7 @@ export async function DELETE(req: NextRequest) {
     .delete()
     .eq("id", friendshipId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 
   return NextResponse.json({ message: "Removed" })
 }

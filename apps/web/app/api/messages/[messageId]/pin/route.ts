@@ -47,7 +47,7 @@ export async function PUT(
     .update({ pinned: true, pinned_at: new Date().toISOString(), pinned_by: user.id })
     .eq("id", messageId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to pin message" }, { status: 500 })
 
   // Audit log
   await supabase.from("audit_logs").insert({
@@ -103,6 +103,6 @@ export async function DELETE(
     .update({ pinned: false, pinned_at: null, pinned_by: null })
     .eq("id", messageId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to unpin message" }, { status: 500 })
   return NextResponse.json({ message: "Unpinned" })
 }

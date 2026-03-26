@@ -19,7 +19,7 @@ export async function GET(
     .eq("id", appealId)
     .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch appeal" }, { status: 500 })
   if (!appeal) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const { data: member } = await supabase
@@ -74,7 +74,7 @@ export async function PATCH(
     .eq("id", appealId)
     .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch appeal" }, { status: 500 })
   if (!appeal) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const { data: member } = await supabase
@@ -130,7 +130,7 @@ export async function PATCH(
     .update(updatePayload)
     .eq("id", appealId)
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError) return NextResponse.json({ error: "Failed to update appeal" }, { status: 500 })
 
   if (internalNote) {
     const { error: noteError } = await (serviceSupabase as any).from("moderation_appeal_internal_notes").insert({

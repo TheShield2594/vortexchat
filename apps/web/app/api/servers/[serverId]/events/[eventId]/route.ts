@@ -126,7 +126,7 @@ export async function PATCH(
       .eq("server_id", params.serverId)
       .select("id,title,linked_channel_id")
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to update event" }, { status: 500 })
     updated = data
   } else {
     updated = { id: existing?.id, title: existing?.title, linked_channel_id: existing?.linked_channel_id }
@@ -153,7 +153,7 @@ export async function PATCH(
       .update({ capacity: newCapacity })
       .eq("id", params.eventId)
       .eq("server_id", params.serverId)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to update event capacity" }, { status: 500 })
   }
 
   // Audit log
@@ -225,7 +225,7 @@ export async function DELETE(
     .eq("id", params.eventId)
     .eq("server_id", params.serverId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete event" }, { status: 500 })
 
   // Audit log
   const { error: auditError } = await service.from("audit_logs").insert({

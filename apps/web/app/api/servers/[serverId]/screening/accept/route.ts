@@ -32,7 +32,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     { onConflict: "server_id,user_id" }
   )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to accept screening" }, { status: 500 })
 
   // Audit — fire-and-forget; failure should not block the member's acceptance.
   void supabase.from("audit_logs").insert({

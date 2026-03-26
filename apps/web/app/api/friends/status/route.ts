@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     )
     .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 
   if (!row) {
     return NextResponse.json({ status: "none" })

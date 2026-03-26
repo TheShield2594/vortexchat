@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { rateLimiter } from "@/lib/rate-limit"
 
 export const dynamic = "force-dynamic"
 
@@ -23,8 +24,15 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const supabaseAdmin = getSupabaseAdmin()
     const { token } = await params
+
+    // Rate limit per webhook token — 30 messages per minute
+    const rl = await rateLimiter.check(`webhook:${token}`, { limit: 30, windowMs: 60_000 })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limited" }, { status: 429 })
+    }
+
+    const supabaseAdmin = getSupabaseAdmin()
 
     // Resolve webhook by token
     const { data: webhook, error: whError } = await supabaseAdmin

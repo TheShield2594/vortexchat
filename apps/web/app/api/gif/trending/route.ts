@@ -1,12 +1,17 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { detectProvider, giphyTrending, klipyTrending, type GifResult } from "@/lib/gif-provider"
+import { rateLimiter } from "@/lib/rate-limit"
 
 const TRENDING_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
 // Module-level cache — survives across requests within the same serverless instance
 let trendingCache: { data: GifResult[]; expiresAt: number; provider: string } | null = null
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+  const rl = await rateLimiter.check(`gif:${ip}`, { limit: 30, windowMs: 60_000 })
+  if (!rl.allowed) return NextResponse.json([], { status: 429 })
+
   const config = detectProvider()
   if (!config) return NextResponse.json([])
 

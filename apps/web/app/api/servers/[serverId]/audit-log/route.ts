@@ -67,7 +67,7 @@ export async function GET(
   if (targetFilter) query = query.eq("target_id", targetFilter)
 
   const { data: entries, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch audit log" }, { status: 500 })
   if (!entries?.length) {
     if (exportFormat === "csv") {
       return new NextResponse(buildCsv([]), {

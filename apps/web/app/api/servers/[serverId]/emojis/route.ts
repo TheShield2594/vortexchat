@@ -30,7 +30,7 @@ export async function GET(
     .eq("server_id", serverId)
     .order("name")
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch emojis" }, { status: 500 })
   return NextResponse.json(data ?? [], {
     headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
   })
@@ -69,7 +69,7 @@ export async function POST(
     .from("server_emojis")
     .select("id", { count: "exact", head: true })
     .eq("server_id", serverId)
-  if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
+  if (countError) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   if ((count ?? 0) >= CUSTOM_EMOJI_LIMIT) {
     return NextResponse.json({ error: `Server has reached its ${CUSTOM_EMOJI_LIMIT} custom emoji limit` }, { status: 409 })
   }
@@ -83,7 +83,7 @@ export async function POST(
     .from("server-emojis")
     .upload(path, arrayBuffer, { upsert: true, contentType: file.type })
 
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
+  if (uploadError) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 
   const { data: urlData } = supabase.storage.from("server-emojis").getPublicUrl(path)
 
@@ -93,7 +93,7 @@ export async function POST(
     .select()
     .single()
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  if (insertError) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 
   // Audit log
   await supabase.from("audit_logs").insert({
@@ -158,7 +158,7 @@ export async function DELETE(
     .eq("id", emojiId)
     .eq("server_id", serverId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete emoji" }, { status: 500 })
 
   // Audit log
   await supabase.from("audit_logs").insert({

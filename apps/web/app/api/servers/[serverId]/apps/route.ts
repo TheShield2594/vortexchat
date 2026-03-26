@@ -38,7 +38,7 @@ export async function GET(
     .eq("server_id", serverId)
     .order("installed_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch installed apps" }, { status: 500 })
   return NextResponse.json(data ?? [])
 }
 
@@ -99,7 +99,7 @@ export async function POST(
     .select("id, app_id, install_scopes, granted_permissions, installed_at")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to install app" }, { status: 500 })
 
   await serviceClient.rpc("bump_app_usage", {
     p_app_id: app.id,
@@ -133,7 +133,7 @@ export async function DELETE(
     .eq("server_id", serverId)
     .eq("app_id", appId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to uninstall app" }, { status: 500 })
 
   await serviceClient.rpc("bump_app_usage", {
     p_app_id: appId,

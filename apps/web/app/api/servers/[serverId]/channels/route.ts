@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .eq("user_id", user.id)
       .maybeSingle()
 
-    if (memberError) return NextResponse.json({ error: memberError.message }, { status: 500 })
+    if (memberError) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { data, error } = await supabase
@@ -31,9 +31,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .eq("server_id", serverId)
       .order("position", { ascending: true })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 })
     return NextResponse.json(data ?? [])
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   }
 }

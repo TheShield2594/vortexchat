@@ -44,7 +44,7 @@ export async function GET() {
     .order("updated_at", { ascending: false })
     .limit(DEVICE_LIMIT)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch device keys" }, { status: 500 })
 
   return NextResponse.json({
     devices: data ?? [],
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (error.message?.includes("device_limit_reached")) {
       return NextResponse.json({ error: `Device limit reached (${DEVICE_LIMIT})` }, { status: 409 })
     }
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to register device key" }, { status: 500 })
   }
 
   if (data !== true) {

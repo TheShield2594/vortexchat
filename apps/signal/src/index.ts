@@ -290,6 +290,43 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── Voice state events ─────────────────────────────────────────────────────
+
+  /**
+   * Re-verify channel membership against the database for sensitive state changes.
+   * Returns false (and evicts the peer) if the user is no longer a server member.
+   * Skipped if Supabase is not configured.
+   */
+  async function verifyChannelMembership(peer: { channelId: string; userId: string }): Promise<boolean> {
+    if (!supabase) return true // skip if no DB configured
+
+    const { data: channel } = await supabase
+      .from("channels")
+      .select("server_id")
+      .eq("id", peer.channelId)
+      .single()
+
+    if (!channel) {
+      await handleLeave(socket, peer.channelId)
+      return false
+    }
+
+    const { data: member } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", channel.server_id)
+      .eq("user_id", peer.userId)
+      .single()
+
+    if (!member) {
+      logger.warn({ userId: peer.userId, channelId: peer.channelId }, "evicting user — no longer a server member")
+      socket.emit("error", { message: "You are no longer a member of this server" })
+      await handleLeave(socket, peer.channelId)
+      return false
+    }
+
+    return true
+  }
+
   socket.on("speaking", async ({ speaking }: { speaking: boolean }) => {
     if (!checkSocketRate(socket.id, "voiceState")) return
     const peer = await findPeerRoom(socket.id)
@@ -307,6 +344,7 @@ io.on("connection", (socket: Socket) => {
     if (!checkSocketRate(socket.id, "voiceState")) return
     const peer = await findPeerRoom(socket.id)
     if (!peer) return
+    if (!(await verifyChannelMembership(peer))) return
 
     await rooms.updatePeer(peer.channelId, socket.id, { muted })
     socket.to(peer.channelId).emit("peer-muted", { peerId: socket.id, muted })
@@ -320,6 +358,7 @@ io.on("connection", (socket: Socket) => {
     if (!checkSocketRate(socket.id, "voiceState")) return
     const peer = await findPeerRoom(socket.id)
     if (!peer) return
+    if (!(await verifyChannelMembership(peer))) return
 
     await rooms.updatePeer(peer.channelId, socket.id, { deafened })
     socket.to(peer.channelId).emit("peer-deafened", { peerId: socket.id, deafened })
@@ -333,6 +372,7 @@ io.on("connection", (socket: Socket) => {
     if (!checkSocketRate(socket.id, "voiceState")) return
     const peer = await findPeerRoom(socket.id)
     if (!peer) return
+    if (!(await verifyChannelMembership(peer))) return
 
     await rooms.updatePeer(peer.channelId, socket.id, { screenSharing: sharing })
     socket.to(peer.channelId).emit("peer-screen-share", { peerId: socket.id, sharing })

@@ -72,7 +72,7 @@ export async function GET(
 
   if (error) {
     console.error("[members] GET query failed", { serverId: params.serverId, code: error.code, message: error.message, details: error.details })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 })
   }
 
   const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
@@ -123,7 +123,7 @@ export async function DELETE(
     .eq("server_id", params.serverId)
     .eq("user_id", targetUserId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
 
   return NextResponse.json({ success: true })
 }
@@ -197,7 +197,7 @@ export async function PATCH(
     p_reason: null,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update member timeout" }, { status: 500 })
 
   // Audit log
   await insertAuditLog(supabase, {

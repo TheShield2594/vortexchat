@@ -15,7 +15,7 @@ export async function GET(
     .eq("server_id", params.serverId)
     .order("position", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch roles" }, { status: 500 })
 
   return NextResponse.json(roles)
 }
@@ -46,7 +46,7 @@ export async function POST(
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to create role" }, { status: 500 })
 
   return NextResponse.json(role, { status: 201 })
 }

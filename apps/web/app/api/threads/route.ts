@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   if (error) {
     console.error("[threads] GET query failed", { channelId, code: error.code, message: error.message, details: error.details })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch threads" }, { status: 500 })
   }
 
   const threadList = threads ?? []
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       p_name: name.trim(),
       p_auto_archive_duration: duration,
     })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to create thread" }, { status: 500 })
     return NextResponse.json(thread, { status: 201 })
   }
 
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       .insert({ parent_channel_id: channelId, owner_id: user.id, name: name.trim(), auto_archive_duration: duration })
       .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, auto_archive_duration, message_count, created_at, updated_at")
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to create thread" }, { status: 500 })
     return NextResponse.json(thread, { status: 201 })
   }
 

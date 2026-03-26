@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch automod rules" }, { status: 500 })
   const ruleIds = (data ?? []).map((rule) => rule.id)
   const { data: analytics } = ruleIds.length
     ? await supabase.from("automod_rule_analytics").select("rule_id, hit_count, false_positive_count, last_triggered_at").in("rule_id", ruleIds)
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to create automod rule" }, { status: 500 })
 
   // Audit
   await insertAuditLog(supabase, {

@@ -30,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .order("submitted_at", { ascending: true }),
   ])
 
-  if (configResult.error) return NextResponse.json({ error: configResult.error.message }, { status: 500 })
+  if (configResult.error) return NextResponse.json({ error: "Failed to fetch standup configuration" }, { status: 500 })
 
   return NextResponse.json({
     config: configResult.data,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("*")
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to save standup configuration" }, { status: 500 })
     return NextResponse.json(data)
   }
 
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("*")
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to submit standup entry" }, { status: 500 })
     return NextResponse.json(data)
   }
 
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .eq("standup_date", date)
       .order("submitted_at", { ascending: true })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to fetch standup entries" }, { status: 500 })
     return NextResponse.json({ entries: data ?? [] })
   }
 

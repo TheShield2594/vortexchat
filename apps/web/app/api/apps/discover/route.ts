@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       ])
 
       if (nameError || descriptionError) {
-        return NextResponse.json({ error: nameError?.message ?? descriptionError?.message ?? "query failed" }, { status: 500 })
+        return NextResponse.json({ error: "Failed to search apps" }, { status: 500 })
       }
 
       const merged = [...(byName ?? []), ...(byDescription ?? [])]
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await baseBuilder().order("review_count", { ascending: false })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch apps" }, { status: 500 })
 
   return NextResponse.json(data ?? [])
 }

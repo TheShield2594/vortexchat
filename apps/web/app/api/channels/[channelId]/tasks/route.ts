@@ -20,7 +20,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ channe
     .eq("channel_id", channelId)
     .order("created_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   return NextResponse.json({ tasks: data ?? [] })
 }
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cha
   if (!payload.title) return NextResponse.json({ error: "title required" }, { status: 400 })
 
   const { data, error } = await supabase.from("channel_tasks").insert(payload).select("id, title, description, status, due_date, assignee_id, channel_id, server_id, source_message_id, created_by, updated_by, created_at, updated_at").single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   return NextResponse.json({ task: data }, { status: 201 })
 }
 
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ch
     .select("id, title, description, status, due_date, assignee_id, channel_id, server_id, source_message_id, created_by, updated_by, created_at, updated_at")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   return NextResponse.json({ task: data })
 }
 
@@ -101,6 +101,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ c
   if (typeof taskId !== "string" || !taskId.trim()) return NextResponse.json({ error: "taskId required" }, { status: 400 })
 
   const { error } = await supabase.from("channel_tasks").delete().eq("id", taskId).eq("channel_id", channelId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

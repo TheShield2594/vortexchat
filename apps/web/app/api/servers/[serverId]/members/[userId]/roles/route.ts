@@ -26,7 +26,7 @@ async function assertRoleMutationAllowed(
     if (roleError.code === "PGRST116") {
       return NextResponse.json({ error: "Role not found" }, { status: 404 })
     }
-    return NextResponse.json({ error: roleError.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch role" }, { status: 500 })
   }
 
   if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 404 })
@@ -77,7 +77,7 @@ export async function POST(
 
   if (error) {
     if (error.code === "23505") return NextResponse.json({ ok: true }) // already assigned
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
   }
 
   await supabase.from("audit_logs").insert({
@@ -127,7 +127,7 @@ export async function DELETE(
     .eq("user_id", userId)
     .eq("role_id", roleId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to remove role" }, { status: 500 })
 
   const { data: roleData } = await supabase
     .from("roles")

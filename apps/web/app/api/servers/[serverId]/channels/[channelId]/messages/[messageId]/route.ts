@@ -92,7 +92,7 @@ export async function PATCH(
 
   if (error || !data)
     return NextResponse.json(
-      { error: error?.message ?? "Failed to update message" },
+      { error: "Database operation failed" },
       { status: error ? 500 : 404 }
     )
 
@@ -151,7 +151,7 @@ export async function DELETE(
     .eq("id", messageId)
 
   if (error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to delete message" }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

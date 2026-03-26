@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params: paramsPromise }: Params) 
     .select(`*, user:users(*)`)
     .eq("thread_id", threadId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch thread members" }, { status: 500 })
 
   return NextResponse.json(members ?? [])
 }
@@ -45,7 +45,7 @@ export async function POST(_request: Request, { params: paramsPromise }: Params)
 
   if (error && error.code !== "23505") {
     // 23505 = unique violation (already a member) — not an error
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to join thread" }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
@@ -64,7 +64,7 @@ export async function DELETE(_request: Request, { params: paramsPromise }: Param
     .eq("thread_id", threadId)
     .eq("user_id", user.id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to leave thread" }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

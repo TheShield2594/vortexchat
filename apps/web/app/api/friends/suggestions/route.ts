@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
 
   if (relationshipError) {
-    return NextResponse.json({ error: relationshipError.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch suggestions" }, { status: 500 })
   }
 
   const blockedUserIds = await getBlockedUserIdsForViewer(supabase as any, user.id)
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: users, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch friend suggestions" }, { status: 500 })
 
   const filtered = filterBlockedUserIds(users ?? [], (candidate) => candidate.id, blockedUserIds)
     .filter((candidate) => !excluded.has(candidate.id))

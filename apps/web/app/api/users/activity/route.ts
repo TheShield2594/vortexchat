@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false })
     .limit(FEED_LIMIT)
 
-  if (activityError) return NextResponse.json({ error: activityError.message }, { status: 500 })
+  if (activityError) return NextResponse.json({ error: "Failed to log activity" }, { status: 500 })
 
   return NextResponse.json({ activity: activity ?? [] })
 }
@@ -83,6 +83,6 @@ export async function PATCH(request: Request) {
     .select("id, activity_visibility")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update activity visibility" }, { status: 500 })
   return NextResponse.json(data)
 }

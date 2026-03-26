@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { detectProvider, giphySearch, klipySearch, type GifResult } from "@/lib/gif-provider"
+import { rateLimiter } from "@/lib/rate-limit"
 
 const SEARCH_TTL_MS = 2 * 60 * 1000 // 2 minutes
 const MAX_CACHE_ENTRIES = 200
@@ -8,6 +9,10 @@ const MAX_CACHE_ENTRIES = 200
 const searchCache = new Map<string, { data: GifResult[]; expiresAt: number }>()
 
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+  const rl = await rateLimiter.check(`gif:${ip}`, { limit: 30, windowMs: 60_000 })
+  if (!rl.allowed) return NextResponse.json([], { status: 429 })
+
   const config = detectProvider()
   if (!config) return NextResponse.json([])
 

@@ -91,7 +91,7 @@ export async function POST(
       { onConflict: "event_id,user_id" }
     )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update RSVP" }, { status: 500 })
 
   // Auto-promote from waitlist only when someone leaves the "going" status.
   // Promotion is non-fatal — the RSVP change already committed successfully.

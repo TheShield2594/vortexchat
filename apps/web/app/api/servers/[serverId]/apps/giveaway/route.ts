@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .limit(50),
   ])
 
-  if (configResult.error) return NextResponse.json({ error: configResult.error.message }, { status: 500 })
+  if (configResult.error) return NextResponse.json({ error: "Failed to fetch giveaway configuration" }, { status: 500 })
 
   return NextResponse.json({
     config: configResult.data,

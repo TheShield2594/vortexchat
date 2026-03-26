@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
   if (error) {
     console.error("[thread-auto-archive] RPC failed:", error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   }
 
   const archivedCount = typeof data === "number" ? data : 0

@@ -16,7 +16,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .maybeSingle()
 
   if (sessionLookupError) {
-    return NextResponse.json({ error: sessionLookupError.message }, { status: 500 })
+    return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   }
 
   if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 })
@@ -28,7 +28,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .eq("user_id", auth.user.id)
     .is("revoked_at", null)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to revoke session" }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

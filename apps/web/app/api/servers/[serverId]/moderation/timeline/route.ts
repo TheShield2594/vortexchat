@@ -73,7 +73,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
     .order("id", { ascending: false })
     .limit(5000)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch moderation timeline" }, { status: 500 })
 
   const entries: TimelineEvent[] = (logs ?? []).map((log) => {
     const metadata = (log.changes ?? null) as Record<string, unknown> | null

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
   if (!emoji) return NextResponse.json({ error: "emoji required" }, { status: 400 })
 
   const { data: message, error: messageError } = await resolveMessageContext(supabase, messageId)
-  if (messageError) return NextResponse.json({ error: messageError.message }, { status: 500 })
+  if (messageError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
   if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
   const channelServerId = (message as any)?.channels?.server_id as string | null
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
     .from("reactions")
     .upsert({ message_id: messageId, user_id: user.id, emoji }, { onConflict: "message_id,user_id,emoji", ignoreDuplicates: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to add reaction" }, { status: 500 })
 
   return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
 }
@@ -69,7 +69,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
   if (!emoji) return NextResponse.json({ error: "emoji required" }, { status: 400 })
 
   const { data: message, error: messageError } = await resolveMessageContext(supabase, messageId)
-  if (messageError) return NextResponse.json({ error: messageError.message }, { status: 500 })
+  if (messageError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
   if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
   const channelServerId = (message as any)?.channels?.server_id as string | null
@@ -87,7 +87,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
     .eq("user_id", user.id)
     .eq("emoji", emoji)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 })
 
   return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
 }

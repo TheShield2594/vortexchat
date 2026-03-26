@@ -114,13 +114,18 @@ export function apiError(message: string, status = 500) {
 
 /**
  * Convert a Supabase error into a 500 response.
+ * Returns a generic message to avoid leaking DB schema details to clients.
+ * The original error message is logged server-side for debugging.
  *
  * Replace the 50+ copies of:
  *   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
  */
-export function dbError(error: { message: string } | null) {
+export function dbError(error: { message: string } | null, context?: string) {
   if (!error) return null
-  return NextResponse.json({ error: error.message }, { status: 500 })
+  if (context) {
+    console.error(`[dbError] ${context}:`, error.message)
+  }
+  return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 }
 
 // ---------------------------------------------------------------------------

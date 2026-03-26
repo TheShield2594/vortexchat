@@ -51,7 +51,7 @@ export async function GET(request: Request, { params: paramsPromise }: Params) {
   }
 
   const { data: messages, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch thread messages" }, { status: 500 })
 
   // Mark thread as read for this user
   try { await supabase.rpc("mark_thread_read", { p_thread_id: threadId }) } catch {}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { filterBlockedUserIds, getBlockedUserIdsForViewer } from "@/lib/social-block-policy"
+import { rateLimiter } from "@/lib/rate-limit"
 
 interface SearchFilters {
   fromUserId?: string
@@ -52,6 +53,10 @@ function parseSearchQuery(raw: string): { query: string; filters: SearchFilters 
 export async function GET(req: NextRequest) {
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
+
+  // Rate limit: 20 searches per minute per user
+  const rl = await rateLimiter.check(`search:${user.id}`, { limit: 20, windowMs: 60_000 })
+  if (!rl.allowed) return NextResponse.json({ error: "Rate limited" }, { status: 429 })
 
   const { searchParams } = new URL(req.url)
   const rawQuery = searchParams.get("q")?.trim() ?? ""

@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     .order("started_at", { ascending: true })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   }
 
   return NextResponse.json({ segments: segments ?? [] })
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
   }
 
   return NextResponse.json({ segment }, { status: 201 })
