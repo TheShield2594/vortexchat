@@ -109,7 +109,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const isTextChannel = !!activeChannel && activeChannel.type === "text"
 
   // Swipe right to navigate back to the channel list on mobile
-  const navigateBack = useCallback(() => {
+  const navigateBack = useCallback((): void => {
     router.push(`/channels/${serverId}`)
   }, [router, serverId])
   const swipeHandlers = useSwipe({ onSwipeRight: navigateBack })
