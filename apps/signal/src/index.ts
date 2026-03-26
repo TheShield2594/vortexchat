@@ -162,6 +162,8 @@ const voiceStateSync = supabase ? createVoiceStateSync(supabase) : null
 // ─── Session re-validation cache for signaling events ────────────────────────
 // Re-validate the auth token periodically (every 30s) instead of on every event
 const SESSION_REVALIDATION_TTL_MS = 30_000
+// Maximum age of a cached entry that can be used as fallback on transient errors
+const SESSION_FALLBACK_MAX_AGE_MS = 120_000
 const sessionValidationCache = new Map<string, { validatedAt: number; userId: string }>()
 
 async function validateSession(socket: Socket): Promise<boolean> {
@@ -184,8 +186,52 @@ async function validateSession(socket: Socket): Promise<boolean> {
     sessionValidationCache.set(socket.id, { validatedAt: Date.now(), userId: user.id })
     return true
   } catch (err) {
-    logger.error({ socketId: socket.id, err }, "session revalidation failed — allowing")
-    return true // fail open on transient errors
+    // On transient errors, allow only if we have a recent cached validation
+    if (cached && Date.now() - cached.validatedAt < SESSION_FALLBACK_MAX_AGE_MS) {
+      logger.warn({ socketId: socket.id, err }, "session revalidation failed — using cached validation")
+      return true
+    }
+    logger.error({ socketId: socket.id, err }, "session revalidation failed — no recent cache, denying")
+    sessionValidationCache.delete(socket.id)
+    return false
+  }
+}
+
+/**
+ * Verify a user is a member of the server that owns the given channel.
+ * Returns false if the user is not a member. Fails open on DB errors.
+ */
+async function checkChannelMembership(userId: string, channelId: string): Promise<boolean> {
+  if (!supabase) return true
+
+  try {
+    const { data: channel, error: chErr } = await supabase
+      .from("channels")
+      .select("server_id")
+      .eq("id", channelId)
+      .maybeSingle()
+
+    if (chErr) {
+      logger.error({ userId, channelId, err: chErr }, "checkChannelMembership channel query error — failing open")
+      return true
+    }
+    if (!channel) return false
+
+    const { data: member, error: memErr } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", channel.server_id)
+      .eq("user_id", userId)
+      .maybeSingle()
+
+    if (memErr) {
+      logger.error({ userId, channelId, err: memErr }, "checkChannelMembership member query error — failing open")
+      return true
+    }
+    return !!member
+  } catch (err) {
+    logger.error({ userId, channelId, err }, "checkChannelMembership error — failing open")
+    return true
   }
 }
 
@@ -193,17 +239,20 @@ io.on("connection", (socket: Socket) => {
   logger.info({ socketId: socket.id }, "client connected")
 
   // ─── Join a voice room ──────────────────────────────────────────────────────
-  socket.on("join-room", async (data: {
-    channelId: string
-    userId: string
-    displayName?: unknown
-    avatarUrl?: unknown
-  }) => {
+  socket.on("join-room", async (data: unknown) => {
     try {
-      const { channelId, userId } = data
-      let { displayName, avatarUrl } = data
+      if (typeof data !== "object" || data === null) {
+        socket.emit("error", { message: "Invalid join-room payload" })
+        return
+      }
 
-      if (!channelId || !userId) {
+      const payload = data as Record<string, unknown>
+      const channelId = payload.channelId
+      const clientUserId = payload.userId
+      let displayName = payload.displayName
+      let avatarUrl = payload.avatarUrl
+
+      if (typeof channelId !== "string" || !channelId || typeof clientUserId !== "string" || !clientUserId) {
         socket.emit("error", { message: "channelId and userId are required" })
         return
       }
@@ -231,7 +280,8 @@ io.on("connection", (socket: Socket) => {
         return
       }
 
-      // Verify auth token if supabase configured
+      // Derive userId from auth token — never trust client-supplied userId
+      let userId = clientUserId
       if (supabase) {
         const authToken = socket.handshake.auth?.token
         if (!authToken) {
@@ -239,12 +289,26 @@ io.on("connection", (socket: Socket) => {
           return
         }
         const { data: { user }, error } = await supabase.auth.getUser(authToken)
-        if (error || !user || user.id !== userId) {
+        if (error || !user) {
           socket.emit("error", { message: "Unauthorized" })
           return
         }
+        // Use server-derived userId, reject if client lied
+        if (user.id !== clientUserId) {
+          socket.emit("error", { message: "Unauthorized" })
+          return
+        }
+        userId = user.id
+
+        // Verify channel membership before joining the room
+        const isMember = await checkChannelMembership(userId, channelId)
+        if (!isMember) {
+          socket.emit("error", { message: "You are not a member of this server" })
+          return
+        }
+
         // Seed the session validation cache on join
-        sessionValidationCache.set(socket.id, { validatedAt: Date.now(), userId: user.id })
+        sessionValidationCache.set(socket.id, { validatedAt: Date.now(), userId })
       }
 
       // Join socket.io room
@@ -288,7 +352,7 @@ io.on("connection", (socket: Socket) => {
           .from("channels")
           .select("server_id")
           .eq("id", channelId)
-          .single()
+          .maybeSingle()
 
         if (channel) {
           voiceStateSync.enqueueUpsert({
@@ -330,10 +394,12 @@ io.on("connection", (socket: Socket) => {
     }
   }
 
-  socket.on("offer", async ({ to, offer }: { to: string; offer: RTCSessionDescriptionInit }) => {
+  socket.on("offer", async (payload: unknown) => {
     try {
+      if (typeof payload !== "object" || payload === null) return
+      const { to, offer } = payload as { to?: unknown; offer?: unknown }
+      if (typeof to !== "string" || !to || !offer) return
       if (!checkSocketRate(socket.id, "signaling")) return
-      if (!to || !offer) return
       if (!(await validateSignalingPeer(to))) return
       io.to(to).emit("offer", { from: socket.id, offer })
     } catch (err) {
@@ -341,10 +407,12 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
-  socket.on("answer", async ({ to, answer }: { to: string; answer: RTCSessionDescriptionInit }) => {
+  socket.on("answer", async (payload: unknown) => {
     try {
+      if (typeof payload !== "object" || payload === null) return
+      const { to, answer } = payload as { to?: unknown; answer?: unknown }
+      if (typeof to !== "string" || !to || !answer) return
       if (!checkSocketRate(socket.id, "signaling")) return
-      if (!to || !answer) return
       if (!(await validateSignalingPeer(to))) return
       io.to(to).emit("answer", { from: socket.id, answer })
     } catch (err) {
@@ -352,10 +420,12 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
-  socket.on("ice-candidate", async ({ to, candidate }: { to: string; candidate: RTCIceCandidateInit }) => {
+  socket.on("ice-candidate", async (payload: unknown) => {
     try {
+      if (typeof payload !== "object" || payload === null) return
+      const { to, candidate } = payload as { to?: unknown; candidate?: unknown }
+      if (typeof to !== "string" || !to || !candidate) return
       if (!checkSocketRate(socket.id, "signaling")) return
-      if (!to || !candidate) return
       if (!(await validateSignalingPeer(to))) return
       io.to(to).emit("ice-candidate", { from: socket.id, candidate })
     } catch (err) {
@@ -370,8 +440,9 @@ io.on("connection", (socket: Socket) => {
    * Returns false (and evicts the peer) if the user is no longer a server member.
    * Skipped if Supabase is not configured.
    *
-   * DB queries are in their own try/catch (fail open on transient errors).
-   * handleLeave errors are caught separately so eviction always returns false.
+   * DB queries use .maybeSingle() to distinguish missing rows from DB errors.
+   * On DB/network errors, fails open (returns true). handleLeave errors are
+   * caught separately so eviction always returns false.
    */
   async function verifyChannelMembership(peer: { channelId: string; userId: string }): Promise<boolean> {
     if (!supabase) return true // skip if no DB configured
@@ -380,22 +451,32 @@ io.on("connection", (socket: Socket) => {
     let evictReason = ""
 
     try {
-      const { data: channel } = await supabase
+      const { data: channel, error: channelError } = await supabase
         .from("channels")
         .select("server_id")
         .eq("id", peer.channelId)
-        .single()
+        .maybeSingle()
+
+      if (channelError) {
+        logger.error({ userId: peer.userId, channelId: peer.channelId, err: channelError }, "verifyChannelMembership channel query error — failing open")
+        return true
+      }
 
       if (!channel) {
         shouldEvict = true
         evictReason = "channel not found"
       } else {
-        const { data: member } = await supabase
+        const { data: member, error: memberError } = await supabase
           .from("server_members")
           .select("user_id")
           .eq("server_id", channel.server_id)
           .eq("user_id", peer.userId)
-          .single()
+          .maybeSingle()
+
+        if (memberError) {
+          logger.error({ userId: peer.userId, channelId: peer.channelId, err: memberError }, "verifyChannelMembership member query error — failing open")
+          return true
+        }
 
         if (!member) {
           shouldEvict = true
@@ -403,8 +484,8 @@ io.on("connection", (socket: Socket) => {
         }
       }
     } catch (err) {
-      // Fail open on DB/network errors — don't evict users due to transient failures
-      logger.error({ userId: peer.userId, channelId: peer.channelId, err }, "verifyChannelMembership DB error — failing open")
+      // Fail open on unexpected errors — don't evict users due to transient failures
+      logger.error({ userId: peer.userId, channelId: peer.channelId, err }, "verifyChannelMembership error — failing open")
       return true
     }
 
@@ -421,8 +502,11 @@ io.on("connection", (socket: Socket) => {
     return false
   }
 
-  socket.on("speaking", async ({ speaking }: { speaking: boolean }) => {
+  socket.on("speaking", async (payload: unknown) => {
     try {
+      if (typeof payload !== "object" || payload === null) return
+      const { speaking } = payload as { speaking?: unknown }
+      if (typeof speaking !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
@@ -438,8 +522,11 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
-  socket.on("toggle-mute", async ({ muted }: { muted: boolean }) => {
+  socket.on("toggle-mute", async (payload: unknown) => {
     try {
+      if (typeof payload !== "object" || payload === null) return
+      const { muted } = payload as { muted?: unknown }
+      if (typeof muted !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
@@ -456,8 +543,11 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
-  socket.on("toggle-deafen", async ({ deafened }: { deafened: boolean }) => {
+  socket.on("toggle-deafen", async (payload: unknown) => {
     try {
+      if (typeof payload !== "object" || payload === null) return
+      const { deafened } = payload as { deafened?: unknown }
+      if (typeof deafened !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
@@ -474,8 +564,11 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
-  socket.on("screen-share", async ({ sharing }: { sharing: boolean }) => {
+  socket.on("screen-share", async (payload: unknown) => {
     try {
+      if (typeof payload !== "object" || payload === null) return
+      const { sharing } = payload as { sharing?: unknown }
+      if (typeof sharing !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
@@ -493,11 +586,14 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── Leave room explicitly ──────────────────────────────────────────────────
-  socket.on("leave-room", async ({ channelId }: { channelId: string }) => {
+  socket.on("leave-room", async (payload: unknown) => {
     try {
+      if (typeof payload !== "object" || payload === null) return
+      const { channelId } = payload as { channelId?: unknown }
+      if (typeof channelId !== "string" || !channelId) return
       await handleLeave(socket, channelId)
     } catch (err) {
-      logger.error({ socketId: socket.id, channelId, err }, "leave-room handler error")
+      logger.error({ socketId: socket.id, err }, "leave-room handler error")
     }
   })
 

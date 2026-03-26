@@ -4,6 +4,38 @@ import { getOrigin, getRpId, PASSKEY_CHALLENGE_TTL_SECONDS, randomChallenge } fr
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
 
+/**
+ * Look up a user by email via the GoTrue admin REST API.
+ * The Supabase JS client's admin.listUsers does not support email filtering,
+ * so we call the REST endpoint directly.
+ */
+async function getUserIdByEmail(email: string): Promise<string | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceKey) return null
+
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/auth/v1/admin/users?page=1&per_page=1&filter=${encodeURIComponent(`email:eq:${email}`)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? serviceKey,
+        },
+      }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    const users = data?.users ?? data
+    if (Array.isArray(users) && users.length === 1 && users[0]?.id) {
+      return users[0].id as string
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 export async function POST(request: Request) {
   try {
     // Rate limit: 10 passkey challenge requests per minute per IP
@@ -30,11 +62,7 @@ export async function POST(request: Request) {
     }
 
     if (email) {
-      // Look up user by email directly instead of paginated list
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserByEmail(email)
-      if (!userError && userData?.user) {
-        userId = userData.user.id
-      }
+      userId = await getUserIdByEmail(email)
 
       if (userId) {
         const { data: policyRow } = await db
