@@ -134,6 +134,8 @@ export function dbError(error: { message: string } | null, context?: string | Db
     console.error(`[dbError] ${context}:`, error.message)
   } else if (context) {
     console.error("[dbError]", { ...context, message: error.message })
+  } else {
+    console.error("[dbError] Unspecified context:", error.message)
   }
   return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 }

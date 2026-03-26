@@ -20,9 +20,13 @@ function escapePostgrestValue(raw: string): string {
 export async function GET(req: NextRequest) {
   // Rate-limit by IP before any DB work
   const ip = getClientIp(req.headers) ?? "unknown"
-  const rl = await rateLimiter.check(`discover:${ip}`, { limit: 30, windowMs: 60_000 })
-  if (!rl.allowed) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+  try {
+    const rl = await rateLimiter.check(`discover:${ip}`, { limit: 30, windowMs: 60_000 })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    }
+  } catch {
+    // Fail open — don't block server discovery if rate limiter is down
   }
 
   const supabase = await createServerSupabaseClient()

@@ -39,9 +39,13 @@ export async function POST(
     }
 
     // Rate limit per webhook token — 30 messages per minute
-    const rl = await rateLimiter.check(`webhook:${token}`, { limit: 30, windowMs: 60_000 })
-    if (!rl.allowed) {
-      return NextResponse.json({ error: "Rate limited" }, { status: 429 })
+    try {
+      const rl = await rateLimiter.check(`webhook:${token}`, { limit: 30, windowMs: 60_000 })
+      if (!rl.allowed) {
+        return NextResponse.json({ error: "Rate limited" }, { status: 429 })
+      }
+    } catch {
+      // Fail open — don't block webhook delivery if rate limiter is down
     }
 
     const supabaseAdmin = getSupabaseAdmin()
@@ -51,18 +55,17 @@ export async function POST(
       .from("webhooks")
       .select("id, channel_id, server_id, name, avatar_url")
       .eq("token", token)
-      .single()
+      .maybeSingle()
 
-    if (whError || !webhook) {
+    if (whError) {
+      console.error("[webhook POST] DB error resolving webhook:", whError.message)
+      return NextResponse.json({ error: "internal server error" }, { status: 500 })
+    }
+    if (!webhook) {
       return NextResponse.json({ error: "Unknown webhook" }, { status: 404 })
     }
 
-    let body: {
-      content?: string
-      username?: string
-      avatar_url?: string
-      embeds?: Array<{ title?: string; description?: string; color?: number }>
-    }
+    let body: unknown
 
     try {
       body = await req.json()
@@ -70,7 +73,16 @@ export async function POST(
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
     }
 
-    const { content, username, avatar_url, embeds } = body
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
+
+    const { content, username, avatar_url, embeds } = body as {
+      content?: unknown
+      username?: unknown
+      avatar_url?: unknown
+      embeds?: unknown
+    }
 
     // Runtime type validation
     if (content !== undefined && typeof content !== "string") {
@@ -109,9 +121,13 @@ export async function POST(
       .from("servers")
       .select("owner_id")
       .eq("id", webhook.server_id)
-      .single()
+      .maybeSingle()
 
-    if (serverError || !serverRow) {
+    if (serverError) {
+      console.error("[webhook POST] DB error resolving server:", serverError.message)
+      return NextResponse.json({ error: "internal server error" }, { status: 500 })
+    }
+    if (!serverRow) {
       return NextResponse.json({ error: "Server not found" }, { status: 404 })
     }
 
@@ -152,9 +168,13 @@ export async function GET(
       .from("webhooks")
       .select("id, name, avatar_url, channel_id, server_id")
       .eq("token", token)
-      .single()
+      .maybeSingle()
 
-    if (error || !webhook) return NextResponse.json({ error: "Unknown webhook" }, { status: 404 })
+    if (error) {
+      console.error("[webhook GET] DB error:", error.message)
+      return NextResponse.json({ error: "internal server error" }, { status: 500 })
+    }
+    if (!webhook) return NextResponse.json({ error: "Unknown webhook" }, { status: 404 })
     return NextResponse.json({ id: webhook.id, name: webhook.name, channel_id: webhook.channel_id })
   } catch (err) {
     console.error("[webhook GET]", err instanceof Error ? err.message : "Unknown error")

@@ -11,105 +11,114 @@ import { getClientIp } from "@vortex/shared"
  * The code is marked as consumed (used_at set) after successful use.
  */
 export async function POST(request: Request) {
-  // Rate limit: 5 recovery code attempts per 15 minutes per IP (stricter — this is an MFA bypass path)
-  const ip = getClientIp(request.headers) ?? "unknown"
-  const rl = await rateLimiter.check(`recovery-redeem:${ip}`, { limit: 5, windowMs: 15 * 60_000 })
-  if (!rl.allowed) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
-  }
-
-  const body = (await request.json().catch(() => ({}))) as {
-    email?: string
-    password?: string
-    code?: string
-  }
-
-  if (!body.email || !body.password || !body.code) {
-    return NextResponse.json({ error: "Email, password, and recovery code are required" }, { status: 400 })
-  }
-
-  const admin = await createServiceRoleClient()
-  const adminDb = admin as any
-
-  // Verify password by attempting sign-in via a throwaway client
-  const { createClient } = await import("@supabase/supabase-js")
-  const tempClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
-  const { data: signInData, error: signInError } = await tempClient.auth.signInWithPassword({
-    email: body.email!,
-    password: body.password!,
-  })
-
-  if (signInError || !signInData.user) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
-  }
-
-  // Sign out the temp session immediately (best-effort)
   try {
-    await tempClient.auth.signOut()
-  } catch {
-    // Non-critical — temp session will expire on its own
-  }
-
-  const authUser = signInData.user
-
-  // Fetch all unused recovery codes for this user
-  const { data: codes, error: codesError } = await adminDb
-    .from("recovery_codes")
-    .select("id,code_hash")
-    .eq("user_id", authUser.id)
-    .is("used_at", null)
-
-  if (codesError || !codes || codes.length === 0) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
-  }
-
-  // Check the provided code against all unused hashes
-  let matchedCodeId: string | null = null
-  for (const row of codes as Array<{ id: string; code_hash: string }>) {
-    const isMatch = await verifyRecoveryCode(body.code!, row.code_hash)
-    if (isMatch) {
-      matchedCodeId = row.id
-      break
+    // Rate limit: 5 recovery code attempts per 15 minutes per IP (stricter — this is an MFA bypass path)
+    const ip = getClientIp(request.headers) ?? "unknown"
+    try {
+      const rl = await rateLimiter.check(`recovery-redeem:${ip}`, { limit: 5, windowMs: 15 * 60_000 })
+      if (!rl.allowed) {
+        return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+      }
+    } catch {
+      // Fail open — don't block recovery code redemption if rate limiter is down
     }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      email?: string
+      password?: string
+      code?: string
+    }
+
+    if (!body.email || !body.password || !body.code) {
+      return NextResponse.json({ error: "Email, password, and recovery code are required" }, { status: 400 })
+    }
+
+    const admin = await createServiceRoleClient()
+    const adminDb = admin as any
+
+    // Verify password by attempting sign-in via a throwaway client
+    const { createClient } = await import("@supabase/supabase-js")
+    const tempClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    const { data: signInData, error: signInError } = await tempClient.auth.signInWithPassword({
+      email: body.email!,
+      password: body.password!,
+    })
+
+    if (signInError || !signInData.user) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+
+    // Sign out the temp session immediately (best-effort)
+    try {
+      await tempClient.auth.signOut()
+    } catch {
+      // Non-critical — temp session will expire on its own
+    }
+
+    const authUser = signInData.user
+
+    // Fetch all unused recovery codes for this user
+    const { data: codes, error: codesError } = await adminDb
+      .from("recovery_codes")
+      .select("id,code_hash")
+      .eq("user_id", authUser.id)
+      .is("used_at", null)
+
+    if (codesError || !codes || codes.length === 0) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+
+    // Check the provided code against all unused hashes
+    let matchedCodeId: string | null = null
+    for (const row of codes as Array<{ id: string; code_hash: string }>) {
+      const isMatch = await verifyRecoveryCode(body.code!, row.code_hash)
+      if (isMatch) {
+        matchedCodeId = row.id
+        break
+      }
+    }
+
+    if (!matchedCodeId) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+
+    // Atomically mark the code as consumed (used_at IS NULL guard prevents double-use race)
+    const { data: consumed, error: consumeError } = await adminDb
+      .from("recovery_codes")
+      .update({ used_at: new Date().toISOString() })
+      .eq("id", matchedCodeId)
+      .is("used_at", null)
+      .select("id")
+      .single()
+
+    if (consumeError || !consumed) {
+      return NextResponse.json({ error: "Recovery code already used" }, { status: 409 })
+    }
+
+    // Generate a magic link token and verify it server-side so session cookies
+    // are set in this response — no implicit-grant redirect required.
+    const link = await admin.auth.admin.generateLink({ type: "magiclink", email: body.email! })
+    const tokenHash = link.data.properties?.hashed_token
+    if (!tokenHash) {
+      return NextResponse.json({ error: "Unable to finalize session" }, { status: 500 })
+    }
+
+    const anonClient = await createServerSupabaseClient()
+    const { error: otpError } = await anonClient.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: "magiclink",
+    })
+    if (otpError) {
+      return NextResponse.json({ error: "Session creation failed" }, { status: 500 })
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error("[recovery-redeem]", err instanceof Error ? err.message : "Unknown error")
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  if (!matchedCodeId) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
-  }
-
-  // Atomically mark the code as consumed (used_at IS NULL guard prevents double-use race)
-  const { data: consumed, error: consumeError } = await adminDb
-    .from("recovery_codes")
-    .update({ used_at: new Date().toISOString() })
-    .eq("id", matchedCodeId)
-    .is("used_at", null)
-    .select("id")
-    .single()
-
-  if (consumeError || !consumed) {
-    return NextResponse.json({ error: "Recovery code already used" }, { status: 409 })
-  }
-
-  // Generate a magic link token and verify it server-side so session cookies
-  // are set in this response — no implicit-grant redirect required.
-  const link = await admin.auth.admin.generateLink({ type: "magiclink", email: body.email! })
-  const tokenHash = link.data.properties?.hashed_token
-  if (!tokenHash) {
-    return NextResponse.json({ error: "Unable to finalize session" }, { status: 500 })
-  }
-
-  const anonClient = await createServerSupabaseClient()
-  const { error: otpError } = await anonClient.auth.verifyOtp({
-    token_hash: tokenHash,
-    type: "magiclink",
-  })
-  if (otpError) {
-    return NextResponse.json({ error: "Session creation failed" }, { status: 500 })
-  }
-
-  return NextResponse.json({ ok: true })
 }

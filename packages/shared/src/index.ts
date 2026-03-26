@@ -53,7 +53,10 @@ export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
 
 /**
  * Extract the client IP from request headers using a safe precedence order.
- * Respects TRUSTED_PROXY env var — when set, only trusted proxy headers are used.
+ *
+ * Note: This function does not validate the immediate peer against a trusted
+ * proxy list. In deployments behind a reverse proxy (Vercel, Cloudflare, nginx),
+ * the proxy strips/overwrites these headers so spoofing is not possible.
  *
  * Precedence: x-real-ip → first entry of x-forwarded-for → cf-connecting-ip
  */

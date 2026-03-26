@@ -151,9 +151,13 @@ async function validateHost(parsedUrl: URL): Promise<ValidatedHost | NextRespons
 export async function GET(req: NextRequest) {
   // Rate limit by IP — 30 requests per minute (SSRF-sensitive endpoint)
   const ip = getClientIp(req.headers) ?? "unknown"
-  const rl = await rateLimiter.check(`oembed:${ip}`, { limit: 30, windowMs: 60_000 })
-  if (!rl.allowed) {
-    return NextResponse.json({ error: "Rate limited" }, { status: 429 })
+  try {
+    const rl = await rateLimiter.check(`oembed:${ip}`, { limit: 30, windowMs: 60_000 })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limited" }, { status: 429 })
+    }
+  } catch {
+    // Fail open — don't block oembed if rate limiter is down
   }
 
   const url = req.nextUrl.searchParams.get("url")

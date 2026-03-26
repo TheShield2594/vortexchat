@@ -10,8 +10,12 @@ let trendingCache: { data: GifResult[]; expiresAt: number; provider: string } | 
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request.headers) ?? "unknown"
-  const rl = await rateLimiter.check(`gif:${ip}`, { limit: 30, windowMs: 60_000 })
-  if (!rl.allowed) return NextResponse.json([], { status: 429 })
+  try {
+    const rl = await rateLimiter.check(`gif:${ip}`, { limit: 30, windowMs: 60_000 })
+    if (!rl.allowed) return NextResponse.json([], { status: 429 })
+  } catch {
+    // Fail open — don't block GIF trending if rate limiter is down
+  }
 
   const config = detectProvider()
   if (!config) return NextResponse.json([])

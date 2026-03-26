@@ -14,15 +14,21 @@ dotenv.config()
 // ─── Per-socket rate limiter ─────────────────────────────────────────────────
 
 class SocketRateLimiter {
-  private windows = new Map<string, { timestamps: number[] }>()
+  // Nested map: socketId → (action → timestamps)
+  private windows = new Map<string, Map<string, { timestamps: number[] }>>()
 
-  check(key: string, limit: number, windowMs: number): boolean {
+  check(socketId: string, action: string, limit: number, windowMs: number): boolean {
     const now = Date.now()
     const cutoff = now - windowMs
-    let entry = this.windows.get(key)
+    let socketMap = this.windows.get(socketId)
+    if (!socketMap) {
+      socketMap = new Map()
+      this.windows.set(socketId, socketMap)
+    }
+    let entry = socketMap.get(action)
     if (!entry) {
       entry = { timestamps: [] }
-      this.windows.set(key, entry)
+      socketMap.set(action, entry)
     }
     entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
     if (entry.timestamps.length >= limit) return false
@@ -31,19 +37,17 @@ class SocketRateLimiter {
   }
 
   remove(socketId: string): void {
-    // Clean up all keys for a given socket
-    for (const key of this.windows.keys()) {
-      if (key.startsWith(socketId + ":")) {
-        this.windows.delete(key)
-      }
-    }
+    this.windows.delete(socketId)
   }
 
   cleanup(maxAgeMs: number): void {
     const cutoff = Date.now() - maxAgeMs
-    for (const [key, entry] of this.windows) {
-      entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
-      if (entry.timestamps.length === 0) this.windows.delete(key)
+    for (const [socketId, socketMap] of this.windows) {
+      for (const [action, entry] of socketMap) {
+        entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
+        if (entry.timestamps.length === 0) socketMap.delete(action)
+      }
+      if (socketMap.size === 0) this.windows.delete(socketId)
     }
   }
 }
@@ -62,7 +66,7 @@ const RATE_LIMITS = {
 
 function checkSocketRate(socketId: string, action: keyof typeof RATE_LIMITS): boolean {
   const { limit, windowMs } = RATE_LIMITS[action]
-  return socketLimiter.check(`${socketId}:${action}`, limit, windowMs)
+  return socketLimiter.check(socketId, action, limit, windowMs)
 }
 
 // ─── Structured logger ───────────────────────────────────────────────────────
@@ -162,102 +166,116 @@ io.on("connection", (socket: Socket) => {
   socket.on("join-room", async (data: {
     channelId: string
     userId: string
-    displayName?: string
-    avatarUrl?: string
+    displayName?: string | unknown
+    avatarUrl?: string | unknown
   }) => {
-    const { channelId, userId, displayName, avatarUrl } = data
+    try {
+      const { channelId, userId } = data
+      let { displayName, avatarUrl } = data
 
-    if (!channelId || !userId) {
-      socket.emit("error", { message: "channelId and userId are required" })
-      return
-    }
-
-    if (!checkSocketRate(socket.id, "joinRoom")) {
-      socket.emit("error", { message: "Rate limited — too many join requests" })
-      return
-    }
-
-    // Validate displayName / avatarUrl length
-    if (displayName && displayName.length > 100) {
-      socket.emit("error", { message: "displayName must not exceed 100 characters" })
-      return
-    }
-    if (avatarUrl && avatarUrl.length > 2048) {
-      socket.emit("error", { message: "avatarUrl must not exceed 2048 characters" })
-      return
-    }
-
-    // Verify auth token if supabase configured
-    if (supabase) {
-      const authToken = socket.handshake.auth?.token
-      if (!authToken) {
-        socket.emit("error", { message: "Authentication required" })
+      if (!channelId || !userId) {
+        socket.emit("error", { message: "channelId and userId are required" })
         return
       }
-      const { data: { user }, error } = await supabase.auth.getUser(authToken)
-      if (error || !user || user.id !== userId) {
-        socket.emit("error", { message: "Unauthorized" })
+
+      if (!checkSocketRate(socket.id, "joinRoom")) {
+        socket.emit("error", { message: "Rate limited — too many join requests" })
         return
       }
-    }
 
-    // Join socket.io room
-    socket.join(channelId)
-
-    // Register peer in room manager
-    const existingPeers = await rooms.join(channelId, {
-      socketId: socket.id,
-      userId,
-      displayName,
-      avatarUrl,
-      muted: false,
-      deafened: false,
-      speaking: false,
-      screenSharing: false,
-      joinedAt: new Date(),
-    })
-
-    // Send existing peers to new joiner
-    socket.emit("room-peers", existingPeers.map((p) => ({
-      peerId: p.socketId,
-      userId: p.userId,
-      displayName: p.displayName,
-      avatarUrl: p.avatarUrl,
-      muted: p.muted,
-      deafened: p.deafened,
-      screenSharing: p.screenSharing,
-    })))
-
-    // Notify existing peers about new joiner
-    socket.to(channelId).emit("peer-joined", {
-      peerId: socket.id,
-      userId,
-      displayName,
-      avatarUrl,
-    })
-
-    // Queue Supabase voice_states upsert
-    if (supabase && voiceStateSync) {
-      const { data: channel } = await supabase
-        .from("channels")
-        .select("server_id")
-        .eq("id", channelId)
-        .single()
-
-      if (channel) {
-        voiceStateSync.enqueueUpsert({
-          user_id: userId,
-          channel_id: channelId,
-          server_id: channel.server_id,
-          muted: false,
-          deafened: false,
-          speaking: false,
-          self_stream: false,
-        })
+      // Type guard and length validation for displayName / avatarUrl
+      if (displayName !== undefined && typeof displayName !== "string") {
+        socket.emit("error", { message: "displayName must be a string" })
+        return
       }
-    }
+      if (avatarUrl !== undefined && typeof avatarUrl !== "string") {
+        socket.emit("error", { message: "avatarUrl must be a string" })
+        return
+      }
+      if (displayName && displayName.length > 100) {
+        socket.emit("error", { message: "displayName must not exceed 100 characters" })
+        return
+      }
+      if (avatarUrl && avatarUrl.length > 2048) {
+        socket.emit("error", { message: "avatarUrl must not exceed 2048 characters" })
+        return
+      }
 
-    logger.info({ userId, channelId, peers: await rooms.getRoomSize(channelId) }, "user joined room")
+      // Verify auth token if supabase configured
+      if (supabase) {
+        const authToken = socket.handshake.auth?.token
+        if (!authToken) {
+          socket.emit("error", { message: "Authentication required" })
+          return
+        }
+        const { data: { user }, error } = await supabase.auth.getUser(authToken)
+        if (error || !user || user.id !== userId) {
+          socket.emit("error", { message: "Unauthorized" })
+          return
+        }
+      }
+
+      // Join socket.io room
+      socket.join(channelId)
+
+      // Register peer in room manager
+      const existingPeers = await rooms.join(channelId, {
+        socketId: socket.id,
+        userId,
+        displayName,
+        avatarUrl,
+        muted: false,
+        deafened: false,
+        speaking: false,
+        screenSharing: false,
+        joinedAt: new Date(),
+      })
+
+      // Send existing peers to new joiner
+      socket.emit("room-peers", existingPeers.map((p) => ({
+        peerId: p.socketId,
+        userId: p.userId,
+        displayName: p.displayName,
+        avatarUrl: p.avatarUrl,
+        muted: p.muted,
+        deafened: p.deafened,
+        screenSharing: p.screenSharing,
+      })))
+
+      // Notify existing peers about new joiner
+      socket.to(channelId).emit("peer-joined", {
+        peerId: socket.id,
+        userId,
+        displayName,
+        avatarUrl,
+      })
+
+      // Queue Supabase voice_states upsert
+      if (supabase && voiceStateSync) {
+        const { data: channel } = await supabase
+          .from("channels")
+          .select("server_id")
+          .eq("id", channelId)
+          .single()
+
+        if (channel) {
+          voiceStateSync.enqueueUpsert({
+            user_id: userId,
+            channel_id: channelId,
+            server_id: channel.server_id,
+            muted: false,
+            deafened: false,
+            speaking: false,
+            self_stream: false,
+          })
+        }
+      }
+
+      logger.info({ userId, channelId, peers: await rooms.getRoomSize(channelId) }, "user joined room")
+    } catch (err) {
+      logger.error({ socketId: socket.id, err }, "join-room handler error")
+      socket.emit("error", { message: "Internal server error" })
+    }
   })
 
   // ─── WebRTC Signaling ───────────────────────────────────────────────────────
@@ -353,77 +371,101 @@ io.on("connection", (socket: Socket) => {
   }
 
   socket.on("speaking", async ({ speaking }: { speaking: boolean }) => {
-    if (!checkSocketRate(socket.id, "voiceState")) return
-    const peer = await findPeerRoom(socket.id)
-    if (!peer) return
+    try {
+      if (!checkSocketRate(socket.id, "voiceState")) return
+      const peer = await findPeerRoom(socket.id)
+      if (!peer) return
 
-    await rooms.updatePeer(peer.channelId, socket.id, { speaking })
-    socket.to(peer.channelId).emit("peer-speaking", { peerId: socket.id, speaking })
+      await rooms.updatePeer(peer.channelId, socket.id, { speaking })
+      socket.to(peer.channelId).emit("peer-speaking", { peerId: socket.id, speaking })
 
-    if (voiceStateSync) {
-      voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { speaking } })
+      if (voiceStateSync) {
+        voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { speaking } })
+      }
+    } catch (err) {
+      logger.error({ socketId: socket.id, event: "speaking", err }, "voice state handler error")
     }
   })
 
   socket.on("toggle-mute", async ({ muted }: { muted: boolean }) => {
-    if (!checkSocketRate(socket.id, "voiceState")) return
-    const peer = await findPeerRoom(socket.id)
-    if (!peer) return
-    if (!(await verifyChannelMembership(peer))) return
+    try {
+      if (!checkSocketRate(socket.id, "voiceState")) return
+      const peer = await findPeerRoom(socket.id)
+      if (!peer) return
+      if (!(await verifyChannelMembership(peer))) return
 
-    await rooms.updatePeer(peer.channelId, socket.id, { muted })
-    socket.to(peer.channelId).emit("peer-muted", { peerId: socket.id, muted })
+      await rooms.updatePeer(peer.channelId, socket.id, { muted })
+      socket.to(peer.channelId).emit("peer-muted", { peerId: socket.id, muted })
 
-    if (voiceStateSync) {
-      voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { muted } })
+      if (voiceStateSync) {
+        voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { muted } })
+      }
+    } catch (err) {
+      logger.error({ socketId: socket.id, event: "toggle-mute", err }, "voice state handler error")
     }
   })
 
   socket.on("toggle-deafen", async ({ deafened }: { deafened: boolean }) => {
-    if (!checkSocketRate(socket.id, "voiceState")) return
-    const peer = await findPeerRoom(socket.id)
-    if (!peer) return
-    if (!(await verifyChannelMembership(peer))) return
+    try {
+      if (!checkSocketRate(socket.id, "voiceState")) return
+      const peer = await findPeerRoom(socket.id)
+      if (!peer) return
+      if (!(await verifyChannelMembership(peer))) return
 
-    await rooms.updatePeer(peer.channelId, socket.id, { deafened })
-    socket.to(peer.channelId).emit("peer-deafened", { peerId: socket.id, deafened })
+      await rooms.updatePeer(peer.channelId, socket.id, { deafened })
+      socket.to(peer.channelId).emit("peer-deafened", { peerId: socket.id, deafened })
 
-    if (voiceStateSync) {
-      voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { deafened } })
+      if (voiceStateSync) {
+        voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { deafened } })
+      }
+    } catch (err) {
+      logger.error({ socketId: socket.id, event: "toggle-deafen", err }, "voice state handler error")
     }
   })
 
   socket.on("screen-share", async ({ sharing }: { sharing: boolean }) => {
-    if (!checkSocketRate(socket.id, "voiceState")) return
-    const peer = await findPeerRoom(socket.id)
-    if (!peer) return
-    if (!(await verifyChannelMembership(peer))) return
+    try {
+      if (!checkSocketRate(socket.id, "voiceState")) return
+      const peer = await findPeerRoom(socket.id)
+      if (!peer) return
+      if (!(await verifyChannelMembership(peer))) return
 
-    await rooms.updatePeer(peer.channelId, socket.id, { screenSharing: sharing })
-    socket.to(peer.channelId).emit("peer-screen-share", { peerId: socket.id, sharing })
+      await rooms.updatePeer(peer.channelId, socket.id, { screenSharing: sharing })
+      socket.to(peer.channelId).emit("peer-screen-share", { peerId: socket.id, sharing })
 
-    if (voiceStateSync) {
-      voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { self_stream: sharing } })
+      if (voiceStateSync) {
+        voiceStateSync.enqueueUpdate({ userId: peer.userId, channelId: peer.channelId, patch: { self_stream: sharing } })
+      }
+    } catch (err) {
+      logger.error({ socketId: socket.id, event: "screen-share", err }, "voice state handler error")
     }
   })
 
   // ─── Leave room explicitly ──────────────────────────────────────────────────
   socket.on("leave-room", async ({ channelId }: { channelId: string }) => {
-    await handleLeave(socket, channelId)
+    try {
+      await handleLeave(socket, channelId)
+    } catch (err) {
+      logger.error({ socketId: socket.id, channelId, err }, "leave-room handler error")
+    }
   })
 
   // ─── Disconnect ─────────────────────────────────────────────────────────────
   socket.on("disconnect", async (reason) => {
     logger.info({ socketId: socket.id, reason }, "client disconnected")
     socketLimiter.remove(socket.id)
-    const left = await rooms.leaveAll(socket.id)
+    try {
+      const left = await rooms.leaveAll(socket.id)
 
-    for (const { channelId, userId } of left) {
-      socket.to(channelId).emit("peer-left", { peerId: socket.id, userId })
+      for (const { channelId, userId } of left) {
+        socket.to(channelId).emit("peer-left", { peerId: socket.id, userId })
 
-      if (voiceStateSync) {
-        voiceStateSync.enqueueDelete({ userId, channelId })
+        if (voiceStateSync) {
+          voiceStateSync.enqueueDelete({ userId, channelId })
+        }
       }
+    } catch (err) {
+      logger.error({ socketId: socket.id, reason, err }, "disconnect cleanup error")
     }
   })
 
@@ -437,7 +479,7 @@ io.on("connection", (socket: Socket) => {
     return null
   }
 
-  async function handleLeave(socket: Socket, channelId: string) {
+  async function handleLeave(socket: Socket, channelId: string): Promise<void> {
     const peer = await rooms.getPeer(channelId, socket.id)
     if (!peer) return
 
