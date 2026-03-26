@@ -11,6 +11,58 @@ import { createVoiceStateSync } from "./voice-state-sync"
 
 dotenv.config()
 
+// ─── Per-socket rate limiter ─────────────────────────────────────────────────
+
+class SocketRateLimiter {
+  private windows = new Map<string, { timestamps: number[] }>()
+
+  check(key: string, limit: number, windowMs: number): boolean {
+    const now = Date.now()
+    const cutoff = now - windowMs
+    let entry = this.windows.get(key)
+    if (!entry) {
+      entry = { timestamps: [] }
+      this.windows.set(key, entry)
+    }
+    entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
+    if (entry.timestamps.length >= limit) return false
+    entry.timestamps.push(now)
+    return true
+  }
+
+  remove(socketId: string): void {
+    // Clean up all keys for a given socket
+    for (const key of this.windows.keys()) {
+      if (key.startsWith(socketId + ":")) {
+        this.windows.delete(key)
+      }
+    }
+  }
+}
+
+const socketLimiter = new SocketRateLimiter()
+
+// Periodic cleanup of stale entries
+setInterval(() => {
+  const cutoff = Date.now() - 120_000
+  for (const [key, entry] of socketLimiter["windows"]) {
+    entry.timestamps = entry.timestamps.filter((t: number) => t > cutoff)
+    if (entry.timestamps.length === 0) socketLimiter["windows"].delete(key)
+  }
+}, 60_000)
+
+// Rate limit presets (limit, windowMs)
+const RATE_LIMITS = {
+  joinRoom:      { limit: 10, windowMs: 60_000 },   // 10 joins/min
+  signaling:     { limit: 100, windowMs: 60_000 },   // 100 offer/answer/ice per min
+  voiceState:    { limit: 60, windowMs: 60_000 },    // 60 state changes/min
+} as const
+
+function checkSocketRate(socketId: string, action: keyof typeof RATE_LIMITS): boolean {
+  const { limit, windowMs } = RATE_LIMITS[action]
+  return socketLimiter.check(`${socketId}:${action}`, limit, windowMs)
+}
+
 // ─── Structured logger ───────────────────────────────────────────────────────
 
 const logger = pino({
@@ -118,6 +170,21 @@ io.on("connection", (socket: Socket) => {
       return
     }
 
+    if (!checkSocketRate(socket.id, "joinRoom")) {
+      socket.emit("error", { message: "Rate limited — too many join requests" })
+      return
+    }
+
+    // Validate displayName / avatarUrl length
+    if (displayName && displayName.length > 100) {
+      socket.emit("error", { message: "displayName must not exceed 100 characters" })
+      return
+    }
+    if (avatarUrl && avatarUrl.length > 2048) {
+      socket.emit("error", { message: "avatarUrl must not exceed 2048 characters" })
+      return
+    }
+
     // Verify auth token if supabase configured
     if (supabase) {
       const authToken = socket.handshake.auth?.token
@@ -192,20 +259,39 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── WebRTC Signaling ───────────────────────────────────────────────────────
-  socket.on("offer", ({ to, offer }: { to: string; offer: RTCSessionDescriptionInit }) => {
+
+  /** Verify sender and recipient are in the same channel before relaying */
+  async function validateSignalingPeer(to: string): Promise<boolean> {
+    const senderRoom = await findPeerRoom(socket.id)
+    if (!senderRoom) return false
+    const recipientPeer = await rooms.getPeer(senderRoom.channelId, to)
+    return !!recipientPeer
+  }
+
+  socket.on("offer", async ({ to, offer }: { to: string; offer: RTCSessionDescriptionInit }) => {
+    if (!checkSocketRate(socket.id, "signaling")) return
+    if (!to || !offer) return
+    if (!(await validateSignalingPeer(to))) return
     io.to(to).emit("offer", { from: socket.id, offer })
   })
 
-  socket.on("answer", ({ to, answer }: { to: string; answer: RTCSessionDescriptionInit }) => {
+  socket.on("answer", async ({ to, answer }: { to: string; answer: RTCSessionDescriptionInit }) => {
+    if (!checkSocketRate(socket.id, "signaling")) return
+    if (!to || !answer) return
+    if (!(await validateSignalingPeer(to))) return
     io.to(to).emit("answer", { from: socket.id, answer })
   })
 
-  socket.on("ice-candidate", ({ to, candidate }: { to: string; candidate: RTCIceCandidateInit }) => {
+  socket.on("ice-candidate", async ({ to, candidate }: { to: string; candidate: RTCIceCandidateInit }) => {
+    if (!checkSocketRate(socket.id, "signaling")) return
+    if (!to || !candidate) return
+    if (!(await validateSignalingPeer(to))) return
     io.to(to).emit("ice-candidate", { from: socket.id, candidate })
   })
 
   // ─── Voice state events ─────────────────────────────────────────────────────
   socket.on("speaking", async ({ speaking }: { speaking: boolean }) => {
+    if (!checkSocketRate(socket.id, "voiceState")) return
     const peer = await findPeerRoom(socket.id)
     if (!peer) return
 
@@ -218,6 +304,7 @@ io.on("connection", (socket: Socket) => {
   })
 
   socket.on("toggle-mute", async ({ muted }: { muted: boolean }) => {
+    if (!checkSocketRate(socket.id, "voiceState")) return
     const peer = await findPeerRoom(socket.id)
     if (!peer) return
 
@@ -230,6 +317,7 @@ io.on("connection", (socket: Socket) => {
   })
 
   socket.on("toggle-deafen", async ({ deafened }: { deafened: boolean }) => {
+    if (!checkSocketRate(socket.id, "voiceState")) return
     const peer = await findPeerRoom(socket.id)
     if (!peer) return
 
@@ -242,6 +330,7 @@ io.on("connection", (socket: Socket) => {
   })
 
   socket.on("screen-share", async ({ sharing }: { sharing: boolean }) => {
+    if (!checkSocketRate(socket.id, "voiceState")) return
     const peer = await findPeerRoom(socket.id)
     if (!peer) return
 
@@ -261,6 +350,7 @@ io.on("connection", (socket: Socket) => {
   // ─── Disconnect ─────────────────────────────────────────────────────────────
   socket.on("disconnect", async (reason) => {
     logger.info({ socketId: socket.id, reason }, "client disconnected")
+    socketLimiter.remove(socket.id)
     const left = await rooms.leaveAll(socket.id)
 
     for (const { channelId, userId } of left) {
