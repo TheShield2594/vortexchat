@@ -26,7 +26,7 @@ export async function GET(
     .eq("server_id", serverId)
     .order("created_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch invites" }, { status: 500 })
   return NextResponse.json(invites)
 }
 
@@ -79,7 +79,7 @@ export async function POST(
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to create invite" }, { status: 500 })
   return NextResponse.json(invite, { status: 201 })
 }
 
@@ -117,6 +117,6 @@ export async function DELETE(
   }
 
   const { error } = await supabase.from("invites").delete().eq("code", code)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to revoke invite" }, { status: 500 })
   return NextResponse.json({ message: "Invite revoked" })
 }

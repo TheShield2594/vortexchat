@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ do
   if (typeof body.content === "string") patch.content = body.content
 
   const { data, error } = await supabase.from("channel_docs").update(patch).eq("id", docId).select("*").single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update document" }, { status: 500 })
   return NextResponse.json({ doc: data })
 }
 
@@ -37,6 +37,6 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ doc
   if (!access.canDelete) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const { error } = await supabase.from("channel_docs").delete().eq("id", docId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete document" }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

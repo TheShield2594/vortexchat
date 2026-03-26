@@ -13,7 +13,7 @@ export async function DELETE() {
   }
 
   const { error } = await admin.auth.admin.deleteUser(auth.user.id)
-  if (error) return NextResponse.json({ error: error.message || "Failed to delete account" }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete account" }, { status: 500 })
 
   await supabase.auth.signOut({ scope: "global" })
   return NextResponse.json({ ok: true })

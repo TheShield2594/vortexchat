@@ -39,7 +39,7 @@ export async function GET(
     .eq("server_id", serverId)
     .order("banned_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch bans" }, { status: 500 })
   return NextResponse.json(bans)
 }
 
@@ -87,7 +87,7 @@ export async function POST(
     .eq("user_id", userId)
     .maybeSingle()
 
-  if (existingBanError) return NextResponse.json({ error: existingBanError.message }, { status: 500 })
+  if (existingBanError) return NextResponse.json({ error: "Failed to check existing ban" }, { status: 500 })
 
   const { error } = await supabase
     .from("server_bans")
@@ -98,7 +98,7 @@ export async function POST(
       reason: reason ?? null,
     })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to ban user" }, { status: 500 })
 
   const { error: memberDeleteError } = await supabase
     .from("server_members")
@@ -196,7 +196,7 @@ export async function DELETE(
     .eq("server_id", serverId)
     .eq("user_id", userId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to unban user" }, { status: 500 })
 
   const { error: auditError } = await insertAuditLog(supabase, {
     server_id: serverId,

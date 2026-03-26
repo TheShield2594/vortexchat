@@ -44,7 +44,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     .maybeSingle()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch summary" }, { status: 500 })
   }
 
   return NextResponse.json({ summary, status: session.summary_status })

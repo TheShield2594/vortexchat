@@ -114,7 +114,7 @@ export async function GET(
   }
 
   const { data: logs, error, count } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch activity logs" }, { status: 500 })
 
   const rows = logs ?? []
   const hasMore = rows.length > limit

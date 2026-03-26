@@ -78,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to update voice intelligence policy" }, { status: 500 })
   }
 
   return NextResponse.json({ policy })

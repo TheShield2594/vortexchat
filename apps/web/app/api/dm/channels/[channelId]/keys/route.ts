@@ -16,7 +16,7 @@ async function assertMembership(channelId: string) {
     .eq("user_id", user.id)
     .maybeSingle()
 
-  if (membershipError) return { supabase, user, error: NextResponse.json({ error: membershipError.message }, { status: 500 }) }
+  if (membershipError) return { supabase, user, error: NextResponse.json({ error: "Failed to verify membership" }, { status: 500 }) }
   if (!membership) return { supabase, user, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) }
   return { supabase, user, error: null }
 }
@@ -42,10 +42,10 @@ export async function GET(
       .eq("target_user_id", user.id),
   ])
 
-  if (channelResult.error) return NextResponse.json({ error: channelResult.error.message }, { status: 500 })
+  if (channelResult.error) return NextResponse.json({ error: "Failed to fetch channel encryption data" }, { status: 500 })
   if (!channelResult.data) return NextResponse.json({ error: "DM channel not found" }, { status: 404 })
-  if (memberRowsResult.error) return NextResponse.json({ error: memberRowsResult.error.message }, { status: 500 })
-  if (keyRowsResult.error) return NextResponse.json({ error: keyRowsResult.error.message }, { status: 500 })
+  if (memberRowsResult.error) return NextResponse.json({ error: "Failed to fetch channel members" }, { status: 500 })
+  if (keyRowsResult.error) return NextResponse.json({ error: "Failed to fetch encryption keys" }, { status: 500 })
 
   const memberIds = (memberRowsResult.data ?? []).map((m) => m.user_id)
   const deviceRowsResult = memberIds.length
@@ -56,7 +56,7 @@ export async function GET(
       .order("updated_at", { ascending: false })
     : { data: [], error: null }
 
-  if (deviceRowsResult.error) return NextResponse.json({ error: deviceRowsResult.error.message }, { status: 500 })
+  if (deviceRowsResult.error) return NextResponse.json({ error: "Failed to fetch device keys" }, { status: 500 })
 
   const grouped = new Map<string, Array<{ user_id: string; device_id: string; public_key: string }>>()
   for (const row of (deviceRowsResult.data ?? []) as Array<{ user_id: string; device_id: string; public_key: string }>) {

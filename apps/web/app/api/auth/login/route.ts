@@ -3,6 +3,8 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { computeLoginRisk } from "@/lib/auth/risk"
+import { rateLimiter } from "@/lib/rate-limit"
+import { getClientIp } from "@vortex/shared"
 
 /**
  * POST /api/auth/login
@@ -29,7 +31,18 @@ export async function POST(request: Request) {
   }
 
   const email = body.email.toLowerCase()
-  const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null
+  const ipAddress = getClientIp(request.headers)
+
+  // Rate limit by IP — 20 attempts per 15 minutes
+  const rateLimitKey = `login:${ipAddress ?? "unknown"}`
+  try {
+    const rl = await rateLimiter.check(rateLimitKey, { limit: 20, windowMs: 15 * 60 * 1000 })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many login attempts. Please try again later." }, { status: 429 })
+    }
+  } catch {
+    // Fail open — don't block login if rate limiter is down
+  }
 
   const admin = await createServiceRoleClient()
   const adminDb = admin as any

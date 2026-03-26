@@ -6,71 +6,79 @@ export async function GET(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ code: string }> }
 ) {
-  const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
+  try {
+    const params = await paramsPromise
+    const supabase = await createServerSupabaseClient()
 
-  const { data: server } = await supabase
-    .from("servers")
-    .select("id, name, icon_url, description")
-    .eq("invite_code", params.code.toLowerCase())
-    .single()
+    const { data: server, error: serverError } = await supabase
+      .from("servers")
+      .select("id, name, icon_url, description")
+      .eq("invite_code", params.code.toLowerCase())
+      .single()
 
-  if (!server) {
-    return NextResponse.json({ error: "Invalid invite code" }, { status: 404 })
+    if (serverError || !server) {
+      return NextResponse.json({ error: "Invalid invite code" }, { status: 404 })
+    }
+
+    // Get member count
+    const { count } = await supabase
+      .from("server_members")
+      .select("*", { count: "exact", head: true })
+      .eq("server_id", server.id)
+
+    return NextResponse.json({ ...server, member_count: count })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  // Get member count
-  const { count } = await supabase
-    .from("server_members")
-    .select("*", { count: "exact", head: true })
-    .eq("server_id", server.id)
-
-  return NextResponse.json({ ...server, member_count: count })
 }
 
 export async function POST(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ code: string }> }
 ) {
-  const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  try {
+    const params = await paramsPromise
+    const supabase = await createServerSupabaseClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { data: server, error: serverError } = await supabase
+      .from("servers")
+      .select("id, name")
+      .eq("invite_code", params.code.toLowerCase())
+      .single()
+
+    if (serverError || !server) {
+      return NextResponse.json({ error: "Invalid invite code" }, { status: 404 })
+    }
+
+    const { error } = await supabase
+      .from("server_members")
+      .insert({ server_id: server.id, user_id: user.id })
+
+    if (error && error.code !== "23505") {
+      return NextResponse.json({ error: "Failed to join server" }, { status: 500 })
+    }
+
+    // Fire-and-forget: post welcome message if Welcome Bot is configured
+    if (!error) {
+      postWelcomeMessage(server.id, user.id).catch(() => {/* non-fatal */})
+    }
+
+    return NextResponse.json({ server_id: server.id, name: server.name })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  const { data: server } = await supabase
-    .from("servers")
-    .select("id, name")
-    .eq("invite_code", params.code.toLowerCase())
-    .single()
-
-  if (!server) {
-    return NextResponse.json({ error: "Invalid invite code" }, { status: 404 })
-  }
-
-  const { error } = await supabase
-    .from("server_members")
-    .insert({ server_id: server.id, user_id: user.id })
-
-  if (error && error.code !== "23505") {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  // Fire-and-forget: post welcome message if Welcome Bot is configured
-  if (!error) {
-    postWelcomeMessage(server.id, user.id).catch(() => {/* non-fatal */})
-  }
-
-  return NextResponse.json({ server_id: server.id, name: server.name })
 }
 
 /**
  * Posts a welcome message in the configured welcome channel when a new member
  * joins and the Welcome Bot app is installed + configured on the server.
  */
-async function postWelcomeMessage(serverId: string, userId: string) {
+async function postWelcomeMessage(serverId: string, userId: string): Promise<void> {
   const serviceClient = await createServiceRoleClient()
 
   // Check if welcome app is configured and enabled

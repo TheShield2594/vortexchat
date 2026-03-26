@@ -134,7 +134,7 @@ export async function POST(
     .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
 
   // Send push notifications (fire-and-forget)
   const senderName = (message as any)?.sender?.display_name || (message as any)?.sender?.username || "Someone"

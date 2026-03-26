@@ -119,7 +119,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     .eq("server_id", serverId)
     .eq("user_id", userId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
 
   // Force realtime/voice access revocation for active sessions in this server.
   // This removes active voice presence rows immediately.

@@ -12,7 +12,7 @@ export async function GET() {
     .select("dm_channel_id")
     .eq("user_id", user.id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch DM channels" }, { status: 500 })
 
   const channelIds = memberships?.map((m) => m.dm_channel_id) ?? []
   if (!channelIds.length) return NextResponse.json([])
@@ -40,10 +40,10 @@ export async function GET() {
       .in("dm_channel_id", channelIds),
   ])
 
-  if (channelResult.error) return NextResponse.json({ error: channelResult.error.message }, { status: 500 })
-  if (memberResult.error) return NextResponse.json({ error: memberResult.error.message }, { status: 500 })
-  if (latestResult.error) return NextResponse.json({ error: latestResult.error.message }, { status: 500 })
-  if (readsResult.error) return NextResponse.json({ error: readsResult.error.message }, { status: 500 })
+  if (channelResult.error) return NextResponse.json({ error: "Failed to fetch DM channels" }, { status: 500 })
+  if (memberResult.error) return NextResponse.json({ error: "Failed to fetch channel members" }, { status: 500 })
+  if (latestResult.error) return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
+  if (readsResult.error) return NextResponse.json({ error: "Failed to fetch read states" }, { status: 500 })
 
   const channelRows = channelResult.data
   const allMemberRows = memberResult.data
@@ -57,7 +57,7 @@ export async function GET() {
         .in("id", allUserIds)
     : null
   const userRows = userRowsQuery?.data ?? []
-  if (userRowsQuery?.error) return NextResponse.json({ error: userRowsQuery.error.message }, { status: 500 })
+  if (userRowsQuery?.error) return NextResponse.json({ error: "Failed to fetch user profiles" }, { status: 500 })
 
   const userMap = Object.fromEntries(userRows.map((u) => [u.id, u]))
 

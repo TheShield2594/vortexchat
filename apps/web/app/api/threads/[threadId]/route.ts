@@ -30,7 +30,7 @@ export async function GET(_request: Request, { params: paramsPromise }: Params) 
     .eq("id", threadId)
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch thread" }, { status: 500 })
   if (!thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
 
   return NextResponse.json(thread)
@@ -101,7 +101,7 @@ export async function PATCH(request: Request, { params: paramsPromise }: Params)
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update thread" }, { status: 500 })
 
   return NextResponse.json(thread)
 }
@@ -132,7 +132,7 @@ export async function DELETE(_request: Request, { params: paramsPromise }: Param
   if (!authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const { error } = await supabase.from("threads").delete().eq("id", threadId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete thread" }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

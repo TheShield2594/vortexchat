@@ -17,7 +17,7 @@ export async function GET(
     .is("cancelled_at", null)
     .order("start_at", { ascending: true })
 
-  if (error) return new Response(error.message, { status: 500 })
+  if (error) return new Response("Failed to fetch events", { status: 500 })
 
   const body = buildICal(events ?? [])
 

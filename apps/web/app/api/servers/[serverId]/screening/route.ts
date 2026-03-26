@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     .eq("server_id", serverId)
     .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch screening config" }, { status: 500 })
 
   // Also return whether the current user has already accepted
   const { data: accepted } = await supabase
@@ -80,7 +80,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update screening config" }, { status: 500 })
   return NextResponse.json(data)
 }
 
@@ -101,7 +101,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     .delete()
     .eq("server_id", serverId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete screening config" }, { status: 500 })
   if (count === 0) return NextResponse.json({ error: "Screening config not found" }, { status: 404 })
 
   return NextResponse.json({ message: "Screening config removed" })

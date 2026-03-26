@@ -105,5 +105,7 @@ export function isChallengeValid(params: { expiresAt: string; usedAt?: string | 
 }
 
 export function isReplayDetected(prevCounter: number, nextCounter: number) {
+  // Only enforce when both counters are non-zero — first auth always starts at 0
+  if (!prevCounter && !nextCounter) return false
   return nextCounter <= prevCounter
 }

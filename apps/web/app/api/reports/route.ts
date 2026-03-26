@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to create report" }, { status: 500 })
 
   return NextResponse.json(report, { status: 201 })
 }
@@ -166,7 +166,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { data: reports, error } = await query
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
     return NextResponse.json(reports, {
       headers: { "Cache-Control": "private, max-age=30" },
     })
@@ -180,7 +180,7 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(50)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
   return NextResponse.json(reports, {
     headers: { "Cache-Control": "private, max-age=30" },
   })
@@ -256,7 +256,7 @@ export async function PATCH(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update report" }, { status: 500 })
   if (!report) return NextResponse.json({ error: "Report not found" }, { status: 404 })
 
   // Audit log the moderator action on this report

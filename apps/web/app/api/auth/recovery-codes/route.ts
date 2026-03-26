@@ -18,7 +18,7 @@ export async function GET() {
     .eq("user_id", auth.user.id)
     .order("created_at", { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch recovery codes" }, { status: 500 })
 
   const codes = data || []
   const total = codes.length
@@ -58,7 +58,7 @@ export async function POST() {
   )
 
   const { error } = await adminDb.from("recovery_codes").insert(rows)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to generate recovery codes" }, { status: 500 })
 
   return NextResponse.json({ codes: plaintextCodes })
 }

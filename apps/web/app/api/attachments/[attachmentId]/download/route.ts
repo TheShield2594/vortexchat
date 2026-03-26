@@ -16,7 +16,7 @@ export async function GET(
     .eq("id", attachmentId)
     .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch attachment" }, { status: 500 })
   if (!attachment) return NextResponse.json({ error: "Attachment not found" }, { status: 404 })
 
   const { data: message } = await supabase

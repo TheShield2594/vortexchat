@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to create session" }, { status: 500 })
   }
 
   // Auto-join the creator as a participant

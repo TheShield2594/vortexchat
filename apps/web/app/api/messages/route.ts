@@ -485,7 +485,7 @@ export async function GET(request: Request) {
 
   const { data: messages, error } = await query
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
 
   return NextResponse.json(await withReplyTo(supabase, (messages ?? []).reverse()))
 }

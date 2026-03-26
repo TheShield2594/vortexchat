@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: true })
     .limit(100)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
 
   return NextResponse.json(messages ?? [])
 }
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
 
   return NextResponse.json(data, { status: 201 })
 }

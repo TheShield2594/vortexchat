@@ -49,6 +49,35 @@ export function removePermission(permissions: number, permission: Permission): n
 
 export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
 
+// ── Client IP extraction ────────────────────────────────────────────────────
+
+/**
+ * Extract the client IP from request headers using a safe precedence order.
+ *
+ * Note: This function does not validate the immediate peer against a trusted
+ * proxy list. In deployments behind a reverse proxy (Vercel, Cloudflare, nginx),
+ * the proxy strips/overwrites these headers so spoofing is not possible.
+ *
+ * Precedence: x-forwarded-for (first entry) → cf-connecting-ip → x-real-ip
+ * x-forwarded-for is preferred because it is the standard proxy header and
+ * is reliably set/overwritten by Vercel, Cloudflare, and nginx.
+ */
+export function getClientIp(headers: { get(name: string): string | null }): string | null {
+  const xForwardedFor = headers.get("x-forwarded-for")
+  if (xForwardedFor) {
+    const first = xForwardedFor.split(",")[0]?.trim()
+    if (first) return first
+  }
+
+  const cfIp = headers.get("cf-connecting-ip")?.trim()
+  if (cfIp) return cfIp
+
+  const xRealIp = headers.get("x-real-ip")?.trim()
+  if (xRealIp) return xRealIp
+
+  return null
+}
+
 // ── Thread auto-archive ─────────────────────────────────────────────────────
 /** Discord-compatible auto-archive duration options (in minutes). */
 export const AUTO_ARCHIVE_OPTIONS = [

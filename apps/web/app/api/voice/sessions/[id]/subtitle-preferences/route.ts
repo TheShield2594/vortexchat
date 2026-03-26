@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to update preferences" }, { status: 500 })
   }
 
   return NextResponse.json({ participant }, { status: 200 })

@@ -19,7 +19,7 @@ export async function GET(
     .eq("user_id", user.id)
     .maybeSingle()
 
-  if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 })
+  if (membershipError) return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
@@ -36,9 +36,9 @@ export async function GET(
       .eq("dm_channel_id", channelId),
   ])
 
-  if (channelResult.error) return NextResponse.json({ error: channelResult.error.message }, { status: 500 })
+  if (channelResult.error) return NextResponse.json({ error: "Failed to fetch DM channel" }, { status: 500 })
   if (!channelResult.data) return NextResponse.json({ error: "DM channel not found" }, { status: 404 })
-  if (memberRowsResult.error) return NextResponse.json({ error: memberRowsResult.error.message }, { status: 500 })
+  if (memberRowsResult.error) return NextResponse.json({ error: "Failed to fetch channel members" }, { status: 500 })
 
   const channel = channelResult.data
   const memberIds = memberRowsResult.data?.map((r) => r.user_id) ?? []
@@ -50,7 +50,7 @@ export async function GET(
         .select("id, username, display_name, avatar_url, status, status_message")
         .in("id", memberIds)
     : { data: [], error: null }
-  if (memberUsersError) return NextResponse.json({ error: memberUsersError.message }, { status: 500 })
+  if (memberUsersError) return NextResponse.json({ error: "Failed to fetch member profiles" }, { status: 500 })
 
   const members = memberUsers ?? []
   const partner = channel && !channel.is_group
@@ -74,7 +74,7 @@ export async function GET(
 
   const { data: messages, error } = await query
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
 
   // Resolve replied-to messages
   const replyIds: string[] = (messages ?? [])

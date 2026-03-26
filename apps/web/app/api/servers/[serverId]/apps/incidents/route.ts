@@ -29,7 +29,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .limit(50),
   ])
 
-  if (configResult.error) return NextResponse.json({ error: configResult.error.message }, { status: 500 })
+  if (configResult.error) return NextResponse.json({ error: "Failed to fetch incident configuration" }, { status: 500 })
 
   return NextResponse.json({
     config: configResult.data,
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("*")
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to save incident configuration" }, { status: 500 })
     return NextResponse.json(data)
   }
 

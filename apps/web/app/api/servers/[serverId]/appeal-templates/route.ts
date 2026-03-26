@@ -16,7 +16,7 @@ export async function GET(
     .eq("server_id", serverId)
     .order("created_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch appeal templates" }, { status: 500 })
   return NextResponse.json(data ?? [])
 }
 
@@ -66,6 +66,6 @@ export async function POST(
     .select("id, title, body, decision")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to create appeal template" }, { status: 500 })
   return NextResponse.json(data, { status: 201 })
 }

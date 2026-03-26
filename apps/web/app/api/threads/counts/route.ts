@@ -19,14 +19,14 @@ export async function GET(request: Request) {
     .eq("user_id", userId)
     .maybeSingle()
 
-  if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 })
+  if (membershipError) return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
   if (!membership) return NextResponse.json({ error: "Not a member of this server" }, { status: 403 })
 
   const { data, error } = await supabase.rpc("get_thread_counts_by_channel", {
     p_server_id: serverId,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch thread counts" }, { status: 500 })
 
   const counts: Record<string, number> = {}
   for (const row of data ?? []) {

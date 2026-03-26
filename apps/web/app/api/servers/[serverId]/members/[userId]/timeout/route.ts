@@ -36,90 +36,102 @@ async function checkModeratePermission(
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const { serverId, userId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId, userId } = await params
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data: server } = await supabase.from("servers").select("owner_id").eq("id", serverId).single()
-  if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
-  if (userId === server.owner_id) return NextResponse.json({ error: "Cannot timeout the server owner" }, { status: 400 })
+    const { data: server, error: serverError } = await supabase.from("servers").select("owner_id").eq("id", serverId).single()
+    if (serverError || !server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
+    if (userId === server.owner_id) return NextResponse.json({ error: "Cannot timeout the server owner" }, { status: 400 })
 
-  // Prevent moderators from timing out their own account
-  if (userId === user.id) return NextResponse.json({ error: "Cannot timeout yourself" }, { status: 400 })
+    // Prevent moderators from timing out their own account
+    if (userId === user.id) return NextResponse.json({ error: "Cannot timeout yourself" }, { status: 400 })
 
-  const canModerate = await checkModeratePermission(supabase, serverId, user.id, server.owner_id)
-  if (!canModerate) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const canModerate = await checkModeratePermission(supabase, serverId, user.id, server.owner_id)
+    if (!canModerate) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { duration_seconds, reason } = await req.json()
-  if (!duration_seconds || duration_seconds <= 0)
-    return NextResponse.json({ error: "duration_seconds must be a positive number" }, { status: 400 })
-  if (duration_seconds > MAX_TIMEOUT_SECONDS)
-    return NextResponse.json(
-      { error: `duration_seconds must not exceed ${MAX_TIMEOUT_SECONDS} (28 days)` },
-      { status: 400 }
+    const body = await req.json()
+    const { duration_seconds, reason } = body
+
+    if (typeof duration_seconds !== "number" || !Number.isFinite(duration_seconds) || duration_seconds <= 0)
+      return NextResponse.json({ error: "duration_seconds must be a positive number" }, { status: 400 })
+    if (duration_seconds > MAX_TIMEOUT_SECONDS)
+      return NextResponse.json(
+        { error: `duration_seconds must not exceed ${MAX_TIMEOUT_SECONDS} (28 days)` },
+        { status: 400 }
+      )
+    if (reason !== undefined && typeof reason !== "string")
+      return NextResponse.json({ error: "reason must be a string" }, { status: 400 })
+
+    const until = new Date(Date.now() + duration_seconds * 1000).toISOString()
+
+    const { error } = await supabase.from("member_timeouts").upsert(
+      {
+        server_id: serverId,
+        user_id: userId,
+        timed_out_until: until,
+        moderator_id: user.id,
+        reason: reason ?? null,
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "server_id,user_id" }
     )
 
-  const until = new Date(Date.now() + duration_seconds * 1000).toISOString()
+    if (error) return NextResponse.json({ error: "Failed to apply timeout" }, { status: 500 })
 
-  const { error } = await supabase.from("member_timeouts").upsert(
-    {
+    await supabase.from("audit_logs").insert({
       server_id: serverId,
-      user_id: userId,
-      timed_out_until: until,
-      moderator_id: user.id,
-      reason: reason ?? null,
-      created_at: new Date().toISOString(),
-    },
-    { onConflict: "server_id,user_id" }
-  )
+      actor_id: user.id,
+      action: "member_timeout",
+      target_id: userId,
+      target_type: "user",
+      changes: { duration_seconds, reason: reason ?? null, until },
+    })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  await supabase.from("audit_logs").insert({
-    server_id: serverId,
-    actor_id: user.id,
-    action: "member_timeout",
-    target_id: userId,
-    target_type: "user",
-    changes: { duration_seconds, reason: reason ?? null, until },
-  })
-
-  return NextResponse.json({ message: "Member timed out", until })
+    return NextResponse.json({ message: "Member timed out", until })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { serverId, userId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId, userId } = await params
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data: server } = await supabase.from("servers").select("owner_id").eq("id", serverId).single()
-  if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
+    const { data: server, error: serverError } = await supabase.from("servers").select("owner_id").eq("id", serverId).single()
+    if (serverError || !server) return NextResponse.json({ error: "Server not found" }, { status: 404 })
 
-  const canModerate = await checkModeratePermission(supabase, serverId, user.id, server.owner_id)
-  if (!canModerate) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const canModerate = await checkModeratePermission(supabase, serverId, user.id, server.owner_id)
+    if (!canModerate) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { error } = await supabase
-    .from("member_timeouts")
-    .delete()
-    .eq("server_id", serverId)
-    .eq("user_id", userId)
+    const { error } = await supabase
+      .from("member_timeouts")
+      .delete()
+      .eq("server_id", serverId)
+      .eq("user_id", userId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to remove timeout" }, { status: 500 })
 
-  await supabase.from("audit_logs").insert({
-    server_id: serverId,
-    actor_id: user.id,
-    action: "member_timeout_remove",
-    target_id: userId,
-    target_type: "user",
-    changes: null,
-  })
+    await supabase.from("audit_logs").insert({
+      server_id: serverId,
+      actor_id: user.id,
+      action: "member_timeout_remove",
+      target_id: userId,
+      target_type: "user",
+      changes: null,
+    })
 
-  return NextResponse.json({ message: "Timeout removed" })
+    return NextResponse.json({ message: "Timeout removed" })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

@@ -41,7 +41,7 @@ export async function POST(
 
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "Already a member" }, { status: 409 })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to add member" }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
@@ -79,7 +79,7 @@ export async function DELETE(
     .eq("dm_channel_id", channelId)
     .eq("user_id", targetUserId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

@@ -14,7 +14,7 @@ export async function GET() {
     .eq("user_id", user.id)
     .order("submitted_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch appeals" }, { status: 500 })
   return NextResponse.json(data ?? [], {
     headers: { "Cache-Control": "private, max-age=30" },
   })
@@ -68,17 +68,17 @@ export async function POST(req: NextRequest) {
       .gte("submitted_at", thirtyDaysAgoIso),
   ])
 
-  if (banResult.error) return NextResponse.json({ error: banResult.error.message }, { status: 500 })
+  if (banResult.error) return NextResponse.json({ error: "Failed to verify ban status" }, { status: 500 })
   if (!banResult.data) {
     return NextResponse.json({ error: "Appeal cannot be created" }, { status: 403 })
   }
 
-  if (duplicateResult.error) return NextResponse.json({ error: duplicateResult.error.message }, { status: 500 })
+  if (duplicateResult.error) return NextResponse.json({ error: "Failed to check existing appeals" }, { status: 500 })
   if (duplicateResult.data) {
     return NextResponse.json({ error: "An active appeal already exists" }, { status: 409 })
   }
 
-  if (countResult.error) return NextResponse.json({ error: countResult.error.message }, { status: 500 })
+  if (countResult.error) return NextResponse.json({ error: "Failed to check appeal history" }, { status: 500 })
   const count = countResult.count
 
   const antiAbuseScore = computeAntiAbuseScore({
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     .select("id, status, submitted_at")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to submit appeal" }, { status: 500 })
 
   const { error: eventError } = await (serviceSupabase as any).from("moderation_appeal_status_events").insert({
     appeal_id: appeal.id,
