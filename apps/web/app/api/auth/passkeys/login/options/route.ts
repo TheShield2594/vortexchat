@@ -30,9 +30,11 @@ export async function POST(request: Request) {
     }
 
     if (email) {
-      const { data: usersData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 })
-      const authUser = usersData?.users.find((user) => user.email?.toLowerCase() === email.toLowerCase())
-      userId = authUser?.id ?? null
+      // Look up user by email directly instead of paginated list
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserByEmail(email)
+      if (!userError && userData?.user) {
+        userId = userData.user.id
+      }
 
       if (userId) {
         const { data: policyRow } = await db
@@ -58,15 +60,23 @@ export async function POST(request: Request) {
       expires_at: expiresAt,
     })
 
-    const query = db.from("passkey_credentials").select("credential_id").is("revoked_at", null)
-    const { data: credentials } = userId ? await query.eq("user_id", userId) : await query
+    // Only query credentials for a specific user — never expose the full table
+    let credentials: Array<{ credential_id: string }> = []
+    if (userId) {
+      const { data } = await db
+        .from("passkey_credentials")
+        .select("credential_id")
+        .is("revoked_at", null)
+        .eq("user_id", userId)
+      credentials = data || []
+    }
 
     return NextResponse.json({
       challenge,
       timeout: PASSKEY_CHALLENGE_TTL_SECONDS * 1000,
       rpId: rpID,
       userVerification: "preferred",
-      allowCredentials: (credentials || []).map((row: any) => ({ id: row.credential_id, type: "public-key" })),
+      allowCredentials: credentials.map((row) => ({ id: row.credential_id, type: "public-key" })),
       policy,
     })
   } catch (err) {

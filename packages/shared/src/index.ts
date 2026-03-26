@@ -58,12 +58,11 @@ export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
  * proxy list. In deployments behind a reverse proxy (Vercel, Cloudflare, nginx),
  * the proxy strips/overwrites these headers so spoofing is not possible.
  *
- * Precedence: x-real-ip → first entry of x-forwarded-for → cf-connecting-ip
+ * Precedence: x-forwarded-for (first entry) → cf-connecting-ip → x-real-ip
+ * x-forwarded-for is preferred because it is the standard proxy header and
+ * is reliably set/overwritten by Vercel, Cloudflare, and nginx.
  */
 export function getClientIp(headers: { get(name: string): string | null }): string | null {
-  const xRealIp = headers.get("x-real-ip")?.trim()
-  if (xRealIp) return xRealIp
-
   const xForwardedFor = headers.get("x-forwarded-for")
   if (xForwardedFor) {
     const first = xForwardedFor.split(",")[0]?.trim()
@@ -72,6 +71,9 @@ export function getClientIp(headers: { get(name: string): string | null }): stri
 
   const cfIp = headers.get("cf-connecting-ip")?.trim()
   if (cfIp) return cfIp
+
+  const xRealIp = headers.get("x-real-ip")?.trim()
+  if (xRealIp) return xRealIp
 
   return null
 }

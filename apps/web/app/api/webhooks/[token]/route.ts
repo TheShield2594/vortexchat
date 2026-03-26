@@ -106,10 +106,12 @@ export async function POST(
     let messageContent = content?.slice(0, 2000) ?? ""
     if (!messageContent && embeds?.length) {
       const e = embeds[0]
-      const parts = []
-      if (e.title) parts.push(`**${e.title}**`)
-      if (e.description) parts.push(e.description)
-      messageContent = parts.join("\n").slice(0, 2000)
+      if (typeof e === "object" && e !== null) {
+        const parts: string[] = []
+        if (typeof e.title === "string") parts.push(`**${e.title}**`)
+        if (typeof e.description === "string") parts.push(e.description)
+        messageContent = parts.join("\n").slice(0, 2000)
+      }
     }
 
     // The webhook display name and avatar override come from the request (like Discord)

@@ -42,14 +42,19 @@ export async function POST(request: Request) {
 
     const supabase = await createServiceRoleClient()
     const db = supabase as any
-    const { data: challengeRow } = await db
+
+    // Atomically claim the challenge — only the first concurrent request succeeds
+    const { data: claimedChallenge, error: claimError } = await db
       .from("auth_challenges")
-      .select("id,user_id,expires_at,used_at")
+      .update({ used_at: new Date().toISOString() })
       .eq("challenge", body.challenge)
       .eq("flow", "login")
+      .is("used_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .select("id,user_id,expires_at")
       .maybeSingle()
 
-    if (!challengeRow || challengeRow.used_at || new Date(challengeRow.expires_at).getTime() < Date.now()) {
+    if (claimError || !claimedChallenge) {
       return NextResponse.json({ error: "Challenge is invalid or expired" }, { status: 400 })
     }
 
@@ -63,7 +68,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Credential has been revoked" }, { status: 403 })
     }
 
-    if (challengeRow.user_id && credential.user_id !== challengeRow.user_id) {
+    if (claimedChallenge.user_id && credential.user_id !== claimedChallenge.user_id) {
       return NextResponse.json({ error: "Credential/user mismatch" }, { status: 403 })
     }
 
@@ -81,7 +86,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Passkey assertion verification failed" }, { status: 400 })
     }
 
-    if ((verify.newCounter || 0) <= credential.counter) {
+    // Only enforce counter comparison when both counters are non-zero
+    // (first auth always has counter=0 on both sides)
+    if (verify.newCounter && credential.counter && verify.newCounter <= credential.counter) {
       return NextResponse.json({ error: "Potential replay detected" }, { status: 409 })
     }
 
@@ -89,8 +96,6 @@ export async function POST(request: Request) {
       .from("passkey_credentials")
       .update({ counter: verify.newCounter, last_used_at: new Date().toISOString() })
       .eq("id", credential.id)
-
-    await db.from("auth_challenges").update({ used_at: new Date().toISOString() }).eq("id", challengeRow.id)
 
     const userResult = await supabase.auth.admin.getUserById(credential.user_id)
     const email = userResult.data.user?.email

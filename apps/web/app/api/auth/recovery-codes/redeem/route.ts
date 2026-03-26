@@ -24,13 +24,19 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json().catch(() => ({}))) as {
-      email?: string
-      password?: string
-      code?: string
+      email?: unknown
+      password?: unknown
+      code?: unknown
     }
 
     if (!body.email || !body.password || !body.code) {
       return NextResponse.json({ error: "Email, password, and recovery code are required" }, { status: 400 })
+    }
+    if (typeof body.email !== "string" || typeof body.password !== "string" || typeof body.code !== "string") {
+      return NextResponse.json({ error: "Email, password, and code must be strings" }, { status: 400 })
+    }
+    if (body.email.length > 320 || body.password.length > 256 || body.code.length > 64) {
+      return NextResponse.json({ error: "Field length exceeded" }, { status: 400 })
     }
 
     const admin = await createServiceRoleClient()

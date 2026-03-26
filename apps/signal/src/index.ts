@@ -159,6 +159,36 @@ if (REDIS_URL) {
 }
 const voiceStateSync = supabase ? createVoiceStateSync(supabase) : null
 
+// ─── Session re-validation cache for signaling events ────────────────────────
+// Re-validate the auth token periodically (every 30s) instead of on every event
+const SESSION_REVALIDATION_TTL_MS = 30_000
+const sessionValidationCache = new Map<string, { validatedAt: number; userId: string }>()
+
+async function validateSession(socket: Socket): Promise<boolean> {
+  if (!supabase) return true // skip if no DB configured
+
+  const cached = sessionValidationCache.get(socket.id)
+  if (cached && Date.now() - cached.validatedAt < SESSION_REVALIDATION_TTL_MS) {
+    return true
+  }
+
+  const authToken = socket.handshake.auth?.token
+  if (!authToken) return false
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(authToken)
+    if (error || !user) {
+      sessionValidationCache.delete(socket.id)
+      return false
+    }
+    sessionValidationCache.set(socket.id, { validatedAt: Date.now(), userId: user.id })
+    return true
+  } catch (err) {
+    logger.error({ socketId: socket.id, err }, "session revalidation failed — allowing")
+    return true // fail open on transient errors
+  }
+}
+
 io.on("connection", (socket: Socket) => {
   logger.info({ socketId: socket.id }, "client connected")
 
@@ -166,8 +196,8 @@ io.on("connection", (socket: Socket) => {
   socket.on("join-room", async (data: {
     channelId: string
     userId: string
-    displayName?: string | unknown
-    avatarUrl?: string | unknown
+    displayName?: unknown
+    avatarUrl?: unknown
   }) => {
     try {
       const { channelId, userId } = data
@@ -213,6 +243,8 @@ io.on("connection", (socket: Socket) => {
           socket.emit("error", { message: "Unauthorized" })
           return
         }
+        // Seed the session validation cache on join
+        sessionValidationCache.set(socket.id, { validatedAt: Date.now(), userId: user.id })
       }
 
       // Join socket.io room
@@ -283,6 +315,11 @@ io.on("connection", (socket: Socket) => {
   /** Verify sender and recipient are in the same channel before relaying */
   async function validateSignalingPeer(to: string): Promise<boolean> {
     try {
+      // Re-validate session token periodically
+      if (!(await validateSession(socket))) {
+        logger.warn({ socketId: socket.id }, "signaling rejected — session invalid")
+        return false
+      }
       const senderRoom = await findPeerRoom(socket.id)
       if (!senderRoom) return false
       const recipientPeer = await rooms.getPeer(senderRoom.channelId, to)
@@ -332,9 +369,15 @@ io.on("connection", (socket: Socket) => {
    * Re-verify channel membership against the database for sensitive state changes.
    * Returns false (and evicts the peer) if the user is no longer a server member.
    * Skipped if Supabase is not configured.
+   *
+   * DB queries are in their own try/catch (fail open on transient errors).
+   * handleLeave errors are caught separately so eviction always returns false.
    */
   async function verifyChannelMembership(peer: { channelId: string; userId: string }): Promise<boolean> {
     if (!supabase) return true // skip if no DB configured
+
+    let shouldEvict = false
+    let evictReason = ""
 
     try {
       const { data: channel } = await supabase
@@ -344,30 +387,38 @@ io.on("connection", (socket: Socket) => {
         .single()
 
       if (!channel) {
-        await handleLeave(socket, peer.channelId)
-        return false
+        shouldEvict = true
+        evictReason = "channel not found"
+      } else {
+        const { data: member } = await supabase
+          .from("server_members")
+          .select("user_id")
+          .eq("server_id", channel.server_id)
+          .eq("user_id", peer.userId)
+          .single()
+
+        if (!member) {
+          shouldEvict = true
+          evictReason = "no longer a server member"
+        }
       }
-
-      const { data: member } = await supabase
-        .from("server_members")
-        .select("user_id")
-        .eq("server_id", channel.server_id)
-        .eq("user_id", peer.userId)
-        .single()
-
-      if (!member) {
-        logger.warn({ userId: peer.userId, channelId: peer.channelId }, "evicting user — no longer a server member")
-        socket.emit("error", { message: "You are no longer a member of this server" })
-        await handleLeave(socket, peer.channelId)
-        return false
-      }
-
-      return true
     } catch (err) {
       // Fail open on DB/network errors — don't evict users due to transient failures
       logger.error({ userId: peer.userId, channelId: peer.channelId, err }, "verifyChannelMembership DB error — failing open")
       return true
     }
+
+    if (!shouldEvict) return true
+
+    // Eviction path — errors here must not trigger fail-open
+    logger.warn({ userId: peer.userId, channelId: peer.channelId, reason: evictReason }, "evicting user")
+    socket.emit("error", { message: "You are no longer a member of this server" })
+    try {
+      await handleLeave(socket, peer.channelId)
+    } catch (err) {
+      logger.error({ userId: peer.userId, channelId: peer.channelId, err }, "handleLeave failed during eviction")
+    }
+    return false
   }
 
   socket.on("speaking", async ({ speaking }: { speaking: boolean }) => {
@@ -454,6 +505,7 @@ io.on("connection", (socket: Socket) => {
   socket.on("disconnect", async (reason) => {
     logger.info({ socketId: socket.id, reason }, "client disconnected")
     socketLimiter.remove(socket.id)
+    sessionValidationCache.delete(socket.id)
     try {
       const left = await rooms.leaveAll(socket.id)
 
@@ -471,27 +523,36 @@ io.on("connection", (socket: Socket) => {
 
   // ─── Helper ─────────────────────────────────────────────────────────────────
   async function findPeerRoom(socketId: string): Promise<{ channelId: string; userId: string } | null> {
-    const socketRooms = Array.from(socket.rooms).filter((r) => r !== socket.id)
-    for (const channelId of socketRooms) {
-      const peer = await rooms.getPeer(channelId, socketId)
-      if (peer) return { channelId, userId: peer.userId }
+    try {
+      const socketRooms = Array.from(socket.rooms).filter((r) => r !== socket.id)
+      for (const channelId of socketRooms) {
+        const peer = await rooms.getPeer(channelId, socketId)
+        if (peer) return { channelId, userId: peer.userId }
+      }
+      return null
+    } catch (err) {
+      logger.error({ socketId, err }, "findPeerRoom error")
+      return null
     }
-    return null
   }
 
   async function handleLeave(socket: Socket, channelId: string): Promise<void> {
-    const peer = await rooms.getPeer(channelId, socket.id)
-    if (!peer) return
+    try {
+      const peer = await rooms.getPeer(channelId, socket.id)
+      if (!peer) return
 
-    await rooms.leave(channelId, socket.id)
-    socket.leave(channelId)
-    socket.to(channelId).emit("peer-left", { peerId: socket.id, userId: peer.userId })
+      await rooms.leave(channelId, socket.id)
+      socket.leave(channelId)
+      socket.to(channelId).emit("peer-left", { peerId: socket.id, userId: peer.userId })
 
-    if (voiceStateSync) {
-      voiceStateSync.enqueueDelete({ userId: peer.userId, channelId })
+      if (voiceStateSync) {
+        voiceStateSync.enqueueDelete({ userId: peer.userId, channelId })
+      }
+
+      logger.info({ userId: peer.userId, channelId }, "user left room")
+    } catch (err) {
+      logger.error({ socketId: socket.id, channelId, err }, "handleLeave error")
     }
-
-    logger.info({ userId: peer.userId, channelId }, "user left room")
   }
 })
 

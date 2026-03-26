@@ -113,7 +113,7 @@ export function apiError(message: string, status = 500) {
 }
 
 /** Structured context for dbError logging */
-interface DbErrorContext {
+export interface DbErrorContext {
   route?: string
   userId?: string
   action?: string
