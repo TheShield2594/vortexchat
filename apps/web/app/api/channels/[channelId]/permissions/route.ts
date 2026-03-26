@@ -16,7 +16,7 @@ export async function GET(
     .select("*, role:roles(id, name, color)")
     .eq("channel_id", channelId)
 
-  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to fetch permissions" }, { status: 500 })
   return NextResponse.json(data ?? [])
 }
 
@@ -46,7 +46,7 @@ export async function PUT(
       { onConflict: "channel_id,role_id" }
     )
 
-  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update permissions" }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
 
@@ -70,6 +70,6 @@ export async function DELETE(
     .eq("channel_id", channelId)
     .eq("role_id", roleId)
 
-  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete permissions" }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

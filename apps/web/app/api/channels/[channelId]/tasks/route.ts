@@ -101,6 +101,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ c
   if (typeof taskId !== "string" || !taskId.trim()) return NextResponse.json({ error: "taskId required" }, { status: 400 })
 
   const { error } = await supabase.from("channel_tasks").delete().eq("id", taskId).eq("channel_id", channelId)
-  if (error) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to delete task" }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
