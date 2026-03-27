@@ -33,7 +33,7 @@ const NAV_SECTIONS = [
       { href: "/settings/notifications", label: "Notifications", icon: Bell },
       { href: "/settings/voice", label: "Voice & Video", icon: Volume2 },
       { href: "/settings/security", label: "Security & Privacy", icon: Shield },
-      { href: "/settings/keybinds", label: "Keybinds", icon: Keyboard },
+      { href: "/settings/keybinds", label: "Keybinds", icon: Keyboard, hideOnMobile: true },
     ],
   },
 ]
@@ -112,13 +112,13 @@ export function SettingsSidebar({ user }: Props) {
             >
               {section.label}
             </p>
-            {section.items.map(({ href, label, icon: Icon }) => {
+            {section.items.map(({ href, label, icon: Icon, hideOnMobile }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`)
               return (
                 <Link
                   key={href}
                   href={href}
-                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors mb-0.5 focus-ring"
+                  className={`${hideOnMobile ? "hidden md:flex" : "flex"} items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors mb-0.5 focus-ring`}
                   style={{
                     background: active ? "color-mix(in srgb, var(--theme-accent) 15%, transparent)" : "transparent",
                     color: active ? "var(--theme-text-bright)" : "var(--theme-text-secondary)",

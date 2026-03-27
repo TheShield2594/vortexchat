@@ -1436,7 +1436,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         )}
       </div>
       <div
-        className="mt-1 px-1 flex items-center justify-between text-[11px]"
+        className="mt-1 px-1 hidden md:flex items-center justify-between text-[11px]"
         style={{ color: "var(--theme-text-muted)" }}
       >
         <div className="flex items-center gap-1.5">
