@@ -22,7 +22,7 @@ interface Notification {
   created_at: string
 }
 
-const TYPE_ICONS: Record<string, React.ReactNode> = {
+const TYPE_ICONS: Record<Notification["type"], React.ReactNode> = {
   mention: <AtSign className="w-4 h-4" />,
   reply: <Hash className="w-4 h-4" />,
   friend_request: <UserPlus className="w-4 h-4" />,
@@ -56,33 +56,32 @@ export default function NotificationsPage() {
 
   // True unread count for the global badge — fetched separately to avoid limit(50) undercount
   const [totalUnreadCount, setTotalUnreadCount] = useState(0)
-  const refreshTotalUnread = useCallback(async () => {
+  const refreshTotalUnread = useCallback(async (): Promise<void> => {
     if (!currentUser) return
-    const { count } = await supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", currentUser.id)
-      .eq("read", false)
-    if (count !== null) {
-      setTotalUnreadCount(count)
-      useAppStore.getState().setNotificationUnreadCount(count)
+    try {
+      const res = await fetch("/api/notifications?countOnly=true")
+      if (!res.ok) return
+      const { unreadCount } = await res.json() as { unreadCount: number }
+      setTotalUnreadCount(unreadCount)
+      useAppStore.getState().setNotificationUnreadCount(unreadCount)
+    } catch {
+      // ignore — next poll will retry
     }
-  }, [currentUser, supabase])
+  }, [currentUser])
 
-  const loadNotifications = useCallback(async () => {
+  const loadNotifications = useCallback(async (): Promise<void> => {
     if (!currentUser) return
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: false })
-      .limit(50)
-    if (data) {
-      setNotifications((prev) => mergeNotifications(prev, data as Notification[]))
+    try {
+      const res = await fetch("/api/notifications?limit=50")
+      if (!res.ok) throw new Error("Failed to fetch")
+      const { notifications: data } = await res.json() as { notifications: Notification[] }
+      setNotifications((prev) => mergeNotifications(prev, data))
+    } catch {
+      // ignore — keep existing state
     }
     await refreshTotalUnread()
     setLoading(false)
-  }, [currentUser, supabase, refreshTotalUnread])
+  }, [currentUser, refreshTotalUnread])
 
   useEffect(() => {
     loadNotifications()
@@ -112,22 +111,34 @@ export default function NotificationsPage() {
     return () => { supabase.removeChannel(ch) }
   }, [currentUser, supabase, playNotification])
 
-  async function markAllRead() {
+  async function markAllRead(): Promise<void> {
     if (!currentUser) return
-    const { error } = await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("user_id", currentUser.id)
-      .eq("read", false)
-    if (error) return
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) return
+    } catch {
+      return
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     setTotalUnreadCount(0)
     useAppStore.getState().setNotificationUnreadCount(0)
   }
 
-  async function markRead(id: string) {
-    const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id)
-    if (error) return
+  async function markRead(id: string): Promise<void> {
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) return
+    } catch {
+      return
+    }
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
     setTotalUnreadCount((prev) => Math.max(0, prev - 1))
     useAppStore.getState().setNotificationUnreadCount(
@@ -135,10 +146,18 @@ export default function NotificationsPage() {
     )
   }
 
-  async function dismiss(id: string) {
+  async function dismiss(id: string): Promise<void> {
     const target = notifications.find((x) => x.id === id)
-    const { error } = await supabase.from("notifications").delete().eq("id", id)
-    if (error) return
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) return
+    } catch {
+      return
+    }
     setNotifications((prev) => prev.filter((x) => x.id !== id))
     if (target && !target.read) {
       setTotalUnreadCount((prev) => Math.max(0, prev - 1))
@@ -148,23 +167,27 @@ export default function NotificationsPage() {
     }
   }
 
-  async function handleClick(n: Notification) {
-    if (!n.read) markRead(n.id)
-    if (n.server_id && n.channel_id) {
-      const params = new URLSearchParams()
-      if (n.message_id) {
-        params.set("message", n.message_id)
-        try {
-          const { data: message } = await supabase
-            .from("messages")
-            .select("thread_id")
-            .eq("id", n.message_id)
-            .maybeSingle()
-          if (message?.thread_id) params.set("thread", message.thread_id)
-        } catch {}
+  async function handleClick(n: Notification): Promise<void> {
+    try {
+      if (!n.read) await markRead(n.id)
+      if (n.server_id && n.channel_id) {
+        const params = new URLSearchParams()
+        if (n.message_id) {
+          params.set("message", n.message_id)
+          try {
+            const { data: message } = await supabase
+              .from("messages")
+              .select("thread_id")
+              .eq("id", n.message_id)
+              .maybeSingle()
+            if (message?.thread_id) params.set("thread", message.thread_id)
+          } catch {}
+        }
+        const query = params.toString()
+        router.push(`/channels/${n.server_id}/${n.channel_id}${query ? `?${query}` : ""}`)
       }
-      const query = params.toString()
-      router.push(`/channels/${n.server_id}/${n.channel_id}${query ? `?${query}` : ""}`)
+    } catch (error) {
+      console.error("Failed to handle notification click", error)
     }
   }
 
