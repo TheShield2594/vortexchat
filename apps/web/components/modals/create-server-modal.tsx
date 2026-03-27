@@ -49,7 +49,7 @@ export function CreateServerModal({ open, onClose }: Props) {
   }, [])
 
   async function handleCreate() {
-    if (!name.trim()) return
+    if (loading || !name.trim()) return
     setLoading(true)
     let uploadedIconPath: string | null = null
     try {
@@ -86,7 +86,7 @@ export function CreateServerModal({ open, onClose }: Props) {
 
       addServer(server)
       toast({ title: `Server "${server.name}" created!` })
-      onClose()
+      handleClose()
       router.push(`/channels/${server.id}`)
     } catch (error: unknown) {
       if (uploadedIconPath) {

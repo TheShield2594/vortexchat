@@ -69,8 +69,13 @@ export async function POST(request: Request): Promise<NextResponse> {
       .select()
       .single()
 
-    if (insertError) {
-      console.error("Server creation failed:", { userId: user.id, error: insertError.message })
+    if (insertError || !server) {
+      console.error("Server creation failed:", {
+        route: "/api/servers",
+        action: "create-server",
+        userId: user.id,
+        error: insertError?.message ?? "Insert returned no row",
+      })
       return NextResponse.json({ error: "Failed to create server" }, { status: 500 })
     }
 

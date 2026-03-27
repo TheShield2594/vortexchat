@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef, useCallback } from "react"
+import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   Plus,
@@ -57,6 +57,16 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
     if (fileRef.current) fileRef.current.value = ""
   }, [iconPreview])
 
+  // Revoke blob URL on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (iconPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(iconPreview)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -94,7 +104,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
   }, [serverName])
 
   const handleCreateServer = useCallback(async () => {
-    if (!serverName.trim()) return
+    if (loading || !serverName.trim()) return
     setLoading(true)
 
     let uploadedIconPath: string | null = null
@@ -173,7 +183,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
     } finally {
       setLoading(false)
     }
-  }, [serverName, iconFile, userId, supabase, selectedTemplate, addServer, toast, clearIconState])
+  }, [loading, serverName, iconFile, userId, supabase, selectedTemplate, addServer, toast, clearIconState])
 
   async function handleCopyInvite(): Promise<void> {
     if (!createdServer) return
