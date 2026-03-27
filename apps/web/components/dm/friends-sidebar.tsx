@@ -77,7 +77,7 @@ function FriendEntry({
       </div>
 
       <div
-        className="absolute right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity rounded-md px-1 py-0.5"
+        className="absolute right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 touch-visible transition-opacity rounded-md px-1 py-0.5"
         style={{ background: "rgba(30,31,34,0.9)" }}
       >
         {actions}

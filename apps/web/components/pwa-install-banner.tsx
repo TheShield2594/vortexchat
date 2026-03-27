@@ -34,10 +34,15 @@ export function PwaInstallBanner() {
 
   async function install() {
     if (!promptEvent) return
-    await promptEvent.prompt()
-    const { outcome } = await promptEvent.userChoice
-    if (outcome === "accepted" || outcome === "dismissed") {
-      localStorage.setItem(STORAGE_KEY, "1")
+    try {
+      await promptEvent.prompt()
+      const { outcome } = await promptEvent.userChoice
+      if (outcome === "accepted" || outcome === "dismissed") {
+        localStorage.setItem(STORAGE_KEY, "1")
+        setVisible(false)
+      }
+    } catch {
+      // prompt() can throw if called more than once or if the browser cancels — dismiss gracefully
       setVisible(false)
     }
   }
@@ -48,7 +53,7 @@ export function PwaInstallBanner() {
     <div
       role="banner"
       aria-label="Add VortexChat to your home screen"
-      className="fixed bottom-0 left-0 right-0 z-[9999] flex items-center gap-3 border-t border-accent bg-card px-4 py-3 shadow-lg"
+      className="fixed bottom-0 left-0 right-0 z-banner flex items-center gap-3 border-t border-accent bg-card px-4 py-3 shadow-lg"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/icon-192.png" alt="" width={40} height={40} className="shrink-0 rounded-lg" />

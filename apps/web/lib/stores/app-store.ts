@@ -1,6 +1,9 @@
 import { create } from "zustand"
 import type { ServerRow, ChannelRow, UserRow, MessageWithAuthor } from "@/types/database"
 import { loadBooleanStorage, persistBooleanStorage } from "@/lib/utils/storage"
+import type { MobileAction } from "@vortex/shared"
+
+export type { MobileAction }
 
 const MEMBER_LIST_STORAGE_KEY = "vortexchat:ui:member-list-open"
 const THREAD_PANEL_STORAGE_KEY = "vortexchat:ui:thread-panel-open"
@@ -77,6 +80,10 @@ interface AppState {
   messageCache: Record<string, { messages: MessageWithAuthor[]; scrollOffset: number; timestamp: number }>
   cacheMessages: (channelId: string, messages: MessageWithAuthor[], scrollOffset?: number) => void
   invalidateMessageCache: (channelId: string) => void
+
+  // Mobile action dispatch (replaces fragile DOM CustomEvents between ServerMobileLayout → ChatArea)
+  mobilePendingAction: MobileAction | null
+  setMobilePendingAction: (action: MobileAction | null) => void
 
   // Voice state
   voiceChannelId: string | null
@@ -256,6 +263,9 @@ export const useAppStore = create<AppState>((set) => ({
       delete cache[channelId]
       return { messageCache: cache }
     }),
+
+  mobilePendingAction: null,
+  setMobilePendingAction: (action) => set({ mobilePendingAction: action }),
 
   voiceChannelId: null,
   voiceServerId: null,

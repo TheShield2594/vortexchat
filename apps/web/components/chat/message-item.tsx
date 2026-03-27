@@ -26,9 +26,10 @@ const ReportModal = lazy(() => import("@/components/modals/report-modal").then((
 import Image from "next/image"
 import { useParams } from "next/navigation"
 import { isAttachmentDownloadAllowed } from "@/lib/attachment-access"
+import { MAX_POLL_OPTIONS } from "@/hooks/use-poll-creator"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
-const POLL_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"]
+const POLL_NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"].slice(0, MAX_POLL_OPTIONS)
 
 interface Props {
   message: MessageWithAuthor
@@ -511,7 +512,7 @@ export const MessageItem = memo(function MessageItem({
                 <div className="pt-1 pr-1 flex items-center justify-end gap-1">
                   <span
                     id={messageMetaId}
-                    className="text-xs opacity-0 group-hover:opacity-100 motion-interactive block text-right tertiary-metadata"
+                    className="text-xs opacity-0 group-hover:opacity-100 touch-visible motion-interactive block text-right tertiary-metadata"
                     style={{ fontSize: "10px" }}
                   >
                     {format(timestamp, timestampFormat === "24h" ? "HH:mm" : "h:mm a")}

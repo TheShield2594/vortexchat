@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 
+export const dynamic = "force-dynamic"
+
 /** Handles Supabase password-reset redirect links (type=recovery). */
 export default function UpdatePasswordPage() {
   const router = useRouter()

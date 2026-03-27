@@ -37,21 +37,25 @@ export function PushPermissionPrompt() {
   }
 
   async function enable() {
-    const success = await subscribe()
-    if (success) {
-      setVisible(false)
-      localStorage.setItem(STORAGE_KEY, "1")
-      return
+    try {
+      const success = await subscribe()
+      if (success) {
+        setVisible(false)
+        localStorage.setItem(STORAGE_KEY, "1")
+        return
+      }
+      // If the user hard-denied via the browser dialog, permanently dismiss —
+      // the prompt is no longer actionable and showing it is confusing.
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        setVisible(false)
+        localStorage.setItem(STORAGE_KEY, "1")
+        return
+      }
+      // Transient failure (SW not ready, network error) — keep prompt visible
+      // so the user can retry or dismiss manually.
+    } catch {
+      // subscribe() threw — keep prompt visible so user can retry
     }
-    // If the user hard-denied via the browser dialog, permanently dismiss —
-    // the prompt is no longer actionable and showing it is confusing.
-    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
-      setVisible(false)
-      localStorage.setItem(STORAGE_KEY, "1")
-      return
-    }
-    // Transient failure (SW not ready, network error) — keep prompt visible
-    // so the user can retry or dismiss manually.
   }
 
   if (!visible) return null
@@ -59,7 +63,7 @@ export function PushPermissionPrompt() {
   return (
     <div
       role="alert"
-      className="fixed bottom-20 left-4 right-4 z-[9998] mx-auto max-w-sm rounded-xl border p-4 shadow-xl md:left-auto md:right-6 md:bottom-6"
+      className="fixed bottom-20 left-4 right-4 z-banner-low mx-auto max-w-sm rounded-xl border p-4 shadow-xl md:left-auto md:right-6 md:bottom-6"
       style={{
         background: "var(--theme-bg-secondary)",
         borderColor: "var(--theme-bg-tertiary)",

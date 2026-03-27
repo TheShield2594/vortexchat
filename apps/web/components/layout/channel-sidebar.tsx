@@ -1118,7 +1118,7 @@ function CategoryHeader({
               <span
                 {...sortable.attributes}
                 {...sortable.listeners}
-                className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing tertiary-metadata"
+                className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto touch-visible cursor-grab active:cursor-grabbing tertiary-metadata"
                 onClick={(event) => event.stopPropagation()}
               >
                 <GripVertical className="w-3 h-3" />
@@ -1271,7 +1271,7 @@ function SortableChannelItem({
               <span
                 {...attributes}
                 {...listeners}
-                className="opacity-0 pointer-events-none group-hover/channel:opacity-100 group-hover/channel:pointer-events-auto group-focus-within/channel:opacity-100 group-focus-within/channel:pointer-events-auto [@media(pointer:coarse)]:opacity-100 [@media(pointer:coarse)]:pointer-events-auto cursor-grab active:cursor-grabbing flex-shrink-0 -ml-1 touch-none"
+                className="opacity-0 pointer-events-none group-hover/channel:opacity-100 group-hover/channel:pointer-events-auto group-focus-within/channel:opacity-100 group-focus-within/channel:pointer-events-auto touch-visible cursor-grab active:cursor-grabbing flex-shrink-0 -ml-1 touch-none"
                 onClick={(e) => e.stopPropagation()}
               >
                 <GripVertical className="w-3 h-3 tertiary-metadata" />

@@ -223,7 +223,7 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
                     <span className="text-xs font-semibold" style={{ color: "var(--theme-text-secondary)" }}>
                       {authorName}
                     </span>
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 touch-visible transition-opacity">
                       {canManageMessages && (
                         <button
                           type="button"
@@ -234,7 +234,7 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
                               loadPinnedMessages()
                             }
                           }}
-                          className="flex items-center gap-1 text-xs transition-colors hover:underline"
+                          className="flex items-center gap-1 text-xs transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[color:var(--theme-accent)] rounded-sm"
                           style={{ color: "var(--theme-text-muted)" }}
                           title="Unpin message"
                           aria-label={`Unpin message from ${authorName}`}
@@ -249,7 +249,7 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
                           onJumpToMessage(message.id)
                           onClose()
                         }}
-                        className="flex items-center gap-1 text-xs transition-colors hover:underline"
+                        className="flex items-center gap-1 text-xs transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[color:var(--theme-accent)] rounded-sm"
                         style={{ color: "var(--theme-accent)" }}
                         title="Jump to message"
                         aria-label={`Jump to pinned message from ${authorName}`}

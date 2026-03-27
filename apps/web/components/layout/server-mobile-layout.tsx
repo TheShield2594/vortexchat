@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, CircleHelp } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
+import type { MobileAction } from "@vortex/shared"
 import { useShallow } from "zustand/react/shallow"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { useSwipe } from "@/hooks/use-swipe"
@@ -26,7 +27,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const pathname = usePathname()
   const router = useRouter()
   const isMobile = useMobileLayout()
-  const { activeChannelId, channels, memberListOpen, setMemberListOpen, threadPanelOpen, toggleThreadPanel, workspaceOpen, toggleWorkspacePanel } = useAppStore(
+  const { activeChannelId, channels, memberListOpen, setMemberListOpen, threadPanelOpen, toggleThreadPanel, workspaceOpen, toggleWorkspacePanel, setMobilePendingAction } = useAppStore(
     useShallow((s) => ({
       activeChannelId: s.activeChannelId,
       channels: s.channels,
@@ -36,6 +37,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
       toggleThreadPanel: s.toggleThreadPanel,
       workspaceOpen: s.workspaceOpen,
       toggleWorkspacePanel: s.toggleWorkspacePanel,
+      setMobilePendingAction: s.setMobilePendingAction,
     }))
   )
 
@@ -108,6 +110,12 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // rather than flashing them for non-text channel types.
   const isTextChannel = !!activeChannel && activeChannel.type === "text"
 
+  // Helper to dismiss the mobile member list (both local and persisted state)
+  const dismissMobileMemberList = useCallback((): void => {
+    setMobileMemberListOpen(false)
+    setMemberListOpen(false)
+  }, [setMemberListOpen])
+
   // Swipe right to navigate back to the channel list on mobile
   const navigateBack = useCallback((): void => {
     router.push(`/channels/${serverId}`)
@@ -162,7 +170,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           {isTextChannel && (
             <button
               type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: "search" }))}
+              onClick={() => { dismissMobileMemberList(); setMobilePendingAction("search") }}
               className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Search messages"
@@ -210,25 +218,26 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                     borderColor: "var(--theme-bg-tertiary)",
                   }}
                 >
-                  {[
-                    { id: "summary", label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
-                    { id: "workspace", label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
-                    { id: "pins", label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
-                    { id: "threads", label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
-                    { id: "help", label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
-                  ].map((item) => (
+                  {([
+                    { id: "summary" as const, label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
+                    { id: "workspace" as const, label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
+                    { id: "pins" as const, label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
+                    { id: "threads" as const, label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
+                    { id: "help" as const, label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
+                  ] satisfies Array<{ id: MobileAction | "workspace" | "threads"; label: string; icon: React.ReactNode; active?: boolean }>).map((item) => (
                     <button
                       key={item.id}
                       type="button"
                       role="menuitem"
                       onClick={() => {
                         setMobileOverflowOpen(false)
+                        dismissMobileMemberList()
                         if (item.id === "workspace") {
                           toggleWorkspacePanel()
                         } else if (item.id === "threads") {
                           toggleThreadPanel()
                         } else {
-                          window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: item.id }))
+                          setMobilePendingAction(item.id)
                         }
                       }}
                       className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-white/10"
