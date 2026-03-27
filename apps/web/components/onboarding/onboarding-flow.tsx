@@ -20,7 +20,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
-import { STARTER_TEMPLATES, TEMPLATE_META, type ServerTemplate } from "@/lib/server-templates"
+import { STARTER_TEMPLATES, TEMPLATE_META, type StarterTemplateKey } from "@/lib/server-templates"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 import type { ServerRow } from "@/types/database"
 
@@ -41,7 +41,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   const [step, setStep] = useState<OnboardingStep>("welcome")
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState<StarterTemplateKey | null>(null)
   const [serverName, setServerName] = useState("")
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [iconPreview, setIconPreview] = useState<string | null>(null)
@@ -86,7 +86,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
     setIconPreview(URL.createObjectURL(file))
   }, [iconPreview, toast])
 
-  const handleTemplateSelect = useCallback((name: string) => {
+  const handleTemplateSelect = useCallback((name: StarterTemplateKey) => {
     setSelectedTemplate((prev) => (prev === name ? null : name))
     if (!serverName) {
       setServerName(`${name} Hub`)
@@ -97,12 +97,14 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
     if (!serverName.trim()) return
     setLoading(true)
 
+    let uploadedIconPath: string | null = null
     try {
       let iconUrl = ""
 
       if (iconFile) {
         const ext = iconFile.name.split(".").pop()
         const path = `${userId}/${crypto.randomUUID()}.${ext}`
+        uploadedIconPath = path
         const { error: uploadError } = await supabase.storage
           .from("server-icons")
           .upload(path, iconFile, { upsert: true })
@@ -162,6 +164,9 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
       setCreatedServer(server)
       setStep("invite")
     } catch (error: unknown) {
+      if (uploadedIconPath) {
+        await supabase.storage.from("server-icons").remove([uploadedIconPath]).catch(() => {})
+      }
       const message = error instanceof Error ? error.message : "Unknown error"
       toast({ variant: "destructive", title: "Failed to create server", description: message })
       clearIconState()
@@ -323,7 +328,8 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
 
             {/* Template grid */}
             <div className="grid grid-cols-2 gap-3">
-              {Object.entries(TEMPLATE_META).map(([name, meta]) => {
+              {(Object.keys(TEMPLATE_META) as StarterTemplateKey[]).map((name) => {
+                const meta = TEMPLATE_META[name]
                 const Icon = meta.icon
                 const isSelected = selectedTemplate === name
                 return (

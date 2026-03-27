@@ -17,13 +17,20 @@ export async function POST(): Promise<NextResponse> {
     }
     userId = user.id
 
-    const { error: updateError } = await supabase
+    const { data: updatedUser, error: updateError } = await supabase
       .from("users")
       .update({ onboarding_completed_at: new Date().toISOString() })
       .eq("id", user.id)
+      .select("id")
+      .single()
 
-    if (updateError) {
-      console.error("Onboarding complete failed:", { userId: user.id, error: updateError.message })
+    if (updateError || !updatedUser) {
+      console.error("Onboarding complete failed:", {
+        route: "/api/onboarding/complete",
+        action: "complete-onboarding",
+        userId: user.id,
+        error: updateError?.message ?? "No user row updated",
+      })
       return NextResponse.json({ error: "Failed to update onboarding status" }, { status: 500 })
     }
 

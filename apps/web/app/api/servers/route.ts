@@ -40,11 +40,18 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "name must be 100 characters or fewer" }, { status: 400 })
     }
 
-    const rawIconUrl = typeof parsed.iconUrl === "string" ? parsed.iconUrl : null
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const iconUrl = rawIconUrl && supabaseUrl && rawIconUrl.startsWith(`${supabaseUrl}/storage/v1/object/public/server-icons/`)
-      ? rawIconUrl
-      : null
+    const rawIconUrl = typeof parsed.iconUrl === "string" && parsed.iconUrl !== "" ? parsed.iconUrl : null
+    let iconUrl: string | null = null
+    if (rawIconUrl) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const expectedPrefix = supabaseUrl
+        ? `${supabaseUrl}/storage/v1/object/public/server-icons/${user.id}/`
+        : null
+      if (!expectedPrefix || !rawIconUrl.startsWith(expectedPrefix)) {
+        return NextResponse.json({ error: "Invalid iconUrl" }, { status: 400 })
+      }
+      iconUrl = rawIconUrl
+    }
 
     // Use the service-role client for insert+select to bypass the RLS timing
     // issue. The AFTER INSERT trigger on servers adds the owner to

@@ -232,7 +232,7 @@ export function validateAndNormalizeTemplate(payload: unknown): { template: Serv
   }
 }
 
-export const STARTER_TEMPLATES = {
+export const STARTER_TEMPLATES: Record<StarterTemplateKey, ServerTemplate> = {
   Gaming: {
     metadata: { source: "builtin", version: "1.0.0", created_by: "vortex" },
     roles: [
@@ -282,4 +282,4 @@ export const STARTER_TEMPLATES = {
       { name: "creator-lounge", category: "Content", type: "voice" },
     ],
   },
-} satisfies Record<StarterTemplateKey, ServerTemplate> as Record<string, ServerTemplate>
+}

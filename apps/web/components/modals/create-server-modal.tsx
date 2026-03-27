@@ -51,6 +51,7 @@ export function CreateServerModal({ open, onClose }: Props) {
   async function handleCreate() {
     if (!name.trim()) return
     setLoading(true)
+    let uploadedIconPath: string | null = null
     try {
       let iconUrl: string | undefined
 
@@ -60,6 +61,7 @@ export function CreateServerModal({ open, onClose }: Props) {
 
         const ext = iconFile.name.split(".").pop()
         const path = `${user.id}/${crypto.randomUUID()}.${ext}`
+        uploadedIconPath = path
         const { error: uploadError } = await supabase.storage
           .from("server-icons")
           .upload(path, iconFile, { upsert: true })
@@ -87,6 +89,9 @@ export function CreateServerModal({ open, onClose }: Props) {
       onClose()
       router.push(`/channels/${server.id}`)
     } catch (error: unknown) {
+      if (uploadedIconPath) {
+        await supabase.storage.from("server-icons").remove([uploadedIconPath]).catch(() => {})
+      }
       const message = error instanceof Error ? error.message : "Unknown error"
       toast({ variant: "destructive", title: "Failed to create server", description: message })
     } finally {
