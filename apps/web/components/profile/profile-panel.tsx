@@ -232,7 +232,7 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
             </div>
           )}
 
-          {(status !== "offline" || customStatus) && (
+          {((status != null && status !== "offline") || customStatus) && (
             <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
               <h4 className="text-[11px] font-semibold tracking-wider mb-1.5" style={{ color: "var(--theme-text-muted)" }}>STATUS</h4>
               <p className="text-sm" style={{ color: "var(--theme-text-normal)" }}>{getStatusLabel(status)}</p>
