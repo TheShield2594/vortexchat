@@ -223,13 +223,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     await supabase.from("channels").delete().eq("server_id", serverId)
     await supabase.from("member_roles").delete().eq("server_id", serverId)
     await supabase.from("roles").delete().eq("server_id", serverId)
-    await supabase.from("members").delete().eq("server_id", serverId)
+    await supabase.from("server_members").delete().eq("server_id", serverId)
     await supabase.from("invites").delete().eq("server_id", serverId)
     await supabase.from("automod_rules").delete().eq("server_id", serverId)
-    await supabase.from("screening_config").delete().eq("server_id", serverId)
-    await supabase.from("moderation_settings").delete().eq("server_id", serverId)
+    await supabase.from("screening_configs").delete().eq("server_id", serverId)
     await supabase.from("webhooks").delete().eq("server_id", serverId)
-    await supabase.from("custom_emojis").delete().eq("server_id", serverId)
+    await supabase.from("server_emojis").delete().eq("server_id", serverId)
 
     const { error: deleteError } = await supabase
       .from("servers")
