@@ -120,7 +120,10 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const navigateBack = useCallback((): void => {
     router.push(`/channels/${serverId}`)
   }, [router, serverId])
-  const swipeHandlers = useSwipe({ onSwipeRight: navigateBack })
+  const swipeHandlers = useSwipe({
+    onSwipeRight: navigateBack,
+    peekElementSelector: "[data-mobile-sidebar-peek]",
+  })
 
   // ========== DESKTOP LAYOUT — all panels inline ==========
   if (!isMobile) {
@@ -141,7 +144,14 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // ========== MOBILE LAYOUT — shows sidebar OR content ==========
   if (isInChannel && !isSpecialPage) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
+      <div className="flex flex-1 flex-col overflow-hidden relative" {...swipeHandlers}>
+        {/* Peek element: sidebar shadow shown during swipe-right gesture */}
+        <div
+          data-mobile-sidebar-peek=""
+          className="absolute inset-y-0 left-0 w-[240px] -translate-x-full opacity-0 z-10 pointer-events-none"
+          style={{ background: "var(--theme-bg-secondary)", boxShadow: "4px 0 16px rgba(0,0,0,0.3)" }}
+          aria-hidden
+        />
         {/* Single mobile channel header — combines navigation + channel actions */}
         <div
           className="flex items-center gap-1 px-2 py-2 border-b flex-shrink-0"
@@ -295,9 +305,9 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
     )
   }
 
-  // Channel sidebar shown full-screen on mobile
+  // Channel sidebar shown full-screen on mobile with push-in animation
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden animate-slide-in-from-right">
       <div className="flex-1 overflow-hidden">{sidebar}</div>
     </div>
   )
