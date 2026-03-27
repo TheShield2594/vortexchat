@@ -248,29 +248,33 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   }
 
   async function handleClick(n: Notification): Promise<void> {
-    if (!n.read) await markRead(n.id)
-    if (n.server_id && n.channel_id) {
-      const params = new URLSearchParams()
+    try {
+      if (!n.read) await markRead(n.id)
+      if (n.server_id && n.channel_id) {
+        const params = new URLSearchParams()
 
-      if (n.message_id) {
-        params.set("message", n.message_id)
-        try {
-          const { data: message } = await supabase
-            .from("messages")
-            .select("thread_id")
-            .eq("id", n.message_id)
-            .maybeSingle()
+        if (n.message_id) {
+          params.set("message", n.message_id)
+          try {
+            const { data: message } = await supabase
+              .from("messages")
+              .select("thread_id")
+              .eq("id", n.message_id)
+              .maybeSingle()
 
-          const threadId = message?.thread_id
-          if (threadId) params.set("thread", threadId)
-        } catch (error) {
-          console.error("Failed to resolve thread context from notification", error)
-        }
+            const threadId = message?.thread_id
+            if (threadId) params.set("thread", threadId)
+          } catch (error) {
+            console.error("Failed to resolve thread context from notification", error)
+          }
       }
 
       const query = params.toString()
       router.push(`/channels/${n.server_id}/${n.channel_id}${query ? `?${query}` : ""}`)
       setOpen(false)
+      }
+    } catch (error) {
+      console.error("Failed to handle notification click", error)
     }
   }
 
