@@ -14,6 +14,9 @@ import { useShallow } from "zustand/react/shallow"
 import type { ServerRow } from "@/types/database"
 import { TemplateManager } from "@/components/modals/template-manager"
 
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+const MAX_ICON_SIZE = 5 * 1024 * 1024 // 5MB
+
 interface Props {
   open: boolean
   onClose: () => void
@@ -46,17 +49,19 @@ export function CreateServerModal({ open, onClose }: Props) {
   }, [])
 
   async function handleCreate() {
-    if (!name.trim()) return
+    if (loading || !name.trim()) return
     setLoading(true)
+    let uploadedIconPath: string | null = null
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not authenticated")
-
       let iconUrl: string | undefined
 
       if (iconFile) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error("Not authenticated")
+
         const ext = iconFile.name.split(".").pop()
-        const path = `${crypto.randomUUID()}.${ext}`
+        const path = `${user.id}/${crypto.randomUUID()}.${ext}`
+        uploadedIconPath = path
         const { error: uploadError } = await supabase.storage
           .from("server-icons")
           .upload(path, iconFile, { upsert: true })
@@ -68,36 +73,27 @@ export function CreateServerModal({ open, onClose }: Props) {
         iconUrl = urlData.publicUrl
       }
 
-      // Insert and fetch separately — PostgREST's INSERT RETURNING
-      // can't read back the row within the same statement due to the
-      // SELECT RLS policy checking server_members (added by AFTER INSERT trigger).
-      // The fetch-back filters on owner_id + name to narrow the race window;
-      // concurrent creates of the same-named server by one user is practically
-      // impossible, but an RPC returning the inserted row would eliminate it entirely.
-      const serverName = name.trim()
-      const { error: insertError } = await supabase
-        .from("servers")
-        .insert({ name: serverName, owner_id: user.id, icon_url: iconUrl })
-
-      if (insertError) throw insertError
-
-      const { data: server, error } = await supabase
-        .from("servers")
-        .select()
-        .eq("owner_id", user.id)
-        .eq("name", serverName)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single()
-
-      if (error) throw error
+      const res = await fetch("/api/servers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), iconUrl }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Server creation failed" }))
+        throw new Error(body.error || "Server creation failed")
+      }
+      const { server } = await res.json() as { server: ServerRow }
 
       addServer(server)
       toast({ title: `Server "${server.name}" created!` })
-      onClose()
+      handleClose()
       router.push(`/channels/${server.id}`)
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create server", description: error.message })
+    } catch (error: unknown) {
+      if (uploadedIconPath) {
+        await supabase.storage.from("server-icons").remove([uploadedIconPath]).catch(() => {})
+      }
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Failed to create server", description: message })
     } finally {
       setLoading(false)
     }
@@ -132,6 +128,27 @@ export function CreateServerModal({ open, onClose }: Props) {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "Unsupported image format",
+        description: "Server icons must be JPG, PNG, GIF, or WebP.",
+      })
+      e.target.value = ""
+      return
+    }
+
+    if (file.size > MAX_ICON_SIZE) {
+      toast({
+        variant: "destructive",
+        title: "Image too large",
+        description: "Server icons must be under 5 MB.",
+      })
+      e.target.value = ""
+      return
+    }
+
     setIconFile(file)
     if (iconPreview) URL.revokeObjectURL(iconPreview)
     setIconPreview(URL.createObjectURL(file))
@@ -203,7 +220,7 @@ export function CreateServerModal({ open, onClose }: Props) {
                   </div>
                 )}
               </div>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleFileChange} />
             </div>
 
             <div className="space-y-2">
