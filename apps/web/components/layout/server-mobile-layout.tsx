@@ -110,6 +110,12 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // rather than flashing them for non-text channel types.
   const isTextChannel = !!activeChannel && activeChannel.type === "text"
 
+  // Helper to dismiss the mobile member list (both local and persisted state)
+  const dismissMobileMemberList = useCallback((): void => {
+    setMobileMemberListOpen(false)
+    setMemberListOpen(false)
+  }, [setMemberListOpen])
+
   // Swipe right to navigate back to the channel list on mobile
   const navigateBack = useCallback((): void => {
     router.push(`/channels/${serverId}`)
@@ -164,7 +170,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           {isTextChannel && (
             <button
               type="button"
-              onClick={() => { setMobileMemberListOpen(false); setMemberListOpen(false); setMobilePendingAction("search") }}
+              onClick={() => { dismissMobileMemberList(); setMobilePendingAction("search") }}
               className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Search messages"
@@ -225,8 +231,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                       role="menuitem"
                       onClick={() => {
                         setMobileOverflowOpen(false)
-                        setMobileMemberListOpen(false)
-                        setMemberListOpen(false)
+                        dismissMobileMemberList()
                         if (item.id === "workspace") {
                           toggleWorkspacePanel()
                         } else if (item.id === "threads") {
