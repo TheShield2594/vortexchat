@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
+import type { Json } from "@/types/database"
 
 export async function PATCH(request: Request): Promise<NextResponse> {
   try {
@@ -25,13 +26,14 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     }
 
     const { appearance_settings } = body as {
-      appearance_settings: Record<string, unknown> | null
+      appearance_settings: Json
     }
 
     if (
       appearance_settings !== null &&
       (typeof appearance_settings !== "object" ||
-        Array.isArray(appearance_settings))
+        Array.isArray(appearance_settings) ||
+        appearance_settings === undefined)
     ) {
       return NextResponse.json(
         { error: "appearance_settings must be an object or null" },
