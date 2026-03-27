@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react"
-import { useConnectionsCallback } from "@/hooks/use-connections-callback"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { EmojiPicker } from "frimousse"
-import { Loader2, Upload, LogOut, ShieldCheck, ShieldOff, Copy, Check, KeyRound, Trash2, Pencil, Lock, RefreshCw, Eye, EyeOff, Link2, ExternalLink, Hash, Plus, GripVertical, Globe, Users } from "lucide-react"
+import { Loader2, Upload, LogOut, Lock, Hash, Plus, GripVertical, Globe, Users, Trash2 } from "lucide-react"
 import {
   DndContext,
   PointerSensor,
@@ -26,17 +25,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
-import { useAppearanceStore } from "@/lib/stores/appearance-store"
-import type { MessageDisplay, FontScale, Saturation } from "@/lib/stores/appearance-store"
-import { THEME_PRESET_OPTIONS } from "@/components/settings/appearance-settings-page"
 import type { UserRow, UserPinnedItemRow } from "@/types/database"
-import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { STATUS_OPTIONS } from "@/lib/utils/status-options"
+import { ConnectionsSection } from "@/components/settings/security/connections-section"
+import { PasskeysSection } from "@/components/settings/security/passkeys-section"
+import { SecurityPolicySection } from "@/components/settings/security/security-policy-section"
+import { PasswordChangeSection } from "@/components/settings/security/password-change-section"
+import { RecoveryCodesSection } from "@/components/settings/security/recovery-codes-section"
+import { SessionManagementSection } from "@/components/settings/security/session-management-section"
+import { TwoFactorSection } from "@/components/settings/security/two-factor-section"
+import { AppearanceTab } from "@/components/settings/appearance/appearance-tab"
 
 interface Props {
   open: boolean
@@ -62,17 +66,17 @@ const STATUS_EXPIRY_OPTIONS = [
 
 type StatusExpiryKey = (typeof STATUS_EXPIRY_OPTIONS)[number]["key"]
 
-function inferStatusExpiryKey(value: string | null | undefined): StatusExpiryKey {
-  if (!value) return "never"
+function inferStatusExpiryKey(value: string | null | undefined): { key: StatusExpiryKey; expired: boolean } {
+  if (!value) return { key: "never", expired: false }
   const expiryMs = new Date(value).getTime()
-  if (Number.isNaN(expiryMs)) return "never"
+  if (Number.isNaN(expiryMs)) return { key: "never", expired: false }
   const diffMinutes = Math.round((expiryMs - Date.now()) / 60000)
-  if (diffMinutes <= 0) return "never"
+  if (diffMinutes <= 0) return { key: "never", expired: true }
 
   const timedOptions = STATUS_EXPIRY_OPTIONS.filter((option) => option.minutes !== null)
   const closest = [...timedOptions].sort((a, b) => Math.abs((a.minutes ?? 0) - diffMinutes) - Math.abs((b.minutes ?? 0) - diffMinutes))[0]
 
-  return (closest?.key ?? "never") as StatusExpiryKey
+  return { key: (closest?.key ?? "never") as StatusExpiryKey, expired: false }
 }
 
 function getStatusExpiryIso(key: StatusExpiryKey): string {
@@ -80,75 +84,6 @@ function getStatusExpiryIso(key: StatusExpiryKey): string {
   if (!option || option.minutes === null) return ""
   return new Date(Date.now() + option.minutes * 60 * 1000).toISOString()
 }
-
-const CSS_TEMPLATE = `/**
- * Vortex full custom theme template
- *
- * Override any variable below. Everything in the app reads from these tokens.
- * Your CSS is injected on top of the selected preset, so you only need to
- * override the values you want to change.
- */
-
-:root {
-  /* ── App shell backgrounds ─────────────────────────────────────────── */
-  --app-bg-primary: #313338;
-  --app-bg-secondary: #2b2d31;
-
-  /* ── Surface palette ───────────────────────────────────────────────── */
-  --theme-bg-primary: #313338;
-  --theme-bg-secondary: #2b2d31;
-  --theme-bg-tertiary: #1e1f22;
-  --theme-surface-elevated: #3f4147;
-  --theme-surface-input: #383a40;
-  --theme-surface-elevation-1: #32353a;
-  --theme-surface-elevation-3: #42464d;
-  --theme-surface-passive: var(--theme-surface-elevation-1);
-  --theme-surface-active: var(--theme-surface-elevation-3);
-  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 35%, transparent);
-
-  /* ── Typography ────────────────────────────────────────────────────── */
-  --theme-text-primary: #f2f3f5;
-  --theme-text-normal: #dcddde;
-  --theme-text-secondary: #b5bac1;
-  --theme-text-muted: #949ba4;
-  --theme-text-faint: #959ca6;
-  --theme-text-bright: #dbdee1;
-
-  /* ── Accent & semantic colors ──────────────────────────────────────── */
-  --theme-accent: #5865f2;
-  --theme-accent-secondary: #eb459e;
-  --theme-link: #00a8fc;
-  --theme-success: #23a55a;
-  --theme-positive: #3ba55c;
-  --theme-warning: #f0b132;
-  --theme-danger: #f23f43;
-  --theme-presence-offline: #80848e;
-
-  /* ── Tailwind design tokens (HSL values, no hsl() wrapper) ─────── */
-  --background: 223 7% 20%;
-  --foreground: 220 9% 95%;
-  --card: 220 7% 18%;
-  --card-foreground: 220 9% 95%;
-  --popover: 220 7% 14%;
-  --popover-foreground: 220 9% 95%;
-  --primary: 235 86% 65%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 220 6% 18%;
-  --secondary-foreground: 215 8% 73%;
-  --accent: 235 86% 65%;
-  --accent-foreground: 0 0% 100%;
-  --muted: 220 5% 30%;
-  --muted-foreground: 215 8% 60%;
-  --border: 220 6% 25%;
-  --input: 220 6% 18%;
-  --ring: 235 86% 65%;
-  --destructive: 359 87% 57%;
-  --destructive-foreground: 0 0% 100%;
-}
-
-/* Optional element-level overrides */
-.message-content a { color: var(--theme-link); }
-`
 
 function SortablePinItem({ pin, onRemove }: { pin: UserPinnedItemRow; onRemove: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pin.id })
@@ -190,18 +125,33 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [customTag, setCustomTag] = useState(user.custom_tag ?? "")
   const [statusMessage, setStatusMessage] = useState(user.status_message ?? "")
   const [statusEmoji, setStatusEmoji] = useState(user.status_emoji ?? "")
-  const [statusExpiryKey, setStatusExpiryKey] = useState<StatusExpiryKey>(() => inferStatusExpiryKey(user.status_expires_at))
+  const [statusExpiryKey, setStatusExpiryKey] = useState<StatusExpiryKey>(() => {
+    const { key } = inferStatusExpiryKey(user.status_expires_at)
+    return key
+  })
+
+  // Clear expired status on mount
+  useEffect(() => {
+    const { expired } = inferStatusExpiryKey(user.status_expires_at)
+    if (expired) {
+      fetch("/api/users/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status_expires_at: null }),
+      }).catch((err) => {
+        console.error("Failed to clear expired status:", err)
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [status, setStatus] = useState(user.status)
   const [bannerColor, setBannerColor] = useState(user.banner_color ?? "#5865f2")
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "connections" | "appearance">("profile")
   const [showStatusEmojiPicker, setShowStatusEmojiPicker] = useState(false)
   const statusEmojiPickerRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLInputElement>(null)
-  const supabase = useMemo(() => createClientSupabaseClient(), [])
-  const toSettingsPayload = useAppearanceStore((s) => s.toSettingsPayload)
-  const syncToAccount = useAppearanceStore((s) => s.syncToAccount)
 
   // Interests / Tags
   const [interests, setInterests] = useState<string[]>(user.interests ?? [])
@@ -302,7 +252,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
           label: newPin.label.trim(),
           sublabel: newPin.sublabel.trim() || null,
           url: newPin.url.trim() || null,
-          position: pins.length > 0 ? Math.max(...pins.map((p) => p.position)) + 1 : 0,
+          position: pins.reduce((max, p) => Math.max(max, p.position), -1) + 1,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -409,17 +359,15 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
     try {
       let avatarUrl = user.avatar_url
 
-      // Upload new avatar if changed
+      // Upload avatar through server-side API endpoint
       if (avatarFile) {
-        const ext = avatarFile.name.split(".").pop()
-        const path = `${user.id}/avatar.${ext}`
-        const { error: uploadError } = await supabase.storage
-          .from("avatars")
-          .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type })
-        if (uploadError) throw uploadError
-
-        const { data } = supabase.storage.from("avatars").getPublicUrl(path)
-        avatarUrl = data.publicUrl + `?t=${Date.now()}`
+        const formData = new FormData()
+        formData.append("avatar", avatarFile)
+        const uploadRes = await fetch("/api/users/avatar", { method: "POST", body: formData })
+        const uploadPayload = await uploadRes.json().catch(() => ({}))
+        if (!uploadRes.ok) throw new Error(uploadPayload?.error || "Avatar upload failed")
+        if (!uploadPayload.avatar_url) throw new Error("Avatar upload succeeded but no URL returned")
+        avatarUrl = uploadPayload.avatar_url
       }
 
       const updates = {
@@ -433,7 +381,6 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
-        appearance_settings: syncToAccount ? toSettingsPayload() : null,
       }
 
       const res = await fetch("/api/users/profile", {
@@ -450,14 +397,15 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
       setCurrentUser(payload)
       toast({ title: "Profile updated!" })
       onClose()
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to save profile", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to save profile", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setLoading(false)
     }
   }
 
   async function handleLogout() {
+    const supabase = createClientSupabaseClient()
     const { error } = await supabase.auth.signOut()
     if (error) {
       toast({ variant: "destructive", title: "Sign out failed", description: error.message })
@@ -578,7 +526,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           }}
                         >
                           <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "var(--theme-bg-secondary)" } as React.CSSProperties}>
-                            {avatarPreview && <AvatarImage src={avatarPreview} />}
+                            {(avatarPreview ?? user.avatar_url) && <AvatarImage src={(avatarPreview ?? user.avatar_url)!} />}
                             <AvatarFallback
                               style={{ background: "var(--theme-accent)", color: "white", fontSize: "24px" }}
                             >
@@ -646,13 +594,13 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                       <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         About Me
                       </Label>
-                      <textarea
+                      <Textarea
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
                         placeholder="Tell the world a little about yourself"
                         rows={3}
                         maxLength={190}
-                        className="w-full rounded px-3 py-2 text-sm resize-none focus:outline-none"
+                        className="w-full rounded px-3 py-2 text-sm focus:outline-none"
                         style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
                       />
                       <div className="text-right text-xs" style={{ color: "var(--theme-text-faint)" }}>
@@ -1065,7 +1013,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   <PasswordChangeSection />
                   <RecoveryCodesSection />
                   <SessionManagementSection onForcedLogout={handleLogout} />
-                  <TwoFactorSection supabase={supabase} toast={toast} />
+                  <TwoFactorSection />
                 </TabsContent>
 
                 <TabsContent value="connections" className="mt-0 space-y-8">
@@ -1073,1045 +1021,11 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                 </TabsContent>
 
                 <TabsContent value="appearance" className="mt-0">
-                  <AppearanceTab onSave={handleSave} saving={loading} />
+                  <AppearanceTab />
                 </TabsContent>
           </div>
         </Tabs>
       </DialogContent>
     </Dialog>
-  )
-}
-
-type ConnectionRow = {
-  id: string
-  provider: string
-  provider_user_id: string
-  username: string | null
-  display_name: string | null
-  profile_url: string | null
-  created_at: string
-}
-
-function ConnectionsSection() {
-  const { toast } = useToast()
-
-  const router = useRouter()
-  const [connections, setConnections] = useState<ConnectionRow[]>([])
-
-  const loadConnections = useCallback(async () => {
-    const res = await fetch("/api/users/connections", { cache: "no-store" })
-    const payload = await res.json().catch(() => ({}))
-    if (res.ok) setConnections(payload.connections ?? [])
-  }, [])
-
-  useEffect(() => {
-    loadConnections()
-  }, [loadConnections])
-
-  useConnectionsCallback(loadConnections, toast, router)
-
-  async function connectSteam() {
-    const next = window.location.pathname + window.location.search
-    window.location.href = `/api/users/connections/steam/start?next=${encodeURIComponent(next)}`
-  }
-
-  function connectYouTube() {
-    const next = window.location.pathname + window.location.search
-    window.location.href = `/api/users/connections/youtube/start?next=${encodeURIComponent(next)}`
-  }
-
-  async function removeConnection(id: string) {
-    const res = await fetch(`/api/users/connections?id=${id}`, { method: "DELETE" })
-    if (!res.ok) {
-      toast({ variant: "destructive", title: "Failed to remove connection" })
-      return
-    }
-    setConnections((prev) => prev.filter((item) => item.id !== id))
-  }
-
-  const steamConnection = connections.find((item) => item.provider === "steam")
-  const youtubeConnection = connections.find((item) => item.provider === "youtube")
-
-  return (
-    <div className="space-y-6">
-      <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-        <h3 className="text-base font-semibold text-white">Steam</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Link your Steam account using official OpenID sign-in. We only store your Steam ID and profile URL.</p>
-        {steamConnection && (
-          <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>
-            Connected as {steamConnection.display_name || steamConnection.username || steamConnection.provider_user_id}
-          </p>
-        )}
-        <Button type="button" onClick={connectSteam} style={{ background: "var(--theme-accent)" }}>
-          <Link2 className="w-4 h-4 mr-2" /> {steamConnection ? "Reconnect Steam" : "Connect Steam"}
-        </Button>
-      </div>
-
-      <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-        <h3 className="text-base font-semibold text-white">YouTube</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Sign in with Google to link your YouTube channel. We only read your channel name and stats.</p>
-        {youtubeConnection && (
-          <p className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>
-            Connected as {youtubeConnection.display_name || youtubeConnection.username || youtubeConnection.provider_user_id}
-          </p>
-        )}
-        <Button type="button" onClick={connectYouTube} style={{ background: "var(--theme-accent)" }}>
-          <Link2 className="w-4 h-4 mr-2" /> {youtubeConnection ? "Reconnect YouTube" : "Connect YouTube"}
-        </Button>
-      </div>
-
-      <div className="space-y-2">
-        {connections.map((connection) => (
-          <div key={connection.id} className="rounded-lg p-3 flex items-center justify-between gap-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-            <div className="min-w-0">
-              <p className="text-sm text-white capitalize">{connection.provider}</p>
-              <p className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>{connection.display_name || connection.username || connection.provider_user_id}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {connection.profile_url && (
-                <a href={connection.profile_url} target="_blank" rel="noreferrer" className="text-xs px-2 py-1 rounded" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-              <Button type="button" size="sm" variant="ghost" onClick={() => removeConnection(connection.id)} style={{ color: "var(--theme-danger)" }}>Remove</Button>
-            </div>
-          </div>
-        ))}
-        {connections.length === 0 && <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>No connections yet.</p>}
-      </div>
-    </div>
-  )
-}
-
-
-
-function PasskeysSection() {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [credentials, setCredentials] = useState<Array<{ id: string; name: string; created_at: string; last_used_at: string | null; revoked_at: string | null }>>([])
-
-  const loadCredentials = useCallback(async () => {
-    const res = await fetch("/api/auth/passkeys/credentials")
-    const payload = await res.json()
-    if (res.ok) setCredentials(payload.credentials || [])
-  }, [])
-
-  useEffect(() => {
-    loadCredentials()
-  }, [loadCredentials])
-
-  async function handleRegisterPasskey() {
-    setLoading(true)
-    try {
-      const { startPasskeyRegistration } = await import("@/lib/auth/passkeys-client")
-      await startPasskeyRegistration("Primary passkey")
-      toast({ title: "Passkey added", description: "Your account can now use passkey-first login." })
-      await loadCredentials()
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Could not register passkey", description: error.message })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function rename(id: string) {
-    const name = window.prompt("Rename this device")
-    if (!name) return
-    const res = await fetch("/api/auth/passkeys/credentials", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, name }) })
-    if (res.ok) loadCredentials()
-  }
-
-  async function revoke(id: string) {
-    const res = await fetch("/api/auth/passkeys/credentials", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) })
-    if (res.ok) loadCredentials()
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-base font-semibold text-white mb-1">Passkeys</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Passkeys are phishing-resistant and work across biometrics, device PIN, or hardware keys. Keep at least one backup passkey on a second device.</p>
-      </div>
-      <Button onClick={handleRegisterPasskey} disabled={loading} style={{ background: "var(--theme-positive)" }}>
-        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <KeyRound className="w-4 h-4 mr-2" />} Register Passkey
-      </Button>
-      <div className="space-y-2">
-        {credentials.map((cred) => (
-          <div key={cred.id} className="rounded p-3 flex items-center gap-2" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-            <div className="flex-1">
-              <p className="text-sm text-white">{cred.name}</p>
-              <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Last used: {cred.last_used_at ? new Date(cred.last_used_at).toLocaleString() : "Never"}</p>
-            </div>
-            <button onClick={() => rename(cred.id)} className="p-2 rounded" style={{ background: "var(--theme-surface-input)" }}><Pencil className="w-4 h-4" /></button>
-            <button onClick={() => revoke(cred.id)} className="p-2 rounded" style={{ background: "rgba(242,63,67,0.15)", color: "var(--theme-danger)" }}><Trash2 className="w-4 h-4" /></button>
-          </div>
-        ))}
-        {credentials.length === 0 && <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>No passkeys yet. Add one now and keep password/magic-link recovery enabled until you register a backup device.</p>}
-      </div>
-    </div>
-  )
-}
-
-
-function SecurityPolicySection() {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [policy, setPolicy] = useState({ passkey_first: false, enforce_passkey: false, fallback_password: true, fallback_magic_link: true })
-
-  useEffect(() => {
-    fetch("/api/auth/security/policy").then((res) => res.json()).then((data) => data.policy && setPolicy(data.policy)).catch(() => {})
-  }, [])
-
-  async function save(next: typeof policy) {
-    setPolicy(next)
-    setLoading(true)
-    const res = await fetch("/api/auth/security/policy", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(next) })
-    if (!res.ok) {
-      toast({ variant: "destructive", title: "Failed to update security policy" })
-    }
-    setLoading(false)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-white">Account Security Policy</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Choose passkey-first login. Owners/admins can optionally enforce passkeys and disable fallback methods.</p>
-      </div>
-      <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-        <label className="flex items-center justify-between text-sm" style={{ color: "var(--theme-text-secondary)" }}><span>Passkey-first sign in</span><input type="checkbox" checked={policy.passkey_first} onChange={(e) => save({ ...policy, passkey_first: e.target.checked })} /></label>
-        <label className="flex items-center justify-between text-sm" style={{ color: "var(--theme-text-secondary)" }}><span>Enforce passkey (admins/owners optional)</span><input type="checkbox" checked={policy.enforce_passkey} onChange={(e) => save({ ...policy, enforce_passkey: e.target.checked })} /></label>
-        <label className="flex items-center justify-between text-sm" style={{ color: "var(--theme-text-secondary)" }}><span>Allow password fallback</span><input type="checkbox" checked={policy.fallback_password} onChange={(e) => save({ ...policy, fallback_password: e.target.checked })} disabled={policy.enforce_passkey} /></label>
-        <label className="flex items-center justify-between text-sm" style={{ color: "var(--theme-text-secondary)" }}><span>Allow magic-link fallback</span><input type="checkbox" checked={policy.fallback_magic_link} onChange={(e) => save({ ...policy, fallback_magic_link: e.target.checked })} disabled={policy.enforce_passkey} /></label>
-      </div>
-      {loading && <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Saving policy…</p>}
-    </div>
-  )
-}
-
-
-function PasswordChangeSection() {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [showCurrent, setShowCurrent] = useState(false)
-  const [showNew, setShowNew] = useState(false)
-  const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" })
-  const [revokeOtherSessions, setRevokeOtherSessions] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (form.newPassword !== form.confirmPassword) {
-      toast({ variant: "destructive", title: "Passwords do not match" })
-      return
-    }
-    if (form.newPassword.length < 12) {
-      toast({ variant: "destructive", title: "Password must be at least 12 characters" })
-      return
-    }
-    setLoading(true)
-    try {
-      const res = await fetch("/api/auth/password", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          currentPassword: form.currentPassword,
-          newPassword: form.newPassword,
-          revokeOtherSessions,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        toast({ variant: "destructive", title: "Password change failed", description: data.error || "Please try again" })
-        return
-      }
-      toast({ title: "Password changed", description: revokeOtherSessions ? "All other sessions have been revoked." : "Your password has been updated." })
-      setForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-white">Change Password</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Update your account password. Minimum 12 characters required.</p>
-      </div>
-      <form onSubmit={handleSubmit} className="rounded-lg p-4 space-y-3" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-        <div className="space-y-1">
-          <label htmlFor="current-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Current Password</label>
-          <div className="relative">
-            <input
-              id="current-password"
-              type={showCurrent ? "text" : "password"}
-              value={form.currentPassword}
-              onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
-              required
-              className="w-full rounded px-3 py-2 pr-10 text-sm focus:outline-none"
-              style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)" }}
-            />
-            <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1" style={{ color: "var(--theme-text-muted)" }}>
-              {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="new-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>New Password</label>
-          <div className="relative">
-            <input
-              id="new-password"
-              type={showNew ? "text" : "password"}
-              value={form.newPassword}
-              onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
-              required
-              minLength={12}
-              className="w-full rounded px-3 py-2 pr-10 text-sm focus:outline-none"
-              style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)" }}
-            />
-            <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1" style={{ color: "var(--theme-text-muted)" }}>
-              {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {form.newPassword.length > 0 && form.newPassword.length < 12 && (
-            <p className="text-xs" style={{ color: "var(--theme-danger)" }}>Must be at least 12 characters ({form.newPassword.length}/12)</p>
-          )}
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="confirm-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>Confirm New Password</label>
-          <input
-            id="confirm-password"
-            type="password"
-            value={form.confirmPassword}
-            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-            required
-            className="w-full rounded px-3 py-2 text-sm focus:outline-none"
-            style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)" }}
-          />
-          {form.confirmPassword.length > 0 && form.newPassword !== form.confirmPassword && (
-            <p className="text-xs" style={{ color: "var(--theme-danger)" }}>Passwords do not match</p>
-          )}
-        </div>
-        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
-          <input type="checkbox" checked={revokeOtherSessions} onChange={(e) => setRevokeOtherSessions(e.target.checked)} />
-          Sign out all other sessions after changing password
-        </label>
-        <div className="flex justify-end pt-1">
-          <button
-            type="submit"
-            disabled={loading || !form.currentPassword || !form.newPassword || !form.confirmPassword}
-            className="px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
-            style={{ background: "var(--theme-accent)", color: "white" }}
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Lock className="w-4 h-4 inline mr-1" />Change Password</>}
-          </button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
-
-function RecoveryCodesSection() {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
-  const [remaining, setRemaining] = useState(0)
-  const [total, setTotal] = useState(0)
-  const [codes, setCodes] = useState<string[] | null>(null)
-  const [acknowledged, setAcknowledged] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  const loadStatus = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch("/api/auth/recovery-codes")
-      const data = await res.json()
-      if (res.ok) {
-        setRemaining(data.remaining ?? 0)
-        setTotal(data.total ?? 0)
-      }
-    } catch {
-      // Silently handle — recovery codes may not be set up yet
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { loadStatus() }, [loadStatus])
-
-  async function handleGenerate() {
-    setGenerating(true)
-    try {
-      const res = await fetch("/api/auth/recovery-codes", { method: "POST" })
-      const data = await res.json()
-      if (!res.ok) {
-        toast({ variant: "destructive", title: "Failed to generate recovery codes", description: data.error })
-        return
-      }
-      setCodes(data.codes)
-      setAcknowledged(false)
-      toast({ title: "Recovery codes generated", description: "Save these codes in a safe place. They will not be shown again." })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message })
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  async function handleCopyCodes() {
-    if (!codes) return
-    await navigator.clipboard.writeText(codes.join("\n"))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  function handleDismissCodes() {
-    setCodes(null)
-    setAcknowledged(false)
-    loadStatus()
-  }
-
-  if (loading) {
-    return <div className="flex justify-center py-4"><Loader2 className="animate-spin" style={{ color: "var(--theme-text-muted)" }} /></div>
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-white">Recovery Codes</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
-          Recovery codes let you access your account if you lose your authenticator app or passkey. Each code can only be used once.
-        </p>
-      </div>
-
-      {/* Show generated codes */}
-      {codes && (
-        <div className="rounded-lg p-4 space-y-4" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-          <div className="rounded-lg p-3" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.3)" }}>
-            <p className="text-sm font-medium" style={{ color: "var(--theme-warning)" }}>Save these codes now</p>
-            <p className="text-xs mt-1" style={{ color: "var(--theme-warning)" }}>
-              These codes will not be shown again. Store them somewhere safe and accessible — like a password manager or printed copy.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {codes.map((code, i) => (
-              <div key={i} className="rounded px-3 py-2 text-center font-mono text-sm" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}>
-                {code}
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={handleCopyCodes} className="flex items-center gap-1 px-3 py-1.5 rounded text-sm" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }}>
-              {copied ? <Check className="w-4 h-4" style={{ color: "var(--theme-success)" }} /> : <Copy className="w-4 h-4" />}
-              {copied ? "Copied" : "Copy all"}
-            </button>
-          </div>
-          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
-            <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />
-            I have saved these recovery codes in a safe place
-          </label>
-          <button
-            onClick={handleDismissCodes}
-            disabled={!acknowledged}
-            className="w-full py-2 rounded text-sm font-semibold transition-colors disabled:opacity-40"
-            style={{ background: "var(--theme-accent)", color: "white" }}
-          >
-            Done
-          </button>
-        </div>
-      )}
-
-      {/* Status and generate/regenerate button */}
-      {!codes && (
-        <div className="rounded-lg p-4 flex items-center gap-3" style={{ background: total > 0 ? "rgba(35,165,90,0.1)" : "var(--theme-bg-secondary)", border: `1px solid ${total > 0 ? "var(--theme-success)" : "var(--theme-bg-tertiary)"}` }}>
-          <KeyRound className="w-6 h-6 flex-shrink-0" style={{ color: total > 0 ? "var(--theme-success)" : "var(--theme-text-faint)" }} />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-white">
-              {total > 0 ? `${remaining} of ${total} codes remaining` : "No recovery codes generated"}
-            </p>
-            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-              {total > 0 ? "Generate new codes to replace the current set." : "Generate codes to protect against losing access to your authenticator."}
-            </p>
-          </div>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="flex items-center gap-1 px-3 py-1.5 rounded text-sm font-semibold transition-colors"
-            style={{ background: "var(--theme-accent)", color: "white" }}
-          >
-            {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            {total > 0 ? "Regenerate" : "Generate"}
-          </button>
-        </div>
-      )}
-
-      {total > 0 && remaining <= 2 && remaining > 0 && !codes && (
-        <div className="rounded p-3" style={{ background: "rgba(250,166,26,0.08)", border: "1px solid rgba(250,166,26,0.3)" }}>
-          <p className="text-xs" style={{ color: "var(--theme-warning)" }}>
-            You are running low on recovery codes. Consider regenerating a new set.
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-interface AuthSessionRow {
-  id: string
-  created_at: string
-  last_seen_at: string | null
-  user_agent: string | null
-  ip_address: string | null
-  expires_at: string | null
-  revoked_at: string | null
-}
-
-function SessionManagementSection({ onForcedLogout }: { onForcedLogout: () => Promise<void> | void }) {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [sessions, setSessions] = useState<AuthSessionRow[]>([])
-  const [sessionsError, setSessionsError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch("/api/auth/sessions")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load sessions")
-        return res.json()
-      })
-      .then((payload) => {
-        if (Array.isArray(payload.sessions)) {
-          setSessions(payload.sessions)
-          setSessionsError(null)
-        } else {
-          setSessionsError("Unexpected sessions payload")
-        }
-      })
-      .catch((error: unknown) => {
-        console.error("Failed to load sessions", error)
-        setSessionsError(error instanceof Error ? error.message : "Failed to load sessions")
-      })
-  }, [])
-
-  async function revokeSession(sessionId: string) {
-    const res = await fetch(`/api/auth/sessions/${sessionId}`, { method: "DELETE" })
-    if (res.ok) {
-      setSessions((prev) => prev.map((session) => session.id === sessionId ? { ...session, revoked_at: new Date().toISOString() } : session))
-      toast({ title: "Session revoked" })
-    } else {
-      const payload = await res.json().catch(() => ({}))
-      toast({ variant: "destructive", title: "Failed to revoke session", description: payload.error || "Please try again" })
-    }
-  }
-
-  async function revokeAll() {
-    setLoading(true)
-    const res = await fetch("/api/auth/sessions", { method: "DELETE" })
-    if (res.ok) {
-      toast({ title: "All sessions revoked", description: "Trusted devices and active sessions have been removed." })
-      await onForcedLogout()
-    } else {
-      const payload = await res.json().catch(() => ({}))
-      toast({ variant: "destructive", title: "Failed to revoke sessions", description: payload.error || "Please try again" })
-    }
-    setLoading(false)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-white">Session Management</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>Mark devices as trusted to reduce repeated prompts. If a device is lost, revoke all sessions immediately.</p>
-      </div>
-      <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Active sessions</p>
-        {sessionsError && <p className="text-xs" style={{ color: "var(--theme-danger)" }}>{sessionsError}</p>}
-        {sessions.map((session) => (
-          <div key={session.id} className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs text-white truncate">{session.user_agent || "Unknown device"}</p>
-              <p className="text-[11px]" style={{ color: "var(--theme-text-muted)" }}>Last seen: {session.last_seen_at ? new Date(session.last_seen_at).toLocaleString() : "Unknown"}</p>
-            </div>
-            <Button size="sm" variant="ghost" disabled={Boolean(session.revoked_at)} onClick={() => revokeSession(session.id)}>{session.revoked_at ? "Revoked" : "Revoke"}</Button>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-lg p-4 space-y-3" style={{ background: "rgba(242,63,67,0.08)", border: "1px solid rgba(242,63,67,0.35)" }}>
-        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>This action signs out all active sessions and removes trusted devices.</p>
-        <Button variant="outline" onClick={revokeAll} disabled={loading} style={{ borderColor: "var(--theme-danger)", color: "var(--theme-danger)", background: "rgba(242,63,67,0.1)" }}>
-          {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Revoke All Sessions
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Appearance Tab ────────────────────────────────────────────────────────────
-
-function AppearanceTab({ onSave, saving }: { onSave: () => Promise<void>; saving: boolean }) {
-  const { toast } = useToast()
-  const { messageDisplay, fontScale, saturation, themePreset, customCss, setMessageDisplay, setFontScale, setSaturation, setThemePreset, setCustomCss } = useAppearanceStore(
-    useShallow((s) => ({ messageDisplay: s.messageDisplay, fontScale: s.fontScale, saturation: s.saturation, themePreset: s.themePreset, customCss: s.customCss, setMessageDisplay: s.setMessageDisplay, setFontScale: s.setFontScale, setSaturation: s.setSaturation, setThemePreset: s.setThemePreset, setCustomCss: s.setCustomCss }))
-  )
-  const { notificationSoundEnabled, setNotificationSoundEnabled, playNotification } = useNotificationSound()
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h3 className="text-base font-semibold text-white mb-1">Theme Presets</h3>
-        <p className="text-sm mb-4" style={{ color: "var(--theme-text-muted)" }}>
-          Pick a skin — changes apply instantly. Layer your own CSS on top for full customization.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {THEME_PRESET_OPTIONS.map((preset) => (
-            <button
-              type="button"
-              key={preset.value}
-              onClick={() => setThemePreset(preset.value)}
-              className="rounded-lg border px-3 py-2.5 text-left flex flex-col gap-2"
-              style={{
-                background: themePreset === preset.value ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
-                borderColor: themePreset === preset.value ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
-                color: themePreset === preset.value ? "var(--theme-text-primary)" : "var(--theme-text-secondary)",
-              }}
-            >
-              <div className="flex items-center justify-between w-full">
-                <span className="text-sm font-medium">{preset.label}</span>
-                <div className="flex gap-1">
-                  {[preset.bg, preset.accent, preset.textMuted].map((color) => (
-                    <span key={color} className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                  ))}
-                </div>
-              </div>
-              <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{preset.description}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Message Display */}
-      <div>
-        <h3 className="text-base font-semibold text-white mb-1">Message Display</h3>
-        <p className="text-sm mb-4" style={{ color: "var(--theme-text-muted)" }}>
-          Choose how messages look in the chat.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {(["cozy", "compact"] as MessageDisplay[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setMessageDisplay(mode)}
-              className="flex flex-col items-start gap-2 p-3 rounded-lg text-left transition-colors border"
-              style={{
-                background: messageDisplay === mode ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
-                borderColor: messageDisplay === mode ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
-              }}
-            >
-              <div className="w-full space-y-1.5 pointer-events-none">
-                {mode === "cozy" ? (
-                  <>
-                    <div className="flex items-start gap-2">
-                      <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: "var(--theme-accent)" }} />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-2 rounded w-16" style={{ background: "var(--theme-text-primary)" }} />
-                        <div className="h-2 rounded w-24" style={{ background: "var(--theme-text-muted)" }} />
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {[28, 20, 24, 16].map((w, i) => (
-                      <div key={i} className="flex items-center gap-1.5 h-2.5">
-                        <div className="w-5 h-1.5 rounded flex-shrink-0" style={{ background: "var(--theme-text-faint)" }} />
-                        <div className="h-1.5 rounded" style={{ background: "var(--theme-text-muted)", width: `${w}px` }} />
-                        <div className="h-1.5 rounded flex-1" style={{ background: "var(--theme-text-muted)" }} />
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-              <span className="text-sm font-medium capitalize" style={{ color: messageDisplay === mode ? "var(--theme-text-primary)" : "var(--theme-text-secondary)" }}>
-                {mode}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-base font-semibold text-white mb-1">Custom CSS</h3>
-        <p className="text-sm mb-3" style={{ color: "var(--theme-text-muted)" }}>
-          Paste your full theme CSS here. Override the global tokens in the template (or add your own selectors). Your CSS is injected on top of the selected preset, so custom tokens and rules apply app-wide instantly.
-        </p>
-        <textarea
-          value={customCss}
-          onChange={(event) => setCustomCss(event.target.value)}
-          placeholder={CSS_TEMPLATE}
-          spellCheck={false}
-          className="w-full min-h-[240px] rounded-lg border p-3 text-xs font-mono leading-relaxed"
-          style={{ background: "var(--theme-bg-tertiary)", borderColor: customCss.length > 50000 ? "var(--theme-danger)" : "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)", resize: "vertical" }}
-        />
-        <div className="mt-1.5 flex items-center justify-between">
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setCustomCss(CSS_TEMPLATE)}>Use Template</Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                await navigator.clipboard.writeText(CSS_TEMPLATE)
-                toast({ title: "Template copied" })
-              }}
-            >
-              Copy Template
-            </Button>
-            {customCss.trim() && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setCustomCss("")} style={{ color: "var(--theme-danger)", borderColor: "rgba(242,63,67,0.4)" }}>
-                Clear
-              </Button>
-            )}
-          </div>
-          <span className="text-xs tabular-nums" style={{ color: customCss.length > 50000 ? "var(--theme-danger)" : "var(--theme-text-faint)" }}>
-            {customCss.length.toLocaleString()} / 50,000
-          </span>
-        </div>
-      </div>
-
-      {/* Font Size */}
-      <div>
-        <h3 className="text-base font-semibold text-white mb-1">Chat Font Scaling</h3>
-        <p className="text-sm mb-4" style={{ color: "var(--theme-text-muted)" }}>
-          Choose a comfortable size for reading messages.
-        </p>
-        <div className="flex items-center gap-3">
-          {(["small", "normal", "large"] as FontScale[]).map((scale) => (
-            <button
-              key={scale}
-              onClick={() => setFontScale(scale)}
-              className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors border capitalize"
-              style={{
-                background: fontScale === scale ? "rgba(88,101,242,0.15)" : "var(--theme-bg-secondary)",
-                borderColor: fontScale === scale ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
-                color: fontScale === scale ? "var(--theme-text-primary)" : "var(--theme-text-secondary)",
-                fontSize: scale === "small" ? "13px" : scale === "large" ? "15px" : "14px",
-              }}
-            >
-              Aa
-              <span className="block text-xs mt-0.5">{scale}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-base font-semibold text-white mb-1">Accessibility</h3>
-        <div
-          className="flex items-center justify-between p-3 rounded-lg"
-          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
-        >
-          <div>
-            <p className="text-sm font-medium text-white">Reduced Saturation</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>
-              Desaturates interface colors for color-sensitivity.
-            </p>
-          </div>
-          <button
-            role="switch"
-            aria-checked={saturation === "reduced"}
-            onClick={() => setSaturation(saturation === "reduced" ? "normal" : "reduced")}
-            className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200"
-            style={{ background: saturation === "reduced" ? "var(--theme-accent)" : "var(--theme-text-faint)" }}
-          >
-            <span
-              className="pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out mt-0.5"
-              style={{
-                background: "white",
-                marginLeft: saturation === "reduced" ? "22px" : "2px",
-                transition: "margin-left 0.2s",
-              }}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* Notification Sound */}
-      <div>
-        <h3 className="text-base font-semibold text-white mb-1">Notification Sound</h3>
-        <div
-          className="flex items-center justify-between p-3 rounded-lg"
-          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
-        >
-          <div>
-            <p className="text-sm font-medium text-white">Play sound on new messages</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>
-              Plays a short tone when you receive a message in another channel or DM.
-            </p>
-          </div>
-          <button
-            role="switch"
-            aria-checked={notificationSoundEnabled}
-            onClick={() => {
-              const next = !notificationSoundEnabled
-              setNotificationSoundEnabled(next)
-              if (next) playNotification()
-            }}
-            className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200"
-            style={{ background: notificationSoundEnabled ? "var(--theme-accent)" : "var(--theme-text-faint)" }}
-          >
-            <span
-              className="pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out mt-0.5"
-              style={{
-                background: "white",
-                marginLeft: notificationSoundEnabled ? "22px" : "2px",
-                transition: "margin-left 0.2s",
-              }}
-            />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <Button onClick={onSave} disabled={saving} style={{ background: "var(--theme-accent)" }}>
-          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Theme & Appearance
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-// ─── 2FA / MFA Section ────────────────────────────────────────────────────────
-
-function TwoFactorSection({ supabase, toast }: { supabase: ReturnType<typeof import("@/lib/supabase/client").createClientSupabaseClient>; toast: ReturnType<typeof import("@/components/ui/use-toast").useToast>["toast"] }) {
-  const [factors, setFactors] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [enrolling, setEnrolling] = useState(false)
-  const [qrCode, setQrCode] = useState<string | null>(null)
-  const [secret, setSecret] = useState<string | null>(null)
-  const [factorId, setFactorId] = useState<string | null>(null)
-  const [verifyCode, setVerifyCode] = useState("")
-  const [verifying, setVerifying] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
-  const [recoveryAcknowledged, setRecoveryAcknowledged] = useState(false)
-  const [recoveryCopied, setRecoveryCopied] = useState(false)
-
-  const loadFactors = useCallback(async () => {
-    setLoading(true)
-    const { data } = await supabase.auth.mfa.listFactors()
-    setFactors(data?.totp ?? [])
-    setLoading(false)
-  }, [supabase])
-
-  useEffect(() => { loadFactors() }, [loadFactors])
-
-  async function handleEnroll() {
-    setEnrolling(true)
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", issuer: "VortexChat" })
-    if (error || !data) {
-      toast({ variant: "destructive", title: "Failed to start 2FA setup", description: error?.message })
-      setEnrolling(false)
-      return
-    }
-    setQrCode(data.totp.qr_code)
-    setSecret(data.totp.secret)
-    setFactorId(data.id)
-    setEnrolling(false)
-  }
-
-  async function handleVerify() {
-    if (!factorId || verifyCode.length !== 6) return
-    setVerifying(true)
-    const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId })
-    if (challengeError) {
-      toast({ variant: "destructive", title: "Challenge failed", description: challengeError.message })
-      setVerifying(false)
-      return
-    }
-    const { error: verifyError } = await supabase.auth.mfa.verify({ factorId, challengeId: challengeData.id, code: verifyCode })
-    if (verifyError) {
-      toast({ variant: "destructive", title: "Invalid code", description: "The code you entered is incorrect." })
-    } else {
-      // Generate recovery codes automatically during MFA enrollment
-      let generatedCodes = false
-      try {
-        const codesRes = await fetch("/api/auth/recovery-codes", { method: "POST" })
-        const codesData = await codesRes.json()
-        if (codesRes.ok && codesData.codes) {
-          setRecoveryCodes(codesData.codes)
-          setRecoveryAcknowledged(false)
-          generatedCodes = true
-          toast({ title: "2FA enabled!", description: "Save your recovery codes below before closing this dialog." })
-        }
-      } catch {
-        // Recovery code generation is non-critical — toast a warning but don't block
-      }
-      if (!generatedCodes) {
-        toast({ title: "2FA enabled!", description: "Your account is now protected with two-factor authentication. Generate recovery codes from the Recovery Codes section." })
-      }
-      setQrCode(null); setSecret(null); setFactorId(null); setVerifyCode("")
-      loadFactors()
-    }
-    setVerifying(false)
-  }
-
-  async function handleUnenroll(id: string) {
-    const currentPassword = window.prompt("Confirm your password to disable 2FA")
-    if (!currentPassword) return
-
-    const stepRes = await fetch("/api/auth/step-up", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword }),
-    })
-    if (!stepRes.ok) {
-      const data = await stepRes.json().catch(() => ({}))
-      toast({ variant: "destructive", title: "Step-up failed", description: data.error ?? "Could not verify identity" })
-      return
-    }
-
-    const res = await fetch("/api/auth/mfa/disable", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ factorId: id }),
-    })
-    const payload = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      toast({ variant: "destructive", title: "Failed to disable 2FA", description: payload.error ?? "Unknown error" })
-      return
-    }
-
-    toast({ title: "2FA disabled" })
-    loadFactors()
-  }
-
-  function copySecret() {
-    if (!secret) return
-    navigator.clipboard.writeText(secret)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const verified = factors.filter((f) => f.status === "verified")
-  const has2FA = verified.length > 0
-
-  if (loading) {
-    return <div className="flex justify-center py-8"><Loader2 className="animate-spin" style={{ color: "var(--theme-text-muted)" }} /></div>
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-base font-semibold text-white mb-1">Two-Factor Authentication</h3>
-        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
-          Add an extra layer of security to your account using an authenticator app (Google Authenticator, Authy, etc.).
-        </p>
-      </div>
-
-      {/* Current 2FA status */}
-      <div className="rounded-lg p-4 flex items-center gap-3" style={{ background: has2FA ? "rgba(35,165,90,0.1)" : "var(--theme-bg-secondary)", border: `1px solid ${has2FA ? "var(--theme-success)" : "var(--theme-bg-tertiary)"}` }}>
-        {has2FA
-          ? <ShieldCheck className="w-6 h-6 flex-shrink-0" style={{ color: "var(--theme-success)" }} />
-          : <ShieldOff className="w-6 h-6 flex-shrink-0" style={{ color: "var(--theme-text-faint)" }} />}
-        <div className="flex-1">
-          <p className="text-sm font-medium text-white">{has2FA ? "2FA is enabled" : "2FA is not enabled"}</p>
-          <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-            {has2FA ? `${verified.length} authenticator app${verified.length > 1 ? "s" : ""} registered.` : "Your account is protected by password only."}
-          </p>
-        </div>
-        {has2FA
-          ? (
-            <button onClick={() => handleUnenroll(verified[0].id)} className="px-3 py-1.5 rounded text-sm transition-colors" style={{ background: "rgba(242,63,67,0.15)", color: "var(--theme-danger)", border: "1px solid rgba(242,63,67,0.3)" }}>
-              Remove
-            </button>
-          )
-          : !qrCode && (
-            <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 rounded text-sm font-semibold transition-colors" style={{ background: "var(--theme-accent)", color: "white" }}>
-              {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enable 2FA"}
-            </button>
-          )}
-      </div>
-
-      {/* QR code enrollment flow */}
-      {qrCode && (
-        <div className="rounded-lg p-4 space-y-4" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
-          <p className="text-sm font-medium text-white">Scan with your authenticator app</p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrCode} alt="2FA QR Code" className="w-40 h-40 rounded bg-white p-2 mx-auto" />
-          {secret && (
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs px-2 py-1.5 rounded break-all font-mono" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>{secret}</code>
-              <button onClick={copySecret} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded" style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }} title="Copy secret">
-                {copied ? <Check className="w-4 h-4" style={{ color: "var(--theme-success)" }} /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-          )}
-          <div className="space-y-2">
-            <p className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>Enter the 6-digit code from your app to confirm:</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={verifyCode}
-                onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="000000"
-                className="w-32 px-3 py-2 rounded text-center text-lg tracking-widest focus:outline-none font-mono"
-                style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-surface-elevated)" }}
-              />
-              <button onClick={handleVerify} disabled={verifyCode.length !== 6 || verifying} className="px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50" style={{ background: "var(--theme-accent)", color: "white" }}>
-                {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify"}
-              </button>
-              <button onClick={() => { setQrCode(null); setSecret(null); setFactorId(null) }} className="px-3 py-2 rounded text-sm" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recovery codes generated during enrollment */}
-      {recoveryCodes && (
-        <div className="rounded-lg p-4 space-y-4" style={{ background: "var(--theme-bg-secondary)", border: "1px solid rgba(250,166,26,0.4)" }}>
-          <div className="rounded-lg p-3" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.3)" }}>
-            <p className="text-sm font-medium" style={{ color: "var(--theme-warning)" }}>Save your recovery codes</p>
-            <p className="text-xs mt-1" style={{ color: "var(--theme-warning)" }}>
-              2FA is now active. Save these backup codes — they will not be shown again. Use them if you lose access to your authenticator app.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {recoveryCodes.map((code, i) => (
-              <div key={i} className="rounded px-3 py-2 text-center font-mono text-sm" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}>
-                {code}
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={async () => {
-                await navigator.clipboard.writeText(recoveryCodes.join("\n"))
-                setRecoveryCopied(true)
-                setTimeout(() => setRecoveryCopied(false), 2000)
-              }}
-              className="flex items-center gap-1 px-3 py-1.5 rounded text-sm"
-              style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }}
-            >
-              {recoveryCopied ? <Check className="w-4 h-4" style={{ color: "var(--theme-success)" }} /> : <Copy className="w-4 h-4" />}
-              {recoveryCopied ? "Copied" : "Copy all"}
-            </button>
-          </div>
-          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
-            <input type="checkbox" checked={recoveryAcknowledged} onChange={(e) => setRecoveryAcknowledged(e.target.checked)} />
-            I have saved these recovery codes in a safe place
-          </label>
-          <button
-            onClick={() => { setRecoveryCodes(null); setRecoveryAcknowledged(false) }}
-            disabled={!recoveryAcknowledged}
-            className="w-full py-2 rounded text-sm font-semibold transition-colors disabled:opacity-40"
-            style={{ background: "var(--theme-accent)", color: "white" }}
-          >
-            Done
-          </button>
-        </div>
-      )}
-    </div>
   )
 }
