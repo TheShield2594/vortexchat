@@ -46,6 +46,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   let name: string | undefined
   let description: string | undefined
+  let regenerateInvite = false
   let iconFile: File | null = null
 
   if (isMultipart) {
@@ -57,10 +58,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (nameVal !== null) name = String(nameVal)
     if (descVal !== null) description = String(descVal)
     if (iconVal instanceof File && iconVal.size > 0) iconFile = iconVal
+    if (formData.get("regenerate_invite") === "true") regenerateInvite = true
   } else {
-    const body = await req.json().catch(() => ({}))
+    const raw = await req.json().catch(() => ({}))
+    const body = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? raw : {}
     if ("name" in body) name = String(body.name)
     if ("description" in body) description = String(body.description)
+    if (body.regenerate_invite === true) regenerateInvite = true
   }
 
   const updates: Record<string, unknown> = {}
@@ -84,6 +88,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     updates.description = trimmed || null
     changes.description = { old: server.description, new: trimmed || null }
+  }
+
+  // Check invite regeneration permission before any side effects
+  if (regenerateInvite && !isOwner) {
+    await insertAuditLog(supabase, {
+      server_id: serverId,
+      actor_id: user.id,
+      action: "invite_regenerate_denied",
+      target_id: serverId,
+      target_type: "server",
+      changes: {},
+    })
+    return NextResponse.json({ error: "Only the server owner can regenerate the invite code" }, { status: 403 })
   }
 
   // Handle icon upload
@@ -141,6 +158,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     changes.icon_url = { old: server.icon_url, new: urlData.publicUrl }
   }
 
+  // Handle invite code regeneration (owner check already done above)
+  if (regenerateInvite) {
+    const newCode = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+    updates.invite_code = newCode
+    changes.invite_code = { old: "[redacted]", new: "[redacted]" }
+  }
+
   if (Object.keys(updates).length === 0)
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
 
@@ -165,4 +191,95 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   })
 
   return NextResponse.json(updated)
+}
+
+/**
+ * DELETE /api/servers/[serverId]
+ *
+ * Deletes the server and all associated data (channels, messages, roles, etc.).
+ * Permission: server owner only
+ */
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const { serverId } = await params
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
+
+  try {
+    const { data: server } = await supabase
+      .from("servers")
+      .select("owner_id, name")
+      .eq("id", serverId)
+      .single()
+
+    if (!server)
+      return NextResponse.json({ error: "Server not found" }, { status: 404 })
+
+    if (server.owner_id !== user.id) {
+      await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "server_delete_denied",
+        target_id: serverId,
+        target_type: "server",
+        changes: {},
+      })
+      return NextResponse.json({ error: "Only the server owner can delete the server" }, { status: 403 })
+    }
+
+    // Delete associated data in dependency order
+    const cascadeTables = [
+      "messages", "channels", "member_roles", "roles",
+      "server_members", "invites", "automod_rules",
+      "screening_configs", "webhooks", "server_emojis",
+    ] as const
+    const cascadeErrors: Array<{ table: string; message: string }> = []
+
+    for (const table of cascadeTables) {
+      const { error } = await supabase.from(table).delete().eq("server_id", serverId)
+      if (error) cascadeErrors.push({ table, message: error.message })
+    }
+
+    if (cascadeErrors.length > 0) {
+      await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "server_delete_failed",
+        target_id: serverId,
+        target_type: "server",
+        changes: { cascade_errors: { old: null, new: cascadeErrors } },
+      })
+      return NextResponse.json({ error: "Failed to delete server: cascade cleanup failed" }, { status: 500 })
+    }
+
+    const { error: deleteError } = await supabase
+      .from("servers")
+      .delete()
+      .eq("id", serverId)
+
+    if (deleteError) {
+      await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "server_delete_failed",
+        target_id: serverId,
+        target_type: "server",
+        changes: { error: { old: null, new: deleteError.message } },
+      })
+      return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
+    }
+
+    // Audit log after successful deletion
+    await insertAuditLog(supabase, {
+      server_id: serverId,
+      actor_id: user.id,
+      action: "server_delete",
+      target_id: serverId,
+      target_type: "server",
+      changes: { name: { old: server.name, new: null } },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
+  }
 }
