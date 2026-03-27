@@ -86,8 +86,8 @@ export function ProfileConnections({ userId }: ProfileConnectionsProps): React.R
   if (!loaded || connections.length === 0) return null
 
   return (
-    <section className="rounded-xl bg-secondary/60 p-3">
-      <h4 className="text-[11px] font-semibold tracking-wider text-muted-foreground mb-2">CONNECTIONS</h4>
+    <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+      <h4 className="text-[11px] font-semibold tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>CONNECTIONS</h4>
       <div className="space-y-2">
         {connections.map((connection) => {
           const config = PROVIDER_CONFIG[connection.provider]
@@ -98,7 +98,7 @@ export function ProfileConnections({ userId }: ProfileConnectionsProps): React.R
           return (
             <div
               key={connection.id}
-              className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-secondary"
+              className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:[background:var(--theme-bg-tertiary)]"
               style={{ background: "rgba(0,0,0,0.15)" }}
             >
               {Icon && (
@@ -106,14 +106,14 @@ export function ProfileConnections({ userId }: ProfileConnectionsProps): React.R
                   className="flex items-center justify-center w-8 h-8 rounded-md shrink-0"
                   style={{ background: config.color }}
                 >
-                  <Icon className="w-4.5 h-4.5 text-white" />
+                  <Icon className="w-4.5 h-4.5" style={{ color: "white" }} />
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">
+                <p className="text-sm font-medium truncate" style={{ color: "var(--theme-text-normal)" }}>
                   {connection.display_name || connection.username || connection.provider_user_id}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
                   {config?.label ?? connection.provider}
                   {detail && ` · ${detail}`}
                 </p>
@@ -123,7 +123,8 @@ export function ProfileConnections({ userId }: ProfileConnectionsProps): React.R
                   href={connection.profile_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  className="shrink-0 p-1.5 rounded-md transition-colors hover:[color:var(--theme-text-normal)] hover:[background:var(--theme-bg-tertiary)]"
+                  style={{ color: "var(--theme-text-muted)" }}
                   aria-label={`Visit ${config?.label ?? connection.provider} profile`}
                 >
                   <ExternalLink className="w-3.5 h-3.5" />

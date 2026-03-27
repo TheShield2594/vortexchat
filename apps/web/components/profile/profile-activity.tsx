@@ -52,7 +52,7 @@ function ActivityItem({ item }: { item: UserActivityLogRow }) {
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-xs leading-snug truncate" style={{ color: "var(--theme-text-primary)" }}>
+        <p className="text-xs leading-snug truncate group-hover:[color:var(--theme-accent)] transition-colors" style={{ color: "var(--theme-text-primary)" }}>
           {item.summary}
         </p>
         {item.ref_label && (
@@ -78,14 +78,6 @@ function ActivityItem({ item }: { item: UserActivityLogRow }) {
       {...(isExternal ? { target: "_blank", rel: "noreferrer noopener" } : {})}
       className="group flex items-start gap-2 py-1 rounded transition-colors focus:outline-none focus-visible:ring-1"
       style={{ textDecoration: "none" }}
-      onMouseEnter={(e) => {
-        const p = e.currentTarget.querySelector("p:first-child") as HTMLElement | null
-        if (p) p.style.color = "var(--theme-accent)"
-      }}
-      onMouseLeave={(e) => {
-        const p = e.currentTarget.querySelector("p:first-child") as HTMLElement | null
-        if (p) p.style.color = "var(--theme-text-primary)"
-      }}
       aria-label={item.summary}
     >
       {inner}
