@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, Trash2, X } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -21,7 +21,7 @@ interface Notification {
   created_at: string
 }
 
-const TYPE_ICONS: Record<string, React.ReactNode> = {
+const TYPE_ICONS: Record<Notification["type"], React.ReactNode> = {
   mention: <AtSign className="w-3.5 h-3.5" />,
   reply: <Hash className="w-3.5 h-3.5" />,
   friend_request: <UserPlus className="w-3.5 h-3.5" />,
@@ -35,7 +35,7 @@ interface Props {
 }
 
 export function NotificationBell({ userId, variant = "icon" }: Props) {
-  const [supabase] = useState(() => createClientSupabaseClient())
+  const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
   const { playNotification } = useNotificationSound()
   const [open, setOpen] = useState(false)
@@ -47,22 +47,17 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const { data } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(30)
-      if (data) {
-        setNotifications(data as Notification[])
-        setUnreadCount(data.filter((n) => !n.read).length)
-      }
+      const res = await fetch("/api/notifications?limit=30")
+      if (!res.ok) throw new Error("Failed to fetch")
+      const { notifications: data } = await res.json() as { notifications: Notification[] }
+      setNotifications(data)
+      setUnreadCount(data.filter((n) => !n.read).length)
     } catch (error) {
       console.error("Failed to load notifications:", error)
       setNotifications([])
       setUnreadCount(0)
     }
-  }, [userId, supabase])
+  }, [])
 
   useEffect(() => { loadNotifications() }, [loadNotifications])
 
@@ -168,32 +163,42 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     }
   }, [open])
 
-  async function markAllRead() {
-    await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("user_id", userId)
-      .eq("read", false)
+  async function markAllRead(): Promise<void> {
+    const res = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    })
+    if (!res.ok) return
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     setUnreadCount(0)
   }
 
-  async function markRead(id: string) {
-    await supabase.from("notifications").update({ read: true }).eq("id", id)
+  async function markRead(id: string): Promise<void> {
+    const res = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    })
+    if (!res.ok) return
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
     setUnreadCount((c) => Math.max(0, c - 1))
   }
 
-  async function dismiss(id: string) {
+  async function dismiss(id: string): Promise<void> {
     const target = notifications.find((x) => x.id === id)
     // Optimistic removal
     setNotifications((prev) => prev.filter((x) => x.id !== id))
     if (target && !target.read) setUnreadCount((c) => Math.max(0, c - 1))
 
-    const { error } = await supabase.from("notifications").delete().eq("id", id)
-    if (error) {
+    const res = await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    })
+    if (!res.ok) {
       // Rollback: re-insert at original position
-      console.error("Failed to dismiss notification:", error.message)
+      console.error("Failed to dismiss notification")
       if (target) {
         setNotifications((prev) => {
           const restored = [...prev, target].sort(
@@ -206,23 +211,29 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     }
   }
 
-  async function dismissAll() {
+  async function dismissAll(): Promise<void> {
     const prev = notifications
     const prevUnread = unreadCount
-    // Optimistic clear
+    const ids = prev.map((n) => n.id)
+    if (ids.length === 0) return
+    // Optimistic clear — only the visible notifications
     setNotifications([])
     setUnreadCount(0)
 
-    const { error } = await supabase.from("notifications").delete().eq("user_id", userId)
-    if (error) {
-      console.error("Failed to clear all notifications:", error.message)
+    const res = await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    })
+    if (!res.ok) {
+      console.error("Failed to clear all notifications")
       setNotifications(prev)
       setUnreadCount(prevUnread)
     }
   }
 
-  async function handleClick(n: Notification) {
-    markRead(n.id)
+  async function handleClick(n: Notification): Promise<void> {
+    if (!n.read) await markRead(n.id)
     if (n.server_id && n.channel_id) {
       const params = new URLSearchParams()
 
@@ -305,7 +316,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           aria-modal="true"
           aria-label="Notifications inbox"
           tabIndex={-1}
-          className="absolute right-0 top-full mt-2 w-80 rounded-xl shadow-2xl overflow-hidden z-50"
+          className={`absolute w-80 rounded-xl shadow-2xl overflow-hidden z-50 ${variant === "sidebar" ? "left-full top-0 ml-2" : "right-0 top-full mt-2"}`}
           style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
         >
           {/* Header */}
