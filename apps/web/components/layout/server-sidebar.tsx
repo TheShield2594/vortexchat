@@ -225,7 +225,7 @@ function ServerIcon({
   const [copyShortcutLabel, setCopyShortcutLabel] = useState<string | null>(null)
 
   useEffect(() => {
-    const platform = navigator.platform || navigator.userAgent || ""
+    const platform = navigator.userAgentData?.platform ?? navigator.userAgent ?? ""
     const isApple = /Mac|iPhone|iPad|iPod/i.test(platform)
     setCopyShortcutLabel(isApple ? "⌘C" : "Ctrl+C")
   }, [])

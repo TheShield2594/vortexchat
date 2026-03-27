@@ -4,15 +4,13 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { perfLogSinceNav } from "@/lib/perf"
 import { useRouter } from "next/navigation"
 import {
-  Hash, Volume2, ChevronDown, ChevronRight,
-  Plus, Clipboard, Pencil, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, CalendarDays, MessageCircle,
-  MicOff, Headphones, Bell, BellOff
+  ChevronDown,
+  Plus, CalendarDays,
 } from "lucide-react"
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  useDroppable,
   useSensor,
   useSensors,
   closestCenter,
@@ -23,23 +21,24 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable,
   arrayMove,
 } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils/cn"
-import type { ChannelRow, RoleRow, ServerRow, UserRow } from "@/types/database"
+import type { ChannelRow, RoleRow, ServerRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
 import dynamic from "next/dynamic"
 import { UserPanel } from "@/components/layout/user-panel"
 import { CompactVoiceBar } from "@/components/voice/compact-voice-bar"
+import { SortableChannelItem, ChannelIcon } from "@/components/layout/sortable-channel-item"
+import { CategoryHeader, DropContainer, getCategoryDragId, getCategoryIdFromDragId } from "@/components/layout/category-header"
+
+import type { VoiceParticipant } from "@vortex/shared"
+export type { VoiceParticipant }
 
 const CreateChannelModal = dynamic(() => import("@/components/modals/create-channel-modal").then((m) => ({ default: m.CreateChannelModal })))
 const EditChannelModal = dynamic(() => import("@/components/modals/edit-channel-modal").then((m) => ({ default: m.EditChannelModal })))
@@ -55,15 +54,6 @@ import { useKeyboardShortcuts, type ShortcutHandlers } from "@/hooks/use-keyboar
 
 const NO_CATEGORY = "__no_category__"
 const MAX_AUTO_EXPANDED_CATEGORIES = 18
-const CATEGORY_COLLAPSE_ANIMATION_MAX_HEIGHT = 520
-
-export interface VoiceParticipant {
-  user_id: string
-  channel_id: string
-  muted: boolean
-  deafened: boolean
-  user: Pick<UserRow, "id" | "username" | "display_name" | "avatar_url"> | null
-}
 
 /** Channel types that support messaging (messages table) */
 const MESSAGE_CHANNEL_TYPES = ["text", "announcement", "forum", "media"] as const
@@ -88,15 +78,6 @@ type GroupedChannels = {
   channels: ChannelRow[]
 }[]
 
-const CATEGORY_DRAG_PREFIX = "category:"
-
-function getCategoryDragId(categoryId: string) {
-  return `${CATEGORY_DRAG_PREFIX}${categoryId}`
-}
-
-function getCategoryIdFromDragId(id: string) {
-  return id.startsWith(CATEGORY_DRAG_PREFIX) ? id.slice(CATEGORY_DRAG_PREFIX.length) : null
-}
 
 function groupChannels(channels: ChannelRow[]): GroupedChannels {
   const sorted = [...channels].sort((a, b) => a.position - b.position)
@@ -238,6 +219,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [editTarget, setEditTarget] = useState<ChannelRow | null>(null)
   const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<{ id: string; name: string } | null>(null)
   const [editCategoryTarget, setEditCategoryTarget] = useState<ChannelRow | null>(null)
+  const [notifSettingsChannelId, setNotifSettingsChannelId] = useState<string | null>(null)
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
@@ -826,17 +808,25 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                   >
                     <div
                       className={cn(
-                        "space-y-0.5 px-2 min-h-[4px] overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
-                        isCollapsed ? "max-h-0 opacity-0 -translate-y-1 pointer-events-none" : "opacity-100 translate-y-0"
+                        "grid transition-[grid-template-rows,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                        isCollapsed ? "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none" : "grid-rows-[1fr] opacity-100 translate-y-0"
                       )}
-                      style={{ maxHeight: isCollapsed ? 0 : Math.min(CATEGORY_COLLAPSE_ANIMATION_MAX_HEIGHT, Math.max(32, categoryChannels.length * 36)) }}
+                      aria-hidden={isCollapsed || undefined}
+                      ref={(node) => {
+                        if (node) {
+                          if (isCollapsed) node.setAttribute("inert", "")
+                          else node.removeAttribute("inert")
+                        }
+                      }}
                     >
+                    <div className="space-y-0.5 px-2 min-h-[4px] overflow-hidden">
                         {categoryChannels.map((channel) => (
                           <SortableChannelItem
                             key={channel.id}
                             channel={channel}
                             isActive={activeChannelId === channel.id}
                             isVoiceActive={voiceChannelId === channel.id}
+                            onOpenNotificationSettings={setNotifSettingsChannelId}
                             canManageChannels={canManageChannels}
                             isDragging={activeId === channel.id}
                             isUnread={unreadChannelIds.has(channel.id)}
@@ -870,6 +860,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                             <span className="text-xs tertiary-metadata">Drop here</span>
                           </div>
                         )}
+                    </div>
                     </div>
                   </SortableContext>
                 </div>
@@ -960,6 +951,14 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
           />
         )}
 
+        {/* Single hoisted notification settings modal for all channels */}
+        <NotificationSettingsModal
+          open={!!notifSettingsChannelId}
+          onClose={() => setNotifSettingsChannelId(null)}
+          channelId={notifSettingsChannelId ?? undefined}
+          label={notifSettingsChannelId ? `#${channelById.get(notifSettingsChannelId)?.name ?? "channel"}` : ""}
+        />
+
         {/* Delete channel confirmation dialog */}
         <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
           <DialogContent className="channel-sidebar-dialog-content">
@@ -1029,370 +1028,3 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   )
 }
 
-/** Returns a short human-readable string for the time remaining until `expiresAt`. */
-function formatTimeRemaining(expiresAt: string): string {
-  const ms = new Date(expiresAt).getTime() - Date.now()
-  if (ms <= 0) return "expired"
-  const totalSeconds = Math.floor(ms / 1000)
-  if (totalSeconds < 60) return `${totalSeconds}s`
-  const totalMinutes = Math.floor(totalSeconds / 60)
-  if (totalMinutes < 60) return `${totalMinutes}m`
-  const totalHours = Math.floor(totalMinutes / 60)
-  if (totalHours < 24) return `${totalHours}h`
-  const totalDays = Math.floor(totalHours / 24)
-  return `${totalDays}d`
-}
-
-function ChannelIcon({ channel, isVoiceActive }: { channel: ChannelRow; isVoiceActive: boolean }) {
-  const iconStyle = { color: isVoiceActive ? 'var(--theme-success)' : undefined }
-  switch (channel.type) {
-    case "voice":        return <Volume2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
-    case "forum":        return <MessageSquare className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
-    case "stage":        return <Mic2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
-    case "announcement": return <Megaphone className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
-    case "media":        return <Image className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
-    default:             return <Hash className="w-4 h-4 flex-shrink-0" />
-  }
-}
-
-function CategoryHeader({
-  category,
-  containerId,
-  isCollapsed,
-  canManageChannels,
-  isDragOver,
-  onToggle,
-  onAddChannel,
-  onEdit,
-  onDelete,
-  onCopyId,
-}: {
-  category: ChannelRow
-  containerId: string
-  isCollapsed: boolean
-  canManageChannels: boolean
-  isDragOver: boolean
-  onToggle: () => void
-  onAddChannel: () => void
-  onEdit?: () => void
-  onDelete?: () => void
-  onCopyId?: () => void
-}) {
-  const { setNodeRef } = useDroppable({ id: containerId })
-  const sortable = useSortable({ id: getCategoryDragId(category.id), disabled: !canManageChannels })
-  const style = {
-    transform: CSS.Transform.toString(sortable.transform),
-    transition: sortable.transition,
-    opacity: sortable.isDragging ? 0.4 : 1,
-  }
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          ref={sortable.setNodeRef}
-          style={style}
-          className={cn(
-            "flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive",
-            isDragOver && "surface-hover"
-          )}
-        >
-          <button
-            ref={setNodeRef}
-            type="button"
-            onClick={onToggle}
-            className="flex items-center gap-1 flex-1 min-w-0 text-left focus-ring rounded-sm"
-            aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-3 h-3 tertiary-metadata" />
-            ) : (
-              <ChevronDown className="w-3 h-3 tertiary-metadata" />
-            )}
-            <span className="text-xs font-semibold uppercase tracking-wider tertiary-metadata truncate">
-              {category.name}
-            </span>
-          </button>
-          {canManageChannels && (
-            <div className="flex items-center">
-              <span
-                {...sortable.attributes}
-                {...sortable.listeners}
-                className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto touch-visible cursor-grab active:cursor-grabbing tertiary-metadata"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <GripVertical className="w-3 h-3" />
-              </span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onAddChannel() }}
-                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-interactive motion-interactive focus-ring rounded-sm" aria-label={`Create channel in ${category.name}`}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Create Channel</TooltipContent>
-              </Tooltip>
-            </div>
-          )}
-        </div>
-      </ContextMenuTrigger>
-
-      <ContextMenuContent className="w-56" aria-label={`Category actions for ${category.name}`}>
-        {canManageChannels && (
-          <ContextMenuItem onClick={onAddChannel}>
-            <Plus className="w-4 h-4 mr-2" /> Create Channel
-          </ContextMenuItem>
-        )}
-        <ContextMenuSeparator />
-        {canManageChannels && onEdit && (
-          <ContextMenuItem onClick={onEdit}>
-            <Pencil className="w-4 h-4 mr-2" /> Edit Category
-          </ContextMenuItem>
-        )}
-        {onCopyId && (
-          <ContextMenuItem onClick={onCopyId}>
-            <Clipboard className="w-4 h-4 mr-2" /> Copy Category ID
-          </ContextMenuItem>
-        )}
-        {canManageChannels && onDelete && (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={onDelete}>
-              <Trash2 className="w-4 h-4 mr-2" /> Delete Category
-            </ContextMenuItem>
-          </>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
-  )
-}
-
-function DropContainer({ id }: { id: string }) {
-  const { setNodeRef } = useDroppable({ id })
-  return <div ref={setNodeRef} className="h-0" aria-hidden />
-}
-
-function SortableChannelItem({
-  channel,
-  isActive,
-  isVoiceActive,
-  canManageChannels,
-  isDragging,
-  isUnread,
-  mentionCount,
-  activeThreadCount,
-  voiceParticipants,
-  onClick,
-  onEdit,
-  onDelete,
-  onCreateThread,
-}: {
-  channel: ChannelRow
-  isActive: boolean
-  isVoiceActive: boolean
-  canManageChannels: boolean
-  isDragging: boolean
-  isUnread?: boolean
-  mentionCount?: number
-  activeThreadCount?: number
-  voiceParticipants?: VoiceParticipant[]
-  onClick: () => void
-  onEdit: () => void
-  onDelete: () => void
-  onCreateThread?: () => void
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: channel.id })
-  const { toast } = useToast()
-  const notificationMode = useAppStore((s) => s.notificationModes[channel.id])
-  const isMuted = notificationMode === "muted"
-  const [showNotifSettings, setShowNotifSettings] = useState(false)
-  const showBadge = !isActive && !isMuted && (isUnread || (mentionCount ?? 0) > 0)
-
-  // Live countdown for temporary channels
-  const [timeRemaining, setTimeRemaining] = useState<string | null>(
-    channel.expires_at ? formatTimeRemaining(channel.expires_at) : null
-  )
-  useEffect(() => {
-    if (!channel.expires_at) return
-    setTimeRemaining(formatTimeRemaining(channel.expires_at))
-    const msRemaining = new Date(channel.expires_at).getTime() - Date.now()
-    const delay = msRemaining <= 60_000 ? 1_000 : 30_000
-    const interval = setInterval(() => {
-      setTimeRemaining(formatTimeRemaining(channel.expires_at!))
-    }, delay)
-    return () => clearInterval(interval)
-  }, [channel.expires_at])
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  }
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          {/*
-            Use a div with role="button" instead of a native <button> so the
-            drag-handle span (which carries dnd-kit's event listeners) is not an
-            interactive element nested inside another interactive element.
-          */}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={onClick}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                onClick()
-              }
-            }}
-            aria-label={`${channel.type} channel ${channel.name}`}
-            className={cn(
-              "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring touch-manipulation",
-              isActive || isVoiceActive ? "channel-active channel-sidebar-active-elevated" : "surface-hover text-muted-interactive",
-              isUnread && !isActive && "channel-sidebar-unread channel-sidebar-unread-elevated"
-            )}
-          >
-            <span
-              aria-hidden
-              className={cn(
-                "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full transition-all duration-300 channel-sidebar-accent-bar",
-                isActive || isVoiceActive
-                  ? "opacity-100 h-8 w-1 channel-sidebar-accent-bar-active"
-                  : "opacity-0 h-5 w-0 group-hover/channel:opacity-60 group-hover/channel:w-0.5 group-hover/channel:h-5"
-              )}
-            />
-            {canManageChannels && (
-              <span
-                {...attributes}
-                {...listeners}
-                className="opacity-0 pointer-events-none group-hover/channel:opacity-100 group-hover/channel:pointer-events-auto group-focus-within/channel:opacity-100 group-focus-within/channel:pointer-events-auto touch-visible cursor-grab active:cursor-grabbing flex-shrink-0 -ml-1 touch-none"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <GripVertical className="w-3 h-3 tertiary-metadata" />
-              </span>
-            )}
-            <ChannelIcon channel={channel} isVoiceActive={isVoiceActive} />
-            <span className={cn("truncate flex-1", isMuted && "opacity-50", isUnread && !isActive && !isMuted ? "font-semibold" : "")}>
-              {channel.name}
-            </span>
-            {isMuted && (
-              <BellOff className="w-3 h-3 flex-shrink-0 opacity-40" />
-            )}
-            <span className="ml-auto flex items-center gap-1 flex-shrink-0 tertiary-metadata">
-              {timeRemaining && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="flex items-center gap-0.5 text-[10px] font-medium px-1 py-0.5 rounded channel-sidebar-warning-chip">
-                      <Clock className="w-2.5 h-2.5" />
-                      {timeRemaining}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Temporary channel — deletes {timeRemaining === "expired" ? "soon" : `in ${timeRemaining}`}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {isVoiceActive && (
-                <span className="w-2 h-2 rounded-full inline-block animate-pulse channel-sidebar-success-dot" />
-              )}
-              {showBadge && (mentionCount ?? 0) > 0 ? (
-                <span
-                  className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold px-1 channel-sidebar-mention-badge"
-                >
-                  {(mentionCount ?? 0) > 99 ? "99+" : mentionCount}
-                </span>
-              ) : showBadge ? (
-                <span className="w-2 h-2 rounded-full channel-sidebar-unread-dot" />
-              ) : null}
-              {(activeThreadCount ?? 0) > 0 && (
-                <span
-                  className="inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold channel-sidebar-thread-pill"
-                  title={`${activeThreadCount} active ${activeThreadCount === 1 ? "thread" : "threads"} in #${channel.name}`}
-                >
-                  <MessageCircle className="h-2.5 w-2.5" />
-                  {activeThreadCount}
-                </span>
-              )}
-            </span>
-          </div>
-        </ContextMenuTrigger>
-
-        <ContextMenuContent className="w-56" aria-label={`Channel actions for #${channel.name}`}>
-          {onCreateThread && channel.type === "text" && (
-            <>
-              <ContextMenuItem onClick={onCreateThread}>
-                <MessageSquare className="w-4 h-4 mr-2" /> Create Thread
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-            </>
-          )}
-          <ContextMenuItem onClick={() => setShowNotifSettings(true)}>
-            <Bell className="w-4 h-4 mr-2" /> Notification Settings
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => {
-            navigator.clipboard.writeText(channel.id)
-            toast({ title: "Channel ID copied!" })
-          }}>
-            <Clipboard className="w-4 h-4 mr-2" /> Copy Channel ID
-          </ContextMenuItem>
-          {canManageChannels && (
-            <>
-              <ContextMenuSeparator />
-              <ContextMenuItem onClick={onEdit}>
-                <Pencil className="w-4 h-4 mr-2" /> Edit Channel
-              </ContextMenuItem>
-              <ContextMenuItem variant="destructive" onClick={onDelete}>
-                <Trash2 className="w-4 h-4 mr-2" /> Delete Channel
-              </ContextMenuItem>
-            </>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
-
-      <NotificationSettingsModal
-        open={showNotifSettings}
-        onClose={() => setShowNotifSettings(false)}
-        channelId={channel.id}
-        label={`#${channel.name}`}
-      />
-
-      {/* Voice participants listed under voice channels */}
-      {voiceParticipants && voiceParticipants.length > 0 && (
-        <div className="ml-6 mt-0.5 space-y-0.5">
-          {voiceParticipants.map((participant) => {
-            const name = participant.user?.display_name || participant.user?.username || "Unknown"
-            const initials = name.slice(0, 2).toUpperCase()
-            return (
-              <div
-                key={participant.user_id}
-                className="flex items-center gap-2 px-2 py-1 rounded text-xs surface-hover channel-sidebar-description"
-              >
-                <Avatar className="w-5 h-5 flex-shrink-0">
-                  {participant.user?.avatar_url && (
-                    <AvatarImage src={participant.user.avatar_url} />
-                  )}
-                  <AvatarFallback className="channel-sidebar-avatar-fallback" style={{ fontSize: "8px" }}>
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="truncate">{name}</span>
-                {participant.muted && (
-                  <MicOff className="w-3 h-3 flex-shrink-0 channel-sidebar-danger-icon" />
-                )}
-                {participant.deafened && (
-                  <Headphones className="w-3 h-3 flex-shrink-0 channel-sidebar-danger-icon" />
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
