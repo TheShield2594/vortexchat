@@ -36,12 +36,12 @@ export function usePollCreator({ content, onContentChange, onCursorChange, texta
 
   const canInsertPoll = pollQuestion.trim().length > 0 && pollOptions.filter((option) => option.trim().length > 0).length >= 2
 
-  const resetPollDraftToBlank = useCallback(() => {
+  const resetPollDraftToBlank = useCallback((): void => {
     setPollQuestion("")
     setPollOptions(["", ""])
   }, [])
 
-  const handleCreatePoll = useCallback(() => {
+  const handleCreatePoll = useCallback((): void => {
     const question = pollQuestion.trim()
     const options = pollOptions.map((option) => option.trim()).filter(Boolean).slice(0, MAX_POLL_OPTIONS)
     if (!question || options.length < 2) return
@@ -63,25 +63,25 @@ export function usePollCreator({ content, onContentChange, onCursorChange, texta
     })
   }, [pollQuestion, pollOptions, content, onContentChange, onCursorChange, textareaRef])
 
-  const handlePollInputKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handlePollInputKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>): void => {
     if (event.key !== "Enter" || event.shiftKey) return
     if (!canInsertPoll) return
     event.preventDefault()
     handleCreatePoll()
   }, [canInsertPoll, handleCreatePoll])
 
-  const addPollOption = useCallback(() => {
+  const addPollOption = useCallback((): void => {
     setPollOptions((prev) => prev.length >= MAX_POLL_OPTIONS ? prev : [...prev, ""])
   }, [])
 
-  const removePollOption = useCallback((index: number) => {
+  const removePollOption = useCallback((index: number): void => {
     setPollOptions((prev) => {
       if (prev.length <= 2) return prev
       return prev.filter((_, optionIndex) => optionIndex !== index)
     })
   }, [])
 
-  const openPollCreator = useCallback((initialQuestion?: string) => {
+  const openPollCreator = useCallback((initialQuestion?: string): void => {
     setPollOptions((prev) => prev.length === 0 ? ["", ""] : prev)
     if (initialQuestion !== undefined) setPollQuestion(initialQuestion)
     setShowPollCreator(true)

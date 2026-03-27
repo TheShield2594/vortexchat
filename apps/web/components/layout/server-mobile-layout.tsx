@@ -164,7 +164,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           {isTextChannel && (
             <button
               type="button"
-              onClick={() => { setMobileMemberListOpen(false); setMobilePendingAction("search") }}
+              onClick={() => { setMobileMemberListOpen(false); setMemberListOpen(false); setMobilePendingAction("search") }}
               className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Search messages"
@@ -226,6 +226,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                       onClick={() => {
                         setMobileOverflowOpen(false)
                         setMobileMemberListOpen(false)
+                        setMemberListOpen(false)
                         if (item.id === "workspace") {
                           toggleWorkspacePanel()
                         } else if (item.id === "threads") {

@@ -142,11 +142,21 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   // Slash command autocomplete (`/command` prefix trigger)
   useEffect(() => {
+    // Reset immediately so stale commands from a previous server aren't shown
+    setAppCommands([])
+    setUserPermissions(0)
+    setIsServerOwner(false)
+
     if (!serverId) return
-    fetch(`/api/servers/${serverId}/apps/commands`)
+
+    const controller = new AbortController()
+    const currentServerId = serverId
+    fetch(`/api/servers/${currentServerId}/apps/commands`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (!data) return
+        // Guard against stale responses arriving after serverId changed
+        if (currentServerId !== serverId) return
         // New format: { commands, permissions, isOwner }
         if (data.commands) {
           setAppCommands(Array.isArray(data.commands) ? data.commands : [])
@@ -157,7 +167,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           setAppCommands(data)
         }
       })
-      .catch(() => {/* non-fatal */})
+      .catch(() => {/* non-fatal — includes AbortError */})
+    return () => controller.abort()
   }, [serverId])
   // Merge permission-filtered built-in commands with app commands
   const slashCommands = useMemo(() => {
@@ -437,6 +448,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     } catch (error: unknown) {
       const isAbort = (error instanceof DOMException && error.name === "AbortError") || abortController.signal.aborted
       if (isAbort) {
+        // Restore draft and attachments so the user can retry or edit
+        setContent(savedContent)
+        onDraftChange(savedContent)
+        setFiles(savedFiles)
         setSendError(null)
       } else {
         // Restore content so the user can retry

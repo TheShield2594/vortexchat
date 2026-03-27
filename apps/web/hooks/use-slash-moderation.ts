@@ -43,7 +43,10 @@ export function useSlashModeration({
   textareaRef,
 }: UseSlashModerationOptions): UseSlashModerationReturn {
   const handleModeration = useCallback(async (commandName: string, args: string): Promise<boolean> => {
-    if (!serverId) return false
+    if (!serverId) {
+      setSendError("Moderation commands are only available inside a server.")
+      return true
+    }
 
     if (commandName === "kick") {
       if (!isServerOwner && !hasPermission(userPermissions, "KICK_MEMBERS")) {
