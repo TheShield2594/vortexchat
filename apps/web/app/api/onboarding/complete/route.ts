@@ -8,12 +8,14 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
  * `onboarding_completed_at` to the current timestamp.
  */
 export async function POST(): Promise<NextResponse> {
+  let userId: string | undefined
   try {
     const supabase = await createServerSupabaseClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    userId = user.id
 
     const { error: updateError } = await supabase
       .from("users")
@@ -26,7 +28,13 @@ export async function POST(): Promise<NextResponse> {
     }
 
     return NextResponse.json({ ok: true })
-  } catch {
+  } catch (error) {
+    console.error("POST /api/onboarding/complete unexpected failure:", {
+      route: "/api/onboarding/complete",
+      action: "complete-onboarding",
+      userId,
+      error: error instanceof Error ? error.message : error,
+    })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

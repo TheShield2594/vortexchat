@@ -10,21 +10,28 @@ import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supab
  * trigger adds the owner to server_members.
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  let userId: string | undefined
   try {
     const supabase = await createServerSupabaseClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    userId = user.id
 
-    let body: { name?: string; iconUrl?: string }
+    let body: unknown
     try {
       body = await request.json()
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
     }
 
-    const name = typeof body.name === "string" ? body.name.trim() : ""
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+    }
+
+    const parsed = body as Record<string, unknown>
+    const name = typeof parsed.name === "string" ? parsed.name.trim() : ""
     if (!name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 })
     }
@@ -33,7 +40,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "name must be 100 characters or fewer" }, { status: 400 })
     }
 
-    const iconUrl = typeof body.iconUrl === "string" ? body.iconUrl : null
+    const rawIconUrl = typeof parsed.iconUrl === "string" ? parsed.iconUrl : null
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const iconUrl = rawIconUrl && supabaseUrl && rawIconUrl.startsWith(`${supabaseUrl}/storage/v1/object/public/server-icons/`)
+      ? rawIconUrl
+      : null
 
     // Use the service-role client for insert+select to bypass the RLS timing
     // issue. The AFTER INSERT trigger on servers adds the owner to
@@ -57,7 +68,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     return NextResponse.json({ server }, { status: 201 })
-  } catch {
+  } catch (error) {
+    console.error("POST /api/servers unexpected failure:", {
+      route: "/api/servers",
+      action: "create-server",
+      userId,
+      error: error instanceof Error ? error.message : error,
+    })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

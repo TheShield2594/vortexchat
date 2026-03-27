@@ -173,40 +173,59 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
   async function handleCopyInvite(): Promise<void> {
     if (!createdServer) return
     const inviteUrl = `${window.location.origin}/invite/${createdServer.invite_code}`
-    await navigator.clipboard.writeText(inviteUrl)
-    setCopied(true)
-    toast({ title: "Invite link copied!" })
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(inviteUrl)
+      setCopied(true)
+      toast({ title: "Invite link copied!" })
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast({ variant: "destructive", title: "Failed to copy invite link" })
+    }
   }
 
   async function markOnboardingComplete(): Promise<void> {
-    try {
-      await fetch("/api/onboarding/complete", { method: "POST" })
-    } catch {
-      // Best-effort — don't block navigation if the API call fails
+    const res = await fetch("/api/onboarding/complete", { method: "POST" })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: "Failed to complete onboarding" }))
+      throw new Error(body.error || "Failed to complete onboarding")
     }
   }
 
   async function completeOnboarding(): Promise<void> {
-    await markOnboardingComplete()
-    if (createdServer) {
-      router.push(`/channels/${createdServer.id}`)
-    } else {
-      router.push("/channels/me")
+    try {
+      await markOnboardingComplete()
+      if (createdServer) {
+        router.push(`/channels/${createdServer.id}`)
+      } else {
+        router.push("/channels/me")
+      }
+      router.refresh()
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Couldn't finish onboarding", description: message })
     }
-    router.refresh()
   }
 
   async function skipOnboarding(): Promise<void> {
-    await markOnboardingComplete()
-    router.push("/channels/me")
-    router.refresh()
+    try {
+      await markOnboardingComplete()
+      router.push("/channels/me")
+      router.refresh()
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Couldn't finish onboarding", description: message })
+    }
   }
 
   async function browseServers(): Promise<void> {
-    await markOnboardingComplete()
-    router.push("/channels/discover")
-    router.refresh()
+    try {
+      await markOnboardingComplete()
+      router.push("/channels/discover")
+      router.refresh()
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Couldn't finish onboarding", description: message })
+    }
   }
 
   return (

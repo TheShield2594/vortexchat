@@ -10,11 +10,13 @@ export interface TemplateMeta {
   description: string
 }
 
+export type StarterTemplateKey = "Gaming" | "Study" | "Startup" | "Creator"
+
 /**
  * UI metadata for each starter template. Co-located with STARTER_TEMPLATES
  * so adding a new template requires updating both in the same file.
  */
-export const TEMPLATE_META: Record<string, TemplateMeta> = {
+export const TEMPLATE_META: Record<StarterTemplateKey, TemplateMeta> = {
   Gaming: { icon: Gamepad2, color: "#5865F2", description: "Voice channels, LFG, and squad rooms" },
   Study: { icon: BookOpen, color: "#57F287", description: "Announcements, homework help, focus rooms" },
   Startup: { icon: Rocket, color: "#FEE75C", description: "All-hands, product, and dev-sync channels" },
@@ -230,7 +232,7 @@ export function validateAndNormalizeTemplate(payload: unknown): { template: Serv
   }
 }
 
-export const STARTER_TEMPLATES: Record<string, ServerTemplate> = {
+export const STARTER_TEMPLATES = {
   Gaming: {
     metadata: { source: "builtin", version: "1.0.0", created_by: "vortex" },
     roles: [
@@ -280,4 +282,4 @@ export const STARTER_TEMPLATES: Record<string, ServerTemplate> = {
       { name: "creator-lounge", category: "Content", type: "voice" },
     ],
   },
-}
+} satisfies Record<StarterTemplateKey, ServerTemplate> as Record<string, ServerTemplate>
