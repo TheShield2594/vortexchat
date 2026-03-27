@@ -812,7 +812,12 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                         isCollapsed ? "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none" : "grid-rows-[1fr] opacity-100 translate-y-0"
                       )}
                       aria-hidden={isCollapsed || undefined}
-                      {...(isCollapsed ? { inert: "" } : {})}
+                      ref={(node) => {
+                        if (node) {
+                          if (isCollapsed) node.setAttribute("inert", "")
+                          else node.removeAttribute("inert")
+                        }
+                      }}
                     >
                     <div className="space-y-0.5 px-2 min-h-[4px] overflow-hidden">
                         {categoryChannels.map((channel) => (
