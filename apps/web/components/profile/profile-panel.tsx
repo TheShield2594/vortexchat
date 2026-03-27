@@ -60,6 +60,50 @@ function getJoinedDate(rawDate?: string) {
   }).format(date)
 }
 
+/** Shimmer skeleton for the profile panel while user data is loading. */
+export function ProfilePanelSkeleton({ onClose }: { onClose: () => void }): React.ReactElement {
+  return (
+    <div
+      className="w-80 shrink-0 flex flex-col overflow-hidden"
+      style={{ background: "var(--theme-bg-secondary)", borderRight: "1px solid var(--theme-bg-tertiary)" }}
+    >
+      {/* Banner shimmer */}
+      <div
+        className="h-24 relative animate-pulse"
+        style={{ background: "color-mix(in srgb, var(--theme-accent) 20%, var(--theme-bg-secondary))" }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-2 right-2 p-1.5 rounded-full transition-colors"
+          style={{ background: "color-mix(in srgb, var(--theme-bg-primary) 70%, transparent)", color: "var(--theme-text-normal)" }}
+          aria-label="Close profile"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Avatar placeholder */}
+      <div className="px-4 -mt-10 relative">
+        <div
+          className="w-20 h-20 rounded-full ring-4 animate-pulse"
+          style={{ background: "var(--theme-bg-tertiary)", "--tw-ring-color": "var(--theme-bg-secondary)" } as CSSProperties}
+        />
+      </div>
+
+      {/* Text line stubs */}
+      <div className="px-4 pt-3 pb-4 space-y-3">
+        <div className="space-y-2">
+          <div className="h-5 w-36 rounded animate-pulse" style={{ background: "var(--theme-bg-tertiary)" }} />
+          <div className="h-3.5 w-24 rounded animate-pulse" style={{ background: "var(--theme-bg-tertiary)" }} />
+        </div>
+        <div className="h-16 rounded-xl animate-pulse" style={{ background: "var(--theme-bg-tertiary)" }} />
+        <div className="h-12 rounded-xl animate-pulse" style={{ background: "var(--theme-bg-tertiary)" }} />
+      </div>
+    </div>
+  )
+}
+
 /** Expanded member profile panel shown from the member list. */
 export function ProfilePanel({ user, displayName, status, roles = [], currentUserId, onClose }: ProfilePanelProps) {
   const {
@@ -188,11 +232,13 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
             </div>
           )}
 
-          <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
-            <h4 className="text-[11px] font-semibold tracking-wider mb-1.5" style={{ color: "var(--theme-text-muted)" }}>STATUS</h4>
-            <p className="text-sm" style={{ color: "var(--theme-text-normal)" }}>{getStatusLabel(status)}</p>
-            {customStatus && <p className="text-sm mt-1" style={{ color: "var(--theme-text-muted)" }}>{customStatus}</p>}
-          </section>
+          {((status != null && status !== "offline") || customStatus) && (
+            <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
+              <h4 className="text-[11px] font-semibold tracking-wider mb-1.5" style={{ color: "var(--theme-text-muted)" }}>STATUS</h4>
+              {status != null && <p className="text-sm" style={{ color: "var(--theme-text-normal)" }}>{getStatusLabel(status)}</p>}
+              {customStatus && <p className="text-sm mt-1" style={{ color: "var(--theme-text-muted)" }}>{customStatus}</p>}
+            </section>
+          )}
 
           {user?.bio && (
             <section className="rounded-xl p-3" style={{ background: "color-mix(in srgb, var(--theme-bg-tertiary) 60%, transparent)" }}>
@@ -217,7 +263,7 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                   <span
                     key={role.id}
                     className="text-xs inline-flex items-center gap-1 px-2 py-1 rounded-full"
-                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
+                    style={{ background: `color-mix(in srgb, ${role.color || "var(--theme-accent)"} 15%, var(--theme-bg-tertiary))`, color: "var(--theme-text-normal)" }}
                   >
                     <span className="w-2 h-2 rounded-full" style={{ background: role.color || "var(--theme-accent)" }} />
                     {role.name}

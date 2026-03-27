@@ -64,16 +64,10 @@ function PinCard({ pin }: { pin: UserPinnedItemRow }) {
   return (
     <a
       {...linkProps}
-      className="group flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2"
+      className="group flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 hover:[background:var(--theme-surface-elevated)]"
       style={{
         background: "var(--theme-bg-tertiary)",
         textDecoration: "none",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLAnchorElement).style.background = "var(--theme-surface-elevated)"
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLAnchorElement).style.background = "var(--theme-bg-tertiary)"
       }}
       aria-label={`${pin.label}${pin.sublabel ? ` — ${pin.sublabel}` : ""}`}
     >
