@@ -26,7 +26,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const pathname = usePathname()
   const router = useRouter()
   const isMobile = useMobileLayout()
-  const { activeChannelId, channels, memberListOpen, setMemberListOpen, threadPanelOpen, toggleThreadPanel, workspaceOpen, toggleWorkspacePanel } = useAppStore(
+  const { activeChannelId, channels, memberListOpen, setMemberListOpen, threadPanelOpen, toggleThreadPanel, workspaceOpen, toggleWorkspacePanel, setMobilePendingAction } = useAppStore(
     useShallow((s) => ({
       activeChannelId: s.activeChannelId,
       channels: s.channels,
@@ -36,6 +36,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
       toggleThreadPanel: s.toggleThreadPanel,
       workspaceOpen: s.workspaceOpen,
       toggleWorkspacePanel: s.toggleWorkspacePanel,
+      setMobilePendingAction: s.setMobilePendingAction,
     }))
   )
 
@@ -162,7 +163,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           {isTextChannel && (
             <button
               type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: "search" }))}
+              onClick={() => setMobilePendingAction("search")}
               className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Search messages"
@@ -228,7 +229,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                         } else if (item.id === "threads") {
                           toggleThreadPanel()
                         } else {
-                          window.dispatchEvent(new CustomEvent("vortex:mobile-action", { detail: item.id }))
+                          setMobilePendingAction(item.id as "search" | "summary" | "pins" | "help")
                         }
                       }}
                       className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-white/10"

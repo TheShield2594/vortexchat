@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss"
+import plugin from "tailwindcss/plugin"
 
 const config = {
   darkMode: ["class"],
@@ -77,6 +78,26 @@ const config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      /**
+       * Z-index scale — centralised so stacking is intentional.
+       *
+       *  dropdown / autocomplete  →  z-dropdown   (50)
+       *  sticky headers           →  z-sticky      (100)
+       *  overlays / modals        →  z-overlay     (200)
+       *  toasts / notifications   →  z-toast       (500)
+       *  push-permission prompt   →  z-banner-low  (9998)
+       *  PWA install banner       →  z-banner      (9999)
+       *  splash screen            →  z-splash      (99999)
+       */
+      zIndex: {
+        dropdown: "50",
+        sticky: "100",
+        overlay: "200",
+        toast: "500",
+        "banner-low": "9998",
+        banner: "9999",
+        splash: "99999",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -103,7 +124,22 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    plugin(function ({ addUtilities }) {
+      addUtilities({
+        /* Force elements visible on touch devices (coarse pointer).
+           Use alongside `opacity-0 group-hover:opacity-100` for buttons
+           that must be discoverable without a hover cursor. */
+        ".touch-visible": {
+          "@media (pointer: coarse)": {
+            opacity: "1",
+            pointerEvents: "auto",
+          },
+        },
+      })
+    }),
+  ],
 } satisfies Config
 
 export default config

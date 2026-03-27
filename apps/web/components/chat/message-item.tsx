@@ -511,7 +511,7 @@ export const MessageItem = memo(function MessageItem({
                 <div className="pt-1 pr-1 flex items-center justify-end gap-1">
                   <span
                     id={messageMetaId}
-                    className="text-xs opacity-0 group-hover:opacity-100 motion-interactive block text-right tertiary-metadata"
+                    className="text-xs opacity-0 group-hover:opacity-100 touch-visible motion-interactive block text-right tertiary-metadata"
                     style={{ fontSize: "10px" }}
                   >
                     {format(timestamp, timestampFormat === "24h" ? "HH:mm" : "h:mm a")}

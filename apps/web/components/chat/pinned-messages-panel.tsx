@@ -223,7 +223,7 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
                     <span className="text-xs font-semibold" style={{ color: "var(--theme-text-secondary)" }}>
                       {authorName}
                     </span>
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 touch-visible transition-opacity">
                       {canManageMessages && (
                         <button
                           type="button"

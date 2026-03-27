@@ -18,6 +18,10 @@ import { useServerEmojis } from "@/components/chat/server-emoji-context"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { EmojiPicker } from "frimousse"
 import { MAX_ATTACHMENT_BYTES, validateFileClient } from "@/lib/attachment-validation"
+import { toast } from "@/components/ui/use-toast"
+import { useGifMemeSticker } from "@/hooks/use-gif-meme-sticker"
+import { usePollCreator } from "@/hooks/use-poll-creator"
+import { useSlashModeration } from "@/hooks/use-slash-moderation"
 
 interface Props {
   channelName: string
@@ -33,14 +37,6 @@ interface Props {
   serverId?: string
 }
 
-// GIF/sticker requests go through the server-side proxy (caching + no client-side API key exposure)
-const GIF_TRENDING_URL = "/api/gif/trending"
-const GIF_SEARCH_URL = "/api/gif/search"
-const MEME_TRENDING_URL = "/api/meme/trending"
-const MEME_SEARCH_URL = "/api/meme/search"
-const STICKER_TRENDING_URL = "/api/sticker/trending"
-const STICKER_SEARCH_URL = "/api/sticker/search"
-
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
 export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread, serverId }: Props) {
   const [content, setContent] = useState(draft)
@@ -48,30 +44,24 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
-  const [sendError, setSendError] = useState<string | null>(null)
+  const [sendError, setSendErrorRaw] = useState<string | null>(null)
   const [sendSuccess, setSendSuccess] = useState<string | null>(null)
+
+  /** Show error inline AND as a toast so mobile users don't miss it. */
+  const setSendError = useCallback((msg: string | null) => {
+    setSendErrorRaw(msg)
+    if (msg) {
+      toast({ variant: "destructive", title: "Send failed", description: msg })
+    }
+  }, [])
   const [inputFocused, setInputFocused] = useState(false)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
   const dragCounterRef = useRef(0)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [emojiSearch, setEmojiSearch] = useState("")
   const emojiGridRef = useRef<HTMLDivElement>(null)
-  const [showPollCreator, setShowPollCreator] = useState(false)
-  const [pollQuestion, setPollQuestion] = useState("")
-  const [pollOptions, setPollOptions] = useState(["", ""])
   const [showPlusMenu, setShowPlusMenu] = useState(false)
   const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "meme" | "sticker">("emoji")
-  const [gifQuery, setGifQuery] = useState("")
-  const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
-  const [gifLoading, setGifLoading] = useState(false)
-  const [gifSuggestions, setGifSuggestions] = useState<string[]>([])
-  const [memeQuery, setMemeQuery] = useState("")
-  const [memeResults, setMemeResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
-  const [memeLoading, setMemeLoading] = useState(false)
-  const [memesAvailable, setMemesAvailable] = useState<boolean | null>(null) // null = unknown yet
-  const [stickerQuery, setStickerQuery] = useState("")
-  const [stickerResults, setStickerResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
-  const [stickerLoading, setStickerLoading] = useState(false)
   const uploadAbortRef = useRef<AbortController | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -82,6 +72,23 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const plusButtonRef = useRef<HTMLButtonElement>(null)
   const fileUrlCache = useRef(new Map<File, string>())
   const draftTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  // --- Extracted hooks ---
+  const media = useGifMemeSticker({ pickerOpen: showEmojiPicker, activeTab: pickerTab })
+  const poll = usePollCreator({
+    content,
+    onContentChange: (next) => { setContent(next); onDraftChange(next) },
+    onCursorChange: setCursorPosition,
+    textareaRef,
+  })
+
+  // Handle meme unavailability fallback
+  useEffect(() => {
+    if (media.shouldFallbackToGif) {
+      setPickerTab("gif")
+      media.clearFallbackSignal()
+    }
+  }, [media.shouldFallbackToGif, media.clearFallbackSignal])
 
   // Debounced draft sync — keeps typing snappy, persists after 150ms idle
   const debouncedDraftChange = useCallback((value: string) => {
@@ -99,6 +106,28 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   )
   const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
   const mention = useMentionAutocomplete({ content, cursorPosition, members })
+
+  // Slash moderation commands (kick, ban, unban, timeout, mute)
+  const clearInputForModeration = useCallback((): string => {
+    const saved = content
+    setContent("")
+    onDraftChange("")
+    if (textareaRef.current) textareaRef.current.style.height = "28px"
+    return saved
+  }, [content, onDraftChange])
+  const restoreInputForModeration = useCallback((saved: string): void => {
+    setContent(saved)
+    onDraftChange(saved)
+  }, [onDraftChange])
+  const moderation = useSlashModeration({
+    serverId,
+    members,
+    setSending,
+    setSendError,
+    clearInput: clearInputForModeration,
+    restoreInput: restoreInputForModeration,
+    textareaRef,
+  })
 
   // Emoji autocomplete (`:shortcode` trigger)
   const { emojis: serverEmojis } = useServerEmojis()
@@ -185,20 +214,20 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   }, [showEmojiPicker])
 
   useEffect(() => {
-    if (!showPollCreator) return
+    if (!poll.showPollCreator) return
 
     function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       const clickedInsidePollCreator = pollCreatorRef.current?.contains(target)
       if (!clickedInsidePollCreator) {
-        setShowPollCreator(false)
-        resetPollDraftToBlank()
+        poll.setShowPollCreator(false)
+        poll.resetPollDraftToBlank()
       }
     }
 
     document.addEventListener("pointerdown", handlePointerDown)
     return () => document.removeEventListener("pointerdown", handlePointerDown)
-  }, [showPollCreator])
+  }, [poll.showPollCreator, poll.setShowPollCreator, poll.resetPollDraftToBlank])
 
   useEffect(() => {
     if (!showPlusMenu) return
@@ -215,117 +244,6 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     document.addEventListener("pointerdown", handlePointerDown)
     return () => document.removeEventListener("pointerdown", handlePointerDown)
   }, [showPlusMenu])
-
-  useEffect(() => {
-    if (!showEmojiPicker || pickerTab !== "gif") return
-
-    const controller = new AbortController()
-    const timeout = setTimeout(async () => {
-      setGifLoading(true)
-      try {
-        const endpoint = gifQuery.trim()
-          ? `${GIF_SEARCH_URL}?q=${encodeURIComponent(gifQuery.trim())}`
-          : GIF_TRENDING_URL
-        const res = await fetch(endpoint, { signal: controller.signal })
-        const json = await res.json()
-        setGifResults(Array.isArray(json) ? json : [])
-      } catch {
-        setGifResults([])
-      } finally {
-        setGifLoading(false)
-      }
-    }, 400)
-
-    return () => {
-      clearTimeout(timeout)
-      controller.abort()
-    }
-  }, [showEmojiPicker, pickerTab, gifQuery])
-
-  // Fetch GIF search autocomplete suggestions as user types
-  useEffect(() => {
-    if (!showEmojiPicker || pickerTab !== "gif" || gifQuery.trim().length < 2) {
-      setGifSuggestions([])
-      return
-    }
-    const controller = new AbortController()
-    const timeout = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/gif/suggestions?q=${encodeURIComponent(gifQuery.trim())}`, { signal: controller.signal })
-        const json = await res.json()
-        setGifSuggestions(Array.isArray(json) ? json : [])
-      } catch {
-        // ignore abort / network errors
-      }
-    }, 300)
-    return () => { clearTimeout(timeout); controller.abort() }
-  }, [showEmojiPicker, pickerTab, gifQuery])
-
-  // Fetch sticker results (trending or search)
-  useEffect(() => {
-    if (!showEmojiPicker || pickerTab !== "sticker") return
-
-    const controller = new AbortController()
-    const timeout = setTimeout(async () => {
-      setStickerLoading(true)
-      try {
-        const endpoint = stickerQuery.trim()
-          ? `${STICKER_SEARCH_URL}?q=${encodeURIComponent(stickerQuery.trim())}`
-          : STICKER_TRENDING_URL
-        const res = await fetch(endpoint, { signal: controller.signal })
-        const json = await res.json()
-        setStickerResults(Array.isArray(json) ? json : [])
-      } catch {
-        setStickerResults([])
-      } finally {
-        setStickerLoading(false)
-      }
-    }, 400)
-
-    return () => {
-      clearTimeout(timeout)
-      controller.abort()
-    }
-  }, [showEmojiPicker, pickerTab, stickerQuery])
-
-  // Fetch meme results (trending or search)
-  useEffect(() => {
-    if (!showEmojiPicker || pickerTab !== "meme") return
-
-    // If we already know memes are unavailable, skip fetching
-    if (memesAvailable === false) return
-
-    const controller = new AbortController()
-    const timeout = setTimeout(async () => {
-      setMemeLoading(true)
-      try {
-        const endpoint = memeQuery.trim()
-          ? `${MEME_SEARCH_URL}?q=${encodeURIComponent(memeQuery.trim())}`
-          : MEME_TRENDING_URL
-        const res = await fetch(endpoint, { signal: controller.signal })
-        const json = await res.json()
-        const results = Array.isArray(json) ? json : []
-        setMemeResults(results)
-        // Trending returned empty with no query → memes aren't available (Giphy fallback)
-        if (!memeQuery.trim() && results.length === 0) {
-          setMemesAvailable(false)
-          // Switch away from meme tab since it's unavailable
-          setPickerTab("gif")
-        } else if (results.length > 0) {
-          setMemesAvailable(true)
-        }
-      } catch {
-        setMemeResults([])
-      } finally {
-        setMemeLoading(false)
-      }
-    }, 400)
-
-    return () => {
-      clearTimeout(timeout)
-      controller.abort()
-    }
-  }, [showEmojiPicker, pickerTab, memeQuery, memesAvailable])
 
   async function handleSend() {
     if ((!content.trim() && files.length === 0) || sending) return
@@ -374,7 +292,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           onDraftChange("")
           if (textareaRef.current) textareaRef.current.style.height = "28px"
           setPickerTab("gif")
-          setGifQuery(args)
+          media.setGifQuery(args)
           setShowEmojiPicker(true)
           return
         }
@@ -383,7 +301,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           onDraftChange("")
           if (textareaRef.current) textareaRef.current.style.height = "28px"
           setPickerTab("meme")
-          setMemeQuery(args)
+          media.setMemeQuery(args)
           setShowEmojiPicker(true)
           return
         }
@@ -392,7 +310,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           onDraftChange("")
           if (textareaRef.current) textareaRef.current.style.height = "28px"
           setPickerTab("sticker")
-          setStickerQuery(args)
+          media.setStickerQuery(args)
           setShowEmojiPicker(true)
           return
         }
@@ -400,9 +318,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           setContent("")
           onDraftChange("")
           if (textareaRef.current) textareaRef.current.style.height = "28px"
-          if (pollOptions.length === 0) setPollOptions(["", ""])
-          if (args) setPollQuestion(args)
-          setShowPollCreator(true)
+          poll.openPollCreator(args || undefined)
           return
         }
         if (commandName === "thread") {
@@ -448,139 +364,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           return
         }
 
-        // --- Moderation commands ---
-        if (commandName === "kick") {
-          if (!serverId) return
-          const targetUsername = args.split(/\s+/)[0]
-          const reason = args.slice(targetUsername.length).trim()
-          if (!targetUsername) { setSendError("Usage: /kick @username [reason]"); return }
-          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
-          if (!target) { setSendError(`User "${targetUsername}" not found in this server.`); return }
-          setSending(true); setSendError(null)
-          const savedContent = content
-          setContent(""); onDraftChange("")
-          if (textareaRef.current) textareaRef.current.style.height = "28px"
-          try {
-            const url = `/api/servers/${serverId}/members/${target.user_id}${reason ? `?reason=${encodeURIComponent(reason)}` : ""}`
-            const res = await fetch(url, { method: "DELETE" })
-            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Kick failed (${res.status})`) }
-          } catch (error: any) {
-            setContent(savedContent); onDraftChange(savedContent)
-            setSendError(error?.message ?? "Failed to kick member.")
-          } finally { setSending(false); textareaRef.current?.focus() }
-          return
-        }
-
-        if (commandName === "ban") {
-          if (!serverId) return
-          const targetUsername = args.split(/\s+/)[0]
-          const reason = args.slice(targetUsername.length).trim()
-          if (!targetUsername) { setSendError("Usage: /ban @username [reason]"); return }
-          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
-          if (!target) { setSendError(`User "${targetUsername}" not found in this server.`); return }
-          setSending(true); setSendError(null)
-          const savedContent = content
-          setContent(""); onDraftChange("")
-          if (textareaRef.current) textareaRef.current.style.height = "28px"
-          try {
-            const res = await fetch(`/api/servers/${serverId}/bans`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId: target.user_id, reason: reason || undefined }),
-            })
-            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Ban failed (${res.status})`) }
-          } catch (error: any) {
-            setContent(savedContent); onDraftChange(savedContent)
-            setSendError(error?.message ?? "Failed to ban member.")
-          } finally { setSending(false); textareaRef.current?.focus() }
-          return
-        }
-
-        if (commandName === "unban") {
-          if (!serverId) return
-          const targetInput = args.split(/\s+/)[0]
-          if (!targetInput) { setSendError("Usage: /unban @username or /unban <userId>"); return }
-          setSending(true); setSendError(null)
-          const savedContent = content
-          setContent(""); onDraftChange("")
-          if (textareaRef.current) textareaRef.current.style.height = "28px"
-          try {
-            // Banned users aren't in the members list, so resolve from the ban list
-            const strippedName = targetInput.replace(/^@/, "")
-            // If it looks like a UUID, use it directly; otherwise fetch the ban list
-            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-            let targetUserId: string | null = uuidPattern.test(strippedName) ? strippedName : null
-            if (!targetUserId) {
-              const bansRes = await fetch(`/api/servers/${serverId}/bans`)
-              if (!bansRes.ok) throw new Error("Failed to fetch ban list")
-              const bans: Array<{ user_id: string; username?: string; display_name?: string }> = await bansRes.json()
-              const match = bans.find((b) => b.username === strippedName || b.display_name === strippedName || b.user_id === strippedName)
-              if (!match) { throw new Error(`User "${targetInput}" not found in the ban list.`) }
-              targetUserId = match.user_id
-            }
-            const res = await fetch(`/api/servers/${serverId}/bans?userId=${targetUserId}`, { method: "DELETE" })
-            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Unban failed (${res.status})`) }
-          } catch (error: any) {
-            setContent(savedContent); onDraftChange(savedContent)
-            setSendError(error?.message ?? "Failed to unban member.")
-          } finally { setSending(false); textareaRef.current?.focus() }
-          return
-        }
-
-        if (commandName === "timeout") {
-          if (!serverId) return
-          // /timeout @username duration [reason]  — duration in minutes
-          const parts = args.split(/\s+/)
-          const targetUsername = parts[0]
-          const durationStr = parts[1]
-          const reason = parts.slice(2).join(" ")
-          if (!targetUsername || !durationStr) { setSendError("Usage: /timeout @username <minutes> [reason]"); return }
-          const durationMinutes = parseInt(durationStr, 10)
-          if (isNaN(durationMinutes) || durationMinutes <= 0) { setSendError("Duration must be a positive number of minutes."); return }
-          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
-          if (!target) { setSendError(`User "${targetUsername}" not found in this server.`); return }
-          setSending(true); setSendError(null)
-          const savedContent = content
-          setContent(""); onDraftChange("")
-          if (textareaRef.current) textareaRef.current.style.height = "28px"
-          try {
-            const res = await fetch(`/api/servers/${serverId}/members/${target.user_id}/timeout`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ duration_seconds: durationMinutes * 60, reason: reason || undefined }),
-            })
-            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Timeout failed (${res.status})`) }
-          } catch (error: any) {
-            setContent(savedContent); onDraftChange(savedContent)
-            setSendError(error?.message ?? "Failed to timeout member.")
-          } finally { setSending(false); textareaRef.current?.focus() }
-          return
-        }
-
-        if (commandName === "mute") {
-          if (!serverId) return
-          const targetUsername = args.split(/\s+/)[0]
-          if (!targetUsername) { setSendError("Usage: /mute @username"); return }
-          const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
-          if (!target) { setSendError(`User "${targetUsername}" not found in this server.`); return }
-          // Mute uses the timeout endpoint with a short reason identifier
-          setSending(true); setSendError(null)
-          const savedContent = content
-          setContent(""); onDraftChange("")
-          if (textareaRef.current) textareaRef.current.style.height = "28px"
-          try {
-            const res = await fetch(`/api/servers/${serverId}/members/${target.user_id}/timeout`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ duration_seconds: 600, reason: "Muted via /mute command" }),
-            })
-            if (!res.ok) { const p = await res.json().catch(() => ({})); throw new Error(p?.error ?? `Mute failed (${res.status})`) }
-          } catch (error: any) {
-            setContent(savedContent); onDraftChange(savedContent)
-            setSendError(error?.message ?? "Failed to mute member.")
-          } finally { setSending(false); textareaRef.current?.focus() }
-          return
-        }
+        // --- Moderation commands (extracted to useSlashModeration hook) ---
+        const handled = await moderation.handleModeration(commandName, args)
+        if (handled) return
       }
 
       // App-installed commands (require serverId)
@@ -889,48 +675,6 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     }
   }
 
-  const canInsertPoll = pollQuestion.trim().length > 0 && pollOptions.filter((option) => option.trim().length > 0).length >= 2
-
-  function resetPollDraftToBlank() {
-    setPollQuestion("")
-    setPollOptions([])
-  }
-
-  function handlePollInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== "Enter" || event.shiftKey) return
-    if (!canInsertPoll) return
-    event.preventDefault()
-    handleCreatePoll()
-  }
-
-  function removePollOption(index: number) {
-    if (pollOptions.length <= 2) return
-    setPollOptions((prev) => prev.filter((_, optionIndex) => optionIndex !== index))
-  }
-
-  function handleCreatePoll() {
-    const question = pollQuestion.trim()
-    const options = pollOptions.map((option) => option.trim()).filter(Boolean)
-    if (!question || options.length < 2) return
-
-    const pollBlock = ["[POLL]", question, ...options.map((option) => `- ${option}`), "[/POLL]"].join("\n")
-    const spacer = content.trim() ? "\n\n" : ""
-    const next = `${content}${spacer}${pollBlock}`
-    setContent(next)
-    onDraftChange(next)
-    setCursorPosition(next.length)
-    setShowPollCreator(false)
-    setPollQuestion("")
-    setPollOptions(["", ""])
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus()
-      if (textareaRef.current) {
-        textareaRef.current.selectionStart = next.length
-        textareaRef.current.selectionEnd = next.length
-      }
-    })
-  }
-
   return (
     <div
       className="px-4 pb-4 flex-shrink-0 relative"
@@ -999,7 +743,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   if (url) { URL.revokeObjectURL(url); fileUrlCache.current.delete(files[i]) }
                   setFiles((prev) => prev.filter((_, j) => j !== i))
                 }}
-                className="motion-interactive absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+                className="motion-interactive absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 touch-visible"
                 style={{ background: "var(--theme-danger)" }}
                 aria-label={`Remove ${file.name}`}
               >
@@ -1042,7 +786,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         </div>
       )}
 
-      {showPollCreator && (
+      {poll.showPollCreator && (
         <div
           ref={pollCreatorRef}
           className="mb-2 rounded-lg p-3 space-y-2"
@@ -1051,39 +795,39 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold" style={{ color: "var(--theme-text-primary)" }}>Create poll</p>
             <button type="button" aria-label="Close poll creator" className="focus-ring rounded" onClick={() => {
-              setShowPollCreator(false)
-              resetPollDraftToBlank()
+              poll.setShowPollCreator(false)
+              poll.resetPollDraftToBlank()
             }} style={{ color: "var(--theme-text-muted)" }}>
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
           <input
-            value={pollQuestion}
-            onChange={(event) => setPollQuestion(event.target.value)}
-            onKeyDown={handlePollInputKeyDown}
+            value={poll.pollQuestion}
+            onChange={(event) => poll.setPollQuestion(event.target.value)}
+            onKeyDown={poll.handlePollInputKeyDown}
             placeholder="Poll question"
             className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
             style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
           />
           <div className="space-y-1.5">
-            {pollOptions.map((option, index) => (
+            {poll.pollOptions.map((option, index) => (
               <div key={`poll-option-${index}`} className="flex items-center gap-1.5">
                 <input
                   value={option}
                   onChange={(event) => {
-                    const next = [...pollOptions]
+                    const next = [...poll.pollOptions]
                     next[index] = event.target.value
-                    setPollOptions(next)
+                    poll.setPollOptions(next)
                   }}
-                  onKeyDown={handlePollInputKeyDown}
+                  onKeyDown={poll.handlePollInputKeyDown}
                   placeholder={`Option ${index + 1}`}
                   className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
                   style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                 />
                 <button
                   type="button"
-                  onClick={() => removePollOption(index)}
-                  disabled={pollOptions.length <= 2}
+                  onClick={() => poll.removePollOption(index)}
+                  disabled={poll.pollOptions.length <= 2}
                   className="px-2 py-1 rounded text-xs disabled:opacity-50 focus-ring"
                   style={{ color: "var(--theme-text-muted)", border: "1px solid var(--theme-bg-tertiary)" }}
                   aria-label={`Remove option ${index + 1}`}
@@ -1096,8 +840,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <div className="flex items-center justify-between">
             <button
               type="button"
-              onClick={() => setPollOptions((prev) => prev.length >= 8 ? prev : [...prev, ""])}
-              disabled={pollOptions.length >= 8}
+              onClick={() => poll.setPollOptions((prev) => prev.length >= 8 ? prev : [...prev, ""])}
+              disabled={poll.pollOptions.length >= 8}
               className="text-xs disabled:opacity-50"
               style={{ color: "var(--theme-link)" }}
             >
@@ -1105,8 +849,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             </button>
             <button
               type="button"
-              onClick={handleCreatePoll}
-              disabled={!canInsertPoll}
+              onClick={poll.handleCreatePoll}
+              disabled={!poll.canInsertPoll}
               className="px-2 py-1 rounded text-xs font-medium disabled:opacity-50"
               style={{ background: "var(--theme-accent)", color: "white" }}
             >
@@ -1165,8 +909,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 type="button"
                 onClick={() => {
                   setShowPlusMenu(false)
-                  if (pollOptions.length === 0) setPollOptions(["", ""])
-                  setShowPollCreator(true)
+                  poll.openPollCreator()
                 }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
                 style={{ color: "var(--theme-text-primary)" }}
@@ -1264,14 +1007,14 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <div
             ref={emojiPickerRef}
             data-state="open"
-            className="panel-surface-motion fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[380px] md:rounded-lg md:border"
+            className="panel-surface-motion fixed inset-x-0 bottom-0 z-overlay flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[380px] md:rounded-lg md:border"
             style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
           >
               <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
                 {([
                   { key: "emoji" as const, label: "Emoji", panel: "emoji-tab-panel" },
                   { key: "gif" as const, label: "GIFs", panel: "gif-tab-panel" },
-                  ...(memesAvailable !== false ? [{ key: "meme" as const, label: "Memes", panel: "meme-tab-panel" }] : []),
+                  ...(media.memesAvailable !== false ? [{ key: "meme" as const, label: "Memes", panel: "meme-tab-panel" }] : []),
                   { key: "sticker" as const, label: "Stickers", panel: "sticker-tab-panel" },
                 ] as const).map((tab) => (
                   <button
@@ -1443,20 +1186,20 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               {pickerTab === "gif" && (
                 <div id="gif-tab-panel" role="tabpanel" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
                   <input
-                    value={gifQuery}
-                    onChange={(e) => setGifQuery(e.target.value)}
+                    value={media.gifQuery}
+                    onChange={(e) => media.setGifQuery(e.target.value)}
                     placeholder="Search GIFs"
                     aria-label="Search GIFs"
                     className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
                     style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   />
                   {/* Search autocomplete suggestions */}
-                  {gifSuggestions.length > 0 && (
+                  {media.gifSuggestions.length > 0 && (
                     <div className="flex flex-wrap gap-1 shrink-0">
-                      {gifSuggestions.map((s) => (
+                      {media.gifSuggestions.map((s) => (
                         <button
                           key={s}
-                          onClick={() => setGifQuery(s)}
+                          onClick={() => media.setGifQuery(s)}
                           className="px-2 py-0.5 rounded-full text-[11px] hover:opacity-80 transition-opacity"
                           style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
                         >
@@ -1466,19 +1209,19 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     </div>
                   )}
                   {/* Section header */}
-                  {!gifQuery.trim() && !gifLoading && gifResults.length > 0 && (
+                  {!media.gifQuery.trim() && !media.gifLoading && media.gifResults.length > 0 && (
                     <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
                       Trending
                     </p>
                   )}
-                  {gifLoading ? (
+                  {media.gifLoading ? (
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
                   ) : (
                     <div
                       className="grid grid-cols-3 gap-2 overflow-y-auto flex-1 min-h-0"
                       onKeyDown={handleGifGridKeyDown}
                     >
-                      {gifResults.map((gif) => (
+                      {media.gifResults.map((gif) => (
                         <button
                           key={gif.id}
                           onClick={async () => {
@@ -1515,33 +1258,33 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               )}
               {pickerTab === "meme" && (
                 <div id="meme-tab-panel" role="tabpanel" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
-                  {memesAvailable === false ? (
+                  {media.memesAvailable === false ? (
                     <div className="flex-1 flex items-center justify-center">
                       <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Memes are not available with the current provider.</p>
                     </div>
                   ) : (
                   <>
                   <input
-                    value={memeQuery}
-                    onChange={(e) => setMemeQuery(e.target.value)}
+                    value={media.memeQuery}
+                    onChange={(e) => media.setMemeQuery(e.target.value)}
                     placeholder="Search memes"
                     aria-label="Search memes"
                     className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
                     style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   />
-                  {!memeQuery.trim() && !memeLoading && memeResults.length > 0 && (
+                  {!media.memeQuery.trim() && !media.memeLoading && media.memeResults.length > 0 && (
                     <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
                       Trending
                     </p>
                   )}
-                  {memeLoading ? (
+                  {media.memeLoading ? (
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading memes…</p>
                   ) : (
                     <div
                       className="grid grid-cols-3 gap-2 overflow-y-auto flex-1 min-h-0"
                       onKeyDown={handleGifGridKeyDown}
                     >
-                      {memeResults.map((meme) => (
+                      {media.memeResults.map((meme) => (
                         <button
                           key={meme.id}
                           onClick={async () => {
@@ -1581,26 +1324,26 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               {pickerTab === "sticker" && (
                 <div id="sticker-tab-panel" role="tabpanel" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
                   <input
-                    value={stickerQuery}
-                    onChange={(e) => setStickerQuery(e.target.value)}
+                    value={media.stickerQuery}
+                    onChange={(e) => media.setStickerQuery(e.target.value)}
                     placeholder="Search stickers"
                     aria-label="Search stickers"
                     className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
                     style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                   />
-                  {!stickerQuery.trim() && !stickerLoading && stickerResults.length > 0 && (
+                  {!media.stickerQuery.trim() && !media.stickerLoading && media.stickerResults.length > 0 && (
                     <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
                       Trending
                     </p>
                   )}
-                  {stickerLoading ? (
+                  {media.stickerLoading ? (
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading stickers…</p>
                   ) : (
                     <div
                       className="grid grid-cols-4 gap-2 overflow-y-auto flex-1 min-h-0"
                       onKeyDown={handleGifGridKeyDown}
                     >
-                      {stickerResults.map((sticker) => (
+                      {media.stickerResults.map((sticker) => (
                         <button
                           key={sticker.id}
                           onClick={async () => {

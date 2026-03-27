@@ -78,6 +78,10 @@ interface AppState {
   cacheMessages: (channelId: string, messages: MessageWithAuthor[], scrollOffset?: number) => void
   invalidateMessageCache: (channelId: string) => void
 
+  // Mobile action dispatch (replaces fragile DOM CustomEvents between ServerMobileLayout → ChatArea)
+  mobilePendingAction: "search" | "summary" | "pins" | "help" | null
+  setMobilePendingAction: (action: "search" | "summary" | "pins" | "help" | null) => void
+
   // Voice state
   voiceChannelId: string | null
   voiceServerId: string | null
@@ -256,6 +260,9 @@ export const useAppStore = create<AppState>((set) => ({
       delete cache[channelId]
       return { messageCache: cache }
     }),
+
+  mobilePendingAction: null,
+  setMobilePendingAction: (action) => set({ mobilePendingAction: action }),
 
   voiceChannelId: null,
   voiceServerId: null,

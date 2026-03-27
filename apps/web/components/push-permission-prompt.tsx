@@ -59,7 +59,7 @@ export function PushPermissionPrompt() {
   return (
     <div
       role="alert"
-      className="fixed bottom-20 left-4 right-4 z-[9998] mx-auto max-w-sm rounded-xl border p-4 shadow-xl md:left-auto md:right-6 md:bottom-6"
+      className="fixed bottom-20 left-4 right-4 z-banner-low mx-auto max-w-sm rounded-xl border p-4 shadow-xl md:left-auto md:right-6 md:bottom-6"
       style={{
         background: "var(--theme-bg-secondary)",
         borderColor: "var(--theme-bg-tertiary)",

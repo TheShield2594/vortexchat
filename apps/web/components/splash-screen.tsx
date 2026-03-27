@@ -40,7 +40,7 @@ export function SplashScreen(): React.ReactElement | null {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#1b1f31",
+          background: "var(--theme-bg-primary, #1b1f31)",
           transition: "opacity 300ms ease-out",
           opacity: fading ? 0 : 1,
           pointerEvents: "auto",
@@ -72,7 +72,7 @@ export function SplashScreen(): React.ReactElement | null {
           style={{
             marginTop: 16,
             fontSize: 14,
-            color: "#8f9bbf",
+            color: "var(--theme-interactive, #8f9bbf)",
             fontFamily: "var(--font-body), system-ui, sans-serif",
             letterSpacing: "0.05em",
           }}

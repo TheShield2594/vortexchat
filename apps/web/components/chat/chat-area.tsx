@@ -73,8 +73,8 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
   const messageGrouping = useAppearanceStore((s) => s.messageGrouping)
   const isMobile = useMobileLayout()
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages } = useAppStore(
-    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages }))
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages, mobilePendingAction, setMobilePendingAction } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages, mobilePendingAction: s.mobilePendingAction, setMobilePendingAction: s.setMobilePendingAction }))
   )
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
@@ -130,20 +130,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     return () => window.removeEventListener("resize", onResize)
   }, [])
 
-  // Listen for action dispatches from the mobile header
+  // Consume mobile header actions dispatched via the Zustand store
   useEffect(() => {
-    const handler = (e: Event) => {
-      const action = (e as CustomEvent<string>).detail
-      switch (action) {
-        case "search": setShowSearchModal(true); break
-        case "summary": setShowSummary((v) => !v); break
-        case "pins": setShowPinnedPanel((v) => !v); break
-        case "help": setShowKeyboardShortcuts(true); break
-      }
+    if (!mobilePendingAction) return
+    switch (mobilePendingAction) {
+      case "search": setShowSearchModal(true); break
+      case "summary": setShowSummary((v) => !v); break
+      case "pins": setShowPinnedPanel((v) => !v); break
+      case "help": setShowKeyboardShortcuts(true); break
     }
-    window.addEventListener("vortex:mobile-action", handler)
-    return () => window.removeEventListener("vortex:mobile-action", handler)
-  }, [])
+    setMobilePendingAction(null)
+  }, [mobilePendingAction, setMobilePendingAction])
 
   const trackCommandEvent = useCallback((eventType: "action" | "discoverability", payload: Record<string, string | number | boolean>) => {
     const body = JSON.stringify({ eventType, payload, channelId: channel.id, serverId, timestamp: Date.now() })
