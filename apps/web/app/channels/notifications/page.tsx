@@ -113,24 +113,32 @@ export default function NotificationsPage() {
 
   async function markAllRead(): Promise<void> {
     if (!currentUser) return
-    const res = await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
-    if (!res.ok) return
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) return
+    } catch {
+      return
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     setTotalUnreadCount(0)
     useAppStore.getState().setNotificationUnreadCount(0)
   }
 
   async function markRead(id: string): Promise<void> {
-    const res = await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    })
-    if (!res.ok) return
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) return
+    } catch {
+      return
+    }
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
     setTotalUnreadCount((prev) => Math.max(0, prev - 1))
     useAppStore.getState().setNotificationUnreadCount(
@@ -140,12 +148,16 @@ export default function NotificationsPage() {
 
   async function dismiss(id: string): Promise<void> {
     const target = notifications.find((x) => x.id === id)
-    const res = await fetch("/api/notifications", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    })
-    if (!res.ok) return
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) return
+    } catch {
+      return
+    }
     setNotifications((prev) => prev.filter((x) => x.id !== id))
     if (target && !target.read) {
       setTotalUnreadCount((prev) => Math.max(0, prev - 1))
@@ -156,22 +168,26 @@ export default function NotificationsPage() {
   }
 
   async function handleClick(n: Notification): Promise<void> {
-    if (!n.read) await markRead(n.id)
-    if (n.server_id && n.channel_id) {
-      const params = new URLSearchParams()
-      if (n.message_id) {
-        params.set("message", n.message_id)
-        try {
-          const { data: message } = await supabase
-            .from("messages")
-            .select("thread_id")
-            .eq("id", n.message_id)
-            .maybeSingle()
-          if (message?.thread_id) params.set("thread", message.thread_id)
-        } catch {}
+    try {
+      if (!n.read) await markRead(n.id)
+      if (n.server_id && n.channel_id) {
+        const params = new URLSearchParams()
+        if (n.message_id) {
+          params.set("message", n.message_id)
+          try {
+            const { data: message } = await supabase
+              .from("messages")
+              .select("thread_id")
+              .eq("id", n.message_id)
+              .maybeSingle()
+            if (message?.thread_id) params.set("thread", message.thread_id)
+          } catch {}
+        }
+        const query = params.toString()
+        router.push(`/channels/${n.server_id}/${n.channel_id}${query ? `?${query}` : ""}`)
       }
-      const query = params.toString()
-      router.push(`/channels/${n.server_id}/${n.channel_id}${query ? `?${query}` : ""}`)
+    } catch (error) {
+      console.error("Failed to handle notification click", error)
     }
   }
 

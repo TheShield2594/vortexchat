@@ -12,7 +12,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const { searchParams } = new URL(req.url)
     const limitParam = searchParams.get("limit")
-    const limit = limitParam ? Math.min(Math.max(1, Number(limitParam)), 100) : 30
+    const parsed = limitParam ? Number(limitParam) : NaN
+    const limit = Number.isFinite(parsed) ? Math.min(Math.max(1, parsed), 100) : 30
 
     const countOnly = searchParams.get("countOnly") === "true"
     if (countOnly) {

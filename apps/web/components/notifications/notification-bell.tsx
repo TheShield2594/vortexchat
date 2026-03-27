@@ -164,23 +164,31 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   }, [open])
 
   async function markAllRead(): Promise<void> {
-    const res = await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
-    if (!res.ok) return
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) return
+    } catch {
+      return
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     setUnreadCount(0)
   }
 
   async function markRead(id: string): Promise<void> {
-    const res = await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    })
-    if (!res.ok) return
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) return
+    } catch {
+      return
+    }
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
     setUnreadCount((c) => Math.max(0, c - 1))
   }
@@ -191,14 +199,17 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     setNotifications((prev) => prev.filter((x) => x.id !== id))
     if (target && !target.read) setUnreadCount((c) => Math.max(0, c - 1))
 
-    const res = await fetch("/api/notifications", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    })
-    if (!res.ok) {
-      // Rollback: re-insert at original position
-      console.error("Failed to dismiss notification")
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) {
+        throw new Error("Failed to dismiss notification")
+      }
+    } catch (error) {
+      console.error("Failed to dismiss notification", error)
       if (target) {
         setNotifications((prev) => {
           const restored = [...prev, target].sort(
@@ -220,13 +231,17 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     setNotifications([])
     setUnreadCount(0)
 
-    const res = await fetch("/api/notifications", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids }),
-    })
-    if (!res.ok) {
-      console.error("Failed to clear all notifications")
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      })
+      if (!res.ok) {
+        throw new Error("Failed to clear all notifications")
+      }
+    } catch (error) {
+      console.error("Failed to clear all notifications", error)
       setNotifications(prev)
       setUnreadCount(prevUnread)
     }
