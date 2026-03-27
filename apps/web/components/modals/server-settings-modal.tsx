@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap, Upload, X, Clock, Users, Activity, Eye, Flag } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
-import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { evaluateRule } from "@/lib/automod"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
@@ -50,7 +49,6 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [iconPreview, setIconPreview] = useState<string | null>(null)
   const iconFileRef = useRef<HTMLInputElement>(null)
-  const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   useEffect(() => {
     setName(liveServer.name)
@@ -117,20 +115,23 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
 
   async function handleRegenerateInvite() {
     try {
-      const newCode = Array.from(crypto.getRandomValues(new Uint8Array(6)))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("")
+      const res = await fetch(`/api/servers/${server.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regenerate_invite: true }),
+      })
 
-      const { error } = await supabase
-        .from("servers")
-        .update({ invite_code: newCode })
-        .eq("id", server.id)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to regenerate invite code")
+      }
 
-      if (error) throw error
-      updateServer(server.id, { invite_code: newCode })
+      const updated = await res.json()
+      updateServer(server.id, updated)
       toast({ title: "Invite code regenerated!" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to regenerate", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to regenerate"
+      toast({ variant: "destructive", title: "Failed to regenerate", description: message })
     }
   }
 
@@ -142,8 +143,13 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   async function handleDeleteServer() {
     setDeletingServer(true)
     try {
-      const { error } = await supabase.from("servers").delete().eq("id", server.id)
-      if (error) throw error
+      const res = await fetch(`/api/servers/${server.id}`, { method: "DELETE" })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to delete server")
+      }
+
       removeServer(server.id)
       toast({ title: "Server deleted" })
       setShowDeleteConfirm(false)
@@ -151,8 +157,9 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
       if (typeof window !== "undefined") {
         window.location.assign("/channels/me")
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to delete server", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete server"
+      toast({ variant: "destructive", title: "Failed to delete server", description: message })
     } finally {
       setDeletingServer(false)
     }

@@ -46,6 +46,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   let name: string | undefined
   let description: string | undefined
+  let regenerateInvite = false
   let iconFile: File | null = null
 
   if (isMultipart) {
@@ -57,10 +58,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (nameVal !== null) name = String(nameVal)
     if (descVal !== null) description = String(descVal)
     if (iconVal instanceof File && iconVal.size > 0) iconFile = iconVal
+    if (formData.get("regenerate_invite") === "true") regenerateInvite = true
   } else {
     const body = await req.json().catch(() => ({}))
     if ("name" in body) name = String(body.name)
     if ("description" in body) description = String(body.description)
+    if (body.regenerate_invite === true) regenerateInvite = true
   }
 
   const updates: Record<string, unknown> = {}
@@ -141,6 +144,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     changes.icon_url = { old: server.icon_url, new: urlData.publicUrl }
   }
 
+  // Handle invite code regeneration (owner only)
+  if (regenerateInvite) {
+    if (!isOwner)
+      return NextResponse.json({ error: "Only the server owner can regenerate the invite code" }, { status: 403 })
+
+    const newCode = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+    updates.invite_code = newCode
+    changes.invite_code = { old: "[redacted]", new: "[redacted]" }
+  }
+
   if (Object.keys(updates).length === 0)
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
 
@@ -165,4 +180,67 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   })
 
   return NextResponse.json(updated)
+}
+
+/**
+ * DELETE /api/servers/[serverId]
+ *
+ * Deletes the server and all associated data (channels, messages, roles, etc.).
+ * Permission: server owner only
+ */
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const { serverId } = await params
+  const { supabase, user, error: authError } = await requireAuth()
+  if (authError) return authError
+
+  try {
+    const { data: server } = await supabase
+      .from("servers")
+      .select("owner_id, name")
+      .eq("id", serverId)
+      .single()
+
+    if (!server)
+      return NextResponse.json({ error: "Server not found" }, { status: 404 })
+
+    if (server.owner_id !== user.id)
+      return NextResponse.json({ error: "Only the server owner can delete the server" }, { status: 403 })
+
+    // Audit log before deletion (so we have a record even if cascade is partial)
+    await insertAuditLog(supabase, {
+      server_id: serverId,
+      actor_id: user.id,
+      action: "server_delete",
+      target_id: serverId,
+      target_type: "server",
+      changes: { name: { old: server.name, new: null } },
+    })
+
+    // Delete associated data in dependency order
+    // Channels, messages, roles, members, invites are cleaned up here
+    // to avoid relying solely on DB cascade/triggers
+    await supabase.from("messages").delete().eq("server_id", serverId)
+    await supabase.from("channels").delete().eq("server_id", serverId)
+    await supabase.from("member_roles").delete().eq("server_id", serverId)
+    await supabase.from("roles").delete().eq("server_id", serverId)
+    await supabase.from("members").delete().eq("server_id", serverId)
+    await supabase.from("invites").delete().eq("server_id", serverId)
+    await supabase.from("automod_rules").delete().eq("server_id", serverId)
+    await supabase.from("screening_config").delete().eq("server_id", serverId)
+    await supabase.from("moderation_settings").delete().eq("server_id", serverId)
+    await supabase.from("webhooks").delete().eq("server_id", serverId)
+    await supabase.from("custom_emojis").delete().eq("server_id", serverId)
+
+    const { error: deleteError } = await supabase
+      .from("servers")
+      .delete()
+      .eq("id", serverId)
+
+    if (deleteError)
+      return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
+  }
 }
