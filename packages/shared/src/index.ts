@@ -99,6 +99,9 @@ export const DEFAULT_AUTO_ARCHIVE_DURATION: AutoArchiveDuration = 1440
 
 export type ChannelType = 'text' | 'voice' | 'category' | 'forum' | 'stage' | 'announcement' | 'media'
 
+/** Actions that can be triggered from the mobile header and consumed by ChatArea. */
+export type MobileAction = "search" | "summary" | "pins" | "help"
+
 export interface SignalingEvents {
   'join-room': { channelId: string; userId: string; displayName: string; avatarUrl?: string }
   'leave-room': { channelId: string }

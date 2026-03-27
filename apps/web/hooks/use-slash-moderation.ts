@@ -1,11 +1,16 @@
 "use client"
 
 import { useCallback } from "react"
+import { hasPermission } from "@vortex/shared"
 import type { MemberForMention } from "@/lib/stores/app-store"
 
 interface UseSlashModerationOptions {
   serverId: string | undefined
   members: MemberForMention[]
+  /** Computed permission bitmask for the current user */
+  userPermissions: number
+  /** Whether the current user is the server owner */
+  isServerOwner: boolean
   /** Set the send-in-progress flag */
   setSending: (sending: boolean) => void
   /** Report an error message */
@@ -29,6 +34,8 @@ interface UseSlashModerationReturn {
 export function useSlashModeration({
   serverId,
   members,
+  userPermissions,
+  isServerOwner,
   setSending,
   setSendError,
   clearInput,
@@ -39,6 +46,10 @@ export function useSlashModeration({
     if (!serverId) return false
 
     if (commandName === "kick") {
+      if (!isServerOwner && !hasPermission(userPermissions, "KICK_MEMBERS")) {
+        setSendError("You don't have permission to kick members.")
+        return true
+      }
       const targetUsername = args.split(/\s+/)[0]
       const reason = args.slice(targetUsername.length).trim()
       if (!targetUsername) { setSendError("Usage: /kick @username [reason]"); return true }
@@ -58,6 +69,10 @@ export function useSlashModeration({
     }
 
     if (commandName === "ban") {
+      if (!isServerOwner && !hasPermission(userPermissions, "BAN_MEMBERS")) {
+        setSendError("You don't have permission to ban members.")
+        return true
+      }
       const targetUsername = args.split(/\s+/)[0]
       const reason = args.slice(targetUsername.length).trim()
       if (!targetUsername) { setSendError("Usage: /ban @username [reason]"); return true }
@@ -80,6 +95,10 @@ export function useSlashModeration({
     }
 
     if (commandName === "unban") {
+      if (!isServerOwner && !hasPermission(userPermissions, "BAN_MEMBERS")) {
+        setSendError("You don't have permission to unban members.")
+        return true
+      }
       const targetInput = args.split(/\s+/)[0]
       if (!targetInput) { setSendError("Usage: /unban @username or /unban <userId>"); return true }
       setSending(true); setSendError(null)
@@ -112,12 +131,17 @@ export function useSlashModeration({
     }
 
     if (commandName === "timeout") {
+      if (!isServerOwner && !hasPermission(userPermissions, "MODERATE_MEMBERS")) {
+        setSendError("You don't have permission to timeout members.")
+        return true
+      }
       // /timeout @username duration [reason]  — duration in minutes
       const parts = args.split(/\s+/)
       const targetUsername = parts[0]
       const durationStr = parts[1]
       const reason = parts.slice(2).join(" ")
       if (!targetUsername || !durationStr) { setSendError("Usage: /timeout @username <minutes> [reason]"); return true }
+      if (!/^\d+$/.test(durationStr)) { setSendError("Duration must be a positive number of minutes."); return true }
       const durationMinutes = parseInt(durationStr, 10)
       if (isNaN(durationMinutes) || durationMinutes <= 0) { setSendError("Duration must be a positive number of minutes."); return true }
       const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
@@ -139,6 +163,10 @@ export function useSlashModeration({
     }
 
     if (commandName === "mute") {
+      if (!isServerOwner && !hasPermission(userPermissions, "MUTE_MEMBERS")) {
+        setSendError("You don't have permission to mute members.")
+        return true
+      }
       const targetUsername = args.split(/\s+/)[0]
       if (!targetUsername) { setSendError("Usage: /mute @username"); return true }
       const target = members.find((m) => m.username === targetUsername.replace(/^@/, ""))
@@ -161,7 +189,7 @@ export function useSlashModeration({
     }
 
     return false
-  }, [serverId, members, setSending, setSendError, clearInput, restoreInput, textareaRef])
+  }, [serverId, members, userPermissions, isServerOwner, setSending, setSendError, clearInput, restoreInput, textareaRef])
 
   return { handleModeration }
 }

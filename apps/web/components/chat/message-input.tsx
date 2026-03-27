@@ -107,6 +107,11 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
   const mention = useMentionAutocomplete({ content, cursorPosition, members })
 
+  // Slash command state (needed by moderation hook below)
+  const [appCommands, setAppCommands] = useState<SlashCommand[]>([])
+  const [userPermissions, setUserPermissions] = useState(0)
+  const [isServerOwner, setIsServerOwner] = useState(false)
+
   // Slash moderation commands (kick, ban, unban, timeout, mute)
   const clearInputForModeration = useCallback((): string => {
     const saved = content
@@ -122,6 +127,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const moderation = useSlashModeration({
     serverId,
     members,
+    userPermissions,
+    isServerOwner,
     setSending,
     setSendError,
     clearInput: clearInputForModeration,
@@ -134,9 +141,6 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const emoji = useEmojiAutocomplete({ content, cursorPosition, serverEmojis })
 
   // Slash command autocomplete (`/command` prefix trigger)
-  const [appCommands, setAppCommands] = useState<SlashCommand[]>([])
-  const [userPermissions, setUserPermissions] = useState(0)
-  const [isServerOwner, setIsServerOwner] = useState(false)
   useEffect(() => {
     if (!serverId) return
     fetch(`/api/servers/${serverId}/apps/commands`)
@@ -367,6 +371,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         // --- Moderation commands (extracted to useSlashModeration hook) ---
         const handled = await moderation.handleModeration(commandName, args)
         if (handled) return
+
+        // matchedBuiltIn is true but no handler matched — unknown built-in, don't send as message
+        setSendError(`Unknown command "/${commandName}". Type / to see available commands.`)
+        return
       }
 
       // App-installed commands (require serverId)
@@ -744,7 +752,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   if (url) { URL.revokeObjectURL(url); fileUrlCache.current.delete(files[i]) }
                   setFiles((prev) => prev.filter((_, j) => j !== i))
                 }}
-                className="motion-interactive absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 touch-visible"
+                className="motion-interactive absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 touch-visible"
                 style={{ background: "var(--theme-danger)" }}
                 aria-label={`Remove ${file.name}`}
               >
@@ -841,8 +849,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <div className="flex items-center justify-between">
             <button
               type="button"
-              onClick={() => poll.setPollOptions((prev) => prev.length >= 8 ? prev : [...prev, ""])}
-              disabled={poll.pollOptions.length >= 8}
+              onClick={() => poll.addPollOption()}
+              disabled={poll.pollOptions.length >= poll.maxPollOptions}
               className="text-xs disabled:opacity-50"
               style={{ color: "var(--theme-link)" }}
             >

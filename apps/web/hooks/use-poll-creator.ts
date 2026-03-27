@@ -2,8 +2,8 @@
 
 import { useState, useCallback } from "react"
 
-/** Must match the length of POLL_NUMBER_EMOJIS in message-item.tsx */
-const MAX_POLL_OPTIONS = 8
+/** Maximum number of poll options — must match the length of POLL_NUMBER_EMOJIS in message-item.tsx */
+export const MAX_POLL_OPTIONS = 8
 
 interface UsePollCreatorOptions {
   content: string
@@ -43,7 +43,7 @@ export function usePollCreator({ content, onContentChange, onCursorChange, texta
 
   const handleCreatePoll = useCallback(() => {
     const question = pollQuestion.trim()
-    const options = pollOptions.map((option) => option.trim()).filter(Boolean)
+    const options = pollOptions.map((option) => option.trim()).filter(Boolean).slice(0, MAX_POLL_OPTIONS)
     if (!question || options.length < 2) return
 
     const pollBlock = ["[POLL]", question, ...options.map((option) => `- ${option}`), "[/POLL]"].join("\n")

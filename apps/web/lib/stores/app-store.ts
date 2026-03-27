@@ -1,8 +1,9 @@
 import { create } from "zustand"
 import type { ServerRow, ChannelRow, UserRow, MessageWithAuthor } from "@/types/database"
 import { loadBooleanStorage, persistBooleanStorage } from "@/lib/utils/storage"
+import type { MobileAction } from "@vortex/shared"
 
-export type MobileAction = "search" | "summary" | "pins" | "help"
+export type { MobileAction }
 
 const MEMBER_LIST_STORAGE_KEY = "vortexchat:ui:member-list-open"
 const THREAD_PANEL_STORAGE_KEY = "vortexchat:ui:thread-panel-open"

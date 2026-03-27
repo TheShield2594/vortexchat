@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, CircleHelp } from "lucide-react"
-import { useAppStore, type MobileAction } from "@/lib/stores/app-store"
+import { useAppStore } from "@/lib/stores/app-store"
+import type { MobileAction } from "@vortex/shared"
 import { useShallow } from "zustand/react/shallow"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { useSwipe } from "@/hooks/use-swipe"
@@ -163,7 +164,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           {isTextChannel && (
             <button
               type="button"
-              onClick={() => setMobilePendingAction("search")}
+              onClick={() => { setMobileMemberListOpen(false); setMobilePendingAction("search") }}
               className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Search messages"
@@ -224,6 +225,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                       role="menuitem"
                       onClick={() => {
                         setMobileOverflowOpen(false)
+                        setMobileMemberListOpen(false)
                         if (item.id === "workspace") {
                           toggleWorkspacePanel()
                         } else if (item.id === "threads") {
