@@ -22,10 +22,14 @@ export function ConnectionsSection(): React.JSX.Element {
   const router = useRouter()
   const [connections, setConnections] = useState<ConnectionRow[]>([])
 
-  const loadConnections = useCallback(async () => {
-    const res = await fetch("/api/users/connections", { cache: "no-store" })
-    const payload = await res.json().catch(() => ({}))
-    if (res.ok) setConnections(payload.connections ?? [])
+  const loadConnections = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch("/api/users/connections", { cache: "no-store" })
+      const payload = await res.json().catch(() => ({}))
+      if (res.ok) setConnections(payload.connections ?? [])
+    } catch {
+      // Network error — leave connections unchanged
+    }
   }, [])
 
   useEffect(() => {
@@ -45,12 +49,16 @@ export function ConnectionsSection(): React.JSX.Element {
   }
 
   async function removeConnection(id: string): Promise<void> {
-    const res = await fetch(`/api/users/connections?id=${id}`, { method: "DELETE" })
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/users/connections?id=${id}`, { method: "DELETE" })
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Failed to remove connection" })
+        return
+      }
+      setConnections((prev) => prev.filter((item) => item.id !== id))
+    } catch {
       toast({ variant: "destructive", title: "Failed to remove connection" })
-      return
     }
-    setConnections((prev) => prev.filter((item) => item.id !== id))
   }
 
   const steamConnection = connections.find((item) => item.provider === "steam")

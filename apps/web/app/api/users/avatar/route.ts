@@ -62,19 +62,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // Verify magic bytes match claimed type
+    // Verify magic bytes match claimed type — reject unknown signatures
     const headerSlice = avatarFile.slice(0, 16)
     const headerBytes = new Uint8Array(await headerSlice.arrayBuffer())
     const detectedMime = detectMimeFromBytes(headerBytes)
-    if (detectedMime && !ALLOWED_AVATAR_TYPES.includes(detectedMime)) {
+    if (!detectedMime || !ALLOWED_AVATAR_TYPES.includes(detectedMime)) {
       return NextResponse.json(
         { error: "Avatar file content does not match an allowed image type" },
         { status: 400 },
       )
     }
 
-    // Upload to Supabase storage
-    const ext = rawExt || "png"
+    // Derive extension from detected MIME, not from client filename
+    const mimeToExt: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/gif": "gif",
+      "image/webp": "webp",
+    }
+    const ext = mimeToExt[detectedMime] ?? "png"
     const storagePath = `${user.id}/avatar.${ext}`
     const { error: uploadError } = await supabase.storage
       .from("avatars")

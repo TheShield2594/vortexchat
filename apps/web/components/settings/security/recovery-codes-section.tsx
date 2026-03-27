@@ -43,6 +43,8 @@ export function RecoveryCodesSection(): React.JSX.Element {
         return
       }
       setCodes(data.codes)
+      setTotal(data.codes.length)
+      setRemaining(data.codes.length)
       setAcknowledged(false)
       toast({ title: "Recovery codes generated", description: "Save these codes in a safe place. They will not be shown again." })
     } catch (error: unknown) {

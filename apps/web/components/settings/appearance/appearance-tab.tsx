@@ -303,10 +303,17 @@ export function AppearanceTab(): React.JSX.Element {
 
       {/* Save button — dedicated appearance-only save */}
       <div className="pt-2 flex justify-end">
-        <Button onClick={handleSaveAppearance} disabled={saving || !syncToAccount} style={{ background: "var(--theme-accent)", color: "white" }}>
-          {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Save Theme & Appearance
-        </Button>
+        <div className="relative group">
+          <Button onClick={handleSaveAppearance} disabled={saving || !syncToAccount} style={{ background: "var(--theme-accent)", color: "white" }}>
+            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Save Theme & Appearance
+          </Button>
+          {!syncToAccount && (
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-muted)" }}>
+              Enable &quot;Sync to account&quot; to save server-side
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

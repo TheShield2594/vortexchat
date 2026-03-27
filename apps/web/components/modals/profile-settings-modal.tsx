@@ -126,17 +126,24 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [statusMessage, setStatusMessage] = useState(user.status_message ?? "")
   const [statusEmoji, setStatusEmoji] = useState(user.status_emoji ?? "")
   const [statusExpiryKey, setStatusExpiryKey] = useState<StatusExpiryKey>(() => {
-    const { key, expired } = inferStatusExpiryKey(user.status_expires_at)
+    const { key } = inferStatusExpiryKey(user.status_expires_at)
+    return key
+  })
+
+  // Clear expired status on mount
+  useEffect(() => {
+    const { expired } = inferStatusExpiryKey(user.status_expires_at)
     if (expired) {
-      // Clear expired status on the server in the background
       fetch("/api/users/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status_expires_at: null }),
-      }).catch(() => {})
+      }).catch((err) => {
+        console.error("Failed to clear expired status:", err)
+      })
     }
-    return key
-  })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [status, setStatus] = useState(user.status)
   const [bannerColor, setBannerColor] = useState(user.banner_color ?? "#5865f2")
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -357,8 +364,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         const formData = new FormData()
         formData.append("avatar", avatarFile)
         const uploadRes = await fetch("/api/users/avatar", { method: "POST", body: formData })
-        const uploadPayload = await uploadRes.json()
+        const uploadPayload = await uploadRes.json().catch(() => ({}))
         if (!uploadRes.ok) throw new Error(uploadPayload?.error || "Avatar upload failed")
+        if (!uploadPayload.avatar_url) throw new Error("Avatar upload succeeded but no URL returned")
         avatarUrl = uploadPayload.avatar_url
       }
 
@@ -518,7 +526,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           }}
                         >
                           <Avatar className="w-20 h-20 ring-4" style={{ "--tw-ring-color": "var(--theme-bg-secondary)" } as React.CSSProperties}>
-                            {(avatarPreview ?? user.avatar_url) && <AvatarImage src={avatarPreview ?? user.avatar_url!} />}
+                            {(avatarPreview ?? user.avatar_url) && <AvatarImage src={(avatarPreview ?? user.avatar_url)!} />}
                             <AvatarFallback
                               style={{ background: "var(--theme-accent)", color: "white", fontSize: "24px" }}
                             >

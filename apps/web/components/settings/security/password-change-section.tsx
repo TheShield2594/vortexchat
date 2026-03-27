@@ -38,7 +38,11 @@ export function PasswordChangeSection(): React.JSX.Element {
         toast({ variant: "destructive", title: "Password change failed", description: data.error || "Please try again" })
         return
       }
-      toast({ title: "Password changed", description: revokeOtherSessions ? "All other sessions have been revoked." : "Your password has been updated." })
+      if (data.warning) {
+        toast({ title: "Password changed", description: data.warning, variant: "destructive" })
+      } else {
+        toast({ title: "Password changed", description: revokeOtherSessions ? "All other sessions have been revoked." : "Your password has been updated." })
+      }
       setForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
     } catch (error: unknown) {
       toast({ variant: "destructive", title: "Error", description: error instanceof Error ? error.message : "Unknown error" })

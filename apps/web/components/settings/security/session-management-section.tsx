@@ -46,27 +46,36 @@ export function SessionManagementSection({ onForcedLogout }: Props): React.JSX.E
   }, [])
 
   async function revokeSession(sessionId: string): Promise<void> {
-    const res = await fetch(`/api/auth/sessions/${sessionId}`, { method: "DELETE" })
-    if (res.ok) {
-      setSessions((prev) => prev.map((session) => session.id === sessionId ? { ...session, revoked_at: new Date().toISOString() } : session))
-      toast({ title: "Session revoked" })
-    } else {
-      const payload = await res.json().catch(() => ({}))
-      toast({ variant: "destructive", title: "Failed to revoke session", description: payload.error || "Please try again" })
+    try {
+      const res = await fetch(`/api/auth/sessions/${sessionId}`, { method: "DELETE" })
+      if (res.ok) {
+        setSessions((prev) => prev.map((session) => session.id === sessionId ? { ...session, revoked_at: new Date().toISOString() } : session))
+        toast({ title: "Session revoked" })
+      } else {
+        const payload = await res.json().catch(() => ({}))
+        toast({ variant: "destructive", title: "Failed to revoke session", description: payload.error || "Please try again" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to revoke session" })
     }
   }
 
   async function revokeAll(): Promise<void> {
     setLoading(true)
-    const res = await fetch("/api/auth/sessions", { method: "DELETE" })
-    if (res.ok) {
-      toast({ title: "All sessions revoked", description: "Trusted devices and active sessions have been removed." })
-      await onForcedLogout()
-    } else {
-      const payload = await res.json().catch(() => ({}))
-      toast({ variant: "destructive", title: "Failed to revoke sessions", description: payload.error || "Please try again" })
+    try {
+      const res = await fetch("/api/auth/sessions", { method: "DELETE" })
+      if (res.ok) {
+        toast({ title: "All sessions revoked", description: "Trusted devices and active sessions have been removed." })
+        await onForcedLogout()
+      } else {
+        const payload = await res.json().catch(() => ({}))
+        toast({ variant: "destructive", title: "Failed to revoke sessions", description: payload.error || "Please try again" })
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Failed to revoke sessions" })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (

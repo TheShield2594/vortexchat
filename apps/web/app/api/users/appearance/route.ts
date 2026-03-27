@@ -41,6 +41,27 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       )
     }
 
+    // Validate known fields if present
+    if (appearance_settings !== null && typeof appearance_settings === "object") {
+      const settings = appearance_settings as Record<string, unknown>
+      const allowedMessageDisplay = ["cozy", "compact"]
+      const allowedFontScale = ["small", "normal", "large"]
+      const allowedSaturation = ["normal", "reduced"]
+
+      if (settings.messageDisplay !== undefined && !allowedMessageDisplay.includes(settings.messageDisplay as string)) {
+        return NextResponse.json({ error: "Invalid messageDisplay value" }, { status: 400 })
+      }
+      if (settings.fontScale !== undefined && !allowedFontScale.includes(settings.fontScale as string)) {
+        return NextResponse.json({ error: "Invalid fontScale value" }, { status: 400 })
+      }
+      if (settings.saturation !== undefined && !allowedSaturation.includes(settings.saturation as string)) {
+        return NextResponse.json({ error: "Invalid saturation value" }, { status: 400 })
+      }
+      if (settings.customCss !== undefined && typeof settings.customCss === "string" && settings.customCss.length > 50000) {
+        return NextResponse.json({ error: "customCss exceeds 50,000 character limit" }, { status: 400 })
+      }
+    }
+
     const { data, error: updateError } = await supabase
       .from("users")
       .update({ appearance_settings })
@@ -64,7 +85,8 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     }
 
     return NextResponse.json(data)
-  } catch {
+  } catch (err) {
+    console.error("[PATCH /api/users/appearance] Unhandled error:", err)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

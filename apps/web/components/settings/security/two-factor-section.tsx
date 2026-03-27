@@ -32,27 +32,39 @@ export function TwoFactorSection(): React.JSX.Element {
   const [unenrollPassword, setUnenrollPassword] = useState("")
   const [unenrolling, setUnenrolling] = useState(false)
 
-  const loadFactors = useCallback(async () => {
+  const loadFactors = useCallback(async (): Promise<void> => {
     setLoading(true)
-    const { data } = await supabase.auth.mfa.listFactors()
-    setFactors(data?.totp ?? [])
-    setLoading(false)
-  }, [supabase])
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors()
+      if (error) {
+        toast({ variant: "destructive", title: "Failed to load 2FA status" })
+      }
+      setFactors(data?.totp ?? [])
+    } catch {
+      toast({ variant: "destructive", title: "Failed to load 2FA status" })
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase, toast])
 
   useEffect(() => { loadFactors() }, [loadFactors])
 
   async function handleEnroll(): Promise<void> {
     setEnrolling(true)
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", issuer: "VortexChat" })
-    if (error || !data) {
-      toast({ variant: "destructive", title: "Failed to start 2FA setup", description: error?.message })
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", issuer: "VortexChat" })
+      if (error || !data) {
+        toast({ variant: "destructive", title: "Failed to start 2FA setup", description: error?.message })
+        return
+      }
+      setQrCode(data.totp.qr_code)
+      setSecret(data.totp.secret)
+      setFactorId(data.id)
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Failed to start 2FA setup", description: err instanceof Error ? err.message : undefined })
+    } finally {
       setEnrolling(false)
-      return
     }
-    setQrCode(data.totp.qr_code)
-    setSecret(data.totp.secret)
-    setFactorId(data.id)
-    setEnrolling(false)
   }
 
   async function handleVerify(): Promise<void> {

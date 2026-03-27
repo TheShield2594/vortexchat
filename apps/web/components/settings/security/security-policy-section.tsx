@@ -23,11 +23,16 @@ export function SecurityPolicySection(): React.JSX.Element {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [policy, setPolicy] = useState<SecurityPolicy>(DEFAULT_POLICY)
+  const [initialLoaded, setInitialLoaded] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    fetch("/api/auth/security/policy").then((res) => res.json()).then((data) => data.policy && setPolicy(data.policy)).catch(() => {})
+    fetch("/api/auth/security/policy")
+      .then((res) => res.json())
+      .then((data) => { if (data.policy) setPolicy(data.policy) })
+      .catch(() => {})
+      .finally(() => setInitialLoaded(true))
   }, [])
 
   const flush = useCallback(async (next: SecurityPolicy) => {
@@ -57,6 +62,7 @@ export function SecurityPolicySection(): React.JSX.Element {
 
   function handleChange(next: SecurityPolicy): void {
     setPolicy(next)
+    if (!initialLoaded) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => flush(next), DEBOUNCE_MS)
   }

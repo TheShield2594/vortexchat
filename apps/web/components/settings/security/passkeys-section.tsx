@@ -19,10 +19,16 @@ export function PasskeysSection(): React.JSX.Element {
   const [renameName, setRenameName] = useState("")
   const [renaming, setRenaming] = useState(false)
 
-  const loadCredentials = useCallback(async () => {
-    const res = await fetch("/api/auth/passkeys/credentials")
-    const payload = await res.json()
-    if (res.ok) setCredentials(payload.credentials || [])
+  const loadCredentials = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch("/api/auth/passkeys/credentials")
+      const payload = await res.json()
+      if (res.ok && Array.isArray(payload.credentials)) {
+        setCredentials(payload.credentials.filter((cred: { revoked_at: string | null }) => !cred.revoked_at))
+      }
+    } catch {
+      // Network error — leave credentials unchanged
+    }
   }, [])
 
   useEffect(() => {
@@ -72,8 +78,13 @@ export function PasskeysSection(): React.JSX.Element {
   }
 
   async function revoke(id: string): Promise<void> {
-    const res = await fetch("/api/auth/passkeys/credentials", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) })
-    if (res.ok) loadCredentials()
+    try {
+      const res = await fetch("/api/auth/passkeys/credentials", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) })
+      if (res.ok) loadCredentials()
+      else toast({ variant: "destructive", title: "Failed to revoke passkey" })
+    } catch {
+      toast({ variant: "destructive", title: "Failed to revoke passkey" })
+    }
   }
 
   return (
