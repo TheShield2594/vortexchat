@@ -60,7 +60,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (iconVal instanceof File && iconVal.size > 0) iconFile = iconVal
     if (formData.get("regenerate_invite") === "true") regenerateInvite = true
   } else {
-    const body = await req.json().catch(() => ({}))
+    const raw = await req.json().catch(() => ({}))
+    const body = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? raw : {}
     if ("name" in body) name = String(body.name)
     if ("description" in body) description = String(body.description)
     if (body.regenerate_invite === true) regenerateInvite = true
@@ -87,6 +88,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     updates.description = trimmed || null
     changes.description = { old: server.description, new: trimmed || null }
+  }
+
+  // Check invite regeneration permission before any side effects
+  if (regenerateInvite && !isOwner) {
+    await insertAuditLog(supabase, {
+      server_id: serverId,
+      actor_id: user.id,
+      action: "invite_regenerate_denied",
+      target_id: serverId,
+      target_type: "server",
+      changes: {},
+    })
+    return NextResponse.json({ error: "Only the server owner can regenerate the invite code" }, { status: 403 })
   }
 
   // Handle icon upload
@@ -144,11 +158,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     changes.icon_url = { old: server.icon_url, new: urlData.publicUrl }
   }
 
-  // Handle invite code regeneration (owner only)
+  // Handle invite code regeneration (owner check already done above)
   if (regenerateInvite) {
-    if (!isOwner)
-      return NextResponse.json({ error: "Only the server owner can regenerate the invite code" }, { status: 403 })
-
     const newCode = Array.from(crypto.getRandomValues(new Uint8Array(6)))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("")
@@ -203,10 +214,61 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     if (!server)
       return NextResponse.json({ error: "Server not found" }, { status: 404 })
 
-    if (server.owner_id !== user.id)
+    if (server.owner_id !== user.id) {
+      await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "server_delete_denied",
+        target_id: serverId,
+        target_type: "server",
+        changes: {},
+      })
       return NextResponse.json({ error: "Only the server owner can delete the server" }, { status: 403 })
+    }
 
-    // Audit log before deletion (so we have a record even if cascade is partial)
+    // Delete associated data in dependency order
+    const cascadeTables = [
+      "messages", "channels", "member_roles", "roles",
+      "server_members", "invites", "automod_rules",
+      "screening_configs", "webhooks", "server_emojis",
+    ] as const
+    const cascadeErrors: Array<{ table: string; message: string }> = []
+
+    for (const table of cascadeTables) {
+      const { error } = await supabase.from(table).delete().eq("server_id", serverId)
+      if (error) cascadeErrors.push({ table, message: error.message })
+    }
+
+    if (cascadeErrors.length > 0) {
+      await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "server_delete_failed",
+        target_id: serverId,
+        target_type: "server",
+        changes: { cascade_errors: { old: null, new: cascadeErrors } },
+      })
+      return NextResponse.json({ error: "Failed to delete server: cascade cleanup failed" }, { status: 500 })
+    }
+
+    const { error: deleteError } = await supabase
+      .from("servers")
+      .delete()
+      .eq("id", serverId)
+
+    if (deleteError) {
+      await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "server_delete_failed",
+        target_id: serverId,
+        target_type: "server",
+        changes: { error: { old: null, new: deleteError.message } },
+      })
+      return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
+    }
+
+    // Audit log after successful deletion
     await insertAuditLog(supabase, {
       server_id: serverId,
       actor_id: user.id,
@@ -215,28 +277,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       target_type: "server",
       changes: { name: { old: server.name, new: null } },
     })
-
-    // Delete associated data in dependency order
-    // Channels, messages, roles, members, invites are cleaned up here
-    // to avoid relying solely on DB cascade/triggers
-    await supabase.from("messages").delete().eq("server_id", serverId)
-    await supabase.from("channels").delete().eq("server_id", serverId)
-    await supabase.from("member_roles").delete().eq("server_id", serverId)
-    await supabase.from("roles").delete().eq("server_id", serverId)
-    await supabase.from("server_members").delete().eq("server_id", serverId)
-    await supabase.from("invites").delete().eq("server_id", serverId)
-    await supabase.from("automod_rules").delete().eq("server_id", serverId)
-    await supabase.from("screening_configs").delete().eq("server_id", serverId)
-    await supabase.from("webhooks").delete().eq("server_id", serverId)
-    await supabase.from("server_emojis").delete().eq("server_id", serverId)
-
-    const { error: deleteError } = await supabase
-      .from("servers")
-      .delete()
-      .eq("id", serverId)
-
-    if (deleteError)
-      return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
 
     return NextResponse.json({ success: true })
   } catch {
