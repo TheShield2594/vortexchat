@@ -56,7 +56,7 @@ export function useSwipe({ onSwipeLeft, onSwipeRight, minDistance = 56, maxCross
           const clamped = dx > maxPeek ? maxPeek + (dx - maxPeek) * 0.2 : dx
           const progress = Math.min(clamped / maxPeek, 1)
           el.style.transition = "none"
-          el.style.transform = `translateX(${clamped}px)`
+          el.style.transform = `translateX(calc(-100% + ${clamped}px))`
           el.style.opacity = `${Math.min(progress, 0.85)}`
         }
       },

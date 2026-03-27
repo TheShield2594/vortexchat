@@ -8,20 +8,15 @@ import {
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils/cn"
-import type { ChannelRow, UserRow } from "@/types/database"
+import type { ChannelRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
+import type { VoiceParticipant } from "@vortex/shared"
 
-export interface VoiceParticipant {
-  user_id: string
-  channel_id: string
-  muted: boolean
-  deafened: boolean
-  user: Pick<UserRow, "id" | "username" | "display_name" | "avatar_url"> | null
-}
+export type { VoiceParticipant }
 
 /** Returns a short human-readable string for the time remaining until `expiresAt`. */
 function formatTimeRemaining(expiresAt: string): string {
@@ -93,7 +88,10 @@ export function SortableChannelItem({
     channel.expires_at ? formatTimeRemaining(channel.expires_at) : null
   )
   useEffect(() => {
-    if (!channel.expires_at) return
+    if (!channel.expires_at) {
+      setTimeRemaining(null)
+      return
+    }
     setTimeRemaining(formatTimeRemaining(channel.expires_at))
     const msRemaining = new Date(channel.expires_at).getTime() - Date.now()
     const delay = msRemaining <= 60_000 ? 1_000 : 30_000
@@ -213,8 +211,14 @@ export function SortableChannelItem({
             <Bell className="w-4 h-4 mr-2" /> Notification Settings
           </ContextMenuItem>
           <ContextMenuItem onClick={() => {
-            navigator.clipboard.writeText(channel.id)
-            toast({ title: "Channel ID copied!" })
+            void navigator.clipboard
+              .writeText(channel.id)
+              .then(() => {
+                toast({ title: "Channel ID copied!" })
+              })
+              .catch(() => {
+                toast({ variant: "destructive", title: "Failed to copy channel ID" })
+              })
           }}>
             <Clipboard className="w-4 h-4 mr-2" /> Copy Channel ID
           </ContextMenuItem>

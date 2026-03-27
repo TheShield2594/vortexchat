@@ -37,7 +37,7 @@ import { CompactVoiceBar } from "@/components/voice/compact-voice-bar"
 import { SortableChannelItem, ChannelIcon } from "@/components/layout/sortable-channel-item"
 import { CategoryHeader, DropContainer, getCategoryDragId, getCategoryIdFromDragId } from "@/components/layout/category-header"
 
-import type { VoiceParticipant } from "@/components/layout/sortable-channel-item"
+import type { VoiceParticipant } from "@vortex/shared"
 export type { VoiceParticipant }
 
 const CreateChannelModal = dynamic(() => import("@/components/modals/create-channel-modal").then((m) => ({ default: m.CreateChannelModal })))
@@ -811,6 +811,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                         "grid transition-[grid-template-rows,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
                         isCollapsed ? "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none" : "grid-rows-[1fr] opacity-100 translate-y-0"
                       )}
+                      aria-hidden={isCollapsed || undefined}
+                      {...(isCollapsed ? { inert: "" } : {})}
                     >
                     <div className="space-y-0.5 px-2 min-h-[4px] overflow-hidden">
                         {categoryChannels.map((channel) => (

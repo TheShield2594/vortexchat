@@ -108,11 +108,13 @@ export function CategoryHeader({
 
       <ContextMenuContent className="w-56" aria-label={`Category actions for ${category.name}`}>
         {canManageChannels && (
-          <ContextMenuItem onClick={onAddChannel}>
-            <Plus className="w-4 h-4 mr-2" /> Create Channel
-          </ContextMenuItem>
+          <>
+            <ContextMenuItem onClick={onAddChannel}>
+              <Plus className="w-4 h-4 mr-2" /> Create Channel
+            </ContextMenuItem>
+            {(onEdit || onCopyId || onDelete) && <ContextMenuSeparator />}
+          </>
         )}
-        <ContextMenuSeparator />
         {canManageChannels && onEdit && (
           <ContextMenuItem onClick={onEdit}>
             <Pencil className="w-4 h-4 mr-2" /> Edit Category

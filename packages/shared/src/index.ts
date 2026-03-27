@@ -102,6 +102,23 @@ export type ChannelType = 'text' | 'voice' | 'category' | 'forum' | 'stage' | 'a
 /** Actions that can be triggered from the mobile header and consumed by ChatArea. */
 export type MobileAction = "search" | "summary" | "pins" | "help"
 
+/** Minimal user shape carried inside a voice-state row. */
+export interface VoiceParticipantUser {
+  id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+}
+
+/** A user currently connected to a voice/stage channel. */
+export interface VoiceParticipant {
+  user_id: string
+  channel_id: string
+  muted: boolean
+  deafened: boolean
+  user: VoiceParticipantUser | null
+}
+
 export interface SignalingEvents {
   'join-room': { channelId: string; userId: string; displayName: string; avatarUrl?: string }
   'leave-room': { channelId: string }
