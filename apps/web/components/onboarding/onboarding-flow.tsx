@@ -3,10 +3,6 @@
 import { useState, useMemo, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Gamepad2,
-  BookOpen,
-  Rocket,
-  Video,
   Plus,
   Compass,
   Upload,
@@ -16,7 +12,6 @@ import {
   ArrowRight,
   ArrowLeft,
   Users,
-  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,18 +20,14 @@ import { useToast } from "@/components/ui/use-toast"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
-import { STARTER_TEMPLATES, type ServerTemplate } from "@/lib/server-templates"
+import { STARTER_TEMPLATES, TEMPLATE_META, type ServerTemplate } from "@/lib/server-templates"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 import type { ServerRow } from "@/types/database"
 
 type OnboardingStep = "welcome" | "create" | "invite" | "done"
 
-const TEMPLATE_META: Record<string, { icon: typeof Gamepad2; color: string; description: string }> = {
-  Gaming: { icon: Gamepad2, color: "#5865F2", description: "Voice channels, LFG, and squad rooms" },
-  Study: { icon: BookOpen, color: "#57F287", description: "Announcements, homework help, focus rooms" },
-  Startup: { icon: Rocket, color: "#FEE75C", description: "All-hands, product, and dev-sync channels" },
-  Creator: { icon: Video, color: "#EB459E", description: "News, fan chat, and creator lounge" },
-}
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+const MAX_ICON_SIZE = 5 * 1024 * 1024 // 5MB
 
 interface OnboardingFlowProps {
   username: string
@@ -59,13 +50,41 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
   const [copied, setCopied] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const clearIconState = useCallback(() => {
+    setIconFile(null)
+    if (iconPreview) URL.revokeObjectURL(iconPreview)
+    setIconPreview(null)
+    if (fileRef.current) fileRef.current.value = ""
+  }, [iconPreview])
+
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "Unsupported image format",
+        description: "Server icons must be JPG, PNG, GIF, or WebP.",
+      })
+      e.target.value = ""
+      return
+    }
+
+    if (file.size > MAX_ICON_SIZE) {
+      toast({
+        variant: "destructive",
+        title: "Image too large",
+        description: "Server icons must be under 5 MB.",
+      })
+      e.target.value = ""
+      return
+    }
+
     setIconFile(file)
     if (iconPreview) URL.revokeObjectURL(iconPreview)
     setIconPreview(URL.createObjectURL(file))
-  }, [iconPreview])
+  }, [iconPreview, toast])
 
   const handleTemplateSelect = useCallback((name: string) => {
     setSelectedTemplate((prev) => (prev === name ? null : name))
@@ -74,7 +93,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
     }
   }, [serverName])
 
-  async function handleCreateServer() {
+  const handleCreateServer = useCallback(async () => {
     if (!serverName.trim()) return
     setLoading(true)
 
@@ -83,7 +102,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
 
       if (iconFile) {
         const ext = iconFile.name.split(".").pop()
-        const path = `${crypto.randomUUID()}.${ext}`
+        const path = `${userId}/${crypto.randomUUID()}.${ext}`
         const { error: uploadError } = await supabase.storage
           .from("server-icons")
           .upload(path, iconFile, { upsert: true })
@@ -114,24 +133,18 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
         const data = await res.json()
         server = data.server as ServerRow
       } else {
-        // Plain server creation
-        const { error: insertError } = await supabase
-          .from("servers")
-          .insert({ name: serverName.trim(), owner_id: userId, icon_url: iconUrl || undefined })
-
-        if (insertError) throw insertError
-
-        const { data: fetched, error } = await supabase
-          .from("servers")
-          .select()
-          .eq("owner_id", userId)
-          .eq("name", serverName.trim())
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single()
-
-        if (error || !fetched) throw error || new Error("Failed to fetch created server")
-        server = fetched
+        // Plain server creation via API
+        const res = await fetch("/api/servers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: serverName.trim(), iconUrl }),
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: "Server creation failed" }))
+          throw new Error(body.error || "Server creation failed")
+        }
+        const data = await res.json()
+        server = data.server as ServerRow
       }
 
       // Post system bot welcome message
@@ -148,14 +161,16 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
       addServer(server)
       setCreatedServer(server)
       setStep("invite")
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create server", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      toast({ variant: "destructive", title: "Failed to create server", description: message })
+      clearIconState()
     } finally {
       setLoading(false)
     }
-  }
+  }, [serverName, iconFile, userId, supabase, selectedTemplate, addServer, toast, clearIconState])
 
-  async function handleCopyInvite() {
+  async function handleCopyInvite(): Promise<void> {
     if (!createdServer) return
     const inviteUrl = `${window.location.origin}/invite/${createdServer.invite_code}`
     await navigator.clipboard.writeText(inviteUrl)
@@ -164,13 +179,16 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  async function completeOnboarding() {
-    // Mark onboarding complete in DB
-    await supabase
-      .from("users")
-      .update({ onboarding_completed_at: new Date().toISOString() })
-      .eq("id", userId)
+  async function markOnboardingComplete(): Promise<void> {
+    try {
+      await fetch("/api/onboarding/complete", { method: "POST" })
+    } catch {
+      // Best-effort — don't block navigation if the API call fails
+    }
+  }
 
+  async function completeOnboarding(): Promise<void> {
+    await markOnboardingComplete()
     if (createdServer) {
       router.push(`/channels/${createdServer.id}`)
     } else {
@@ -179,13 +197,15 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
     router.refresh()
   }
 
-  async function skipOnboarding() {
-    await supabase
-      .from("users")
-      .update({ onboarding_completed_at: new Date().toISOString() })
-      .eq("id", userId)
-
+  async function skipOnboarding(): Promise<void> {
+    await markOnboardingComplete()
     router.push("/channels/me")
+    router.refresh()
+  }
+
+  async function browseServers(): Promise<void> {
+    await markOnboardingComplete()
+    router.push("/channels/discover")
     router.refresh()
   }
 
@@ -233,10 +253,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
 
               <Button
                 variant="outline"
-                onClick={() => {
-                  completeOnboarding()
-                  router.push("/channels/discover")
-                }}
+                onClick={browseServers}
                 className="w-full h-14 text-base font-semibold rounded-xl border-2"
                 style={{
                   borderColor: "var(--theme-surface-elevated)",
@@ -354,7 +371,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
                     <Upload className="w-5 h-5" style={{ color: "var(--theme-text-muted)" }} />
                   )}
                 </div>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleFileChange} />
 
                 <div className="flex-1 space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>

@@ -1,6 +1,25 @@
 import { PERMISSIONS } from "@vortex/shared"
+import type { LucideIcon } from "lucide-react"
+import { Gamepad2, BookOpen, Rocket, Video } from "lucide-react"
 
 export type TemplatePermissionInput = number | string[]
+
+export interface TemplateMeta {
+  icon: LucideIcon
+  color: string
+  description: string
+}
+
+/**
+ * UI metadata for each starter template. Co-located with STARTER_TEMPLATES
+ * so adding a new template requires updating both in the same file.
+ */
+export const TEMPLATE_META: Record<string, TemplateMeta> = {
+  Gaming: { icon: Gamepad2, color: "#5865F2", description: "Voice channels, LFG, and squad rooms" },
+  Study: { icon: BookOpen, color: "#57F287", description: "Announcements, homework help, focus rooms" },
+  Startup: { icon: Rocket, color: "#FEE75C", description: "All-hands, product, and dev-sync channels" },
+  Creator: { icon: Video, color: "#EB459E", description: "News, fan chat, and creator lounge" },
+}
 
 export interface TemplateMetadata {
   source: string
