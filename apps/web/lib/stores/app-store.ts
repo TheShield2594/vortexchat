@@ -2,6 +2,8 @@ import { create } from "zustand"
 import type { ServerRow, ChannelRow, UserRow, MessageWithAuthor } from "@/types/database"
 import { loadBooleanStorage, persistBooleanStorage } from "@/lib/utils/storage"
 
+export type MobileAction = "search" | "summary" | "pins" | "help"
+
 const MEMBER_LIST_STORAGE_KEY = "vortexchat:ui:member-list-open"
 const THREAD_PANEL_STORAGE_KEY = "vortexchat:ui:thread-panel-open"
 const WORKSPACE_PANEL_STORAGE_KEY = "vortexchat:ui:workspace-panel-open"
@@ -79,8 +81,8 @@ interface AppState {
   invalidateMessageCache: (channelId: string) => void
 
   // Mobile action dispatch (replaces fragile DOM CustomEvents between ServerMobileLayout → ChatArea)
-  mobilePendingAction: "search" | "summary" | "pins" | "help" | null
-  setMobilePendingAction: (action: "search" | "summary" | "pins" | "help" | null) => void
+  mobilePendingAction: MobileAction | null
+  setMobilePendingAction: (action: MobileAction | null) => void
 
   // Voice state
   voiceChannelId: string | null

@@ -93,8 +93,12 @@ export function useSlashModeration({
         if (!targetUserId) {
           const bansRes = await fetch(`/api/servers/${serverId}/bans`)
           if (!bansRes.ok) throw new Error("Failed to fetch ban list")
-          const bans: Array<{ user_id: string; username?: string; display_name?: string }> = await bansRes.json()
-          const match = bans.find((b) => b.username === strippedName || b.display_name === strippedName || b.user_id === strippedName)
+          const bans: Array<{ user_id: string; username?: string; display_name?: string; user?: { username?: string; display_name?: string } }> = await bansRes.json()
+          const match = bans.find((b) => {
+            const username = b.username ?? b.user?.username
+            const displayName = b.display_name ?? b.user?.display_name
+            return username === strippedName || displayName === strippedName || b.user_id === strippedName
+          })
           if (!match) { throw new Error(`User "${targetInput}" not found in the ban list.`) }
           targetUserId = match.user_id
         }

@@ -72,7 +72,7 @@ export function SplashScreen(): React.ReactElement | null {
           style={{
             marginTop: 16,
             fontSize: 14,
-            color: "var(--theme-interactive, #8f9bbf)",
+            color: "var(--theme-text-muted, #8f9bbf)",
             fontFamily: "var(--font-body), system-ui, sans-serif",
             letterSpacing: "0.05em",
           }}

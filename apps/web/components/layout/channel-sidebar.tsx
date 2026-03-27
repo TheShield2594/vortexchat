@@ -1118,7 +1118,7 @@ function CategoryHeader({
               <span
                 {...sortable.attributes}
                 {...sortable.listeners}
-                className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing tertiary-metadata"
+                className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto touch-visible cursor-grab active:cursor-grabbing tertiary-metadata"
                 onClick={(event) => event.stopPropagation()}
               >
                 <GripVertical className="w-3 h-3" />

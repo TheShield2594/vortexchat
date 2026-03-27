@@ -80,7 +80,8 @@ export function useGifMemeSticker({ pickerOpen, activeTab }: UseGifMemeStickerOp
         const res = await fetch(endpoint, { signal: controller.signal })
         const json = await res.json()
         setGifResults(Array.isArray(json) ? json : [])
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") return
         setGifResults([])
       } finally {
         setGifLoading(false)
@@ -126,7 +127,8 @@ export function useGifMemeSticker({ pickerOpen, activeTab }: UseGifMemeStickerOp
         const res = await fetch(endpoint, { signal: controller.signal })
         const json = await res.json()
         setStickerResults(Array.isArray(json) ? json : [])
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") return
         setStickerResults([])
       } finally {
         setStickerLoading(false)
@@ -154,8 +156,18 @@ export function useGifMemeSticker({ pickerOpen, activeTab }: UseGifMemeStickerOp
           ? `${MEME_SEARCH_URL}?q=${encodeURIComponent(memeQuery.trim())}`
           : MEME_TRENDING_URL
         const res = await fetch(endpoint, { signal: controller.signal })
+        if (!res.ok) {
+          // Non-OK response shouldn't permanently disable memes — just show empty for this request
+          setMemeResults([])
+          return
+        }
         const json = await res.json()
         const results = Array.isArray(json) ? json : []
+        if (!Array.isArray(json)) {
+          // Non-array payload is a server error, not proof memes are unavailable
+          setMemeResults([])
+          return
+        }
         setMemeResults(results)
         // Trending returned empty with no query → memes aren't available (Giphy fallback)
         if (!memeQuery.trim() && results.length === 0) {
@@ -164,7 +176,8 @@ export function useGifMemeSticker({ pickerOpen, activeTab }: UseGifMemeStickerOp
         } else if (results.length > 0) {
           setMemesAvailable(true)
         }
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") return
         setMemeResults([])
       } finally {
         setMemeLoading(false)

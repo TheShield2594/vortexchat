@@ -2,6 +2,9 @@
 
 import { useState, useCallback } from "react"
 
+/** Must match the length of POLL_NUMBER_EMOJIS in message-item.tsx */
+const MAX_POLL_OPTIONS = 8
+
 interface UsePollCreatorOptions {
   content: string
   onContentChange: (content: string) => void
@@ -17,6 +20,8 @@ interface UsePollCreatorReturn {
   pollOptions: string[]
   setPollOptions: React.Dispatch<React.SetStateAction<string[]>>
   canInsertPoll: boolean
+  maxPollOptions: number
+  addPollOption: () => void
   handleCreatePoll: () => void
   handlePollInputKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
   removePollOption: (index: number) => void
@@ -33,7 +38,7 @@ export function usePollCreator({ content, onContentChange, onCursorChange, texta
 
   const resetPollDraftToBlank = useCallback(() => {
     setPollQuestion("")
-    setPollOptions([])
+    setPollOptions(["", ""])
   }, [])
 
   const handleCreatePoll = useCallback(() => {
@@ -65,22 +70,30 @@ export function usePollCreator({ content, onContentChange, onCursorChange, texta
     handleCreatePoll()
   }, [canInsertPoll, handleCreatePoll])
 
+  const addPollOption = useCallback(() => {
+    setPollOptions((prev) => prev.length >= MAX_POLL_OPTIONS ? prev : [...prev, ""])
+  }, [])
+
   const removePollOption = useCallback((index: number) => {
-    if (pollOptions.length <= 2) return
-    setPollOptions((prev) => prev.filter((_, optionIndex) => optionIndex !== index))
-  }, [pollOptions.length])
+    setPollOptions((prev) => {
+      if (prev.length <= 2) return prev
+      return prev.filter((_, optionIndex) => optionIndex !== index)
+    })
+  }, [])
 
   const openPollCreator = useCallback((initialQuestion?: string) => {
-    if (pollOptions.length === 0) setPollOptions(["", ""])
-    if (initialQuestion) setPollQuestion(initialQuestion)
+    setPollOptions((prev) => prev.length === 0 ? ["", ""] : prev)
+    if (initialQuestion !== undefined) setPollQuestion(initialQuestion)
     setShowPollCreator(true)
-  }, [pollOptions.length])
+  }, [])
 
   return {
     showPollCreator, setShowPollCreator,
     pollQuestion, setPollQuestion,
     pollOptions, setPollOptions,
     canInsertPoll,
+    maxPollOptions: MAX_POLL_OPTIONS,
+    addPollOption,
     handleCreatePoll,
     handlePollInputKeyDown,
     removePollOption,

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, CircleHelp } from "lucide-react"
-import { useAppStore } from "@/lib/stores/app-store"
+import { useAppStore, type MobileAction } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { useSwipe } from "@/hooks/use-swipe"
@@ -211,13 +211,13 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                     borderColor: "var(--theme-bg-tertiary)",
                   }}
                 >
-                  {[
-                    { id: "summary", label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
-                    { id: "workspace", label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
-                    { id: "pins", label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
-                    { id: "threads", label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
-                    { id: "help", label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
-                  ].map((item) => (
+                  {([
+                    { id: "summary" as const, label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
+                    { id: "workspace" as const, label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
+                    { id: "pins" as const, label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
+                    { id: "threads" as const, label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
+                    { id: "help" as const, label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
+                  ] satisfies Array<{ id: MobileAction | "workspace" | "threads"; label: string; icon: React.ReactNode; active?: boolean }>).map((item) => (
                     <button
                       key={item.id}
                       type="button"
@@ -229,7 +229,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                         } else if (item.id === "threads") {
                           toggleThreadPanel()
                         } else {
-                          setMobilePendingAction(item.id as "search" | "summary" | "pins" | "help")
+                          setMobilePendingAction(item.id)
                         }
                       }}
                       className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-white/10"

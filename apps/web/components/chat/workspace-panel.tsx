@@ -95,7 +95,7 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
               <button
                 type="button"
                 onClick={() => deleteTask(task.id)}
-                className="opacity-0 group-hover:opacity-100 touch-visible text-zinc-500 hover:text-red-400 shrink-0 mt-0.5 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 touch-visible text-zinc-500 hover:text-red-400 focus-visible:text-red-400 shrink-0 mt-0.5 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-400/50 rounded-sm"
                 aria-label={`Delete task: ${task.title}`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -132,7 +132,7 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
                     <button
                       type="button"
                       onClick={() => deleteTask(task.id)}
-                      className="opacity-0 group-hover:opacity-100 touch-visible text-zinc-500 hover:text-red-400 shrink-0 mt-0.5 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 touch-visible text-zinc-500 hover:text-red-400 focus-visible:text-red-400 shrink-0 mt-0.5 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-400/50 rounded-sm"
                       aria-label={`Delete task: ${task.title}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -166,7 +166,7 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
               <button
                 type="button"
                 onClick={() => deleteDoc(doc.id)}
-                className="opacity-0 group-hover:opacity-100 touch-visible text-zinc-500 hover:text-red-400 shrink-0 mt-0.5 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 touch-visible text-zinc-500 hover:text-red-400 focus-visible:text-red-400 shrink-0 mt-0.5 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-400/50 rounded-sm"
                 aria-label={`Delete doc: ${doc.title}`}
               >
                 <Trash2 className="w-3.5 h-3.5" />

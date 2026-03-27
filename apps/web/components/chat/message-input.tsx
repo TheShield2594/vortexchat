@@ -48,7 +48,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [sendSuccess, setSendSuccess] = useState<string | null>(null)
 
   /** Show error inline AND as a toast so mobile users don't miss it. */
-  const setSendError = useCallback((msg: string | null) => {
+  const setSendError = useCallback((msg: string | null): void => {
     setSendErrorRaw(msg)
     if (msg) {
       toast({ variant: "destructive", title: "Send failed", description: msg })
@@ -275,10 +275,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             setFiles([])
             for (const url of fileUrlCache.current.values()) URL.revokeObjectURL(url)
             fileUrlCache.current.clear()
-          } catch (error: any) {
+          } catch (error: unknown) {
             setContent(savedContent)
             onDraftChange(savedContent)
-            setSendError(error?.message ?? "Message send failed. Try again.")
+            setSendError(error instanceof Error ? error.message : "Message send failed. Try again.")
           } finally {
             setSending(false)
             textareaRef.current?.focus()
@@ -353,10 +353,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             setSendError(null)
             setSendSuccess(`Nickname updated to "${args.trim()}"`)
             setTimeout(() => setSendSuccess(null), 3000)
-          } catch (error: any) {
+          } catch (error: unknown) {
             setContent(savedContent)
             onDraftChange(savedContent)
-            setSendError(error?.message ?? "Failed to update nickname.")
+            setSendError(error instanceof Error ? error.message : "Failed to update nickname.")
           } finally {
             setSending(false)
             textareaRef.current?.focus()
@@ -390,10 +390,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               const payload = await res.json().catch(() => ({}))
               throw new Error(payload?.error ?? `Command failed (${res.status})`)
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
             setContent(savedContent)
             onDraftChange(savedContent)
-            setSendError(error?.message ?? "Command failed. Try again.")
+            setSendError(error instanceof Error ? error.message : "Command failed. Try again.")
           } finally {
             setSending(false)
             textareaRef.current?.focus()
@@ -426,15 +426,16 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       await onSend(savedContent, savedFiles, (percent) => setUploadProgress(percent), abortController.signal)
       for (const url of fileUrlCache.current.values()) URL.revokeObjectURL(url)
       fileUrlCache.current.clear()
-    } catch (error: any) {
-      if (error?.name === "AbortError" || abortController.signal.aborted) {
+    } catch (error: unknown) {
+      const isAbort = (error instanceof DOMException && error.name === "AbortError") || abortController.signal.aborted
+      if (isAbort) {
         setSendError(null)
       } else {
         // Restore content so the user can retry
         setContent(savedContent)
         onDraftChange(savedContent)
         setFiles(savedFiles)
-        setSendError(error?.message ?? "Message send failed. Try again.")
+        setSendError(error instanceof Error ? error.message : "Message send failed. Try again.")
       }
     } finally {
       setSending(false)
@@ -1237,8 +1238,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                             onSent?.()
                             try {
                               await onSend(gifUrl)
-                            } catch (error: any) {
-                              setSendError(error?.message ?? "Failed to send GIF. Try again.")
+                            } catch (error: unknown) {
+                              setSendError(error instanceof Error ? error.message : "Failed to send GIF. Try again.")
                             } finally {
                               setSending(false)
                               textareaRef.current?.focus()
@@ -1300,8 +1301,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                             onSent?.()
                             try {
                               await onSend(memeUrl)
-                            } catch (error: any) {
-                              setSendError(error?.message ?? "Failed to send meme. Try again.")
+                            } catch (error: unknown) {
+                              setSendError(error instanceof Error ? error.message : "Failed to send meme. Try again.")
                             } finally {
                               setSending(false)
                               textareaRef.current?.focus()
@@ -1359,8 +1360,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                             onSent?.()
                             try {
                               await onSend(stickerUrl)
-                            } catch (error: any) {
-                              setSendError(error?.message ?? "Failed to send sticker. Try again.")
+                            } catch (error: unknown) {
+                              setSendError(error instanceof Error ? error.message : "Failed to send sticker. Try again.")
                             } finally {
                               setSending(false)
                               textareaRef.current?.focus()

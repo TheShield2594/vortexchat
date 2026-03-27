@@ -34,10 +34,15 @@ export function PwaInstallBanner() {
 
   async function install() {
     if (!promptEvent) return
-    await promptEvent.prompt()
-    const { outcome } = await promptEvent.userChoice
-    if (outcome === "accepted" || outcome === "dismissed") {
-      localStorage.setItem(STORAGE_KEY, "1")
+    try {
+      await promptEvent.prompt()
+      const { outcome } = await promptEvent.userChoice
+      if (outcome === "accepted" || outcome === "dismissed") {
+        localStorage.setItem(STORAGE_KEY, "1")
+        setVisible(false)
+      }
+    } catch {
+      // prompt() can throw if called more than once or if the browser cancels — dismiss gracefully
       setVisible(false)
     }
   }
