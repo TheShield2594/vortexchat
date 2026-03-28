@@ -20,7 +20,7 @@ export function useMarkChannelRead(channelId: string): void {
 
   useEffect(() => {
     const callRpc = (): void => {
-      supabase.rpc("mark_channel_read", { p_channel_id: channelId }).catch(() => {})
+      supabase.rpc("mark_channel_read", { p_channel_id: channelId }).then(() => {}, () => {})
     }
 
     // Debounce initial mark-read to avoid RPC spam on rapid channel switching

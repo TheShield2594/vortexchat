@@ -474,7 +474,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     onSearchInChannel: () => setSearchOpen(true),
     onMarkRead: () => {
       if (activeChannelId) {
-        void supabase.rpc("mark_channel_read", { p_channel_id: activeChannelId })
+        createClientSupabaseClient().rpc("mark_channel_read", { p_channel_id: activeChannelId }).then(() => {}, () => {})
       }
     },
     onJumpChannelPrev: () => jumpRelative(navigableChannelIds, "prev"),
