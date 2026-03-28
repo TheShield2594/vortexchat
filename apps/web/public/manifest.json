@@ -96,8 +96,14 @@
       "url": "/channels/me",
       "icons": [
         {
+          "src": "/shortcuts/friends.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        },
+        {
           "src": "/icon-192.png",
-          "sizes": "192x192"
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     },
@@ -107,8 +113,14 @@
       "url": "/channels/me?new=1",
       "icons": [
         {
+          "src": "/shortcuts/new-dm.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        },
+        {
           "src": "/icon-192.png",
-          "sizes": "192x192"
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     },
@@ -118,8 +130,14 @@
       "url": "/discover",
       "icons": [
         {
+          "src": "/shortcuts/discover.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        },
+        {
           "src": "/icon-192.png",
-          "sizes": "192x192"
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     }

@@ -2,6 +2,7 @@
 
 import { useState, createContext, useContext } from "react"
 import { Menu, X } from "lucide-react"
+import { cn } from "@/lib/utils/cn"
 import { useSwipe } from "@/hooks/use-swipe"
 
 interface MobileNavCtx {
@@ -84,9 +85,10 @@ export function MobileDrawer({ children }: { children: React.ReactNode }) {
       </div>
       {/* Mobile: slide-in drawer */}
       <div
-        className={`md:hidden fixed top-0 left-0 bottom-0 z-50 flex transform motion-safe:transition-transform motion-safe:duration-200 ${
+        className={cn(
+          "md:hidden fixed top-0 left-0 bottom-0 z-50 flex transform motion-safe:transition-transform motion-safe:duration-200",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        )}
       >
         {children}
       </div>

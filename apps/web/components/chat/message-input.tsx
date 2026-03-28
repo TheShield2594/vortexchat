@@ -22,6 +22,16 @@ import { toast } from "@/components/ui/use-toast"
 import { useGifMemeSticker } from "@/hooks/use-gif-meme-sticker"
 import { usePollCreator } from "@/hooks/use-poll-creator"
 import { useSlashModeration } from "@/hooks/use-slash-moderation"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
+
+/** Module-level cache for slash commands to avoid refetching on every server revisit. */
+const SLASH_COMMAND_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const slashCommandCache = new Map<string, {
+  commands: SlashCommand[]
+  permissions: number
+  isOwner: boolean
+  fetchedAt: number
+}>()
 
 interface Props {
   channelName: string
@@ -39,6 +49,7 @@ interface Props {
 
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
 export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread, serverId }: Props) {
+  const isMobile = useMobileLayout()
   const [content, setContent] = useState(draft)
   const [cursorPosition, setCursorPosition] = useState(0)
   const [files, setFiles] = useState<File[]>([])
@@ -89,6 +100,26 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       media.clearFallbackSignal()
     }
   }, [media.shouldFallbackToGif, media.clearFallbackSignal])
+
+  // Lock body scroll on mobile when the picker bottom sheet is open
+  useEffect(() => {
+    if (!showEmojiPicker) return
+    const mql = window.matchMedia("(min-width: 768px)")
+    // Only lock on mobile (the picker is a fixed bottom sheet below md breakpoint)
+    if (mql.matches) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    // If the device rotates to desktop width, unlock scroll
+    const onChange = (e: MediaQueryListEvent): void => {
+      if (e.matches) document.body.style.overflow = prev
+      else document.body.style.overflow = "hidden"
+    }
+    mql.addEventListener("change", onChange)
+    return () => {
+      document.body.style.overflow = prev
+      mql.removeEventListener("change", onChange)
+    }
+  }, [showEmojiPicker])
 
   // Debounced draft sync — keeps typing snappy, persists after 150ms idle
   const debouncedDraftChange = useCallback((value: string) => {
@@ -141,6 +172,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const emoji = useEmojiAutocomplete({ content, cursorPosition, serverEmojis })
 
   // Slash command autocomplete (`/command` prefix trigger)
+  // Cache responses per server to avoid refetching on every channel switch.
   useEffect(() => {
     // Reset immediately so stale commands from a previous server aren't shown
     setAppCommands([])
@@ -149,23 +181,36 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
     if (!serverId) return
 
+    // Check in-memory cache first (5-minute TTL)
+    const cached = slashCommandCache.get(serverId)
+    if (cached && Date.now() - cached.fetchedAt < SLASH_COMMAND_CACHE_TTL) {
+      setAppCommands(cached.commands)
+      setUserPermissions(cached.permissions)
+      setIsServerOwner(cached.isOwner)
+      return
+    }
+
     const controller = new AbortController()
-    const currentServerId = serverId
-    fetch(`/api/servers/${currentServerId}/apps/commands`, { signal: controller.signal })
+    fetch(`/api/servers/${serverId}/apps/commands`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (!data) return
-        // Guard against stale responses arriving after serverId changed
-        if (currentServerId !== serverId) return
         // New format: { commands, permissions, isOwner }
+        let commands: SlashCommand[] = []
+        let permissions = 0
+        let isOwner = false
         if (data.commands) {
-          setAppCommands(Array.isArray(data.commands) ? data.commands : [])
-          setUserPermissions(data.permissions ?? 0)
-          setIsServerOwner(data.isOwner ?? false)
+          commands = Array.isArray(data.commands) ? data.commands : []
+          permissions = data.permissions ?? 0
+          isOwner = data.isOwner ?? false
         } else if (Array.isArray(data)) {
           // Backwards compat with old format
-          setAppCommands(data)
+          commands = data
         }
+        setAppCommands(commands)
+        setUserPermissions(permissions)
+        setIsServerOwner(isOwner)
+        slashCommandCache.set(serverId!, { commands, permissions, isOwner, fetchedAt: Date.now() })
       })
       .catch(() => {/* non-fatal — includes AbortError */})
     return () => controller.abort()
@@ -580,9 +625,22 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   }
 
   function validateAndFilterFiles(incoming: File[]): File[] {
+    const MAX_FILE_COUNT = 10
+    const currentCount = files.length
     const accepted: File[] = []
     const errors: string[] = []
+
+    if (currentCount >= MAX_FILE_COUNT) {
+      setSendError(`You can attach up to ${MAX_FILE_COUNT} files per message`)
+      return []
+    }
+
+    const remaining = MAX_FILE_COUNT - currentCount
     for (const file of incoming) {
+      if (accepted.length >= remaining) {
+        errors.push(`Only ${MAX_FILE_COUNT} files allowed per message — ${incoming.length - accepted.length} skipped`)
+        break
+      }
       const error = validateFileClient(file)
       if (error) {
         errors.push(error)
@@ -654,8 +712,16 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       return
     }
     e.preventDefault()
-    let cols = 9
-    if (buttons.length >= 2) {
+    // Derive column count from the nearest grid ancestor, falling back to bounding-rect measurement
+    let gridContainer: Element | null = buttons[0].parentElement
+    while (gridContainer) {
+      const display = getComputedStyle(gridContainer).display
+      if (display === "grid" || display === "inline-grid") break
+      gridContainer = gridContainer.parentElement
+    }
+    const colsParsed = gridContainer ? getComputedStyle(gridContainer).gridTemplateColumns.split(/\s+/).filter(Boolean).length : 0
+    let cols = colsParsed > 0 ? colsParsed : 9
+    if (cols === 9 && buttons.length >= 2) {
       const r0 = buttons[0].getBoundingClientRect()
       let c = 1
       for (let i = 1; i < buttons.length; i++) {
@@ -737,21 +803,21 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       {/* File previews */}
       {files.length > 0 && (
         <div
-          className="flex gap-2 p-2 flex-wrap rounded-t"
+          className="flex gap-2 p-2 overflow-x-auto md:flex-wrap rounded-t no-scrollbar"
           style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}
         >
           {files.map((file, i) => (
-            <div key={i} className="relative group w-24">
+            <div key={i} className="relative group w-28 md:w-24 flex-shrink-0">
               {file.type.startsWith("image/") ? (
                 <img
                   src={getPreviewUrl(file)}
                   alt={file.name}
-                  className="w-24 h-24 object-cover rounded-md border"
+                  className="w-28 h-28 md:w-24 md:h-24 object-cover rounded-md border"
                   style={{ borderColor: "var(--theme-bg-tertiary)" }}
                 />
               ) : (
                 <div
-                  className="w-24 h-24 rounded-md border flex items-center justify-center text-xs text-center p-2"
+                  className="w-28 h-28 md:w-24 md:h-24 rounded-md border flex items-center justify-center text-xs text-center p-2"
                   style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)", borderColor: "var(--theme-bg-tertiary)" }}
                 >
                   {file.name}
@@ -1018,8 +1084,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
             placeholder={replyTo
-              ? `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`
-              : `Message #${channelName} — @ mention, : emoji, / command`
+              ? (isMobile ? `Reply in #${channelName}` : `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`)
+              : (isMobile ? `Message #${channelName}` : `Message #${channelName} — @ mention, : emoji, / command`)
             }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none block"
@@ -1033,7 +1099,26 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             data-state="open"
             className="panel-surface-motion fixed inset-x-0 bottom-0 z-overlay flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[380px] md:rounded-lg md:border"
             style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
+            onTouchStart={(e) => {
+              const el = e.currentTarget
+              const startY = e.touches[0].clientY
+              let moved = false
+              const onMove = (ev: TouchEvent) => {
+                const dy = ev.touches[0].clientY - startY
+                // Only dismiss if scrollable content is at the top
+                const scrollable = el.querySelector("[data-frimousse-scroll], [style*='overflow']") as HTMLElement | null
+                const atTop = !scrollable || scrollable.scrollTop <= 0
+                if (dy > 60 && atTop) { moved = true; setShowEmojiPicker(false) }
+              }
+              const onEnd = () => { el.removeEventListener("touchmove", onMove); el.removeEventListener("touchend", onEnd) }
+              el.addEventListener("touchmove", onMove, { passive: true })
+              el.addEventListener("touchend", onEnd, { once: true })
+            }}
           >
+              {/* Drag handle — visible on mobile only */}
+              <div className="flex justify-center pt-1 pb-1 md:hidden" aria-hidden>
+                <div className="w-10 h-1 rounded-full" style={{ background: "var(--theme-bg-tertiary)" }} />
+              </div>
               <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
                 {([
                   { key: "emoji" as const, label: "Emoji", panel: "emoji-tab-panel" },

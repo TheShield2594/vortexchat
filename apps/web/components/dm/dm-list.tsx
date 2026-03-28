@@ -391,7 +391,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
                 key={ch.id}
                 onClick={() => { router.push(`/channels/me/${ch.id}`); onNavigate?.() }}
                 className={cn(
-                  "w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-left interactive-list-item",
+                  "w-full flex items-center gap-3 px-3 md:px-2 py-2.5 md:py-1.5 rounded-md text-left interactive-list-item",
                   isActive
                     ? "motion-selected text-white"
                     : "surface-hover text-gray-400 hover:text-gray-200"
@@ -401,13 +401,13 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
                 <div className="relative flex-shrink-0">
                   {ch.is_group ? (
                     <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center"
+                      className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center"
                       style={{ background: "var(--theme-accent)" }}
                     >
-                      <Users className="w-4 h-4 text-white" />
+                      <Users className="w-5 h-5 md:w-4 md:h-4 text-white" />
                     </div>
                   ) : (
-                    <Avatar className="w-8 h-8">
+                    <Avatar className="w-10 h-10 md:w-8 md:h-8">
                       {ch.partner?.avatar_url && <AvatarImage src={ch.partner.avatar_url} />}
                       <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "11px" }}>
                         {initials}

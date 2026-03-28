@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, CircleHelp } from "lucide-react"
+import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { MobileAction } from "@vortex/shared"
 import { useShallow } from "zustand/react/shallow"
@@ -21,7 +21,7 @@ interface Props {
  * - /channels/:serverId → shows channel sidebar full-screen
  * - /channels/:serverId/:channelId → shows channel content full-screen with back button
  * On desktop, renders all panels inline.
- * Only one branch mounts at a time — children and memberList never duplicate.
+ * On mobile channel view, the member list renders as an overlay panel on top of the content.
  */
 export function ServerMobileLayout({ serverId, sidebar, memberList, children }: Props) {
   const pathname = usePathname()
@@ -170,7 +170,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
         />
         {/* Single mobile channel header — combines navigation + channel actions */}
         <div
-          className="flex items-center gap-1 px-2 py-2 border-b flex-shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-3 border-b flex-shrink-0"
           style={{
             background: "var(--theme-bg-secondary)",
             borderColor: "var(--theme-bg-tertiary)",
@@ -179,14 +179,14 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           <button
             type="button"
             onClick={() => router.push(`/channels/${serverId}`)}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
             style={{ color: "var(--theme-text-secondary)" }}
             aria-label="Back to channels"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <span
-            className="flex-1 text-sm font-semibold truncate min-w-0"
+            className="flex-1 text-base font-semibold truncate min-w-0"
             style={{ color: "var(--theme-text-primary)" }}
           >
             # {channelName}
@@ -197,7 +197,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
             <button
               type="button"
               onClick={() => { dismissMobileMemberList(); setMobilePendingAction("search") }}
-              className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+              className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Search messages"
             >
@@ -213,7 +213,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                 return next
               })
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
             style={{ color: mobileMemberListOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             aria-label="Toggle member list"
           >
@@ -226,7 +226,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
               <button
                 type="button"
                 onClick={() => setMobileOverflowOpen((v) => !v)}
-                className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+                className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
                 style={{ color: "var(--theme-text-secondary)" }}
                 aria-label="More channel actions"
                 aria-expanded={mobileOverflowOpen}
@@ -249,7 +249,6 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                     { id: "workspace" as const, label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
                     { id: "pins" as const, label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
                     { id: "threads" as const, label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
-                    { id: "help" as const, label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
                   ] satisfies Array<{ id: MobileAction | "workspace" | "threads"; label: string; icon: React.ReactNode; active?: boolean }>).map((item) => (
                     <button
                       key={item.id}
@@ -278,14 +277,24 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
             </div>
           )}
         </div>
-        {/* Channel content area or mobile member list */}
-        {mobileMemberListOpen ? (
-          <div className="flex-1 overflow-hidden" {...memberListSwipeHandlers}>{memberList}</div>
-        ) : (
-          <main id="main-content" className="flex flex-1 overflow-hidden">
-            {children}
-          </main>
-        )}
+        {/* Channel content */}
+        <main id="main-content" className="flex flex-1 overflow-hidden relative">
+          {children}
+          {/* Member list slides in as an overlay panel with backdrop */}
+          {mobileMemberListOpen && (
+            <>
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+              <div
+                className="absolute inset-0 z-10 bg-black/50"
+                onClick={dismissMobileMemberList}
+                aria-hidden="true"
+              />
+              <div className="absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl" style={{ background: "var(--theme-bg-secondary)" }} {...memberListSwipeHandlers}>
+                {memberList}
+              </div>
+            </>
+          )}
+        </main>
       </div>
     )
   }
@@ -295,7 +304,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
       <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
         {/* Special pages (settings/moderation/events) */}
         <div
-          className="flex items-center gap-2 px-2 py-2 border-b flex-shrink-0"
+          className="flex items-center gap-2 px-2.5 py-3 border-b flex-shrink-0"
           style={{
             background: "var(--theme-bg-secondary)",
             borderColor: "var(--theme-bg-tertiary)",
@@ -304,13 +313,13 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           <button
             type="button"
             onClick={() => router.push(`/channels/${serverId}`)}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
             style={{ color: "var(--theme-text-secondary)" }}
             aria-label="Back to server"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <span className="text-sm font-semibold capitalize" style={{ color: "var(--theme-text-primary)" }}>
+          <span className="text-base font-semibold capitalize" style={{ color: "var(--theme-text-primary)" }}>
             {pathParts[2]}
           </span>
         </div>
