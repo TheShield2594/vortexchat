@@ -270,6 +270,7 @@ export type Database = {
           icon_url: string | null
           owner_id: string
           invite_code: string
+          vanity_url: string | null
           description: string | null
           is_public: boolean
           member_count: number
@@ -288,6 +289,7 @@ export type Database = {
           icon_url?: string | null
           owner_id: string
           invite_code?: string
+          vanity_url?: string | null
           description?: string | null
           is_public?: boolean
           member_count?: number
@@ -306,6 +308,7 @@ export type Database = {
           icon_url?: string | null
           owner_id?: string
           invite_code?: string
+          vanity_url?: string | null
           description?: string | null
           is_public?: boolean
           member_count?: number
@@ -2905,6 +2908,69 @@ export type Database = {
         }
         Relationships: []
       }
+      badge_definitions: {
+        Row: {
+          id: string
+          name: string
+          description: string
+          icon: string
+          color: string
+          category: 'general' | 'activity' | 'moderation' | 'special' | 'server'
+          rarity: 'common' | 'uncommon' | 'rare' | 'legendary'
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          description?: string
+          icon?: string
+          color?: string
+          category?: 'general' | 'activity' | 'moderation' | 'special' | 'server'
+          rarity?: 'common' | 'uncommon' | 'rare' | 'legendary'
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string
+          icon?: string
+          color?: string
+          category?: 'general' | 'activity' | 'moderation' | 'special' | 'server'
+          rarity?: 'common' | 'uncommon' | 'rare' | 'legendary'
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          id: string
+          user_id: string
+          badge_id: string
+          awarded_at: string
+          awarded_by: string | null
+          metadata: Record<string, unknown> | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          badge_id: string
+          awarded_at?: string
+          awarded_by?: string | null
+          metadata?: Record<string, unknown> | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          badge_id?: string
+          awarded_at?: string
+          awarded_by?: string | null
+          metadata?: Record<string, unknown> | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       auto_archive_inactive_threads: {
@@ -3054,6 +3120,25 @@ export type AutoModRuleRow = Database['public']['Tables']['automod_rules']['Row'
 export type ThreadRow = Database['public']['Tables']['threads']['Row']
 export type ThreadMemberRow = Database['public']['Tables']['thread_members']['Row']
 export type ThreadReadStateRow = Database['public']['Tables']['thread_read_states']['Row']
+export interface BadgeDefinitionRow {
+  id: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  category: 'general' | 'activity' | 'moderation' | 'special' | 'server'
+  rarity: 'common' | 'uncommon' | 'rare' | 'legendary'
+  sort_order: number
+  created_at: string
+}
+export interface UserBadgeRow {
+  id: string
+  user_id: string
+  badge_id: string
+  awarded_at: string
+  awarded_by: string | null
+  metadata: Record<string, unknown> | null
+}
 
 // AutoMod types
 export type AutoModTriggerType = 'keyword_filter' | 'regex_filter' | 'mention_spam' | 'link_spam' | 'rapid_message'

@@ -19,13 +19,29 @@ export async function GET(
       return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 })
     }
 
-    const { data: server, error: serverError } = await supabase
+    const code = params.code.toLowerCase()
+
+    // Try invite_code first, then vanity_url
+    let server: { id: string; name: string; icon_url: string | null; description: string | null } | null = null
+
+    const { data: byCode } = await supabase
       .from("servers")
       .select("id, name, icon_url, description")
-      .eq("invite_code", params.code.toLowerCase())
-      .single()
+      .eq("invite_code", code)
+      .maybeSingle()
 
-    if (serverError || !server) {
+    if (byCode) {
+      server = byCode
+    } else {
+      const { data: byVanity } = await supabase
+        .from("servers")
+        .select("id, name, icon_url, description")
+        .eq("vanity_url", code)
+        .maybeSingle()
+      server = byVanity
+    }
+
+    if (!server) {
       return NextResponse.json({ error: "Invalid invite code" }, { status: 404 })
     }
 
@@ -60,13 +76,29 @@ export async function POST(
       return NextResponse.json({ error: "Too many join attempts. Please slow down." }, { status: 429 })
     }
 
-    const { data: server, error: serverError } = await supabase
+    const code = params.code.toLowerCase()
+
+    // Try invite_code first, then vanity_url
+    let server: { id: string; name: string } | null = null
+
+    const { data: byCode } = await supabase
       .from("servers")
       .select("id, name")
-      .eq("invite_code", params.code.toLowerCase())
-      .single()
+      .eq("invite_code", code)
+      .maybeSingle()
 
-    if (serverError || !server) {
+    if (byCode) {
+      server = byCode
+    } else {
+      const { data: byVanity } = await supabase
+        .from("servers")
+        .select("id, name")
+        .eq("vanity_url", code)
+        .maybeSingle()
+      server = byVanity
+    }
+
+    if (!server) {
       return NextResponse.json({ error: "Invalid invite code" }, { status: 404 })
     }
 

@@ -48,6 +48,9 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   const [description, setDescription] = useState(liveServer.description ?? "")
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [iconPreview, setIconPreview] = useState<string | null>(null)
+  const [vanityUrl, setVanityUrl] = useState(liveServer.vanity_url ?? "")
+  const [vanityLoading, setVanityLoading] = useState(false)
+  const [vanityError, setVanityError] = useState<string | null>(null)
   const iconFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -138,6 +141,38 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   function copyInvite() {
     navigator.clipboard.writeText(liveServer.invite_code)
     toast({ title: "Invite code copied!" })
+  }
+
+  function copyVanityUrl() {
+    if (liveServer.vanity_url) {
+      navigator.clipboard.writeText(`${window.location.origin}/invite/${liveServer.vanity_url}`)
+      toast({ title: "Vanity invite URL copied!" })
+    }
+  }
+
+  async function handleSaveVanityUrl() {
+    setVanityError(null)
+    setVanityLoading(true)
+    try {
+      const value = vanityUrl.trim().toLowerCase() || null
+      const res = await fetch(`/api/servers/${server.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vanity_url: value }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setVanityError(data.error ?? "Failed to update vanity URL")
+        return
+      }
+      const updated = await res.json()
+      updateServer(server.id, updated)
+      toast({ title: value ? "Vanity URL saved!" : "Vanity URL removed!" })
+    } catch {
+      setVanityError("Failed to update vanity URL")
+    } finally {
+      setVanityLoading(false)
+    }
   }
 
   async function handleDeleteServer() {
@@ -377,6 +412,60 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                   Regenerate Code
                 </Button>
               )}
+
+              {/* Vanity Invite URL */}
+              {isOwner && (
+                <div className="border-t pt-4 mt-4" style={{ borderColor: 'var(--theme-bg-tertiary)' }}>
+                  <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Vanity Invite URL
+                  </Label>
+                  <p className="text-xs mb-2" style={{ color: 'var(--theme-text-muted)' }}>
+                    Set a custom, memorable invite link for your server (e.g., <strong>gaming-hub</strong>).
+                  </p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex items-center rounded overflow-hidden" style={{ background: 'var(--theme-bg-tertiary)', border: '1px solid var(--theme-bg-tertiary)' }}>
+                      <span className="px-2 text-xs shrink-0" style={{ color: 'var(--theme-text-muted)' }}>/invite/</span>
+                      <input
+                        type="text"
+                        value={vanityUrl}
+                        onChange={(e) => { setVanityUrl(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setVanityError(null) }}
+                        placeholder="my-server"
+                        maxLength={32}
+                        className="flex-1 bg-transparent py-2 pr-2 text-sm focus:outline-none"
+                        style={{ color: 'var(--theme-text-primary)' }}
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleSaveVanityUrl}
+                      disabled={vanityLoading}
+                      style={{ borderColor: 'var(--theme-accent)', color: 'var(--theme-accent)', background: 'transparent' }}
+                    >
+                      {vanityLoading ? "Saving..." : "Save"}
+                    </Button>
+                    {liveServer.vanity_url && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={copyVanityUrl}
+                        style={{ color: 'var(--theme-text-muted)' }}
+                        aria-label="Copy vanity invite URL"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {vanityError && (
+                    <p className="text-xs mt-1" style={{ color: 'var(--theme-danger)' }}>{vanityError}</p>
+                  )}
+                  {liveServer.vanity_url && !vanityError && (
+                    <p className="text-xs mt-1" style={{ color: 'var(--theme-success)' }}>
+                      Active: {window.location.origin}/invite/{liveServer.vanity_url}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="border-t pt-4 mt-4" style={{ borderColor: 'var(--theme-bg-tertiary)' }}>
                 <InvitesManager serverId={server.id} isOwner={isOwner} />
               </div>
