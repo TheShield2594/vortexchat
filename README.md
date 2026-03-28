@@ -27,7 +27,7 @@
 - **Real-time messaging** — Supabase Realtime (Postgres CDC), zero polling
 - **Reactions** — emoji reactions, live-synced across clients
 - **Replies & threads** — reply to messages, edit, soft-delete; full threaded conversations with auto-archive
-- **File uploads** — images and files via Supabase Storage with malware scanning
+- **File uploads** — images and files via Supabase Storage
 - **Search** — full-text message search + local search index
 - **Slash commands** — built-in channel command bar
 

@@ -4,7 +4,6 @@ import { rateLimiter } from "@/lib/rate-limit"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { validateAttachments } from "@/lib/attachment-validation"
 import { sendPushToChannel } from "@/lib/push"
-import { enqueueAttachmentScans } from "@/lib/attachment-malware"
 import type { Database } from "@/types/database"
 
 interface Params {
@@ -176,10 +175,8 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
   if (attachments.length > 0 && message) {
     const { data: insertedAttachments } = await supabase
       .from("attachments")
-      .insert(attachments.map((a) => ({ ...a, message_id: message.id, scan_state: "pending_scan" as const })))
+      .insert(attachments.map((a) => ({ ...a, message_id: message.id })))
       .select("id, filename, content_type, message_id")
-
-    await enqueueAttachmentScans(supabase, insertedAttachments ?? [])
   }
 
   // Auto-join the author as thread member if not already a member (ignore duplicate key)

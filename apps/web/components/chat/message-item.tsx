@@ -25,7 +25,6 @@ const CreateThreadModal = lazy(() => import("@/components/modals/create-thread-m
 const ReportModal = lazy(() => import("@/components/modals/report-modal").then((m) => ({ default: m.ReportModal })))
 import Image from "next/image"
 import { useParams } from "next/navigation"
-import { isAttachmentDownloadAllowed } from "@/lib/attachment-access"
 import { MAX_POLL_OPTIONS } from "@/hooks/use-poll-creator"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
@@ -1156,7 +1155,7 @@ function AttachmentGallery({ attachments, canManageMessages }: { attachments: At
   const serverId = params?.serverId
   const imageIndexes = attachments
     .map((attachment, index) => ({ attachment, index }))
-    .filter((entry) => entry.attachment.content_type?.startsWith("image/") && ((entry.attachment as AttachmentRow & { scan_state?: string | null }).scan_state ?? "pending_scan") === "clean")
+    .filter((entry) => entry.attachment.content_type?.startsWith("image/"))
     .map((entry) => entry.index)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -1304,29 +1303,13 @@ function AttachmentGallery({ attachments, canManageMessages }: { attachments: At
 }
 
 
-function getAttachmentStatusCopy(scanState: string | null | undefined) {
-  switch (scanState) {
-    case "pending_scan":
-      return "Scanning for malware…"
-    case "quarantined":
-      return "Quarantined by malware scanner"
-    case "failed_scan":
-      return "Scan failed — file unavailable"
-    default:
-      return null
-  }
-}
-
 function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverId }: { attachment: AttachmentRow; onOpenImage?: () => void; canManageMessages: boolean; serverId?: string }) {
-  const [moderationBusy, setModerationBusy] = useState<"release" | "delete" | null>(null)
   const isImage = attachment.content_type?.startsWith("image/")
   const isVideo = attachment.content_type?.startsWith("video/")
   const isAudio = attachment.content_type?.startsWith("audio/")
-  const statusCopy = getAttachmentStatusCopy((attachment as AttachmentRow & { scan_state?: string | null }).scan_state)
-  const isDownloadable = isAttachmentDownloadAllowed((attachment as AttachmentRow & { scan_state?: "pending_scan" | "clean" | "quarantined" | "failed_scan" | null }).scan_state)
   const downloadUrl = `/api/attachments/${attachment.id}/download`
 
-  if (isImage && isDownloadable) {
+  if (isImage) {
     return (
       <button type="button" className="max-w-sm block" onClick={onOpenImage}>
         <Image
@@ -1342,7 +1325,7 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
     )
   }
 
-  if (isVideo && isDownloadable) {
+  if (isVideo) {
     return (
       <div className="max-w-lg rounded overflow-hidden" style={{ background: "var(--theme-bg-tertiary)" }}>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption -- no caption tracks available for user-uploaded video */}
@@ -1361,7 +1344,7 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
     )
   }
 
-  if (isAudio && isDownloadable) {
+  if (isAudio) {
     return (
       <div className="max-w-sm rounded p-3 space-y-2" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
         <div className="flex items-center gap-2">
@@ -1375,37 +1358,6 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
         </div>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption -- no caption tracks available for user-uploaded audio */}
         <audio src={downloadUrl} controls preload="metadata" className="w-full h-8" aria-label={attachment.filename} />
-      </div>
-    )
-  }
-
-  if (!isDownloadable) {
-    return (
-      <div
-        className="flex items-center gap-3 p-3 rounded max-w-sm"
-        style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", opacity: 0.8 }}
-      >
-        <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: "#b45309" }}>
-          <span className="text-xs font-bold" style={{ color: "var(--theme-text-bright)" }}>SCAN</span>
-        </div>
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate" style={{ color: "var(--theme-text-bright)" }}>{attachment.filename}</div>
-          <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{statusCopy}</div>
-          {canManageMessages && serverId && ((attachment as AttachmentRow & { scan_state?: string | null }).scan_state === "quarantined") && (
-            <div className="mt-2 flex gap-2">
-              <button type="button" disabled={moderationBusy !== null} className="px-2 py-1 text-xs rounded" style={{ background: "#166534", color: "white" }} onClick={async () => {
-                setModerationBusy("release")
-                await fetch(`/api/servers/${serverId}/attachments/${attachment.id}/moderate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release" }) })
-                setModerationBusy(null)
-              }}>Release</button>
-              <button type="button" disabled={moderationBusy !== null} className="px-2 py-1 text-xs rounded" style={{ background: "#991b1b", color: "white" }} onClick={async () => {
-                setModerationBusy("delete")
-                await fetch(`/api/servers/${serverId}/attachments/${attachment.id}/moderate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete" }) })
-                setModerationBusy(null)
-              }}>Delete</button>
-            </div>
-          )}
-        </div>
       </div>
     )
   }
