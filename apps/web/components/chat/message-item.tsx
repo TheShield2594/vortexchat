@@ -96,7 +96,7 @@ function addEmojiRecent(emoji: string) {
   }
 }
 
-function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => void; onClose: () => void }) {
+function EmojiPickerPopup({ onSelect, onClose, maxHeight }: { onSelect: (emoji: string) => void | Promise<void>; onClose: () => void; maxHeight?: string }) {
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
 
@@ -114,7 +114,7 @@ function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => 
   return (
     <EmojiPicker.Root
       onEmojiSelect={({ emoji }) => handleSelect(emoji)}
-      style={{ display: "flex", flexDirection: "column", width: "320px", height: "400px" }}
+      style={{ display: "flex", flexDirection: "column", width: "320px", height: maxHeight ?? "400px", maxHeight: maxHeight ?? "400px", overflow: "hidden" }}
     >
       <div style={{ padding: "8px 8px 4px" }}>
         <EmojiPicker.Search
@@ -448,10 +448,14 @@ export const MessageItem = memo(function MessageItem({
         const clamped = Math.max(0, Math.min(dx, SWIPE_REPLY_THRESHOLD * 1.5))
         setSwipeX(clamped)
       }}
-      onTouchEnd={() => {
-        if (swipeStartRef.current?.active && swipeX >= SWIPE_REPLY_THRESHOLD) {
-          navigator.vibrate?.(10)
-          onReply()
+      onTouchEnd={(e) => {
+        const start = swipeStartRef.current
+        if (start?.active && e.changedTouches.length > 0) {
+          const dx = e.changedTouches[0].clientX - start.x
+          if (dx >= SWIPE_REPLY_THRESHOLD) {
+            navigator.vibrate?.(10)
+            onReply()
+          }
         }
         swipeStartRef.current = null
         setSwipeX(0)
@@ -756,7 +760,7 @@ export const MessageItem = memo(function MessageItem({
                       {genericReactionEntries.map(([emoji, { count, hasOwn, users }]) => (
                         <button
                           key={`${emoji}-${poppingReactions[emoji] ?? 0}`}
-                          onClick={() => { navigator.vibrate?.(6); onReaction(emoji) }}
+                          onClick={async () => { navigator.vibrate?.(6); try { await onReaction(emoji) } catch { /* handled upstream */ } }}
                           title={users
                             .map((id) => {
                               if (id === currentUserId) return "You"
@@ -798,7 +802,7 @@ export const MessageItem = memo(function MessageItem({
                 style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
               >
                 <EmojiPickerPopup
-                  onSelect={(emoji) => onReaction(emoji)}
+                  onSelect={async (emoji) => { try { await onReaction(emoji) } catch { /* handled upstream */ } }}
                   onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
                 />
               </div>
@@ -832,7 +836,7 @@ export const MessageItem = memo(function MessageItem({
                     <button
                       key={emoji}
                       type="button"
-                      onClick={() => { onReaction(emoji); setShowEmojiPicker(false); setEmojiPickerPos(null) }}
+                      onClick={async () => { try { await onReaction(emoji) } catch { /* handled upstream */ } setShowEmojiPicker(false); setEmojiPickerPos(null) }}
                       className="w-11 h-11 flex items-center justify-center rounded-full text-xl active:scale-90 transition-transform"
                       style={{ background: "var(--theme-bg-tertiary)" }}
                       aria-label={`React with ${emoji}`}
@@ -842,8 +846,9 @@ export const MessageItem = memo(function MessageItem({
                   ))}
                 </div>
                 <EmojiPickerPopup
-                  onSelect={(emoji) => onReaction(emoji)}
+                  onSelect={async (emoji) => { try { await onReaction(emoji) } catch { /* handled upstream */ } }}
                   onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
+                  maxHeight="calc(70vh - 100px)"
                 />
               </div>
             </div>,

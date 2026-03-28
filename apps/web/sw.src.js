@@ -256,7 +256,7 @@ self.addEventListener("notificationclick", (event) => {
           existing.postMessage({ type: "NOTIFICATION_NAVIGATE", url })
           if (!sameChannel) existing.navigate(url)
         } else {
-          self.clients.openWindow(url)
+          self.clients.openWindow(fullUrl)
         }
       })
   )

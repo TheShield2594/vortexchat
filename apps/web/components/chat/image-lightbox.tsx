@@ -164,17 +164,30 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
     }
   }, [zoom])
 
-  const handleTouchEnd = useCallback(() => {
-    if (swipingRef.current && Math.abs(swipeDismissY) > 100) {
-      navigator.vibrate?.(8)
-      onClose()
-      return
+  const DISMISS_THRESHOLD = 100
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current
+    if (swipingRef.current && start && e.changedTouches.length > 0) {
+      const dy = e.changedTouches[0].clientY - start.touches[0].y
+      if (Math.abs(dy) > DISMISS_THRESHOLD) {
+        navigator.vibrate?.(8)
+        onClose()
+        touchStartRef.current = null
+        return
+      }
     }
     // Snap back
     setSwipeDismissY(0)
     swipingRef.current = false
     touchStartRef.current = null
-  }, [swipeDismissY, onClose])
+  }, [onClose])
+
+  const handleTouchCancel = useCallback(() => {
+    setSwipeDismissY(0)
+    swipingRef.current = false
+    touchStartRef.current = null
+  }, [])
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === backdropRef.current) {
@@ -287,7 +300,7 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
         aria-label={zoom > 1 ? "Zoom out" : "Zoom in"}
       >
         <img
