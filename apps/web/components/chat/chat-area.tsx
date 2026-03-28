@@ -691,7 +691,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [channel.id])
 
-  const { handlers: pullToRefreshHandlers, pullDistance, refreshing: pullRefreshing } = usePullToRefresh({
+  const { handlers: pullToRefreshHandlers, pullDistance, refreshing: pullRefreshing, threshold: pullThreshold } = usePullToRefresh({
     onRefresh: handlePullRefresh,
     isAtTop: isAtBottom, // column-reverse: scrollTop=0 is visual top (newest messages)
   })
@@ -1649,7 +1649,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   transition: pullRefreshing ? "transform 0s" : "none",
                 }}
               >
-                {pullRefreshing ? "Refreshing…" : pullDistance >= 80 ? "Release to refresh" : "↓"}
+                {pullRefreshing ? "Refreshing…" : pullDistance >= pullThreshold ? "Release to refresh" : "↓"}
               </span>
             </div>
           )}

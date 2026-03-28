@@ -8,7 +8,7 @@ export default function ServerLoading() {
       <div className="flex flex-1 flex-col md:hidden" style={{ background: "var(--theme-bg-primary)" }}>
         {/* Top bar placeholder */}
         <div
-          className="flex items-center gap-3 px-3 py-2.5 border-b flex-shrink-0"
+          className="flex items-center gap-1 px-2 py-2 border-b flex-shrink-0"
           style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)" }}
         >
           <Skeleton className="h-5 w-5 rounded" />

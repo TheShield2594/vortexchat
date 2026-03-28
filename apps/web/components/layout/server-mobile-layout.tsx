@@ -138,6 +138,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // Swipe right on the member list to dismiss it
   const memberListSwipeHandlers = useSwipe({
     onSwipeRight: dismissMobileMemberList,
+    minDistance: 72,
   })
 
   // ========== DESKTOP LAYOUT — all panels inline ==========
