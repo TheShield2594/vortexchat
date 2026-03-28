@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
             url: "/channels/me",
             tag: `friend-accepted-${user.id}`,
           })
-        }).catch(() => {})
+        }).catch((err) => { console.error("friends route: notification fire-and-forget failed", err) })
 
         return NextResponse.json({ message: "Friend request accepted" })
       }
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
       url: "/channels/me",
       tag: `friend-request-${user.id}`,
     })
-  }).catch(() => {})
+  }).catch((err) => { console.error("friends route: notification fire-and-forget failed", err) })
 
   return NextResponse.json({ message: "Friend request sent" }, { status: 201 })
 }
@@ -243,7 +243,7 @@ export async function PATCH(req: NextRequest) {
         url: "/channels/me",
         tag: `friend-accepted-${user.id}`,
       })
-    }).catch(() => {})
+    }).catch((err) => { console.error("friends route: notification fire-and-forget failed", err) })
 
     return NextResponse.json({ message: "Friend request accepted" })
   }

@@ -32,53 +32,62 @@ export async function sendPushToUser(
   userId: string,
   payload: PushPayload
 ): Promise<void> {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return // push not configured
-  ensureVapid()
+  try {
+    if (!VAPID_PUBLIC || !VAPID_PRIVATE) return // push not configured
+    ensureVapid()
 
-  const supabase = await createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
 
-  // Check quiet hours — suppress push if the user is in their scheduled DND window
-  const { data: quietPrefs, error: quietError } = await supabase
-    .from("user_notification_preferences")
-    .select("quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
-    .eq("user_id", userId)
-    .maybeSingle()
+    // Check quiet hours — suppress push if the user is in their scheduled DND window
+    const { data: quietPrefs, error: quietError } = await supabase
+      .from("user_notification_preferences")
+      .select("quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+      .eq("user_id", userId)
+      .maybeSingle()
 
-  if (quietError) {
-    console.error("Failed to fetch quiet hours preferences:", quietError.message)
-    // Continue sending — fail open rather than suppressing notifications
-  }
+    if (quietError) {
+      console.error("Failed to fetch quiet hours preferences:", quietError.message)
+      // Continue sending — fail open rather than suppressing notifications
+    }
 
-  if (quietPrefs && isInQuietHours(
-    quietPrefs.quiet_hours_enabled,
-    quietPrefs.quiet_hours_start,
-    quietPrefs.quiet_hours_end,
-    quietPrefs.quiet_hours_timezone,
-  )) {
-    return // suppress during quiet hours
-  }
+    if (quietPrefs && isInQuietHours(
+      quietPrefs.quiet_hours_enabled ?? false,
+      quietPrefs.quiet_hours_start ?? "22:00",
+      quietPrefs.quiet_hours_end ?? "08:00",
+      quietPrefs.quiet_hours_timezone ?? "UTC",
+    )) {
+      return // suppress during quiet hours
+    }
 
-  const { data: subs } = await supabase
-    .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
-    .eq("user_id", userId)
+    const { data: subs } = await supabase
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("user_id", userId)
 
-  if (!subs?.length) return
+    if (!subs?.length) return
 
-  const results = await Promise.allSettled(
-    subs.map((sub) =>
-      webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        JSON.stringify(payload),
-        { TTL: 60 }
-      ).catch(async (err: any) => {
-        // 410 = subscription expired; clean it up
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await supabase.from("push_subscriptions").delete().eq("id", sub.id)
-        }
-      })
+    const results = await Promise.allSettled(
+      subs.map((sub) =>
+        webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify(payload),
+          { TTL: 60 }
+        ).catch(async (err: unknown) => {
+          const statusCode = (err as { statusCode?: number }).statusCode
+          // 410 = subscription expired; clean it up
+          if (statusCode === 410 || statusCode === 404) {
+            await supabase.from("push_subscriptions").delete().eq("id", sub.id).catch(() => {
+              console.error(`sendPushToUser: failed to remove stale subscription ${sub.id}`)
+            })
+          } else {
+            console.error(`sendPushToUser: push to ${sub.endpoint.slice(0, 50)}… failed`, statusCode ?? err)
+          }
+        })
+      )
     )
-  )
+  } catch (err) {
+    console.error("sendPushToUser: unexpected error", err)
+  }
 }
 
 /**
@@ -95,6 +104,7 @@ export async function sendPushToChannel(opts: {
   mentionedIds?: string[]
   excludeUserId: string
 }): Promise<void> {
+  try {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
   ensureVapid()
 
@@ -213,4 +223,7 @@ export async function sendPushToChannel(opts: {
       return sendPushToUser(uid, payload)
     })
   )
+  } catch (err) {
+    console.error("sendPushToChannel: unexpected error", err)
+  }
 }

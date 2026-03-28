@@ -81,7 +81,8 @@ self.addEventListener("fetch", (event) => {
           return (
             (await cache.match("/channels/me")) ||
             (await cache.match("/offline")) ||
-            (await cache.match("/"))
+            (await cache.match("/")) ||
+            new Response("Offline", { status: 503, statusText: "Service Unavailable" })
           )
         })
     )
@@ -166,11 +167,12 @@ self.addEventListener("push", (event) => {
 
 // ─── App badge helper ────────────────────────────────────────────────────────
 function updateAppBadge(count) {
-  if (!navigator.setAppBadge) return
+  // In service worker scope, badge API is on `self` (ServiceWorkerGlobalScope)
+  if (!self.navigator?.setAppBadge) return
   if (count > 0) {
-    navigator.setAppBadge(count)
+    self.navigator.setAppBadge(count)
   } else {
-    navigator.clearAppBadge()
+    self.navigator.clearAppBadge()
   }
 }
 
@@ -254,7 +256,7 @@ self.addEventListener("notificationclick", (event) => {
           // Post a message so the client can handle in-app navigation
           // without a full page reload when already on the right channel.
           existing.postMessage({ type: "NOTIFICATION_NAVIGATE", url })
-          if (!sameChannel) existing.navigate(url)
+          if (!sameChannel) existing.navigate(fullUrl)
         } else {
           self.clients.openWindow(fullUrl)
         }

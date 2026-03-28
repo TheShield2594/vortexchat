@@ -657,11 +657,12 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ error: msgError.message }, { status: 500 })
+    console.error("messages POST: insert failed", msgError.message)
+    return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
   }
   // --- Send push notifications (fire-and-forget) ---
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const senderName = (message as any)?.author?.display_name || (message as any)?.author?.username || "Someone"
+  const messageWithAuthor = message as { author?: { display_name?: string; username?: string } }
+  const senderName = messageWithAuthor?.author?.display_name || messageWithAuthor?.author?.username || "Someone"
 
   // --- Insert in-app inbox notifications for mentions/replies (fire-and-forget) ---
   Promise.resolve()
@@ -731,7 +732,7 @@ export async function POST(request: Request) {
         await serviceSupabase.from("notifications").insert(rows)
       }
     })
-    .catch(() => {})
+    .catch((err) => { console.error("messages POST: in-app notification insert failed", err) })
 
   sendPushToChannel({
     serverId: channel.server_id,
@@ -740,7 +741,7 @@ export async function POST(request: Request) {
     content: content?.trim() ?? "Sent an attachment",
     mentionedIds: safeMentions,
     excludeUserId: user.id,
-  }).catch(() => {})
+  }).catch((err) => { console.error("messages POST: sendPushToChannel failed", err) })
 
   // Skip the extra DB query when there's no reply to hydrate
   const hydratedMessage = replyToId

@@ -17,11 +17,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const countOnly = searchParams.get("countOnly") === "true"
     if (countOnly) {
-      const { count } = await supabase
+      const { count, error: countError } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("read", false)
+      if (countError) return NextResponse.json({ error: "Failed to fetch unread count" }, { status: 500 })
       return NextResponse.json({ unreadCount: count ?? 0 })
     }
 
@@ -50,8 +51,8 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const body = await req.json() as Record<string, unknown>
     const { id } = body
 
-    if (id !== undefined && typeof id !== "string") {
-      return NextResponse.json({ error: "id must be a string" }, { status: 400 })
+    if (id !== undefined && (typeof id !== "string" || id.trim() === "")) {
+      return NextResponse.json({ error: "id must be a non-empty string" }, { status: 400 })
     }
 
     let query = supabase
@@ -87,8 +88,8 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     const body = await req.json() as Record<string, unknown>
     const { id, ids } = body
 
-    if (id !== undefined && typeof id !== "string") {
-      return NextResponse.json({ error: "id must be a string" }, { status: 400 })
+    if (id !== undefined && (typeof id !== "string" || id.trim() === "")) {
+      return NextResponse.json({ error: "id must be a non-empty string" }, { status: 400 })
     }
     if (ids !== undefined && (!Array.isArray(ids) || !ids.every((v) => typeof v === "string"))) {
       return NextResponse.json({ error: "ids must be an array of strings" }, { status: 400 })

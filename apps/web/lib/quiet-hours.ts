@@ -3,12 +3,13 @@
  * Used by the push notification path to suppress notifications during DND schedule.
  */
 export function isInQuietHours(
-  enabled: boolean,
-  start: string,   // "HH:MM"
-  end: string,     // "HH:MM"
-  timezone: string  // IANA timezone (e.g. "America/New_York")
+  enabled: boolean | null | undefined,
+  start: string | null | undefined,   // "HH:MM"
+  end: string | null | undefined,     // "HH:MM"
+  timezone: string | null | undefined  // IANA timezone (e.g. "America/New_York")
 ): boolean {
   if (!enabled) return false
+  if (!start || !end || !timezone) return false
 
   let now: Date
   try {
