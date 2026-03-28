@@ -132,7 +132,7 @@ export function getDiscoverableShortcutMappings(handlers: ShortcutHandlers) {
  */
 let activeShortcutInstanceId = 0
 
-export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
+export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
   const registry = useMemo(() => getShortcutRegistry(handlers), [handlers])
 
   useEffect(() => {

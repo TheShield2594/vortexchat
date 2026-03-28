@@ -313,22 +313,17 @@ export function useLivekitVoice({
     }
 
     let cleanup: (() => void) | undefined
-    const initPromise = init().then((fn) => {
+    init().then((fn) => {
       if (cancelled) {
         fn()
       } else {
         cleanup = fn
       }
-    })
+    }).catch(() => {})
 
     return () => {
       cancelled = true
-      if (cleanup) {
-        cleanup()
-      } else {
-        // If init() is still in-flight, wait for it to resolve then clean up
-        initPromise.then((fn) => fn?.()).catch(() => {})
-      }
+      cleanup?.()
     }
   }, [enabled, channelId, serverId, refreshParticipants])
 

@@ -24,7 +24,7 @@ function isIosSafari(): boolean {
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false
   return window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as Record<string, unknown>).standalone === true
+    Reflect.get(navigator, "standalone") === true
 }
 
 export function PwaInstallBanner() {

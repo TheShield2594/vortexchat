@@ -21,7 +21,7 @@ interface Props {
  * - /channels/:serverId → shows channel sidebar full-screen
  * - /channels/:serverId/:channelId → shows channel content full-screen with back button
  * On desktop, renders all panels inline.
- * Only one branch mounts at a time — children and memberList never duplicate.
+ * On mobile channel view, the member list renders as an overlay panel on top of the content.
  */
 export function ServerMobileLayout({ serverId, sidebar, memberList, children }: Props) {
   const pathname = usePathname()
@@ -267,12 +267,11 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           {/* Member list slides in as an overlay panel with backdrop */}
           {mobileMemberListOpen && (
             <>
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
               <div
                 className="absolute inset-0 z-10 bg-black/50"
                 onClick={dismissMobileMemberList}
-                aria-label="Close member list"
-                role="button"
-                tabIndex={-1}
+                aria-hidden="true"
               />
               <div className="absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl" style={{ background: "var(--theme-bg-secondary)" }}>
                 {memberList}

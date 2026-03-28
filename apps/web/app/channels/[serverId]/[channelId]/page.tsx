@@ -9,6 +9,7 @@ import { MediaChannel } from "@/components/channels/media-channel"
 /** Lazy-load VoiceChannel (and its ~600 KB livekit-client dep) only when needed */
 const VoiceChannel = dynamic(
   () => import("@/components/voice/voice-channel").then((m) => m.VoiceChannel),
+  { ssr: false },
 )
 import { hydrateReplyTo, MESSAGE_PROJECTION } from "@/lib/messages/hydration"
 import { PERMISSIONS, computePermissions, hasPermission } from "@vortex/shared"
@@ -125,6 +126,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
   const canModerateStage = isAdmin || hasPermission(channelPerms, "MUTE_MEMBERS")
 
   // Filter messages to only text-based channel types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase returns untyped rows; hydration preserves the shape
   let messages: any[] = []
   if ((MESSAGE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
     const hydrateTimer = perfTimer("channel-page reply hydration")

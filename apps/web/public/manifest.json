@@ -99,6 +99,11 @@
           "src": "/shortcuts/friends.svg",
           "sizes": "96x96",
           "type": "image/svg+xml"
+        },
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     },
@@ -111,6 +116,11 @@
           "src": "/shortcuts/new-dm.svg",
           "sizes": "96x96",
           "type": "image/svg+xml"
+        },
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     },
@@ -123,6 +133,11 @@
           "src": "/shortcuts/discover.svg",
           "sizes": "96x96",
           "type": "image/svg+xml"
+        },
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     }

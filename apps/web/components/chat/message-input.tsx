@@ -104,11 +104,21 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   // Lock body scroll on mobile when the picker bottom sheet is open
   useEffect(() => {
     if (!showEmojiPicker) return
+    const mql = window.matchMedia("(min-width: 768px)")
     // Only lock on mobile (the picker is a fixed bottom sheet below md breakpoint)
-    if (window.matchMedia("(min-width: 768px)").matches) return
+    if (mql.matches) return
     const prev = document.body.style.overflow
     document.body.style.overflow = "hidden"
-    return () => { document.body.style.overflow = prev }
+    // If the device rotates to desktop width, unlock scroll
+    const onChange = (e: MediaQueryListEvent): void => {
+      if (e.matches) document.body.style.overflow = prev
+      else document.body.style.overflow = "hidden"
+    }
+    mql.addEventListener("change", onChange)
+    return () => {
+      document.body.style.overflow = prev
+      mql.removeEventListener("change", onChange)
+    }
   }, [showEmojiPicker])
 
   // Debounced draft sync — keeps typing snappy, persists after 150ms idle
@@ -181,13 +191,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     }
 
     const controller = new AbortController()
-    const currentServerId = serverId
-    fetch(`/api/servers/${currentServerId}/apps/commands`, { signal: controller.signal })
+    fetch(`/api/servers/${serverId}/apps/commands`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (!data) return
-        // Guard against stale responses arriving after serverId changed
-        if (currentServerId !== serverId) return
         // New format: { commands, permissions, isOwner }
         let commands: SlashCommand[] = []
         let permissions = 0
@@ -203,7 +210,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         setAppCommands(commands)
         setUserPermissions(permissions)
         setIsServerOwner(isOwner)
-        slashCommandCache.set(currentServerId, { commands, permissions, isOwner, fetchedAt: Date.now() })
+        slashCommandCache.set(serverId!, { commands, permissions, isOwner, fetchedAt: Date.now() })
       })
       .catch(() => {/* non-fatal — includes AbortError */})
     return () => controller.abort()
@@ -705,8 +712,13 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       return
     }
     e.preventDefault()
-    // Derive column count from the closest CSS grid ancestor, falling back to bounding-rect measurement
-    const gridContainer = buttons[0].closest("[style*='grid']") ?? buttons[0].parentElement
+    // Derive column count from the nearest grid ancestor, falling back to bounding-rect measurement
+    let gridContainer: Element | null = buttons[0].parentElement
+    while (gridContainer) {
+      const display = getComputedStyle(gridContainer).display
+      if (display === "grid" || display === "inline-grid") break
+      gridContainer = gridContainer.parentElement
+    }
     const colsParsed = gridContainer ? getComputedStyle(gridContainer).gridTemplateColumns.split(/\s+/).filter(Boolean).length : 0
     let cols = colsParsed > 0 ? colsParsed : 9
     if (cols === 9 && buttons.length >= 2) {
