@@ -16,8 +16,8 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
-import { useVoiceIntelligence } from "@/lib/voice/use-voice-intelligence"
-import { VoiceIntelligenceIndicator } from "@/components/voice/voice-intelligence-indicator"
+import { useVortexRecap } from "@/lib/voice/use-vortex-recap"
+import { VortexRecapIndicator } from "@/components/voice/vortex-recap-indicator"
 import { VoiceConsentModal } from "@/components/voice/voice-consent-modal"
 import { VoiceTranscriptViewer } from "@/components/voice/voice-transcript-viewer"
 
@@ -163,7 +163,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
     startSession: viStartSession,
     setConsent: viSetConsent,
     endSession: viEndSession,
-  } = useVoiceIntelligence(currentUserId)
+  } = useVortexRecap(currentUserId)
 
   const [showConsentModal, setShowConsentModal] = useState(false)
 
@@ -267,7 +267,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
       </div>
 
       {/* Intelligence indicator */}
-      <VoiceIntelligenceIndicator
+      <VortexRecapIndicator
         transcriptionStatus={viTranscriptionStatus}
         summaryPending={viSummaryPending}
         participantConsents={viParticipantConsents}

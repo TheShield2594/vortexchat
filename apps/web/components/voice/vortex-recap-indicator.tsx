@@ -6,10 +6,10 @@
 import { Mic, FileText, Loader2, AlertCircle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils/cn"
-import type { TranscriptionStatus } from "@/lib/voice/use-voice-intelligence"
-import type { ParticipantConsentState } from "@/types/voice-intelligence"
+import type { TranscriptionStatus } from "@/lib/voice/use-vortex-recap"
+import type { ParticipantConsentState } from "@/types/vortex-recap"
 
-interface VoiceIntelligenceIndicatorProps {
+interface VortexRecapIndicatorProps {
   transcriptionStatus: TranscriptionStatus
   summaryPending: boolean
   participantConsents: Map<string, ParticipantConsentState>
@@ -18,13 +18,13 @@ interface VoiceIntelligenceIndicatorProps {
   className?: string
 }
 
-export function VoiceIntelligenceIndicator({
+export function VortexRecapIndicator({
   transcriptionStatus,
   summaryPending,
   participantConsents,
   participantNames,
   className,
-}: VoiceIntelligenceIndicatorProps) {
+}: VortexRecapIndicatorProps) {
   if (transcriptionStatus === "inactive" && !summaryPending && participantConsents.size === 0) {
     return null
   }

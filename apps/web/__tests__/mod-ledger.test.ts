@@ -5,7 +5,7 @@ import {
   paginateTimeline,
   sortTimelineEvents,
   type TimelineEvent,
-} from "@/lib/moderation-timeline"
+} from "@/lib/mod-ledger"
 
 function makeEvent(index: number, overrides: Partial<TimelineEvent> = {}): TimelineEvent {
   const createdAt = new Date(Date.UTC(2025, 0, 1, 12, 0, 0) + index * 1000).toISOString()

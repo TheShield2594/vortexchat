@@ -5,9 +5,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type {
   EffectiveVoicePolicy,
-  VoiceIntelligencePolicyRow,
+  VortexRecapPolicyRow,
   VoiceCallSummarySections,
-} from "@/types/voice-intelligence"
+} from "@/types/vortex-recap"
 
 // ── Default policy (global fallback) ─────────────────────────────────────────
 
@@ -20,7 +20,7 @@ const DEFAULT_POLICY: EffectiveVoicePolicy = {
   allowedLocales: [],
 }
 
-function policyRowToEffective(row: VoiceIntelligencePolicyRow): EffectiveVoicePolicy {
+function policyRowToEffective(row: VortexRecapPolicyRow): EffectiveVoicePolicy {
   return {
     transcriptionEnabled: row.transcription_enabled,
     requireExplicitConsent: row.require_explicit_consent,
@@ -51,10 +51,10 @@ export async function resolveEffectivePolicy(
   let effective: EffectiveVoicePolicy = { ...DEFAULT_POLICY }
 
   // Apply workspace policy first, then server policy (most specific wins)
-  const workspaceRow = (rows as VoiceIntelligencePolicyRow[]).find(
+  const workspaceRow = (rows as VortexRecapPolicyRow[]).find(
     (r) => r.scope_type === "workspace"
   )
-  const serverRow = (rows as VoiceIntelligencePolicyRow[]).find(
+  const serverRow = (rows as VortexRecapPolicyRow[]).find(
     (r) => r.scope_type === "server" && r.scope_id === serverId
   )
 

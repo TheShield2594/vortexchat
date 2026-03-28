@@ -5,7 +5,7 @@
 
 import { useEffect, useRef } from "react"
 import { Mic, MicOff } from "lucide-react"
-import type { VoiceTranscriptSegmentRow, InterimTranscriptSegment } from "@/types/voice-intelligence"
+import type { VoiceTranscriptSegmentRow, InterimTranscriptSegment } from "@/types/vortex-recap"
 
 interface VoiceTranscriptViewerProps {
   finalSegments: VoiceTranscriptSegmentRow[]

@@ -9,7 +9,7 @@ import {
   type TimelineActionType,
   type TimelineCursor,
   type TimelineEvent,
-} from "@/lib/moderation-timeline"
+} from "@/lib/mod-ledger"
 
 function parseActionTypes(raw: string | null): TimelineActionType[] {
   if (!raw) return []
@@ -134,7 +134,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="moderation-timeline-${serverId}.csv"`,
+        "Content-Disposition": `attachment; filename="mod-ledger-${serverId}.csv"`,
       },
     })
   }

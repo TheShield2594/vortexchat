@@ -6,7 +6,7 @@
 //   - Clients MUST ignore unknown fields.
 //   - Producers MUST NOT change the semantic meaning of existing fields without a version bump.
 
-export const VOICE_INTELLIGENCE_SCHEMA_VERSION = "1.0.0"
+export const VORTEX_RECAP_SCHEMA_VERSION = "1.0.0"
 
 // ── Event name constants ──────────────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ export interface ConsentChangedEvent extends EventEnvelope {
   preferred_subtitle_language: string | null
 }
 
-export type VoiceIntelligenceEvent =
+export type VortexRecapEvent =
   | TranscriptionStatusChangedEvent
   | TranscriptSegmentInterimEvent
   | TranscriptSegmentFinalEvent
@@ -96,7 +96,7 @@ export type VoiceIntelligenceEvent =
 function baseEnvelope(eventName: VoiceEventName, sessionId: string): EventEnvelope {
   return {
     event_name: eventName,
-    schema_version: VOICE_INTELLIGENCE_SCHEMA_VERSION,
+    schema_version: VORTEX_RECAP_SCHEMA_VERSION,
     event_id: crypto.randomUUID(),
     occurred_at: new Date().toISOString(),
     session_id: sessionId,

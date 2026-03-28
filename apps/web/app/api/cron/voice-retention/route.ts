@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
-import { writeAuditEvent } from "@/lib/voice/voice-intelligence-service"
+import { writeAuditEvent } from "@/lib/voice/vortex-recap-service"
 
 /**
  * GET /api/cron/voice-retention

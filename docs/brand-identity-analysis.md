@@ -670,13 +670,13 @@ Items still outstanding, organized by priority. Check off each item as it is com
 
 ### P3 — Low Priority, Do During Refactor Cycles
 
-- [ ] **Clean up internal code naming to match branded terminology** (Gap 6)
-  - [ ] Rename `voice-intelligence.ts` → match "Vortex Recap" branding
-  - [ ] Rename `voice-intelligence-indicator.tsx` / `voice-intelligence-policy-settings.tsx`
-  - [ ] Rename types: `VoiceIntelligencePolicy`, `VoiceIntelligenceIndicator`
-  - [ ] Rename `permission-simulator.tsx` / `PermissionSimulator` → match "Permission Sandbox" branding
-  - [ ] Rename `moderation-timeline.tsx` → match "Mod Ledger" branding
-  - [ ] Update all internal imports and references after renames
+- [x] **Clean up internal code naming to match branded terminology** (Gap 6)
+  - [x] Rename `voice-intelligence.ts` → match "Vortex Recap" branding
+  - [x] Rename `voice-intelligence-indicator.tsx` / `voice-intelligence-policy-settings.tsx`
+  - [x] Rename types: `VoiceIntelligencePolicy`, `VoiceIntelligenceIndicator`
+  - [x] Rename `permission-simulator.tsx` / `PermissionSimulator` → match "Permission Sandbox" branding
+  - [x] Rename `moderation-timeline.tsx` → match "Mod Ledger" branding
+  - [x] Update all internal imports and references after renames
 
 ### Ongoing
 

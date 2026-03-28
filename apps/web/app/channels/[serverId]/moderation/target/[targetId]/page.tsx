@@ -1,9 +1,9 @@
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { mapActionType } from "@/lib/moderation-timeline"
+import { mapActionType } from "@/lib/mod-ledger"
 
-export default async function TargetModerationTimelinePage({ params: paramsPromise }: { params: Promise<{ serverId: string; targetId: string }> }) {
+export default async function TargetModLedgerPage({ params: paramsPromise }: { params: Promise<{ serverId: string; targetId: string }> }) {
   const { serverId, targetId } = await paramsPromise
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()

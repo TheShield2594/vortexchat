@@ -185,7 +185,7 @@ Gap severity:
 | Server templates (import/export) | ✅ 4 built-in templates, JSON import/export | ✅ | ❌ | **Ahead** |
 | Audit logs | ✅ `audit-log-page.tsx`, emoji/moderation/role events | ✅ | ❌ | **VortexChat ahead** of Stoat |
 | Role management (bitmask permissions) | ✅ 20-bit Discord-style bitmask | ✅ | ✅ Granular bitmask perms | Parity |
-| Permission simulator | ✅ `permission-simulator.tsx` | ❌ | ❌ | **Ahead** |
+| Permission Sandbox | ✅ `permission-sandbox.tsx` | ❌ | ❌ | **Ahead** |
 | Data export (GDPR) | ✅ `GET /api/users/export` + settings UI | ✅ | ✅ GDPR compliant | Parity |
 | SSO / SAML | ❌ OAuth connections only | ❌ | ❌ | Not a gap — neither Discord nor Stoat has this |
 | Vanity invite URL | ❌ | ✅ | ❌ | 🟡 Discord has vanity URLs for large communities |
@@ -306,7 +306,7 @@ Full implementation plans for most gaps below are in [critical-gap-implementatio
 | Feature | VortexChat | Discord & Stoat |
 |---|---|---|
 | Voice intelligence (transcripts + summaries) | ✅ Full pipeline with consent | Neither Discord nor Stoat has this |
-| Permission simulator | ✅ Test permissions before applying | Neither Discord nor Stoat has this |
+| Permission Sandbox | ✅ Test permissions before applying | Neither Discord nor Stoat has this |
 | Server templates (import/export) | ✅ 4 built-in + JSON portability | Discord has basic templates; Stoat has none |
 | Moderation timeline (per-member) | ✅ Full action history | Neither Discord nor Stoat has this |
 | Temporary channels (auto-expire) | ✅ | Neither Discord nor Stoat has this |

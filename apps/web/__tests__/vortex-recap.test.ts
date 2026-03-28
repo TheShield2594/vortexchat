@@ -3,7 +3,7 @@ import {
   assembleTranscriptText,
   computeExpiresAt,
   SUMMARY_MIN_SEGMENT_COUNT,
-} from "@/lib/voice/voice-intelligence-service"
+} from "@/lib/voice/vortex-recap-service"
 import {
   makeTranscriptionStatusChangedEvent,
   makeTranscriptSegmentInterimEvent,
@@ -11,8 +11,8 @@ import {
   makeConsentChangedEvent,
   makeSummaryReadyEvent,
   VOICE_EVENT,
-  VOICE_INTELLIGENCE_SCHEMA_VERSION,
-} from "@/lib/voice/voice-intelligence-events"
+  VORTEX_RECAP_SCHEMA_VERSION,
+} from "@/lib/voice/vortex-recap-events"
 import { isWebSpeechApiSupported } from "@/lib/voice/stt-provider"
 
 // ── assembleTranscriptText ────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ describe("voice intelligence event factories", () => {
   it("makeTranscriptionStatusChangedEvent produces correct structure", () => {
     const event = makeTranscriptionStatusChangedEvent(SESSION_ID, true, "manual_opt_in")
     expect(event.event_name).toBe(VOICE_EVENT.TRANSCRIPTION_STATUS_CHANGED)
-    expect(event.schema_version).toBe(VOICE_INTELLIGENCE_SCHEMA_VERSION)
+    expect(event.schema_version).toBe(VORTEX_RECAP_SCHEMA_VERSION)
     expect(event.session_id).toBe(SESSION_ID)
     expect(event.active).toBe(true)
     expect(event.transcription_mode).toBe("manual_opt_in")
@@ -152,7 +152,7 @@ describe("voice intelligence event factories", () => {
 
     for (const event of events) {
       expect(event.event_name).toBeTruthy()
-      expect(event.schema_version).toBe(VOICE_INTELLIGENCE_SCHEMA_VERSION)
+      expect(event.schema_version).toBe(VORTEX_RECAP_SCHEMA_VERSION)
       expect(event.event_id).toBeTruthy()
       expect(event.occurred_at).toBeTruthy()
       expect(event.session_id).toBe(SESSION_ID)

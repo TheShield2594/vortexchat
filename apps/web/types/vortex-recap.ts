@@ -75,7 +75,7 @@ export interface VoiceCallSummaryRow {
   legal_hold_reason: string | null
 }
 
-export interface VoiceIntelligencePolicyRow {
+export interface VortexRecapPolicyRow {
   id: string
   scope_type: VoicePolicyScopeType
   scope_id: string
@@ -89,7 +89,7 @@ export interface VoiceIntelligencePolicyRow {
   updated_at: string
 }
 
-export interface VoiceIntelligenceAuditLogRow {
+export interface VortexRecapAuditLogRow {
   id: string
   session_id: string | null
   actor_user_id: string | null

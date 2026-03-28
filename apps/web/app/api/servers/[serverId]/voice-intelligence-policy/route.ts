@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { requireServerOwner } from "@/lib/server-auth"
-import { resolveEffectivePolicy } from "@/lib/voice/voice-intelligence-service"
+import { resolveEffectivePolicy } from "@/lib/voice/vortex-recap-service"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import type { PolicyUpdateRequest } from "@/types/voice-intelligence"
+import type { PolicyUpdateRequest } from "@/types/vortex-recap"
 import type { Database } from "@/types/database"
 
 type PolicyInsert = Database["public"]["Tables"]["voice_intelligence_policies"]["Insert"]

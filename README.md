@@ -155,7 +155,7 @@ vortexchat/
 │   │   │   ├── dm/             # DM area, DM calls
 │   │   │   ├── roles/          # RoleManager
 │   │   │   ├── moderation/     # Moderation timeline
-│   │   │   ├── admin/          # Admin panel, permission simulator
+│   │   │   ├── admin/          # Admin panel, permission sandbox
 │   │   │   ├── notifications/  # Notification bell, push prompts
 │   │   │   ├── layout/         # ServerSidebar, ChannelSidebar, MemberList
 │   │   │   ├── modals/         # Create server/channel, profile, settings

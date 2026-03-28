@@ -13,23 +13,23 @@ import {
   makeTranscriptSegmentFinalEvent,
   makeConsentChangedEvent,
   VOICE_EVENT,
-  type VoiceIntelligenceEvent,
+  type VortexRecapEvent,
   type TranscriptSegmentFinalEvent,
   type TranscriptSegmentInterimEvent,
   type SummaryReadyEvent,
   type ConsentChangedEvent,
-} from "@/lib/voice/voice-intelligence-events"
+} from "@/lib/voice/vortex-recap-events"
 import type {
   EffectiveVoicePolicy,
   InterimTranscriptSegment,
   VoiceTranscriptSegmentRow,
   VoiceCallSessionRow,
   ParticipantConsentState,
-} from "@/types/voice-intelligence"
+} from "@/types/vortex-recap"
 
 export type TranscriptionStatus = "inactive" | "active" | "error"
 
-export interface VoiceIntelligenceState {
+export interface VortexRecapState {
   /** The active session, null when not in a call. */
   session: VoiceCallSessionRow | null
   /** Effective policy resolved from workspace + server layers. */
@@ -48,7 +48,7 @@ export interface VoiceIntelligenceState {
   summaryPending: boolean
 }
 
-export interface UseVoiceIntelligenceReturn extends VoiceIntelligenceState {
+export interface UseVortexRecapReturn extends VortexRecapState {
   /** Start a voice intelligence session. Call after joining a voice channel/DM call. */
   startSession: (args: {
     scopeType: "server_channel" | "dm_call"
@@ -64,7 +64,7 @@ export interface UseVoiceIntelligenceReturn extends VoiceIntelligenceState {
   endSession: () => Promise<void>
 }
 
-export function useVoiceIntelligence(userId: string | null): UseVoiceIntelligenceReturn {
+export function useVortexRecap(userId: string | null): UseVortexRecapReturn {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
   const [session, setSession] = useState<VoiceCallSessionRow | null>(null)
@@ -88,7 +88,7 @@ export function useVoiceIntelligence(userId: string | null): UseVoiceIntelligenc
     (sessionId: string) => {
       const ch = supabase.channel(`voice-intelligence:${sessionId}`)
 
-      ch.on<VoiceIntelligenceEvent>(
+      ch.on<VortexRecapEvent>(
         "broadcast",
         { event: VOICE_EVENT.TRANSCRIPT_SEGMENT_INTERIM },
         ({ payload }) => {
@@ -101,7 +101,7 @@ export function useVoiceIntelligence(userId: string | null): UseVoiceIntelligenc
           })
         }
       )
-        .on<VoiceIntelligenceEvent>(
+        .on<VortexRecapEvent>(
           "broadcast",
           { event: VOICE_EVENT.TRANSCRIPT_SEGMENT_FINAL },
           ({ payload }) => {
@@ -130,7 +130,7 @@ export function useVoiceIntelligence(userId: string | null): UseVoiceIntelligenc
             ])
           }
         )
-        .on<VoiceIntelligenceEvent>(
+        .on<VortexRecapEvent>(
           "broadcast",
           { event: VOICE_EVENT.SUMMARY_READY },
           ({ payload }) => {
@@ -138,7 +138,7 @@ export function useVoiceIntelligence(userId: string | null): UseVoiceIntelligenc
             setSummaryPending(false)
           }
         )
-        .on<VoiceIntelligenceEvent>(
+        .on<VortexRecapEvent>(
           "broadcast",
           { event: VOICE_EVENT.CONSENT_CHANGED },
           ({ payload }) => {

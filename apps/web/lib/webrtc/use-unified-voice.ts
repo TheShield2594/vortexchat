@@ -35,7 +35,7 @@ function useVoiceViaLivekit(
   userId: string,
   serverId?: string | null,
 ): ReturnType<typeof useVoice> {
-  // Stable null refs — VoiceChannel passes these to VoiceIntelligence and the
+  // Stable null refs — VoiceChannel passes these to VortexRecap and the
   // local participant tile.  Null is safe; both consumers handle a null stream.
   const nullLocalStreamRef = useRef<MediaStream | null>(null)
   const nullCameraStreamRef = useRef<MediaStream | null>(null)

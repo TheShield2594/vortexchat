@@ -670,75 +670,75 @@
       "line": 354
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:103",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:103",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 103
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:146",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:146",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 146
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:155",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:155",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 155
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:177",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:177",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 177
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:183",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:183",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 183
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:196",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:196",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 196
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:202",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:202",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 202
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:207",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:207",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 207
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:237",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:237",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 237
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:251",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:251",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 251
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:80",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:80",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 80
     },
     {
-      "key": "inline-style-color:apps/web/components/admin/voice-intelligence-policy-settings.tsx:89",
+      "key": "inline-style-color:apps/web/components/admin/vortex-recap-policy-settings.tsx:89",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/admin/voice-intelligence-policy-settings.tsx",
+      "file": "apps/web/components/admin/vortex-recap-policy-settings.tsx",
       "line": 89
     },
     {
@@ -8128,21 +8128,21 @@
       "line": 87
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-intelligence-indicator.tsx:41",
+      "key": "inline-style-color:apps/web/components/voice/vortex-recap-indicator.tsx:41",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/voice/voice-intelligence-indicator.tsx",
+      "file": "apps/web/components/voice/vortex-recap-indicator.tsx",
       "line": 41
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-intelligence-indicator.tsx:74",
+      "key": "inline-style-color:apps/web/components/voice/vortex-recap-indicator.tsx:74",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/voice/voice-intelligence-indicator.tsx",
+      "file": "apps/web/components/voice/vortex-recap-indicator.tsx",
       "line": 74
     },
     {
-      "key": "inline-style-color:apps/web/components/voice/voice-intelligence-indicator.tsx:96",
+      "key": "inline-style-color:apps/web/components/voice/vortex-recap-indicator.tsx:96",
       "ruleId": "inline-style-color",
-      "file": "apps/web/components/voice/voice-intelligence-indicator.tsx",
+      "file": "apps/web/components/voice/vortex-recap-indicator.tsx",
       "line": 96
     },
     {
