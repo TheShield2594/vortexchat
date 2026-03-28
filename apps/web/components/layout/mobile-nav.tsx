@@ -33,7 +33,7 @@ export function MobileMenuButton() {
   const { sidebarOpen, setSidebarOpen } = useMobileNav()
   return (
     <button
-      className="md:hidden w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-white/10"
+      className="md:hidden w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
       style={{ color: "var(--theme-text-secondary)" }}
       onClick={() => setSidebarOpen(!sidebarOpen)}
       aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}

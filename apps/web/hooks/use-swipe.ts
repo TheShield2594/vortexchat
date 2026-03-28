@@ -72,8 +72,8 @@ export function useSwipe({ onSwipeLeft, onSwipeRight, minDistance = 56, maxCross
           activeRef.current = false
         }
         if (Math.abs(dy) > maxCrossAxis) return
-        if (dx <= -minDistance) onSwipeLeft?.()
-        if (dx >= minDistance) onSwipeRight?.()
+        if (dx <= -minDistance) { navigator.vibrate?.(8); onSwipeLeft?.() }
+        if (dx >= minDistance) { navigator.vibrate?.(8); onSwipeRight?.() }
       },
       onTouchCancel: (_event: React.TouchEvent<HTMLElement>): void => {
         startRef.current = null

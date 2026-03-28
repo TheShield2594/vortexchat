@@ -35,7 +35,7 @@ export function SettingsMobileWrapper({ user, children }: Props) {
             <button
               type="button"
               onClick={() => router.push("/settings")}
-              className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+              className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Back to settings"
             >

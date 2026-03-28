@@ -183,7 +183,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           <button
             type="button"
             onClick={() => router.push(`/channels/${serverId}`)}
-            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+            className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15 flex-shrink-0"
             style={{ color: "var(--theme-text-secondary)" }}
             aria-label="Back to channels"
           >
@@ -201,7 +201,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
             <button
               type="button"
               onClick={() => { dismissMobileMemberList(); setMobilePendingAction("search") }}
-              className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+              className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Search messages"
             >
@@ -217,7 +217,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                 return next
               })
             }}
-            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+            className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15 flex-shrink-0"
             style={{ color: mobileMemberListOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             aria-label="Toggle member list"
           >
@@ -230,7 +230,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
               <button
                 type="button"
                 onClick={() => setMobileOverflowOpen((v) => !v)}
-                className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+                className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
                 style={{ color: "var(--theme-text-secondary)" }}
                 aria-label="More channel actions"
                 aria-expanded={mobileOverflowOpen}
@@ -317,7 +317,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           <button
             type="button"
             onClick={() => router.push(`/channels/${serverId}`)}
-            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+            className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
             style={{ color: "var(--theme-text-secondary)" }}
             aria-label="Back to server"
           >

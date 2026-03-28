@@ -443,6 +443,15 @@ export const MessageItem = memo(function MessageItem({
             setShowActions(true)
           }}
           onMouseLeave={() => { setShowActions(false) }}
+          onClick={(e) => {
+            // On touch devices, tap a message to toggle the action bar.
+            // Ignore clicks on interactive elements (buttons, links, inputs).
+            const target = e.target as HTMLElement
+            if (target.closest("button, a, input, textarea, [role='menuitem'], [data-emoji-picker-portal]")) return
+            if (window.matchMedia("(pointer: coarse)").matches) {
+              setShowActions((v) => !v)
+            }
+          }}
           onFocus={() => setShowActions(true)}
           onBlur={(e) => {
             const relatedTarget = e.relatedTarget as HTMLElement | null
@@ -600,15 +609,25 @@ export const MessageItem = memo(function MessageItem({
                     autoFocus
                   />
                   <div className="flex gap-2 mt-1 text-xs tertiary-metadata">
-                    <span>ESC to cancel</span>
-                    <span>·</span>
+                    {/* Desktop: keyboard hints. Mobile: tappable buttons. */}
+                    <span className="hidden md:inline">ESC to cancel</span>
+                    <button
+                      type="button"
+                      onClick={() => { setIsEditing(false); setEditContent(message.content ?? "") }}
+                      className="md:hidden focus-ring rounded px-2 py-1"
+                      style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)", borderRadius: "6px" }}
+                    >
+                      Cancel
+                    </button>
+                    <span className="hidden md:inline">·</span>
                     <button
                       type="button"
                       onClick={handleEditSubmit}
-                      className="focus-ring rounded"
-                      style={{ color: "var(--theme-link)" }}
+                      className="focus-ring rounded px-2 py-1 md:px-0 md:py-0 md:bg-transparent"
+                      style={{ color: "var(--theme-link)", borderRadius: "6px" }}
                     >
-                      Enter to save
+                      <span className="hidden md:inline">Enter to save</span>
+                      <span className="md:hidden">Save</span>
                     </button>
                   </div>
                 </div>
@@ -681,7 +700,7 @@ export const MessageItem = memo(function MessageItem({
                       {genericReactionEntries.map(([emoji, { count, hasOwn, users }]) => (
                         <button
                           key={`${emoji}-${poppingReactions[emoji] ?? 0}`}
-                          onClick={() => onReaction(emoji)}
+                          onClick={() => { navigator.vibrate?.(6); onReaction(emoji) }}
                           title={users
                             .map((id) => {
                               if (id === currentUserId) return "You"
@@ -710,16 +729,62 @@ export const MessageItem = memo(function MessageItem({
           </div>
 
           {/* Emoji picker — portaled to body so it escapes scroll overflow clipping */}
+          {/* Desktop: positioned emoji picker */}
           {showEmojiPicker && emojiPickerPos && createPortal(
             <div
               data-emoji-picker-portal
-              className="fixed z-[9999]"
+              onClick={(e) => { if (e.target === e.currentTarget) { setShowEmojiPicker(false); setEmojiPickerPos(null) } }}
+              className="hidden md:block fixed z-[9999]"
               style={{ top: emojiPickerPos.top, left: emojiPickerPos.left }}
             >
               <div
                 className="rounded-lg shadow-xl overflow-hidden"
                 style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
               >
+                <EmojiPickerPopup
+                  onSelect={(emoji) => onReaction(emoji)}
+                  onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
+                />
+              </div>
+            </div>,
+            document.body,
+          )}
+          {/* Mobile: emoji picker as a bottom sheet */}
+          {showEmojiPicker && createPortal(
+            <div
+              data-emoji-picker-portal
+              className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end"
+              onClick={(e) => { if (e.target === e.currentTarget) { setShowEmojiPicker(false); setEmojiPickerPos(null) } }}
+            >
+              <div className="absolute inset-0 bg-black/50" aria-hidden />
+              <div
+                className="relative rounded-t-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom duration-200"
+                style={{
+                  background: "var(--theme-bg-secondary)",
+                  borderTop: "1px solid var(--theme-bg-tertiary)",
+                  maxHeight: "70vh",
+                  paddingBottom: "env(safe-area-inset-bottom)",
+                }}
+              >
+                {/* Drag handle */}
+                <div className="flex justify-center py-2" aria-hidden>
+                  <div className="w-10 h-1 rounded-full" style={{ background: "var(--theme-bg-tertiary)" }} />
+                </div>
+                {/* Quick reactions row */}
+                <div className="flex justify-center gap-2 px-4 pb-2">
+                  {QUICK_REACTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => { onReaction(emoji); setShowEmojiPicker(false); setEmojiPickerPos(null) }}
+                      className="w-11 h-11 flex items-center justify-center rounded-full text-xl active:scale-90 transition-transform"
+                      style={{ background: "var(--theme-bg-tertiary)" }}
+                      aria-label={`React with ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
                 <EmojiPickerPopup
                   onSelect={(emoji) => onReaction(emoji)}
                   onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
@@ -748,6 +813,11 @@ export const MessageItem = memo(function MessageItem({
                   if (showEmojiPicker) {
                     setShowEmojiPicker(false)
                     setEmojiPickerPos(null)
+                  } else if (window.matchMedia("(pointer: coarse)").matches) {
+                    // Mobile: open bottom sheet directly (no position needed)
+                    setEmojiPickerPos(null)
+                    setShowEmojiPicker(true)
+                    navigator.vibrate?.(10)
                   } else if (emojiButtonRef.current) {
                     const rect = emojiButtonRef.current.getBoundingClientRect()
                     const pickerW = 320
