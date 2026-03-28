@@ -287,6 +287,11 @@ export const MessageItem = memo(function MessageItem({
   const containerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
   const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
+
+  // Swipe-to-reply gesture state (mobile)
+  const [swipeX, setSwipeX] = useState(0)
+  const swipeStartRef = useRef<{ x: number; y: number; active: boolean } | null>(null)
+  const SWIPE_REPLY_THRESHOLD = 60
   const reactionCountsRef = useRef<Record<string, number>>({})
   const [poppingReactions, setPoppingReactions] = useState<Record<string, number>>({})
   const popReactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -424,6 +429,53 @@ export const MessageItem = memo(function MessageItem({
 
   return (
     <>
+    {/* Swipe-to-reply wrapper — shows reply icon behind the message during swipe */}
+    <div
+      className="relative overflow-hidden"
+      onTouchStart={(e) => {
+        const touch = e.touches[0]
+        swipeStartRef.current = { x: touch.clientX, y: touch.clientY, active: false }
+      }}
+      onTouchMove={(e) => {
+        const start = swipeStartRef.current
+        if (!start) return
+        const dx = e.touches[0].clientX - start.x
+        const dy = e.touches[0].clientY - start.y
+        if (!start.active && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          start.active = true
+        }
+        if (!start.active) return
+        const clamped = Math.max(0, Math.min(dx, SWIPE_REPLY_THRESHOLD * 1.5))
+        setSwipeX(clamped)
+      }}
+      onTouchEnd={() => {
+        if (swipeStartRef.current?.active && swipeX >= SWIPE_REPLY_THRESHOLD) {
+          navigator.vibrate?.(10)
+          onReply()
+        }
+        swipeStartRef.current = null
+        setSwipeX(0)
+      }}
+      onTouchCancel={() => {
+        swipeStartRef.current = null
+        setSwipeX(0)
+      }}
+    >
+      {swipeX > 0 && (
+        <div
+          className="absolute left-0 inset-y-0 flex items-center justify-center pointer-events-none"
+          style={{ width: `${swipeX}px` }}
+        >
+          <Reply
+            className="w-5 h-5"
+            style={{
+              color: swipeX >= SWIPE_REPLY_THRESHOLD ? "var(--theme-accent)" : "var(--theme-text-muted)",
+              opacity: Math.min(swipeX / SWIPE_REPLY_THRESHOLD, 1),
+              transform: `scale(${Math.min(swipeX / SWIPE_REPLY_THRESHOLD, 1)})`,
+            }}
+          />
+        </div>
+      )}
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
@@ -436,6 +488,10 @@ export const MessageItem = memo(function MessageItem({
             isGrouped ? "py-0.5" : "pt-2.5 pb-0.5",
             sendState === "sending" && "opacity-50"
           )}
+          style={{
+            transform: swipeX > 0 ? `translateX(${swipeX}px)` : undefined,
+            transition: swipeStartRef.current?.active ? "none" : "transform 0.2s ease-out",
+          }}
           onAnimationEnd={() => {
             if (animateOnMount) onMountAnimationComplete?.()
           }}
@@ -1039,6 +1095,7 @@ export const MessageItem = memo(function MessageItem({
         )}
       </ContextMenuContent>
     </ContextMenu>
+    </div>{/* end swipe-to-reply wrapper */}
 
     {!isOwn && showReportModal && (
       <Suspense fallback={null}>

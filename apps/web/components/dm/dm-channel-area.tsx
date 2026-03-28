@@ -22,6 +22,8 @@ import { useLocalSearch } from "@/hooks/use-local-search"
 const DmLocalSearchModal = lazy(() => import("@/components/modals/dm-local-search-modal").then((m) => ({ default: m.DmLocalSearchModal })))
 import type { IndexedDocument } from "@/lib/local-search-index"
 import { ChannelRowSkeleton, MessageListSkeleton } from "@/components/ui/skeleton"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { useKeyboardAvoidance } from "@/hooks/use-keyboard-avoidance"
 
 interface User {
   id: string
@@ -207,13 +209,15 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [stickerLoading, setStickerLoading] = useState(false)
   const [allServerEmojis, setAllServerEmojis] = useState<Array<{ server: { id: string; name: string; icon_url: string | null }; emojis: Array<{ id: string; name: string; image_url: string }> }>>([])
   const emojiFetchedRef = useRef(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const isMobileDm = useMobileLayout()
+  useKeyboardAvoidance(scrollerRef, isMobileDm, false)
   const prevLastMsgIdRef = useRef<string | null>(null)
   const topRef = useRef<HTMLDivElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
@@ -716,6 +720,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     const currentReplyTo = replyTo
     setContent("")
     setReplyTo(null)
+    // Reset textarea height after clearing content
+    if (inputRef.current) inputRef.current.style.height = "auto"
     onSent()
 
     try {
@@ -1225,7 +1231,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             </button>
           </div>
         )}
-        <div className={cn("relative flex items-center gap-2 px-3 py-2", replyTo ? "rounded-b-lg" : "rounded-lg")} style={{ background: "var(--theme-surface-input)" }}>
+        <div className={cn("relative flex items-end gap-2 px-3 py-2", replyTo ? "rounded-b-lg" : "rounded-lg")} style={{ background: "var(--theme-surface-input)" }}>
           {/* File upload */}
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -1246,18 +1252,24 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = "" }}
           />
 
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
             value={content}
-            onChange={(e) => { setContent(e.target.value); if (e.target.value) onKeystroke() }}
+            onChange={(e) => {
+              setContent(e.target.value)
+              if (e.target.value) onKeystroke()
+              // Auto-resize: reset height then set to scrollHeight
+              e.target.style.height = "auto"
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) handleSend()
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend() }
               if (e.key === "Escape" && replyTo) { e.preventDefault(); setReplyTo(null) }
             }}
+            rows={1}
             placeholder={replyTo ? `Reply to ${replyTo.sender?.display_name || replyTo.sender?.username || "Unknown"}` : `Message ${channel.is_group ? displayName : `@${displayName}`}`}
-            className="flex-1 bg-transparent text-sm focus:outline-none"
-            style={{ color: "var(--theme-text-normal)" }}
+            className="flex-1 bg-transparent text-sm focus:outline-none resize-none overflow-y-auto"
+            style={{ color: "var(--theme-text-normal)", maxHeight: "120px" }}
           />
 
           {/* Emoji/GIF picker popup */}

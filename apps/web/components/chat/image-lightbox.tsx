@@ -27,6 +27,11 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
   const [panOrigin, setPanOrigin] = useState({ x: 50, y: 50 })
   const backdropRef = useRef<HTMLDivElement>(null)
 
+  // Touch gesture state for pinch-to-zoom and swipe-to-dismiss
+  const [swipeDismissY, setSwipeDismissY] = useState(0)
+  const touchStartRef = useRef<{ touches: Array<{ x: number; y: number }>; distance: number; zoom: number; timestamp: number } | null>(null)
+  const swipingRef = useRef(false)
+
   const safeIndex = Math.min(currentIndex, imageList.length - 1)
   const current = imageList[safeIndex]
 
@@ -112,6 +117,70 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [onClose, move, imageList.length, resetZoom])
+
+  // ── Touch gesture handlers (pinch-to-zoom + swipe-to-dismiss) ──────────
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    const touches = Array.from(e.touches).map((t) => ({ x: t.clientX, y: t.clientY }))
+    let distance = 0
+    if (touches.length === 2) {
+      distance = Math.hypot(touches[1].x - touches[0].x, touches[1].y - touches[0].y)
+    }
+    touchStartRef.current = { touches, distance, zoom, timestamp: Date.now() }
+    swipingRef.current = false
+  }, [zoom])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current
+    if (!start) return
+
+    // Pinch-to-zoom (two fingers)
+    if (e.touches.length === 2 && start.touches.length === 2) {
+      const newDist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
+      )
+      const scale = newDist / start.distance
+      setZoom(Math.max(1, Math.min(5, start.zoom * scale)))
+      return
+    }
+
+    // Single-finger swipe-to-dismiss (only when not zoomed)
+    if (e.touches.length === 1 && start.touches.length === 1 && zoom <= 1) {
+      const dy = e.touches[0].clientY - start.touches[0].y
+      const dx = e.touches[0].clientX - start.touches[0].x
+      // Only activate vertical swipe if it's more vertical than horizontal
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+        swipingRef.current = true
+        setSwipeDismissY(dy)
+      }
+    }
+
+    // Single-finger pan when zoomed
+    if (e.touches.length === 1 && zoom > 1) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const x = ((e.touches[0].clientX - rect.left) / rect.width) * 100
+      const y = ((e.touches[0].clientY - rect.top) / rect.height) * 100
+      setPanOrigin({ x, y })
+    }
+  }, [zoom])
+
+  const handleTouchEnd = useCallback(() => {
+    if (swipingRef.current && Math.abs(swipeDismissY) > 100) {
+      navigator.vibrate?.(8)
+      onClose()
+      return
+    }
+    // Snap back
+    setSwipeDismissY(0)
+    swipingRef.current = false
+
+    // Double-tap to zoom (detect via timestamp)
+    const start = touchStartRef.current
+    if (start && start.touches.length === 1 && Date.now() - start.timestamp < 300) {
+      // Will be handled by click — no-op here
+    }
+    touchStartRef.current = null
+  }, [swipeDismissY, onClose])
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === backdropRef.current) {
@@ -206,16 +275,25 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
         </>
       )}
 
-      {/* Image */}
+      {/* Image — supports pinch-to-zoom and swipe-to-dismiss on touch */}
       <div
         role="button"
         tabIndex={0}
-        className="max-w-[90vw] max-h-[85vh] overflow-hidden"
-        style={{ cursor: zoom > 1 ? "zoom-out" : "zoom-in" }}
+        className="max-w-[90vw] max-h-[85vh] overflow-hidden touch-none"
+        style={{
+          cursor: zoom > 1 ? "zoom-out" : "zoom-in",
+          transform: swipeDismissY !== 0 ? `translateY(${swipeDismissY}px)` : undefined,
+          opacity: swipeDismissY !== 0 ? Math.max(0.2, 1 - Math.abs(swipeDismissY) / 300) : 1,
+          transition: swipingRef.current ? "none" : !reducedMotion ? "transform 0.2s ease-out, opacity 0.2s ease-out" : "none",
+        }}
         onClick={handleImageClick}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleImageClick(e) } }}
         onMouseMove={handleMouseMove}
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         aria-label={zoom > 1 ? "Zoom out" : "Zoom in"}
       >
         <img

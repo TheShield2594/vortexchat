@@ -234,15 +234,27 @@ self.addEventListener("notificationclick", (event) => {
   if (event.action === "dismiss") return
 
   const url = event.notification.data?.url || "/channels/me"
+  const fullUrl = new URL(url, self.location.origin).href
 
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clients) => {
-        const existing = clients.find((c) => c.url.includes(self.location.origin))
+        // Prefer a tab that's already on the same channel to avoid a full reload
+        const sameChannel = clients.find((c) => {
+          try {
+            const clientPath = new URL(c.url).pathname
+            const targetPath = new URL(fullUrl).pathname
+            return clientPath === targetPath
+          } catch { return false }
+        })
+        const existing = sameChannel || clients.find((c) => c.url.includes(self.location.origin))
         if (existing) {
           existing.focus()
-          existing.navigate(url)
+          // Post a message so the client can handle in-app navigation
+          // without a full page reload when already on the right channel.
+          existing.postMessage({ type: "NOTIFICATION_NAVIGATE", url })
+          if (!sameChannel) existing.navigate(url)
         } else {
           self.clients.openWindow(url)
         }

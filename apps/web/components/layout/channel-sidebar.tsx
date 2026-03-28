@@ -539,6 +539,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   function handleDragStart(event: DragStartEvent) {
     setActiveId(event.active.id as string)
     setOverContainerId(null)
+    navigator.vibrate?.(15)
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -586,6 +587,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const { active, over } = event
     setActiveId(null)
     setOverContainerId(null)
+    navigator.vibrate?.(10)
 
     if (!over) return
 
