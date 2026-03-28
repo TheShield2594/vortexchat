@@ -630,3 +630,56 @@ Before building a new feature, ask:
 4. **Does it require Discord to be closed-source to not copy?** If yes, it's a durable differentiator. These are the most valuable features to build.
 
 > **Keeping numeric claims in sync:** This document references "21 permissions" in the social proof section (Part 3, Rec 5), the clone risk assessment (Part 6), and the scorecard above. The canonical count is derived from the `PERMISSIONS` object in `packages/shared/src/index.ts`. When permissions are added or removed, update all references in this document and in the landing page social proof section (`apps/web/app/page.tsx`).
+
+---
+
+## Part 8: To-Do — Remaining Brand Work
+
+Items still outstanding, organized by priority. Check off each item as it is completed.
+
+### P1 — High Impact, Do Next
+
+- [ ] **Tell the app platform story on the landing page** (Gap 5)
+  - [ ] Add a "Built-in Apps" section to the landing page showing the 5 pre-built apps (Welcome Bot, Giveaway Bot, Standup Assistant, Incident Bot, Reminder Bot)
+  - [ ] Frame as "No bot setup required — essential tools are built in"
+  - [ ] Highlight the marketplace and slash command autocomplete
+
+- [ ] **Make self-hosting a first-class experience** (Gap 2)
+  - [ ] Create a `/self-host` page with deployment guides and architecture overview
+  - [ ] Add one-click deploy buttons (Railway, Vercel, Docker)
+  - [ ] Include estimated hosting costs (free tier or realistic numbers)
+  - [ ] Show the stack clearly: Next.js + Supabase + Signal Server (three services, not a monolith)
+
+### P2 — Medium Impact, Plan Soon
+
+- [ ] **Position against the broader competitive landscape** (Gap 1)
+  - [ ] Create a "How Vortex Compares" page in docs or at a public URL (not the landing page)
+  - [ ] Cover Revolt, Matrix/Element, Rocket.Chat, Guilded — not just Discord
+  - [ ] Use the comparison table from Gap 1 as a starting point
+
+- [ ] **Make the roadmap public** (Gap 3)
+  - [ ] Publish the roadmap via GitHub Projects or a `/roadmap` page
+  - [ ] Allow community members to vote or comment on features
+  - [ ] Reinforces the "nothing to hide" thesis with action, not just words
+
+- [ ] **Add real social proof from users** (Gap 4)
+  - [ ] Collect testimonials from real communities using VortexChat
+  - [ ] Replace hypothetical use-case quotes with genuine ones
+  - [ ] Consider a "Built with Vortex" showcase page
+  - [ ] Add live stats (active servers, messages sent) once numbers are impressive enough
+
+### P3 — Low Priority, Do During Refactor Cycles
+
+- [ ] **Clean up internal code naming to match branded terminology** (Gap 6)
+  - [ ] Rename `voice-intelligence.ts` → match "Vortex Recap" branding
+  - [ ] Rename `voice-intelligence-indicator.tsx` / `voice-intelligence-policy-settings.tsx`
+  - [ ] Rename types: `VoiceIntelligencePolicy`, `VoiceIntelligenceIndicator`
+  - [ ] Rename `permission-simulator.tsx` / `PermissionSimulator` → match "Permission Sandbox" branding
+  - [ ] Rename `moderation-timeline.tsx` → match "Mod Ledger" branding
+  - [ ] Update all internal imports and references after renames
+
+### Ongoing
+
+- [ ] **Marketing screenshots should always feature unique surfaces** — show Recap cards, Transparency Panel, Permission Sandbox, Mod Ledger; avoid plain chat view screenshots that look like Discord
+- [ ] **Keep the "memes" picker tab on the radar** — low priority but noted as a gap in `mvp-core-features.md` (GIF / Media Picker section)
+- [ ] **Keep numeric claims in sync** — when permissions are added/removed, update "21 permissions" across this doc and `apps/web/app/page.tsx`
