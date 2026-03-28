@@ -16,9 +16,6 @@ import {
   CheckCircle2,
   Github,
   ExternalLink,
-  Gamepad2,
-  BookOpen,
-  Briefcase,
   Heart,
 } from "lucide-react"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -29,21 +26,21 @@ import { ChatMockup } from "@/components/ui/chat-mockup"
 // ── SEO / OpenGraph ───────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  title: "VortexChat — Free Open-Source Chat Platform | Chat, Voice, Servers",
+  title: "VortexChat — The Transparent Community Platform | Open Source Chat",
   description:
-    "VortexChat is a free-forever, open-source chat platform. Real-time messaging, crystal-clear voice & video, organized servers, and end-to-end privacy — no paywalls.",
+    "VortexChat is the chat platform with nothing to hide. Every moderation action logged, every permission testable, every line of code open. Free forever, open-source, and self-hostable.",
   openGraph: {
-    title: "VortexChat — Free Open-Source Chat Platform",
+    title: "VortexChat — The Transparent Community Platform",
     description:
-      "Real-time messaging, voice/video, servers, and E2E privacy. Free forever — no paywalls.",
+      "The chat platform with nothing to hide. Full audit trails, testable permissions, open-source code. Free forever.",
     type: "website",
     siteName: "VortexChat",
   },
   twitter: {
     card: "summary_large_image",
-    title: "VortexChat — Free Open-Source Chat Platform",
+    title: "VortexChat — The Transparent Community Platform",
     description:
-      "Real-time messaging, voice/video, servers, and E2E privacy. Free forever — no paywalls.",
+      "The chat platform with nothing to hide. Full audit trails, testable permissions, open-source code. Free forever.",
   },
   alternates: {
     canonical: "/",
@@ -127,27 +124,27 @@ const differentiators = [
 
 const useCases = [
   {
-    icon: Gamepad2,
-    label: "Gamers & Guilds",
-    description: "Low-latency voice, role-based channels, and server templates built for gaming communities.",
+    icon: ClipboardList,
+    label: "For moderation teams tired of guessing",
+    description: "50,000 members and no idea which mod did what? Vortex\u2019s Mod Ledger logs every action so nothing happens in the dark.",
     accent: "#f92aad",
   },
   {
-    icon: BookOpen,
-    label: "Study Groups",
-    description: "Focused text channels, quiet voice rooms, and thread-based Q&A for students and educators.",
+    icon: Gift,
+    label: "For communities that got paywalled",
+    description: "Custom emoji, bigger uploads, and quality screen share shouldn\u2019t cost extra. On Vortex, those are just\u2026 features.",
     accent: "#00e5ff",
   },
   {
-    icon: Briefcase,
-    label: "Work Teams",
-    description: "Organized servers with permission-gated channels, audit logs, and DMs that stay professional.",
+    icon: Lock,
+    label: "For privacy-conscious communities",
+    description: "Your members need encrypted DMs and zero tracking. Vortex ships E2EE, GDPR export, and no ad-tech. Period.",
     accent: "#3ddc97",
   },
   {
-    icon: Heart,
-    label: "Fan Communities",
-    description: "Build a fan space with announcements, event coordination, and creator-tier roles.",
+    icon: ShieldCheck,
+    label: "For projects that practice what they preach",
+    description: "You build in the open. Your community platform should too. Fully open-source and self-hostable from day one.",
     accent: "#ffb84d",
   },
 ]
@@ -167,9 +164,10 @@ const themes = [
 ]
 
 const steps = [
-  { num: "01", title: "Create your free account", body: "Sign up in seconds with a passkey or email. No credit card, no upsells." },
-  { num: "02", title: "Join or create a server", body: "Browse public servers, accept an invite link, or spin up your own from a template." },
-  { num: "03", title: "Start chatting", body: "Text, voice, video, reactions — everything works out of the box. Invite your people." },
+  { num: "01", title: "See everything that happens", body: "Every ban, kick, role change, and message deletion is logged in a timeline you can audit. No shadow moderation." },
+  { num: "02", title: "Test before you break", body: "The Permission Sandbox lets you preview exactly what any role can see and do — before you apply changes to real users." },
+  { num: "03", title: "Your voice, transcribed", body: "AI-powered transcripts and summaries for voice channels. Never miss what was said, even if you joined late." },
+  { num: "04", title: "Take it with you", body: "Export your data. Self-host the platform. Fork the code. Your community is never locked in." },
 ]
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -256,7 +254,7 @@ export default async function HomePage() {
                 color: "var(--theme-accent)",
               }}
             >
-              Free forever · Open source · No paywalls
+              Open source · Fully auditable · No dark patterns
             </div>
 
             <h1
@@ -264,23 +262,24 @@ export default async function HomePage() {
               className="text-4xl font-extrabold leading-[1.1] tracking-tight font-display md:text-6xl"
               style={{ color: "var(--theme-text-bright)" }}
             >
-              Where your community{" "}
-              <span style={{ color: "var(--theme-accent)" }}>actually lives</span>
+              The chat platform with{" "}
+              <span style={{ color: "var(--theme-accent)" }}>nothing to hide</span>
             </h1>
 
             <p
               className="mt-5 text-lg md:text-xl leading-relaxed"
               style={{ color: "var(--theme-text-secondary)" }}
             >
-              Real-time chat, crystal-clear voice, and organized servers — without the paywall tax.
-              Open-source, passkey-secured, and free forever.
+              Every moderation action logged. Every permission testable.
+              Every line of code open. VortexChat is the community platform
+              that trusts you as much as you trust it.
             </p>
 
             <ul className="mt-5 space-y-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
               {[
-                "No premium tiers or feature paywalls",
-                "Passkey-secured from day one",
-                "Works for gamers, teams, and communities",
+                "Full audit trail on every moderation action",
+                "Test permissions before applying them to real users",
+                "Open-source, self-hostable, and free forever",
               ].map((point) => (
                 <li key={point} className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 flex-shrink-0" style={{ color: "var(--theme-success)" }} aria-hidden="true" />
@@ -295,19 +294,22 @@ export default async function HomePage() {
                 className="inline-flex items-center gap-2 rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90"
                 style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
               >
-                Get Started Free <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                Start Your Community <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
-              <Link
-                href="/login"
-                className="rounded-lg border px-6 py-3 font-semibold transition-colors hover:opacity-80"
+              <a
+                href="https://github.com/TheShield2594/vortexchat"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border px-6 py-3 font-semibold transition-colors hover:opacity-80"
                 style={{
                   borderColor: "rgba(255,255,255,0.15)",
                   background: "rgba(255,255,255,0.05)",
                   color: "var(--theme-text-primary)",
                 }}
               >
-                Sign In
-              </Link>
+                <Github className="h-4 w-4" aria-hidden="true" />
+                View the Source
+              </a>
             </div>
           </div>
 
@@ -384,21 +386,21 @@ export default async function HomePage() {
               className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
               style={{ color: "var(--theme-accent)" }}
             >
-              Get started in minutes
+              Not just another chat app
             </p>
             <h2
               id="how-it-works-heading"
               className="text-2xl font-bold font-display"
               style={{ color: "var(--theme-text-bright)" }}
             >
-              How it works
+              What makes Vortex different
             </h2>
           </div>
 
-          <div className="relative grid gap-6 sm:grid-cols-3">
+          <div className="relative grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {/* Connector line — spans between step circles */}
             <div
-              className="absolute hidden sm:block top-5 left-[16.67%] right-[16.67%] h-px"
+              className="absolute hidden lg:block top-5 left-[12.5%] right-[12.5%] h-px"
               style={{ background: "rgba(255,255,255,0.08)" }}
               aria-hidden="true"
             />
@@ -435,7 +437,7 @@ export default async function HomePage() {
               className="inline-flex items-center gap-2 rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90"
               style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
             >
-              Create your free account <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              Start Your Community <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -449,14 +451,14 @@ export default async function HomePage() {
               className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
               style={{ color: "var(--theme-accent)" }}
             >
-              Built for everyone
+              Why people switch
             </p>
             <h2
               id="use-cases-heading"
               className="text-2xl font-bold font-display"
               style={{ color: "var(--theme-text-bright)" }}
             >
-              Guilds, teams, or fan clubs — VortexChat fits.
+              Built for communities that outgrew Discord.
             </h2>
           </div>
         </ScrollReveal>
@@ -755,11 +757,11 @@ export default async function HomePage() {
           className="mb-3 text-3xl font-bold font-display md:text-4xl"
           style={{ color: "var(--theme-text-bright)" }}
         >
-          Ready to find your community?
+          Your community deserves transparency.
         </h2>
         <p className="mb-8 text-base max-w-md mx-auto" style={{ color: "var(--theme-text-secondary)" }}>
-          Free forever. No credit card. Passkey-secured from day one. Join the open-source chat
-          platform built for everyone.
+          Free forever. No credit card. Every feature included. Start on our hosted platform
+          or deploy your own — the code is open either way.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
@@ -767,19 +769,22 @@ export default async function HomePage() {
             className="inline-flex items-center gap-2 rounded-lg px-7 py-3.5 font-semibold transition-opacity hover:opacity-90 text-base"
             style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
           >
-            Get Started Free <ArrowRight aria-hidden="true" className="h-4 w-4" />
+            Start Your Community <ArrowRight aria-hidden="true" className="h-4 w-4" />
           </Link>
-          <Link
-            href="/login"
-            className="rounded-lg border px-7 py-3.5 font-semibold transition-colors hover:opacity-80 text-base"
+          <a
+            href="https://github.com/TheShield2594/vortexchat"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg border px-7 py-3.5 font-semibold transition-colors hover:opacity-80 text-base"
             style={{
               borderColor: "rgba(255,255,255,0.15)",
               background: "rgba(255,255,255,0.05)",
               color: "var(--theme-text-primary)",
             }}
           >
-            Sign In
-          </Link>
+            <Github className="h-4 w-4" aria-hidden="true" />
+            Deploy Your Own
+          </a>
         </div>
         </ScrollReveal>
       </section>
@@ -801,8 +806,8 @@ export default async function HomePage() {
                 </span>
               </div>
               <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-muted)" }}>
-                The free and open-source chat platform. Built for communities, teams, and
-                creators.
+                The transparent community platform. Open-source, fully auditable, and free
+                forever — with nothing to hide.
               </p>
             </div>
 

@@ -367,8 +367,8 @@ This cuts the page from 8+ sections to 6, leads with differentiation instead of 
 
 | Recommendation | Impact | Effort | Priority |
 |---|---|---|---|
-| 1. Define brand thesis | Very High | Low (copy exercise) | **P0 — Do first** |
-| 2. Rewrite landing page copy | High | Medium (copywriting) | **P0 — Do with #1** |
+| 1. Define brand thesis | Very High | Low (copy exercise) | **P0 — DONE** |
+| 2. Rewrite landing page copy | High | Medium (copywriting) | **P0 — DONE** |
 | 4. Own terminology (Recap, Sandbox, Ledger, Blueprints) | High | Low-Medium (rename in UI + docs) | **P1 — Quick wins** |
 | 5. Rework social proof section | Medium | Low | **P1 — Quick win** |
 | 3b. Voice Recap cards in chat | Very High | Medium (new component) | **P1 — Signature feature** |
