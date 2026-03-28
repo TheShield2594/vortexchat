@@ -162,6 +162,8 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   }
 
   // ========== MOBILE LAYOUT — shows sidebar OR content ==========
+  // Read-state management lives in ChatArea (useMarkChannelRead), so the
+  // sidebar can safely unmount when viewing channel content.
   if (isInChannel && !isSpecialPage) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden relative" {...swipeHandlers}>

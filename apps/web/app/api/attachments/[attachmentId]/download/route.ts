@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { isAttachmentDownloadAllowed } from "@/lib/attachment-access"
 import { requireAuth } from "@/lib/utils/api-helpers"
 
 export async function GET(
@@ -12,7 +11,7 @@ export async function GET(
 
   const { data: attachment, error } = await supabase
     .from("attachments")
-    .select("id, url, scan_state, quarantined_reason, message_id")
+    .select("id, url, message_id")
     .eq("id", attachmentId)
     .maybeSingle()
 
@@ -44,17 +43,6 @@ export async function GET(
       .maybeSingle()
 
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
-  if (!isAttachmentDownloadAllowed(attachment.scan_state)) {
-    return NextResponse.json(
-      {
-        error: "Attachment is not available until malware scan succeeds.",
-        scanState: attachment.scan_state,
-        reason: attachment.quarantined_reason,
-      },
-      { status: 423 }
-    )
   }
 
   return NextResponse.redirect(attachment.url)

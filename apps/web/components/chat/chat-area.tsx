@@ -40,6 +40,7 @@ import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/r
 import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh"
+import { useMarkChannelRead } from "@/hooks/use-mark-channel-read"
 import { useKeyboardAvoidance } from "@/hooks/use-keyboard-avoidance"
 import { ConnectionBanner } from "@/components/connection-banner"
 import { VoiceRecapCard } from "@/components/voice/voice-recap-card"
@@ -411,6 +412,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setActiveChannel(null)
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
+
+  // Mark channel as read in DB on mount and on departure
+  useMarkChannelRead(channel.id)
 
   // Persist last-visited channel per server for fast navigation on next session
   useEffect(() => {

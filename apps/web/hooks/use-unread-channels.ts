@@ -17,14 +17,16 @@ function isMessagePayload(
 }
 
 /**
- * Tracks which channels have unread messages for the current user.
+ * Tracks which channels have unread messages for the current user (display only).
  *
  * Strategy:
- *   1. On mount: load read_states from DB (last_read_at per channel).
- *      Fetch the latest message timestamp per channel and compare.
- *   2. Subscribe to message INSERTs across all channels in the server.
- *      If the message lands in a channel that isn't currently active → mark unread.
- *   3. When activeChannelId changes: mark that channel read in DB and clear local unread.
+ *   1. On mount: load read_states from DB and compare against latest messages.
+ *   2. Subscribe to message INSERTs — mark channels unread when new messages
+ *      arrive in non-active channels.
+ *   3. When activeChannelId changes: clear local unread state for that channel.
+ *      The actual DB write (mark_channel_read RPC) is handled by
+ *      useMarkChannelRead in ChatArea, keeping read-state ownership in the
+ *      component that's mounted while the user is reading.
  */
 export function useUnreadChannels(
   serverId: string,
@@ -33,7 +35,7 @@ export function useUnreadChannels(
   activeChannelId: string | null,
   onNewUnread?: () => void,
   initialData?: { unreadChannelIds: string[]; mentionCounts: Record<string, number> }
-) {
+): { unreadChannelIds: Set<string>; mentionCounts: Record<string, number> } {
   const onNewUnreadRef = useRef(onNewUnread)
   onNewUnreadRef.current = onNewUnread
   const supabase = useMemo(() => createClientSupabaseClient(), [])
@@ -45,42 +47,39 @@ export function useUnreadChannels(
   )
   const activeChannelRef = useRef(activeChannelId)
   activeChannelRef.current = activeChannelId
-  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Mark active channel as read in DB + clear local unread
-  const markRead = useCallback(
-    async (channelId: string) => {
-      setUnreadChannelIds((prev) => {
-        if (!prev.has(channelId)) return prev
-        const next = new Set(prev)
-        next.delete(channelId)
-        return next
-      })
-      setMentionCounts((prev) => {
-        if (!prev[channelId]) return prev
-        const next = { ...prev }
-        delete next[channelId]
-        return next
-      })
-      // Upsert in DB
-      try {
-        const { error } = await supabase.rpc("mark_channel_read", { p_channel_id: channelId })
-        if (error) console.error("useUnreadChannels: mark_channel_read RPC failed", error.message)
-      } catch (err) {
-        console.error("useUnreadChannels: mark_channel_read failed", err)
-      }
-    },
-    [supabase]
-  )
+  // Clear local unread state when the user enters a channel.
+  // No RPC here — ChatArea's useMarkChannelRead handles the DB write.
+  const clearUnread = useCallback((channelId: string) => {
+    setUnreadChannelIds((prev) => {
+      if (!prev.has(channelId)) return prev
+      const next = new Set(prev)
+      next.delete(channelId)
+      return next
+    })
+    setMentionCounts((prev) => {
+      if (!prev[channelId]) return prev
+      const next = { ...prev }
+      delete next[channelId]
+      return next
+    })
+  }, [])
 
-  // Load initial unread state
+  // When activeChannelId changes, immediately clear the unread indicator
+  useEffect(() => {
+    if (activeChannelId) {
+      clearUnread(activeChannelId)
+    }
+  }, [activeChannelId, clearUnread])
+
+  // Load initial unread state from DB.
+  // Always runs (even when initialData is provided) so that remounts on
+  // mobile get fresh data instead of stale server-rendered props.
   useEffect(() => {
     if (channelIds.length === 0) return
-    if (initialData) return
 
     async function loadInitialUnread(): Promise<void> {
       try {
-        // 1. Fetch this user's read_states for these channels
         const { data: readStates, error: rsError } = await supabase
           .from("read_states")
           .select("channel_id, last_read_at, mention_count")
@@ -99,7 +98,6 @@ export function useUnreadChannels(
           if (rs.mention_count > 0) mentionMap[rs.channel_id] = rs.mention_count
         }
 
-        // 2. For channels with a known read state, check if there's a newer message
         const unread = new Set<string>()
         const channelsWithReadState = Object.keys(readMap)
 
@@ -117,7 +115,6 @@ export function useUnreadChannels(
             return
           }
 
-          // Build a map of latest message time per channel (first occurrence per channel since ordered desc)
           const latestPerChannel: Record<string, string> = {}
           for (const msg of latestMessages ?? []) {
             if (!latestPerChannel[msg.channel_id]) {
@@ -143,26 +140,6 @@ export function useUnreadChannels(
 
     loadInitialUnread()
   }, [serverId, currentUserId])
-
-  // Mark currently active channel as read after 500ms debounce (avoids rapid-switch RPC calls)
-  useEffect(() => {
-    if (markReadTimerRef.current) {
-      clearTimeout(markReadTimerRef.current)
-      markReadTimerRef.current = null
-    }
-    if (activeChannelId) {
-      markReadTimerRef.current = setTimeout(() => {
-        markRead(activeChannelId)
-        markReadTimerRef.current = null
-      }, 500)
-    }
-    return () => {
-      if (markReadTimerRef.current) {
-        clearTimeout(markReadTimerRef.current)
-        markReadTimerRef.current = null
-      }
-    }
-  }, [activeChannelId, markRead])
 
   // Subscribe to new messages across this server's channels
   useEffect(() => {
@@ -212,5 +189,5 @@ export function useUnreadChannels(
     }
   }, [serverId, [...channelIds].sort().join(","), currentUserId])
 
-  return { unreadChannelIds, mentionCounts, markRead }
+  return { unreadChannelIds, mentionCounts }
 }

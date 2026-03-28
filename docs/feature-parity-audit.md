@@ -74,7 +74,7 @@ Gap severity:
 | Video embed (YouTube, etc.) | ✅ oEmbed + YouTube embed in Stage channels | ✅ | ✅ SendEmbeds | Parity |
 | Inline audio player | ✅ `<audio>` in `message-item.tsx` | ✅ | ✅ | Parity |
 | Inline video player | ✅ `<video>` in `message-item.tsx` | ✅ | ✅ | Parity |
-| Malware scanning on uploads | ✅ `attachment-malware.ts`, scan states | ✅ | ❌ | **VortexChat ahead** of Stoat |
+| Malware scanning on uploads | ❌ Removed | ❌ | ❌ | N/A |
 | Media channel (gallery view) | ✅ `media-channel.tsx` | ✅ | ❌ | **VortexChat ahead** of Stoat |
 | Max file size enforcement | ✅ 10 MB upload route limit in proxy.ts | ✅ | ✅ 20 MB default | Parity |
 

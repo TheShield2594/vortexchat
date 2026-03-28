@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Megaphone, Users } from "lucide-react"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { useMarkChannelRead } from "@/hooks/use-mark-channel-read"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -41,6 +42,8 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
       setActiveChannel(null)
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
+
+  useMarkChannelRead(channel.id)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })

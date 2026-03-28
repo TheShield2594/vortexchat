@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react"
 import { ImageIcon, Users } from "lucide-react"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { useMarkChannelRead } from "@/hooks/use-mark-channel-read"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -43,6 +44,8 @@ export function MediaChannel({ channel, initialMessages, currentUserId, serverId
       setActiveChannel(null)
     }
   }, [serverId, channel.id, setActiveServer, setActiveChannel])
+
+  useMarkChannelRead(channel.id)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
