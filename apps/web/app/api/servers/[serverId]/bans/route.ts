@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 import { hasPermission as checkPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
+import { rateLimiter } from "@/lib/rate-limit"
 
 // GET /api/servers/[serverId]/bans — list bans
 export async function GET(
@@ -51,6 +52,12 @@ export async function POST(
   const { serverId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
+
+  // Rate limit: 10 ban actions per 5 minutes per moderator
+  const rl = await rateLimiter.check(`ban:${user.id}`, { limit: 10, windowMs: 5 * 60_000 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many ban actions. Please slow down." }, { status: 429 })
+  }
 
   const { userId, reason } = await req.json()
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 })

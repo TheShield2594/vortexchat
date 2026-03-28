@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
   // Rate limit: 5 attempts per 10 minutes per user+factor (uses Upstash Redis when configured)
   const rateLimitKey = `mfa:${user.id}:${body.factorId}`
-  const rl = await rateLimiter.check(rateLimitKey, { limit: 5, windowMs: 10 * 60_000 })
+  const rl = await rateLimiter.check(rateLimitKey, { limit: 5, windowMs: 10 * 60_000, failClosed: true })
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many attempts" }, { status: 429 })
   }

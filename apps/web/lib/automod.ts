@@ -249,6 +249,8 @@ export const VALID_TRIGGER_TYPES = ["keyword_filter", "regex_filter", "mention_s
 export const VALID_ACTION_TYPES = ["block_message", "quarantine_message", "timeout_member", "warn_member", "alert_channel"] as const
 
 const UNSAFE_REGEX_RE = /\([^)]*[+*?][^)]*\)[+*?{]/
+/** Additional patterns that can cause catastrophic backtracking. */
+const UNSAFE_NESTED_QUANTIFIER_RE = /([+*?{])\s*\1|\.{2,}[+*]|\(\?[^)]*[+*][^)]*\)[+*]/
 
 export function validateConfigAndActions(
   trigger_type: string,
@@ -270,7 +272,7 @@ export function validateConfigAndActions(
         return "keyword_filter config.regex_patterns must be string[] if provided"
       }
       for (const pattern of cfg.regex_patterns as string[]) {
-        if (UNSAFE_REGEX_RE.test(pattern)) return `regex pattern contains unsafe nested quantifiers: ${pattern}`
+        if (UNSAFE_REGEX_RE.test(pattern) || UNSAFE_NESTED_QUANTIFIER_RE.test(pattern)) return `regex pattern contains unsafe nested quantifiers: ${pattern}`
       }
     }
   } else if (trigger_type === "regex_filter") {

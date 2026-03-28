@@ -40,13 +40,10 @@ export async function POST(request: Request) {
   try {
     // Rate limit: 10 passkey challenge requests per minute per IP
     const ip = getClientIp(request.headers) ?? "unknown"
-    try {
-      const rl = await rateLimiter.check(`passkey-options:${ip}`, { limit: 10, windowMs: 60_000 })
-      if (!rl.allowed) {
-        return NextResponse.json({ error: "Too many requests" }, { status: 429 })
-      }
-    } catch {
-      // Fail open — don't block passkey login if rate limiter is down
+    // failClosed: auth endpoints must block when rate limiter is unavailable
+    const rl = await rateLimiter.check(`passkey-options:${ip}`, { limit: 10, windowMs: 60_000, failClosed: true })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
     }
 
     const { email } = (await request.json().catch(() => ({}))) as { email?: string }
