@@ -431,7 +431,7 @@ export const MessageItem = memo(function MessageItem({
     <>
     {/* Swipe-to-reply wrapper — shows reply icon behind the message during swipe */}
     <div
-      className="relative overflow-hidden"
+      className="relative"
       onTouchStart={(e) => {
         const touch = e.touches[0]
         swipeStartRef.current = { x: touch.clientX, y: touch.clientY, active: false }
@@ -503,7 +503,7 @@ export const MessageItem = memo(function MessageItem({
             // On touch devices, tap a message to toggle the action bar.
             // Ignore clicks on interactive elements (buttons, links, inputs).
             const target = e.target as HTMLElement
-            if (target.closest("button, a, input, textarea, [role='menuitem'], [data-emoji-picker-portal]")) return
+            if (target.closest("button, a, input, textarea, select, video, audio, [role='menuitem'], [data-emoji-picker-portal]")) return
             if (window.matchMedia("(pointer: coarse)").matches) {
               setShowActions((v) => !v)
             }

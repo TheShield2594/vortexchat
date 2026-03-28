@@ -74,6 +74,12 @@ export function useSwRegistration() {
         // Re-trigger push subscription from the push-notifications hook
         window.dispatchEvent(new CustomEvent("vortex:resubscribe-push"))
       }
+      if (event.data?.type === "NOTIFICATION_NAVIGATE") {
+        const url = event.data.url
+        if (url) {
+          window.dispatchEvent(new CustomEvent("vortex:notification-navigate", { detail: { url } }))
+        }
+      }
     }
     navigator.serviceWorker.addEventListener("message", onMessage)
 

@@ -36,9 +36,8 @@ function computeGridConfig(count: number, hasVideo: boolean, isMobile: boolean):
   if (!hasVideo) {
     // Audio-only: compact tiles — use fewer columns on mobile
     if (isMobile) {
-      if (count <= 2) return { columns: 2, rows: 1, templateColumns: "repeat(2, 1fr)" }
-      if (count <= 4) return { columns: 2, rows: 2, templateColumns: "repeat(2, 1fr)" }
-      return { columns: 3, rows: Math.ceil(count / 3), templateColumns: "repeat(3, 1fr)" }
+      if (count === 1) return { columns: 1, rows: 1, templateColumns: "1fr" }
+      return { columns: 2, rows: Math.ceil(count / 2), templateColumns: "repeat(2, 1fr)" }
     }
     if (count <= 2) return { columns: 2, rows: 1, templateColumns: "repeat(2, minmax(180px, 1fr))" }
     if (count <= 4) return { columns: 2, rows: 2, templateColumns: "repeat(2, minmax(180px, 1fr))" }

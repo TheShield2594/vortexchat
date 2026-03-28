@@ -173,12 +173,6 @@ export function ImageLightbox({ src, alt, onClose, images, initialIndex = 0 }: I
     // Snap back
     setSwipeDismissY(0)
     swipingRef.current = false
-
-    // Double-tap to zoom (detect via timestamp)
-    const start = touchStartRef.current
-    if (start && start.touches.length === 1 && Date.now() - start.timestamp < 300) {
-      // Will be handled by click — no-op here
-    }
     touchStartRef.current = null
   }, [swipeDismissY, onClose])
 

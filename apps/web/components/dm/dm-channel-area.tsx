@@ -218,6 +218,15 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const isMobileDm = useMobileLayout()
   useKeyboardAvoidance(scrollerRef, isMobileDm, false)
+
+  // Sync textarea height when content changes programmatically (e.g. failed send restore, emoji insertion)
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+  }, [content])
+
   const prevLastMsgIdRef = useRef<string | null>(null)
   const topRef = useRef<HTMLDivElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
@@ -925,7 +934,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         </div>
 
         <button
-          className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
+          className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
           style={{ color: "var(--theme-text-secondary)" }}
           title="Search in conversation"
           aria-label="Search in conversation"
@@ -935,7 +944,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           <Search className="w-[18px] h-[18px]" />
         </button>
         <button
-          className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
+          className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
           style={{ color: "var(--theme-text-secondary)" }}
           title="Pinned messages"
           aria-label="Pinned messages"
@@ -950,7 +959,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           <>
             <button
               onClick={startVoiceCall}
-              className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
+              className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
               style={{ color: (activeCall && !activeCall.withVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start voice call"
               disabled={!!activeCall || !!ringing}
@@ -959,7 +968,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             </button>
             <button
               onClick={startVideoCall}
-              className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
+              className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
               style={{ color: (activeCall?.withVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start video call"
               disabled={!!activeCall || !!ringing}
