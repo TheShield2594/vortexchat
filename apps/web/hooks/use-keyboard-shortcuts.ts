@@ -123,10 +123,21 @@ export function getDiscoverableShortcutMappings(handlers: ShortcutHandlers) {
   }))
 }
 
+/**
+ * Singleton guard — only one keydown listener is active at a time.
+ * During route transitions the outgoing component's cleanup may run after the
+ * new component mounts, which would otherwise leave two listeners on window.
+ * We store a monotonically increasing ID; each effect checks whether it is
+ * still the active instance before processing events.
+ */
+let activeShortcutInstanceId = 0
+
 export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
   const registry = useMemo(() => getShortcutRegistry(handlers), [handlers])
 
   useEffect(() => {
+    const instanceId = ++activeShortcutInstanceId
+
     const lookup = new Map<string, ShortcutDefinition>()
     for (const shortcut of registry) {
       if (!shortcut.enabled || !shortcut.run) continue
@@ -140,6 +151,9 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      // Stale instance — a newer mount has taken over
+      if (instanceId !== activeShortcutInstanceId) return
+
       const combo = normalizeCombo(event)
       const shortcut = lookup.get(combo)
       if (!shortcut || !shortcut.run) return
