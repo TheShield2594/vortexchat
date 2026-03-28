@@ -88,7 +88,7 @@ export function ServerSidebar() {
   return (
     <TooltipProvider delayDuration={200}>
       <div
-        className="flex flex-col items-center w-[72px] py-3 gap-2 flex-shrink-0 overflow-y-auto no-scrollbar"
+        className="flex flex-col items-center w-[80px] md:w-[72px] py-3 gap-3 md:gap-2 flex-shrink-0 overflow-y-auto no-scrollbar"
         style={{
           background: 'linear-gradient(to bottom, color-mix(in srgb, var(--theme-accent) 8%, var(--theme-bg-tertiary)) 0%, var(--theme-bg-tertiary) 30%)',
         }}
@@ -101,7 +101,7 @@ export function ServerSidebar() {
               onClick={() => setActiveServer(null)}
               aria-label="Direct Messages"
               className={cn(
-                "w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring",
+                "w-[52px] h-[52px] md:w-12 md:h-12 flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring",
                 activeServerId === null
                   ? "rounded-2xl"
                   : "rounded-full hover:rounded-2xl"
@@ -124,7 +124,7 @@ export function ServerSidebar() {
         {servers.length === 0 && isLoadingServers && (
           <div className="w-full flex flex-col items-center gap-2 py-1">
             {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-12 w-12 rounded-full" />
+              <Skeleton key={index} className="h-[52px] w-[52px] md:h-12 md:w-12 rounded-full" />
             ))}
           </div>
         )}
@@ -158,7 +158,7 @@ export function ServerSidebar() {
               onClick={() => setShowCreateServer(true)}
               aria-label="Add a Server"
               className={cn(
-                "w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group focus-ring",
+                "w-[52px] h-[52px] md:w-12 md:h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 group focus-ring",
                 servers.length === 0 && !isLoadingServers && "ring-2 ring-offset-2 animate-pulse"
               )}
               style={{
@@ -178,7 +178,7 @@ export function ServerSidebar() {
             <button
               onClick={() => { setActiveServer(null); router.push("/channels/discover") }}
               aria-label="Explore Public Servers"
-              className="w-12 h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring"
+              className="w-[52px] h-[52px] md:w-12 md:h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}
             >
               <Compass className="w-6 h-6" style={{ color: 'var(--theme-text-muted)' }} />
@@ -251,7 +251,7 @@ function ServerIcon({
               />
               <div
                 className={cn(
-                  "relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden",
+                  "relative w-[52px] h-[52px] md:w-12 md:h-12 flex items-center justify-center transition-all duration-200 overflow-hidden",
                   isActive ? "rounded-2xl" : "rounded-full hover:rounded-2xl",
                   server.icon_url ? "bg-transparent" : "server-sidebar-icon-bg",
                   isActive

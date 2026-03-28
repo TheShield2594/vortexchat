@@ -47,10 +47,10 @@ function FriendEntry({
 
   return (
     <div
-      className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-default hover:bg-white/5 transition-colors group"
+      className="relative flex items-center gap-3 md:gap-2.5 px-3 md:px-2.5 py-2.5 md:py-2 rounded-lg cursor-default hover:bg-white/5 transition-colors group"
     >
       <div className="relative flex-shrink-0">
-        <Avatar className="w-9 h-9">
+        <Avatar className="w-10 h-10 md:w-9 md:h-9">
           {friend.avatar_url && <AvatarImage src={friend.avatar_url} />}
           <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "13px" }}>
             {initials}

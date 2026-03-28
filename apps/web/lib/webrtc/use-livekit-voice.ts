@@ -11,6 +11,9 @@
  *  - Client connects to Livekit SFU using the token
  *  - The SFU handles all audio routing, so this works for any group size
  *
+ * The livekit-client library (~600 KB) is loaded lazily on first use so it
+ * never appears in the initial JS bundle for users who don't join voice.
+ *
  * Usage:
  *   const voice = useLivekitVoice({ channelId, serverId, userId, enabled })
  *   // voice.participants — Map<userId, ParticipantState>
@@ -18,19 +21,30 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import {
-  Room,
-  RoomEvent,
-  Track,
+
+// Types are imported at the type level — these are erased at runtime and
+// add zero bytes to the bundle.
+import type {
+  Room as RoomType,
   Participant,
   RemoteParticipant,
-  RemoteTrackPublication,
-  LocalParticipant,
-  ConnectionState,
-  ParticipantEvent,
-  type RoomConnectOptions,
-  LocalTrackPublication,
+  RemoteTrackPublication as RemoteTrackPublicationType,
+  ConnectionState as ConnectionStateType,
+  RoomConnectOptions,
+  LocalTrackPublication as LocalTrackPublicationType,
 } from "livekit-client"
+
+/**
+ * Lazily load the livekit-client module. The returned promise is cached after
+ * the first call so subsequent invocations are synchronous.
+ */
+let livekitPromise: Promise<typeof import("livekit-client")> | null = null
+function getLivekitClient(): Promise<typeof import("livekit-client")> {
+  if (!livekitPromise) {
+    livekitPromise = import("livekit-client")
+  }
+  return livekitPromise
+}
 
 export interface LivekitParticipantState {
   userId: string
@@ -65,7 +79,7 @@ export interface LivekitVoiceReturn {
   setInputDevice: (deviceId: string) => Promise<void>
   setOutputDevice: (deviceId: string) => Promise<void>
   leave: () => void
-  room: Room | null
+  room: RoomType | null
 }
 
 interface UseLivekitVoiceArgs {
@@ -75,7 +89,10 @@ interface UseLivekitVoiceArgs {
   enabled: boolean
 }
 
-function participantToState(p: Participant): LivekitParticipantState {
+function participantToState(
+  p: Participant,
+  Track: typeof import("livekit-client").Track,
+): LivekitParticipantState {
   const audioTrack = p.getTrackPublications().find(
     (pub) => pub.track?.kind === Track.Kind.Audio && pub.track?.mediaStreamTrack
   )?.track?.mediaStreamTrack ?? null
@@ -101,7 +118,7 @@ export function useLivekitVoice({
   userId,
   enabled,
 }: UseLivekitVoiceArgs): LivekitVoiceReturn {
-  const roomRef = useRef<Room | null>(null)
+  const roomRef = useRef<RoomType | null>(null)
   const isDeafRef = useRef(false)
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
@@ -119,15 +136,21 @@ export function useLivekitVoice({
   const [selectedInputId, setSelectedInputId] = useState<string | null>(null)
   const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null)
 
-  const refreshParticipants = useCallback((room: Room) => {
+  // We store the Track enum ref so callbacks can use it without re-importing
+  const trackEnumRef = useRef<typeof import("livekit-client").Track | null>(null)
+
+  const refreshParticipants = useCallback((room: RoomType) => {
+    const TrackEnum = trackEnumRef.current
+    if (!TrackEnum) return
+
     const map = new Map<string, LivekitParticipantState>()
     for (const [, p] of room.remoteParticipants) {
-      map.set(p.identity, participantToState(p))
+      map.set(p.identity, participantToState(p, TrackEnum))
     }
     setParticipants(map)
 
     if (room.localParticipant) {
-      setLocalParticipant(participantToState(room.localParticipant))
+      setLocalParticipant(participantToState(room.localParticipant, TrackEnum))
       setSpeaking(room.localParticipant.isSpeaking)
       setMuted(!room.localParticipant.isMicrophoneEnabled)
     }
@@ -137,152 +160,170 @@ export function useLivekitVoice({
     if (!enabled) return
 
     let cancelled = false
-    const room = new Room({
-      adaptiveStream: true,
-      dynacast: true,
-      audioCaptureDefaults: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    })
-    roomRef.current = room
 
-    async function connect() {
-      setConnecting(true)
-      setError(null)
+    async function init(): Promise<() => void> {
+      const lk = await getLivekitClient()
+      if (cancelled) return () => {}
 
-      try {
-        // Fetch a token from our API
-        const res = await fetch(
-          `/api/servers/${serverId}/channels/${channelId}/voice-token`,
-          { method: "POST" }
-        )
+      const { Room, RoomEvent, Track, ConnectionState, ParticipantEvent } = lk
+      trackEnumRef.current = Track
 
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          throw new Error(data.error ?? "Failed to get voice token")
-        }
-
-        const { token, url } = await res.json() as { token: string; url: string }
-
-        if (cancelled) return
-
-        const connectOptions: RoomConnectOptions = {
-          autoSubscribe: true,
-        }
-
-        await room.connect(url, token, connectOptions)
-
-        if (cancelled) {
-          room.disconnect()
-          return
-        }
-
-        // Publish microphone
-        await room.localParticipant.setMicrophoneEnabled(true)
-
-        setConnected(true)
-        setConnecting(false)
-        refreshParticipants(room)
-      } catch (err: unknown) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Connection failed")
-          setConnecting(false)
-        }
-      }
-    }
-
-    // Wire up events
-    room
-      .on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
-        refreshParticipants(room)
-        console.log(`[Livekit] participant joined: ${p.identity}`)
+      const room = new Room({
+        adaptiveStream: true,
+        dynacast: true,
+        audioCaptureDefaults: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
       })
-      .on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
-        refreshParticipants(room)
-        console.log(`[Livekit] participant left: ${p.identity}`)
-      })
-      .on(RoomEvent.TrackSubscribed, (track, pub) => {
-        if (isDeafRef.current && track.kind === Track.Kind.Audio) {
-          pub.setSubscribed(false)
-        }
-        refreshParticipants(room)
-      })
-      .on(RoomEvent.TrackUnsubscribed, () => refreshParticipants(room))
-      .on(RoomEvent.TrackPublished, () => refreshParticipants(room))
-      .on(RoomEvent.TrackUnpublished, () => refreshParticipants(room))
-      .on(RoomEvent.ActiveSpeakersChanged, () => refreshParticipants(room))
-      .on(RoomEvent.LocalTrackPublished, () => refreshParticipants(room))
-      .on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
-        if (state === ConnectionState.Connected) {
+      roomRef.current = room
+
+      async function connect(): Promise<void> {
+        setConnecting(true)
+        setError(null)
+
+        try {
+          const res = await fetch(
+            `/api/servers/${serverId}/channels/${channelId}/voice-token`,
+            { method: "POST" }
+          )
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            throw new Error(data.error ?? "Failed to get voice token")
+          }
+
+          const { token, url } = await res.json() as { token: string; url: string }
+
+          if (cancelled) return
+
+          const connectOptions: RoomConnectOptions = {
+            autoSubscribe: true,
+          }
+
+          await room.connect(url, token, connectOptions)
+
+          if (cancelled) {
+            room.disconnect()
+            return
+          }
+
+          await room.localParticipant.setMicrophoneEnabled(true)
+
           setConnected(true)
           setConnecting(false)
-        } else if (state === ConnectionState.Disconnected) {
+          refreshParticipants(room)
+        } catch (err: unknown) {
+          if (!cancelled) {
+            setError(err instanceof Error ? err.message : "Connection failed")
+            setConnecting(false)
+          }
+        }
+      }
+
+      // Wire up events
+      room
+        .on(RoomEvent.ParticipantConnected, (_p: RemoteParticipant) => {
+          refreshParticipants(room)
+        })
+        .on(RoomEvent.ParticipantDisconnected, (_p: RemoteParticipant) => {
+          refreshParticipants(room)
+        })
+        .on(RoomEvent.TrackSubscribed, (track, pub) => {
+          if (isDeafRef.current && track.kind === Track.Kind.Audio) {
+            pub.setSubscribed(false)
+          }
+          refreshParticipants(room)
+        })
+        .on(RoomEvent.TrackUnsubscribed, () => refreshParticipants(room))
+        .on(RoomEvent.TrackPublished, () => refreshParticipants(room))
+        .on(RoomEvent.TrackUnpublished, () => refreshParticipants(room))
+        .on(RoomEvent.ActiveSpeakersChanged, () => refreshParticipants(room))
+        .on(RoomEvent.LocalTrackPublished, () => refreshParticipants(room))
+        .on(RoomEvent.ConnectionStateChanged, (state: ConnectionStateType) => {
+          if (state === ConnectionState.Connected) {
+            setConnected(true)
+            setConnecting(false)
+          } else if (state === ConnectionState.Disconnected) {
+            setConnected(false)
+          } else if (state === ConnectionState.Reconnecting) {
+            setConnecting(true)
+          }
+        })
+        .on(RoomEvent.Disconnected, () => {
           setConnected(false)
-        } else if (state === ConnectionState.Reconnecting) {
-          setConnecting(true)
+          setConnecting(false)
+          setParticipants(new Map())
+          setLocalParticipant(null)
+        })
+
+      // Local speaking detection
+      room.localParticipant.on(ParticipantEvent.IsSpeakingChanged, (isSpeaking: boolean) => {
+        setSpeaking(isSpeaking)
+      })
+
+      // Track local screen-share publications
+      room
+        .on(RoomEvent.LocalTrackPublished, (pub: LocalTrackPublicationType) => {
+          if (pub.track?.source === Track.Source.ScreenShare) {
+            setScreenShareEnabled(true)
+            setScreenTrack(pub.track.mediaStreamTrack ?? null)
+          }
+          refreshParticipants(room)
+        })
+        .on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublicationType) => {
+          if (pub.source === Track.Source.ScreenShare) {
+            setScreenShareEnabled(false)
+            setScreenTrack(null)
+          }
+          refreshParticipants(room)
+        })
+
+      // Enumerate devices once the connection is established
+      async function enumerateDevices(): Promise<void> {
+        try {
+          const [inputs, outputs] = await Promise.all([
+            Room.getLocalDevices("audioinput"),
+            Room.getLocalDevices("audiooutput"),
+          ])
+          setAudioInputDevices(inputs)
+          setAudioOutputDevices(outputs)
+        } catch {
+          // Device enumeration may fail in restricted environments; safe to ignore
+        }
+      }
+
+      room.on(RoomEvent.ConnectionStateChanged, (state: ConnectionStateType) => {
+        if (state === ConnectionState.Connected) {
+          enumerateDevices()
         }
       })
-      .on(RoomEvent.Disconnected, () => {
+
+      connect()
+
+      return () => {
+        room.disconnect()
+        roomRef.current = null
         setConnected(false)
         setConnecting(false)
         setParticipants(new Map())
         setLocalParticipant(null)
-      })
-
-    // Local speaking detection
-    room.localParticipant.on(ParticipantEvent.IsSpeakingChanged, (isSpeaking: boolean) => {
-      setSpeaking(isSpeaking)
-    })
-
-    // Track local screen-share publications
-    room
-      .on(RoomEvent.LocalTrackPublished, (pub: LocalTrackPublication) => {
-        if (pub.track?.source === Track.Source.ScreenShare) {
-          setScreenShareEnabled(true)
-          setScreenTrack(pub.track.mediaStreamTrack ?? null)
-        }
-        refreshParticipants(room)
-      })
-      .on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication) => {
-        if (pub.source === Track.Source.ScreenShare) {
-          setScreenShareEnabled(false)
-          setScreenTrack(null)
-        }
-        refreshParticipants(room)
-      })
-
-    // Enumerate devices once the connection is established
-    async function enumerateDevices() {
-      try {
-        const [inputs, outputs] = await Promise.all([
-          Room.getLocalDevices("audioinput"),
-          Room.getLocalDevices("audiooutput"),
-        ])
-        setAudioInputDevices(inputs)
-        setAudioOutputDevices(outputs)
-      } catch {
-        // Device enumeration may fail in restricted environments; safe to ignore
       }
     }
 
-    room.on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
-      if (state === ConnectionState.Connected) {
-        enumerateDevices()
+    let cleanup: (() => void) | undefined
+    init().then((fn) => {
+      if (cancelled) {
+        fn()
+      } else {
+        cleanup = fn
       }
-    })
-
-    connect()
+    }).catch(() => {})
 
     return () => {
       cancelled = true
-      room.disconnect()
-      roomRef.current = null
-      setConnected(false)
-      setConnecting(false)
-      setParticipants(new Map())
-      setLocalParticipant(null)
+      cleanup?.()
     }
   }, [enabled, channelId, serverId, refreshParticipants])
 
@@ -301,13 +342,15 @@ export function useLivekitVoice({
   const toggleDeafen = useCallback(() => {
     const room = roomRef.current
     if (!room) return
+    const TrackEnum = trackEnumRef.current
+    if (!TrackEnum) return
     const nextDeafened = !deafened
     isDeafRef.current = nextDeafened
     // Subscribe/unsubscribe all remote audio tracks
     for (const [, participant] of room.remoteParticipants) {
       for (const pub of participant.getTrackPublications()) {
-        if (pub.kind === Track.Kind.Audio) {
-          ;(pub as RemoteTrackPublication).setSubscribed(!nextDeafened)
+        if (pub.kind === TrackEnum.Kind.Audio) {
+          ;(pub as RemoteTrackPublicationType).setSubscribed(!nextDeafened)
         }
       }
     }

@@ -59,7 +59,7 @@ export function CategoryHeader({
           ref={sortable.setNodeRef}
           style={style}
           className={cn(
-            "flex items-center justify-between px-2 py-1 group rounded mx-1 motion-interactive",
+            "flex items-center justify-between px-2 py-2 md:py-1 group rounded mx-1 motion-interactive",
             isDragOver && "surface-hover"
           )}
         >
@@ -71,11 +71,11 @@ export function CategoryHeader({
             aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
           >
             {isCollapsed ? (
-              <ChevronRight className="w-3 h-3 tertiary-metadata" />
+              <ChevronRight className="w-3.5 h-3.5 md:w-3 md:h-3 tertiary-metadata" />
             ) : (
-              <ChevronDown className="w-3 h-3 tertiary-metadata" />
+              <ChevronDown className="w-3.5 h-3.5 md:w-3 md:h-3 tertiary-metadata" />
             )}
-            <span className="text-xs font-semibold uppercase tracking-wider tertiary-metadata truncate">
+            <span className="text-sm md:text-xs font-semibold uppercase tracking-wider tertiary-metadata truncate">
               {category.name}
             </span>
           </button>
