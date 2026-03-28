@@ -1,7 +1,7 @@
 "use client"
 
 import { lazy, Suspense } from "react"
-import { Activity, BookOpen, Eye, Flag, Shield, ShieldCheck, Zap } from "lucide-react"
+import { Activity, BookOpen, Eye, Flag, Heart, Palette, Shield, ShieldCheck, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AutoModTab, EmojisTab, ModerationTab, ScreeningTab, WebhooksTab } from "@/components/modals/server-settings-modal"
 
@@ -13,6 +13,8 @@ const ReportsTab = lazy(() => import("@/components/settings/reports-tab").then((
 const AdminActivityTimeline = lazy(() => import("@/components/admin/admin-activity-timeline").then((m) => ({ default: m.AdminActivityTimeline })))
 const PermissionSimulator = lazy(() => import("@/components/admin/permission-simulator").then((m) => ({ default: m.PermissionSimulator })))
 const AuditLogPage = lazy(() => import("@/components/admin/audit-log-page").then((m) => ({ default: m.AuditLogPage })))
+const CommunityHealthDashboard = lazy(() => import("@/components/admin/community-health-dashboard").then((m) => ({ default: m.CommunityHealthDashboard })))
+const ServerRecommendedTheme = lazy(() => import("@/components/settings/theme-identity-section").then((m) => ({ default: m.ServerRecommendedTheme })))
 
 interface Channel {
   id: string
@@ -81,7 +83,18 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               </TabsTrigger>
               <TabsTrigger value="permission-simulator" className="w-full justify-start">
                 <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Perm Simulator
+                Perm Sandbox
+              </TabsTrigger>
+              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+                Insights
+              </div>
+              <TabsTrigger value="community-health" className="w-full justify-start">
+                <Heart className="mr-1.5 h-3.5 w-3.5" />
+                Community Health
+              </TabsTrigger>
+              <TabsTrigger value="server-theme" className="w-full justify-start">
+                <Palette className="mr-1.5 h-3.5 w-3.5" />
+                Server Theme
               </TabsTrigger>
             </TabsList>
           </div>
@@ -123,6 +136,12 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               </TabsContent>
               <TabsContent value="permission-simulator" className="mt-0">
                 <PermissionSimulator serverId={serverId} channels={channels} />
+              </TabsContent>
+              <TabsContent value="community-health" className="mt-0">
+                <CommunityHealthDashboard serverId={serverId} />
+              </TabsContent>
+              <TabsContent value="server-theme" className="mt-0">
+                <ServerRecommendedTheme serverId={serverId} />
               </TabsContent>
             </Suspense>
           </div>

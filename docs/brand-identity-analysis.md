@@ -373,11 +373,11 @@ This cuts the page from 8+ sections to 6, leads with differentiation instead of 
 | 5. Rework social proof section | Medium | Low | **P1 — Quick win** |
 | 3b. Voice Recap cards in chat | Very High | Medium (new component) | **P1 — Signature feature** |
 | 7. Restructure landing page | High | Medium | **P1 — Supports #2** |
-| 3a. Transparency Panel | Very High | High (new UX surface) | **P2 — Signature feature** |
-| 6b. Vortex spiral motif | Medium | Medium (design) | **P2 — Visual identity** |
-| 3c. Community Health dashboard | High | High (new page) | **P2 — Admin differentiator** |
-| 6a. Glass/translucent iconography | Medium | Medium (design) | **P3 — Polish** |
-| 6c. Theme-as-identity features | Medium | Medium | **P3 — Social/fun** |
+| 3a. Transparency Panel | Very High | High (new UX surface) | **P2 — DONE** |
+| 6b. Vortex spiral motif | Medium | Medium (design) | **P2 — DONE** |
+| 3c. Community Health dashboard | High | High (new page) | **P2 — DONE** |
+| 6a. Glass/translucent iconography | Medium | Medium (design) | **P3 — DONE** |
+| 6c. Theme-as-identity features | Medium | Medium | **P3 — DONE** |
 
 ---
 

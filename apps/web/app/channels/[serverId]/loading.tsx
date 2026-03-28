@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton"
+import { VortexSpinner, VortexMotif } from "@/components/ui/vortex-spinner"
 
 export default function ServerLoading() {
   return (
@@ -12,18 +13,15 @@ export default function ServerLoading() {
         </div>
       </aside>
 
-      <main className="flex-1 border-r px-4 py-4" style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }}>
-        <Skeleton className="mb-4 h-10 w-full" />
-        <div className="space-y-4">
-          {Array.from({ length: 10 }).map((_, index) => (
-            <div key={index} className="flex gap-3">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-3 w-32" />
-                <Skeleton className="h-3 w-full" />
-              </div>
-            </div>
-          ))}
+      <main className="flex-1 border-r px-4 py-4 relative" style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }}>
+        {/* Vortex spiral motif as subtle background watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+          <VortexMotif size={200} />
+        </div>
+        {/* Vortex branded spinner */}
+        <div className="flex flex-col items-center justify-center h-full gap-3 relative z-10">
+          <VortexSpinner size={48} />
+          <p className="text-sm animate-pulse" style={{ color: "var(--theme-text-muted)" }}>Loading server...</p>
         </div>
       </main>
 

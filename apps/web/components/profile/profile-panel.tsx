@@ -24,6 +24,7 @@ import { ProfileInterestTags } from "@/components/profile/profile-interest-tags"
 import { ProfilePinnedItems } from "@/components/profile/profile-pinned-items"
 import { ProfileActivity } from "@/components/profile/profile-activity"
 import { ProfileConnections } from "@/components/profile/profile-connections"
+import { ThemeIdentityBadge } from "@/components/settings/theme-identity-section"
 
 interface ProfileUser {
   id: string
@@ -276,6 +277,13 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
           {/* Connections */}
           {user?.id && (
             <ProfileConnections userId={user.id} />
+          )}
+
+          {/* Theme Identity — shows which theme this user uses */}
+          {user?.id && (
+            <section className="px-1">
+              <ThemeIdentityBadge themeName="midnight-neon" />
+            </section>
           )}
 
           {/* Interests / Tags */}
