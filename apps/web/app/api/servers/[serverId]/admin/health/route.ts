@@ -44,23 +44,26 @@ export async function GET(
       .eq("server_id", serverId)
     const channelIds = (serverChannels ?? []).map((c: ChannelRow) => c.id)
 
-    // Active members (posted in last 7 days vs previous 7 days)
+    // Active members (distinct authors in last 7 days vs previous 7 days)
     let currentActive = 0
     let previousActive = 0
     if (channelIds.length > 0) {
-      const { count: activeNow } = await supabase
+      // Fetch distinct author_ids for current period
+      const { data: currentAuthors } = await supabase
         .from("messages")
-        .select("author_id", { count: "exact", head: true })
+        .select("author_id")
         .in("channel_id", channelIds)
         .gte("created_at", sevenDaysAgo)
-      const { count: activePrev } = await supabase
+      currentActive = new Set((currentAuthors ?? []).map((m: { author_id: string }) => m.author_id)).size
+
+      // Fetch distinct author_ids for previous period
+      const { data: previousAuthors } = await supabase
         .from("messages")
-        .select("author_id", { count: "exact", head: true })
+        .select("author_id")
         .in("channel_id", channelIds)
         .gte("created_at", fourteenDaysAgo)
         .lt("created_at", sevenDaysAgo)
-      currentActive = activeNow ?? 0
-      previousActive = activePrev ?? 0
+      previousActive = new Set((previousAuthors ?? []).map((m: { author_id: string }) => m.author_id)).size
     }
     const activeTrend = previousActive === 0 ? 0 : Math.round(((currentActive - previousActive) / previousActive) * 100)
 
@@ -136,7 +139,7 @@ export async function GET(
       .eq("server_id", serverId)
 
     if (roles) {
-      const adminRoles = roles.filter((r: { id: string; name: string; permissions: number }) => (r.permissions & PERMISSIONS.ADMINISTRATOR) !== 0)
+      const adminRoles = roles.filter((r: { id: string; name: string; permissions: number }) => ((r.permissions ?? 0) & PERMISSIONS.ADMINISTRATOR) !== 0)
       if (adminRoles.length > 2) {
         warnings.push(`${adminRoles.length} roles have Administrator permission — consider reducing to minimize risk`)
       }
@@ -147,11 +150,11 @@ export async function GET(
         .select("channel_id, role_id, deny_permissions")
 
       if (permOverrides) {
-        const defaultRole = roles.find((r: { id: string; name: string; permissions: number }) => r.name === "@everyone" || r.name === "everyone")
+        const defaultRole = roles.find((r: { id: string; name: string; permissions: number | null }) => r.name === "@everyone" || r.name === "everyone")
         if (defaultRole) {
           const deniedChannels = permOverrides.filter(
             (ow: { channel_id: string; role_id: string; deny_permissions: number }) =>
-              ow.role_id === defaultRole.id && (ow.deny_permissions & PERMISSIONS.VIEW_CHANNELS) !== 0
+              ow.role_id === defaultRole.id && ((ow.deny_permissions ?? 0) & PERMISSIONS.VIEW_CHANNELS) !== 0
           )
           if (deniedChannels.length > 0) {
             warnings.push(`${deniedChannels.length} channel(s) hide from @everyone — verify this is intentional`)

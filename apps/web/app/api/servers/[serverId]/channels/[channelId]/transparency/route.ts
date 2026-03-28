@@ -47,20 +47,23 @@ export async function GET(
     }
 
     // Fetch all roles
-    const { data: roles } = await supabase
+    const { data: roles, error: rolesError } = await supabase
       .from("roles")
       .select("id, name, color, permissions, is_default")
       .eq("server_id", serverId)
       .order("position", { ascending: true })
-    if (!roles) {
+    if (rolesError || !roles) {
       return NextResponse.json({ error: "Failed to load roles" }, { status: 500 })
     }
 
     // Fetch channel permission overrides (correct table: channel_permissions)
-    const { data: permOverrides } = await supabase
+    const { data: permOverrides, error: permError } = await supabase
       .from("channel_permissions")
       .select("role_id, allow_permissions, deny_permissions")
       .eq("channel_id", channelId)
+    if (permError) {
+      return NextResponse.json({ error: "Failed to load channel permissions" }, { status: 500 })
+    }
 
     // Compute role visibility
     const overwriteMap = new Map<string, { allow: number; deny: number }>()
@@ -75,8 +78,9 @@ export async function GET(
 
     for (const role of roles) {
       const ow = overwriteMap.get(role.id)
-      const hasAdmin = (role.permissions & PERMISSIONS.ADMINISTRATOR) !== 0
-      const baseCanView = (role.permissions & PERMISSIONS.VIEW_CHANNELS) !== 0
+      const perms = role.permissions ?? 0
+      const hasAdmin = (perms & PERMISSIONS.ADMINISTRATOR) !== 0
+      const baseCanView = (perms & PERMISSIONS.VIEW_CHANNELS) !== 0
 
       let canView = hasAdmin || baseCanView
       if (ow) {
@@ -101,7 +105,7 @@ export async function GET(
       .eq("server_id", serverId)
       .gte("created_at", sevenDaysAgo)
       .order("created_at", { ascending: false })
-      .limit(50)
+      .limit(200)
 
     // Filter to entries relevant to this channel (where changes JSON contains channelId)
     const channelActions = ((auditEntries ?? []) as AuditEntry[]).filter((entry: AuditEntry) => {
@@ -138,7 +142,8 @@ export async function GET(
       hidden_from: hiddenFrom,
       recent_actions: recentActions,
     })
-  } catch {
+  } catch (err: unknown) {
+    console.error("[transparency] Failed to load transparency data", { serverId, channelId, error: err })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

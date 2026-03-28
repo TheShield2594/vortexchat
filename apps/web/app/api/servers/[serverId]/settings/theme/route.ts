@@ -56,13 +56,17 @@ export async function GET(
     const { isMember } = await getMemberPermissions(supabase, serverId, user.id)
     if (!isMember) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const { data: server } = await supabase
+    const { data: server, error: serverError } = await supabase
       .from("servers")
       .select("description")
       .eq("id", serverId)
       .single()
 
-    const meta = extractMeta(server?.description ?? null)
+    if (serverError || !server) {
+      return NextResponse.json({ error: "Server not found" }, { status: 404 })
+    }
+
+    const meta = extractMeta(server.description ?? null)
     return NextResponse.json({
       recommended_theme: (typeof meta.recommended_theme === "string" ? meta.recommended_theme : null),
     })
@@ -93,23 +97,31 @@ export async function PATCH(
     }
 
     // Read current description to preserve existing content
-    const { data: server } = await supabase
+    const { data: server, error: serverError } = await supabase
       .from("servers")
       .select("description")
       .eq("id", serverId)
       .single()
 
-    const meta = extractMeta(server?.description ?? null)
-    meta.recommended_theme = theme || null
-    const newDescription = embedMeta(server?.description ?? null, meta)
+    if (serverError || !server) {
+      return NextResponse.json({ error: "Server not found" }, { status: 404 })
+    }
 
-    const { error: updateError } = await supabase
+    const meta = extractMeta(server.description ?? null)
+    meta.recommended_theme = theme || null
+    const newDescription = embedMeta(server.description ?? null, meta)
+
+    const { error: updateError, count } = await supabase
       .from("servers")
       .update({ description: newDescription })
       .eq("id", serverId)
 
     if (updateError) {
       return NextResponse.json({ error: "Failed to update theme" }, { status: 500 })
+    }
+
+    if (count === 0) {
+      return NextResponse.json({ error: "Server not found" }, { status: 404 })
     }
 
     return NextResponse.json({ recommended_theme: theme || null })

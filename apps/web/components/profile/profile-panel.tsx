@@ -25,6 +25,7 @@ import { ProfilePinnedItems } from "@/components/profile/profile-pinned-items"
 import { ProfileActivity } from "@/components/profile/profile-activity"
 import { ProfileConnections } from "@/components/profile/profile-connections"
 import { ThemeIdentityBadge } from "@/components/settings/theme-identity-section"
+import { useAppearanceStore } from "@/lib/stores/appearance-store"
 
 interface ProfileUser {
   id: string
@@ -102,6 +103,16 @@ export function ProfilePanelSkeleton({ onClose }: { onClose: () => void }): Reac
         <div className="h-12 rounded-xl animate-pulse" style={{ background: "var(--theme-bg-tertiary)" }} />
       </div>
     </div>
+  )
+}
+
+/** Reads the current user's theme from the appearance store and renders a badge. */
+function CurrentUserThemeBadge(): React.ReactElement {
+  const themePreset = useAppearanceStore((s) => s.themePreset)
+  return (
+    <section className="px-1">
+      <ThemeIdentityBadge themeName={themePreset} />
+    </section>
   )
 }
 
@@ -279,11 +290,9 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
             <ProfileConnections userId={user.id} />
           )}
 
-          {/* Theme Identity — shows which theme this user uses */}
-          {user?.id && (
-            <section className="px-1">
-              <ThemeIdentityBadge themeName="midnight-neon" />
-            </section>
+          {/* Theme Identity — shows which theme the current user uses */}
+          {user?.id && user.id === currentUserId && (
+            <CurrentUserThemeBadge />
           )}
 
           {/* Interests / Tags */}

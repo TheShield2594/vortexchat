@@ -75,7 +75,8 @@ export function TransparencyPanel({ serverId, channelId, inline, onOpenSimulator
         return
       }
       setData(await res.json() as TransparencyData)
-    } catch {
+    } catch (err: unknown) {
+      console.error("[TransparencyPanel] Failed to load data", { serverId, channelId, error: err })
       setError("Network error")
     } finally {
       setLoading(false)
@@ -224,6 +225,7 @@ export function TransparencyPanel({ serverId, channelId, inline, onOpenSimulator
           size="sm"
           variant="outline"
           className="w-full justify-center gap-1.5 text-xs"
+          disabled={!onOpenSimulator}
           onClick={onOpenSimulator}
         >
           <Shield className="w-3.5 h-3.5" />

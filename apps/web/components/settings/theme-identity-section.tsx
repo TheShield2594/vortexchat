@@ -59,23 +59,32 @@ export function ServerRecommendedTheme({ serverId }: { serverId: string }): Reac
   const [savedTheme, setSavedTheme] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Load current server recommended theme
   useEffect(() => {
     setLoading(true)
     fetch(`/api/servers/${serverId}/settings/theme`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load theme settings")
+        return r.json()
+      })
       .then((data: { recommended_theme: string | null }) => {
         const theme = data.recommended_theme ?? ""
         setSelectedTheme(theme)
         setSavedTheme(theme)
+        setError(null)
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        console.error("[ServerRecommendedTheme] Load error", err)
+        setError("Failed to load theme settings")
+      })
       .finally(() => setLoading(false))
   }, [serverId])
 
   const save = useCallback(async (): Promise<void> => {
     setSaving(true)
+    setError(null)
     try {
       const res = await fetch(`/api/servers/${serverId}/settings/theme`, {
         method: "PATCH",
@@ -84,9 +93,13 @@ export function ServerRecommendedTheme({ serverId }: { serverId: string }): Reac
       })
       if (res.ok) {
         setSavedTheme(selectedTheme)
+      } else {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        setError(body.error ?? "Failed to save theme")
       }
-    } catch {
-      // Silently fail — user can retry
+    } catch (err: unknown) {
+      console.error("[ServerRecommendedTheme] Save error", err)
+      setError("Failed to save theme")
     } finally {
       setSaving(false)
     }
@@ -167,6 +180,10 @@ export function ServerRecommendedTheme({ serverId }: { serverId: string }): Reac
           )
         })}
       </div>
+
+      {error && (
+        <p className="text-sm" style={{ color: "var(--theme-danger, #ef4444)" }}>{error}</p>
+      )}
 
       {hasChanges && (
         <Button size="sm" onClick={() => void save()} disabled={saving}>
