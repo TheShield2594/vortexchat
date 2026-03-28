@@ -95,7 +95,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
-  const [voiceRecaps, setVoiceRecaps] = useState<Array<{ sessionId: string; channelName: string; durationSeconds: number; participantCount: number }>>([])
+  const [voiceRecaps, setVoiceRecaps] = useState<Array<{ sessionId: string; channelName: string; durationSeconds: number }>>([])
   const [viewportWidth, setViewportWidth] = useState(1280)
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [focusedActionIndex, setFocusedActionIndex] = useState(0)
@@ -1010,6 +1010,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   // ── Voice Recap — listen for ended voice sessions in this channel ──
   useEffect(() => {
+    setVoiceRecaps([])
     const recapChannel = supabase
       .channel(`voice-recap:${channel.id}`)
       .on(
@@ -1036,7 +1037,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 sessionId: row.id,
                 channelName: channel.name,
                 durationSeconds,
-                participantCount: 0, // resolved by the card via API
               },
             ]
           })
@@ -1783,7 +1783,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 sessionId={recap.sessionId}
                 channelName={recap.channelName}
                 durationSeconds={recap.durationSeconds}
-                participantCount={recap.participantCount}
               />
             ))}
             <div ref={bottomRef} style={{ height: 1 }} />
