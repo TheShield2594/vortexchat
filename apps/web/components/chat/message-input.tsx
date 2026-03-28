@@ -1113,7 +1113,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               const onEnd = () => { el.removeEventListener("touchmove", onMove); el.removeEventListener("touchend", onEnd) }
               el.addEventListener("touchmove", onMove, { passive: true })
               el.addEventListener("touchend", onEnd, { once: true })
-            }}}
+            }}
           >
               {/* Drag handle — visible on mobile only */}
               <div className="flex justify-center pt-1 pb-1 md:hidden" aria-hidden>
