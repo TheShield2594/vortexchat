@@ -22,7 +22,7 @@ interface Props {
   onClose: () => void
 }
 
-/** Dialog for creating a new server (with icon upload), joining via invite code, or applying a server template. */
+/** Dialog for creating a new server (with icon upload), joining via invite code, or applying a server blueprint. */
 export function CreateServerModal({ open, onClose }: Props) {
   const router = useRouter()
   const { toast } = useToast()
@@ -198,7 +198,7 @@ export function CreateServerModal({ open, onClose }: Props) {
             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${mode === "template" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
             style={{ background: mode === "template" ? 'var(--theme-accent)' : 'var(--theme-bg-secondary)' }}
           >
-            Import Template
+            Import Blueprint
           </button>
         </div>
 

@@ -104,8 +104,8 @@ export function ModerationTimeline({ serverId }: { serverId: string }) {
     <section className="p-6 text-zinc-100 space-y-4">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Moderation Timeline</h1>
-          <p className="text-sm text-zinc-400">Unified timeline across bans, kicks, timeouts, automod, appeals, messages, and role changes.</p>
+          <h1 className="text-xl font-semibold">Mod Ledger</h1>
+          <p className="text-sm text-zinc-400">Unified ledger across bans, kicks, timeouts, automod, appeals, messages, and role changes.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => exportFile("json")}><Download className="w-4 h-4 mr-1" />Export JSON</Button>

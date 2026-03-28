@@ -3,16 +3,10 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import {
   ArrowRight,
-  FileJson2,
-  KeyRound,
   ShieldCheck,
-  Inbox,
   ClipboardList,
-  MessageSquare,
-  Mic2,
   Lock,
   Gift,
-  Hash,
   CheckCircle2,
   Github,
   ExternalLink,
@@ -60,68 +54,6 @@ function hexToRgba(hex: string, alpha: number): string {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const coreFeatures = [
-  {
-    icon: MessageSquare,
-    title: "Real-Time Messaging",
-    description:
-      "Channels, threads, DMs, and group chats. Rich formatting, code blocks, reactions, and offline message queuing so nothing is ever lost.",
-  },
-  {
-    icon: Mic2,
-    title: "Voice & Video",
-    description:
-      "Crystal-clear voice channels and video calls powered by WebRTC. Low-latency, screen share, and live presence — no installs required.",
-  },
-  {
-    icon: Hash,
-    title: "Organized Servers",
-    description:
-      "Text channels, voice channels, roles, and permissions — all in one structured community space. Create one for your guild, study group, or team.",
-  },
-  {
-    icon: Lock,
-    title: "Privacy & Security",
-    description:
-      "Passkey-first authentication, TOTP 2FA, and end-to-end encrypted direct messages. Your conversations stay yours.",
-  },
-  {
-    icon: Gift,
-    title: "Free Forever",
-    description:
-      "No premium tiers. No paywall. Every feature available to every user from day one — including custom themes, reactions, and file uploads.",
-  },
-  {
-    icon: FileJson2,
-    title: "Server Templates",
-    description:
-      "Bootstrap any community instantly with Gaming, Study, Startup, or Creator templates. Import/export JSON, preview diffs, apply transactionally.",
-  },
-]
-
-const differentiators = [
-  {
-    icon: KeyRound,
-    title: "Passkey-First Auth",
-    description: "WebAuthn passkeys replace passwords. Phishing-resistant and device-bound by default.",
-  },
-  {
-    icon: ClipboardList,
-    title: "Moderation Timeline",
-    description: "Every ban, kick, and role change logged in a unified audit trail.",
-  },
-  {
-    icon: Inbox,
-    title: "Outbox Reliability",
-    description: "Messages queue offline and replay on reconnect. Zero lost messages.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Open Source",
-    description: "Fully auditable codebase. No black-box algorithms, no shadow bans.",
-  },
-]
-
 const useCases = [
   {
     icon: ClipboardList,
@@ -165,7 +97,7 @@ const themes = [
 
 const steps = [
   { num: "01", title: "See everything that happens", body: "Every ban, kick, role change, and message deletion is logged in a timeline you can audit. No shadow moderation." },
-  { num: "02", title: "Test before you break", body: "The Permission Sandbox lets you preview exactly what any role can see and do — before you apply changes to real users." },
+  { num: "02", title: "Test before you break", body: "The Permission Sandbox lets you preview exactly what any role can see and do\u200a—\u200abefore you apply changes to real users." },
   { num: "03", title: "Your voice, transcribed", body: "AI-powered transcripts and summaries for voice channels. Never miss what was said, even if you joined late." },
   { num: "04", title: "Take it with you", body: "Export your data. Self-host the platform. Fork the code. Your community is never locked in." },
 ]
@@ -326,55 +258,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Core Feature Grid ─────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 py-16 md:px-10" aria-labelledby="features-heading">
-        <ScrollReveal>
-          <div className="mb-10">
-            <p
-              className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
-              style={{ color: "var(--theme-accent)" }}
-            >
-              Everything you need
-            </p>
-            <h2
-              id="features-heading"
-              className="text-2xl font-bold font-display"
-              style={{ color: "var(--theme-text-bright)" }}
-            >
-              One platform. Zero paywalls.
-            </h2>
-          </div>
-        </ScrollReveal>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {coreFeatures.map(({ icon: Icon, title, description }, i) => (
-            <ScrollReveal key={title} delay={i * 80}>
-              <article
-                className="h-full rounded-xl border p-6 transition-colors hover:border-[color-mix(in_srgb,var(--theme-accent)_20%,transparent)]"
-                style={{
-                  borderColor: "rgba(255,255,255,0.06)",
-                  background: "var(--theme-bg-secondary)",
-                }}
-              >
-                <div
-                  className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg"
-                  style={{ background: "color-mix(in srgb, var(--theme-accent) 12%, transparent)" }}
-                >
-                  <Icon aria-hidden="true" className="h-5 w-5" style={{ color: "var(--theme-accent)" }} />
-                </div>
-                <h3 className="mb-2 font-semibold font-display" style={{ color: "var(--theme-text-bright)" }}>
-                  {title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                  {description}
-                </p>
-              </article>
-            </ScrollReveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ── How It Works ─────────────────────────────────────────────────── */}
+      {/* ── What Makes Vortex Different ─────────────────────────────────── */}
       <section
         className="border-t border-b"
         style={{ borderColor: "rgba(255,255,255,0.06)", background: "var(--theme-bg-secondary)" }}
@@ -443,146 +327,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Use Cases ────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 py-16 md:px-10" aria-labelledby="use-cases-heading">
-        <ScrollReveal>
-          <div className="mb-10">
-            <p
-              className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
-              style={{ color: "var(--theme-accent)" }}
-            >
-              Why people switch
-            </p>
-            <h2
-              id="use-cases-heading"
-              className="text-2xl font-bold font-display"
-              style={{ color: "var(--theme-text-bright)" }}
-            >
-              Built for communities that outgrew Discord.
-            </h2>
-          </div>
-        </ScrollReveal>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {useCases.map(({ icon: Icon, label, description, accent }, i) => (
-            <ScrollReveal key={label} delay={i * 80}>
-              <div
-                className="h-full rounded-xl border p-5"
-                style={{
-                  borderColor: hexToRgba(accent, 0.18),
-                  background: "var(--theme-bg-secondary)",
-                }}
-              >
-                <div
-                  className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg"
-                  style={{ background: hexToRgba(accent, 0.12) }}
-                >
-                  <Icon aria-hidden="true" className="h-5 w-5" style={{ color: accent }} />
-                </div>
-                <h3 className="mb-1.5 font-semibold font-display" style={{ color: "var(--theme-text-bright)" }}>
-                  {label}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                  {description}
-                </p>
-              </div>
-            </ScrollReveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Open Source / No Paywall ──────────────────────────────────────── */}
-      <section
-        className="border-t"
-        style={{ borderColor: "rgba(255,255,255,0.06)", background: "var(--theme-bg-secondary)" }}
-        aria-labelledby="open-source-heading"
-      >
-        <div className="mx-auto max-w-6xl px-6 py-16 md:px-10">
-          <ScrollReveal>
-          <div className="rounded-2xl border p-8 md:p-12 relative overflow-hidden"
-            style={{
-              borderColor: "color-mix(in srgb, var(--theme-accent) 18%, transparent)",
-              background: "color-mix(in srgb, var(--theme-accent) 5%, var(--theme-bg-primary))",
-            }}
-          >
-            {/* Decorative glow */}
-            <div
-              className="absolute -top-24 -right-24 h-64 w-64 rounded-full pointer-events-none"
-              style={{ background: "var(--theme-accent)", filter: "blur(80px)", opacity: 0.08 }}
-              aria-hidden="true"
-            />
-
-            <div className="relative md:flex md:items-center md:gap-12">
-              <div className="flex-1">
-                <div
-                  className="mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-widest"
-                  style={{
-                    borderColor: "color-mix(in srgb, var(--theme-accent) 30%, transparent)",
-                    color: "var(--theme-accent)",
-                    background: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
-                  }}
-                >
-                  <Github className="h-3.5 w-3.5" aria-hidden="true" />
-                  100% Open Source
-                </div>
-                <h2
-                  id="open-source-heading"
-                  className="mb-3 text-2xl font-bold font-display md:text-3xl"
-                  style={{ color: "var(--theme-text-bright)" }}
-                >
-                  No premium tiers. No paywalls. Ever.
-                </h2>
-                <p className="text-base leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-                  Every feature — custom themes, file uploads, video calls, server templates — is
-                  available to every user from day one. The full codebase is open for audit,
-                  contribution, and self-hosting.
-                </p>
-                <ul className="mt-5 space-y-2 text-sm" style={{ color: "var(--theme-text-secondary)" }}>
-                  {[
-                    "All features free, always",
-                    "Self-host on your own infrastructure",
-                    "Community-driven roadmap",
-                    "No dark-pattern algorithms",
-                  ].map((point) => (
-                    <li key={point} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 flex-shrink-0" style={{ color: "var(--theme-success)" }} aria-hidden="true" />
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="mt-8 md:mt-0 flex flex-col gap-3 md:w-56">
-                <Link
-                  href="/register"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 font-semibold transition-opacity hover:opacity-90 text-center"
-                  style={{ background: "var(--theme-accent)", color: "var(--theme-bg-tertiary)" }}
-                >
-                  Get Started Free <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                </Link>
-                <a
-                  href="https://github.com/TheShield2594/vortexchat"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border px-5 py-3 font-semibold transition-opacity hover:opacity-80 text-center text-sm"
-                  style={{
-                    borderColor: "rgba(255,255,255,0.15)",
-                    background: "rgba(255,255,255,0.04)",
-                    color: "var(--theme-text-primary)",
-                  }}
-                >
-                  <Github className="h-4 w-4" aria-hidden="true" />
-                  View on GitHub
-                  <ExternalLink className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />
-                </a>
-              </div>
-            </div>
-          </div>
-          </ScrollReveal>
-        </div>
-      </section>
-
-      {/* ── Themes teaser (moved up — strong differentiator) ────────────── */}
+      {/* ── Themes ────────────────────────────────────────────────────────── */}
       <section
         className="border-t"
         style={{ borderColor: "rgba(255,255,255,0.06)", background: "var(--theme-bg-secondary)" }}
@@ -650,49 +395,49 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Under-the-hood differentiators ───────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 py-16 md:px-10" aria-labelledby="differentiators-heading">
+      {/* ── Use Cases ────────────────────────────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-6 py-16 md:px-10" aria-labelledby="use-cases-heading">
         <ScrollReveal>
           <div className="mb-10">
             <p
               className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
               style={{ color: "var(--theme-accent)" }}
             >
-              Built different
+              Why people switch
             </p>
             <h2
-              id="differentiators-heading"
+              id="use-cases-heading"
               className="text-2xl font-bold font-display"
               style={{ color: "var(--theme-text-bright)" }}
             >
-              Under the hood.
+              Built for communities that outgrew Discord.
             </h2>
           </div>
         </ScrollReveal>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {differentiators.map(({ icon: Icon, title, description }, i) => (
-            <ScrollReveal key={title} delay={i * 80}>
-              <article
+          {useCases.map(({ icon: Icon, label, description, accent }, i) => (
+            <ScrollReveal key={label} delay={i * 80}>
+              <div
                 className="h-full rounded-xl border p-5"
                 style={{
-                  borderColor: "rgba(255,255,255,0.06)",
+                  borderColor: hexToRgba(accent, 0.18),
                   background: "var(--theme-bg-secondary)",
                 }}
               >
                 <div
-                  className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg"
-                  style={{ background: "color-mix(in srgb, var(--theme-accent) 10%, transparent)" }}
+                  className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg"
+                  style={{ background: hexToRgba(accent, 0.12) }}
                 >
-                  <Icon aria-hidden="true" className="h-4 w-4" style={{ color: "var(--theme-accent)" }} />
+                  <Icon aria-hidden="true" className="h-5 w-5" style={{ color: accent }} />
                 </div>
-                <h3 className="mb-1.5 font-semibold text-sm font-display" style={{ color: "var(--theme-text-bright)" }}>
-                  {title}
+                <h3 className="mb-1.5 font-semibold font-display" style={{ color: "var(--theme-text-bright)" }}>
+                  {label}
                 </h3>
                 <p className="text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
                   {description}
                 </p>
-              </article>
+              </div>
             </ScrollReveal>
           ))}
         </div>
@@ -706,12 +451,13 @@ export default async function HomePage() {
       >
         <div className="mx-auto max-w-6xl px-6 py-14 md:px-10">
           <ScrollReveal>
-            <h2 id="social-proof-heading" className="sr-only">Community</h2>
-            <div className="grid gap-6 sm:grid-cols-3 text-center">
+            <h2 id="social-proof-heading" className="sr-only">Transparency proof</h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 text-center">
               {[
-                { stat: "100%", label: "Open Source", sublabel: "Every line, every commit" },
-                { stat: "11", label: "Hand-crafted Themes", sublabel: "Switch instantly, all free" },
-                { stat: "0", label: "Paywalls", sublabel: "Every feature, every user" },
+                { stat: "100%", label: "Open Source", sublabel: "All public, all auditable" },
+                { stat: "21", label: "Permissions", sublabel: "All testable in the Sandbox" },
+                { stat: "0", label: "Shadow Bans", sublabel: "Every action logged in the Mod Ledger" },
+                { stat: "0", label: "Algorithms", sublabel: "Your feed is chronological, always" },
               ].map(({ stat, label, sublabel }) => (
                 <div key={label}>
                   <p
@@ -821,7 +567,7 @@ export default async function HomePage() {
                   {[
                     { label: "Sign Up", href: "/register" },
                     { label: "Sign In", href: "/login" },
-                    { label: "Features", href: "/#features-heading" },
+                    { label: "What\u2019s Different", href: "/#how-it-works-heading" },
                     { label: "Themes", href: "/#themes-heading" },
                   ].map(({ label, href }) => (
                     <li key={label}>

@@ -167,7 +167,7 @@ export function PermissionSimulator({ serverId, roles: rolesProp, channels: chan
       <header>
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Eye className="w-5 h-5 text-blue-400" />
-          Permission Simulator
+          Permission Sandbox
         </h2>
         <p className="text-sm text-zinc-400 mt-0.5">
           Preview the effective permissions a role or member has — server-wide or in a specific channel.

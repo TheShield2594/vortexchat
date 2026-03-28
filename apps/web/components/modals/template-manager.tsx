@@ -111,8 +111,8 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
 
       <div className="flex gap-2">
         {serverId && <Button variant="outline" onClick={() => request("preview")} disabled={loading}>Preview Diff</Button>}
-        {serverId && <Button onClick={() => request("apply")} disabled={loading} style={{ background: 'var(--theme-accent)' }}>Import Template</Button>}
-        {!serverId && <Button onClick={() => request("create-server")} disabled={loading || !createName?.trim()} style={{ background: 'var(--theme-accent)' }}>Create from Template</Button>}
+        {serverId && <Button onClick={() => request("apply")} disabled={loading} style={{ background: 'var(--theme-accent)' }}>Import Blueprint</Button>}
+        {!serverId && <Button onClick={() => request("create-server")} disabled={loading || !createName?.trim()} style={{ background: 'var(--theme-accent)' }}>Create from Blueprint</Button>}
         {serverId && <Button variant="outline" onClick={() => request("export")} disabled={loading}>Export</Button>}
       </div>
 

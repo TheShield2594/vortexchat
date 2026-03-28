@@ -83,7 +83,7 @@ export function SortableChannelItem({
   const isMuted = notificationMode === "muted"
   const showBadge = !isActive && !isMuted && (isUnread || (mentionCount ?? 0) > 0)
 
-  // Live countdown for temporary channels
+  // Live countdown for ephemeral channels
   const [timeRemaining, setTimeRemaining] = useState<string | null>(
     channel.expires_at ? formatTimeRemaining(channel.expires_at) : null
   )
@@ -169,7 +169,7 @@ export function SortableChannelItem({
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    Temporary channel — deletes {timeRemaining === "expired" ? "soon" : `in ${timeRemaining}`}
+                    Ephemeral channel — deletes {timeRemaining === "expired" ? "soon" : `in ${timeRemaining}`}
                   </TooltipContent>
                 </Tooltip>
               )}

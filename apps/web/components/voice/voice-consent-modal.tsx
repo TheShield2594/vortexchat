@@ -49,7 +49,7 @@ export function VoiceConsentModal({ isDmCall, onAccept, onDecline }: VoiceConsen
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h2 className="text-white font-semibold text-lg">Voice Intelligence</h2>
+            <h2 className="text-white font-semibold text-lg">Vortex Recap</h2>
             <p className="text-sm mt-1" style={{ color: "var(--theme-text-secondary)" }}>
               {isDmCall
                 ? "This call can use live transcription and subtitles. Both participants must consent for transcription to start."
