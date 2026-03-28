@@ -37,9 +37,11 @@ The Midnight Neon palette (`#00e5ff` cyan on `#1b1f31` navy) is immediately dist
 Servers, channels, roles, threads, voice channels, stage channels, DMs, webhooks, forum channels. The permission names are explicitly documented as "Discord-level parity." A Discord user switching to VortexChat would have zero friction — which is great for adoption but means zero conceptual differentiation. The product *thinks* in Discord's vocabulary.
 
 **2. Information architecture is identical**
-```
+
+```text
 Server icon strip | Channel sidebar | Chat area | Member list
 ```
+
 This is Discord's layout, pixel for pixel in structure. The three-panel hierarchy, the category collapsibles, the voice channel join model, the user panel at the bottom-left — it's the same spatial mental model.
 
 **3. The landing page sells features, not a vision**
@@ -104,7 +106,8 @@ Leans into Voice Intelligence + AI transcripts + smart moderation + AutoMod. The
 #### Hero Section
 
 **Current:**
-```
+
+```text
 Badge: "Free forever · Open source · No paywalls"
 Headline: "Where your community actually lives"
 Subhead: "Real-time chat, crystal-clear voice, and organized servers —
@@ -112,7 +115,8 @@ Subhead: "Real-time chat, crystal-clear voice, and organized servers —
 ```
 
 **Proposed (Option A — Transparency thesis):**
-```
+
+```text
 Badge: "Open source · Fully auditable · No dark patterns"
 Headline: "The chat platform with nothing to hide"
 Subhead: "Every moderation action logged. Every permission testable.
@@ -122,7 +126,8 @@ CTA: "Start Your Community" / "View the Source"
 ```
 
 **Proposed (Option B — Ownership thesis):**
-```
+
+```text
 Badge: "Open source · Self-hostable · Free forever"
 Headline: "Your community. Your infrastructure. Your rules."
 Subhead: "Real-time chat, voice, and video on a platform you actually control.
@@ -136,14 +141,16 @@ Both versions lead with *what VortexChat believes*, not what it does. The featur
 #### "How It Works" Section
 
 **Current:**
-```
+
+```text
 01. Create your free account
 02. Join or create a server
 03. Start chatting
 ```
 
 **Proposed — Replace with "What Makes Vortex Different":**
-```
+
+```text
 01. See everything that happens
     Every ban, kick, role change, and message deletion is logged
     in a timeline you can audit. No shadow moderation.
@@ -168,7 +175,8 @@ This replaces a generic onboarding flow with proof of differentiation.
 **Current:** Gamers, Study Groups, Work Teams, Fan Communities (generic).
 
 **Proposed — Reframe around pain points Discord causes:**
-```
+
+```text
 "Built for communities that outgrew Discord"
 
 For moderation teams tired of guessing
@@ -205,11 +213,12 @@ The information architecture today is Discord's layout with a different skin. Th
 This doesn't exist in Discord. It reinforces the "nothing to hide" brand thesis and makes the Permission Simulator + Moderation Timeline features *discoverable*, not buried in settings.
 
 **Draft UI:**
-```
+
+```text
 ┌─ #general · Transparency ────────────────────┐
 │                                                │
-│  👁 Visible to: @everyone, @moderator, @admin │
-│  🔒 Hidden from: @muted                       │
+│  Visible to: @everyone, @moderator, @admin    │
+│  Hidden from: @muted                           │
 │                                                │
 │  Recent Actions (last 7 days)                  │
 │  ┌──────────────────────────────────────────┐ │
@@ -224,11 +233,12 @@ This doesn't exist in Discord. It reinforces the "nothing to hide" brand thesis 
 #### 3b. "Vortex Recap" — Voice Intelligence as a First-Class UX
 
 **Concept:** After a voice session ends, a "Recap" card appears in the text channel:
-```
+
+```text
 ┌─ Voice Recap · #voice-chat · 47 min ──────────┐
 │                                                  │
-│  📝 Transcript available (3 participants)       │
-│  💡 Summary: Discussed Q2 roadmap priorities.   │
+│  Transcript available (3 participants)           │
+│  Summary: Discussed Q2 roadmap priorities.       │
 │     Agreed to ship templates by April.           │
 │     @jordan to write the migration guide.        │
 │                                                  │
@@ -253,7 +263,7 @@ Discord doesn't offer this. It turns VortexChat's admin tools into a *system* ra
 
 ### Recommendation 4: Own Your Terminology (Selectively)
 
-Don't rename everything — that would hurt adoption. But introduce 2–3 Vortex-native terms for features Discord doesn't have:
+Don't rename everything — that would hurt adoption. But introduce 2-3 Vortex-native terms for features Discord doesn't have:
 
 | Current (Generic) | Proposed (Branded) | Why |
 |---|---|---|
@@ -265,26 +275,37 @@ Don't rename everything — that would hurt adoption. But introduce 2–3 Vortex
 
 These terms should appear in the UI, docs, and marketing consistently.
 
+**Terminology migration strategy:** Introduce new terms gradually to avoid confusing existing users:
+
+1. **Phase 1 (UI + marketing):** Update labels and landing page copy to use new terms. Add tooltips with "(formerly: Voice Intelligence)" where needed.
+2. **Phase 2 (docs):** Update documentation and help content after the UI is stable and users have had exposure.
+3. **Phase 3 (API + developer surface):** Update API route names and developer docs last, since these have the highest switching cost.
+4. **Timeline:** Roll out over 2-3 release cycles. Old and new terms coexist during transition.
+
 ---
 
 ### Recommendation 5: Rework the Social Proof Section
 
 **Current:**
-```
+
+```text
 100% Open Source · 11 Hand-crafted Themes · 0 Paywalls
 ```
 
 These are nice but passive. They describe attributes, not outcomes.
 
 **Proposed — Proof of transparency:**
-```
-1,247 commits    — all public, all auditable
+
+```text
+<N> commits      — all public, all auditable
 21 permissions   — all testable before you apply them
 0 shadow bans    — every action logged in the Mod Ledger
 0 algorithms     — your feed is chronological, always
 ```
 
-Use real numbers from the repo (commit count, permission count) to make the "transparency" thesis concrete and verifiable.
+*(Note: Replace `<N>` with the live commit count fetched from the GitHub API at build time. The 21 permissions figure matches the current `PERMISSIONS` object in `@vortex/shared` — update if the count changes.)*
+
+Use real numbers from the repo to make the "transparency" thesis concrete and verifiable.
 
 ---
 
@@ -315,12 +336,14 @@ The 11-theme system is a differentiator but it's presented as a settings toggle.
 ### Recommendation 7: Reposition the Landing Page Structure
 
 **Current flow:**
-```
+
+```text
 Hero → Features (6 cards) → How It Works → Use Cases → Open Source → Differentiators → Stats → Themes → Footer
 ```
 
 **Proposed flow:**
-```
+
+```text
 Hero (thesis-driven)
   ↓
 "What makes Vortex different" (3–4 unique capabilities, not feature cards)
