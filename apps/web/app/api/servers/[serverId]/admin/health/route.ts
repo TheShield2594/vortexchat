@@ -109,7 +109,7 @@ export async function GET(
 
     if (roles) {
       // Check for roles with ADMINISTRATOR that aren't the top role
-      const adminRoles = roles.filter((r) => (r.permissions & PERMISSIONS.ADMINISTRATOR) !== 0)
+      const adminRoles = roles.filter((r: { id: string; name: string; permissions: number }) => (r.permissions & PERMISSIONS.ADMINISTRATOR) !== 0)
       if (adminRoles.length > 2) {
         warnings.push(`${adminRoles.length} roles have Administrator permission — consider reducing to minimize risk`)
       }
@@ -121,10 +121,10 @@ export async function GET(
         .eq("server_id", serverId)
 
       if (overwrites) {
-        const defaultRole = roles.find((r) => r.name === "@everyone" || r.name === "everyone")
+        const defaultRole = roles.find((r: { id: string; name: string; permissions: number }) => r.name === "@everyone" || r.name === "everyone")
         if (defaultRole) {
           const deniedChannels = overwrites.filter(
-            (ow) => ow.role_id === defaultRole.id && ((ow.deny ?? 0) & PERMISSIONS.VIEW_CHANNELS) !== 0
+            (ow: { channel_id: string; role_id: string; deny: number | null }) => ow.role_id === defaultRole.id && ((ow.deny ?? 0) & PERMISSIONS.VIEW_CHANNELS) !== 0
           )
           if (deniedChannels.length > 0) {
             warnings.push(`${deniedChannels.length} channel(s) hide from @everyone — verify this is intentional`)

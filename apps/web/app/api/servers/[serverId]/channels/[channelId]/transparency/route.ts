@@ -96,13 +96,14 @@ export async function GET(
       .limit(20)
 
     // Filter to entries relevant to this channel (where metadata contains channelId)
-    const channelActions = (auditEntries ?? []).filter((entry) => {
+    interface AuditEntry { id: string; action: string; actor_id: string | null; created_at: string; reason: string | null; metadata: Record<string, unknown> | null }
+    const channelActions = ((auditEntries ?? []) as AuditEntry[]).filter((entry: AuditEntry) => {
       const meta = entry.metadata as Record<string, unknown> | null
       return meta?.channel_id === channelId || meta?.channelId === channelId
     }).slice(0, 10)
 
     // Resolve actor names
-    const actorIds = [...new Set(channelActions.map((a) => a.actor_id).filter(Boolean))] as string[]
+    const actorIds = [...new Set(channelActions.map((a: AuditEntry) => a.actor_id).filter(Boolean))] as string[]
     const actorMap = new Map<string, string>()
     if (actorIds.length > 0) {
       const { data: actors } = await supabase
@@ -116,7 +117,7 @@ export async function GET(
       }
     }
 
-    const recentActions = channelActions.map((entry) => ({
+    const recentActions = channelActions.map((entry: AuditEntry) => ({
       id: entry.id,
       action: entry.action,
       actor_name: entry.actor_id ? (actorMap.get(entry.actor_id) ?? "Unknown") : "System",
