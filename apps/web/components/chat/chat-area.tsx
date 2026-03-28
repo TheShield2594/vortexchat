@@ -39,6 +39,7 @@ import {
 import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/reply-navigation"
 import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh"
 import { ConnectionBanner } from "@/components/connection-banner"
 import { VoiceRecapCard } from "@/components/voice/voice-recap-card"
 
@@ -669,6 +670,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     scrollStorageKey,
     unreadAnchorStorageKey,
     onReachedBottom,
+  })
+
+  // Pull-to-refresh: resync latest messages from the server (mobile only)
+  const handlePullRefresh = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch(`/api/messages?channelId=${channel.id}&limit=50`)
+      if (!res.ok) return
+      const latest = (await res.json()) as MessageWithAuthor[]
+      if (!Array.isArray(latest) || latest.length === 0) return
+      setMessages((prev) => {
+        const known = new Set(prev.map((m) => m.id))
+        const fresh = latest.filter((m) => !known.has(m.id))
+        if (fresh.length === 0) return prev
+        const merged = sortMessagesChronologically([...prev, ...fresh])
+        return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
+      })
+    } catch {
+      // best-effort refresh
+    }
+  }, [channel.id])
+
+  const { handlers: pullToRefreshHandlers, pullDistance, refreshing: pullRefreshing } = usePullToRefresh({
+    onRefresh: handlePullRefresh,
+    isAtTop: isAtBottom, // column-reverse: scrollTop=0 is visual top (newest messages)
   })
 
   useEffect(() => {
@@ -1606,8 +1631,28 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           role="log"
           aria-label="Message history"
           aria-relevant="additions"
-          style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none" }}
+          style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none", overscrollBehaviorY: "contain" }}
+          {...(isMobile ? pullToRefreshHandlers : {})}
         >
+          {/* Pull-to-refresh indicator (mobile only, column-reverse so this renders at visual top) */}
+          {isMobile && (pullDistance > 0 || pullRefreshing) && (
+            <div
+              className="flex items-center justify-center py-2 select-none"
+              style={{ minHeight: `${Math.max(pullDistance, pullRefreshing ? 40 : 0)}px` }}
+              aria-live="polite"
+            >
+              <span
+                className="text-xs"
+                style={{
+                  color: "var(--theme-text-muted)",
+                  transform: pullRefreshing ? "none" : `rotate(${Math.min(pullDistance * 3, 360)}deg)`,
+                  transition: pullRefreshing ? "transform 0s" : "none",
+                }}
+              >
+                {pullRefreshing ? "Refreshing…" : pullDistance >= 80 ? "Release to refresh" : "↓"}
+              </span>
+            </div>
+          )}
           {/* Inner wrapper — rendered in normal (top-to-bottom) order inside
               the column-reverse parent.  Because the parent is reversed, the
               *end* of this div (newest messages) sits at the visual bottom. */}

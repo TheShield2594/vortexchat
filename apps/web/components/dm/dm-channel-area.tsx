@@ -996,7 +996,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       )}
 
       {/* Messages */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-1" style={{ overscrollBehaviorY: "contain" }}>
         {/* Load more */}
         {hasMore && (
           <div className="flex justify-center pb-2">

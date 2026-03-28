@@ -59,10 +59,17 @@ export function MobileBottomTabBar() {
                 href={href}
                 onClick={() => navigator.vibrate?.(10)}
                 aria-current={active ? "page" : undefined}
-                className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-[11px]", active && "font-semibold")}
+                className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-[11px] relative", active && "font-semibold")}
                 style={{ color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
               >
-                <span className="relative">
+                {/* Active pill indicator */}
+                {active && (
+                  <span
+                    className="absolute top-1.5 w-5 h-[3px] rounded-full motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-75 motion-safe:duration-200"
+                    style={{ background: "var(--theme-accent)" }}
+                  />
+                )}
+                <span className="relative mt-1">
                   <Icon className="h-5 w-5" />
                   {badgeCount > 0 && (
                     <span

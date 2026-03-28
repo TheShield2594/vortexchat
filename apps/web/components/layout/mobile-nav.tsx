@@ -61,11 +61,12 @@ export function MobileSwipeArea() {
   const swipe = useSwipe({
     onSwipeRight: () => setSidebarOpen(true),
     onSwipeLeft: () => sidebarOpen && setSidebarOpen(false),
+    minDistance: 72,
   })
 
   return (
     <div
-      className="md:hidden fixed inset-y-0 left-0 z-30 w-12"
+      className="md:hidden fixed inset-y-0 left-0 z-30 w-20"
       aria-hidden="true"
       {...swipe}
     />

@@ -120,9 +120,24 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   const navigateBack = useCallback((): void => {
     router.push(`/channels/${serverId}`)
   }, [router, serverId])
+
+  // Swipe left to reveal the member list
+  const revealMemberList = useCallback((): void => {
+    if (!mobileMemberListOpen) {
+      setMobileMemberListOpen(true)
+      setMemberListOpen(true)
+    }
+  }, [mobileMemberListOpen, setMemberListOpen])
+
   const swipeHandlers = useSwipe({
     onSwipeRight: navigateBack,
+    onSwipeLeft: revealMemberList,
     peekElementSelector: "[data-mobile-sidebar-peek]",
+  })
+
+  // Swipe right on the member list to dismiss it
+  const memberListSwipeHandlers = useSwipe({
+    onSwipeRight: dismissMobileMemberList,
   })
 
   // ========== DESKTOP LAYOUT — all panels inline ==========
@@ -264,7 +279,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
         </div>
         {/* Channel content area or mobile member list */}
         {mobileMemberListOpen ? (
-          <div className="flex-1 overflow-hidden">{memberList}</div>
+          <div className="flex-1 overflow-hidden" {...memberListSwipeHandlers}>{memberList}</div>
         ) : (
           <main id="main-content" className="flex flex-1 overflow-hidden">
             {children}

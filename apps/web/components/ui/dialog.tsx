@@ -34,11 +34,24 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 elevation-4 surface-active surface-focus-shift duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        // ── Mobile: bottom-sheet style ──
+        "fixed inset-x-0 bottom-0 z-50 grid w-full gap-4 border-t bg-background p-6 elevation-4 surface-active surface-focus-shift duration-200 rounded-t-2xl max-h-[85dvh] overflow-y-auto",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        "data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full",
+        // ── Desktop (sm+): centered dialog ──
+        "sm:inset-auto sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:border-t sm:max-h-none sm:overflow-visible",
+        "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
+        "sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]",
+        "sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
+        "sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:slide-out-to-bottom-0",
         className
       )}
       {...props}
     >
+      {/* Drag handle for mobile bottom sheet */}
+      <div className="sm:hidden flex justify-center -mt-2 mb-1" aria-hidden>
+        <div className="w-10 h-1 rounded-full bg-white/20" />
+      </div>
       {children}
       <DialogPrimitive.Close
         className="absolute right-4 top-4 rounded-sm surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
