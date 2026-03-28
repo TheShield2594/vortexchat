@@ -381,7 +381,7 @@ This cuts the page from 8+ sections to 6, leads with differentiation instead of 
 
 ---
 
-## Part 5: Summary
+## Part 5: Original Summary
 
 **VortexChat is not a clone.** It has genuine technical innovation, a thoughtful design system, and real features Discord doesn't offer. But the brand identity lives in the *codebase*, not in the *experience*. A user visiting the landing page or using the app for 5 minutes would reasonably think "this is an open-source Discord" — which undersells what the project actually is.
 
@@ -393,3 +393,240 @@ The fix isn't a rebrand. It's *surfacing what's already here* through:
 5. Visual expression of the "Vortex" name and transparency thesis
 
 The product is 90% there. The brand just needs to catch up.
+
+---
+
+## Part 6: Second-Pass Brand Audit (2026-03-28)
+
+> **Purpose:** All 11 recommendations from the original analysis are marked DONE. This second pass asks: *Did the changes actually land? Is VortexChat still at risk of being perceived as a Discord clone? What gaps remain?*
+
+---
+
+### What Shipped Well
+
+**1. The landing page is genuinely differentiated now.**
+The hero — "The chat platform with nothing to hide" — is a real thesis statement. It excludes competitors. Discord *can't* say this (closed-source, algorithmic, Nitro-gated). The subheading reinforces it with three concrete claims: audit trails, testable permissions, open code. The old "Where your community actually lives" is gone. Good.
+
+**2. The "What Makes Vortex Different" section replaces generic onboarding.**
+"See everything that happens / Test before you break / Your voice, transcribed / Take it with you" — each step names a capability Discord doesn't have. The old "Create account → Join server → Start chatting" is gone. This is the single highest-impact copy change.
+
+**3. Use cases are reframed as pain points, not categories.**
+"For moderation teams tired of guessing" and "For communities that got paywalled" directly call out Discord's weaknesses. This is opinionated positioning, not a feature list. The old "Gamers & Guilds / Study Groups" generic segments are gone.
+
+**4. Branded terminology is consistent in user-facing UI.**
+- Mod Ledger (not "Moderation Timeline") — used in the timeline component header, landing page, social proof
+- Permission Sandbox (not "Permission Simulator") — used in the sandbox component, landing page steps
+- Vortex Recap (not "Voice Intelligence") — used in the recap card, landing page
+- Blueprints (not "Server Templates") — used in the template manager UI, toasts
+- Ephemeral Channels (not "Temporary Channels") — used in the create-channel modal
+
+**5. Signature UX surfaces exist and are discoverable.**
+- Transparency Panel: right-click channels/roles to see who can see what + recent actions
+- Vortex Recap cards: appear in-chat after voice sessions with summary, highlights, action items
+- Community Health dashboard: synthesizes member trends, mod action frequency, permission conflicts
+- Permission Sandbox: preview effective permissions before applying
+- These are *structural* differentiators, not just feature toggles.
+
+**6. Visual identity is strong and distinct.**
+- Vortex spiral spinner replaces generic loaders throughout the app
+- Midnight Neon palette (`#00e5ff` on `#1b1f31`) is immediately recognizable, not Discord blurple
+- Space Grotesk display font is distinctive
+- 11 themes with personality (Terminal with CRT scanlines, Synthwave, Sakura Blossom)
+- Theme-as-identity: users display their theme on profiles, servers can recommend a theme
+
+**7. Social proof section uses real, verifiable numbers.**
+"100% Open Source / 21 Permissions / 0 Shadow Bans / 0 Algorithms" — each backed by auditable facts, not vanity metrics.
+
+---
+
+### Where Clone Risk Still Exists
+
+Even with all the brand work, there are structural areas where VortexChat still maps 1:1 to Discord. These are *not necessarily problems to fix* — some are intentional for adoption friction reduction — but they're worth documenting honestly.
+
+**1. The information architecture is still Discord's layout.**
+
+```text
+Server icon strip | Channel sidebar | Chat area | Member list
+```
+
+This three-panel hierarchy with categories, collapsible channel groups, voice channel join UI, and bottom-left user panel is identical to Discord. The Transparency Panel and Community Health dashboard add new *surfaces*, but the core spatial model is unchanged.
+
+**Assessment:** This is likely *intentional* — users switching from Discord need spatial familiarity. The risk is that screenshots look identical. The mitigation is that the *content* within those panels (Mod Ledger, Recap cards, Transparency Panel) is unique.
+
+**Recommendation:** Not a priority to change. Instead, ensure marketing screenshots always show the unique surfaces (Recap cards, Transparency Panel, Permission Sandbox), not the base chat view.
+
+**2. Core terminology is still Discord's vocabulary.**
+
+Servers, channels, roles, threads, voice channels, stage channels, DMs, webhooks, forum channels, categories — all Discord terms. The branded terms (Recap, Sandbox, Ledger, Blueprints, Ephemeral) only cover *features Discord doesn't have*. The 90% of shared concepts use identical language.
+
+**Assessment:** This is correct strategy. Renaming "servers" to something else would hurt adoption with no brand benefit. The branded terms live where they should — on unique features.
+
+**Recommendation:** No change needed. The terminology strategy is sound: shared concepts use shared words, unique features get branded names.
+
+**3. The permission model is explicitly designed for "Discord-level parity."**
+
+21 permission bits with names like `VIEW_CHANNELS`, `MANAGE_MESSAGES`, `KICK_MEMBERS` — these are Discord's exact permission names. The bitmask approach, the role hierarchy, channel-level overrides — all mirror Discord's system.
+
+**Assessment:** Acceptable for the permission *model* (it works, users understand it). The differentiation is the Permission Sandbox wrapper that lets you *preview* those permissions — something Discord doesn't offer. The model is Discord's; the tooling around it is Vortex's.
+
+**Recommendation:** No change to the permission model. Continue investing in the Sandbox UX as the differentiator.
+
+**4. The 7 channel types map directly to Discord's.**
+
+Text, voice, forum, stage, announcement, media — these are Discord's channel types (media is the only novel one). Even "Ephemeral Channels" is a modifier on existing types, not a new paradigm.
+
+**Assessment:** Low risk. Channel types are a commodity. The differentiation is in what happens *inside* them (Recap cards in voice, Transparency Panel on right-click, Mod Ledger tracking all actions).
+
+---
+
+### Remaining Brand Gaps to Address
+
+**Gap 1: No competitive positioning against non-Discord alternatives.**
+
+The landing page positions against Discord specifically ("communities that outgrew Discord"). But VortexChat also competes with:
+- **Guilded** (gaming-focused, now Xbox-owned)
+- **Revolt** (open-source Discord alternative)
+- **Matrix/Element** (decentralized, privacy-focused)
+- **Rocket.Chat** (self-hosted, enterprise)
+
+The current positioning doesn't acknowledge this landscape. A user evaluating Revolt (also open-source) or Matrix (also privacy-focused) needs to understand why Vortex is different from *them*, not just from Discord. Slack and Teams are included below not as direct competitors (they're work-focused, not community-focused) but to explicitly show where VortexChat sits relative to the broader chat ecosystem.
+
+**Recommendation:** Add a "How Vortex Compares" section to the docs or a comparison page (not the landing page — keep that focused). Key differentiators vs. the field:
+
+| | VortexChat | Discord | Revolt | Matrix/Element | Rocket.Chat | Slack | Teams |
+|---|---|---|---|---|---|---|---|
+| Open source | Yes | No | Yes | Yes | Yes | No | No |
+| Mod audit trail | Full (Mod Ledger) | Basic audit log | Minimal | No | Basic | No | No |
+| Permission preview | Yes (Sandbox) | No | No | No | No | No | No |
+| Voice transcription | Yes (Vortex Recap) | No | No | No | No (paid add-on) | Paid add-on (Huddles) | Paid (Copilot) |
+| E2EE on DMs | Optional | No | No | Default | Optional | Enterprise only | No |
+| Self-hostable | Yes | No | Yes | Yes | Yes | No | No |
+| Built-in app platform | Yes (5 apps + marketplace) | Bot API only | Minimal | Widgets | Marketplace | App Directory | App Store |
+| Offline message queue | Yes | No | No | Partial | No | No | No |
+| Theme system | 11 themes + custom CSS | Dark/Light only | Basic theming | Basic | Basic | Dark/Light only | Dark/Light only |
+
+*Slack and Teams are enterprise-work tools, not community platforms. They're included to show that VortexChat's differentiators (transparency, self-hosting, Recap, Sandbox) are unique across the entire chat landscape — not just within the Discord-alternative niche.*
+
+**Gap 2: The "self-host" story is underdeveloped.**
+
+The landing page mentions self-hosting twice ("Self-hostable from day one", "Deploy Your Own" CTA) but there's no dedicated self-hosting page, no one-click deploy buttons (Railway, Vercel, Docker), and no architecture diagram showing what you'd be running. For the ownership thesis to land, self-hosting needs to be a first-class experience, not a bullet point.
+
+**Recommendation (P1):**
+- Add a `/self-host` page with deployment guides, architecture overview, and one-click deploy buttons
+- Include estimated costs ("Run VortexChat for ~$0/month on free tiers" or realistic numbers)
+- Show the stack clearly: Next.js + Supabase + Signal Server — three services, not a monolith
+
+**Gap 3: No public roadmap reinforcing the thesis.**
+
+The brand says "nothing to hide" but the roadmap is internal (`docs/mvp-core-features.md`). A public roadmap — even a simple GitHub Projects board — would reinforce the transparency thesis with action, not just words.
+
+**Recommendation (P2):**
+- Make the roadmap public (GitHub Projects or a `/roadmap` page)
+- Let community members vote or comment on features
+- This turns "nothing to hide" from a marketing claim into a governance model
+
+**Gap 4: No community showcase or social proof from real users.**
+
+The landing page has verifiable *technical* proof (open source, 21 permissions, 0 shadow bans) but no *social* proof (real communities using VortexChat, testimonials, case studies). The use case cards use hypothetical quotes, not real ones.
+
+**Recommendation (P2):**
+- As real communities adopt VortexChat, collect testimonials and feature them
+- Show live stats if possible (active servers, messages sent) — but only when numbers are impressive enough to help, not hurt
+- A "Built with Vortex" showcase page would reinforce legitimacy
+
+**Gap 5: The app platform story is buried.**
+
+VortexChat has 5 built-in apps (Welcome Bot, Giveaway Bot, Standup Assistant, Incident Bot, Reminder Bot) with a marketplace, slash command autocomplete, and rate limiting. This is a *platform*, not just a chat app. But it's not mentioned on the landing page at all.
+
+**Recommendation (P1):**
+- Add a "Built-in Apps" section to the landing page showing the 5 pre-built apps
+- Frame it as "No bot setup required — essential tools are built in"
+- This differentiates from Discord (where you hunt for third-party bots and hope they don't go offline) and from Revolt/Matrix (which have minimal extension stories)
+
+**Gap 6: Internal code still uses pre-rebrand terminology.**
+
+While all user-facing UI is correctly branded, internal file names and type names still use old terms:
+- `voice-intelligence.ts`, `voice-intelligence-indicator.tsx`, `voice-intelligence-policy-settings.tsx`
+- `VoiceIntelligencePolicy`, `VoiceIntelligenceIndicator` (type/component names)
+- `permission-simulator.tsx`, `PermissionSimulator` (file/component name)
+- `moderation-timeline.tsx` (file name)
+
+**Assessment:** Low priority — users never see these. But contributors reading the codebase will see a disconnect between the branded UI terms and the internal naming. For an open-source project where the code *is* part of the brand, this matters more than for a closed-source product.
+
+**Recommendation (P3):**
+- Rename internal files and types to match branded terminology during the next refactor cycle
+- Not urgent, but keeps the codebase honest with the "nothing to hide" thesis
+
+---
+
+### The Clone Test: Verdict
+
+**Question:** If you showed VortexChat to someone who uses Discord daily, would they say "this is a Discord clone"?
+
+**Answer: It depends on what they see first.**
+
+- **If they see the landing page:** No. The hero, the "What Makes Vortex Different" section, and the use case pain points all communicate a distinct identity. They'd say "this is a transparency-focused alternative to Discord."
+
+- **If they see a screenshot of the chat view:** Probably yes. The server strip + channel sidebar + chat area + member list layout is Discord's DNA. Without the unique surfaces visible, it reads as a reskin.
+
+- **If they use it for 10 minutes:** No. The Transparency Panel on right-click, Vortex Recap cards after voice calls, the Permission Sandbox, the Mod Ledger, the built-in app marketplace, the 11-theme system with identity badges — these create enough "I can't do this on Discord" moments to establish a distinct identity.
+
+- **If they're evaluating alternatives (Revolt, Matrix, Rocket.Chat):** Depends on whether the comparison story is told. Today it isn't. The brand only positions against Discord. The broader competitive narrative is missing.
+
+**Bottom line:** VortexChat has successfully moved from "Discord clone" to "Discord alternative with a clear thesis." The remaining work is:
+1. Tell the app platform story (P1)
+2. Make self-hosting a first-class experience (P1)
+3. Position against the broader competitive landscape (P2)
+4. Add real social proof as adoption grows (P2)
+5. Make the roadmap public (P2)
+6. Clean up internal naming (P3)
+
+The product is no longer a clone. The brand is catching up. The next phase is owning the category — "transparent community platform" — before a competitor claims it.
+
+---
+
+## Part 7: Feature Differentiation Scorecard
+
+A quick reference for what VortexChat has that competitors don't. Use this to validate that new features are *additive to the thesis*, not just Discord feature parity.
+
+### Features Only VortexChat Has
+
+| Feature | Brand Name | Thesis Alignment | Discord Has It? | Any Competitor Has It? |
+|---|---|---|---|---|
+| AI voice transcription + summaries | **Vortex Recap** | Transparency + Intelligence | No | No |
+| Permission preview before apply | **Permission Sandbox** | Transparency | No | No |
+| Full moderation audit trail (30+ types) | **Mod Ledger** | Transparency | Basic audit log | Rocket.Chat (basic) |
+| Right-click transparency view | **Transparency Panel** | Transparency | No | No |
+| Server config JSON import/export with diff | **Blueprints** | Ownership | No | No |
+| Community health analytics | **Community Health** | Transparency | Server Insights (Nitro) | No |
+| Theme displayed on user profiles | **Theme Identity** | Personality | No | No |
+| Built-in app marketplace (5 apps) | **App Platform** | Ownership | Bot API (no built-ins) | Rocket.Chat (marketplace) |
+| Optional E2EE on DMs | — | Ownership / Privacy | No | Matrix (default E2EE) |
+| Offline message outbox with replay | — | Reliability | No | No |
+| Dual-mode voice (self-hosted + SFU) | — | Ownership | No | No |
+| GDPR data export (one-click) | — | Ownership | Manual request | Partial (varies) |
+| Auto-expiring channels | **Ephemeral Channels** | Flexibility | No | No |
+
+### Features That Are Discord Parity (Not Differentiators)
+
+These are necessary for adoption but don't contribute to brand identity. Don't market these — they're table stakes.
+
+- Text/voice/forum/stage/announcement channels
+- Roles with permission bitmasks
+- Threads with auto-archive
+- Reactions, replies, file uploads
+- Friend requests, DMs, presence
+- Webhooks
+- User profiles (bio, status, banner)
+- Slash commands
+- Server discovery
+
+### Decision Framework for New Features
+
+Before building a new feature, ask:
+1. **Does Discord already have this?** If yes, it's parity — build it quietly, don't brand it.
+2. **Does it reinforce the transparency/ownership thesis?** If yes, give it a branded name and surface it prominently.
+3. **Is it a "screenshot moment"?** If someone would screenshot this and share it saying "look what Vortex can do" — prioritize it.
+4. **Does it require Discord to be closed-source to not copy?** If yes, it's a durable differentiator. These are the most valuable features to build.
+
+> **Keeping numeric claims in sync:** This document references "21 permissions" in the social proof section (Part 3, Rec 5), the clone risk assessment (Part 6), and the scorecard above. The canonical count is derived from the `PERMISSIONS` object in `packages/shared/src/index.ts`. When permissions are added or removed, update all references in this document and in the landing page social proof section (`apps/web/app/page.tsx`).
