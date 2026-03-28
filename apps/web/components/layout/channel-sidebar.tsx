@@ -404,7 +404,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const unreadInitialData = initialUnreadChannelIds
     ? { unreadChannelIds: initialUnreadChannelIds, mentionCounts: initialMentionCounts ?? {} }
     : undefined
-  const { unreadChannelIds, mentionCounts, markRead } = useUnreadChannels(
+  const { unreadChannelIds, mentionCounts } = useUnreadChannels(
     server.id,
     textChannelIds,
     currentUserId,
@@ -473,7 +473,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     onSearch: () => setSearchOpen(true),
     onSearchInChannel: () => setSearchOpen(true),
     onMarkRead: () => {
-      if (activeChannelId) void markRead(activeChannelId)
+      if (activeChannelId) {
+        void supabase.rpc("mark_channel_read", { p_channel_id: activeChannelId })
+      }
     },
     onJumpChannelPrev: () => jumpRelative(navigableChannelIds, "prev"),
     onJumpChannelNext: () => jumpRelative(navigableChannelIds, "next"),
@@ -488,7 +490,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         console.debug("[shortcuts] analytics", event)
       }
     },
-  }), [activeChannelId, jumpRelative, markRead, navigableChannelIds, unreadNavigableChannelIds, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel])
+  }), [activeChannelId, jumpRelative, navigableChannelIds, unreadNavigableChannelIds, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel])
 
   useKeyboardShortcuts(shortcutHandlers)
 

@@ -161,186 +161,185 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
     )
   }
 
-  // ========== MOBILE LAYOUT ==========
-  // Sidebar is always mounted (hidden when viewing a channel) so the
-  // useUnreadChannels hook stays alive and markRead fires correctly.
-  const showSidebar = !isInChannel && !isSpecialPage
-
-  return (
-    <div className="flex flex-1 flex-col overflow-hidden relative">
-      {/* Sidebar — always mounted for unread-state & realtime subscription
-          preservation; hidden via display:none when viewing channel content */}
-      <div className={showSidebar ? "flex flex-1 flex-col overflow-hidden animate-slide-in-from-right" : "hidden"}>
-        <div className="flex-1 overflow-hidden">{sidebar}</div>
-      </div>
-
-      {isInChannel && !isSpecialPage && (
-        <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
-          {/* Peek element: sidebar shadow shown during swipe-right gesture */}
-          <div
-            data-mobile-sidebar-peek=""
-            className="absolute inset-y-0 left-0 w-[240px] -translate-x-full opacity-0 z-10 pointer-events-none"
-            style={{ background: "var(--theme-bg-secondary)", boxShadow: "4px 0 16px rgba(0,0,0,0.3)" }}
-            aria-hidden
-          />
-          {/* Single mobile channel header — combines navigation + channel actions */}
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-3 border-b flex-shrink-0"
-            style={{
-              background: "var(--theme-bg-secondary)",
-              borderColor: "var(--theme-bg-tertiary)",
-            }}
+  // ========== MOBILE LAYOUT — shows sidebar OR content ==========
+  // Read-state management lives in ChatArea (useMarkChannelRead), so the
+  // sidebar can safely unmount when viewing channel content.
+  if (isInChannel && !isSpecialPage) {
+    return (
+      <div className="flex flex-1 flex-col overflow-hidden relative" {...swipeHandlers}>
+        {/* Peek element: sidebar shadow shown during swipe-right gesture */}
+        <div
+          data-mobile-sidebar-peek=""
+          className="absolute inset-y-0 left-0 w-[240px] -translate-x-full opacity-0 z-10 pointer-events-none"
+          style={{ background: "var(--theme-bg-secondary)", boxShadow: "4px 0 16px rgba(0,0,0,0.3)" }}
+          aria-hidden
+        />
+        {/* Single mobile channel header — combines navigation + channel actions */}
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-3 border-b flex-shrink-0"
+          style={{
+            background: "var(--theme-bg-secondary)",
+            borderColor: "var(--theme-bg-tertiary)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => router.push(`/channels/${serverId}`)}
+            className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15 flex-shrink-0"
+            style={{ color: "var(--theme-text-secondary)" }}
+            aria-label="Back to channels"
           >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <span
+            className="flex-1 text-base font-semibold truncate min-w-0"
+            style={{ color: "var(--theme-text-primary)" }}
+          >
+            # {channelName}
+          </span>
+
+          {/* Inline action icons — search only shown for text channels (ChatArea) */}
+          {isTextChannel && (
             <button
               type="button"
-              onClick={() => router.push(`/channels/${serverId}`)}
+              onClick={() => { dismissMobileMemberList(); setMobilePendingAction("search") }}
               className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
-              aria-label="Back to channels"
+              aria-label="Search messages"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <Search className="w-[18px] h-[18px]" />
             </button>
-            <span
-              className="flex-1 text-base font-semibold truncate min-w-0"
-              style={{ color: "var(--theme-text-primary)" }}
-            >
-              # {channelName}
-            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMemberListOpen((v) => {
+                const next = !v
+                setMemberListOpen(next)
+                return next
+              })
+            }}
+            className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15 flex-shrink-0"
+            style={{ color: mobileMemberListOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+            aria-label="Toggle member list"
+          >
+            <Users className="w-[18px] h-[18px]" />
+          </button>
 
-            {/* Inline action icons — search only shown for text channels (ChatArea) */}
-            {isTextChannel && (
+          {/* Overflow menu — only shown for text channels where ChatArea handles the events */}
+          {isTextChannel && (
+            <div className="relative flex-shrink-0" ref={mobileOverflowRef}>
               <button
                 type="button"
-                onClick={() => { dismissMobileMemberList(); setMobilePendingAction("search") }}
-                className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15 flex-shrink-0"
+                onClick={() => setMobileOverflowOpen((v) => !v)}
+                className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
                 style={{ color: "var(--theme-text-secondary)" }}
-                aria-label="Search messages"
+                aria-label="More channel actions"
+                aria-expanded={mobileOverflowOpen}
+                aria-haspopup="menu"
               >
-                <Search className="w-[18px] h-[18px]" />
+                <MoreVertical className="w-[18px] h-[18px]" />
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMemberListOpen((v) => {
-                  const next = !v
-                  setMemberListOpen(next)
-                  return next
-                })
-              }}
-              className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15 flex-shrink-0"
-              style={{ color: mobileMemberListOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
-              aria-label="Toggle member list"
-            >
-              <Users className="w-[18px] h-[18px]" />
-            </button>
-
-            {/* Overflow menu — only shown for text channels where ChatArea handles the events */}
-            {isTextChannel && (
-              <div className="relative flex-shrink-0" ref={mobileOverflowRef}>
-                <button
-                  type="button"
-                  onClick={() => setMobileOverflowOpen((v) => !v)}
-                  className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
-                  style={{ color: "var(--theme-text-secondary)" }}
-                  aria-label="More channel actions"
-                  aria-expanded={mobileOverflowOpen}
-                  aria-haspopup="menu"
-                >
-                  <MoreVertical className="w-[18px] h-[18px]" />
-                </button>
-                {mobileOverflowOpen && (
-                  <div
-                    role="menu"
-                    aria-label="Channel actions"
-                    className="absolute right-0 top-10 z-50 min-w-52 rounded-lg border p-1 shadow-xl"
-                    style={{
-                      background: "var(--theme-bg-secondary)",
-                      borderColor: "var(--theme-bg-tertiary)",
-                    }}
-                  >
-                    {([
-                      { id: "summary" as const, label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
-                      { id: "workspace" as const, label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
-                      { id: "pins" as const, label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
-                      { id: "threads" as const, label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
-                    ] satisfies Array<{ id: MobileAction | "workspace" | "threads"; label: string; icon: React.ReactNode; active?: boolean }>).map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setMobileOverflowOpen(false)
-                          dismissMobileMemberList()
-                          if (item.id === "workspace") {
-                            toggleWorkspacePanel()
-                          } else if (item.id === "threads") {
-                            toggleThreadPanel()
-                          } else {
-                            setMobilePendingAction(item.id)
-                          }
-                        }}
-                        className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-white/10"
-                        style={{ color: item.active ? "var(--theme-accent)" : "var(--theme-text-primary)" }}
-                      >
-                        {item.icon}
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          {/* Channel content */}
-          <main id="main-content" className="flex flex-1 overflow-hidden relative">
-            {children}
-            {/* Member list slides in as an overlay panel with backdrop */}
-            {mobileMemberListOpen && (
-              <>
-                {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+              {mobileOverflowOpen && (
                 <div
-                  className="absolute inset-0 z-10 bg-black/50"
-                  onClick={dismissMobileMemberList}
-                  aria-hidden="true"
-                />
-                <div className="absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl" style={{ background: "var(--theme-bg-secondary)" }} {...memberListSwipeHandlers}>
-                  {memberList}
+                  role="menu"
+                  aria-label="Channel actions"
+                  className="absolute right-0 top-10 z-50 min-w-52 rounded-lg border p-1 shadow-xl"
+                  style={{
+                    background: "var(--theme-bg-secondary)",
+                    borderColor: "var(--theme-bg-tertiary)",
+                  }}
+                >
+                  {([
+                    { id: "summary" as const, label: "AI Summary", icon: <Sparkles className="w-4 h-4" /> },
+                    { id: "workspace" as const, label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
+                    { id: "pins" as const, label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
+                    { id: "threads" as const, label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
+                  ] satisfies Array<{ id: MobileAction | "workspace" | "threads"; label: string; icon: React.ReactNode; active?: boolean }>).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMobileOverflowOpen(false)
+                        dismissMobileMemberList()
+                        if (item.id === "workspace") {
+                          toggleWorkspacePanel()
+                        } else if (item.id === "threads") {
+                          toggleThreadPanel()
+                        } else {
+                          setMobilePendingAction(item.id)
+                        }
+                      }}
+                      className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-white/10"
+                      style={{ color: item.active ? "var(--theme-accent)" : "var(--theme-text-primary)" }}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
                 </div>
-              </>
-            )}
-          </main>
+              )}
+            </div>
+          )}
         </div>
-      )}
+        {/* Channel content */}
+        <main id="main-content" className="flex flex-1 overflow-hidden relative">
+          {children}
+          {/* Member list slides in as an overlay panel with backdrop */}
+          {mobileMemberListOpen && (
+            <>
+              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+              <div
+                className="absolute inset-0 z-10 bg-black/50"
+                onClick={dismissMobileMemberList}
+                aria-hidden="true"
+              />
+              <div className="absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl" style={{ background: "var(--theme-bg-secondary)" }} {...memberListSwipeHandlers}>
+                {memberList}
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+    )
+  }
 
-      {isSpecialPage && (
-        <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
-          {/* Special pages (settings/moderation/events) */}
-          <div
-            className="flex items-center gap-2 px-2.5 py-3 border-b flex-shrink-0"
-            style={{
-              background: "var(--theme-bg-secondary)",
-              borderColor: "var(--theme-bg-tertiary)",
-            }}
+  if (isSpecialPage) {
+    return (
+      <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
+        {/* Special pages (settings/moderation/events) */}
+        <div
+          className="flex items-center gap-2 px-2.5 py-3 border-b flex-shrink-0"
+          style={{
+            background: "var(--theme-bg-secondary)",
+            borderColor: "var(--theme-bg-tertiary)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => router.push(`/channels/${serverId}`)}
+            className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
+            style={{ color: "var(--theme-text-secondary)" }}
+            aria-label="Back to server"
           >
-            <button
-              type="button"
-              onClick={() => router.push(`/channels/${serverId}`)}
-              className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
-              style={{ color: "var(--theme-text-secondary)" }}
-              aria-label="Back to server"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <span className="text-base font-semibold capitalize" style={{ color: "var(--theme-text-primary)" }}>
-              {pathParts[2]}
-            </span>
-          </div>
-          <main id="main-content" className="flex flex-1 overflow-hidden">
-            {children}
-          </main>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <span className="text-base font-semibold capitalize" style={{ color: "var(--theme-text-primary)" }}>
+            {pathParts[2]}
+          </span>
         </div>
-      )}
+        <main id="main-content" className="flex flex-1 overflow-hidden">
+          {children}
+        </main>
+      </div>
+    )
+  }
+
+  // Channel sidebar shown full-screen on mobile with push-in animation
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden animate-slide-in-from-right">
+      <div className="flex-1 overflow-hidden">{sidebar}</div>
     </div>
   )
 }
