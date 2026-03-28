@@ -62,11 +62,11 @@ export function MobileBottomTabBar() {
                 className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-xs", active && "font-semibold")}
                 style={{ color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
               >
-                <span className="relative">
+                <span className="relative overflow-visible">
                   <Icon className="h-6 w-6" />
                   {badgeCount > 0 && (
                     <span
-                      className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold px-1"
+                      className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold px-1"
                       style={{ background: "var(--theme-danger)", color: "white" }}
                     >
                       {badgeCount > 99 ? "99+" : badgeCount}

@@ -22,6 +22,7 @@ import { toast } from "@/components/ui/use-toast"
 import { useGifMemeSticker } from "@/hooks/use-gif-meme-sticker"
 import { usePollCreator } from "@/hooks/use-poll-creator"
 import { useSlashModeration } from "@/hooks/use-slash-moderation"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 
 /** Module-level cache for slash commands to avoid refetching on every server revisit. */
 const SLASH_COMMAND_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
@@ -48,6 +49,7 @@ interface Props {
 
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
 export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread, serverId }: Props) {
+  const isMobile = useMobileLayout()
   const [content, setContent] = useState(draft)
   const [cursorPosition, setCursorPosition] = useState(0)
   const [files, setFiles] = useState<File[]>([])
@@ -98,6 +100,16 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       media.clearFallbackSignal()
     }
   }, [media.shouldFallbackToGif, media.clearFallbackSignal])
+
+  // Lock body scroll on mobile when the picker bottom sheet is open
+  useEffect(() => {
+    if (!showEmojiPicker) return
+    // Only lock on mobile (the picker is a fixed bottom sheet below md breakpoint)
+    if (window.matchMedia("(min-width: 768px)").matches) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = prev }
+  }, [showEmojiPicker])
 
   // Debounced draft sync — keeps typing snappy, persists after 150ms idle
   const debouncedDraftChange = useCallback((value: string) => {
@@ -779,21 +791,21 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       {/* File previews */}
       {files.length > 0 && (
         <div
-          className="flex gap-2 p-2 flex-wrap rounded-t"
+          className="flex gap-2 p-2 overflow-x-auto md:flex-wrap rounded-t no-scrollbar"
           style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}
         >
           {files.map((file, i) => (
-            <div key={i} className="relative group w-24">
+            <div key={i} className="relative group w-28 md:w-24 flex-shrink-0">
               {file.type.startsWith("image/") ? (
                 <img
                   src={getPreviewUrl(file)}
                   alt={file.name}
-                  className="w-24 h-24 object-cover rounded-md border"
+                  className="w-28 h-28 md:w-24 md:h-24 object-cover rounded-md border"
                   style={{ borderColor: "var(--theme-bg-tertiary)" }}
                 />
               ) : (
                 <div
-                  className="w-24 h-24 rounded-md border flex items-center justify-center text-xs text-center p-2"
+                  className="w-28 h-28 md:w-24 md:h-24 rounded-md border flex items-center justify-center text-xs text-center p-2"
                   style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)", borderColor: "var(--theme-bg-tertiary)" }}
                 >
                   {file.name}
@@ -1060,8 +1072,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
             placeholder={replyTo
-              ? `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`
-              : `Message #${channelName} — @ mention, : emoji, / command`
+              ? (isMobile ? `Reply in #${channelName}` : `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`)
+              : (isMobile ? `Message #${channelName}` : `Message #${channelName} — @ mention, : emoji, / command`)
             }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none block"
@@ -1075,7 +1087,23 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             data-state="open"
             className="panel-surface-motion fixed inset-x-0 bottom-0 z-overlay flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[380px] md:rounded-lg md:border"
             style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
+            onTouchStart={(e) => {
+              const el = e.currentTarget
+              const startY = e.touches[0].clientY
+              let moved = false
+              const onMove = (ev: TouchEvent) => {
+                const dy = ev.touches[0].clientY - startY
+                if (dy > 60) { moved = true; setShowEmojiPicker(false) }
+              }
+              const onEnd = () => { el.removeEventListener("touchmove", onMove); el.removeEventListener("touchend", onEnd) }
+              el.addEventListener("touchmove", onMove, { passive: true })
+              el.addEventListener("touchend", onEnd, { once: true })
+            }}
           >
+              {/* Drag handle — visible on mobile only */}
+              <div className="flex justify-center pt-1 pb-1 md:hidden" aria-hidden>
+                <div className="w-10 h-1 rounded-full" style={{ background: "var(--theme-bg-tertiary)" }} />
+              </div>
               <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
                 {([
                   { key: "emoji" as const, label: "Emoji", panel: "emoji-tab-panel" },

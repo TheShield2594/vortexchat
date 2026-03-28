@@ -261,14 +261,25 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
             </div>
           )}
         </div>
-        {/* Channel content area or mobile member list */}
-        {mobileMemberListOpen ? (
-          <div className="flex-1 overflow-hidden">{memberList}</div>
-        ) : (
-          <main id="main-content" className="flex flex-1 overflow-hidden">
-            {children}
-          </main>
-        )}
+        {/* Channel content */}
+        <main id="main-content" className="flex flex-1 overflow-hidden relative">
+          {children}
+          {/* Member list slides in as an overlay panel with backdrop */}
+          {mobileMemberListOpen && (
+            <>
+              <div
+                className="absolute inset-0 z-10 bg-black/50"
+                onClick={dismissMobileMemberList}
+                aria-label="Close member list"
+                role="button"
+                tabIndex={-1}
+              />
+              <div className="absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl" style={{ background: "var(--theme-bg-secondary)" }}>
+                {memberList}
+              </div>
+            </>
+          )}
+        </main>
       </div>
     )
   }
