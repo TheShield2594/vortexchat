@@ -96,8 +96,9 @@
       "url": "/channels/me",
       "icons": [
         {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
+          "src": "/shortcuts/friends.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
         }
       ]
     },
@@ -107,8 +108,9 @@
       "url": "/channels/me?new=1",
       "icons": [
         {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
+          "src": "/shortcuts/new-dm.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
         }
       ]
     },
@@ -118,8 +120,9 @@
       "url": "/discover",
       "icons": [
         {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
+          "src": "/shortcuts/discover.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
         }
       ]
     }

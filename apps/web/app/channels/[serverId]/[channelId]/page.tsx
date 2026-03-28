@@ -1,10 +1,15 @@
 import { notFound, redirect } from "next/navigation"
+import dynamic from "next/dynamic"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { ChatArea } from "@/components/chat/chat-area"
-import { VoiceChannel } from "@/components/voice/voice-channel"
 import { AnnouncementChannel } from "@/components/channels/announcement-channel"
 import { ForumChannel } from "@/components/channels/forum-channel"
 import { MediaChannel } from "@/components/channels/media-channel"
+
+/** Lazy-load VoiceChannel (and its ~600 KB livekit-client dep) only when needed */
+const VoiceChannel = dynamic(
+  () => import("@/components/voice/voice-channel").then((m) => m.VoiceChannel),
+)
 import { hydrateReplyTo, MESSAGE_PROJECTION } from "@/lib/messages/hydration"
 import { PERMISSIONS, computePermissions, hasPermission } from "@vortex/shared"
 import type { RoleRow } from "@/types/database"

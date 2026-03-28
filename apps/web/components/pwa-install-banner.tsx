@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { X, Share } from "lucide-react"
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -10,13 +11,39 @@ interface BeforeInstallPromptEvent extends Event {
 
 const STORAGE_KEY = "pwa-install-banner-dismissed"
 
+/** Detect iOS Safari (not Chrome/Firefox on iOS which also can't install PWAs but show differently) */
+function isIosSafari(): boolean {
+  if (typeof navigator === "undefined") return false
+  const ua = navigator.userAgent
+  const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  // CriOS = Chrome iOS, FxiOS = Firefox iOS, EdgiOS = Edge iOS
+  const isSafari = !/(CriOS|FxiOS|EdgiOS|OPiOS)/.test(ua)
+  return isIos && isSafari
+}
+
+function isStandalone(): boolean {
+  if (typeof window === "undefined") return false
+  return window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Record<string, unknown>).standalone === true
+}
+
 export function PwaInstallBanner() {
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [visible, setVisible] = useState(false)
+  const [showIosGuide, setShowIosGuide] = useState(false)
 
   useEffect(() => {
     if (localStorage.getItem(STORAGE_KEY)) return
+    if (isStandalone()) return
 
+    // iOS Safari path — show manual install instructions
+    if (isIosSafari()) {
+      setShowIosGuide(true)
+      setVisible(true)
+      return
+    }
+
+    // Android/Chrome path — use beforeinstallprompt
     const handler = (e: Event) => {
       e.preventDefault()
       setPromptEvent(e as BeforeInstallPromptEvent)
@@ -60,18 +87,32 @@ export function PwaInstallBanner() {
 
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">Add VortexChat to Home Screen</p>
-        <p className="text-xs text-muted-foreground">
-          Get the full app experience — offline support &amp; fast launch.
-        </p>
+        {showIosGuide ? (
+          <p className="text-xs text-muted-foreground">
+            Tap <Share className="inline h-3.5 w-3.5 -mt-0.5 mx-0.5" aria-label="Share" /> then &quot;Add to Home Screen&quot;
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Get the full app experience — offline support &amp; fast launch.
+          </p>
+        )}
       </div>
 
       <div className="flex shrink-0 gap-2">
-        <Button variant="outline" size="sm" onClick={dismiss} aria-label="Dismiss install banner">
-          Not now
-        </Button>
-        <Button variant="default" size="sm" onClick={install} aria-label="Install VortexChat app">
-          Install
-        </Button>
+        {showIosGuide ? (
+          <Button variant="outline" size="sm" onClick={dismiss} aria-label="Dismiss install banner">
+            <X className="h-4 w-4" />
+          </Button>
+        ) : (
+          <>
+            <Button variant="outline" size="sm" onClick={dismiss} aria-label="Dismiss install banner">
+              Not now
+            </Button>
+            <Button variant="default" size="sm" onClick={install} aria-label="Install VortexChat app">
+              Install
+            </Button>
+          </>
+        )}
       </div>
     </div>
   )

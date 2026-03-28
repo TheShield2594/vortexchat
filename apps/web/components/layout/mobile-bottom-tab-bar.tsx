@@ -57,7 +57,7 @@ export function MobileBottomTabBar() {
             <li key={label}>
               <Link
                 href={href}
-                onClick={() => navigator.vibrate?.(10)}
+                onClick={() => { if (!active) navigator.vibrate?.(10) }}
                 aria-current={active ? "page" : undefined}
                 className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-xs", active && "font-semibold")}
                 style={{ color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}

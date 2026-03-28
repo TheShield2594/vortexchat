@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText, CircleHelp } from "lucide-react"
+import { ArrowLeft, Users, Search, MoreVertical, Sparkles, Briefcase, Pin, MessageSquareText } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import type { MobileAction } from "@vortex/shared"
 import { useShallow } from "zustand/react/shallow"
@@ -233,7 +233,6 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                     { id: "workspace" as const, label: "Workspace", icon: <Briefcase className="w-4 h-4" />, active: workspaceOpen },
                     { id: "pins" as const, label: "Pinned Messages", icon: <Pin className="w-4 h-4" /> },
                     { id: "threads" as const, label: "Threads", icon: <MessageSquareText className="w-4 h-4" />, active: threadPanelOpen },
-                    { id: "help" as const, label: "Keyboard Shortcuts", icon: <CircleHelp className="w-4 h-4" /> },
                   ] satisfies Array<{ id: MobileAction | "workspace" | "threads"; label: string; icon: React.ReactNode; active?: boolean }>).map((item) => (
                     <button
                       key={item.id}
