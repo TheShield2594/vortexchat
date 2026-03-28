@@ -28,7 +28,7 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const DISMISS_THRESHOLD = 60
 
 /** Drag handle with swipe-to-dismiss for mobile bottom sheet. */
-function SheetDragHandle({ contentRef }: { contentRef: React.RefObject<HTMLElement | null> }): React.ReactElement {
+function SheetDragHandle({ contentRef }: { contentRef: React.RefObject<HTMLDivElement | null> }): React.ReactElement {
   const startYRef = React.useRef<number | null>(null)
   const draggingRef = React.useRef(false)
 
@@ -102,12 +102,12 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  const internalRef = React.useRef<HTMLElement | null>(null)
+  const internalRef = React.useRef<HTMLDivElement | null>(null)
 
-  const setRefs = React.useCallback((node: HTMLElement | null) => {
+  const setRefs = React.useCallback((node: HTMLDivElement | null) => {
     internalRef.current = node
     if (typeof ref === "function") ref(node)
-    else if (ref) (ref as React.MutableRefObject<HTMLElement | null>).current = node
+    else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
   }, [ref])
 
   return (
