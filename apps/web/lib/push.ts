@@ -2,6 +2,7 @@ import webpush from "web-push"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { resolveNotification } from "@/lib/notification-resolver"
 import { isInQuietHours } from "@/lib/quiet-hours"
+import { PERMISSIONS, computePermissions } from "@vortex/shared"
 
 // VAPID keys — set these env vars (generate once with: npx web-push generate-vapid-keys)
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""
@@ -134,7 +135,90 @@ export async function sendPushToChannel(opts: {
       .select("user_id")
       .eq("server_id", serverId)
       .neq("user_id", excludeUserId)
-    memberIds = members?.map((m) => m.user_id) ?? []
+    const allMemberIds = members?.map((m) => m.user_id) ?? []
+
+    // Filter out members whose roles are denied VIEW_CHANNELS on this channel
+    const { data: overrides } = await supabase
+      .from("channel_permissions")
+      .select("role_id, allow_permissions, deny_permissions")
+      .eq("channel_id", channelId)
+
+    if (overrides && overrides.length > 0) {
+      const denyViewRoleIds = new Set(
+        overrides
+          .filter((o) => (o.deny_permissions & PERMISSIONS.VIEW_CHANNELS) !== 0)
+          .map((o) => o.role_id as string)
+      )
+      const allowViewRoleIds = new Set(
+        overrides
+          .filter((o) => (o.allow_permissions & PERMISSIONS.VIEW_CHANNELS) !== 0)
+          .map((o) => o.role_id as string)
+      )
+
+      // Only filter if there are deny overrides for VIEW_CHANNELS
+      if (denyViewRoleIds.size > 0) {
+        // Fetch server owner (always has access)
+        const { data: server } = await supabase
+          .from("servers")
+          .select("owner_id")
+          .eq("id", serverId)
+          .maybeSingle()
+        const ownerId = server?.owner_id
+
+        // Fetch each member's roles to check access
+        const { data: memberRoles } = await supabase
+          .from("member_roles")
+          .select("user_id, roles(id, permissions)")
+          .eq("server_id", serverId)
+          .in("user_id", allMemberIds)
+
+        // Fetch default @everyone role
+        const { data: defaultRole } = await supabase
+          .from("roles")
+          .select("id, permissions")
+          .eq("server_id", serverId)
+          .eq("is_default", true)
+          .maybeSingle()
+
+        // Build a map of user -> role IDs and combined permissions
+        const memberRoleMap = new Map<string, { roleIds: Set<string>; permissions: number }>()
+        for (const uid of allMemberIds) {
+          memberRoleMap.set(uid, {
+            roleIds: new Set(defaultRole ? [defaultRole.id] : []),
+            permissions: defaultRole?.permissions ?? 0,
+          })
+        }
+        for (const mr of memberRoles ?? []) {
+          const entry = memberRoleMap.get(mr.user_id)
+          if (!entry) continue
+          const role = mr.roles as unknown as { id: string; permissions: number } | null
+          if (role) {
+            entry.roleIds.add(role.id)
+            entry.permissions = entry.permissions | role.permissions
+          }
+        }
+
+        memberIds = allMemberIds.filter((uid) => {
+          // Owner and admins always have access
+          if (uid === ownerId) return true
+          const entry = memberRoleMap.get(uid)
+          if (!entry) return false
+          if (entry.permissions & PERMISSIONS.ADMINISTRATOR) return true
+
+          // Apply channel overrides: deny first, then allow
+          const userRoleIds = entry.roleIds
+          const isDenied = [...userRoleIds].some((rid) => denyViewRoleIds.has(rid))
+          const isAllowed = [...userRoleIds].some((rid) => allowViewRoleIds.has(rid))
+          // If any role is explicitly allowed, it overrides the deny
+          if (isDenied && !isAllowed) return false
+          return true
+        })
+      } else {
+        memberIds = allMemberIds
+      }
+    } else {
+      memberIds = allMemberIds
+    }
   }
 
   if (!memberIds.length) return
