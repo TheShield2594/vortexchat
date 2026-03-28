@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
+import { rateLimiter } from "@/lib/rate-limit"
 
 export async function GET(
   request: Request,
@@ -9,6 +10,14 @@ export async function GET(
   try {
     const params = await paramsPromise
     const supabase = await createServerSupabaseClient()
+
+    // Rate limit: 20 invite lookups per minute per IP (prevents invite code enumeration)
+    const forwarded = request.headers.get("x-forwarded-for")
+    const ip = forwarded?.split(",")[0]?.trim() ?? "unknown"
+    const rl = await rateLimiter.check(`invite-lookup:${ip}`, { limit: 20, windowMs: 60_000 })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 })
+    }
 
     const { data: server, error: serverError } = await supabase
       .from("servers")
@@ -43,6 +52,12 @@ export async function POST(
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Rate limit: 10 join attempts per 5 minutes per user (prevents invite code brute-force)
+    const rl = await rateLimiter.check(`invite-join:${user.id}`, { limit: 10, windowMs: 5 * 60_000 })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many join attempts. Please slow down." }, { status: 429 })
     }
 
     const { data: server, error: serverError } = await supabase

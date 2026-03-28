@@ -97,6 +97,7 @@ export default function RegisterPage() {
           </Label>
           <Input
             type="email"
+            autoComplete="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required
@@ -110,6 +111,7 @@ export default function RegisterPage() {
           </Label>
           <Input
             type="text"
+            autoComplete="username"
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
             placeholder="cooluser123"
@@ -137,6 +139,7 @@ export default function RegisterPage() {
           </Label>
           <Input
             type="password"
+            autoComplete="new-password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
@@ -150,6 +153,7 @@ export default function RegisterPage() {
           </Label>
           <Input
             type="password"
+            autoComplete="new-password"
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             required
