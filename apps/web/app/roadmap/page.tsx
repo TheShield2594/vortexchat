@@ -1,6 +1,6 @@
 import Link from "next/link"
 import type { Metadata } from "next"
-import { CheckCircle2, Circle, ExternalLink } from "lucide-react"
+import { CheckCircle2, ExternalLink } from "lucide-react"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 
 export const metadata: Metadata = {

@@ -229,7 +229,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
               </TabsTrigger>
               <TabsTrigger value="permission-sandbox" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Perm Simulator
+                Perm Sandbox
               </TabsTrigger>
             </TabsList>
           </div>

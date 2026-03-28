@@ -162,7 +162,7 @@ export default function ShowcasePage(): React.JSX.Element {
                     className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold"
                     style={{ background: hexToRgba(accent, 0.15), color: accent }}
                   >
-                    {author.split(" ").map((n) => n[0]).join("")}
+                    {author.split(" ").map((n) => n[0] ?? "").join("").slice(0, 2)}
                   </div>
                   <div>
                     <p className="text-sm font-semibold" style={{ color: "var(--theme-text-bright)" }}>
