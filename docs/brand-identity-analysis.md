@@ -489,21 +489,23 @@ The landing page positions against Discord specifically ("communities that outgr
 - **Matrix/Element** (decentralized, privacy-focused)
 - **Rocket.Chat** (self-hosted, enterprise)
 
-The current positioning doesn't acknowledge this landscape. A user evaluating Revolt (also open-source) or Matrix (also privacy-focused) needs to understand why Vortex is different from *them*, not just from Discord.
+The current positioning doesn't acknowledge this landscape. A user evaluating Revolt (also open-source) or Matrix (also privacy-focused) needs to understand why Vortex is different from *them*, not just from Discord. Slack and Teams are included below not as direct competitors (they're work-focused, not community-focused) but to explicitly show where VortexChat sits relative to the broader chat ecosystem.
 
 **Recommendation:** Add a "How Vortex Compares" section to the docs or a comparison page (not the landing page — keep that focused). Key differentiators vs. the field:
 
-| | VortexChat | Discord | Revolt | Matrix/Element | Rocket.Chat |
-|---|---|---|---|---|---|
-| Open source | Yes | No | Yes | Yes | Yes |
-| Mod audit trail | Full (Mod Ledger) | Basic audit log | Minimal | No | Basic |
-| Permission preview | Yes (Sandbox) | No | No | No | No |
-| Voice transcription | Yes (Vortex Recap) | No | No | No | No (paid add-on) |
-| E2EE on DMs | Optional | No | No | Default | Optional |
-| Self-hostable | Yes | No | Yes | Yes | Yes |
-| Built-in app platform | Yes (5 apps + marketplace) | Bot API only | Minimal | Widgets | Marketplace |
-| Offline message queue | Yes | No | No | Partial | No |
-| Theme system | 11 themes + custom CSS | Dark/Light only | Basic theming | Basic | Basic |
+| | VortexChat | Discord | Revolt | Matrix/Element | Rocket.Chat | Slack | Teams |
+|---|---|---|---|---|---|---|---|
+| Open source | Yes | No | Yes | Yes | Yes | No | No |
+| Mod audit trail | Full (Mod Ledger) | Basic audit log | Minimal | No | Basic | No | No |
+| Permission preview | Yes (Sandbox) | No | No | No | No | No | No |
+| Voice transcription | Yes (Vortex Recap) | No | No | No | No (paid add-on) | Paid add-on (Huddles) | Paid (Copilot) |
+| E2EE on DMs | Optional | No | No | Default | Optional | Enterprise only | No |
+| Self-hostable | Yes | No | Yes | Yes | Yes | No | No |
+| Built-in app platform | Yes (5 apps + marketplace) | Bot API only | Minimal | Widgets | Marketplace | App Directory | App Store |
+| Offline message queue | Yes | No | No | Partial | No | No | No |
+| Theme system | 11 themes + custom CSS | Dark/Light only | Basic theming | Basic | Basic | Dark/Light only | Dark/Light only |
+
+*Slack and Teams are enterprise-work tools, not community platforms. They're included to show that VortexChat's differentiators (transparency, self-hosting, Recap, Sandbox) are unique across the entire chat landscape — not just within the Discord-alternative niche.*
 
 **Gap 2: The "self-host" story is underdeveloped.**
 
@@ -626,3 +628,5 @@ Before building a new feature, ask:
 2. **Does it reinforce the transparency/ownership thesis?** If yes, give it a branded name and surface it prominently.
 3. **Is it a "screenshot moment"?** If someone would screenshot this and share it saying "look what Vortex can do" — prioritize it.
 4. **Does it require Discord to be closed-source to not copy?** If yes, it's a durable differentiator. These are the most valuable features to build.
+
+> **Keeping numeric claims in sync:** This document references "21 permissions" in the social proof section (Part 3, Rec 5), the clone risk assessment (Part 6), and the scorecard above. The canonical count is derived from the `PERMISSIONS` object in `packages/shared/src/index.ts`. When permissions are added or removed, update all references in this document and in the landing page social proof section (`apps/web/app/page.tsx`).
