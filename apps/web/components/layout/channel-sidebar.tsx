@@ -28,6 +28,7 @@ import type { ChannelRow, RoleRow, ServerRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { markChannelRead } from "@/lib/mark-channel-read"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
@@ -398,15 +399,18 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const canManageEvents = isOwner || hasPermission(userPermissions, "MANAGE_EVENTS")
   const canManageApps = isOwner || hasPermission(userPermissions, "MANAGE_WEBHOOKS") || hasPermission(userPermissions, "USE_APPLICATION_COMMANDS")
 
-  // Track unread state for all text channels in this server
-  const textChannelIds = useMemo(() => channels.filter((c) => c.type === "text").map((c) => c.id), [channels])
+  // Track unread state for all message-bearing channels in this server
+  const messageChannelIds = useMemo(
+    () => channels.filter((c) => c.type !== "category" && c.type !== "voice").map((c) => c.id),
+    [channels]
+  )
   const { playNotification } = useNotificationSound()
   const unreadInitialData = initialUnreadChannelIds
     ? { unreadChannelIds: initialUnreadChannelIds, mentionCounts: initialMentionCounts ?? {} }
     : undefined
   const { unreadChannelIds, mentionCounts } = useUnreadChannels(
     server.id,
-    textChannelIds,
+    messageChannelIds,
     currentUserId,
     activeChannelId,
     playNotification,
@@ -473,9 +477,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     onSearch: () => setSearchOpen(true),
     onSearchInChannel: () => setSearchOpen(true),
     onMarkRead: () => {
-      if (activeChannelId) {
-        createClientSupabaseClient().rpc("mark_channel_read", { p_channel_id: activeChannelId }).then(() => {}, () => {})
-      }
+      if (activeChannelId) markChannelRead(activeChannelId)
     },
     onJumpChannelPrev: () => jumpRelative(navigableChannelIds, "prev"),
     onJumpChannelNext: () => jumpRelative(navigableChannelIds, "next"),

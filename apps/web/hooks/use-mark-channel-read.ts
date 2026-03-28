@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { markChannelReadRpc } from "@/lib/mark-channel-read"
 
 /**
  * Marks a channel as read in the database when the user views it.
@@ -19,13 +20,9 @@ export function useMarkChannelRead(channelId: string): void {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    const callRpc = (): void => {
-      supabase.rpc("mark_channel_read", { p_channel_id: channelId }).then(() => {}, () => {})
-    }
-
     // Debounce initial mark-read to avoid RPC spam on rapid channel switching
     timerRef.current = setTimeout(() => {
-      callRpc()
+      void markChannelReadRpc(supabase, channelId, "debounce")
       timerRef.current = null
     }, 500)
 
@@ -35,7 +32,7 @@ export function useMarkChannelRead(channelId: string): void {
         timerRef.current = null
       }
       // Flush on departure so last_read_at covers all messages the user saw
-      callRpc()
+      void markChannelReadRpc(supabase, channelId, "cleanup")
     }
   }, [channelId, supabase])
 }
