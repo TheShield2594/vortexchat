@@ -1105,12 +1105,15 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               let moved = false
               const onMove = (ev: TouchEvent) => {
                 const dy = ev.touches[0].clientY - startY
-                if (dy > 60) { moved = true; setShowEmojiPicker(false) }
+                // Only dismiss if scrollable content is at the top
+                const scrollable = el.querySelector("[data-frimousse-scroll], [style*='overflow']") as HTMLElement | null
+                const atTop = !scrollable || scrollable.scrollTop <= 0
+                if (dy > 60 && atTop) { moved = true; setShowEmojiPicker(false) }
               }
               const onEnd = () => { el.removeEventListener("touchmove", onMove); el.removeEventListener("touchend", onEnd) }
               el.addEventListener("touchmove", onMove, { passive: true })
               el.addEventListener("touchend", onEnd, { once: true })
-            }}
+            }}}
           >
               {/* Drag handle — visible on mobile only */}
               <div className="flex justify-center pt-1 pb-1 md:hidden" aria-hidden>
