@@ -105,6 +105,9 @@
     @apply bg-background text-foreground;
     background-color: var(--app-bg-primary);
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* Prevent horizontal overscroll from triggering browser back/forward gesture
+       on Android, so our custom swipe gestures work reliably. */
+    overscroll-behavior-x: none;
   }
 
   /* Custom scrollbar */

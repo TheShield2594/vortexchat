@@ -81,6 +81,7 @@ export function usePullToRefresh({ onRefresh, threshold = PULL_REFRESH_THRESHOLD
   const onTouchEnd = useCallback((): void => {
     if (refreshingRef.current) return
     if (pullingRef.current && pullDistanceRef.current >= threshold) {
+      navigator.vibrate?.(12)
       setRefreshing(true)
       refreshingRef.current = true
       setPullDistance(threshold * 0.5)

@@ -96,7 +96,7 @@ function addEmojiRecent(emoji: string) {
   }
 }
 
-function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => void; onClose: () => void }) {
+function EmojiPickerPopup({ onSelect, onClose, maxHeight }: { onSelect: (emoji: string) => void | Promise<void>; onClose: () => void; maxHeight?: string }) {
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
 
@@ -114,7 +114,7 @@ function EmojiPickerPopup({ onSelect, onClose }: { onSelect: (emoji: string) => 
   return (
     <EmojiPicker.Root
       onEmojiSelect={({ emoji }) => handleSelect(emoji)}
-      style={{ display: "flex", flexDirection: "column", width: "320px", height: "400px" }}
+      style={{ display: "flex", flexDirection: "column", width: "320px", height: maxHeight ?? "400px", maxHeight: maxHeight ?? "400px", overflow: "hidden" }}
     >
       <div style={{ padding: "8px 8px 4px" }}>
         <EmojiPicker.Search
@@ -287,6 +287,11 @@ export const MessageItem = memo(function MessageItem({
   const containerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
   const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
+
+  // Swipe-to-reply gesture state (mobile)
+  const [swipeX, setSwipeX] = useState(0)
+  const swipeStartRef = useRef<{ x: number; y: number; active: boolean } | null>(null)
+  const SWIPE_REPLY_THRESHOLD = 60
   const reactionCountsRef = useRef<Record<string, number>>({})
   const [poppingReactions, setPoppingReactions] = useState<Record<string, number>>({})
   const popReactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -424,6 +429,57 @@ export const MessageItem = memo(function MessageItem({
 
   return (
     <>
+    {/* Swipe-to-reply wrapper — shows reply icon behind the message during swipe */}
+    <div
+      className="relative"
+      onTouchStart={(e) => {
+        const touch = e.touches[0]
+        swipeStartRef.current = { x: touch.clientX, y: touch.clientY, active: false }
+      }}
+      onTouchMove={(e) => {
+        const start = swipeStartRef.current
+        if (!start) return
+        const dx = e.touches[0].clientX - start.x
+        const dy = e.touches[0].clientY - start.y
+        if (!start.active && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          start.active = true
+        }
+        if (!start.active) return
+        const clamped = Math.max(0, Math.min(dx, SWIPE_REPLY_THRESHOLD * 1.5))
+        setSwipeX(clamped)
+      }}
+      onTouchEnd={(e) => {
+        const start = swipeStartRef.current
+        if (start?.active && e.changedTouches.length > 0) {
+          const dx = e.changedTouches[0].clientX - start.x
+          if (dx >= SWIPE_REPLY_THRESHOLD) {
+            navigator.vibrate?.(10)
+            onReply()
+          }
+        }
+        swipeStartRef.current = null
+        setSwipeX(0)
+      }}
+      onTouchCancel={() => {
+        swipeStartRef.current = null
+        setSwipeX(0)
+      }}
+    >
+      {swipeX > 0 && (
+        <div
+          className="absolute left-0 inset-y-0 flex items-center justify-center pointer-events-none"
+          style={{ width: `${swipeX}px` }}
+        >
+          <Reply
+            className="w-5 h-5"
+            style={{
+              color: swipeX >= SWIPE_REPLY_THRESHOLD ? "var(--theme-accent)" : "var(--theme-text-muted)",
+              opacity: Math.min(swipeX / SWIPE_REPLY_THRESHOLD, 1),
+              transform: `scale(${Math.min(swipeX / SWIPE_REPLY_THRESHOLD, 1)})`,
+            }}
+          />
+        </div>
+      )}
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
@@ -436,6 +492,10 @@ export const MessageItem = memo(function MessageItem({
             isGrouped ? "py-0.5" : "pt-2.5 pb-0.5",
             sendState === "sending" && "opacity-50"
           )}
+          style={{
+            transform: swipeX > 0 ? `translateX(${swipeX}px)` : undefined,
+            transition: swipeStartRef.current?.active ? "none" : "transform 0.2s ease-out",
+          }}
           onAnimationEnd={() => {
             if (animateOnMount) onMountAnimationComplete?.()
           }}
@@ -443,6 +503,15 @@ export const MessageItem = memo(function MessageItem({
             setShowActions(true)
           }}
           onMouseLeave={() => { setShowActions(false) }}
+          onClick={(e) => {
+            // On touch devices, tap a message to toggle the action bar.
+            // Ignore clicks on interactive elements (buttons, links, inputs).
+            const target = e.target as HTMLElement
+            if (target.closest("button, a, input, textarea, select, video, audio, [role='menuitem'], [data-emoji-picker-portal]")) return
+            if (window.matchMedia("(pointer: coarse)").matches) {
+              setShowActions((v) => !v)
+            }
+          }}
           onFocus={() => setShowActions(true)}
           onBlur={(e) => {
             const relatedTarget = e.relatedTarget as HTMLElement | null
@@ -600,15 +669,25 @@ export const MessageItem = memo(function MessageItem({
                     autoFocus
                   />
                   <div className="flex gap-2 mt-1 text-xs tertiary-metadata">
-                    <span>ESC to cancel</span>
-                    <span>·</span>
+                    {/* Desktop: keyboard hints. Mobile: tappable buttons. */}
+                    <span className="hidden md:inline">ESC to cancel</span>
+                    <button
+                      type="button"
+                      onClick={() => { setIsEditing(false); setEditContent(message.content ?? "") }}
+                      className="md:hidden focus-ring rounded px-2 py-1"
+                      style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)", borderRadius: "6px" }}
+                    >
+                      Cancel
+                    </button>
+                    <span className="hidden md:inline">·</span>
                     <button
                       type="button"
                       onClick={handleEditSubmit}
-                      className="focus-ring rounded"
-                      style={{ color: "var(--theme-link)" }}
+                      className="focus-ring rounded px-2 py-1 md:px-0 md:py-0 md:bg-transparent"
+                      style={{ color: "var(--theme-link)", borderRadius: "6px" }}
                     >
-                      Enter to save
+                      <span className="hidden md:inline">Enter to save</span>
+                      <span className="md:hidden">Save</span>
                     </button>
                   </div>
                 </div>
@@ -681,7 +760,7 @@ export const MessageItem = memo(function MessageItem({
                       {genericReactionEntries.map(([emoji, { count, hasOwn, users }]) => (
                         <button
                           key={`${emoji}-${poppingReactions[emoji] ?? 0}`}
-                          onClick={() => onReaction(emoji)}
+                          onClick={async () => { navigator.vibrate?.(6); try { await onReaction(emoji) } catch { /* handled upstream */ } }}
                           title={users
                             .map((id) => {
                               if (id === currentUserId) return "You"
@@ -710,10 +789,12 @@ export const MessageItem = memo(function MessageItem({
           </div>
 
           {/* Emoji picker — portaled to body so it escapes scroll overflow clipping */}
+          {/* Desktop: positioned emoji picker */}
           {showEmojiPicker && emojiPickerPos && createPortal(
             <div
               data-emoji-picker-portal
-              className="fixed z-[9999]"
+              onClick={(e) => { if (e.target === e.currentTarget) { setShowEmojiPicker(false); setEmojiPickerPos(null) } }}
+              className="hidden md:block fixed z-[9999]"
               style={{ top: emojiPickerPos.top, left: emojiPickerPos.left }}
             >
               <div
@@ -721,8 +802,53 @@ export const MessageItem = memo(function MessageItem({
                 style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
               >
                 <EmojiPickerPopup
-                  onSelect={(emoji) => onReaction(emoji)}
+                  onSelect={async (emoji) => { try { await onReaction(emoji) } catch { /* handled upstream */ } }}
                   onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
+                />
+              </div>
+            </div>,
+            document.body,
+          )}
+          {/* Mobile: emoji picker as a bottom sheet */}
+          {showEmojiPicker && createPortal(
+            <div
+              data-emoji-picker-portal
+              className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end"
+              onClick={(e) => { if (e.target === e.currentTarget) { setShowEmojiPicker(false); setEmojiPickerPos(null) } }}
+            >
+              <div className="absolute inset-0 bg-black/50" aria-hidden />
+              <div
+                className="relative rounded-t-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom duration-200"
+                style={{
+                  background: "var(--theme-bg-secondary)",
+                  borderTop: "1px solid var(--theme-bg-tertiary)",
+                  maxHeight: "70vh",
+                  paddingBottom: "env(safe-area-inset-bottom)",
+                }}
+              >
+                {/* Drag handle */}
+                <div className="flex justify-center py-2" aria-hidden>
+                  <div className="w-10 h-1 rounded-full" style={{ background: "var(--theme-bg-tertiary)" }} />
+                </div>
+                {/* Quick reactions row */}
+                <div className="flex justify-center gap-2 px-4 pb-2">
+                  {QUICK_REACTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={async () => { try { await onReaction(emoji) } catch { /* handled upstream */ } setShowEmojiPicker(false); setEmojiPickerPos(null) }}
+                      className="w-11 h-11 flex items-center justify-center rounded-full text-xl active:scale-90 transition-transform"
+                      style={{ background: "var(--theme-bg-tertiary)" }}
+                      aria-label={`React with ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <EmojiPickerPopup
+                  onSelect={async (emoji) => { try { await onReaction(emoji) } catch { /* handled upstream */ } }}
+                  onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
+                  maxHeight="calc(70vh - 100px)"
                 />
               </div>
             </div>,
@@ -748,6 +874,11 @@ export const MessageItem = memo(function MessageItem({
                   if (showEmojiPicker) {
                     setShowEmojiPicker(false)
                     setEmojiPickerPos(null)
+                  } else if (window.matchMedia("(pointer: coarse)").matches) {
+                    // Mobile: open bottom sheet directly (no position needed)
+                    setEmojiPickerPos(null)
+                    setShowEmojiPicker(true)
+                    navigator.vibrate?.(10)
                   } else if (emojiButtonRef.current) {
                     const rect = emojiButtonRef.current.getBoundingClientRect()
                     const pickerW = 320
@@ -969,6 +1100,7 @@ export const MessageItem = memo(function MessageItem({
         )}
       </ContextMenuContent>
     </ContextMenu>
+    </div>{/* end swipe-to-reply wrapper */}
 
     {!isOwn && showReportModal && (
       <Suspense fallback={null}>

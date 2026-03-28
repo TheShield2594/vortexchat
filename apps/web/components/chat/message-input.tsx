@@ -1509,10 +1509,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         {/* Send button */}
         {(content.trim() || files.length > 0) && (
           <button
-            onClick={handleSend}
+            onClick={() => { navigator.vibrate?.(8); handleSend() }}
             disabled={sending}
             aria-label="Send message"
-            className="motion-interactive motion-press flex-shrink-0 focus-ring rounded"
+            className="motion-interactive motion-press flex-shrink-0 focus-ring rounded p-1"
             style={{ color: "var(--theme-accent)" }}
             title="Send Message"
           >

@@ -40,6 +40,7 @@ import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/r
 import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh"
+import { useKeyboardAvoidance } from "@/hooks/use-keyboard-avoidance"
 import { ConnectionBanner } from "@/components/connection-banner"
 import { VoiceRecapCard } from "@/components/voice/voice-recap-card"
 
@@ -104,6 +105,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const overflowRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
+  useKeyboardAvoidance(messageScrollerRef, isMobile)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
   const jumpedRef = useRef(false)
   const lastJumpMessageIdRef = useRef<string | null>(null)

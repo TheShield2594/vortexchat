@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, type ReactNode } from "react"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,9 +32,13 @@ interface GridConfig {
  * For video calls, tiles need to be larger to show camera feeds
  * in a proper grid that looks like a real video conferencing app.
  */
-function computeGridConfig(count: number, hasVideo: boolean): GridConfig {
+function computeGridConfig(count: number, hasVideo: boolean, isMobile: boolean): GridConfig {
   if (!hasVideo) {
-    // Audio-only: compact tiles
+    // Audio-only: compact tiles — use fewer columns on mobile
+    if (isMobile) {
+      if (count === 1) return { columns: 1, rows: 1, templateColumns: "1fr" }
+      return { columns: 2, rows: Math.ceil(count / 2), templateColumns: "repeat(2, 1fr)" }
+    }
     if (count <= 2) return { columns: 2, rows: 1, templateColumns: "repeat(2, minmax(180px, 1fr))" }
     if (count <= 4) return { columns: 2, rows: 2, templateColumns: "repeat(2, minmax(180px, 1fr))" }
     if (count <= 9) return { columns: 3, rows: 3, templateColumns: "repeat(3, minmax(160px, 1fr))" }
@@ -42,6 +47,13 @@ function computeGridConfig(count: number, hasVideo: boolean): GridConfig {
   }
 
   // Video: larger tiles with proper aspect ratios
+  if (isMobile) {
+    // Mobile video: max 2 columns, stacked vertically
+    if (count === 1) return { columns: 1, rows: 1, templateColumns: "1fr", maxTileHeight: "60vh" }
+    if (count === 2) return { columns: 1, rows: 2, templateColumns: "1fr", maxTileHeight: "45vh" }
+    if (count <= 4) return { columns: 2, rows: 2, templateColumns: "repeat(2, 1fr)", maxTileHeight: "40vh" }
+    return { columns: 2, rows: Math.ceil(count / 2), templateColumns: "repeat(2, 1fr)", maxTileHeight: "30vh" }
+  }
   if (count === 1) return { columns: 1, rows: 1, templateColumns: "1fr", maxTileHeight: "80vh" }
   if (count === 2) return { columns: 2, rows: 1, templateColumns: "repeat(2, 1fr)", maxTileHeight: "70vh" }
   if (count <= 4) return { columns: 2, rows: 2, templateColumns: "repeat(2, 1fr)", maxTileHeight: "45vh" }
@@ -72,9 +84,10 @@ function computeGridConfig(count: number, hasVideo: boolean): GridConfig {
  * ```
  */
 export function VoiceGridLayout({ participantCount, hasVideo, children }: VoiceGridLayoutProps) {
+  const isMobile = useMobileLayout()
   const config = useMemo(
-    () => computeGridConfig(participantCount, hasVideo),
-    [participantCount, hasVideo]
+    () => computeGridConfig(participantCount, hasVideo, isMobile),
+    [participantCount, hasVideo, isMobile]
   )
 
   return (
