@@ -115,6 +115,8 @@ export const rateLimiter = {
       return inMemory.check(key, opts)
     } catch (err) {
       if (opts.failClosed) {
+        // Structured log import avoided here to prevent circular deps;
+        // Sentry will also capture this via global error handling.
         console.error("[rate-limit] Infrastructure failure (fail-closed):", (err as Error).message)
         return { allowed: false, remaining: 0, resetAt: Date.now() + 60_000 }
       }

@@ -3,6 +3,9 @@ import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 import { hasPermission as checkPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { rateLimiter } from "@/lib/rate-limit"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/bans")
 
 // GET /api/servers/[serverId]/bans — list bans
 export async function GET(
@@ -130,12 +133,12 @@ export async function POST(
       rollbackError = rollbackResult.error
     }
 
-    console.warn("failed to remove member after ban", {
+    log.warn({
       serverId,
       userId,
-      error: memberDeleteError.message,
+      err: memberDeleteError.message,
       rollbackError: rollbackError?.message,
-    })
+    }, "Failed to remove member after ban")
     return NextResponse.json({ error: "Failed to ban user" }, { status: 500 })
   }
 
@@ -146,7 +149,7 @@ export async function POST(
     .eq("user_id", userId)
 
   if (voiceDeleteError) {
-    console.warn("failed to remove voice state after ban", { serverId, userId, error: voiceDeleteError.message })
+    log.warn({ serverId, userId, err: voiceDeleteError.message }, "Failed to remove voice state after ban")
   }
 
   // Audit log
@@ -215,7 +218,7 @@ export async function DELETE(
   })
 
   if (auditError) {
-    console.warn("Failed to write unban audit log", { serverId, userId, error: auditError.message })
+    log.warn({ serverId, userId, err: auditError.message }, "Failed to write unban audit log")
     return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
   }
 

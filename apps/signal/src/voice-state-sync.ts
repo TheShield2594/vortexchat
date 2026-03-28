@@ -1,4 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import pino from "pino"
+
+const log = pino({ name: "voice-state-sync" })
 
 type VoiceStatePatch = {
   muted?: boolean
@@ -49,7 +52,7 @@ export function createVoiceStateSync(supabase: SupabaseClient, flushIntervalMs =
   setInterval(() => {
     if (!upsertQueue.size && !updateQueue.size && !deleteQueue.size) return
     flush().catch((error) => {
-      console.error("[voice-state-sync] flush failed", error)
+      log.error({ err: error }, "Flush failed")
     })
   }, flushIntervalMs)
 
