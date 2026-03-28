@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import {
   Hash, Volume2, Plus, Clipboard, Pencil, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, MessageCircle,
-  MicOff, Headphones, Bell, BellOff
+  MicOff, Headphones, Bell, BellOff, Eye
 } from "lucide-react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -209,6 +209,11 @@ export function SortableChannelItem({
           )}
           <ContextMenuItem onClick={() => onOpenNotificationSettings(channel.id)}>
             <Bell className="w-4 h-4 mr-2" /> Notification Settings
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => {
+            window.dispatchEvent(new CustomEvent("vortex:open-transparency", { detail: { serverId: channel.server_id, channelId: channel.id } }))
+          }}>
+            <Eye className="w-4 h-4 mr-2" /> Transparency
           </ContextMenuItem>
           <ContextMenuItem onClick={() => {
             void navigator.clipboard
