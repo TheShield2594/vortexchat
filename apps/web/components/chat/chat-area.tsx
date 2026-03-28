@@ -705,12 +705,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       console.error("pull-to-refresh failed", {
         action: "refreshMessages",
         channelId: channel.id,
-        route: channel?.route,
+        route: `/channels/${serverId}/${channel.id}`,
         currentUserId: currentUser?.id,
         error: e instanceof Error ? e.message : String(e),
       })
     }
-  }, [channel.id])
+  }, [channel.id, serverId, currentUser?.id])
 
   const { handlers: pullToRefreshHandlers, pullDistance, refreshing: pullRefreshing, threshold: pullThreshold } = usePullToRefresh({
     onRefresh: handlePullRefresh,
@@ -783,7 +783,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         console.error("visibilitychange resync failed", {
           action: "refreshMessages",
           channelId: channel.id,
-          route: channel?.route,
+          route: `/channels/${serverId}/${channel.id}`,
           currentUserId: currentUser?.id,
           error: e instanceof Error ? e.message : String(e),
         })
@@ -791,7 +791,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
     document.addEventListener("visibilitychange", onVisibility)
     return () => document.removeEventListener("visibilitychange", onVisibility)
-  }, [channel.id])
+  }, [channel.id, serverId, currentUser?.id])
 
   useEffect(() => {
     if (!isOnline) return
