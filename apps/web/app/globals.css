@@ -108,6 +108,29 @@
     /* Prevent horizontal overscroll from triggering browser back/forward gesture
        on Android, so our custom swipe gestures work reliably. */
     overscroll-behavior-x: none;
+    /* Prevent double-tap zoom on mobile — keeps the app feeling native */
+    touch-action: manipulation;
+  }
+
+  /* iOS Safari auto-zooms inputs with font-size < 16px — force 16px on mobile
+     to prevent unwanted zoom on focus while keeping the visual size via transform */
+  @supports (-webkit-touch-callout: none) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="url"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
   }
 
   /* Custom scrollbar */
