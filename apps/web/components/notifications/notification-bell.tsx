@@ -80,13 +80,10 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
         { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload: { new: unknown }) => {
           const updated = payload.new as unknown as Notification
-          setNotifications((prev: Notification[]) =>
-            prev.map((n: Notification) => (n.id === updated.id ? updated : n))
-          )
-          // Recompute unread count from source of truth
           setNotifications((prev: Notification[]) => {
-            setUnreadCount(prev.filter((n: Notification) => !n.read).length)
-            return prev
+            const next = prev.map((n: Notification) => (n.id === updated.id ? updated : n))
+            setUnreadCount(next.filter((n: Notification) => !n.read).length)
+            return next
           })
         }
       )

@@ -109,7 +109,9 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     if (trimmedDeleteId) {
       query = query.eq("id", trimmedDeleteId)
     } else if (trimmedIds) {
-      if (trimmedIds.length === 0) return NextResponse.json({ ok: true })
+      if (trimmedIds.length === 0) {
+        return NextResponse.json({ error: "No valid IDs provided" }, { status: 400 })
+      }
       query = query.in("id", trimmedIds)
     }
 

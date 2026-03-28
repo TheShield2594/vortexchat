@@ -57,17 +57,24 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
     channelRef.current = channel
 
     channel.on("broadcast", { event: "incoming-call" }, ({ payload }) => {
-      if (!payload || payload.targetUserId !== currentUser.id) return
+      if (
+        !payload ||
+        typeof payload.targetUserId !== "string" ||
+        typeof payload.channelId !== "string" ||
+        typeof payload.callerUserId !== "string" ||
+        typeof payload.callerUsername !== "string"
+      ) return
+      if (payload.targetUserId !== currentUser.id) return
       // Don't show if already in a voice call
       if (useAppStore.getState().voiceChannelId) return
 
       setIncomingCall({
-        channelId: payload.channelId as string,
+        channelId: payload.channelId,
         caller: {
-          userId: payload.callerUserId as string,
-          username: payload.callerUsername as string,
-          displayName: (payload.callerDisplayName as string) ?? null,
-          avatarUrl: (payload.callerAvatarUrl as string) ?? null,
+          userId: payload.callerUserId,
+          username: payload.callerUsername,
+          displayName: (typeof payload.callerDisplayName === "string" ? payload.callerDisplayName : null),
+          avatarUrl: (typeof payload.callerAvatarUrl === "string" ? payload.callerAvatarUrl : null),
         },
         startedAt: Date.now(),
       })
@@ -76,7 +83,8 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
     channel.on("broadcast", { event: "call-cancelled" }, ({ payload }) => {
       // Use ref to avoid stale closure — this handler is created once per
       // currentUser.id and must always read the latest incomingCall value.
-      if (payload?.channelId === incomingCallRef.current?.channelId) {
+      // The sender (dm-call.tsx) broadcasts { callerId }, so match on callerId.
+      if (payload?.callerId === incomingCallRef.current?.caller.userId) {
         setIncomingCall(null)
         setElapsed(0)
       }
@@ -204,20 +212,30 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
   )
 
   const handleAccept = useCallback(async () => {
-    if (!incomingCall) return
-    const channelId = incomingCall.channelId
+    try {
+      if (!incomingCall) return
+      const channelId = incomingCall.channelId
 
-    await sendCallSignal(channelId, "accept")
-    // Navigate to the DM call
-    window.location.href = `/dm/${channelId}`
-    dismissCall()
+      await sendCallSignal(channelId, "accept")
+      // Navigate to the DM call
+      window.location.href = `/dm/${channelId}`
+    } catch (err) {
+      console.error("Failed to accept call:", err)
+    } finally {
+      dismissCall()
+    }
   }, [incomingCall, dismissCall, sendCallSignal])
 
   const handleDecline = useCallback(async () => {
-    if (!incomingCall) return
+    try {
+      if (!incomingCall) return
 
-    await sendCallSignal(incomingCall.channelId, "decline")
-    dismissCall()
+      await sendCallSignal(incomingCall.channelId, "decline")
+    } catch (err) {
+      console.error("Failed to decline call:", err)
+    } finally {
+      dismissCall()
+    }
   }, [incomingCall, dismissCall, sendCallSignal])
 
   // Keyboard shortcuts

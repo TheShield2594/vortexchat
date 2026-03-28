@@ -210,7 +210,7 @@ export function useUnreadChannels(
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [serverId, channelIds.join(","), currentUserId])
+  }, [serverId, [...channelIds].sort().join(","), currentUserId])
 
   return { unreadChannelIds, mentionCounts, markRead }
 }
