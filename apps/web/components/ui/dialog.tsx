@@ -25,30 +25,124 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+const DISMISS_THRESHOLD = 60
+
+/** Drag handle with swipe-to-dismiss for mobile bottom sheet. */
+function SheetDragHandle({ contentRef }: { contentRef: React.RefObject<HTMLDivElement | null> }): React.ReactElement {
+  const startYRef = React.useRef<number | null>(null)
+  const draggingRef = React.useRef(false)
+
+  const onTouchStart = React.useCallback((e: React.TouchEvent) => {
+    startYRef.current = e.touches[0].clientY
+    draggingRef.current = false
+  }, [])
+
+  const onTouchMove = React.useCallback((e: React.TouchEvent) => {
+    if (startYRef.current === null) return
+    const dy = e.touches[0].clientY - startYRef.current
+    if (dy > 0) {
+      draggingRef.current = true
+      const el = contentRef.current
+      if (el) {
+        el.style.transition = "none"
+        el.style.transform = `translateY(${dy}px)`
+        el.style.opacity = `${Math.max(1 - dy / 300, 0.5)}`
+      }
+    }
+  }, [contentRef])
+
+  const onTouchEnd = React.useCallback(() => {
+    const el = contentRef.current
+    if (!el || startYRef.current === null) return
+    if (draggingRef.current) {
+      const currentY = parseFloat(el.style.transform.replace(/[^0-9.-]/g, "")) || 0
+      if (currentY >= DISMISS_THRESHOLD) {
+        // Dismiss: find and click the close button
+        const closeBtn = el.querySelector<HTMLButtonElement>("[aria-label='Close dialog']")
+        if (closeBtn) {
+          closeBtn.click()
+        }
+      } else {
+        // Snap back
+        el.style.transition = "transform 200ms ease-out, opacity 200ms ease-out"
+        el.style.transform = ""
+        el.style.opacity = ""
+      }
+    }
+    startYRef.current = null
+    draggingRef.current = false
+  }, [contentRef])
+
+  const onTouchCancel = React.useCallback(() => {
+    const el = contentRef.current
+    if (el) {
+      el.style.transition = "transform 200ms ease-out, opacity 200ms ease-out"
+      el.style.transform = ""
+      el.style.opacity = ""
+    }
+    startYRef.current = null
+    draggingRef.current = false
+  }, [contentRef])
+
+  return (
+    <div
+      className="sm:hidden flex justify-center -mt-2 mb-1 cursor-grab active:cursor-grabbing py-2 -my-2"
+      aria-hidden
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
+    >
+      <div className="w-10 h-1 rounded-full bg-white/20" />
+    </div>
+  )
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 elevation-4 surface-active surface-focus-shift duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close
-        className="absolute right-4 top-4 rounded-sm surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
-        aria-label="Close dialog"
+>(({ className, children, ...props }, ref) => {
+  const internalRef = React.useRef<HTMLDivElement | null>(null)
+
+  const setRefs = React.useCallback((node: HTMLDivElement | null) => {
+    internalRef.current = node
+    if (typeof ref === "function") ref(node)
+    else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
+  }, [ref])
+
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        ref={setRefs}
+        className={cn(
+          // ── Mobile: bottom-sheet style ──
+          "fixed inset-x-0 bottom-0 z-50 grid w-full gap-4 border-t bg-background p-6 elevation-4 surface-active surface-focus-shift duration-200 rounded-t-2xl max-h-[85dvh] overflow-y-auto",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full",
+          // ── Desktop (sm+): centered dialog ──
+          "sm:inset-auto sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:border-t sm:max-h-none sm:overflow-visible",
+          "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
+          "sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]",
+          "sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
+          "sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:slide-out-to-bottom-0",
+          className
+        )}
+        {...props}
       >
-        <X className="h-4 w-4" />
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-))
+        {/* Drag handle for mobile bottom sheet — functional swipe-to-dismiss */}
+        <SheetDragHandle contentRef={internalRef} />
+        {children}
+        <DialogPrimitive.Close
+          className="absolute right-4 top-4 rounded-sm surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          aria-label="Close dialog"
+        >
+          <X className="h-4 w-4" />
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

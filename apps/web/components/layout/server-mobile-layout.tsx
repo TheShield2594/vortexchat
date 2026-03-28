@@ -118,11 +118,31 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
 
   // Swipe right to navigate back to the channel list on mobile
   const navigateBack = useCallback((): void => {
+    // Don't navigate back if the member list is open (let it handle the swipe)
+    if (mobileMemberListOpen) return
     router.push(`/channels/${serverId}`)
-  }, [router, serverId])
+  }, [router, serverId, mobileMemberListOpen])
+
+  // Swipe left to reveal the member list
+  const revealMemberList = useCallback((): void => {
+    // Don't reveal member list on special pages (settings/moderation/events)
+    if (isSpecialPage) return
+    if (!mobileMemberListOpen) {
+      setMobileMemberListOpen(true)
+      setMemberListOpen(true)
+    }
+  }, [mobileMemberListOpen, setMemberListOpen, isSpecialPage])
+
   const swipeHandlers = useSwipe({
     onSwipeRight: navigateBack,
+    onSwipeLeft: revealMemberList,
     peekElementSelector: "[data-mobile-sidebar-peek]",
+  })
+
+  // Swipe right on the member list to dismiss it
+  const memberListSwipeHandlers = useSwipe({
+    onSwipeRight: dismissMobileMemberList,
+    minDistance: 72,
   })
 
   // ========== DESKTOP LAYOUT — all panels inline ==========
@@ -273,7 +293,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                 onClick={dismissMobileMemberList}
                 aria-hidden="true"
               />
-              <div className="absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl" style={{ background: "var(--theme-bg-secondary)" }}>
+              <div className="absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl" style={{ background: "var(--theme-bg-secondary)" }} {...memberListSwipeHandlers}>
                 {memberList}
               </div>
             </>

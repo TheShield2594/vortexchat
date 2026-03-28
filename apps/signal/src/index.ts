@@ -1,4 +1,4 @@
-import { createServer } from "http"
+import { createServer, type IncomingMessage, type ServerResponse } from "http"
 import { Server, type Socket } from "socket.io"
 import { createAdapter } from "@socket.io/redis-adapter"
 import { createClient } from "@supabase/supabase-js"
@@ -112,7 +112,7 @@ if (!supabase) {
 
 // ─── HTTP server + Socket.IO ──────────────────────────────────────────────────
 
-const httpServer = createServer(async (req, res) => {
+const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ status: "ok", rooms: await rooms.getStats() }))
@@ -608,7 +608,7 @@ io.on("connection", (socket: Socket) => {
   })
 
   // ─── Disconnect ─────────────────────────────────────────────────────────────
-  socket.on("disconnect", async (reason) => {
+  socket.on("disconnect", async (reason: string) => {
     logger.info({ socketId: socket.id, reason }, "client disconnected")
     socketLimiter.remove(socket.id)
     sessionValidationCache.delete(socket.id)

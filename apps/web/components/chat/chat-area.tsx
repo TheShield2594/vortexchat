@@ -39,6 +39,7 @@ import {
 import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/reply-navigation"
 import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh"
 import { ConnectionBanner } from "@/components/connection-banner"
 import { VoiceRecapCard } from "@/components/voice/voice-recap-card"
 
@@ -671,6 +672,51 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     onReachedBottom,
   })
 
+  // Pull-to-refresh: resync latest messages from the server (mobile only)
+  const handlePullRefresh = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch(`/api/messages?channelId=${channel.id}&limit=50`)
+      if (!res.ok) return
+      const latest = (await res.json()) as MessageWithAuthor[]
+      if (!Array.isArray(latest) || latest.length === 0) return
+      setMessages((prev) => {
+        // Build maps: by id for all messages, by client_nonce for optimistic ones
+        const byId = new Map(prev.map((m) => [m.id, m]))
+        const byNonce = new Map<string, MessageWithAuthor>()
+        for (const m of prev) {
+          if (m.client_nonce) byNonce.set(m.client_nonce, m)
+        }
+
+        // Merge latest: replace optimistic entries that share a client_nonce
+        for (const incoming of latest) {
+          byId.set(incoming.id, incoming)
+          if (incoming.client_nonce && byNonce.has(incoming.client_nonce)) {
+            const optimistic = byNonce.get(incoming.client_nonce)!
+            if (optimistic.id !== incoming.id) {
+              byId.delete(optimistic.id)
+            }
+          }
+        }
+
+        const merged = sortMessagesChronologically([...byId.values()])
+        return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
+      })
+    } catch (e) {
+      console.error("pull-to-refresh failed", {
+        action: "refreshMessages",
+        channelId: channel.id,
+        route: `/channels/${serverId}/${channel.id}`,
+        currentUserId: currentUser?.id,
+        error: e instanceof Error ? e.message : String(e),
+      })
+    }
+  }, [channel.id, serverId, currentUser?.id])
+
+  const { handlers: pullToRefreshHandlers, pullDistance, refreshing: pullRefreshing, threshold: pullThreshold } = usePullToRefresh({
+    onRefresh: handlePullRefresh,
+    isAtTop: isAtBottom, // column-reverse: scrollTop=0 is visual top (newest messages)
+  })
+
   useEffect(() => {
     const savedAnchor = typeof window === "undefined" ? null : window.sessionStorage.getItem(unreadAnchorStorageKey)
     if (savedAnchor && initialMessages.some((message) => message.id === savedAnchor)) {
@@ -733,13 +779,19 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           const merged = sortMessagesChronologically([...prev, ...fresh])
           return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
         })
-      } catch {
-        // best-effort resync
+      } catch (e) {
+        console.error("visibilitychange resync failed", {
+          action: "refreshMessages",
+          channelId: channel.id,
+          route: `/channels/${serverId}/${channel.id}`,
+          currentUserId: currentUser?.id,
+          error: e instanceof Error ? e.message : String(e),
+        })
       }
     }
     document.addEventListener("visibilitychange", onVisibility)
     return () => document.removeEventListener("visibilitychange", onVisibility)
-  }, [channel.id])
+  }, [channel.id, serverId, currentUser?.id])
 
   useEffect(() => {
     if (!isOnline) return
@@ -1606,8 +1658,28 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           role="log"
           aria-label="Message history"
           aria-relevant="additions"
-          style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none" }}
+          style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none", overscrollBehaviorY: "contain" }}
+          {...(isMobile ? pullToRefreshHandlers : {})}
         >
+          {/* Pull-to-refresh indicator (mobile only, column-reverse so this renders at visual top) */}
+          {isMobile && (pullDistance > 0 || pullRefreshing) && (
+            <div
+              className="flex items-center justify-center py-2 select-none"
+              style={{ minHeight: `${Math.max(pullDistance, pullRefreshing ? 40 : 0)}px` }}
+              aria-live="polite"
+            >
+              <span
+                className="text-xs"
+                style={{
+                  color: "var(--theme-text-muted)",
+                  transform: pullRefreshing ? "none" : `rotate(${Math.min(pullDistance * 3, 360)}deg)`,
+                  transition: pullRefreshing ? "transform 0s" : "none",
+                }}
+              >
+                {pullRefreshing ? "Refreshing…" : pullDistance >= pullThreshold ? "Release to refresh" : "↓"}
+              </span>
+            </div>
+          )}
           {/* Inner wrapper — rendered in normal (top-to-bottom) order inside
               the column-reverse parent.  Because the parent is reversed, the
               *end* of this div (newest messages) sits at the visual bottom. */}
