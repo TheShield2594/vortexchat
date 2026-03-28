@@ -233,7 +233,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
                   <Clock className="w-4 h-4" style={{ color: 'var(--theme-text-muted)' }} />
                   <div>
                     <Label className="text-sm font-medium text-white cursor-pointer" htmlFor="temporary-toggle">
-                      Temporary Channel
+                      Ephemeral Channel
                     </Label>
                     <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
                       Auto-delete this channel after a set time

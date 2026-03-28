@@ -63,7 +63,7 @@ export function VoiceSummaryCard({ sessionId, summaryPending, className }: Voice
       >
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4" style={{ color: "var(--theme-accent)" }} />
-          <span className="text-sm font-semibold text-white">Call Summary</span>
+          <span className="text-sm font-semibold text-white">Vortex Recap</span>
           {loading && <Loader2 className="w-3 h-3 animate-spin" style={{ color: "var(--theme-text-secondary)" }} />}
         </div>
         {expanded ? (

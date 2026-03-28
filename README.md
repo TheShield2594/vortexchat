@@ -35,7 +35,7 @@
 
 - **Servers** — create/join with invite codes, icon uploads
 - **Server discovery** — public server directory
-- **Server templates** — import/export reusable server configurations (Gaming, Study, Startup, Creator starters)
+- **Blueprints** — import/export reusable server configurations (Gaming, Study, Startup, Creator starters)
 - **Channel types** — text, voice, forum, stage, announcement, media, categories
 - **Roles** — 21-bit bitmask permission system (Discord-style), free color picker
 - **Webhooks** — incoming webhook support per channel
@@ -46,7 +46,7 @@
 - **Voice activity detection** — speaking indicators via hark.js
 - **Screen share** — `getDisplayMedia`, streamed over WebRTC/LiveKit
 - **DM calls** — voice calls in direct messages
-- **Voice intelligence** — AI-powered transcripts and summaries
+- **Vortex Recap** — AI-powered transcripts and summaries
 
 ### Social
 
@@ -61,8 +61,8 @@
 - **Auth** — email/password + magic link via Supabase Auth
 - **Push notifications** — Web Push via VAPID
 - **PWA** — installable progressive web app with offline support
-- **Moderation** — reports, appeals, moderation timeline, member timeouts
-- **Admin panel** — activity timeline, permission simulator
+- **Moderation** — reports, appeals, Mod Ledger, member timeouts
+- **Admin panel** — activity timeline, Permission Sandbox
 - **Rate limiting** — Upstash Redis-backed rate limiting on API routes
 - **Error monitoring** — Sentry integration
 - **Offline / outbox** — message consistency with reconnect replay ([docs](./docs/message-consistency-model.md))

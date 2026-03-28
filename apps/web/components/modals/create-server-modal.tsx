@@ -22,7 +22,7 @@ interface Props {
   onClose: () => void
 }
 
-/** Dialog for creating a new server (with icon upload), joining via invite code, or applying a server template. */
+/** Dialog for creating a new server (with icon upload), joining via invite code, or applying a server blueprint. */
 export function CreateServerModal({ open, onClose }: Props) {
   const router = useRouter()
   const { toast } = useToast()
@@ -169,12 +169,18 @@ export function CreateServerModal({ open, onClose }: Props) {
       <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)', maxWidth: '440px' }}>
         <DialogHeader>
           <DialogTitle className="text-white text-center text-xl">
-            {mode === "create" ? "Customize Your Server" : "Join a Server"}
+            {mode === "create"
+              ? "Customize Your Server"
+              : mode === "join"
+                ? "Join a Server"
+                : "Import a Blueprint"}
           </DialogTitle>
           <p className="text-center text-sm" style={{ color: 'var(--theme-text-secondary)' }}>
             {mode === "create"
               ? "Give your server a personality with a name and icon."
-              : "Enter an invite code to join an existing server."}
+              : mode === "join"
+                ? "Enter an invite code to join an existing server."
+                : "Start from a reusable server blueprint."}
           </p>
         </DialogHeader>
 
@@ -198,7 +204,7 @@ export function CreateServerModal({ open, onClose }: Props) {
             className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${mode === "template" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
             style={{ background: mode === "template" ? 'var(--theme-accent)' : 'var(--theme-bg-secondary)' }}
           >
-            Import Template
+            Import Blueprint
           </button>
         </div>
 
@@ -280,7 +286,7 @@ export function CreateServerModal({ open, onClose }: Props) {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Template Powered Server"
+                placeholder="Blueprint Powered Server"
                 style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />
             </div>
