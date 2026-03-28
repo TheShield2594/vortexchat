@@ -65,7 +65,7 @@ export function MobileBottomTabBar() {
                 {/* Active pill indicator */}
                 {active && (
                   <span
-                    className="absolute top-1.5 w-5 h-[3px] rounded-full motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-75 motion-safe:duration-200"
+                    className="absolute top-1.5 left-1/2 -translate-x-1/2 w-5 h-[3px] rounded-full motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-75 motion-safe:duration-200"
                     style={{ background: "var(--theme-accent)" }}
                   />
                 )}

@@ -680,14 +680,33 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       const latest = (await res.json()) as MessageWithAuthor[]
       if (!Array.isArray(latest) || latest.length === 0) return
       setMessages((prev) => {
-        const known = new Set(prev.map((m) => m.id))
-        const fresh = latest.filter((m) => !known.has(m.id))
-        if (fresh.length === 0) return prev
-        const merged = sortMessagesChronologically([...prev, ...fresh])
+        // Build maps: by id for all messages, by client_nonce for optimistic ones
+        const byId = new Map(prev.map((m) => [m.id, m]))
+        const byNonce = new Map<string, MessageWithAuthor>()
+        for (const m of prev) {
+          if (m.client_nonce) byNonce.set(m.client_nonce, m)
+        }
+
+        // Merge latest: replace optimistic entries that share a client_nonce
+        for (const incoming of latest) {
+          byId.set(incoming.id, incoming)
+          if (incoming.client_nonce && byNonce.has(incoming.client_nonce)) {
+            const optimistic = byNonce.get(incoming.client_nonce)!
+            if (optimistic.id !== incoming.id) {
+              byId.delete(optimistic.id)
+            }
+          }
+        }
+
+        const merged = sortMessagesChronologically([...byId.values()])
         return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
       })
-    } catch {
-      // best-effort refresh
+    } catch (e) {
+      console.error("pull-to-refresh failed", {
+        action: "refreshMessages",
+        channelId: channel.id,
+        error: e instanceof Error ? e.message : String(e),
+      })
     }
   }, [channel.id])
 
@@ -758,8 +777,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           const merged = sortMessagesChronologically([...prev, ...fresh])
           return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
         })
-      } catch {
-        // best-effort resync
+      } catch (e) {
+        console.error("visibilitychange resync failed", {
+          action: "refreshMessages",
+          channelId: channel.id,
+          error: e instanceof Error ? e.message : String(e),
+        })
       }
     }
     document.addEventListener("visibilitychange", onVisibility)

@@ -56,7 +56,13 @@ export function usePullToRefresh({ onRefresh, threshold = PULL_REFRESH_THRESHOLD
 
   const onTouchStart = useCallback((e: React.TouchEvent): void => {
     if (refreshingRef.current) return
-    startYRef.current = e.touches[0].clientY
+    // Only arm the pull gesture if we're at the top
+    if (isAtTopRef.current) {
+      startYRef.current = e.touches[0].clientY
+      pullingRef.current = false
+      setPullDistance(0)
+      pullDistanceRef.current = 0
+    }
   }, [])
 
   const onTouchMove = useCallback((e: React.TouchEvent): void => {
@@ -78,11 +84,17 @@ export function usePullToRefresh({ onRefresh, threshold = PULL_REFRESH_THRESHOLD
       setRefreshing(true)
       refreshingRef.current = true
       setPullDistance(threshold * 0.5)
-      onRefresh().finally(() => {
-        setRefreshing(false)
-        refreshingRef.current = false
-        reset()
-      })
+      ;(async () => {
+        try {
+          await onRefresh()
+        } catch (error) {
+          console.error("Pull-to-refresh onRefresh error:", error)
+        } finally {
+          setRefreshing(false)
+          refreshingRef.current = false
+          reset()
+        }
+      })()
     } else {
       reset()
     }

@@ -118,16 +118,20 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
 
   // Swipe right to navigate back to the channel list on mobile
   const navigateBack = useCallback((): void => {
+    // Don't navigate back if the member list is open (let it handle the swipe)
+    if (mobileMemberListOpen) return
     router.push(`/channels/${serverId}`)
-  }, [router, serverId])
+  }, [router, serverId, mobileMemberListOpen])
 
   // Swipe left to reveal the member list
   const revealMemberList = useCallback((): void => {
+    // Don't reveal member list on special pages (settings/moderation/events)
+    if (isSpecialPage) return
     if (!mobileMemberListOpen) {
       setMobileMemberListOpen(true)
       setMemberListOpen(true)
     }
-  }, [mobileMemberListOpen, setMemberListOpen])
+  }, [mobileMemberListOpen, setMemberListOpen, isSpecialPage])
 
   const swipeHandlers = useSwipe({
     onSwipeRight: navigateBack,
