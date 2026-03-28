@@ -3,7 +3,13 @@
  *
  * Manage the server's recommended theme setting.
  * GET: returns the current recommended theme.
- * PATCH: updates the recommended theme (requires MANAGE_CHANNELS or ADMINISTRATOR).
+ * PATCH: updates the recommended theme (requires ADMINISTRATOR).
+ *
+ * Storage: Uses the `description` field as a source for an embedded JSON
+ * metadata block `<!-- vortex:{"recommended_theme":"..."} -->` appended
+ * after the human-readable description. This avoids requiring a schema
+ * migration while the feature is experimental. A dedicated column should
+ * be added once the feature is stable.
  */
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -13,6 +19,28 @@ const VALID_THEMES = [
   "twilight", "midnight-neon", "synthwave", "carbon", "oled-black",
   "frost", "clarity", "velvet-dusk", "terminal", "sakura-blossom", "frosthearth",
 ]
+
+const META_REGEX = /<!-- vortex:(.*?) -->/
+
+function extractMeta(description: string | null): Record<string, unknown> {
+  if (!description) return {}
+  const match = META_REGEX.exec(description)
+  if (!match?.[1]) return {}
+  try {
+    return JSON.parse(match[1]) as Record<string, unknown>
+  } catch {
+    return {}
+  }
+}
+
+function embedMeta(description: string | null, meta: Record<string, unknown>): string {
+  const base = (description ?? "").replace(META_REGEX, "").trimEnd()
+  const metaStr = JSON.stringify(meta)
+  // Only append if there's something to store
+  const hasValues = Object.values(meta).some((v) => v !== null && v !== undefined)
+  if (!hasValues) return base
+  return `${base}\n<!-- vortex:${metaStr} -->`
+}
 
 export async function GET(
   _req: Request,
@@ -25,18 +53,18 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    // Any member can read the recommended theme
     const { isMember } = await getMemberPermissions(supabase, serverId, user.id)
     if (!isMember) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { data: server } = await supabase
       .from("servers")
-      .select("recommended_theme")
+      .select("description")
       .eq("id", serverId)
       .single()
 
+    const meta = extractMeta(server?.description ?? null)
     return NextResponse.json({
-      recommended_theme: server?.recommended_theme ?? null,
+      recommended_theme: (typeof meta.recommended_theme === "string" ? meta.recommended_theme : null),
     })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -64,9 +92,20 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid theme" }, { status: 400 })
     }
 
+    // Read current description to preserve existing content
+    const { data: server } = await supabase
+      .from("servers")
+      .select("description")
+      .eq("id", serverId)
+      .single()
+
+    const meta = extractMeta(server?.description ?? null)
+    meta.recommended_theme = theme || null
+    const newDescription = embedMeta(server?.description ?? null, meta)
+
     const { error: updateError } = await supabase
       .from("servers")
-      .update({ recommended_theme: theme || null })
+      .update({ description: newDescription })
       .eq("id", serverId)
 
     if (updateError) {

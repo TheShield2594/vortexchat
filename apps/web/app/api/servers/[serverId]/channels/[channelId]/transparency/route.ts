@@ -11,6 +11,14 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions } from "@/lib/permissions"
 import { PERMISSIONS } from "@vortex/shared"
 
+interface AuditEntry {
+  id: string
+  action: string
+  actor_id: string | null
+  created_at: string
+  changes: Record<string, unknown> | null
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ serverId: string; channelId: string }> }
@@ -48,17 +56,17 @@ export async function GET(
       return NextResponse.json({ error: "Failed to load roles" }, { status: 500 })
     }
 
-    // Fetch channel permission overwrites
-    const { data: overwrites } = await supabase
-      .from("channel_overwrites")
-      .select("role_id, allow, deny")
+    // Fetch channel permission overrides (correct table: channel_permissions)
+    const { data: permOverrides } = await supabase
+      .from("channel_permissions")
+      .select("role_id, allow_permissions, deny_permissions")
       .eq("channel_id", channelId)
 
     // Compute role visibility
     const overwriteMap = new Map<string, { allow: number; deny: number }>()
-    if (overwrites) {
-      for (const ow of overwrites) {
-        overwriteMap.set(ow.role_id, { allow: ow.allow ?? 0, deny: ow.deny ?? 0 })
+    if (permOverrides) {
+      for (const ow of permOverrides) {
+        overwriteMap.set(ow.role_id, { allow: ow.allow_permissions, deny: ow.deny_permissions })
       }
     }
 
@@ -85,20 +93,19 @@ export async function GET(
       }
     }
 
-    // Fetch recent moderation actions in this channel (last 7 days)
+    // Fetch recent moderation actions (last 7 days) — audit_logs table, filter by changes
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: auditEntries } = await supabase
-      .from("audit_log")
-      .select("id, action, actor_id, created_at, reason, metadata")
+      .from("audit_logs")
+      .select("id, action, actor_id, created_at, changes")
       .eq("server_id", serverId)
       .gte("created_at", sevenDaysAgo)
       .order("created_at", { ascending: false })
-      .limit(20)
+      .limit(50)
 
-    // Filter to entries relevant to this channel (where metadata contains channelId)
-    interface AuditEntry { id: string; action: string; actor_id: string | null; created_at: string; reason: string | null; metadata: Record<string, unknown> | null }
+    // Filter to entries relevant to this channel (where changes JSON contains channelId)
     const channelActions = ((auditEntries ?? []) as AuditEntry[]).filter((entry: AuditEntry) => {
-      const meta = entry.metadata as Record<string, unknown> | null
+      const meta = entry.changes as Record<string, unknown> | null
       return meta?.channel_id === channelId || meta?.channelId === channelId
     }).slice(0, 10)
 
@@ -122,7 +129,7 @@ export async function GET(
       action: entry.action,
       actor_name: entry.actor_id ? (actorMap.get(entry.actor_id) ?? "Unknown") : "System",
       created_at: entry.created_at,
-      reason: entry.reason ?? null,
+      reason: null,
     }))
 
     return NextResponse.json({
