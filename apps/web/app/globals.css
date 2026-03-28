@@ -122,6 +122,11 @@
     input[type="search"],
     input[type="tel"],
     input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
     textarea,
     select {
       font-size: 16px !important;
