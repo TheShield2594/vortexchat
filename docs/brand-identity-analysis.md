@@ -652,20 +652,20 @@ Items still outstanding, organized by priority. Check off each item as it is com
 
 ### P2 — Medium Impact, Plan Soon
 
-- [ ] **Position against the broader competitive landscape** (Gap 1)
-  - [ ] Create a "How Vortex Compares" page in docs or at a public URL (not the landing page)
-  - [ ] Cover Revolt, Matrix/Element, Rocket.Chat, Guilded — not just Discord
-  - [ ] Use the comparison table from Gap 1 as a starting point
+- [x] **Position against the broader competitive landscape** (Gap 1)
+  - [x] Create a "How Vortex Compares" page in docs or at a public URL (not the landing page)
+  - [x] Cover Revolt, Matrix/Element, Rocket.Chat, Guilded — not just Discord
+  - [x] Use the comparison table from Gap 1 as a starting point
 
-- [ ] **Make the roadmap public** (Gap 3)
-  - [ ] Publish the roadmap via GitHub Projects or a `/roadmap` page
-  - [ ] Allow community members to vote or comment on features
-  - [ ] Reinforces the "nothing to hide" thesis with action, not just words
+- [x] **Make the roadmap public** (Gap 3)
+  - [x] Publish the roadmap via GitHub Projects or a `/roadmap` page
+  - [x] Allow community members to vote or comment on features
+  - [x] Reinforces the "nothing to hide" thesis with action, not just words
 
-- [ ] **Add real social proof from users** (Gap 4)
-  - [ ] Collect testimonials from real communities using VortexChat
-  - [ ] Replace hypothetical use-case quotes with genuine ones
-  - [ ] Consider a "Built with Vortex" showcase page
+- [x] **Add real social proof from users** (Gap 4)
+  - [x] Collect testimonials from real communities using VortexChat
+  - [x] Replace hypothetical use-case quotes with genuine ones
+  - [x] Consider a "Built with Vortex" showcase page
   - [ ] Add live stats (active servers, messages sent) once numbers are impressive enough
 
 ### P3 — Low Priority, Do During Refactor Cycles

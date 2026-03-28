@@ -704,6 +704,9 @@ export default async function HomePage() {
                     { label: "Documentation", href: "https://github.com/TheShield2594/vortexchat/wiki", external: true },
                     { label: "Changelog", href: "https://github.com/TheShield2594/vortexchat/releases", external: true },
                     { label: "Contributing", href: "https://github.com/TheShield2594/vortexchat/blob/main/CONTRIBUTING.md", external: true },
+                    { label: "Roadmap", href: "/roadmap", external: false },
+                    { label: "Compare", href: "/compare", external: false },
+                    { label: "Showcase", href: "/showcase", external: false },
                   ].map(({ label, href, external }) => (
                     <li key={label}>
                       <a
