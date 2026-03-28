@@ -705,6 +705,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       console.error("pull-to-refresh failed", {
         action: "refreshMessages",
         channelId: channel.id,
+        route: channel?.route,
+        currentUserId: currentUser?.id,
         error: e instanceof Error ? e.message : String(e),
       })
     }
@@ -781,6 +783,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         console.error("visibilitychange resync failed", {
           action: "refreshMessages",
           channelId: channel.id,
+          route: channel?.route,
+          currentUserId: currentUser?.id,
           error: e instanceof Error ? e.message : String(e),
         })
       }
