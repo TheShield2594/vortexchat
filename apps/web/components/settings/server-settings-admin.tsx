@@ -11,7 +11,7 @@ const TemplateManager = lazy(() => import("@/components/modals/template-manager"
 const AppsTab = lazy(() => import("@/components/settings/apps-tab").then((m) => ({ default: m.AppsTab })))
 const ReportsTab = lazy(() => import("@/components/settings/reports-tab").then((m) => ({ default: m.ReportsTab })))
 const AdminActivityTimeline = lazy(() => import("@/components/admin/admin-activity-timeline").then((m) => ({ default: m.AdminActivityTimeline })))
-const PermissionSimulator = lazy(() => import("@/components/admin/permission-simulator").then((m) => ({ default: m.PermissionSimulator })))
+const PermissionSandbox = lazy(() => import("@/components/admin/permission-sandbox").then((m) => ({ default: m.PermissionSandbox })))
 const AuditLogPage = lazy(() => import("@/components/admin/audit-log-page").then((m) => ({ default: m.AuditLogPage })))
 const CommunityHealthDashboard = lazy(() => import("@/components/admin/community-health-dashboard").then((m) => ({ default: m.CommunityHealthDashboard })))
 const ServerRecommendedTheme = lazy(() => import("@/components/settings/theme-identity-section").then((m) => ({ default: m.ServerRecommendedTheme })))
@@ -81,7 +81,7 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
                 <Activity className="mr-1.5 h-3.5 w-3.5" />
                 Activity Log
               </TabsTrigger>
-              <TabsTrigger value="permission-simulator" className="w-full justify-start">
+              <TabsTrigger value="permission-sandbox" className="w-full justify-start">
                 <Eye className="mr-1.5 h-3.5 w-3.5" />
                 Perm Sandbox
               </TabsTrigger>
@@ -134,8 +134,8 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               <TabsContent value="admin-activity" className="mt-0">
                 <AdminActivityTimeline serverId={serverId} />
               </TabsContent>
-              <TabsContent value="permission-simulator" className="mt-0">
-                <PermissionSimulator serverId={serverId} channels={channels} />
+              <TabsContent value="permission-sandbox" className="mt-0">
+                <PermissionSandbox serverId={serverId} channels={channels} />
               </TabsContent>
               <TabsContent value="community-health" className="mt-0">
                 <CommunityHealthDashboard serverId={serverId} />

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
 import { ChevronDown, ChevronRight, Download, Filter, Loader2, ShieldAlert, User } from "lucide-react"
-import { buildDiffRows, type TimelineActionType } from "@/lib/moderation-timeline"
+import { buildDiffRows, type TimelineActionType } from "@/lib/mod-ledger"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -31,7 +31,7 @@ type TimelinePayload = {
 
 const ACTION_TYPE_OPTIONS: TimelineActionType[] = ["ban", "kick", "timeout", "message_action", "automod", "appeal", "role_change", "settings", "other"]
 
-export function ModerationTimeline({ serverId }: { serverId: string }) {
+export function ModLedger({ serverId }: { serverId: string }) {
   const [events, setEvents] = useState<TimelineEvent[]>([])
   const [incidents, setIncidents] = useState<TimelinePayload["incidents"]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -93,7 +93,7 @@ export function ModerationTimeline({ serverId }: { serverId: string }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `moderation-timeline.${formatType}`
+    a.download = `mod-ledger.${formatType}`
     document.body.appendChild(a)
     a.click()
     a.remove()

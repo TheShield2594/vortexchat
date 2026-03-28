@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import type { ConsentRequest } from "@/types/voice-intelligence"
+import type { ConsentRequest } from "@/types/vortex-recap"
 
 type Params = { params: Promise<{ id: string }> }
 

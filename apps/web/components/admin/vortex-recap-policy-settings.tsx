@@ -6,9 +6,9 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Loader2, Save } from "lucide-react"
-import type { EffectiveVoicePolicy } from "@/types/voice-intelligence"
+import type { EffectiveVoicePolicy } from "@/types/vortex-recap"
 
-interface VoiceIntelligencePolicySettingsProps {
+interface VortexRecapPolicySettingsProps {
   serverId: string
 }
 
@@ -18,7 +18,7 @@ const RETENTION_PRESETS = [
   { label: "Extended (90 days)", value: 90 },
 ]
 
-export function VoiceIntelligencePolicySettings({ serverId }: VoiceIntelligencePolicySettingsProps) {
+export function VortexRecapPolicySettings({ serverId }: VortexRecapPolicySettingsProps) {
   const [policy, setPolicy] = useState<EffectiveVoicePolicy | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

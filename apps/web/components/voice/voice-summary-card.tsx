@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react"
 import { FileText, Loader2, ChevronDown, ChevronUp } from "lucide-react"
-import type { VoiceCallSummaryRow } from "@/types/voice-intelligence"
+import type { VoiceCallSummaryRow } from "@/types/vortex-recap"
 
 interface VoiceSummaryCardProps {
   sessionId: string

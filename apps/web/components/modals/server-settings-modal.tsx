@@ -18,7 +18,7 @@ import { TemplateManager } from "@/components/modals/template-manager"
 import { AppsTab } from "@/components/settings/apps-tab"
 import { ReportsTab } from "@/components/settings/reports-tab"
 import { AdminActivityTimeline } from "@/components/admin/admin-activity-timeline"
-import { PermissionSimulator } from "@/components/admin/permission-simulator"
+import { PermissionSandbox } from "@/components/admin/permission-sandbox"
 
 interface Channel {
   id: string
@@ -227,9 +227,9 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                 <Activity className="mr-1.5 h-3.5 w-3.5" />
                 Activity Log
               </TabsTrigger>
-              <TabsTrigger value="permission-simulator" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+              <TabsTrigger value="permission-sandbox" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Perm Simulator
+                Perm Sandbox
               </TabsTrigger>
             </TabsList>
           </div>
@@ -422,8 +422,8 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
               <AdminActivityTimeline serverId={server.id} />
             </TabsContent>
 
-            <TabsContent value="permission-simulator" className="mt-0">
-              <PermissionSimulator serverId={server.id} channels={channels} />
+            <TabsContent value="permission-sandbox" className="mt-0">
+              <PermissionSandbox serverId={server.id} channels={channels} />
             </TabsContent>
 
           </div>

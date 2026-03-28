@@ -82,7 +82,7 @@ function PermBadge({ perm, variant }: { perm: string; variant: "granted" | "deni
 // Component
 // ---------------------------------------------------------------------------
 
-export function PermissionSimulator({ serverId, roles: rolesProp, channels: channelsProp }: Props) {
+export function PermissionSandbox({ serverId, roles: rolesProp, channels: channelsProp }: Props) {
   const [roles, setRoles] = useState<Role[]>(rolesProp ?? [])
   const [channels, setChannels] = useState<Channel[]>(channelsProp ?? [])
   const [members, setMembers] = useState<Member[]>([])

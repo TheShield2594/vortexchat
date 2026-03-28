@@ -6,8 +6,8 @@ import {
   computeExpiresAt,
   writeAuditEvent,
   SUMMARY_MIN_SEGMENT_COUNT,
-} from "@/lib/voice/voice-intelligence-service"
-import type { EndSessionRequest } from "@/types/voice-intelligence"
+} from "@/lib/voice/vortex-recap-service"
+import type { EndSessionRequest } from "@/types/vortex-recap"
 
 type Params = { params: Promise<{ id: string }> }
 

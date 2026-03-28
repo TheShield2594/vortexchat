@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import type { StartSessionRequest } from "@/types/voice-intelligence"
+import type { StartSessionRequest } from "@/types/vortex-recap"
 
 /**
  * POST /api/voice/sessions

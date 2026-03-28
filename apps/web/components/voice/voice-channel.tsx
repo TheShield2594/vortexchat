@@ -24,8 +24,8 @@ import {
 } from "@/lib/voice/audio-settings"
 import { useVoiceAudioStore } from "@/lib/stores/voice-audio-store"
 import { useShallow } from "zustand/react/shallow"
-import { useVoiceIntelligence } from "@/lib/voice/use-voice-intelligence"
-import { VoiceIntelligenceIndicator } from "@/components/voice/voice-intelligence-indicator"
+import { useVortexRecap } from "@/lib/voice/use-vortex-recap"
+import { VortexRecapIndicator } from "@/components/voice/vortex-recap-indicator"
 import { VoiceConsentModal } from "@/components/voice/voice-consent-modal"
 import { VoiceTranscriptViewer } from "@/components/voice/voice-transcript-viewer"
 import { VoiceStatsOverlay, VoiceStatsToggle } from "@/components/voice/voice-stats-overlay"
@@ -215,7 +215,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
     startSession: viStartSession,
     setConsent: viSetConsent,
     endSession: viEndSession,
-  } = useVoiceIntelligence(currentUserId)
+  } = useVortexRecap(currentUserId)
 
   const [showConsentModal, setShowConsentModal] = useState(false)
 
@@ -448,7 +448,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
             <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{sessionState.detail}</span>
           </div>
           {/* Voice intelligence status badges */}
-          <VoiceIntelligenceIndicator
+          <VortexRecapIndicator
             transcriptionStatus={viTranscriptionStatus}
             summaryPending={viSummaryPending}
             participantConsents={viParticipantConsents}

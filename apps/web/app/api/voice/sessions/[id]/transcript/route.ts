@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { computeExpiresAt } from "@/lib/voice/voice-intelligence-service"
+import { computeExpiresAt } from "@/lib/voice/vortex-recap-service"
 
 type Params = { params: Promise<{ id: string }> }
 

@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Mic, Clock, Users, FileText, Loader2, ChevronDown, ChevronUp, Copy, Check } from "lucide-react"
-import type { VoiceCallSummaryRow, VoiceSummaryStatus } from "@/types/voice-intelligence"
+import type { VoiceCallSummaryRow, VoiceSummaryStatus } from "@/types/vortex-recap"
 
 interface VoiceRecapCardProps {
   sessionId: string

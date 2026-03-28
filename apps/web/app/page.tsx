@@ -11,6 +11,15 @@ import {
   Github,
   ExternalLink,
   Heart,
+  Bot,
+  PartyPopper,
+  ClipboardCheck,
+  Siren,
+  Bell,
+  Slash,
+  Server,
+  Database,
+  Radio,
 } from "lucide-react"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { VortexLogo } from "@/components/ui/vortex-logo"
@@ -100,6 +109,39 @@ const steps = [
   { num: "02", title: "Test before you break", body: "The Permission Sandbox lets you preview exactly what any role can see and do\u200a—\u200abefore you apply changes to real users." },
   { num: "03", title: "Your voice, transcribed", body: "AI-powered transcripts and summaries for voice channels. Never miss what was said, even if you joined late." },
   { num: "04", title: "Take it with you", body: "Export your data. Self-host the platform. Fork the code. Your community is never locked in." },
+]
+
+const builtInApps = [
+  {
+    icon: Bot,
+    name: "Welcome Bot",
+    description: "Custom greetings, server rules, auto-role assignment, and optional DMs for every new member.",
+    accent: "#3ddc97",
+  },
+  {
+    icon: PartyPopper,
+    name: "Giveaway Bot",
+    description: "Timed giveaways with automatic winner selection, rerolls, and entry tracking.",
+    accent: "#f92aad",
+  },
+  {
+    icon: ClipboardCheck,
+    name: "Standup Assistant",
+    description: "Async daily standups with custom questions, scheduled reminders, and team response views.",
+    accent: "#00e5ff",
+  },
+  {
+    icon: Siren,
+    name: "Incident Bot",
+    description: "Track outages with severity levels, status workflows, timeline updates, and resolution logs.",
+    accent: "#ff6b6b",
+  },
+  {
+    icon: Bell,
+    name: "Reminder Bot",
+    description: "Personal reminders up to 24 hours out. Set it, forget it, get notified on time.",
+    accent: "#ffb84d",
+  },
 ]
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -443,6 +485,76 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── Built-in Apps ─────────────────────────────────────────────── */}
+      <section
+        className="border-t"
+        style={{ borderColor: "rgba(255,255,255,0.06)", background: "var(--theme-bg-secondary)" }}
+        aria-labelledby="apps-heading"
+      >
+        <div className="mx-auto max-w-6xl px-6 py-16 md:px-10">
+          <ScrollReveal>
+            <div className="mb-10 text-center">
+              <p
+                className="mb-2 text-xs font-semibold uppercase tracking-widest font-display"
+                style={{ color: "var(--theme-accent)" }}
+              >
+                No bot setup required
+              </p>
+              <h2
+                id="apps-heading"
+                className="text-2xl font-bold font-display"
+                style={{ color: "var(--theme-text-bright)" }}
+              >
+                Essential tools, built right in.
+              </h2>
+              <p className="mt-3 mx-auto max-w-lg text-sm leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
+                Every VortexChat server ships with 5 verified apps — no hunting for third-party bots
+                that might go offline. Install with one click, configure in settings.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {builtInApps.map(({ icon: Icon, name, description, accent }, i) => (
+              <ScrollReveal key={name} delay={i * 80}>
+                <div
+                  className="h-full rounded-xl border p-5 text-center"
+                  style={{
+                    borderColor: hexToRgba(accent, 0.18),
+                    background: "var(--theme-bg-primary)",
+                  }}
+                >
+                  <div
+                    className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg"
+                    style={{ background: hexToRgba(accent, 0.12) }}
+                  >
+                    <Icon aria-hidden="true" className="h-5 w-5" style={{ color: accent }} />
+                  </div>
+                  <h3 className="mb-1.5 font-semibold text-sm font-display" style={{ color: "var(--theme-text-bright)" }}>
+                    {name}
+                  </h3>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
+                    {description}
+                  </p>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-muted)" }}>
+              <Slash aria-hidden="true" className="h-4 w-4" style={{ color: "var(--theme-accent)" }} />
+              <span>Slash command autocomplete for every app</span>
+            </div>
+            <span className="hidden sm:inline" style={{ color: "rgba(255,255,255,0.15)" }}>|</span>
+            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--theme-text-muted)" }}>
+              <ShieldCheck aria-hidden="true" className="h-4 w-4" style={{ color: "var(--theme-accent)" }} />
+              <span>All verified &amp; permission-scoped</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Social Proof ──────────────────────────────────────────────── */}
       <section
         className="border-t"
@@ -517,10 +629,8 @@ export default async function HomePage() {
           >
             Start Your Community <ArrowRight aria-hidden="true" className="h-4 w-4" />
           </Link>
-          <a
-            href="https://github.com/TheShield2594/vortexchat"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/self-host"
             className="inline-flex items-center gap-2 rounded-lg border px-7 py-3.5 font-semibold transition-colors hover:opacity-80 text-base"
             style={{
               borderColor: "rgba(255,255,255,0.15)",
@@ -528,9 +638,9 @@ export default async function HomePage() {
               color: "var(--theme-text-primary)",
             }}
           >
-            <Github className="h-4 w-4" aria-hidden="true" />
+            <Server className="h-4 w-4" aria-hidden="true" />
             Deploy Your Own
-          </a>
+          </Link>
         </div>
         </ScrollReveal>
       </section>
@@ -568,7 +678,9 @@ export default async function HomePage() {
                     { label: "Sign Up", href: "/register" },
                     { label: "Sign In", href: "/login" },
                     { label: "What\u2019s Different", href: "/#how-it-works-heading" },
+                    { label: "Built-in Apps", href: "/#apps-heading" },
                     { label: "Themes", href: "/#themes-heading" },
+                    { label: "Self-Host", href: "/self-host" },
                   ].map(({ label, href }) => (
                     <li key={label}>
                       <Link
@@ -592,6 +704,9 @@ export default async function HomePage() {
                     { label: "Documentation", href: "https://github.com/TheShield2594/vortexchat/wiki", external: true },
                     { label: "Changelog", href: "https://github.com/TheShield2594/vortexchat/releases", external: true },
                     { label: "Contributing", href: "https://github.com/TheShield2594/vortexchat/blob/main/CONTRIBUTING.md", external: true },
+                    { label: "Roadmap", href: "/roadmap", external: false },
+                    { label: "Compare", href: "/compare", external: false },
+                    { label: "Showcase", href: "/showcase", external: false },
                   ].map(({ label, href, external }) => (
                     <li key={label}>
                       <a

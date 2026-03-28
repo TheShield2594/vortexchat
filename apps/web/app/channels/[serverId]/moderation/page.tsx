@@ -1,8 +1,8 @@
 import { redirect, notFound } from "next/navigation"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { ModerationTimeline } from "@/components/moderation/moderation-timeline"
+import { ModLedger } from "@/components/moderation/mod-ledger"
 
-export default async function ModerationTimelinePage({ params: paramsPromise }: { params: Promise<{ serverId: string }> }) {
+export default async function ModLedgerPage({ params: paramsPromise }: { params: Promise<{ serverId: string }> }) {
   const { serverId } = await paramsPromise
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -19,7 +19,7 @@ export default async function ModerationTimelinePage({ params: paramsPromise }: 
 
   return (
     <main className="flex-1 overflow-y-auto bg-zinc-950">
-      <ModerationTimeline serverId={serverId} />
+      <ModLedger serverId={serverId} />
     </main>
   )
 }
