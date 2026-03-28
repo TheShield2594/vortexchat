@@ -35,12 +35,12 @@ function formatTimeRemaining(expiresAt: string): string {
 export function ChannelIcon({ channel, isVoiceActive }: { channel: ChannelRow; isVoiceActive: boolean }): React.ReactElement {
   const iconStyle = { color: isVoiceActive ? 'var(--theme-success)' : undefined }
   switch (channel.type) {
-    case "voice":        return <Volume2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
-    case "forum":        return <MessageSquare className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
-    case "stage":        return <Mic2 className="w-4 h-4 flex-shrink-0" style={iconStyle} />
-    case "announcement": return <Megaphone className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
-    case "media":        return <Image className="w-4 h-4 flex-shrink-0 tertiary-metadata" />
-    default:             return <Hash className="w-4 h-4 flex-shrink-0" />
+    case "voice":        return <Volume2 className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" style={iconStyle} />
+    case "forum":        return <MessageSquare className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0 tertiary-metadata" />
+    case "stage":        return <Mic2 className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" style={iconStyle} />
+    case "announcement": return <Megaphone className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0 tertiary-metadata" />
+    case "media":        return <Image className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0 tertiary-metadata" />
+    default:             return <Hash className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" />
   }
 }
 
@@ -128,7 +128,7 @@ export function SortableChannelItem({
             }}
             aria-label={`${channel.type} channel ${channel.name}`}
             className={cn(
-              "relative flex items-center gap-2 px-2 py-1.5 rounded w-full text-left motion-interactive motion-press text-sm group/channel cursor-pointer select-none focus-ring touch-manipulation",
+              "relative flex items-center gap-2.5 md:gap-2 px-3 md:px-2 py-2.5 md:py-1.5 rounded w-full text-left motion-interactive motion-press text-base md:text-sm group/channel cursor-pointer select-none focus-ring touch-manipulation",
               isActive || isVoiceActive ? "channel-active channel-sidebar-active-elevated" : "surface-hover text-muted-interactive",
               isUnread && !isActive && "channel-sidebar-unread channel-sidebar-unread-elevated"
             )}

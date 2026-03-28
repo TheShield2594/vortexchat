@@ -46,7 +46,7 @@ export function MobileBottomTabBar() {
       }}
       aria-label="Mobile sections"
     >
-      <ul className="grid grid-cols-4 h-16">
+      <ul className="grid grid-cols-4 h-[60px]">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = isTabActive(href, pathname)
           const showNotifBadge = href === "/channels/notifications" && notificationUnreadCount > 0
@@ -59,14 +59,14 @@ export function MobileBottomTabBar() {
                 href={href}
                 onClick={() => navigator.vibrate?.(10)}
                 aria-current={active ? "page" : undefined}
-                className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-[11px]", active && "font-semibold")}
+                className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-xs", active && "font-semibold")}
                 style={{ color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
               >
                 <span className="relative">
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-6 w-6" />
                   {badgeCount > 0 && (
                     <span
-                      className="absolute -top-1 -right-2 min-w-[16px] h-4 rounded-full flex items-center justify-center text-[10px] font-bold px-0.5"
+                      className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold px-1"
                       style={{ background: "var(--theme-danger)", color: "white" }}
                     >
                       {badgeCount > 99 ? "99+" : badgeCount}

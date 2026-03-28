@@ -154,7 +154,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
         />
         {/* Single mobile channel header — combines navigation + channel actions */}
         <div
-          className="flex items-center gap-1 px-2 py-2 border-b flex-shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-3 border-b flex-shrink-0"
           style={{
             background: "var(--theme-bg-secondary)",
             borderColor: "var(--theme-bg-tertiary)",
@@ -163,14 +163,14 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           <button
             type="button"
             onClick={() => router.push(`/channels/${serverId}`)}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
             style={{ color: "var(--theme-text-secondary)" }}
             aria-label="Back to channels"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <span
-            className="flex-1 text-sm font-semibold truncate min-w-0"
+            className="flex-1 text-base font-semibold truncate min-w-0"
             style={{ color: "var(--theme-text-primary)" }}
           >
             # {channelName}
@@ -181,7 +181,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
             <button
               type="button"
               onClick={() => { dismissMobileMemberList(); setMobilePendingAction("search") }}
-              className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+              className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
               style={{ color: "var(--theme-text-secondary)" }}
               aria-label="Search messages"
             >
@@ -197,7 +197,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
                 return next
               })
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
             style={{ color: mobileMemberListOpen ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
             aria-label="Toggle member list"
           >
@@ -210,7 +210,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
               <button
                 type="button"
                 onClick={() => setMobileOverflowOpen((v) => !v)}
-                className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+                className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
                 style={{ color: "var(--theme-text-secondary)" }}
                 aria-label="More channel actions"
                 aria-expanded={mobileOverflowOpen}
@@ -279,7 +279,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
       <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
         {/* Special pages (settings/moderation/events) */}
         <div
-          className="flex items-center gap-2 px-2 py-2 border-b flex-shrink-0"
+          className="flex items-center gap-2 px-2.5 py-3 border-b flex-shrink-0"
           style={{
             background: "var(--theme-bg-secondary)",
             borderColor: "var(--theme-bg-tertiary)",
@@ -288,13 +288,13 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
           <button
             type="button"
             onClick={() => router.push(`/channels/${serverId}`)}
-            className="w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
+            className="w-9 h-9 flex items-center justify-center rounded-md transition-colors hover:bg-white/10"
             style={{ color: "var(--theme-text-secondary)" }}
             aria-label="Back to server"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <span className="text-sm font-semibold capitalize" style={{ color: "var(--theme-text-primary)" }}>
+          <span className="text-base font-semibold capitalize" style={{ color: "var(--theme-text-primary)" }}>
             {pathParts[2]}
           </span>
         </div>
