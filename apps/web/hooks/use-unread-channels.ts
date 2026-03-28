@@ -3,6 +3,19 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
+function isMessagePayload(
+  obj: unknown
+): obj is { channel_id: string; author_id: string; mentions?: string[] } {
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    "channel_id" in obj &&
+    typeof (obj as Record<string, unknown>).channel_id === "string" &&
+    "author_id" in obj &&
+    typeof (obj as Record<string, unknown>).author_id === "string"
+  )
+}
+
 /**
  * Tracks which channels have unread messages for the current user.
  *
@@ -50,7 +63,12 @@ export function useUnreadChannels(
         return next
       })
       // Upsert in DB
-      await supabase.rpc("mark_channel_read", { p_channel_id: channelId })
+      try {
+        const { error } = await supabase.rpc("mark_channel_read", { p_channel_id: channelId })
+        if (error) console.error("useUnreadChannels: mark_channel_read RPC failed", error.message)
+      } catch (err) {
+        console.error("useUnreadChannels: mark_channel_read failed", err)
+      }
     },
     [supabase]
   )
@@ -60,52 +78,67 @@ export function useUnreadChannels(
     if (channelIds.length === 0) return
     if (initialData) return
 
-    async function loadInitialUnread() {
-      // 1. Fetch this user's read_states for these channels
-      const { data: readStates } = await supabase
-        .from("read_states")
-        .select("channel_id, last_read_at, mention_count")
-        .eq("user_id", currentUserId)
-        .in("channel_id", channelIds)
+    async function loadInitialUnread(): Promise<void> {
+      try {
+        // 1. Fetch this user's read_states for these channels
+        const { data: readStates, error: rsError } = await supabase
+          .from("read_states")
+          .select("channel_id, last_read_at, mention_count")
+          .eq("user_id", currentUserId)
+          .in("channel_id", channelIds)
 
-      const readMap: Record<string, string> = {}
-      const mentionMap: Record<string, number> = {}
-      for (const rs of readStates ?? []) {
-        readMap[rs.channel_id] = rs.last_read_at
-        if (rs.mention_count > 0) mentionMap[rs.channel_id] = rs.mention_count
-      }
+        if (rsError) {
+          console.error("useUnreadChannels: failed to load read_states", rsError.message)
+          return
+        }
 
-      // 2. For channels with a known read state, check if there's a newer message
-      const unread = new Set<string>()
-      const channelsWithReadState = Object.keys(readMap)
+        const readMap: Record<string, string> = {}
+        const mentionMap: Record<string, number> = {}
+        for (const rs of readStates ?? []) {
+          readMap[rs.channel_id] = rs.last_read_at
+          if (rs.mention_count > 0) mentionMap[rs.channel_id] = rs.mention_count
+        }
 
-      if (channelsWithReadState.length > 0) {
-        const { data: latestMessages } = await supabase
-          .from("messages")
-          .select("channel_id, created_at")
-          .in("channel_id", channelsWithReadState)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
+        // 2. For channels with a known read state, check if there's a newer message
+        const unread = new Set<string>()
+        const channelsWithReadState = Object.keys(readMap)
 
-        // Build a map of latest message time per channel (first occurrence per channel since ordered desc)
-        const latestPerChannel: Record<string, string> = {}
-        for (const msg of latestMessages ?? []) {
-          if (!latestPerChannel[msg.channel_id]) {
-            latestPerChannel[msg.channel_id] = msg.created_at
+        if (channelsWithReadState.length > 0) {
+          const { data: latestMessages, error: msgError } = await supabase
+            .from("messages")
+            .select("channel_id, created_at")
+            .in("channel_id", channelsWithReadState)
+            .is("deleted_at", null)
+            .order("created_at", { ascending: false })
+            .limit(Math.max(channelsWithReadState.length * 10, 100))
+
+          if (msgError) {
+            console.error("useUnreadChannels: failed to load latest messages", msgError.message)
+            return
+          }
+
+          // Build a map of latest message time per channel (first occurrence per channel since ordered desc)
+          const latestPerChannel: Record<string, string> = {}
+          for (const msg of latestMessages ?? []) {
+            if (!latestPerChannel[msg.channel_id]) {
+              latestPerChannel[msg.channel_id] = msg.created_at
+            }
+          }
+
+          for (const channelId of channelsWithReadState) {
+            const latest = latestPerChannel[channelId]
+            const lastRead = readMap[channelId]
+            if (latest && latest > lastRead && channelId !== activeChannelRef.current) {
+              unread.add(channelId)
+            }
           }
         }
 
-        for (const channelId of channelsWithReadState) {
-          const latest = latestPerChannel[channelId]
-          const lastRead = readMap[channelId]
-          if (latest && latest > lastRead && channelId !== activeChannelRef.current) {
-            unread.add(channelId)
-          }
-        }
+        setUnreadChannelIds(unread)
+        setMentionCounts(mentionMap)
+      } catch (err) {
+        console.error("useUnreadChannels: loadInitialUnread failed", err)
       }
-
-      setUnreadChannelIds(unread)
-      setMentionCounts(mentionMap)
     }
 
     loadInitialUnread()
@@ -146,7 +179,8 @@ export function useUnreadChannels(
           filter: `channel_id=in.(${channelIds.join(",")})`,
         },
         (payload) => {
-          const msg = payload.new as { channel_id: string; author_id: string }
+          if (!isMessagePayload(payload.new)) return
+          const msg = payload.new
 
           // Don't mark as unread if it's own message or if channel is active
           if (msg.author_id === currentUserId) return
@@ -160,6 +194,15 @@ export function useUnreadChannels(
             onNewUnreadRef.current?.()
             return next
           })
+
+          // Update mention counts from realtime messages
+          const mentions = Array.isArray(msg.mentions) ? msg.mentions : []
+          if (mentions.includes(currentUserId)) {
+            setMentionCounts((prev) => ({
+              ...prev,
+              [msg.channel_id]: (prev[msg.channel_id] ?? 0) + 1,
+            }))
+          }
         }
       )
       .subscribe()
@@ -167,7 +210,7 @@ export function useUnreadChannels(
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [serverId, channelIds.join(","), currentUserId])
+  }, [serverId, [...channelIds].sort().join(","), currentUserId])
 
   return { unreadChannelIds, mentionCounts, markRead }
 }

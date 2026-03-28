@@ -77,6 +77,18 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
       )
       .on(
         "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        (payload: { new: unknown }) => {
+          const updated = payload.new as unknown as Notification
+          setNotifications((prev: Notification[]) => {
+            const next = prev.map((n: Notification) => (n.id === updated.id ? updated : n))
+            setUnreadCount(next.filter((n: Notification) => !n.read).length)
+            return next
+          })
+        }
+      )
+      .on(
+        "postgres_changes",
         { event: "DELETE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload) => {
           const old = payload.old as { id?: string; read?: boolean }
@@ -189,8 +201,11 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     } catch {
       return
     }
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
-    setUnreadCount((c) => Math.max(0, c - 1))
+    setNotifications((prev) => {
+      const wasUnread = prev.find((n) => n.id === id && !n.read)
+      if (wasUnread) setUnreadCount((c) => Math.max(0, c - 1))
+      return prev.map((n) => n.id === id ? { ...n, read: true } : n)
+    })
   }
 
   async function dismiss(id: string): Promise<void> {

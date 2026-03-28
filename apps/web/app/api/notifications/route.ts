@@ -17,11 +17,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const countOnly = searchParams.get("countOnly") === "true"
     if (countOnly) {
-      const { count } = await supabase
+      const { count, error: countError } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("read", false)
+      if (countError) return NextResponse.json({ error: "Failed to fetch unread count" }, { status: 500 })
       return NextResponse.json({ unreadCount: count ?? 0 })
     }
 
@@ -50,8 +51,8 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     const body = await req.json() as Record<string, unknown>
     const { id } = body
 
-    if (id !== undefined && typeof id !== "string") {
-      return NextResponse.json({ error: "id must be a string" }, { status: 400 })
+    if (id !== undefined && (typeof id !== "string" || id.trim() === "")) {
+      return NextResponse.json({ error: "id must be a non-empty string" }, { status: 400 })
     }
 
     let query = supabase
@@ -59,8 +60,9 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       .update({ read: true })
       .eq("user_id", user.id)
 
-    if (id) {
-      query = query.eq("id", id)
+    const trimmedId = typeof id === "string" ? id.trim() : undefined
+    if (trimmedId) {
+      query = query.eq("id", trimmedId)
     } else {
       query = query.eq("read", false)
     }
@@ -87,8 +89,8 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     const body = await req.json() as Record<string, unknown>
     const { id, ids } = body
 
-    if (id !== undefined && typeof id !== "string") {
-      return NextResponse.json({ error: "id must be a string" }, { status: 400 })
+    if (id !== undefined && (typeof id !== "string" || id.trim() === "")) {
+      return NextResponse.json({ error: "id must be a non-empty string" }, { status: 400 })
     }
     if (ids !== undefined && (!Array.isArray(ids) || !ids.every((v) => typeof v === "string"))) {
       return NextResponse.json({ error: "ids must be an array of strings" }, { status: 400 })
@@ -102,11 +104,15 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
       .delete()
       .eq("user_id", user.id)
 
-    if (id) {
-      query = query.eq("id", id)
-    } else if (ids) {
-      if (ids.length === 0) return NextResponse.json({ ok: true })
-      query = query.in("id", ids)
+    const trimmedDeleteId = typeof id === "string" ? id.trim() : undefined
+    const trimmedIds = Array.isArray(ids) ? ids.map((s: string) => s.trim()).filter(Boolean) : undefined
+    if (trimmedDeleteId) {
+      query = query.eq("id", trimmedDeleteId)
+    } else if (trimmedIds) {
+      if (trimmedIds.length === 0) {
+        return NextResponse.json({ error: "No valid IDs provided" }, { status: 400 })
+      }
+      query = query.in("id", trimmedIds)
     }
 
     const { error } = await query

@@ -44,7 +44,9 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
   const supabaseRef = useRef(createClientSupabaseClient())
   const channelRef = useRef<RealtimeChannel | null>(null)
   const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const incomingCallRef = useRef<IncomingCall | null>(null)
+  // Keep ref in sync so broadcast handlers always see latest value
+  incomingCallRef.current = incomingCall
 
   // Subscribe to incoming call signals on DM channels
   useEffect(() => {
@@ -55,25 +57,36 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
     channelRef.current = channel
 
     channel.on("broadcast", { event: "incoming-call" }, ({ payload }) => {
-      if (!payload || payload.targetUserId !== currentUser.id) return
+      if (
+        !payload ||
+        typeof payload.targetUserId !== "string" ||
+        typeof payload.channelId !== "string" ||
+        typeof payload.callerUserId !== "string" ||
+        typeof payload.callerUsername !== "string"
+      ) return
+      if (payload.targetUserId !== currentUser.id) return
       // Don't show if already in a voice call
       if (useAppStore.getState().voiceChannelId) return
 
       setIncomingCall({
-        channelId: payload.channelId as string,
+        channelId: payload.channelId,
         caller: {
-          userId: payload.callerUserId as string,
-          username: payload.callerUsername as string,
-          displayName: (payload.callerDisplayName as string) ?? null,
-          avatarUrl: (payload.callerAvatarUrl as string) ?? null,
+          userId: payload.callerUserId,
+          username: payload.callerUsername,
+          displayName: (typeof payload.callerDisplayName === "string" ? payload.callerDisplayName : null),
+          avatarUrl: (typeof payload.callerAvatarUrl === "string" ? payload.callerAvatarUrl : null),
         },
         startedAt: Date.now(),
       })
     })
 
     channel.on("broadcast", { event: "call-cancelled" }, ({ payload }) => {
-      if (payload?.channelId === incomingCall?.channelId) {
-        dismissCall()
+      // Use ref to avoid stale closure — this handler is created once per
+      // currentUser.id and must always read the latest incomingCall value.
+      // The sender (dm-call.tsx) broadcasts { callerId }, so match on callerId.
+      if (payload?.callerId === incomingCallRef.current?.caller.userId) {
+        setIncomingCall(null)
+        setElapsed(0)
       }
     })
 
@@ -164,42 +177,66 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
     }
   }, [])
 
-  const handleAccept = useCallback(() => {
-    if (!incomingCall) return
-    const channelId = incomingCall.channelId
+  /** Helper: subscribe to the DM call-notify channel, send the signal, then clean up. */
+  const sendCallSignal = useCallback(
+    async (channelId: string, signalType: "accept" | "decline"): Promise<void> => {
+      const ch = supabaseRef.current.channel(`dm-call-notify:${channelId}`)
+      try {
+        await Promise.race([
+          new Promise<void>((resolve, reject) => {
+            ch.subscribe((status: string) => {
+              if (status === "SUBSCRIBED") resolve()
+              else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+                reject(new Error(status))
+              }
+            })
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Subscription timeout")), 5000)
+          ),
+        ])
+        await ch.send({
+          type: "broadcast",
+          event: signalType === "accept" ? "call-accepted" : "call-declined",
+          payload: signalType === "accept"
+            ? { acceptedWithVideo: false }
+            : {},
+        })
+      } catch (err) {
+        console.error(`Failed to send ${signalType} signal:`, err)
+      } finally {
+        supabaseRef.current.removeChannel(ch)
+      }
+    },
+    []
+  )
 
-    // Send accept signal
-    supabaseRef.current.channel(`dm-call:${channelId}`).send({
-      type: "broadcast",
-      event: "call-signal",
-      payload: {
-        type: "accept",
-        fromUserId: useAppStore.getState().currentUser?.id,
-        channelId,
-      },
-    })
+  const handleAccept = useCallback(async () => {
+    try {
+      if (!incomingCall) return
+      const channelId = incomingCall.channelId
 
-    // Navigate to the DM call
-    window.location.href = `/dm/${channelId}`
-    dismissCall()
-  }, [incomingCall, dismissCall])
+      await sendCallSignal(channelId, "accept")
+      // Navigate to the DM call
+      window.location.href = `/dm/${channelId}`
+    } catch (err) {
+      console.error("Failed to accept call:", err)
+    } finally {
+      dismissCall()
+    }
+  }, [incomingCall, dismissCall, sendCallSignal])
 
-  const handleDecline = useCallback(() => {
-    if (!incomingCall) return
+  const handleDecline = useCallback(async () => {
+    try {
+      if (!incomingCall) return
 
-    // Send decline signal
-    supabaseRef.current.channel(`dm-call:${incomingCall.channelId}`).send({
-      type: "broadcast",
-      event: "call-signal",
-      payload: {
-        type: "decline",
-        fromUserId: useAppStore.getState().currentUser?.id,
-        channelId: incomingCall.channelId,
-      },
-    })
-
-    dismissCall()
-  }, [incomingCall, dismissCall])
+      await sendCallSignal(incomingCall.channelId, "decline")
+    } catch (err) {
+      console.error("Failed to decline call:", err)
+    } finally {
+      dismissCall()
+    }
+  }, [incomingCall, dismissCall, sendCallSignal])
 
   // Keyboard shortcuts
   useEffect(() => {

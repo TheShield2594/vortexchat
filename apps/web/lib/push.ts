@@ -2,6 +2,7 @@ import webpush from "web-push"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { resolveNotification } from "@/lib/notification-resolver"
 import { isInQuietHours } from "@/lib/quiet-hours"
+import { PERMISSIONS, computePermissions } from "@vortex/shared"
 
 // VAPID keys — set these env vars (generate once with: npx web-push generate-vapid-keys)
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""
@@ -32,53 +33,66 @@ export async function sendPushToUser(
   userId: string,
   payload: PushPayload
 ): Promise<void> {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return // push not configured
-  ensureVapid()
+  try {
+    if (!VAPID_PUBLIC || !VAPID_PRIVATE) return // push not configured
+    ensureVapid()
 
-  const supabase = await createServerSupabaseClient()
+    const supabase = await createServerSupabaseClient()
 
-  // Check quiet hours — suppress push if the user is in their scheduled DND window
-  const { data: quietPrefs, error: quietError } = await supabase
-    .from("user_notification_preferences")
-    .select("quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
-    .eq("user_id", userId)
-    .maybeSingle()
+    // Check quiet hours — suppress push if the user is in their scheduled DND window
+    const { data: quietPrefs, error: quietError } = await supabase
+      .from("user_notification_preferences")
+      .select("quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+      .eq("user_id", userId)
+      .maybeSingle()
 
-  if (quietError) {
-    console.error("Failed to fetch quiet hours preferences:", quietError.message)
-    // Continue sending — fail open rather than suppressing notifications
-  }
+    if (quietError) {
+      console.error("Failed to fetch quiet hours preferences:", quietError.message)
+      // Continue sending — fail open rather than suppressing notifications
+    }
 
-  if (quietPrefs && isInQuietHours(
-    quietPrefs.quiet_hours_enabled,
-    quietPrefs.quiet_hours_start,
-    quietPrefs.quiet_hours_end,
-    quietPrefs.quiet_hours_timezone,
-  )) {
-    return // suppress during quiet hours
-  }
+    if (quietPrefs && isInQuietHours(
+      quietPrefs.quiet_hours_enabled,
+      quietPrefs.quiet_hours_start,
+      quietPrefs.quiet_hours_end,
+      quietPrefs.quiet_hours_timezone,
+    )) {
+      return // suppress during quiet hours
+    }
 
-  const { data: subs } = await supabase
-    .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
-    .eq("user_id", userId)
+    const { data: subs } = await supabase
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("user_id", userId)
 
-  if (!subs?.length) return
+    if (!subs?.length) return
 
-  const results = await Promise.allSettled(
-    subs.map((sub) =>
-      webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        JSON.stringify(payload),
-        { TTL: 60 }
-      ).catch(async (err: any) => {
-        // 410 = subscription expired; clean it up
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await supabase.from("push_subscriptions").delete().eq("id", sub.id)
-        }
-      })
+    await Promise.allSettled(
+      subs.map((sub: { id: string; endpoint: string; p256dh: string; auth: string }) =>
+        webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify(payload),
+          { TTL: 60 }
+        ).catch(async (err: unknown) => {
+          const statusCode = (err as { statusCode?: number }).statusCode
+          // 410 = subscription expired; clean it up
+          if (statusCode === 410 || statusCode === 404) {
+            const { error: deleteError } = await supabase
+              .from("push_subscriptions")
+              .delete()
+              .eq("id", sub.id)
+            if (deleteError) {
+              console.error(`sendPushToUser: failed to remove stale subscription ${sub.id}`, deleteError)
+            }
+          } else {
+            console.error(`sendPushToUser: push to ${sub.endpoint.slice(0, 50)}… failed`, statusCode ?? err)
+          }
+        })
+      )
     )
-  )
+  } catch (err) {
+    console.error("sendPushToUser: unexpected error", err)
+  }
 }
 
 /**
@@ -95,6 +109,7 @@ export async function sendPushToChannel(opts: {
   mentionedIds?: string[]
   excludeUserId: string
 }): Promise<void> {
+  try {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
   ensureVapid()
 
@@ -110,21 +125,107 @@ export async function sendPushToChannel(opts: {
       .select("user_id")
       .eq("dm_channel_id", dmChannelId)
       .neq("user_id", excludeUserId)
-    memberIds = members?.map((m) => m.user_id) ?? []
+    memberIds = members?.map((m: { user_id: string }) => m.user_id) ?? []
   } else if (threadId) {
     const { data: members } = await supabase
       .from("thread_members")
       .select("user_id")
       .eq("thread_id", threadId)
       .neq("user_id", excludeUserId)
-    memberIds = members?.map((m) => m.user_id) ?? []
+    memberIds = members?.map((m: { user_id: string }) => m.user_id) ?? []
   } else if (serverId && channelId) {
     const { data: members } = await supabase
       .from("server_members")
       .select("user_id")
       .eq("server_id", serverId)
       .neq("user_id", excludeUserId)
-    memberIds = members?.map((m) => m.user_id) ?? []
+    const allMemberIds = members?.map((m: { user_id: string }) => m.user_id) ?? []
+
+    // Filter out members whose roles are denied VIEW_CHANNELS on this channel
+    const { data: overrides } = await supabase
+      .from("channel_permissions")
+      .select("role_id, allow_permissions, deny_permissions")
+      .eq("channel_id", channelId)
+
+    interface ChannelPermOverride { role_id: string; allow_permissions: number; deny_permissions: number }
+
+    if (overrides && overrides.length > 0) {
+      const typedOverrides = overrides as ChannelPermOverride[]
+      const denyViewRoleIds = new Set(
+        typedOverrides
+          .filter((o) => (o.deny_permissions & PERMISSIONS.VIEW_CHANNELS) !== 0)
+          .map((o) => o.role_id)
+      )
+      const allowViewRoleIds = new Set(
+        typedOverrides
+          .filter((o) => (o.allow_permissions & PERMISSIONS.VIEW_CHANNELS) !== 0)
+          .map((o) => o.role_id)
+      )
+
+      // Only filter if there are deny overrides for VIEW_CHANNELS
+      if (denyViewRoleIds.size > 0) {
+        // Fetch server owner (always has access)
+        const { data: server } = await supabase
+          .from("servers")
+          .select("owner_id")
+          .eq("id", serverId)
+          .maybeSingle()
+        const ownerId = server?.owner_id
+
+        // Fetch each member's roles to check access
+        const { data: memberRoles } = await supabase
+          .from("member_roles")
+          .select("user_id, roles(id, permissions)")
+          .eq("server_id", serverId)
+          .in("user_id", allMemberIds)
+
+        // Fetch default @everyone role
+        const { data: defaultRole } = await supabase
+          .from("roles")
+          .select("id, permissions")
+          .eq("server_id", serverId)
+          .eq("is_default", true)
+          .maybeSingle()
+
+        // Build a map of user -> role IDs and combined permissions
+        const memberRoleMap = new Map<string, { roleIds: Set<string>; permissions: number }>()
+        for (const uid of allMemberIds) {
+          memberRoleMap.set(uid, {
+            roleIds: new Set(defaultRole ? [defaultRole.id] : []),
+            permissions: defaultRole?.permissions ?? 0,
+          })
+        }
+        for (const mr of memberRoles ?? []) {
+          const entry = memberRoleMap.get(mr.user_id)
+          if (!entry) continue
+          const role = mr.roles as unknown as { id: string; permissions: number } | null
+          if (role) {
+            entry.roleIds.add(role.id)
+            entry.permissions = entry.permissions | role.permissions
+          }
+        }
+
+        memberIds = allMemberIds.filter((uid: string) => {
+          // Owner and admins always have access
+          if (uid === ownerId) return true
+          const entry = memberRoleMap.get(uid)
+          if (!entry) return false
+          if (entry.permissions & PERMISSIONS.ADMINISTRATOR) return true
+
+          // Apply channel overrides: deny first, then allow
+          const userRoleIds = entry.roleIds
+          const isDenied = [...userRoleIds].some((rid) => denyViewRoleIds.has(rid))
+          const isAllowed = [...userRoleIds].some((rid) => allowViewRoleIds.has(rid))
+          // If any role is explicitly allowed, it overrides the deny
+          if (isDenied && !isAllowed) return false
+          return true
+        })
+      } else {
+        memberIds = allMemberIds
+      }
+    } else {
+      memberIds = allMemberIds
+    }
   }
 
   if (!memberIds.length) return
@@ -175,8 +276,9 @@ export async function sendPushToChannel(opts: {
     .from("user_notification_preferences")
     .select("user_id, mention_notifications")
     .in("user_id", memberIds)
-  const globalTypePrefMap = new Map(
-    (globalTypePrefs ?? []).map((p) => [p.user_id, p])
+  interface TypePref { user_id: string; mention_notifications: boolean | null }
+  const globalTypePrefMap = new Map<string, TypePref>(
+    (globalTypePrefs ?? []).map((p: TypePref) => [p.user_id, p])
   )
 
   const payload: PushPayload = {
@@ -213,4 +315,7 @@ export async function sendPushToChannel(opts: {
       return sendPushToUser(uid, payload)
     })
   )
+  } catch (err) {
+    console.error("sendPushToChannel: unexpected error", err)
+  }
 }
