@@ -639,16 +639,16 @@ Items still outstanding, organized by priority. Check off each item as it is com
 
 ### P1 — High Impact, Do Next
 
-- [ ] **Tell the app platform story on the landing page** (Gap 5)
-  - [ ] Add a "Built-in Apps" section to the landing page showing the 5 pre-built apps (Welcome Bot, Giveaway Bot, Standup Assistant, Incident Bot, Reminder Bot)
-  - [ ] Frame as "No bot setup required — essential tools are built in"
-  - [ ] Highlight the marketplace and slash command autocomplete
+- [x] **Tell the app platform story on the landing page** (Gap 5)
+  - [x] Add a "Built-in Apps" section to the landing page showing the 5 pre-built apps (Welcome Bot, Giveaway Bot, Standup Assistant, Incident Bot, Reminder Bot)
+  - [x] Frame as "No bot setup required — essential tools are built in"
+  - [x] Highlight the marketplace and slash command autocomplete
 
-- [ ] **Make self-hosting a first-class experience** (Gap 2)
-  - [ ] Create a `/self-host` page with deployment guides and architecture overview
-  - [ ] Add one-click deploy buttons (Railway, Vercel, Docker)
-  - [ ] Include estimated hosting costs (free tier or realistic numbers)
-  - [ ] Show the stack clearly: Next.js + Supabase + Signal Server (three services, not a monolith)
+- [x] **Make self-hosting a first-class experience** (Gap 2)
+  - [x] Create a `/self-host` page with deployment guides and architecture overview
+  - [x] Add one-click deploy buttons (Railway, Vercel, Docker)
+  - [x] Include estimated hosting costs (free tier or realistic numbers)
+  - [x] Show the stack clearly: Next.js + Supabase + Signal Server (three services, not a monolith)
 
 ### P2 — Medium Impact, Plan Soon
 
