@@ -43,7 +43,7 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
 
   async function request(mode: string) {
     if (!parsedTemplate && mode !== "export") {
-      toast({ variant: "destructive", title: "Provide a valid template JSON or starter template" })
+      toast({ variant: "destructive", title: "Provide a valid blueprint JSON or starter blueprint" })
       return
     }
     setLoading(true)
@@ -64,17 +64,17 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
       if (!res.ok) throw new Error(data.error ?? data.errors?.join(", ") ?? "Request failed")
       setWarnings(data.warnings ?? [])
       if (mode === "preview") setDiff(data.diff)
-      if (mode === "apply") toast({ title: "Template imported successfully" })
+      if (mode === "apply") toast({ title: "Blueprint imported successfully" })
       if (mode === "create-server") {
-        toast({ title: "Server created from template" })
+        toast({ title: "Server created from blueprint" })
         onServerCreated?.(data.server)
       }
       if (mode === "export") {
         setExportValue(JSON.stringify(data.template, null, 2))
-        toast({ title: "Template exported" })
+        toast({ title: "Blueprint exported" })
       }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Template request failed", description: error.message })
+      toast({ variant: "destructive", title: "Blueprint request failed", description: error.message })
     } finally {
       setLoading(false)
     }
@@ -83,7 +83,7 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Starter template</Label>
+        <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Starter blueprint</Label>
         <select
           value={starterKey}
           onChange={(e) => setStarterKey(e.target.value)}
@@ -98,7 +98,7 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Template JSON</Label>
+        <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Blueprint JSON</Label>
         <textarea
           value={rawTemplate}
           onChange={(e) => { setRawTemplate(e.target.value); setStarterKey("") }}
@@ -111,8 +111,8 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
 
       <div className="flex gap-2">
         {serverId && <Button variant="outline" onClick={() => request("preview")} disabled={loading}>Preview Diff</Button>}
-        {serverId && <Button onClick={() => request("apply")} disabled={loading} style={{ background: 'var(--theme-accent)' }}>Import Template</Button>}
-        {!serverId && <Button onClick={() => request("create-server")} disabled={loading || !createName?.trim()} style={{ background: 'var(--theme-accent)' }}>Create from Template</Button>}
+        {serverId && <Button onClick={() => request("apply")} disabled={loading} style={{ background: 'var(--theme-accent)' }}>Import Blueprint</Button>}
+        {!serverId && <Button onClick={() => request("create-server")} disabled={loading || !createName?.trim()} style={{ background: 'var(--theme-accent)' }}>Create from Blueprint</Button>}
         {serverId && <Button variant="outline" onClick={() => request("export")} disabled={loading}>Export</Button>}
       </div>
 
@@ -132,7 +132,7 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
 
       {exportValue && (
         <div className="space-y-1">
-          <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Exported template</Label>
+          <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Exported blueprint</Label>
           <textarea readOnly value={exportValue} rows={8} className="w-full rounded px-3 py-2 text-xs font-mono" style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)', border: '1px solid var(--theme-bg-tertiary)' }} />
         </div>
       )}

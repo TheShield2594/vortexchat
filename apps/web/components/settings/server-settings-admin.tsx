@@ -81,7 +81,7 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               </TabsTrigger>
               <TabsTrigger value="permission-simulator" className="w-full justify-start">
                 <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Perm Simulator
+                Perm Sandbox
               </TabsTrigger>
             </TabsList>
           </div>

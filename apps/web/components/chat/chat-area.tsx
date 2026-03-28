@@ -40,6 +40,7 @@ import { buildReplyJumpPath, shouldHandleReturnToContextShortcut } from "@/lib/r
 import { resolveCommandBarLayout } from "@/lib/channel-command-bar"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { ConnectionBanner } from "@/components/connection-banner"
+import { VoiceRecapCard } from "@/components/voice/voice-recap-card"
 
 interface Props {
   channel: ChannelRow
@@ -94,6 +95,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
+  const [voiceRecaps, setVoiceRecaps] = useState<Array<{ sessionId: string; channelName: string; durationSeconds: number }>>([])
   const [viewportWidth, setViewportWidth] = useState(1280)
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [focusedActionIndex, setFocusedActionIndex] = useState(0)
@@ -1006,6 +1008,47 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     backfillMissedMessages,
   )
 
+  // ── Voice Recap — listen for ended voice sessions in this channel ──
+  useEffect(() => {
+    setVoiceRecaps([])
+    const recapChannel = supabase
+      .channel(`voice-recap:${channel.id}`)
+      .on(
+        "postgres_changes" as "system",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "voice_call_sessions",
+          filter: `scope_id=eq.${channel.id}`,
+        } as Record<string, string>,
+        (payload: { new: { id: string; ended_at: string | null; started_at: string; summary_status: string } }) => {
+          const row = payload.new
+          if (!row.ended_at) return
+
+          const durationSeconds = Math.round(
+            (new Date(row.ended_at).getTime() - new Date(row.started_at).getTime()) / 1000
+          )
+
+          setVoiceRecaps((prev) => {
+            if (prev.some((r) => r.sessionId === row.id)) return prev
+            return [
+              ...prev,
+              {
+                sessionId: row.id,
+                channelName: channel.name,
+                durationSeconds,
+              },
+            ]
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(recapChannel)
+    }
+  }, [channel.id, channel.name, supabase])
+
   async function handleSendMessage(content: string, attachmentFiles?: File[], onUploadProgress?: (percent: number) => void, abortSignal?: AbortSignal): Promise<void> {
     if (!content.trim() && (!attachmentFiles || attachmentFiles.length === 0)) return
 
@@ -1733,6 +1776,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               })
               })()}
             </div>
+            {/* Voice Recap cards — shown after voice sessions end in this channel */}
+            {voiceRecaps.map((recap) => (
+              <VoiceRecapCard
+                key={recap.sessionId}
+                sessionId={recap.sessionId}
+                channelName={recap.channelName}
+                durationSeconds={recap.durationSeconds}
+              />
+            ))}
             <div ref={bottomRef} style={{ height: 1 }} />
           </div>
 

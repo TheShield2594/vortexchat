@@ -99,7 +99,7 @@ export function VoiceIntelligencePolicySettings({ serverId }: VoiceIntelligenceP
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h3 className="text-white font-semibold text-base">Voice Intelligence</h3>
+        <h3 className="text-white font-semibold text-base">Vortex Recap</h3>
         <p className="text-sm mt-1" style={{ color: "var(--theme-text-secondary)" }}>
           Control live transcription, subtitles, and post-call summaries for this server.
         </p>
