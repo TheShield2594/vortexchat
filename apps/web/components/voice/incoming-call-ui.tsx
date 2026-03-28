@@ -169,25 +169,30 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
     }
   }, [])
 
-  /** Helper: subscribe a broadcast channel, send the signal, then clean up. */
+  /** Helper: subscribe to the DM call-notify channel, send the signal, then clean up. */
   const sendCallSignal = useCallback(
-    async (channelId: string, signalType: "accept" | "decline") => {
-      const ch = supabaseRef.current.channel(`dm-call:${channelId}`)
+    async (channelId: string, signalType: "accept" | "decline"): Promise<void> => {
+      const ch = supabaseRef.current.channel(`dm-call-notify:${channelId}`)
       try {
-        await new Promise<void>((resolve, reject) => {
-          ch.subscribe((status) => {
-            if (status === "SUBSCRIBED") resolve()
-            else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") reject(new Error(status))
-          })
-        })
+        await Promise.race([
+          new Promise<void>((resolve, reject) => {
+            ch.subscribe((status: string) => {
+              if (status === "SUBSCRIBED") resolve()
+              else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+                reject(new Error(status))
+              }
+            })
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Subscription timeout")), 5000)
+          ),
+        ])
         await ch.send({
           type: "broadcast",
-          event: "call-signal",
-          payload: {
-            type: signalType,
-            fromUserId: useAppStore.getState().currentUser?.id,
-            channelId,
-          },
+          event: signalType === "accept" ? "call-accepted" : "call-declined",
+          payload: signalType === "accept"
+            ? { acceptedWithVideo: false }
+            : {},
         })
       } catch (err) {
         console.error(`Failed to send ${signalType} signal:`, err)
@@ -198,20 +203,20 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
     []
   )
 
-  const handleAccept = useCallback(() => {
+  const handleAccept = useCallback(async () => {
     if (!incomingCall) return
     const channelId = incomingCall.channelId
 
-    sendCallSignal(channelId, "accept")
+    await sendCallSignal(channelId, "accept")
     // Navigate to the DM call
     window.location.href = `/dm/${channelId}`
     dismissCall()
   }, [incomingCall, dismissCall, sendCallSignal])
 
-  const handleDecline = useCallback(() => {
+  const handleDecline = useCallback(async () => {
     if (!incomingCall) return
 
-    sendCallSignal(incomingCall.channelId, "decline")
+    await sendCallSignal(incomingCall.channelId, "decline")
     dismissCall()
   }, [incomingCall, dismissCall, sendCallSignal])
 

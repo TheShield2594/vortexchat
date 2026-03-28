@@ -699,8 +699,9 @@ export async function POST(request: Request) {
         .from("user_notification_preferences")
         .select("user_id, mention_notifications, reply_notifications")
         .in("user_id", recipientList)
-      const prefMap = new Map(
-        (globalPrefs ?? []).map((p) => [p.user_id, p])
+      interface NotifPref { user_id: string; mention_notifications: boolean | null; reply_notifications: boolean | null }
+      const prefMap = new Map<string, NotifPref>(
+        (globalPrefs ?? []).map((p: NotifPref) => [p.user_id, p])
       )
 
       const bodyPreview = (content?.trim() || "Sent an attachment").slice(0, MAX_NOTIFICATION_BODY_LENGTH)

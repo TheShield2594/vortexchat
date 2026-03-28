@@ -3,6 +3,19 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
+function isMessagePayload(
+  obj: unknown
+): obj is { channel_id: string; author_id: string; mentions?: string[] } {
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    "channel_id" in obj &&
+    typeof (obj as Record<string, unknown>).channel_id === "string" &&
+    "author_id" in obj &&
+    typeof (obj as Record<string, unknown>).author_id === "string"
+  )
+}
+
 /**
  * Tracks which channels have unread messages for the current user.
  *
@@ -91,13 +104,18 @@ export function useUnreadChannels(
         const channelsWithReadState = Object.keys(readMap)
 
         if (channelsWithReadState.length > 0) {
-          const { data: latestMessages } = await supabase
+          const { data: latestMessages, error: msgError } = await supabase
             .from("messages")
             .select("channel_id, created_at")
             .in("channel_id", channelsWithReadState)
             .is("deleted_at", null)
             .order("created_at", { ascending: false })
-            .limit(channelsWithReadState.length * 2)
+            .limit(Math.max(channelsWithReadState.length * 10, 100))
+
+          if (msgError) {
+            console.error("useUnreadChannels: failed to load latest messages", msgError.message)
+            return
+          }
 
           // Build a map of latest message time per channel (first occurrence per channel since ordered desc)
           const latestPerChannel: Record<string, string> = {}
@@ -161,7 +179,8 @@ export function useUnreadChannels(
           filter: `channel_id=in.(${channelIds.join(",")})`,
         },
         (payload) => {
-          const msg = payload.new as { channel_id: string; author_id: string; mentions?: string[] }
+          if (!isMessagePayload(payload.new)) return
+          const msg = payload.new
 
           // Don't mark as unread if it's own message or if channel is active
           if (msg.author_id === currentUserId) return

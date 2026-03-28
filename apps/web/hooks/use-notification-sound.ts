@@ -77,10 +77,14 @@ async function playTone() {
     osc.start(ctx.currentTime)
     osc.stop(ctx.currentTime + 0.2)
 
-    osc.onended = () => ctx.close().catch(() => {})
+    osc.onended = () => {
+      ctx.close().catch((err: unknown) => { console.warn("AudioContext.close() failed:", err) })
+    }
     // Safety net: close context after 1s even if onended never fires
     setTimeout(() => {
-      if (ctx.state !== "closed") ctx.close().catch(() => {})
+      if (ctx.state !== "closed") {
+        ctx.close().catch((err: unknown) => { console.warn("AudioContext.close() failed:", err) })
+      }
     }, 1000)
   } catch {
     // Audio context unavailable — silent fallback

@@ -252,13 +252,14 @@ self.addEventListener("notificationclick", (event) => {
         })
         const existing = sameChannel || clients.find((c) => c.url.includes(self.location.origin))
         if (existing) {
-          existing.focus()
-          // Post a message so the client can handle in-app navigation
-          // without a full page reload when already on the right channel.
-          existing.postMessage({ type: "NOTIFICATION_NAVIGATE", url })
-          if (!sameChannel) existing.navigate(fullUrl)
+          return existing.focus().then(() => {
+            // Post a message so the client can handle in-app navigation
+            // without a full page reload when already on the right channel.
+            existing.postMessage({ type: "NOTIFICATION_NAVIGATE", url })
+            return sameChannel ? undefined : existing.navigate(fullUrl)
+          })
         } else {
-          self.clients.openWindow(fullUrl)
+          return self.clients.openWindow(fullUrl)
         }
       })
   )

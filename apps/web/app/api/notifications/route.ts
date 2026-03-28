@@ -60,8 +60,9 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       .update({ read: true })
       .eq("user_id", user.id)
 
-    if (id) {
-      query = query.eq("id", id)
+    const trimmedId = typeof id === "string" ? id.trim() : undefined
+    if (trimmedId) {
+      query = query.eq("id", trimmedId)
     } else {
       query = query.eq("read", false)
     }
@@ -103,11 +104,13 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
       .delete()
       .eq("user_id", user.id)
 
-    if (id) {
-      query = query.eq("id", id)
-    } else if (ids) {
-      if (ids.length === 0) return NextResponse.json({ ok: true })
-      query = query.in("id", ids)
+    const trimmedDeleteId = typeof id === "string" ? id.trim() : undefined
+    const trimmedIds = Array.isArray(ids) ? ids.map((s: string) => s.trim()).filter(Boolean) : undefined
+    if (trimmedDeleteId) {
+      query = query.eq("id", trimmedDeleteId)
+    } else if (trimmedIds) {
+      if (trimmedIds.length === 0) return NextResponse.json({ ok: true })
+      query = query.in("id", trimmedIds)
     }
 
     const { error } = await query
