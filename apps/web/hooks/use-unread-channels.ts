@@ -144,7 +144,9 @@ export function useUnreadChannels(
     loadInitialUnread()
   }, [serverId, currentUserId])
 
-  // Mark currently active channel as read after 500ms debounce (avoids rapid-switch RPC calls)
+  // Mark currently active channel as read after 500ms debounce (avoids rapid-switch RPC calls).
+  // Also flush markRead on cleanup so that messages arriving while the user
+  // was viewing the channel don't cause a false unread indicator.
   useEffect(() => {
     if (markReadTimerRef.current) {
       clearTimeout(markReadTimerRef.current)
@@ -160,6 +162,11 @@ export function useUnreadChannels(
       if (markReadTimerRef.current) {
         clearTimeout(markReadTimerRef.current)
         markReadTimerRef.current = null
+      }
+      // Flush: update last_read_at to departure time so late-arriving
+      // messages don't leave a stale unread indicator.
+      if (activeChannelId) {
+        markRead(activeChannelId)
       }
     }
   }, [activeChannelId, markRead])
