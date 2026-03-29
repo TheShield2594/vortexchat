@@ -42,7 +42,8 @@ export function parsePostMessageRequestBody(body: PostMessageRequestBody) {
   if (!Array.isArray(mentionRoleIds)) {
     return { error: NextResponse.json({ error: "Invalid mentionRoleIds" }, { status: 400 }) }
   }
-  if (!mentionRoleIds.every((id: unknown) => typeof id === "string" && id.length > 0)) {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!mentionRoleIds.every((id: unknown) => typeof id === "string" && uuidPattern.test(id))) {
     return { error: NextResponse.json({ error: "Invalid mentionRoleIds elements" }, { status: 400 }) }
   }
   if (!Array.isArray(attachments)) {

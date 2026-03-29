@@ -70,7 +70,7 @@ export async function GET(request: Request) {
     }
 
     // Push notifications for RSVP'd members
-    Promise.allSettled(
+    await Promise.allSettled(
       rsvps.map((r: { user_id: string }) =>
         sendPushToUser(r.user_id, {
           title: `⏰ Starting soon: ${event.title}`,
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
           tag: `event-reminder-${event.id}`,
         })
       )
-    ).catch(() => {})
+    )
   }
 
   return NextResponse.json({ notified: totalNotified, eventsProcessed: events.length })

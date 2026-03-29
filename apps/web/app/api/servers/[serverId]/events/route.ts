@@ -218,7 +218,7 @@ export async function POST(
       const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", params.serverId).maybeSingle()
       const serverName = serverInfo?.name ?? "a server"
       const startDate = body.startAt ? new Date(body.startAt).toLocaleString() : ""
-      Promise.allSettled(
+      await Promise.allSettled(
         members
           .filter((m: { user_id: string }) => m.user_id !== user.id)
           .map((m: { user_id: string }) =>
@@ -229,7 +229,7 @@ export async function POST(
               tag: `event-${created.id}`,
             })
           )
-      ).catch(() => {})
+      )
     }
   }
 

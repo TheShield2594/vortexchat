@@ -24,90 +24,97 @@ function normalizeEmoji(raw: string | undefined): string | null {
   return value.slice(0, 64)
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ messageId: string }> }) {
-  const { messageId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function POST(req: NextRequest, { params }: { params: Promise<{ messageId: string }> }): Promise<NextResponse> {
+  try {
+    const { messageId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = (await req.json().catch(() => ({}))) as Body
-  const emoji = normalizeEmoji(body.emoji)
-  if (!emoji) return NextResponse.json({ error: "emoji required" }, { status: 400 })
+    const body = (await req.json().catch(() => ({}))) as Body
+    const emoji = normalizeEmoji(body.emoji)
+    if (!emoji) return NextResponse.json({ error: "emoji required" }, { status: 400 })
 
-  const { data: message, error: messageError } = await resolveMessageContext(supabase, messageId)
-  if (messageError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
-  if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
+    const { data: message, error: messageError } = await resolveMessageContext(supabase, messageId)
+    if (messageError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
+    if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
-  const channelServerId = (message as any)?.channels?.server_id as string | null
-  if (channelServerId) {
-    const { isAdmin, permissions } = await getChannelPermissions(supabase, channelServerId, message.channel_id, user.id)
-    if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const channelServerId = (message as any)?.channels?.server_id as string | null
+    if (channelServerId) {
+      const { isAdmin, permissions } = await getChannelPermissions(supabase, channelServerId, message.channel_id, user.id)
+      if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
+
+    if (await isBlockedBetweenUsers(supabase, user.id, message.author_id)) {
+      return NextResponse.json({ error: "Cannot react due to block state" }, { status: 403 })
+    }
+
+    const { error } = await supabase
+      .from("reactions")
+      .upsert({ message_id: messageId, user_id: user.id, emoji }, { onConflict: "message_id,user_id,emoji", ignoreDuplicates: true })
+
+    if (error) return NextResponse.json({ error: "Failed to add reaction" }, { status: 500 })
+
+    // Notify the message author about the reaction (fire-and-forget)
+    if (message.author_id && message.author_id !== user.id) {
+      const { data: reactor } = await supabase
+        .from("users")
+        .select("display_name, username")
+        .eq("id", user.id)
+        .maybeSingle()
+      const reactorName = reactor?.display_name || reactor?.username || "Someone"
+      sendPushToUser(message.author_id, {
+        title: `${reactorName} reacted ${emoji}`,
+        body: "to your message",
+        url: channelServerId
+          ? `/channels/${channelServerId}/${message.channel_id}`
+          : "/channels/me",
+        tag: `reaction-${messageId}`,
+      }).catch((err) => { console.error("Failed to send reaction push", err) })
+    }
+
+    return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  if (await isBlockedBetweenUsers(supabase, user.id, message.author_id)) {
-    return NextResponse.json({ error: "Cannot react due to block state" }, { status: 403 })
-  }
-
-  const { error } = await supabase
-    .from("reactions")
-    .upsert({ message_id: messageId, user_id: user.id, emoji }, { onConflict: "message_id,user_id,emoji", ignoreDuplicates: true })
-
-  if (error) return NextResponse.json({ error: "Failed to add reaction" }, { status: 500 })
-
-  // Notify the message author about the reaction (fire-and-forget)
-  if (message.author_id && message.author_id !== user.id) {
-    const { data: reactor } = await supabase
-      .from("users")
-      .select("display_name, username")
-      .eq("id", user.id)
-      .maybeSingle()
-    const reactorName = reactor?.display_name || reactor?.username || "Someone"
-    const channelServerId2 = (message as unknown as { channels?: { server_id?: string } })?.channels?.server_id
-    sendPushToUser(message.author_id, {
-      title: `${reactorName} reacted ${emoji}`,
-      body: "to your message",
-      url: channelServerId2
-        ? `/channels/${channelServerId2}/${message.channel_id}`
-        : "/channels/me",
-      tag: `reaction-${messageId}`,
-    }).catch(() => {})
-  }
-
-  return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ messageId: string }> }) {
-  const { messageId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ messageId: string }> }): Promise<NextResponse> {
+  try {
+    const { messageId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = (await req.json().catch(() => ({}))) as Body
-  const emoji = normalizeEmoji(body.emoji)
-  if (!emoji) return NextResponse.json({ error: "emoji required" }, { status: 400 })
+    const body = (await req.json().catch(() => ({}))) as Body
+    const emoji = normalizeEmoji(body.emoji)
+    if (!emoji) return NextResponse.json({ error: "emoji required" }, { status: 400 })
 
-  const { data: message, error: messageError } = await resolveMessageContext(supabase, messageId)
-  if (messageError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
-  if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
+    const { data: message, error: messageError } = await resolveMessageContext(supabase, messageId)
+    if (messageError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
+    if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
-  const channelServerId = (message as any)?.channels?.server_id as string | null
-  if (channelServerId) {
-    const { isAdmin, permissions } = await getChannelPermissions(supabase, channelServerId, message.channel_id, user.id)
-    if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const channelServerId = (message as any)?.channels?.server_id as string | null
+    if (channelServerId) {
+      const { isAdmin, permissions } = await getChannelPermissions(supabase, channelServerId, message.channel_id, user.id)
+      if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
+
+    const { error } = await supabase
+      .from("reactions")
+      .delete()
+      .eq("message_id", messageId)
+      .eq("user_id", user.id)
+      .eq("emoji", emoji)
+
+    if (error) return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 })
+
+    return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  const { error } = await supabase
-    .from("reactions")
-    .delete()
-    .eq("message_id", messageId)
-    .eq("user_id", user.id)
-    .eq("emoji", emoji)
-
-  if (error) return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 })
-
-  return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
 }

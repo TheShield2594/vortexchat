@@ -106,7 +106,7 @@ const remarkMentions = splitTextByPattern(
 
 /** Remark plugin: <@&roleId> → <vortex-role-mention> elements. */
 const remarkRoleMentions = splitTextByPattern(
-  /<@&(\w+)>/g,
+  /<@&([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi,
   (m) => `<vortex-role-mention data-rid="${m[1]}"></vortex-role-mention>`,
 )
 
@@ -460,13 +460,15 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
       const rid = props.dataRid ?? props["data-rid"] ?? node?.properties?.dataRid ?? ""
       const roles = serverId ? useAppStore.getState().serverRoles[serverId] ?? [] : []
       const role = roles.find((r) => r.id === rid)
-      const roleColor = role?.color && role.color !== "#000000" ? role.color : "var(--theme-accent)"
+      const customColor = role?.color && role.color !== "#000000" ? role.color : null
+      const roleColor = customColor ?? "var(--theme-accent)"
+      const roleBackground = customColor ? `${customColor}1a` : "rgba(88,101,242,0.1)"
       return (
         <span
           className="px-0.5 rounded cursor-pointer"
           style={{
             color: roleColor,
-            background: `${roleColor}1a`,
+            background: roleBackground,
           }}
           title={role ? `Role: ${role.name}` : rid}
         >

@@ -65,10 +65,11 @@ export function MentionSuggestions({ suggestions, selectedIndex, query, onSelect
 
         if (suggestion.type === "role") {
           const role = suggestion.data
-          const roleColor = role.color && role.color !== "#000000" ? role.color : "var(--theme-accent)"
+          const roleColor = role.color && role.color !== "#000000" ? role.color : null
+          const roleTextColor = roleColor ?? "var(--theme-accent)"
+          const roleBgColor = roleColor ? `${roleColor}33` : "rgba(88,101,242,0.2)"
           const confidence = getMatchConfidence(role.name, query)
-          const confidenceTone =
-            confidence === "Exact" ? "#3ba55d" : confidence === "Strong" ? "var(--theme-accent)" : "#faa81a"
+          const confidenceColor = confidence === "Exact" ? "#3ba55d" : confidence === "Strong" ? "#5865f2" : "#faa81a"
 
           return (
             <button
@@ -87,11 +88,11 @@ export function MentionSuggestions({ suggestions, selectedIndex, query, onSelect
             >
               <span
                 className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-                style={{ background: `${roleColor}33`, color: roleColor }}
+                style={{ background: roleBgColor, color: roleTextColor }}
               >
                 @
               </span>
-              <span className="text-sm font-medium truncate" style={{ color: roleColor }}>
+              <span className="text-sm font-medium truncate" style={{ color: roleTextColor }}>
                 {role.name}
               </span>
               <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--theme-text-muted)" }}>
@@ -99,7 +100,7 @@ export function MentionSuggestions({ suggestions, selectedIndex, query, onSelect
               </span>
               <span
                 className="ml-auto text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
-                style={{ color: confidenceTone, background: `${confidenceTone}26` }}
+                style={{ color: confidenceColor, background: `${confidenceColor}26` }}
               >
                 {confidence}
               </span>

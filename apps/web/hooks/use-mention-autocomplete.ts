@@ -94,7 +94,7 @@ export function useMentionAutocomplete({ content, cursorPosition, members, roles
   }
 
   // Backwards-compatible: select a member directly
-  function selectMember(member: MemberForMention) {
+  function selectMember(member: MemberForMention): { newContent: string; newCursorPosition: number } {
     return selectSuggestion({ type: "member", data: member })
   }
 

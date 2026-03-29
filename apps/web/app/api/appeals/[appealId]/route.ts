@@ -9,7 +9,8 @@ import { sendPushToUser } from "@/lib/push"
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ appealId: string }> }
-) {
+): Promise<NextResponse> {
+  try {
   const { appealId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -58,12 +59,16 @@ export async function GET(
     internalNotes: notesResult.data ?? [],
     statusEvents: eventsResult.data ?? [],
   })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ appealId: string }> }
-) {
+): Promise<NextResponse> {
+  try {
   const { appealId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -206,8 +211,11 @@ export async function PATCH(
       body: `Your appeal status is now ${nextStatus}.`,
       url: `/appeals`,
       tag: `appeal-${appealId}`,
-    }).catch(() => {})
+    }).catch((err) => { console.error("Failed to send appeal push", err) })
   }
 
   return NextResponse.json({ message: "Appeal updated" })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
