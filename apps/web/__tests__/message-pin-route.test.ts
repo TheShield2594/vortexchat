@@ -13,6 +13,14 @@ vi.mock("@/lib/permissions", () => ({
   hasPermission: vi.fn(),
 }))
 
+vi.mock("@/lib/push", () => ({
+  sendPushToChannel: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock("@/lib/logger", () => ({
+  createLogger: vi.fn(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() })),
+}))
+
 type SupabaseMock = ReturnType<typeof createSupabaseMock>
 
 function createSupabaseMock() {
@@ -38,6 +46,19 @@ function createSupabaseMock() {
     insert: insertMock,
   }
 
+  const usersMaybeSingleMock = vi.fn(async () => ({
+    data: { display_name: "TestUser", username: "testuser" },
+  }))
+
+  const usersSelectChain = {
+    eq: vi.fn(() => usersSelectChain),
+    maybeSingle: usersMaybeSingleMock,
+  }
+
+  const usersTable = {
+    select: vi.fn(() => usersSelectChain),
+  }
+
   return {
     auth: {
       getUser: vi.fn(async () => ({ data: { user: { id: "u1" } } })),
@@ -45,6 +66,7 @@ function createSupabaseMock() {
     from: vi.fn((table: string) => {
       if (table === "messages") return messagesTable
       if (table === "audit_logs") return auditTable
+      if (table === "users") return usersTable
       throw new Error(`Unexpected table: ${table}`)
     }),
     __mocks: {

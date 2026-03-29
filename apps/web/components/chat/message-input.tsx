@@ -523,7 +523,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     const mentionHandledNavigation = mention.handleKeyDown(e)
     const emojiHandledNavigation = emoji.handleKeyDown(e)
     const slashHandledNavigation = slash.handleKeyDown(e)
-    const selectedMention = mention.filteredMembers[mention.selectedIndex]
+    const selectedMention = mention.filteredSuggestions[mention.selectedIndex]
     const selectedEmoji = emoji.matches[emoji.selectedIndex]
     const selectedSlash = slash.matches[slash.selectedIndex]
     const action = resolveComposerKeybinding(e.key, e.shiftKey, {
