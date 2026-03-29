@@ -107,7 +107,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
 
   // Fetch members from API (skipped when SSR data provided)
   useEffect(() => {
-    if (initialMembers && memberFetchKey === 0) return
+    if (initialMembers?.length && memberFetchKey === 0) return
 
     async function fetchMembers() {
       memberFetchControllerRef.current?.abort()
@@ -157,6 +157,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
           action: "fetchMembers",
           route: `/api/servers/${encodedServerId}/members`,
           serverId,
+          userId: useAppStore.getState().currentUser?.id ?? null,
           error,
         })
         setMemberFetchError(error instanceof Error ? error.message : "Failed to load members")
@@ -345,7 +346,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
         )}
 
         {/* Online */}
-        {!loadingMembers && !memberFetchError && onlineMembers.length > 0 && (
+        {!loadingMembers && onlineMembers.length > 0 && (
           <div className="mb-2">
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"
@@ -371,7 +372,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
         )}
 
         {/* Offline */}
-        {!loadingMembers && !memberFetchError && offlineMembers.length > 0 && (
+        {!loadingMembers && offlineMembers.length > 0 && (
           <div>
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"
