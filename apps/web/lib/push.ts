@@ -25,19 +25,29 @@ export interface PushPayload {
   icon?: string
 }
 
-// How recently the users.updated_at timestamp must be for us to trust that
-// the user is truly "online" and receiving messages via the real-time channel.
-// If updated_at is older than this, the status is stale and we push anyway.
-const PRESENCE_STALE_MS = 6 * 60 * 1000 // 6 minutes (idle timeout is 5 min)
+// Push TTL — how long (in seconds) the push service should retain an
+// undelivered notification.  Mobile devices in doze / low-power mode may
+// not be reachable immediately, so we use 24 hours to avoid silent drops.
+const PUSH_TTL_SECONDS = 86_400 // 24 hours
 
 /**
  * Send a push notification to all subscriptions for a given user.
- * Skips users who are actively online (receiving messages via real-time).
  * Silently removes stale subscriptions (410 Gone).
+ *
+ * Notification suppression when the user is actively *viewing* the target
+ * conversation is handled client-side by the service worker (sw.js push
+ * handler), which checks for a focused window on the same URL.  This
+ * avoids relying on the DB-level "online" status, which is unreliable on
+ * mobile PWAs — iOS/Android keep WebSocket connections alive after the app
+ * is backgrounded, so users appear "online" when they're not looking.
+ *
+ * @param skipQuietHours  Pass `true` when quiet-hours were already checked
+ *                        by the caller (e.g. sendPushToChannel batch path).
  */
 export async function sendPushToUser(
   userId: string,
-  payload: PushPayload
+  payload: PushPayload,
+  { skipQuietHours = false }: { skipQuietHours?: boolean } = {}
 ): Promise<void> {
   try {
     if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
@@ -48,45 +58,27 @@ export async function sendPushToUser(
 
     const supabase = await createServerSupabaseClient()
 
-    // ── Presence-based eligibility check ──────────────────────────────
-    // If the user is actively online (status "online" with a fresh
-    // updated_at), they're receiving messages through the Supabase
-    // real-time channel and don't need a push notification. This mirrors
-    // Fluxer's server-side push eligibility pattern.
-    const { data: userStatus } = await supabase
-      .from("users")
-      .select("status, updated_at")
-      .eq("id", userId)
-      .maybeSingle()
-
-    if (userStatus?.status === "online" && userStatus.updated_at) {
-      const lastSeen = new Date(userStatus.updated_at).getTime()
-      const isRecent = Date.now() - lastSeen < PRESENCE_STALE_MS
-      if (isRecent) {
-        // User is actively online — skip push, they'll see the message in real-time
-        return
-      }
-    }
-
     // Check quiet hours — suppress push if the user is in their scheduled DND window
-    const { data: quietPrefs, error: quietError } = await supabase
-      .from("user_notification_preferences")
-      .select("quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
-      .eq("user_id", userId)
-      .maybeSingle()
+    if (!skipQuietHours) {
+      const { data: quietPrefs, error: quietError } = await supabase
+        .from("user_notification_preferences")
+        .select("quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+        .eq("user_id", userId)
+        .maybeSingle()
 
-    if (quietError) {
-      console.error("Failed to fetch quiet hours preferences:", quietError.message)
-      // Continue sending — fail open rather than suppressing notifications
-    }
+      if (quietError) {
+        console.error("Failed to fetch quiet hours preferences:", quietError.message)
+        // Continue sending — fail open rather than suppressing notifications
+      }
 
-    if (quietPrefs && isInQuietHours(
-      quietPrefs.quiet_hours_enabled,
-      quietPrefs.quiet_hours_start,
-      quietPrefs.quiet_hours_end,
-      quietPrefs.quiet_hours_timezone,
-    )) {
-      return // suppress during quiet hours
+      if (quietPrefs && isInQuietHours(
+        quietPrefs.quiet_hours_enabled,
+        quietPrefs.quiet_hours_start,
+        quietPrefs.quiet_hours_end,
+        quietPrefs.quiet_hours_timezone,
+      )) {
+        return // suppress during quiet hours
+      }
     }
 
     const { data: subs } = await supabase
@@ -101,7 +93,7 @@ export async function sendPushToUser(
         webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify(payload),
-          { TTL: 60 }
+          { TTL: PUSH_TTL_SECONDS }
         ).catch(async (err: unknown) => {
           const statusCode = (err as { statusCode?: number }).statusCode
           // 410 = subscription expired; clean it up
@@ -263,28 +255,34 @@ export async function sendPushToChannel(opts: {
 
   if (!memberIds.length) return
 
-  // ── Batch presence eligibility check ──────────────────────────────
-  // Filter out members who are actively online and receiving messages
-  // via the real-time channel. This is a single batched query instead
-  // of per-user checks, avoiding N+1 queries in sendPushToUser.
-  const { data: onlineUsers } = await supabase
-    .from("users")
-    .select("id, status, updated_at")
-    .in("id", memberIds)
-    .eq("status", "online")
+  // NOTE: We intentionally do NOT filter out "online" users here.
+  // Mobile PWA users (iOS/Android) keep WebSocket connections alive when
+  // the app is backgrounded, so their DB status reads "online" even when
+  // they aren't looking at the app.  The service worker's push handler
+  // already suppresses the notification when the user has a focused,
+  // visible window on the target conversation — that's the reliable
+  // client-side check.  Filtering server-side was causing ALL mobile
+  // push notifications to be silently dropped.
 
-  if (onlineUsers?.length) {
-    const now = Date.now()
-    const activeOnlineIds = new Set(
-      onlineUsers
-        .filter((u: { id: string; status: string; updated_at: string | null }) => {
-          if (!u.updated_at) return false
-          return now - new Date(u.updated_at).getTime() < PRESENCE_STALE_MS
-        })
-        .map((u: { id: string }) => u.id)
+  // ── Batch quiet-hours check ──────────────────────────────────────
+  // Filter out members who are in their scheduled DND window so we
+  // don't need per-user quiet-hours queries in sendPushToUser.
+  const { data: quietHoursPrefs } = await supabase
+    .from("user_notification_preferences")
+    .select("user_id, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+    .in("user_id", memberIds)
+    .eq("quiet_hours_enabled", true)
+
+  if (quietHoursPrefs?.length) {
+    const quietUserIds = new Set(
+      quietHoursPrefs
+        .filter((p: { user_id: string; quiet_hours_enabled: boolean; quiet_hours_start: string | null; quiet_hours_end: string | null; quiet_hours_timezone: string | null }) =>
+          isInQuietHours(p.quiet_hours_enabled, p.quiet_hours_start, p.quiet_hours_end, p.quiet_hours_timezone)
+        )
+        .map((p: { user_id: string }) => p.user_id)
     )
-    if (activeOnlineIds.size > 0) {
-      memberIds = memberIds.filter((uid: string) => !activeOnlineIds.has(uid))
+    if (quietUserIds.size > 0) {
+      memberIds = memberIds.filter((uid: string) => !quietUserIds.has(uid))
     }
   }
 
@@ -372,7 +370,7 @@ export async function sendPushToChannel(opts: {
         if (typePrefs && typePrefs.mention_notifications === false) return
       }
 
-      return sendPushToUser(uid, payload)
+      return sendPushToUser(uid, payload, { skipQuietHours: true })
     })
   )
   } catch (err) {

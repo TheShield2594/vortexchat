@@ -84,16 +84,15 @@ self.addEventListener("fetch", (event) => {
 })
 
 // Push notification handler — suppresses notification when the user is
-// actively viewing the target conversation (inspired by Fluxer's approach
-// of only showing push when the app is backgrounded/unfocused).
+// actively viewing the target conversation in a focused window.
+// IMPORTANT: On iOS, every push event MUST call showNotification() or the
+// OS may revoke the push subscription.  Never return early without showing.
 self.addEventListener("push", (event) => {
-  if (!event.data) return
-
   let data = {}
   try {
-    data = event.data.json()
+    data = event.data?.json() ?? {}
   } catch {
-    data = { title: "VortexChat", body: event.data.text() }
+    try { data = { title: "VortexChat", body: event.data?.text() ?? "New message" } } catch { /* empty payload */ }
   }
 
   const {
@@ -106,13 +105,15 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     (async () => {
-      // Check if the user has a focused window on the target URL
-      // If so, skip the notification — they're already reading the conversation
+      // Check if the user has a focused window on the target URL.
+      // If so, suppress the notification — they're already reading it.
+      // On mobile PWA, backgrounded apps have zero visible clients,
+      // so this correctly allows notifications through.
+      let isFocused = false
       try {
-        const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: false })
-        const isFocused = clients.some((client) => {
+        const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true })
+        isFocused = clients.some((client) => {
           if (!client.focused || client.visibilityState !== "visible") return false
-          // Check if the focused client is viewing the same channel/conversation
           try {
             const clientUrl = new URL(client.url)
             return clientUrl.pathname === url
@@ -120,10 +121,23 @@ self.addEventListener("push", (event) => {
             return false
           }
         })
-
-        if (isFocused) return // User is looking at this conversation — skip push
       } catch {
-        // clients API failed — continue to show notification
+        // clients API failed — show notification to be safe
+      }
+
+      if (isFocused) {
+        // User is looking at this conversation.  On iOS we still must
+        // call showNotification to keep the subscription alive, so show
+        // a silent, auto-dismissing notification with a very short tag
+        // that gets immediately closed.
+        await self.registration.showNotification("", {
+          tag: "vortex-suppress",
+          silent: true,
+        })
+        // Immediately close it — user won't see it
+        const notifications = await self.registration.getNotifications({ tag: "vortex-suppress" })
+        notifications.forEach((n) => n.close())
+        return
       }
 
       const actions = url !== "/channels/me" ? [
@@ -210,17 +224,28 @@ self.addEventListener("notificationclick", (event) => {
   if (event.action === "dismiss") return
 
   const url = event.notification.data?.url || "/channels/me"
+  const fullUrl = new URL(url, self.location.origin).href
 
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clients) => {
-        const existing = clients.find((c) => c.url.includes(self.location.origin))
+        // Prefer a tab already on the same channel to avoid a full reload
+        const sameChannel = clients.find((c) => {
+          try {
+            const clientUrl = new URL(c.url)
+            const targetUrl = new URL(fullUrl)
+            return clientUrl.pathname === targetUrl.pathname && clientUrl.search === targetUrl.search
+          } catch { return false }
+        })
+        const existing = sameChannel || clients.find((c) => c.url.includes(self.location.origin))
         if (existing) {
-          existing.focus()
-          existing.navigate(url)
+          return existing.focus().then(() => {
+            existing.postMessage({ type: "NOTIFICATION_NAVIGATE", url })
+            return sameChannel ? undefined : existing.navigate(fullUrl)
+          })
         } else {
-          self.clients.openWindow(url)
+          return self.clients.openWindow(fullUrl)
         }
       })
   )
