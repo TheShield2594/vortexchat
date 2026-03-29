@@ -12,9 +12,8 @@ type Params = { params: Promise<{ serverId: string }> }
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const { serverId } = await params
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { supabase, error: permError } = await requireServerPermission(serverId, "SEND_MESSAGES")
+    if (permError) return permError
 
     const [configResult, incidentsResult] = await Promise.all([
       supabase
@@ -31,6 +30,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     ])
 
     if (configResult.error) return NextResponse.json({ error: "Failed to fetch incident configuration" }, { status: 500 })
+    if (incidentsResult.error) return NextResponse.json({ error: "Failed to fetch incidents" }, { status: 500 })
 
     return NextResponse.json({
       config: configResult.data,
@@ -107,6 +107,9 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // Create incident
   if (action === "create_incident") {
+    const { error: permError } = await requireServerPermission(serverId, "SEND_MESSAGES")
+    if (permError) return permError
+
     const { title, description, severity } = body as {
       title?: string
       description?: string

@@ -8,12 +8,14 @@ import { sendPushToUser } from "@/lib/push"
  */
 export async function GET(request: Request) {
   try {
-    // Validate cron secret to prevent unauthorized triggers
+    // Fail closed: require CRON_SECRET to be configured
+    const secret = process.env.CRON_SECRET
+    if (!secret) {
+      console.error("[event-reminders] CRON_SECRET is not configured")
+      return NextResponse.json({ error: "Server misconfigured" }, { status: 500 })
+    }
     const authHeader = request.headers.get("authorization")
-    if (
-      process.env.CRON_SECRET &&
-      authHeader !== `Bearer ${process.env.CRON_SECRET}`
-    ) {
+    if (authHeader !== `Bearer ${secret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

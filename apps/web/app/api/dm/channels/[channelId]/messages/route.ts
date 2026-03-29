@@ -68,11 +68,9 @@ export async function POST(
   ])
 
   if (blockCheckResult.error) {
+    console.error("[dm/messages POST] block check failed:", blockCheckResult.error.message)
     return NextResponse.json(
-      {
-        error: "Error checking block status",
-        details: blockCheckResult.error.message,
-      },
+      { error: "Error checking block status" },
       { status: 500 }
     )
   }

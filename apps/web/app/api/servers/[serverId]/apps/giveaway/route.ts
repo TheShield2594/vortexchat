@@ -103,6 +103,13 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     // Determine channel — use explicit channel_id or fall back to configured giveaway channel
     let targetChannelId = channel_id
+
+    // Validate explicit channel_id belongs to this server
+    if (targetChannelId) {
+      const { data: ch } = await supabase.from("channels").select("id").eq("id", targetChannelId).eq("server_id", serverId).maybeSingle()
+      if (!ch) return NextResponse.json({ error: "Channel not found in this server" }, { status: 400 })
+    }
+
     if (!targetChannelId) {
       const { data: config } = await supabase
         .from("giveaway_app_configs")
@@ -148,11 +155,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       `\nUse \`/genter ${giveaway.id.slice(0, 8)}\` to enter!`,
     ].filter(Boolean).join("\n")
 
-    await serviceClient.from("messages").insert({
+    const { error: announceError } = await serviceClient.from("messages").insert({
       channel_id: targetChannelId,
       author_id: SYSTEM_BOT_ID,
       content: announceContent,
     })
+
+    if (announceError) {
+      // Rollback: delete the giveaway we just created
+      await supabase.from("giveaways").delete().eq("id", giveaway.id)
+      return NextResponse.json({ error: "Failed to post giveaway announcement" }, { status: 500 })
+    }
 
     return NextResponse.json(giveaway, { status: 201 })
   }

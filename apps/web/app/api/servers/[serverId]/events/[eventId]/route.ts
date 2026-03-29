@@ -213,9 +213,8 @@ export async function DELETE(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { allowed, event } = await canManageEvent(supabase, params.serverId, params.eventId, user.id)
-    if (!allowed || !event) {
-      return NextResponse.json({ error: "You don't have permission to delete this event" }, { status: 403 })
-    }
+    if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 })
+    if (!allowed) return NextResponse.json({ error: "You don't have permission to delete this event" }, { status: 403 })
 
     // Notify attendees before deletion
     const { data: attendees } = await supabase

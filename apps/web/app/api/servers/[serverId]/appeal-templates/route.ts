@@ -33,7 +33,8 @@ export async function POST(
   try {
   const { serverId } = await params
   const auth = await requireModerator(serverId)
-  if (auth.error || !auth.user) return auth.error!
+  if (auth.error) return auth.error
+  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   let body: unknown
   try {

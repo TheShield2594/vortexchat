@@ -84,11 +84,15 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // Verify session is active and user is a participant
-  const { data: session } = await supabase
+  const { data: session, error: sessionError } = await supabase
     .from("voice_call_sessions")
     .select("id, ended_at")
     .eq("id", sessionId)
     .maybeSingle()
+
+  if (sessionError) {
+    return NextResponse.json({ error: "Failed to validate session" }, { status: 500 })
+  }
 
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 })
@@ -98,23 +102,31 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // Verify participant consent
-  const { data: participant } = await supabase
+  const { data: participant, error: participantError } = await supabase
     .from("voice_call_participants")
     .select("consent_transcription")
     .eq("session_id", sessionId)
     .eq("user_id", user.id)
     .maybeSingle()
 
+  if (participantError) {
+    return NextResponse.json({ error: "Failed to validate session" }, { status: 500 })
+  }
+
   if (!participant?.consent_transcription) {
     return NextResponse.json({ error: "Transcription consent not given" }, { status: 403 })
   }
 
   // Fetch policy retention
-  const { data: policyRow } = await supabase
+  const { data: policyRow, error: policyError } = await supabase
     .from("voice_intelligence_policies")
     .select("retention_days")
     .eq("scope_type", "workspace")
     .maybeSingle()
+
+  if (policyError) {
+    return NextResponse.json({ error: "Failed to validate session" }, { status: 500 })
+  }
 
   const retentionDays = (policyRow as { retention_days?: number } | null)?.retention_days ?? 30
 
@@ -122,7 +134,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .from("voice_transcript_segments")
     .insert({
       session_id: sessionId,
-      speaker_user_id: body.speaker_user_id ?? user.id,
+      speaker_user_id: user.id,
       source_language: body.source_language ?? "en",
       text: body.text,
       started_at: body.started_at,
