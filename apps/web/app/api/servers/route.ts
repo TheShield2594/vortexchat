@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { checkRateLimit } from "@/lib/utils/api-helpers"
 
 /**
  * POST /api/servers
@@ -18,6 +19,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     userId = user.id
+
+    const limited = await checkRateLimit(user.id, "servers:create", { limit: 10, windowMs: 3600_000 })
+    if (limited) return limited
 
     let body: unknown
     try {

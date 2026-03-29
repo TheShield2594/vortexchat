@@ -23,23 +23,29 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const { serverId } = await params
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+  try {
+    const { serverId } = await params
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
-  if (!isAdmin && permissions === 0) {
-    return NextResponse.json({ error: "Not a member of this server" }, { status: 403 })
+    const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+    if (!isAdmin && permissions === 0) {
+      return NextResponse.json({ error: "Not a member of this server" }, { status: 403 })
+    }
+
+    const { data, error } = await supabase
+      .from("server_app_installs")
+      .select("id, app_id, install_scopes, granted_permissions, installed_at, app_catalog(name, slug, trust_badge)")
+      .eq("server_id", serverId)
+      .order("installed_at", { ascending: false })
+
+    if (error) return NextResponse.json({ error: "Failed to fetch installed apps" }, { status: 500 })
+    return NextResponse.json(data ?? [])
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const { data, error } = await supabase
-    .from("server_app_installs")
-    .select("id, app_id, install_scopes, granted_permissions, installed_at, app_catalog(name, slug, trust_badge)")
-    .eq("server_id", serverId)
-    .order("installed_at", { ascending: false })
-
-  if (error) return NextResponse.json({ error: "Failed to fetch installed apps" }, { status: 500 })
-  return NextResponse.json(data ?? [])
 }
 
 export async function POST(
@@ -115,32 +121,38 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const { serverId } = await params
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+  try {
+    const { serverId } = await params
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  const manager = await canManageApps(supabase, serverId, user.id)
-  if (!manager.allowed) return NextResponse.json({ error: "Missing permissions to uninstall apps." }, { status: 403 })
+    const manager = await canManageApps(supabase, serverId, user.id)
+    if (!manager.allowed) return NextResponse.json({ error: "Missing permissions to uninstall apps." }, { status: 403 })
 
-  const appId = req.nextUrl.searchParams.get("appId")
-  if (!appId) return NextResponse.json({ error: "appId required" }, { status: 400 })
+    const appId = req.nextUrl.searchParams.get("appId")
+    if (!appId) return NextResponse.json({ error: "appId required" }, { status: 400 })
 
-  const serviceClient = await createServiceRoleClient()
+    const serviceClient = await createServiceRoleClient()
 
-  const { error } = await serviceClient
-    .from("server_app_installs")
-    .delete()
-    .eq("server_id", serverId)
-    .eq("app_id", appId)
+    const { error } = await serviceClient
+      .from("server_app_installs")
+      .delete()
+      .eq("server_id", serverId)
+      .eq("app_id", appId)
 
-  if (error) return NextResponse.json({ error: "Failed to uninstall app" }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to uninstall app" }, { status: 500 })
 
-  await serviceClient.rpc("bump_app_usage", {
-    p_app_id: appId,
-    p_server_id: serverId,
-    p_metric_key: "app.uninstall",
-    p_metric_value: 1,
-  })
+    await serviceClient.rpc("bump_app_usage", {
+      p_app_id: appId,
+      p_server_id: serverId,
+      p_metric_key: "app.uninstall",
+      p_metric_value: 1,
+    })
 
-  return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps DELETE] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

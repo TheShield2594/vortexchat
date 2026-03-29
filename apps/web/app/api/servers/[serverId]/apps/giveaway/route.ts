@@ -10,30 +10,36 @@ type Params = { params: Promise<{ serverId: string }> }
  * Returns giveaway config + active giveaways for the server.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const { supabase, error } = await requireServerPermission(serverId, "SEND_MESSAGES")
-  if (error) return error
+  try {
+    const { serverId } = await params
+    const { supabase, error } = await requireServerPermission(serverId, "SEND_MESSAGES")
+    if (error) return error
 
-  const [configResult, giveawaysResult] = await Promise.all([
-    supabase
-      .from("giveaway_app_configs")
-      .select("*")
-      .eq("server_id", serverId)
-      .maybeSingle(),
-    supabase
-      .from("giveaways")
-      .select("*, giveaway_entries(count)")
-      .eq("server_id", serverId)
-      .order("created_at", { ascending: false })
-      .limit(50),
-  ])
+    const [configResult, giveawaysResult] = await Promise.all([
+      supabase
+        .from("giveaway_app_configs")
+        .select("*")
+        .eq("server_id", serverId)
+        .maybeSingle(),
+      supabase
+        .from("giveaways")
+        .select("*, giveaway_entries(count)")
+        .eq("server_id", serverId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ])
 
-  if (configResult.error) return NextResponse.json({ error: "Failed to fetch giveaway configuration" }, { status: 500 })
+    if (configResult.error) return NextResponse.json({ error: "Failed to fetch giveaway configuration" }, { status: 500 })
 
-  return NextResponse.json({
-    config: configResult.data,
-    giveaways: giveawaysResult.data ?? [],
-  })
+    return NextResponse.json({
+      config: configResult.data,
+      giveaways: giveawaysResult.data ?? [],
+    })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/giveaway GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 /**

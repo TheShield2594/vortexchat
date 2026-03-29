@@ -101,6 +101,7 @@ function IconButton({
     <button
       onClick={(e) => { e.stopPropagation(); onClick() }}
       title={title}
+      aria-label={title}
       className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
       style={{
         background: danger ? "rgba(242,63,67,0.15)" : "rgba(255,255,255,0.08)",

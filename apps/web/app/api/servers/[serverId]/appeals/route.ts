@@ -8,22 +8,28 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const { serverId } = await params
-  const auth = await requireModerator(serverId)
-  if (auth.error) return auth.error
+  try {
+    const { serverId } = await params
+    const auth = await requireModerator(serverId)
+    if (auth.error) return auth.error
 
-  const status = new URL(req.url).searchParams.get("status")
-  const query = auth.supabase
-    .from("moderation_appeals")
-    .select("id, user_id, status, submitted_at, assigned_reviewer_id, anti_abuse_score")
-    .eq("server_id", serverId)
-    .order("submitted_at", { ascending: true })
+    const status = new URL(req.url).searchParams.get("status")
+    const query = auth.supabase
+      .from("moderation_appeals")
+      .select("id, user_id, status, submitted_at, assigned_reviewer_id, anti_abuse_score")
+      .eq("server_id", serverId)
+      .order("submitted_at", { ascending: true })
 
-  if (status && isValidAppealStatus(status)) query.eq("status", status)
-  else query.in("status", TRIAGE_STATUSES)
+    if (status && isValidAppealStatus(status)) query.eq("status", status)
+    else query.in("status", TRIAGE_STATUSES)
 
-  const { data, error } = await query
+    const { data, error } = await query
 
-  if (error) return NextResponse.json({ error: "Failed to fetch appeals" }, { status: 500 })
-  return NextResponse.json(data ?? [])
+    if (error) return NextResponse.json({ error: "Failed to fetch appeals" }, { status: 500 })
+    return NextResponse.json(data ?? [])
+
+  } catch (err) {
+    console.error("[servers/[serverId]/appeals GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

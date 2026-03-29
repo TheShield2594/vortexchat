@@ -358,6 +358,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
                 style={{ color: "var(--theme-text-muted)" }}
                 title={thread.archived ? "Unarchive thread" : "Archive thread"}
+                aria-label={thread.archived ? "Unarchive thread" : "Archive thread"}
               >
                 {thread.archived ? (
                   <ArchiveRestore className="w-4 h-4" />
@@ -370,6 +371,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
                 style={{ color: thread.locked ? "var(--theme-danger)" : "var(--theme-text-muted)" }}
                 title={thread.locked ? "Unlock thread" : "Lock thread"}
+                aria-label={thread.locked ? "Unlock thread" : "Lock thread"}
               >
                 <Lock className="w-4 h-4" />
               </button>
@@ -380,6 +382,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
             style={{ color: isMember ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
             title={isMember ? "Leave thread" : "Join thread"}
+            aria-label={isMember ? "Leave thread" : "Join thread"}
           >
             <Users className="w-4 h-4" />
           </button>
@@ -388,6 +391,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
             style={{ color: "var(--theme-text-muted)" }}
             title="Close thread"
+            aria-label="Close thread"
           >
             <X className="w-4 h-4" />
           </button>

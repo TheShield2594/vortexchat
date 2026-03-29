@@ -10,31 +10,37 @@ type Params = { params: Promise<{ serverId: string }> }
  * Returns incident config + incidents list.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const [configResult, incidentsResult] = await Promise.all([
-    supabase
-      .from("incident_app_configs")
-      .select("*")
-      .eq("server_id", serverId)
-      .maybeSingle(),
-    supabase
-      .from("incidents")
-      .select("*, incident_updates(count)")
-      .eq("server_id", serverId)
-      .order("created_at", { ascending: false })
-      .limit(50),
-  ])
+    const [configResult, incidentsResult] = await Promise.all([
+      supabase
+        .from("incident_app_configs")
+        .select("*")
+        .eq("server_id", serverId)
+        .maybeSingle(),
+      supabase
+        .from("incidents")
+        .select("*, incident_updates(count)")
+        .eq("server_id", serverId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ])
 
-  if (configResult.error) return NextResponse.json({ error: "Failed to fetch incident configuration" }, { status: 500 })
+    if (configResult.error) return NextResponse.json({ error: "Failed to fetch incident configuration" }, { status: 500 })
 
-  return NextResponse.json({
-    config: configResult.data,
-    incidents: incidentsResult.data ?? [],
-  })
+    return NextResponse.json({
+      config: configResult.data,
+      incidents: incidentsResult.data ?? [],
+    })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/incidents GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 /**

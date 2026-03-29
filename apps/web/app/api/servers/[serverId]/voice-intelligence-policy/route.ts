@@ -17,18 +17,24 @@ type Params = { params: Promise<{ serverId: string }> }
  * Any authenticated member can read (used by client hook at session start).
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    const { serverId } = await params
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const effectivePolicy = await resolveEffectivePolicy(supabase, serverId)
+    return NextResponse.json(effectivePolicy)
+
+  } catch (err) {
+    console.error("[servers/[serverId]/voice-intelligence-policy GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const effectivePolicy = await resolveEffectivePolicy(supabase, serverId)
-  return NextResponse.json(effectivePolicy)
 }
 
 /**

@@ -180,6 +180,7 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
               onClick={handleSend}
               disabled={sending}
               style={{ color: "var(--theme-accent)" }}
+              aria-label="Send message"
             >
               <Send className="w-5 h-5" />
             </button>

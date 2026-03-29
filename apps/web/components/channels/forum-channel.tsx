@@ -267,6 +267,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
               type="button"
               onClick={() => { setView("list"); setActiveThread(null) }}
               className="p-1 rounded hover:bg-white/10 transition-colors"
+              aria-label="Back to forum posts"
             >
               <ArrowLeft className="w-4 h-4 text-white" />
             </button>
@@ -275,7 +276,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
               {activeThread.content?.split("\n")[0].replace(/\*\*/g, "") ?? "Thread"}
             </span>
             <div className="ml-auto flex items-center">
-              <button type="button" onClick={toggleMemberList} className="p-1.5 rounded hover:bg-white/10 transition-colors">
+              <button type="button" onClick={toggleMemberList} className="p-1.5 rounded hover:bg-white/10 transition-colors" aria-label={memberListOpen ? "Hide member list" : "Show member list"}>
                 <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
               </button>
             </div>
@@ -383,7 +384,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
             <Plus className="w-4 h-4" />
             New Post
           </button>
-          <button onClick={toggleMemberList} className="p-1.5 rounded hover:bg-white/10 transition-colors">
+          <button onClick={toggleMemberList} className="p-1.5 rounded hover:bg-white/10 transition-colors" aria-label={memberListOpen ? "Hide member list" : "Show member list"}>
             <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>
         </div>

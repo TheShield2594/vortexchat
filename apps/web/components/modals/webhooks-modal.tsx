@@ -138,6 +138,7 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
               disabled={creating || !newChannelId}
               className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
               style={{ background: "var(--theme-accent)", color: "white" }}
+              aria-label="Create webhook"
             >
               {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             </button>
@@ -162,7 +163,7 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
                     <p className="text-sm font-medium text-white">{wh.name}</p>
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>#{channelName(wh.channel_id)}</p>
                   </div>
-                  <button onClick={() => handleDelete(wh.id)} disabled={deletingId === wh.id} className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors disabled:opacity-50" style={{ color: "var(--theme-text-faint)" }} title="Delete">
+                  <button onClick={() => handleDelete(wh.id)} disabled={deletingId === wh.id} className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors disabled:opacity-50" style={{ color: "var(--theme-text-faint)" }} title="Delete" aria-label={`Delete webhook ${wh.name}`}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -175,6 +176,7 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
                     className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded transition-colors hover:bg-white/10"
                     style={{ color: copiedId === wh.id ? "var(--theme-success)" : "var(--theme-text-muted)" }}
                     title="Copy URL"
+                    aria-label="Copy webhook URL"
                   >
                     {copiedId === wh.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>

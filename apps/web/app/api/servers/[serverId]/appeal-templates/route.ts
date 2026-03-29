@@ -6,18 +6,24 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const { serverId } = await params
-  const auth = await requireModerator(serverId)
-  if (auth.error) return auth.error
+  try {
+    const { serverId } = await params
+    const auth = await requireModerator(serverId)
+    if (auth.error) return auth.error
 
-  const { data, error } = await auth.supabase
-    .from("moderation_decision_templates")
-    .select("id, title, body, decision, created_at")
-    .eq("server_id", serverId)
-    .order("created_at", { ascending: false })
+    const { data, error } = await auth.supabase
+      .from("moderation_decision_templates")
+      .select("id, title, body, decision, created_at")
+      .eq("server_id", serverId)
+      .order("created_at", { ascending: false })
 
-  if (error) return NextResponse.json({ error: "Failed to fetch appeal templates" }, { status: 500 })
-  return NextResponse.json(data ?? [])
+    if (error) return NextResponse.json({ error: "Failed to fetch appeal templates" }, { status: 500 })
+    return NextResponse.json(data ?? [])
+
+  } catch (err) {
+    console.error("[servers/[serverId]/appeal-templates GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(

@@ -8,18 +8,24 @@ type Params = { params: Promise<{ serverId: string }> }
  * Returns the welcome app configuration for this server.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const { supabase, error } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
-  if (error) return error
+  try {
+    const { serverId } = await params
+    const { supabase, error } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
+    if (error) return error
 
-  const { data, error: fetchError } = await supabase
-    .from("welcome_app_configs")
-    .select("*")
-    .eq("server_id", serverId)
-    .maybeSingle()
+    const { data, error: fetchError } = await supabase
+      .from("welcome_app_configs")
+      .select("*")
+      .eq("server_id", serverId)
+      .maybeSingle()
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
-  return NextResponse.json(data)
+    if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    return NextResponse.json(data)
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/welcome GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 /**

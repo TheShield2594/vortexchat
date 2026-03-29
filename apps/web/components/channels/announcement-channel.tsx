@@ -157,6 +157,7 @@ export function AnnouncementChannel({ channel, initialMessages, currentUserId, s
             onClick={toggleMemberList}
             className="p-1.5 rounded hover:bg-white/10 transition-colors"
             title={memberListOpen ? "Hide Member List" : "Show Member List"}
+            aria-label={memberListOpen ? "Hide member list" : "Show member list"}
           >
             <Users className="w-5 h-5" style={{ color: memberListOpen ? 'var(--theme-text-primary)' : 'var(--theme-text-muted)' }} />
           </button>

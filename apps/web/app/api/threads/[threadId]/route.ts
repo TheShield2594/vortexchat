@@ -9,31 +9,37 @@ interface Params {
 
 // GET /api/threads/[threadId]
 export async function GET(_request: Request, { params: paramsPromise }: Params) {
-  const { threadId } = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { threadId } = await paramsPromise
+    const supabase = await createServerSupabaseClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data: thread, error } = await supabase
-    .from("threads")
-    .select(`
-      *,
-      owner:users!threads_owner_id_fkey(*),
-      starter_message:messages!threads_starter_message_id_fkey(
+    const { data: thread, error } = await supabase
+      .from("threads")
+      .select(`
         *,
-        author:users!messages_author_id_fkey(*),
-        attachments(*),
-        reactions(*)
-      ),
-      members:thread_members(*)
-    `)
-    .eq("id", threadId)
-    .single()
+        owner:users!threads_owner_id_fkey(*),
+        starter_message:messages!threads_starter_message_id_fkey(
+          *,
+          author:users!messages_author_id_fkey(*),
+          attachments(*),
+          reactions(*)
+        ),
+        members:thread_members(*)
+      `)
+      .eq("id", threadId)
+      .single()
 
-  if (error) return NextResponse.json({ error: "Failed to fetch thread" }, { status: 500 })
-  if (!thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
+    if (error) return NextResponse.json({ error: "Failed to fetch thread" }, { status: 500 })
+    if (!thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
 
-  return NextResponse.json(thread)
+    return NextResponse.json(thread)
+
+  } catch (err) {
+    console.error("[threads/[threadId] GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 // PATCH /api/threads/[threadId]  { archived?, locked?, name?, auto_archive_duration? }
@@ -108,31 +114,37 @@ export async function PATCH(request: Request, { params: paramsPromise }: Params)
 
 // DELETE /api/threads/[threadId]
 export async function DELETE(_request: Request, { params: paramsPromise }: Params) {
-  const { threadId } = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { threadId } = await paramsPromise
+    const supabase = await createServerSupabaseClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Fetch thread for authorization
-  const { data: existing, error: fetchError } = await supabase
-    .from("threads")
-    .select("id, owner_id, parent_channel_id, channels(server_id)")
-    .eq("id", threadId)
-    .single()
+    // Fetch thread for authorization
+    const { data: existing, error: fetchError } = await supabase
+      .from("threads")
+      .select("id, owner_id, parent_channel_id, channels(server_id)")
+      .eq("id", threadId)
+      .single()
 
-  if (fetchError || !existing) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
+    if (fetchError || !existing) return NextResponse.json({ error: "Thread not found" }, { status: 404 })
 
-  // Authorization: thread owner or users with MANAGE_CHANNELS permission
-  const serverId = (existing.channels as { server_id?: string | null } | null)?.server_id ?? null
-  let authorized = existing.owner_id === user.id
-  if (!authorized && serverId) {
-    const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, existing.parent_channel_id, user.id)
-    authorized = isAdmin || hasPermission(permissions, "MANAGE_CHANNELS")
+    // Authorization: thread owner or users with MANAGE_CHANNELS permission
+    const serverId = (existing.channels as { server_id?: string | null } | null)?.server_id ?? null
+    let authorized = existing.owner_id === user.id
+    if (!authorized && serverId) {
+      const { isAdmin, permissions } = await getChannelPermissions(supabase, serverId, existing.parent_channel_id, user.id)
+      authorized = isAdmin || hasPermission(permissions, "MANAGE_CHANNELS")
+    }
+    if (!authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    const { error } = await supabase.from("threads").delete().eq("id", threadId)
+    if (error) return NextResponse.json({ error: "Failed to delete thread" }, { status: 500 })
+
+    return NextResponse.json({ ok: true })
+
+  } catch (err) {
+    console.error("[threads/[threadId] DELETE] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-  if (!authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-
-  const { error } = await supabase.from("threads").delete().eq("id", threadId)
-  if (error) return NextResponse.json({ error: "Failed to delete thread" }, { status: 500 })
-
-  return NextResponse.json({ ok: true })
 }

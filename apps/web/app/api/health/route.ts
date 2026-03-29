@@ -6,5 +6,11 @@ import { NextResponse } from "next/server"
  * Orchestrators should use this to decide whether to restart the process.
  */
 export async function GET() {
-  return NextResponse.json({ status: "ok" })
+  try {
+    return NextResponse.json({ status: "ok" })
+
+  } catch (err) {
+    console.error("[health GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

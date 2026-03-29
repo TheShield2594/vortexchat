@@ -13,39 +13,45 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const { serverId } = await params
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+  try {
+    const { serverId } = await params
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  // Must be owner or have BAN permission
-  const { data: member } = await supabase
-    .from("server_members")
-    .select("server_id, member_roles(roles(permissions))")
-    .eq("server_id", serverId)
-    .eq("user_id", user.id)
-    .single()
+    // Must be owner or have BAN permission
+    const { data: member } = await supabase
+      .from("server_members")
+      .select("server_id, member_roles(roles(permissions))")
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .single()
 
-  const { data: server } = await supabase
-    .from("servers")
-    .select("owner_id")
-    .eq("id", serverId)
-    .single()
+    const { data: server } = await supabase
+      .from("servers")
+      .select("owner_id")
+      .eq("id", serverId)
+      .single()
 
-  const isOwner = server?.owner_id === user.id
-  const permissions = aggregateMemberPermissions((member as any)?.member_roles)
+    const isOwner = server?.owner_id === user.id
+    const permissions = aggregateMemberPermissions((member as any)?.member_roles)
 
-  if (!isOwner && !checkPermission(permissions, "BAN_MEMBERS")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (!isOwner && !checkPermission(permissions, "BAN_MEMBERS")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const { data: bans, error } = await supabase
+      .from("server_bans")
+      .select("*, user:users!server_bans_user_id_fkey(id, username, display_name, avatar_url), banned_by_user:users!server_bans_banned_by_fkey(id, username, display_name)")
+      .eq("server_id", serverId)
+      .order("banned_at", { ascending: false })
+
+    if (error) return NextResponse.json({ error: "Failed to fetch bans" }, { status: 500 })
+    return NextResponse.json(bans)
+
+  } catch (err) {
+    console.error("[servers/[serverId]/bans GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const { data: bans, error } = await supabase
-    .from("server_bans")
-    .select("*, user:users!server_bans_user_id_fkey(id, username, display_name, avatar_url), banned_by_user:users!server_bans_banned_by_fkey(id, username, display_name)")
-    .eq("server_id", serverId)
-    .order("banned_at", { ascending: false })
-
-  if (error) return NextResponse.json({ error: "Failed to fetch bans" }, { status: 500 })
-  return NextResponse.json(bans)
 }
 
 // POST /api/servers/[serverId]/bans — ban a user

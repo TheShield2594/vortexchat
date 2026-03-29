@@ -87,45 +87,51 @@ export async function DELETE(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
-  const params = await paramsPromise
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+  try {
+    const params = await paramsPromise
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  const { searchParams } = new URL(request.url)
-  const targetUserId = searchParams.get("userId")
-  if (!targetUserId) return NextResponse.json({ error: "userId required" }, { status: 400 })
+    const { searchParams } = new URL(request.url)
+    const targetUserId = searchParams.get("userId")
+    if (!targetUserId) return NextResponse.json({ error: "userId required" }, { status: 400 })
 
-  // Allow self-removal (leaving) or require KICK_MEMBERS permission
-  if (targetUserId !== user.id) {
-    const { isOwner, isAdmin, permissions, ownerId } = await getMemberPermissions(supabase, params.serverId, user.id)
+    // Allow self-removal (leaving) or require KICK_MEMBERS permission
+    if (targetUserId !== user.id) {
+      const { isOwner, isAdmin, permissions, ownerId } = await getMemberPermissions(supabase, params.serverId, user.id)
 
-    if (!isAdmin && !hasPermission(permissions, "KICK_MEMBERS")) {
-      return NextResponse.json({ error: "Missing KICK_MEMBERS permission" }, { status: 403 })
-    }
+      if (!isAdmin && !hasPermission(permissions, "KICK_MEMBERS")) {
+        return NextResponse.json({ error: "Missing KICK_MEMBERS permission" }, { status: 403 })
+      }
 
-    // Prevent kicking the server owner
-    if (targetUserId === ownerId) {
-      return NextResponse.json({ error: "Cannot remove the server owner" }, { status: 400 })
-    }
+      // Prevent kicking the server owner
+      if (targetUserId === ownerId) {
+        return NextResponse.json({ error: "Cannot remove the server owner" }, { status: 400 })
+      }
 
-    // Non-owners cannot kick admins
-    if (!isOwner) {
-      const { permissions: targetPerms } = await getMemberPermissions(supabase, params.serverId, targetUserId)
-      if (targetPerms & PERMISSIONS.ADMINISTRATOR) {
-        return NextResponse.json({ error: "Cannot kick a member with Administrator" }, { status: 403 })
+      // Non-owners cannot kick admins
+      if (!isOwner) {
+        const { permissions: targetPerms } = await getMemberPermissions(supabase, params.serverId, targetUserId)
+        if (targetPerms & PERMISSIONS.ADMINISTRATOR) {
+          return NextResponse.json({ error: "Cannot kick a member with Administrator" }, { status: 403 })
+        }
       }
     }
+
+    const { error } = await supabase
+      .from("server_members")
+      .delete()
+      .eq("server_id", params.serverId)
+      .eq("user_id", targetUserId)
+
+    if (error) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
+
+    return NextResponse.json({ success: true })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/members DELETE] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const { error } = await supabase
-    .from("server_members")
-    .delete()
-    .eq("server_id", params.serverId)
-    .eq("user_id", targetUserId)
-
-  if (error) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
-
-  return NextResponse.json({ success: true })
 }
 
 /**
@@ -139,75 +145,81 @@ export async function PATCH(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
-  const params = await paramsPromise
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+  try {
+    const params = await paramsPromise
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  const { searchParams } = new URL(request.url)
-  const targetUserId = searchParams.get("userId")
-  if (!targetUserId) return NextResponse.json({ error: "userId required" }, { status: 400 })
+    const { searchParams } = new URL(request.url)
+    const targetUserId = searchParams.get("userId")
+    if (!targetUserId) return NextResponse.json({ error: "userId required" }, { status: 400 })
 
-  const { data: body, error: parseError } = await parseJsonBody<{ timeoutUntil?: string | null }>(request as any)
-  if (parseError) return parseError
+    const { data: body, error: parseError } = await parseJsonBody<{ timeoutUntil?: string | null }>(request as any)
+    if (parseError) return parseError
 
-  const { timeoutUntil } = body
+    const { timeoutUntil } = body
 
-  // Validate duration: max 28 days, must be in the future (or null to clear)
-  if (timeoutUntil !== null && timeoutUntil !== undefined) {
-    const until = new Date(timeoutUntil)
-    if (isNaN(until.getTime())) {
-      return NextResponse.json({ error: "Invalid timeoutUntil value" }, { status: 400 })
+    // Validate duration: max 28 days, must be in the future (or null to clear)
+    if (timeoutUntil !== null && timeoutUntil !== undefined) {
+      const until = new Date(timeoutUntil)
+      if (isNaN(until.getTime())) {
+        return NextResponse.json({ error: "Invalid timeoutUntil value" }, { status: 400 })
+      }
+      const maxMs = 28 * 24 * 60 * 60 * 1000
+      if (until.getTime() - Date.now() > maxMs) {
+        return NextResponse.json({ error: "Timeout duration exceeds 28-day maximum" }, { status: 400 })
+      }
+      if (until.getTime() <= Date.now()) {
+        return NextResponse.json({ error: "timeoutUntil must be in the future" }, { status: 400 })
+      }
     }
-    const maxMs = 28 * 24 * 60 * 60 * 1000
-    if (until.getTime() - Date.now() > maxMs) {
-      return NextResponse.json({ error: "Timeout duration exceeds 28-day maximum" }, { status: 400 })
+
+    // Check MODERATE_MEMBERS permission; also get ownerId to avoid an extra servers query
+    const { isOwner, isAdmin, permissions, ownerId } = await getMemberPermissions(supabase, params.serverId, user.id)
+    if (!isAdmin && !hasPermission(permissions, "MODERATE_MEMBERS")) {
+      return NextResponse.json({ error: "Missing MODERATE_MEMBERS permission" }, { status: 403 })
     }
-    if (until.getTime() <= Date.now()) {
-      return NextResponse.json({ error: "timeoutUntil must be in the future" }, { status: 400 })
+
+    // Prevent timing out the server owner
+    if (targetUserId === ownerId) {
+      return NextResponse.json({ error: "Cannot time out the server owner" }, { status: 400 })
     }
-  }
 
-  // Check MODERATE_MEMBERS permission; also get ownerId to avoid an extra servers query
-  const { isOwner, isAdmin, permissions, ownerId } = await getMemberPermissions(supabase, params.serverId, user.id)
-  if (!isAdmin && !hasPermission(permissions, "MODERATE_MEMBERS")) {
-    return NextResponse.json({ error: "Missing MODERATE_MEMBERS permission" }, { status: 403 })
-  }
-
-  // Prevent timing out the server owner
-  if (targetUserId === ownerId) {
-    return NextResponse.json({ error: "Cannot time out the server owner" }, { status: 400 })
-  }
-
-  // Non-owners cannot time out admins
-  if (!isOwner) {
-    const { permissions: targetPerms } = await getMemberPermissions(supabase, params.serverId, targetUserId)
-    if (targetPerms & PERMISSIONS.ADMINISTRATOR) {
-      return NextResponse.json({ error: "Cannot time out a member with Administrator" }, { status: 403 })
+    // Non-owners cannot time out admins
+    if (!isOwner) {
+      const { permissions: targetPerms } = await getMemberPermissions(supabase, params.serverId, targetUserId)
+      if (targetPerms & PERMISSIONS.ADMINISTRATOR) {
+        return NextResponse.json({ error: "Cannot time out a member with Administrator" }, { status: 403 })
+      }
     }
+
+    // Persist to member_timeouts (the table messages/route.ts checks) via the
+    // set_member_timeout SECURITY DEFINER function so no broad UPDATE policy is
+    // required on server_members.
+    const { error } = await supabase.rpc("set_member_timeout", {
+      p_server_id: params.serverId,
+      p_member_id: targetUserId,
+      p_timeout_until: timeoutUntil ?? null,
+      p_moderator_id: user.id,
+      p_reason: null,
+    })
+
+    if (error) return NextResponse.json({ error: "Failed to update member timeout" }, { status: 500 })
+
+    // Audit log
+    await insertAuditLog(supabase, {
+      server_id: params.serverId,
+      actor_id: user.id,
+      action: timeoutUntil ? "member_timeout" : "member_timeout_remove",
+      target_id: targetUserId,
+      target_type: "user",
+      changes: { timeout_until: timeoutUntil ?? null },
+    })
+
+    return NextResponse.json({ success: true })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/members PATCH] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  // Persist to member_timeouts (the table messages/route.ts checks) via the
-  // set_member_timeout SECURITY DEFINER function so no broad UPDATE policy is
-  // required on server_members.
-  const { error } = await supabase.rpc("set_member_timeout", {
-    p_server_id: params.serverId,
-    p_member_id: targetUserId,
-    p_timeout_until: timeoutUntil ?? null,
-    p_moderator_id: user.id,
-    p_reason: null,
-  })
-
-  if (error) return NextResponse.json({ error: "Failed to update member timeout" }, { status: 500 })
-
-  // Audit log
-  await insertAuditLog(supabase, {
-    server_id: params.serverId,
-    actor_id: user.id,
-    action: timeoutUntil ? "member_timeout" : "member_timeout_remove",
-    target_id: targetUserId,
-    target_type: "user",
-    changes: { timeout_until: timeoutUntil ?? null },
-  })
-
-  return NextResponse.json({ success: true })
 }

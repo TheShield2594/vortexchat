@@ -329,6 +329,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition-colors flex-shrink-0"
             style={{ color: "var(--theme-text-muted)" }}
             title="New DM"
+            aria-label="New direct message"
           >
             <Plus className="w-4 h-4" />
           </button>

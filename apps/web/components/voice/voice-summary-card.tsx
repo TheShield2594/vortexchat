@@ -60,6 +60,8 @@ export function VoiceSummaryCard({ sessionId, summaryPending, className }: Voice
       <button
         className="w-full flex items-center justify-between gap-2 px-4 py-3 transition-colors hover:bg-white/5"
         onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        aria-label={expanded ? "Collapse voice recap" : "Expand voice recap"}
       >
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4" style={{ color: "var(--theme-accent)" }} />

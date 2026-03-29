@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
-import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
+import { requireAuth, parseJsonBody, insertAuditLog, checkRateLimit } from "@/lib/utils/api-helpers"
 import { REPORT_REASON_VALUES, type ReportReason } from "@/lib/report-reasons"
 import { REPORT_STATUSES, REPORT_STATUS_TRANSITIONS, type ReportStatus } from "@/lib/report-status"
 
@@ -24,8 +24,12 @@ const VALID_REASONS = REPORT_REASON_VALUES
  * }
  */
 export async function POST(req: NextRequest) {
+  try {
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
+
+  const limited = await checkRateLimit(user.id, "reports:submit", { limit: 10, windowMs: 3600_000 })
+  if (limited) return limited
 
   const { data: body, error: parseError } = await parseJsonBody<{
     reported_user_id?: string
@@ -121,6 +125,10 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: "Failed to create report" }, { status: 500 })
 
   return NextResponse.json(report, { status: 201 })
+  } catch (err) {
+    console.error("[reports POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 /**
@@ -130,60 +138,66 @@ export async function POST(req: NextRequest) {
  * Without server_id, returns the caller's own reports.
  */
 export async function GET(req: NextRequest) {
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+  try {
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  const { searchParams } = new URL(req.url)
-  const serverId = searchParams.get("server_id")
-  const statusFilter = searchParams.get("status")
+    const { searchParams } = new URL(req.url)
+    const serverId = searchParams.get("server_id")
+    const statusFilter = searchParams.get("status")
 
-  if (serverId) {
-    // Moderator view — requires permission
-    const { isOwner, isAdmin, permissions } = await getMemberPermissions(
-      supabase,
-      serverId,
-      user.id
-    )
-
-    if (!isOwner && !isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
-    let query = supabase
-      .from("reports")
-      .select(
-        "*, reporter:users!reports_reporter_id_fkey(id, username, display_name, avatar_url), reported_user:users!reports_reported_user_id_fkey(id, username, display_name, avatar_url), reviewer:users!reports_reviewed_by_fkey(id, username, display_name)"
+    if (serverId) {
+      // Moderator view — requires permission
+      const { isOwner, isAdmin, permissions } = await getMemberPermissions(
+        supabase,
+        serverId,
+        user.id
       )
-      .eq("server_id", serverId)
-      .order("created_at", { ascending: false })
-      .limit(100)
 
-    if (statusFilter) {
-      if (!REPORT_STATUSES.includes(statusFilter as ReportStatus)) {
-        return NextResponse.json({ error: "Invalid status filter" }, { status: 400 })
+      if (!isOwner && !isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
-      query = query.eq("status", statusFilter as ReportStatus)
+
+      let query = supabase
+        .from("reports")
+        .select(
+          "*, reporter:users!reports_reporter_id_fkey(id, username, display_name, avatar_url), reported_user:users!reports_reported_user_id_fkey(id, username, display_name, avatar_url), reviewer:users!reports_reviewed_by_fkey(id, username, display_name)"
+        )
+        .eq("server_id", serverId)
+        .order("created_at", { ascending: false })
+        .limit(100)
+
+      if (statusFilter) {
+        if (!REPORT_STATUSES.includes(statusFilter as ReportStatus)) {
+          return NextResponse.json({ error: "Invalid status filter" }, { status: 400 })
+        }
+        query = query.eq("status", statusFilter as ReportStatus)
+      }
+
+      const { data: reports, error } = await query
+      if (error) return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
+      return NextResponse.json(reports, {
+        headers: { "Cache-Control": "private, max-age=30" },
+      })
     }
 
-    const { data: reports, error } = await query
+    // No server_id — return caller's own reports
+    const { data: reports, error } = await supabase
+      .from("reports")
+      .select("*")
+      .eq("reporter_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50)
+
     if (error) return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
     return NextResponse.json(reports, {
       headers: { "Cache-Control": "private, max-age=30" },
     })
+
+  } catch (err) {
+    console.error("[reports GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  // No server_id — return caller's own reports
-  const { data: reports, error } = await supabase
-    .from("reports")
-    .select("*")
-    .eq("reporter_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(50)
-
-  if (error) return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
-  return NextResponse.json(reports, {
-    headers: { "Cache-Control": "private, max-age=30" },
-  })
 }
 
 /**
@@ -196,83 +210,89 @@ export async function GET(req: NextRequest) {
  * }
  */
 export async function PATCH(req: NextRequest) {
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+  try {
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  const { data: body, error: parseError } = await parseJsonBody<{ report_id?: string; server_id?: string; status?: string }>(req)
-  if (parseError) return parseError
+    const { data: body, error: parseError } = await parseJsonBody<{ report_id?: string; server_id?: string; status?: string }>(req)
+    if (parseError) return parseError
 
-  const { report_id, server_id, status } = body
+    const { report_id, server_id, status } = body
 
-  if (!report_id || !server_id || !status) {
-    return NextResponse.json(
-      { error: "report_id, server_id, and status are required" },
-      { status: 400 }
+    if (!report_id || !server_id || !status) {
+      return NextResponse.json(
+        { error: "report_id, server_id, and status are required" },
+        { status: 400 }
+      )
+    }
+
+    if (!REPORT_STATUS_TRANSITIONS.includes(status as ReportStatus)) {
+      return NextResponse.json(
+        { error: `status must be one of: ${REPORT_STATUS_TRANSITIONS.join(", ")}` },
+        { status: 400 }
+      )
+    }
+
+    // Permission check
+    const { isOwner, isAdmin, permissions } = await getMemberPermissions(
+      supabase,
+      server_id,
+      user.id
     )
-  }
 
-  if (!REPORT_STATUS_TRANSITIONS.includes(status as ReportStatus)) {
-    return NextResponse.json(
-      { error: `status must be one of: ${REPORT_STATUS_TRANSITIONS.join(", ")}` },
-      { status: 400 }
-    )
-  }
+    if (!isOwner && !isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
-  // Permission check
-  const { isOwner, isAdmin, permissions } = await getMemberPermissions(
-    supabase,
-    server_id,
-    user.id
-  )
+    // Fetch current status before updating for accurate audit trail
+    const { data: existingReport, error: lookupError } = await supabase
+      .from("reports")
+      .select("status")
+      .eq("id", report_id)
+      .eq("server_id", server_id)
+      .single()
 
-  if (!isOwner && !isAdmin && !hasPermission(permissions, "MANAGE_MESSAGES")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+    if (lookupError || !existingReport) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 })
+    }
 
-  // Fetch current status before updating for accurate audit trail
-  const { data: existingReport, error: lookupError } = await supabase
-    .from("reports")
-    .select("status")
-    .eq("id", report_id)
-    .eq("server_id", server_id)
-    .single()
+    const previousStatus = existingReport.status
 
-  if (lookupError || !existingReport) {
-    return NextResponse.json({ error: "Report not found" }, { status: 404 })
-  }
+    const { data: report, error } = await supabase
+      .from("reports")
+      .update({
+        status: status as ReportStatus,
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", report_id)
+      .eq("server_id", server_id)
+      .select()
+      .single()
 
-  const previousStatus = existingReport.status
+    if (error) return NextResponse.json({ error: "Failed to update report" }, { status: 500 })
+    if (!report) return NextResponse.json({ error: "Report not found" }, { status: 404 })
 
-  const { data: report, error } = await supabase
-    .from("reports")
-    .update({
-      status: status as ReportStatus,
-      reviewed_by: user.id,
-      reviewed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    // Audit log the moderator action on this report
+    await insertAuditLog(supabase, {
+      server_id,
+      actor_id: user.id,
+      action: `report_${status}`,
+      target_id: report.reported_user_id,
+      target_type: "user",
+      changes: {
+        report_id,
+        previous_status: previousStatus,
+        new_status: status,
+        reason: report.reason,
+      },
     })
-    .eq("id", report_id)
-    .eq("server_id", server_id)
-    .select()
-    .single()
 
-  if (error) return NextResponse.json({ error: "Failed to update report" }, { status: 500 })
-  if (!report) return NextResponse.json({ error: "Report not found" }, { status: 404 })
+    return NextResponse.json(report)
 
-  // Audit log the moderator action on this report
-  await insertAuditLog(supabase, {
-    server_id,
-    actor_id: user.id,
-    action: `report_${status}`,
-    target_id: report.reported_user_id,
-    target_type: "user",
-    changes: {
-      report_id,
-      previous_status: previousStatus,
-      new_status: status,
-      reason: report.reason,
-    },
-  })
-
-  return NextResponse.json(report)
+  } catch (err) {
+    console.error("[reports PATCH] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

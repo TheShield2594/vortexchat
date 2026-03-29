@@ -13,29 +13,35 @@ type Params = { params: Promise<{ id: string }> }
  * Required scope: voice:sessions:read (enforced via RLS).
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { id: sessionId } = await params
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    const { id: sessionId } = await params
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { data: segments, error } = await supabase
+      .from("voice_transcript_segments")
+      .select("*")
+      .eq("session_id", sessionId)
+      .is("purged_at", null)
+      .is("deleted_at", null)
+      .order("started_at", { ascending: true })
+
+    if (error) {
+      return NextResponse.json({ error: "Failed to fetch transcript" }, { status: 500 })
+    }
+
+    return NextResponse.json({ segments: segments ?? [] })
+
+  } catch (err) {
+    console.error("[voice/sessions/[id]/transcript GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const { data: segments, error } = await supabase
-    .from("voice_transcript_segments")
-    .select("*")
-    .eq("session_id", sessionId)
-    .is("purged_at", null)
-    .is("deleted_at", null)
-    .order("started_at", { ascending: true })
-
-  if (error) {
-    return NextResponse.json({ error: "Failed to fetch transcript" }, { status: 500 })
-  }
-
-  return NextResponse.json({ segments: segments ?? [] })
 }
 
 /**

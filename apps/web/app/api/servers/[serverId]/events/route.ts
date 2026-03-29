@@ -37,58 +37,64 @@ export async function GET(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
-  const params = await paramsPromise
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const params = await paramsPromise
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { searchParams } = new URL(request.url)
-  const from = searchParams.get("from")
-  const to = searchParams.get("to")
+    const { searchParams } = new URL(request.url)
+    const from = searchParams.get("from")
+    const to = searchParams.get("to")
 
-  // Cast to any to select new columns that aren't in generated types yet
-  let query = (supabase
-    .from("events")
-    .select(
-      "id, server_id, title, description, location, event_type, external_url, banner_url, " +
-      "linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, " +
-      "recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, " +
-      "created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status,users(id,display_name,avatar_url))"
-    ) as any)
-    .eq("server_id", params.serverId)
-    .order("start_at", { ascending: true })
+    // Cast to any to select new columns that aren't in generated types yet
+    let query = (supabase
+      .from("events")
+      .select(
+        "id, server_id, title, description, location, event_type, external_url, banner_url, " +
+        "linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, " +
+        "recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, " +
+        "created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status,users(id,display_name,avatar_url))"
+      ) as any)
+      .eq("server_id", params.serverId)
+      .order("start_at", { ascending: true })
 
-  if (from) query = query.gte("start_at", from)
-  if (to) query = query.lte("start_at", to)
+    if (from) query = query.gte("start_at", from)
+    if (to) query = query.lte("start_at", to)
 
-  const { data, error } = await query as { data: EventRow[] | null; error: any }
-  if (error) return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
+    const { data, error } = await query as { data: EventRow[] | null; error: any }
+    if (error) return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
 
-  const events = (data ?? []).map((event) => {
-    const rsvps = event.event_rsvps ?? []
-    return {
-      ...event,
-      stats: {
-        going: rsvps.filter((r) => r.status === "going").length,
-        maybe: rsvps.filter((r) => r.status === "maybe").length,
-        notGoing: rsvps.filter((r) => r.status === "not_going").length,
-        waitlist: rsvps.filter((r) => r.status === "waitlist").length,
-        interested: rsvps.filter((r) => r.status === "interested").length,
-      },
-      myRsvp: rsvps.find((r) => r.user_id === user.id) ?? null,
-      hosts: (event.event_hosts ?? []).map((h) => h.user_id),
-      attendees: rsvps
-        .filter((r: any) => r.status === "going" || r.status === "maybe" || r.status === "interested")
-        .map((r: any) => ({
-          user_id: r.user_id,
-          status: r.status,
-          display_name: r.users?.display_name ?? null,
-          avatar_url: r.users?.avatar_url ?? null,
-        })),
-    }
-  })
+    const events = (data ?? []).map((event) => {
+      const rsvps = event.event_rsvps ?? []
+      return {
+        ...event,
+        stats: {
+          going: rsvps.filter((r) => r.status === "going").length,
+          maybe: rsvps.filter((r) => r.status === "maybe").length,
+          notGoing: rsvps.filter((r) => r.status === "not_going").length,
+          waitlist: rsvps.filter((r) => r.status === "waitlist").length,
+          interested: rsvps.filter((r) => r.status === "interested").length,
+        },
+        myRsvp: rsvps.find((r) => r.user_id === user.id) ?? null,
+        hosts: (event.event_hosts ?? []).map((h) => h.user_id),
+        attendees: rsvps
+          .filter((r: any) => r.status === "going" || r.status === "maybe" || r.status === "interested")
+          .map((r: any) => ({
+            user_id: r.user_id,
+            status: r.status,
+            display_name: r.users?.display_name ?? null,
+            avatar_url: r.users?.avatar_url ?? null,
+          })),
+      }
+    })
 
-  return NextResponse.json(events)
+    return NextResponse.json(events)
+
+  } catch (err) {
+    console.error("[servers/[serverId]/events GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(

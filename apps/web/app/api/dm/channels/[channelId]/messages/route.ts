@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendPushToChannel } from "@/lib/push"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
+import { checkRateLimit } from "@/lib/utils/api-helpers"
 
 function isValidDmE2eeEnvelope(value: unknown): boolean {
   if (!value || typeof value !== "object") return false
@@ -24,10 +25,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ channelId: string }> }
 ) {
+  try {
   const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const limited = await checkRateLimit(user.id, "dm:send", { limit: 15, windowMs: 10_000 })
+  if (limited) return limited
 
   // Fetch all channel members (verifies membership and gets other member IDs in one query)
   const { data: channelMembers, error: channelMembersError } = await supabase
@@ -146,4 +151,8 @@ export async function POST(
   }).catch(() => {})
 
   return NextResponse.json({ ...message, reply_to_id: replyToId, reply_to: replyToMessage }, { status: 201 })
+  } catch (err) {
+    console.error("[dm/messages POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

@@ -11,12 +11,18 @@ function diffSummary(current: { roleCount: number; categoryCount: number; channe
 }
 
 export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const mode = url.searchParams.get("mode")
-  if (mode === "starter") {
-    return NextResponse.json({ templates: STARTER_TEMPLATES })
+  try {
+    const url = new URL(request.url)
+    const mode = url.searchParams.get("mode")
+    if (mode === "starter") {
+      return NextResponse.json({ templates: STARTER_TEMPLATES })
+    }
+    return NextResponse.json({ error: "Invalid mode" }, { status: 400 })
+
+  } catch (err) {
+    console.error("[server-templates GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-  return NextResponse.json({ error: "Invalid mode" }, { status: 400 })
 }
 
 export async function POST(request: Request) {

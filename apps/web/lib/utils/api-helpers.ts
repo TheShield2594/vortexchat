@@ -144,6 +144,40 @@ export function dbError(error: { message: string } | null, context?: string | Db
 }
 
 // ---------------------------------------------------------------------------
+// Rate limiting helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Apply rate limiting to the current request.
+ * Returns `null` if the request is allowed, or a 429 `NextResponse` if blocked.
+ *
+ * Usage:
+ *   const limited = await checkRateLimit(user.id, "servers:create", { limit: 10, windowMs: 3600_000 })
+ *   if (limited) return limited
+ */
+export async function checkRateLimit(
+  key: string,
+  action: string,
+  opts: { limit: number; windowMs: number; failClosed?: boolean },
+): Promise<NextResponse | null> {
+  const { rateLimiter } = await import("@/lib/rate-limit")
+  const result = await rateLimiter.check(`${action}:${key}`, opts)
+  if (!result.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((result.resetAt - Date.now()) / 1000)),
+          "X-RateLimit-Remaining": "0",
+        },
+      },
+    )
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // Audit logging
 // ---------------------------------------------------------------------------
 

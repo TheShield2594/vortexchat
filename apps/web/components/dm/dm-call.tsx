@@ -290,6 +290,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
           className="w-14 h-14 rounded-full flex items-center justify-center transition-colors"
           style={{ background: muted ? "var(--theme-danger)" : "var(--theme-text-faint)" }}
           title={muted ? "Unmute" : "Mute"}
+          aria-label={muted ? "Unmute" : "Mute"}
         >
           {muted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
         </button>
@@ -300,6 +301,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
             className="w-14 h-14 rounded-full flex items-center justify-center transition-colors"
             style={{ background: videoOff ? "var(--theme-danger)" : "var(--theme-text-faint)" }}
             title={videoOff ? "Turn on camera" : "Turn off camera"}
+            aria-label={videoOff ? "Turn on camera" : "Turn off camera"}
           >
             {videoOff ? <VideoOff className="w-6 h-6 text-white" /> : <Video className="w-6 h-6 text-white" />}
           </button>
@@ -310,6 +312,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
           className="w-14 h-14 rounded-full flex items-center justify-center"
           style={{ background: "var(--theme-danger)" }}
           title="Hang up"
+          aria-label="Hang up"
         >
           <PhoneOff className="w-6 h-6 text-white" />
         </button>
@@ -352,6 +355,7 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
           className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
           style={{ background: "var(--theme-success)" }}
           title="Accept (voice)"
+          aria-label="Accept voice call"
         >
           <Phone className="w-4 h-4 text-white" />
         </button>
@@ -361,6 +365,7 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
             className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
             style={{ background: "var(--theme-accent)" }}
             title="Accept (video)"
+            aria-label="Accept video call"
           >
             <Video className="w-4 h-4 text-white" />
           </button>
@@ -370,6 +375,7 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
           className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
           style={{ background: "var(--theme-danger)" }}
           title="Decline"
+          aria-label="Decline call"
         >
           <PhoneOff className="w-4 h-4 text-white" />
         </button>
@@ -408,6 +414,7 @@ export function CallerRingingOverlay({ partnerName, partnerAvatar, withVideo, on
         className="w-14 h-14 rounded-full flex items-center justify-center"
         style={{ background: "var(--theme-danger)" }}
         title="Cancel call"
+        aria-label="Cancel call"
       >
         <PhoneOff className="w-6 h-6 text-white" />
       </button>

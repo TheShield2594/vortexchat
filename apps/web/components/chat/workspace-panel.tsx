@@ -70,7 +70,7 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
         <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-white"><CheckSquare className="w-4 h-4" /> Tasks</div>
         <div className="flex gap-2 mb-2">
           <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="New task" className="flex-1 bg-black/30 rounded px-2 py-1 text-sm" />
-          <Button size="sm" onClick={async () => {
+          <Button size="sm" aria-label="Add task" onClick={async () => {
             if (!taskTitle.trim()) return
             await fetch(`/api/channels/${channelId}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: taskTitle }) })
             setTaskTitle("")
@@ -149,7 +149,7 @@ export function WorkspacePanel({ channelId, open, onClose }: { channelId: string
         <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-white"><FileText className="w-4 h-4" /> Docs & Notes</div>
         <div className="flex gap-2 mb-2">
           <input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="New note" className="flex-1 bg-black/30 rounded px-2 py-1 text-sm" />
-          <Button size="sm" onClick={async () => {
+          <Button size="sm" aria-label="Add note" onClick={async () => {
             if (!docTitle.trim()) return
             await fetch(`/api/channels/${channelId}/docs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: docTitle, content: "" }) })
             setDocTitle("")
