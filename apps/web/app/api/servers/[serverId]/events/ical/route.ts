@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/utils/api-helpers"
 import { buildICal } from "@/lib/events"
 
 export async function GET(
@@ -8,9 +8,8 @@ export async function GET(
 ) {
   try {
     const params = await paramsPromise
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return new Response("Unauthorized", { status: 401 })
+    const { supabase, error: authError } = await requireAuth()
+    if (authError) return authError
 
     const { data: events, error } = await supabase
       .from("events")
@@ -19,7 +18,7 @@ export async function GET(
       .is("cancelled_at", null)
       .order("start_at", { ascending: true })
 
-    if (error) return new Response("Failed to fetch events", { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
 
     const body = buildICal(events ?? [])
 
