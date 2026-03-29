@@ -4,11 +4,13 @@ import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { isTerminalAppealStatus, isValidAppealStatus, isValidAppealTransition } from "@/lib/appeals"
 import { canModerate } from "@/lib/moderation-auth"
 import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
+import { sendPushToUser } from "@/lib/push"
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ appealId: string }> }
-) {
+): Promise<NextResponse> {
+  try {
   const { appealId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -57,12 +59,16 @@ export async function GET(
     internalNotes: notesResult.data ?? [],
     statusEvents: eventsResult.data ?? [],
   })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ appealId: string }> }
-) {
+): Promise<NextResponse> {
+  try {
   const { appealId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -198,7 +204,18 @@ export async function PATCH(
       console.warn("Failed appeal notification insert", { appealId, moderatorId: user.id, action: "status_update", error: notificationError })
       return NextResponse.json({ error: "Failed to send notifications" }, { status: 500 })
     }
+
+    // Push notification to the appeal owner about the status change
+    await sendPushToUser(appeal.user_id, {
+      title: "Appeal updated",
+      body: `Your appeal status is now ${nextStatus}.`,
+      url: `/appeals`,
+      tag: `appeal-${appealId}`,
+    }).catch((err) => { console.error("Failed to send appeal push", err) })
   }
 
   return NextResponse.json({ message: "Appeal updated" })
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

@@ -14,6 +14,7 @@ export type PostMessageRequestBody = {
   content?: string
   replyToId?: string
   mentions?: string[]
+  mentionRoleIds?: string[]
   mentionEveryone?: boolean
   attachments?: MessageAttachment[]
   clientNonce?: string
@@ -25,16 +26,25 @@ export function parsePostMessageRequestBody(body: PostMessageRequestBody) {
     content,
     replyToId,
     mentions: rawMentions,
+    mentionRoleIds: rawMentionRoleIds,
     mentionEveryone = false,
     attachments: rawAttachments,
     clientNonce,
   } = body
 
   const mentions = rawMentions ?? []
+  const mentionRoleIds = rawMentionRoleIds ?? []
   const attachments = rawAttachments ?? []
 
   if (!Array.isArray(mentions)) {
     return { error: NextResponse.json({ error: "Invalid mentions" }, { status: 400 }) }
+  }
+  if (!Array.isArray(mentionRoleIds)) {
+    return { error: NextResponse.json({ error: "Invalid mentionRoleIds" }, { status: 400 }) }
+  }
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!mentionRoleIds.every((id: unknown) => typeof id === "string" && uuidPattern.test(id))) {
+    return { error: NextResponse.json({ error: "Invalid mentionRoleIds elements" }, { status: 400 }) }
   }
   if (!Array.isArray(attachments)) {
     return { error: NextResponse.json({ error: "Invalid attachments" }, { status: 400 }) }
@@ -71,6 +81,7 @@ export function parsePostMessageRequestBody(body: PostMessageRequestBody) {
       content,
       replyToId,
       mentions,
+      mentionRoleIds,
       mentionEveryone,
       attachments,
       clientNonce,

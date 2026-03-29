@@ -4,6 +4,7 @@ import { hasPermission as checkPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { rateLimiter } from "@/lib/rate-limit"
 import { createLogger } from "@/lib/logger"
+import { sendPushToUser } from "@/lib/push"
 
 const log = createLogger("api/bans")
 
@@ -162,6 +163,15 @@ export async function POST(
     target_type: "user",
     changes: { reason },
   })
+
+  // Notify the banned user
+  const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", serverId).maybeSingle()
+  sendPushToUser(userId, {
+    title: `Banned from ${serverInfo?.name ?? "a server"}`,
+    body: reason ? `Reason: ${reason}` : "You have been banned from this server",
+    url: "/channels/me",
+    tag: `ban-${serverId}`,
+  }).catch((err) => { log.error({ err }, "Failed to send ban push notification") })
 
   return NextResponse.json({ message: "User banned" })
   } catch (err) {

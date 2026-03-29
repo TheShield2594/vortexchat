@@ -508,7 +508,7 @@ export async function POST(request: Request) {
 
   const parsedBody = parsePostMessageRequestBody(body)
   if (parsedBody.error) return parsedBody.error
-  const { channelId, content, replyToId, mentions, mentionEveryone, attachments, clientNonce } = parsedBody.payload
+  const { channelId, content, replyToId, mentions, mentionRoleIds, mentionEveryone, attachments, clientNonce } = parsedBody.payload
 
   const attachmentValidation = validateAttachments(attachments)
   if (!attachmentValidation.valid) {
@@ -732,12 +732,57 @@ export async function POST(request: Request) {
     })
     .catch((err) => { console.error("messages POST: in-app notification insert failed", err) })
 
+  // When @everyone/@here is used, treat all channel members as mentioned
+  // so they receive push notifications even if their mode is "mentions only"
+  let pushMentionedIds = mentionEveryone
+    ? undefined // handled below — we pass a flag instead
+    : [...safeMentions]
+
+  // Resolve @role mentions: find members with mentioned roles and add them to push recipients
+  if (!mentionEveryone && mentionRoleIds.length > 0 && serverId) {
+    try {
+      // Verify mentioned roles are actually mentionable
+      const { data: mentionableRoles } = await supabase
+        .from("roles")
+        .select("id")
+        .in("id", mentionRoleIds)
+        .eq("server_id", serverId)
+        .eq("mentionable", true)
+      const validRoleIds = (mentionableRoles ?? []).map((r: { id: string }) => r.id)
+
+      if (validRoleIds.length > 0) {
+        // Find all members who have these roles
+        const { data: roleMemberRows } = await supabase
+          .from("member_roles")
+          .select("user_id")
+          .eq("server_id", serverId)
+          .in("role_id", validRoleIds)
+
+        if (roleMemberRows?.length) {
+          const roleMemberIds = roleMemberRows.map((r: { user_id: string }) => r.user_id)
+          // Merge into push mentioned IDs (dedup)
+          const existingSet = new Set(pushMentionedIds ?? [])
+          for (const uid of roleMemberIds) {
+            if (!existingSet.has(uid)) {
+              existingSet.add(uid)
+              pushMentionedIds = pushMentionedIds ?? []
+              pushMentionedIds.push(uid)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("messages POST: failed to resolve role mentions", err)
+    }
+  }
+
   sendPushToChannel({
     serverId: channel.server_id,
     channelId,
     senderName,
     content: content?.trim() ?? "Sent an attachment",
-    mentionedIds: safeMentions,
+    mentionedIds: pushMentionedIds,
+    mentionEveryone,
     excludeUserId: user.id,
   }).catch((err) => { console.error("messages POST: sendPushToChannel failed", err) })
 

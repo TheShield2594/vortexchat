@@ -80,7 +80,7 @@ export function UserProfilePopover({
         side={side}
         align={align}
         sideOffset={8}
-        className="w-72 p-0 overflow-hidden"
+        className="w-[calc(100vw-2rem)] max-w-72 p-0 overflow-hidden"
         style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)" }}
       >
         {/* Banner */}

@@ -85,6 +85,20 @@ export function MemberList({ serverId, initialMembers }: Props) {
     }
   }, [serverId, initialMembers])
 
+  // Fetch roles for @role mention autocomplete + rendering + role management
+  useEffect(() => {
+    fetch(`/api/servers/${encodeURIComponent(serverId)}/roles`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: RoleRow[]) => {
+        const nonDefault = data.filter((r: RoleRow) => !r.is_default)
+        useAppStore.getState().setServerRoles(serverId, nonDefault
+          .map((r) => ({ id: r.id, name: r.name, color: r.color, mentionable: r.mentionable }))
+        )
+        setServerRoles(nonDefault)
+      })
+      .catch((err) => { console.error("Failed to fetch roles for server", { serverId, error: err }) })
+  }, [serverId])
+
   useEffect(() => {
     setSelectedMemberId(null)
   }, [serverId])
@@ -264,14 +278,10 @@ export function MemberList({ serverId, initialMembers }: Props) {
     return !!(perms & PERMISSIONS.ADMINISTRATOR) || !!(perms & PERMISSIONS.MANAGE_ROLES)
   }, [members, currentUser])
 
-  // Fetch assignable roles when the current user has MANAGE_ROLES
+  // Clear assignable roles when the current user lacks MANAGE_ROLES
   useEffect(() => {
     if (!canManageRoles) { setServerRoles([]); return }
-    fetch(`/api/servers/${encodeURIComponent(serverId)}/roles`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: RoleRow[]) => setServerRoles(data.filter((r) => !r.is_default)))
-      .catch(() => {})
-  }, [serverId, canManageRoles])
+  }, [canManageRoles])
 
   function handleMemberUpdate(userId: string, updatedRoles: RoleRow[]) {
     setMembers((prev) => prev.map((m) => m.user_id === userId ? { ...m, roles: updatedRoles } : m))

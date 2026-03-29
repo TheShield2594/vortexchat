@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server"
 import { DELETE, PUT } from "@/app/api/messages/[messageId]/pin/route"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { sendPushToChannel } from "@/lib/push"
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: vi.fn(),
@@ -11,6 +12,14 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/permissions", () => ({
   getChannelPermissions: vi.fn(),
   hasPermission: vi.fn(),
+}))
+
+vi.mock("@/lib/push", () => ({
+  sendPushToChannel: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock("@/lib/logger", () => ({
+  createLogger: vi.fn(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() })),
 }))
 
 type SupabaseMock = ReturnType<typeof createSupabaseMock>
@@ -38,6 +47,19 @@ function createSupabaseMock() {
     insert: insertMock,
   }
 
+  const usersMaybeSingleMock = vi.fn(async () => ({
+    data: { display_name: "TestUser", username: "testuser" },
+  }))
+
+  const usersSelectChain = {
+    eq: vi.fn(() => usersSelectChain),
+    maybeSingle: usersMaybeSingleMock,
+  }
+
+  const usersTable = {
+    select: vi.fn(() => usersSelectChain),
+  }
+
   return {
     auth: {
       getUser: vi.fn(async () => ({ data: { user: { id: "u1" } } })),
@@ -45,6 +67,7 @@ function createSupabaseMock() {
     from: vi.fn((table: string) => {
       if (table === "messages") return messagesTable
       if (table === "audit_logs") return auditTable
+      if (table === "users") return usersTable
       throw new Error(`Unexpected table: ${table}`)
     }),
     __mocks: {
@@ -53,6 +76,7 @@ function createSupabaseMock() {
       messageSingleMock,
       messagesTable,
       messagesSelectChain,
+      usersMaybeSingleMock,
     },
   }
 }
@@ -74,6 +98,15 @@ describe("message pin route lifecycle", () => {
     expect(vi.mocked(getChannelPermissions)).toHaveBeenCalledWith(supabase, "s1", "c1", "u1")
     expect(supabase.__mocks.updateMock).toHaveBeenCalledWith(expect.objectContaining({ pinned: true, pinned_by: "u1" }))
     expect(supabase.__mocks.insertMock).toHaveBeenCalledWith(expect.objectContaining({ action: "message_pin", target_id: "m1" }))
+    expect(vi.mocked(sendPushToChannel)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverId: "s1",
+        channelId: "c1",
+        senderName: "📌 TestUser",
+        content: "pinned a message",
+        excludeUserId: "u1",
+      })
+    )
   })
 
   it("rejects pin attempts without MANAGE_MESSAGES", async () => {

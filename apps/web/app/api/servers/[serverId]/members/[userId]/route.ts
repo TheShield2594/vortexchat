@@ -12,6 +12,7 @@ import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 import { rateLimiter } from "@/lib/rate-limit"
 
 import { PERMISSIONS } from "@vortex/shared"
+import { sendPushToUser } from "@/lib/push"
 
 type Params = { params: Promise<{ serverId: string; userId: string }> }
 
@@ -144,6 +145,15 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     target_type: "user",
     changes: { reason: reason ?? null },
   })
+
+  // Notify the kicked user
+  const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", serverId).maybeSingle()
+  sendPushToUser(userId, {
+    title: `Removed from ${serverInfo?.name ?? "a server"}`,
+    body: reason ? `Reason: ${reason}` : "You have been removed from this server",
+    url: "/channels/me",
+    tag: `kick-${serverId}`,
+  }).catch(() => {})
 
   return NextResponse.json({ message: "Member kicked" })
 }

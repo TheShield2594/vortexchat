@@ -4,6 +4,7 @@ import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
 import { createLogger } from "@/lib/logger"
+import { sendPushToUser } from "@/lib/push"
 
 const log = createLogger("api/invites")
 
@@ -134,11 +135,49 @@ export async function POST(
     // Fire-and-forget: post welcome message if Welcome Bot is configured
     if (!error) {
       postWelcomeMessage(server.id, user.id) // errors logged internally
+
+      // Notify server owner about the new member
+      notifyServerOwnerOfJoin(supabase, server.id, server.name, user.id).catch(() => {})
     }
 
     return NextResponse.json({ server_id: server.id, name: server.name })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+/**
+ * Notify the server owner that a new member joined via push notification.
+ */
+async function notifyServerOwnerOfJoin(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  serverId: string,
+  serverName: string,
+  newUserId: string
+): Promise<void> {
+  try {
+    const { data: server } = await supabase
+      .from("servers")
+      .select("owner_id")
+      .eq("id", serverId)
+      .maybeSingle()
+    if (!server?.owner_id) return
+
+    const { data: newUser } = await supabase
+      .from("users")
+      .select("display_name, username")
+      .eq("id", newUserId)
+      .maybeSingle()
+    const memberName = newUser?.display_name || newUser?.username || "A new member"
+
+    await sendPushToUser(server.owner_id, {
+      title: `${memberName} joined ${serverName}`,
+      body: "A new member has joined your server.",
+      url: `/channels/${serverId}`,
+      tag: `member-join-${serverId}`,
+    })
+  } catch (err) {
+    log.warn({ serverId, newUserId, err: err instanceof Error ? err.message : "unknown" }, "Failed to send member join push notification")
   }
 }
 

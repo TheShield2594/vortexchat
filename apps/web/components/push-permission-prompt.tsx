@@ -6,7 +6,10 @@ import { Bell, X } from "lucide-react"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 
 const STORAGE_KEY = "vortex-push-prompt-dismissed"
-const SHOW_AFTER_MS = 60_000 // Show after 1 minute of active use
+// Show sooner on installed PWA (30s) since users expect notifications
+// from installed apps. Regular browser gets 60s delay.
+const SHOW_AFTER_MS_PWA = 30_000
+const SHOW_AFTER_MS_BROWSER = 60_000
 
 /**
  * Soft-ask prompt for push notification permission.
@@ -27,7 +30,10 @@ export function PushPermissionPrompt() {
     // Not supported
     if (!("PushManager" in window)) return
 
-    const timer = setTimeout(() => setVisible(true), SHOW_AFTER_MS)
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+      || (navigator as unknown as { standalone?: boolean }).standalone === true
+    const delay = isStandalone ? SHOW_AFTER_MS_PWA : SHOW_AFTER_MS_BROWSER
+    const timer = setTimeout(() => setVisible(true), delay)
     return () => clearTimeout(timer)
   }, [])
 
