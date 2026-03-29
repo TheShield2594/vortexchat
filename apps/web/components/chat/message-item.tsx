@@ -23,7 +23,6 @@ import { getReplyPreviewText } from "@/components/chat/reply-preview"
 import { MessageMarkdown } from "@/components/chat/markdown-renderer"
 const CreateThreadModal = lazy(() => import("@/components/modals/create-thread-modal").then((m) => ({ default: m.CreateThreadModal })))
 const ReportModal = lazy(() => import("@/components/modals/report-modal").then((m) => ({ default: m.ReportModal })))
-import Image from "next/image"
 import { useParams } from "next/navigation"
 import { MAX_POLL_OPTIONS } from "@/hooks/use-poll-creator"
 
@@ -1264,17 +1263,14 @@ function AttachmentGallery({ attachments, canManageMessages }: { attachments: At
                 onMouseMove={handleMouseMove}
                 onWheel={handleWheel}
               >
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={`/api/attachments/${currentAttachment.id}/download`}
                   alt={currentAttachment.filename}
-                  width={1200}
-                  height={900}
                   className="object-contain"
                   draggable={false}
                   style={{
-                    width: "auto",
                     maxWidth: "100%",
-                    height: "auto",
                     maxHeight: "75vh",
                     transform: `scale(${zoom})`,
                     transformOrigin: `${panOrigin.x}% ${panOrigin.y}%`,
@@ -1316,14 +1312,13 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
   if (isImage) {
     return (
       <button type="button" className="max-w-sm block" onClick={onOpenImage}>
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={downloadUrl}
           alt={attachment.filename}
-          width={384}
-          height={320}
           loading="lazy"
           className="rounded object-contain"
-          style={{ width: "auto", maxWidth: "100%", height: "auto", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
+          style={{ maxWidth: "100%", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
         />
       </button>
     )
