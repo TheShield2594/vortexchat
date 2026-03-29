@@ -60,9 +60,9 @@ export function MobileOverlay() {
 
     function sync(): void {
       if (sidebarOpen && mql.matches) {
-        main!.setAttribute("inert", "")
+        main?.setAttribute("inert", "")
       } else {
-        main!.removeAttribute("inert")
+        main?.removeAttribute("inert")
       }
     }
 

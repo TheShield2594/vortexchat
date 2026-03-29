@@ -139,19 +139,29 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
     }
   }
 
-  async function copyInvite() {
+  async function copyInvite(): Promise<void> {
     try {
       await navigator.clipboard.writeText(liveServer.invite_code)
       toast({ title: "Invite code copied!" })
-    } catch { /* clipboard unavailable */ }
+    } catch {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[ServerSettingsModal] clipboard write failed", { action: "copyInvite", serverId: server.id })
+      }
+      toast({ variant: "destructive", title: "Copy failed" })
+    }
   }
 
-  async function copyVanityUrl() {
+  async function copyVanityUrl(): Promise<void> {
     if (liveServer.vanity_url) {
       try {
         await navigator.clipboard.writeText(`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${liveServer.vanity_url}`)
         toast({ title: "Vanity invite URL copied!" })
-      } catch { /* clipboard unavailable */ }
+      } catch {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[ServerSettingsModal] clipboard write failed", { action: "copyVanityUrl", serverId: server.id })
+        }
+        toast({ variant: "destructive", title: "Copy failed" })
+      }
     }
   }
 
@@ -1914,7 +1924,11 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
       try {
         await navigator.clipboard.writeText(invite.code)
         toast({ title: "Invite code copied to clipboard!" })
-      } catch { /* clipboard unavailable */ }
+      } catch {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[ServerSettingsModal] clipboard write failed", { action: "copyNewInvite", serverId })
+        }
+      }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to create invite", description: error.message })
     } finally {
@@ -1940,11 +1954,16 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
     }
   }
 
-  async function copyCode(code: string) {
+  async function copyCode(code: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(code)
       toast({ title: "Invite code copied!" })
-    } catch { /* clipboard unavailable */ }
+    } catch {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[ServerSettingsModal] clipboard write failed", { action: "copyCode", serverId })
+      }
+      toast({ variant: "destructive", title: "Copy failed" })
+    }
   }
 
   return (

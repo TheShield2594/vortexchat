@@ -986,24 +986,25 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         } catch (e) {
           console.warn("hark VAD failed to load:", e)
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Stop any acquired mic stream to avoid a dangling active-mic indicator
         if (rawLocalStreamRef.current) {
-          rawLocalStreamRef.current.getTracks().forEach(t => t.stop())
+          rawLocalStreamRef.current.getTracks().forEach((t) => t.stop())
           rawLocalStreamRef.current = null
         }
         setRawLocalStream(null)
 
-        const errMsg = error?.message ?? String(error)
+        const errName = error instanceof DOMException || error instanceof Error ? error.name : undefined
+        const errMsg = error instanceof Error ? error.message : String(error)
         let userMessage: string
-        if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
+        if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
           userMessage = "Microphone access was denied. Check your browser's site permissions and try again."
           setIsPermissionError(true)
-        } else if (error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError") {
+        } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
           userMessage = "No microphone found. Connect a mic and try again."
-        } else if (error?.name === "NotReadableError" || error?.name === "TrackStartError") {
+        } else if (errName === "NotReadableError" || errName === "TrackStartError") {
           userMessage = "Microphone is in use by another app."
-        } else if (error?.name === "OverconstrainedError") {
+        } else if (errName === "OverconstrainedError") {
           userMessage = "Microphone doesn't support the requested settings. Try a different device."
         } else if (errMsg.includes("timeout") || errMsg.includes("TIMED_OUT")) {
           userMessage = "Realtime connection timed out. Check network."
@@ -1013,7 +1014,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
           userMessage = "Voice initialization failed. Please try again."
         }
         setAudioInitError(userMessage)
-        console.error("[useVoice] init failed:", { name: error?.name, message: errMsg, error })
+        console.error("[useVoice] init failed:", { name: errName, message: errMsg, error })
       }
     }
 
@@ -1077,7 +1078,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, userId, selectedInputId, audioRetryCounter, cleanupVoiceSession, setConnectionState])
 
-  const retryAudioInit = useCallback(() => {
+  const retryAudioInit = useCallback((): void => {
     setAudioRetryCounter((c) => c + 1)
   }, [])
 

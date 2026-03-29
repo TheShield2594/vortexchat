@@ -3,7 +3,7 @@
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 /**
- * Wraps a fetch response check — if 401/403, attempts a session refresh.
+ * Wraps a fetch response check — if 401, attempts a session refresh.
  * If refresh fails, redirects to login with a toast-friendly query param.
  */
 export async function handleAuthError(response: Response): Promise<Response> {
