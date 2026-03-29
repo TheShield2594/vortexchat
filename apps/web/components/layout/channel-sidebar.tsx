@@ -472,6 +472,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     jumpToChannel(ids[nextIndex])
   }, [activeChannelId, jumpToChannel])
 
+  // moveActiveChannel uses refs that are defined later (findContainer, persistChannelOrder)
+  // so we use a stable ref to allow forward-referencing in the shortcut handlers.
+  const moveActiveChannelRef = useRef<(direction: "up" | "down") => void>(() => {})
+
   const shortcutHandlers: ShortcutHandlers = useMemo(() => ({
     onQuickSwitcher: () => setQuickSwitcherOpen(true),
     onSearch: () => setSearchOpen(true),
@@ -483,6 +487,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     onJumpChannelNext: () => jumpRelative(navigableChannelIds, "next"),
     onJumpUnreadPrev: () => jumpRelative(unreadNavigableChannelIds, "prev"),
     onJumpUnreadNext: () => jumpRelative(unreadNavigableChannelIds, "next"),
+    ...(canManageChannels ? {
+      onMoveChannelUp: () => moveActiveChannelRef.current("up"),
+      onMoveChannelDown: () => moveActiveChannelRef.current("down"),
+    } : {}),
     onToggleMemberList: () => toggleMemberList(),
     onToggleThreadPanel: () => toggleThreadPanel(),
     onToggleWorkspacePanel: () => toggleWorkspacePanel(),
@@ -492,7 +500,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         console.debug("[shortcuts] analytics", event)
       }
     },
-  }), [activeChannelId, jumpRelative, navigableChannelIds, unreadNavigableChannelIds, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel])
+  }), [activeChannelId, canManageChannels, jumpRelative, navigableChannelIds, unreadNavigableChannelIds, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel])
 
   useKeyboardShortcuts(shortcutHandlers)
 
@@ -716,6 +724,25 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     await persistAllChannelStructure()
   }
 
+  // Keyboard alternative for drag-and-drop channel reordering (Ctrl/Cmd+Alt+Arrow)
+  // Keep the ref in sync so the single useKeyboardShortcuts call above works.
+  moveActiveChannelRef.current = (direction: "up" | "down") => {
+    if (!canManageChannels || !activeChannelId) return
+    const containerId = findContainer(activeChannelId)
+    if (!containerId) return
+    const containerItems = [...(itemsRef.current[containerId] ?? [])]
+    const idx = containerItems.indexOf(activeChannelId)
+    if (idx === -1) return
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= containerItems.length) return
+    const reordered = arrayMove(containerItems, idx, targetIdx)
+    const next = { ...itemsRef.current, [containerId]: reordered }
+    itemsRef.current = next
+    containerIndexRef.current = buildContainerIndex(next)
+    setItems(next)
+    persistChannelOrder()
+  }
+
   const activeChannel = activeId ? channels.find((c) => c.id === activeId) : null
   const activeCategoryId = activeId ? getCategoryIdFromDragId(activeId) : null
   const activeCategory = activeCategoryId ? channels.find((c) => c.id === activeCategoryId) : null
@@ -743,7 +770,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div
+      <nav
+        aria-label="Channels"
         className="w-full md:w-60 h-full flex flex-col flex-shrink-0 channel-sidebar-surface"
       >
         {/* Server header */}
@@ -1029,7 +1057,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             onClose={() => setEditCategoryTarget(null)}
           />
         )}
-      </div>
+      </nav>
     </TooltipProvider>
   )
 }

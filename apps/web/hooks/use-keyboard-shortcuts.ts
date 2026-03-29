@@ -16,6 +16,8 @@ type ShortcutActionId =
   | "jumpChannelNext"
   | "jumpUnreadPrev"
   | "jumpUnreadNext"
+  | "moveChannelUp"
+  | "moveChannelDown"
   | "toggleMemberList"
   | "toggleThreadPanel"
   | "toggleWorkspacePanel"
@@ -30,6 +32,8 @@ export interface ShortcutHandlers {
   onJumpChannelNext?: () => void
   onJumpUnreadPrev?: () => void
   onJumpUnreadNext?: () => void
+  onMoveChannelUp?: () => void
+  onMoveChannelDown?: () => void
   onToggleMemberList?: () => void
   onToggleThreadPanel?: () => void
   onToggleWorkspacePanel?: () => void
@@ -109,6 +113,8 @@ export function getShortcutRegistry(handlers: ShortcutHandlers): ShortcutDefinit
     { id: "jumpChannelNext", label: "Jump to Next Channel", group: "Navigation", scope: "nonInput", combos: ["alt+arrowdown"], enabled: !!handlers.onJumpChannelNext, run: handlers.onJumpChannelNext },
     { id: "jumpUnreadPrev", label: "Jump to Previous Unread", group: "Navigation", scope: "nonInput", combos: ["alt+shift+arrowup"], enabled: !!handlers.onJumpUnreadPrev, run: handlers.onJumpUnreadPrev },
     { id: "jumpUnreadNext", label: "Jump to Next Unread", group: "Navigation", scope: "nonInput", combos: ["alt+shift+arrowdown"], enabled: !!handlers.onJumpUnreadNext, run: handlers.onJumpUnreadNext },
+    { id: "moveChannelUp", label: "Move Channel Up", group: "Navigation", scope: "nonInput", combos: ["ctrl+alt+arrowup", "meta+alt+arrowup"], enabled: !!handlers.onMoveChannelUp, run: handlers.onMoveChannelUp },
+    { id: "moveChannelDown", label: "Move Channel Down", group: "Navigation", scope: "nonInput", combos: ["ctrl+alt+arrowdown", "meta+alt+arrowdown"], enabled: !!handlers.onMoveChannelDown, run: handlers.onMoveChannelDown },
     { id: "toggleMemberList", label: "Toggle Member List", group: "Panels", scope: "nonInput", combos: ["meta+u", "ctrl+u"], enabled: !!handlers.onToggleMemberList, run: handlers.onToggleMemberList },
     { id: "toggleThreadPanel", label: "Toggle Thread Panel", group: "Panels", scope: "nonInput", combos: ["meta+.", "ctrl+."], enabled: !!handlers.onToggleThreadPanel, run: handlers.onToggleThreadPanel },
     { id: "toggleWorkspacePanel", label: "Toggle Workspace Panel", group: "Panels", scope: "nonInput", combos: ["meta+,", "ctrl+,"], enabled: !!handlers.onToggleWorkspacePanel, run: handlers.onToggleWorkspacePanel },

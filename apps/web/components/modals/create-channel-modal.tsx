@@ -221,6 +221,9 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
                   "new-channel"
                 }
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                required
+                aria-required="true"
+                aria-invalid={name.length > 0 && !name.trim()}
                 className={type !== "category" ? "pl-8" : ""}
                 style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />

@@ -87,7 +87,8 @@ export function ServerSidebar() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div
+      <nav
+        aria-label="Servers"
         className="flex flex-col items-center w-[80px] md:w-[72px] py-3 gap-3 md:gap-2 flex-shrink-0 overflow-y-auto no-scrollbar"
         style={{
           background: 'linear-gradient(to bottom, color-mix(in srgb, var(--theme-accent) 8%, var(--theme-bg-tertiary)) 0%, var(--theme-bg-tertiary) 30%)',
@@ -191,7 +192,7 @@ export function ServerSidebar() {
           open={showCreateServer}
           onClose={() => setShowCreateServer(false)}
         />
-      </div>
+      </nav>
     </TooltipProvider>
   )
 }

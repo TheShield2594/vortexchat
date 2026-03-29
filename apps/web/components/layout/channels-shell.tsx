@@ -24,9 +24,9 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
         <div className={isFullScreen ? "hidden md:flex" : "flex"}>
           <ServerSidebarWrapper />
         </div>
-        <div className="flex flex-1 overflow-hidden min-w-0" data-main-content>
+        <main id="main-content" className="flex flex-1 overflow-hidden min-w-0" data-main-content>
           {children}
-        </div>
+        </main>
       </div>
     </MobileNavProvider>
   )

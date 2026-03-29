@@ -62,6 +62,8 @@ export function MemberList({ serverId, initialMembers }: Props) {
   const previousPresenceRef = useRef<PresenceState>({})
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(!initialMembers?.length)
+  const [memberFetchError, setMemberFetchError] = useState<string | null>(null)
+  const [memberFetchKey, setMemberFetchKey] = useState(0)
   const [serverRoles, setServerRoles] = useState<RoleRow[]>([])
   const channelRef = useRef<RealtimeChannel | null>(null)
   const memberFetchControllerRef = useRef<AbortController | null>(null)
@@ -105,7 +107,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
 
   // Fetch members from API (skipped when SSR data provided)
   useEffect(() => {
-    if (initialMembers) return
+    if (initialMembers?.length && memberFetchKey === 0) return
 
     async function fetchMembers() {
       memberFetchControllerRef.current?.abort()
@@ -114,6 +116,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
       const encodedServerId = encodeURIComponent(serverId)
 
       setLoadingMembers(true)
+      setMemberFetchError(null)
       try {
         const response = await fetch(`/api/servers/${encodedServerId}/members`, {
           method: "GET",
@@ -150,9 +153,14 @@ export function MemberList({ serverId, initialMembers }: Props) {
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return
 
-        console.error("Failed to fetch members:", error)
-        setMembers([])
-        useAppStore.getState().setMembers(serverId, [])
+        console.error("Failed to fetch members", {
+          action: "fetchMembers",
+          route: `/api/servers/${encodedServerId}/members`,
+          serverId,
+          userId: useAppStore.getState().currentUser?.id ?? null,
+          error,
+        })
+        setMemberFetchError(error instanceof Error ? error.message : "Failed to load members")
       } finally {
         if (memberFetchControllerRef.current === controller) {
           memberFetchControllerRef.current = null
@@ -167,7 +175,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
       memberFetchControllerRef.current?.abort()
       memberFetchControllerRef.current = null
     }
-  }, [serverId, initialMembers])
+  }, [serverId, initialMembers, memberFetchKey])
 
   // Presence subscription (always runs regardless of SSR data)
   useEffect(() => {
@@ -319,6 +327,21 @@ export function MemberList({ serverId, initialMembers }: Props) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {!loadingMembers && memberFetchError && (
+          <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+            <p className="text-sm font-medium" style={{ color: "var(--theme-danger)" }}>
+              {memberFetchError}
+            </p>
+            <button
+              onClick={() => setMemberFetchKey((k) => k + 1)}
+              className="text-xs font-medium px-3 py-1.5 rounded-md focus-ring"
+              style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
+            >
+              Retry
+            </button>
           </div>
         )}
 
