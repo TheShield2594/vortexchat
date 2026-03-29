@@ -257,11 +257,10 @@ export async function sendPushToChannel(opts: {
   // NOTE: We intentionally do NOT filter out "online" users here.
   // Mobile PWA users (iOS/Android) keep WebSocket connections alive when
   // the app is backgrounded, so their DB status reads "online" even when
-  // they aren't looking at the app.  The service worker's push handler
-  // already suppresses the notification when the user has a focused,
-  // visible window on the target conversation — that's the reliable
-  // client-side check.  Filtering server-side was causing ALL mobile
-  // push notifications to be silently dropped.
+  // they aren't looking at the app.  The service worker always displays
+  // notifications (required by iOS); no client-side focused-window
+  // suppression is performed.  Filtering server-side was causing ALL
+  // mobile push notifications to be silently dropped.
 
   // ── Batch quiet-hours check ──────────────────────────────────────
   // Filter out members who are in their scheduled DND window so we
