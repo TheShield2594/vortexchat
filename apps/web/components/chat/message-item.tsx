@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useId, useRef, useState, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2 } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip } from "lucide-react"
 import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
@@ -1311,16 +1311,37 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
 
   if (isImage) {
     return (
-      <button type="button" className="max-w-sm block" onClick={onOpenImage}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={downloadUrl}
-          alt={attachment.filename}
-          loading="lazy"
-          className="rounded object-contain"
-          style={{ maxWidth: "100%", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
-        />
-      </button>
+      <div className="max-w-sm" data-img-wrapper>
+        <button type="button" className="block" onClick={onOpenImage}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={downloadUrl}
+            alt={attachment.filename}
+            loading="lazy"
+            className="rounded object-contain"
+            style={{ maxWidth: "100%", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
+            onError={(e) => {
+              const el = e.target as HTMLImageElement
+              el.style.display = "none"
+              const fallback = el.closest("[data-img-wrapper]")?.querySelector("[data-fallback]")
+              if (fallback) (fallback as HTMLElement).style.display = "flex"
+            }}
+          />
+        </button>
+        <div
+          data-fallback
+          className="hidden items-center gap-2 px-3 py-2 rounded border text-sm"
+          style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)", color: "var(--theme-text-secondary)" }}
+        >
+          <Paperclip className="w-4 h-4 flex-shrink-0" />
+          <a href={downloadUrl} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
+            {attachment.filename}
+          </a>
+          <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+            {(attachment.size / 1024).toFixed(1)} KB
+          </span>
+        </div>
+      </div>
     )
   }
 

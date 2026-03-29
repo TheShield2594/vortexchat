@@ -40,6 +40,13 @@ interface ReplyToMessage {
   sender: User
 }
 
+interface DmAttachment {
+  id: string
+  filename: string
+  size: number
+  content_type: string
+}
+
 interface Message {
   id: string
   content: string
@@ -47,6 +54,7 @@ interface Message {
   edited_at: string | null
   sender_id: string
   sender: User
+  dm_attachments?: DmAttachment[]
   reply_to_id: string | null
   reply_to: ReplyToMessage | null
 }
@@ -556,7 +564,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     .single()
                   replyToMsg = replyData ?? null
                 }
-                const newMsg: Message = { ...data, reply_to: replyToMsg }
+                // Fetch dm_attachments so images render through the proxy
+                const { data: attRows } = await (supabase as any)
+                  .from("dm_attachments")
+                  .select("id, filename, size, content_type")
+                  .eq("dm_id", data.id)
+                const newMsg: Message = { ...data, reply_to: replyToMsg, dm_attachments: attRows ?? [] }
                 setMessages((prev) => [...prev, newMsg])
 
                 // Incrementally index the new message if the channel is encrypted
@@ -843,14 +856,20 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       if (msg) {
         // Store attachment metadata in dm_attachments table for proxy access
         // dm_attachments table not yet in generated Supabase types
-        await (supabase as any).from("dm_attachments").insert({
+        const { data: insertedAtt } = await (supabase as any).from("dm_attachments").insert({
           dm_id: msg.id,
           url: signedUrl,
           filename: file.name,
           size: file.size,
           content_type: file.type || "application/octet-stream",
-        })
-        setMessages((prev) => [...prev, msg])
+        }).select("id, filename, size, content_type").single()
+        const msgWithAttachments: Message = {
+          ...msg,
+          dm_attachments: insertedAtt
+            ? [{ id: insertedAtt.id, filename: insertedAtt.filename, size: insertedAtt.size, content_type: insertedAtt.content_type }]
+            : [],
+        }
+        setMessages((prev) => [...prev, msgWithAttachments])
       } else {
         toast({ variant: "destructive", title: "Failed to send file" })
       }
@@ -1083,8 +1102,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const renderedContent = channel.is_encrypted ? (decryptedContent[msg.id]?.text ?? "Decrypting…") : msg.content
           const decryptFailed = channel.is_encrypted ? Boolean(decryptedContent[msg.id]?.failed) : false
 
-          // Render file attachments inline (markdown-style links)
-          const attachmentMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
+          // Prefer structured dm_attachments (proxy URL, never expires) over
+          // markdown-embedded signed URLs (expire after 7 days).
+          const dbAttachments = msg.dm_attachments ?? []
+          const hasDbAttachments = dbAttachments.length > 0
+
+          // Render file attachments inline (markdown-style links) — fallback
+          // for messages created before dm_attachments were tracked.
+          const attachmentMatch = !hasDbAttachments
+            ? renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
+            : null
           const isImageAttachment = attachmentMatch
             ? /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i.test(attachmentMatch[1])
             : false
@@ -1151,8 +1178,103 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                       <button type="button" onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--theme-accent)", color: "white" }}>Save</button>
                       <button type="button" onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
                     </div>
+                  ) : hasDbAttachments ? (
+                    <div className="mt-1 space-y-1">
+                      {dbAttachments.map((att) => {
+                        const proxyUrl = `/api/dm/attachments/${att.id}/download`
+                        const isImg = att.content_type?.startsWith("image/")
+                        const isVid = att.content_type?.startsWith("video/")
+                        const isAud = att.content_type?.startsWith("audio/")
+
+                        if (isImg) {
+                          return (
+                            <div key={att.id} className="max-w-sm" data-img-wrapper>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={proxyUrl}
+                                alt={att.filename}
+                                loading="lazy"
+                                className="rounded object-contain cursor-pointer"
+                                style={{ maxWidth: "100%", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
+                                onError={(e) => {
+                                  const el = e.target as HTMLImageElement
+                                  el.style.display = "none"
+                                  const fallback = el.closest("[data-img-wrapper]")?.querySelector("[data-fallback]")
+                                  if (fallback) (fallback as HTMLElement).style.display = "flex"
+                                }}
+                              />
+                              <div
+                                data-fallback
+                                className="hidden items-center gap-2 px-3 py-2 rounded border text-sm"
+                                style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)", color: "var(--theme-text-secondary)" }}
+                              >
+                                <Paperclip className="w-4 h-4 flex-shrink-0" />
+                                <a href={proxyUrl} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
+                                  {att.filename}
+                                </a>
+                                <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+                                  {(att.size / 1024).toFixed(1)} KB
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        if (isVid) {
+                          return (
+                            <div key={att.id} className="max-w-lg rounded overflow-hidden" style={{ background: "var(--theme-bg-tertiary)" }}>
+                              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                              <video src={proxyUrl} controls preload="metadata" className="rounded max-h-80 w-full" aria-label={att.filename} />
+                              <div className="flex items-center gap-2 px-3 py-1.5">
+                                <span className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>{att.filename}</span>
+                                <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>{(att.size / 1024).toFixed(1)} KB</span>
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        if (isAud) {
+                          return (
+                            <div key={att.id} className="max-w-sm rounded p-3 space-y-2" style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: "var(--theme-accent)" }}>
+                                  <span className="text-[10px] font-bold" style={{ color: "var(--theme-text-bright)" }}>
+                                    {att.filename.split(".").pop()?.toUpperCase().slice(0, 4)}
+                                  </span>
+                                </div>
+                                <span className="text-sm font-medium truncate" style={{ color: "var(--theme-text-bright)" }}>{att.filename}</span>
+                                <span className="text-xs flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>{(att.size / 1024).toFixed(1)} KB</span>
+                              </div>
+                              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                              <audio src={proxyUrl} controls preload="metadata" className="w-full h-8" aria-label={att.filename} />
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <a
+                            key={att.id}
+                            href={proxyUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 rounded max-w-sm"
+                            style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                          >
+                            <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: "var(--theme-accent)" }}>
+                              <span className="text-xs font-bold" style={{ color: "var(--theme-text-bright)" }}>
+                                {att.filename.split(".").pop()?.toUpperCase().slice(0, 4)}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium truncate" style={{ color: "var(--theme-text-bright)" }}>{att.filename}</div>
+                              <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{(att.size / 1024).toFixed(1)} KB</div>
+                            </div>
+                          </a>
+                        )
+                      })}
+                    </div>
                   ) : attachmentMatch && isImageAttachment ? (
-                    <div className="mt-1">
+                    <div className="mt-1" data-img-wrapper>
                       <a href={attachmentMatch[2]} target="_blank" rel="noopener noreferrer">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -1161,10 +1283,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                           className="max-w-xs max-h-60 rounded object-contain cursor-pointer"
                           loading="lazy"
                           onError={(e) => {
-                            // Hide broken image and show filename fallback
                             const el = e.target as HTMLImageElement
                             el.style.display = "none"
-                            const fallback = el.parentElement?.querySelector("[data-fallback]")
+                            const fallback = el.closest("[data-img-wrapper]")?.querySelector("[data-fallback]")
                             if (fallback) (fallback as HTMLElement).style.display = "flex"
                           }}
                         />
@@ -1179,7 +1300,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                           {attachmentMatch[1]}
                         </a>
                       </div>
-                      <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{attachmentMatch[1]}</span>
                     </div>
                   ) : attachmentMatch && isVideoAttachment ? (
                     <div className="mt-1">
