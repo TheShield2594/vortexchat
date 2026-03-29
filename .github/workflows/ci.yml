@@ -132,10 +132,11 @@ jobs:
       - run: npx playwright install --with-deps chromium
         working-directory: apps/web
       - name: Build web app
-        run: npm run build --workspace=apps/web
+        run: npm run build
+        working-directory: apps/web
       - name: Start server and run E2E tests
         run: |
-          npm run start &
+          npx next start &
           npx wait-on http://localhost:3000 --timeout 30000
           npx playwright test
         working-directory: apps/web
