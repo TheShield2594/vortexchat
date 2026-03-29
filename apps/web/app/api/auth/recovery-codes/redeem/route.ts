@@ -14,13 +14,10 @@ export async function POST(request: Request) {
   try {
     // Rate limit: 5 recovery code attempts per 15 minutes per IP (stricter — this is an MFA bypass path)
     const ip = getClientIp(request.headers) ?? "unknown"
-    try {
-      const rl = await rateLimiter.check(`recovery-redeem:${ip}`, { limit: 5, windowMs: 15 * 60_000 })
-      if (!rl.allowed) {
-        return NextResponse.json({ error: "Too many requests" }, { status: 429 })
-      }
-    } catch {
-      // Fail open — don't block recovery code redemption if rate limiter is down
+    // failClosed: recovery code bypass is a critical auth path — must rate-limit even if Redis is down
+    const rl = await rateLimiter.check(`recovery-redeem:${ip}`, { limit: 5, windowMs: 15 * 60_000, failClosed: true })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
     }
 
     const body = (await request.json().catch(() => ({}))) as {

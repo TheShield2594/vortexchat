@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
+import { rateLimiter } from "@/lib/rate-limit"
 
 import { PERMISSIONS } from "@vortex/shared"
 
@@ -68,6 +69,12 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const { serverId, userId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
+
+  // Rate limit: 10 kick actions per 5 minutes per moderator
+  const rl = await rateLimiter.check(`kick:${user.id}`, { limit: 10, windowMs: 5 * 60_000 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many kick actions. Please slow down." }, { status: 429 })
+  }
 
   const { searchParams } = new URL(req.url)
   const reason = searchParams.get("reason") ?? undefined

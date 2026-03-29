@@ -24,6 +24,7 @@ import { ProfileInterestTags } from "@/components/profile/profile-interest-tags"
 import { ProfilePinnedItems } from "@/components/profile/profile-pinned-items"
 import { ProfileActivity } from "@/components/profile/profile-activity"
 import { ProfileConnections } from "@/components/profile/profile-connections"
+import { ProfileBadges } from "@/components/profile/profile-badges"
 import { ThemeIdentityBadge } from "@/components/settings/theme-identity-section"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 
@@ -283,6 +284,11 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                 ))}
               </div>
             </section>
+          )}
+
+          {/* Badges */}
+          {user?.id && (
+            <ProfileBadges userId={user.id} />
           )}
 
           {/* Connections */}

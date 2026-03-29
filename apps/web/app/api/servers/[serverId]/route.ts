@@ -46,6 +46,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   let name: string | undefined
   let description: string | undefined
+  let vanityUrl: string | undefined | null
   let regenerateInvite = false
   let iconFile: File | null = null
 
@@ -54,9 +55,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const nameVal = formData.get("name")
     const descVal = formData.get("description")
     const iconVal = formData.get("icon")
+    const vanityVal = formData.get("vanity_url")
 
     if (nameVal !== null) name = String(nameVal)
     if (descVal !== null) description = String(descVal)
+    if (vanityVal !== null) vanityUrl = String(vanityVal) || null
     if (iconVal instanceof File && iconVal.size > 0) iconFile = iconVal
     if (formData.get("regenerate_invite") === "true") regenerateInvite = true
   } else {
@@ -64,6 +67,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const body = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? raw : {}
     if ("name" in body) name = String(body.name)
     if ("description" in body) description = String(body.description)
+    if ("vanity_url" in body) vanityUrl = body.vanity_url === null ? null : String(body.vanity_url)
     if (body.regenerate_invite === true) regenerateInvite = true
   }
 
@@ -88,6 +92,38 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     updates.description = trimmed || null
     changes.description = { old: server.description, new: trimmed || null }
+  }
+
+  // Validate vanity URL
+  if (vanityUrl !== undefined) {
+    if (!isOwner) {
+      return NextResponse.json({ error: "Only the server owner can set a vanity URL" }, { status: 403 })
+    }
+    if (vanityUrl === null) {
+      // Clearing vanity URL
+      updates.vanity_url = null
+      changes.vanity_url = { old: "[redacted]", new: null }
+    } else {
+      const slug = vanityUrl.toLowerCase().trim()
+      if (!/^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/.test(slug)) {
+        return NextResponse.json(
+          { error: "Vanity URL must be 3-32 characters, lowercase alphanumeric and hyphens only, no leading/trailing hyphens" },
+          { status: 400 }
+        )
+      }
+      // Check uniqueness
+      const { data: existing } = await supabase
+        .from("servers")
+        .select("id")
+        .eq("vanity_url", slug)
+        .neq("id", serverId)
+        .maybeSingle()
+      if (existing) {
+        return NextResponse.json({ error: "This vanity URL is already taken" }, { status: 409 })
+      }
+      updates.vanity_url = slug
+      changes.vanity_url = { old: "[redacted]", new: slug }
+    }
   }
 
   // Check invite regeneration permission before any side effects
@@ -177,8 +213,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .select()
     .single()
 
-  if (dbErr)
-    return NextResponse.json({ error: dbErr.message }, { status: 500 })
+  if (dbErr) {
+    if (dbErr.code === "23505") {
+      return NextResponse.json({ error: "This vanity URL is already taken" }, { status: 409 })
+    }
+    return NextResponse.json({ error: "Failed to update server" }, { status: 500 })
+  }
 
   // Audit log
   await insertAuditLog(supabase, {

@@ -46,16 +46,46 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [total, setTotal] = useState(0)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
+  const resultsRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return }
+      // Don't hijack arrow/enter keys while the user is typing in an input
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setSelectedIndex((i) => (i < results.length - 1 ? i + 1 : 0))
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setSelectedIndex((i) => (i > 0 ? i - 1 : results.length - 1))
+      } else if (e.key === "Enter" && selectedIndex >= 0) {
+        const r = results[selectedIndex]
+        if (r?.type === "message" && onJumpToMessage) {
+          onJumpToMessage(r.channel_id, r.id)
+          onClose()
+        }
+      }
+    }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [onClose])
+  }, [onClose, results, selectedIndex, onJumpToMessage])
+
+  // Reset selection when results change
+  useEffect(() => { setSelectedIndex(-1) }, [results])
+
+  // Scroll selected result into view
+  useEffect(() => {
+    if (selectedIndex < 0 || !resultsRef.current) return
+    const items = resultsRef.current.querySelectorAll("[data-result-index]")
+    items[selectedIndex]?.scrollIntoView({ block: "nearest" })
+  }, [selectedIndex])
 
   const search = useCallback(async (t: string, f: ActiveFilters) => {
     const q = buildQueryString(t, f)
@@ -73,7 +103,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return
-      throw e
+      console.error("[SearchModal] Search failed:", e)
     } finally {
       if (!controller.signal.aborted) setLoading(false)
     }
@@ -283,7 +313,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
         )}
 
         {/* Results */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={resultsRef} className="flex-1 overflow-y-auto">
           {!hasQuery
             ? <div className="px-4 py-10"><BrandedEmptyState icon={Search} title="Search workspace" description="Find messages, tasks, and docs. Click Filters to narrow by user, content type, or date range." /></div>
             : results.length === 0 && !loading
@@ -295,18 +325,21 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
                   </div>
                 )}
                 {total > 0 && <div className="px-4 py-2 text-xs" style={{ color: "var(--theme-text-muted)" }}>{total} result{total !== 1 ? "s" : ""}</div>}
-                {results.map((result) => {
+                {results.map((result, idx) => {
                   if (result.type === "message") {
                     const displayName = result.author?.display_name || result.author?.username || "Unknown"
                     const initials = displayName.slice(0, 2).toUpperCase()
                     return (
                       <button
                         key={`message-${result.id}`}
+                        data-result-index={idx}
                         onClick={() => { onJumpToMessage?.(result.channel_id, result.id); onClose() }}
                         className="w-full flex items-start gap-3 px-4 py-3 text-left transition-colors"
-                        style={{ borderBottom: "1px solid var(--theme-bg-tertiary)" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--theme-surface-elevated)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                        style={{
+                          borderBottom: "1px solid var(--theme-bg-tertiary)",
+                          background: idx === selectedIndex ? "var(--theme-surface-elevated)" : undefined,
+                        }}
+                        onMouseEnter={() => setSelectedIndex(idx)}
                       >
                         <Avatar className="w-8 h-8 mt-0.5 flex-shrink-0">
                           {result.author?.avatar_url && <AvatarImage src={result.author.avatar_url} />}
@@ -326,7 +359,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
                   }
                   if (result.type === "task") {
                     return (
-                      <div key={`task-${result.id}`} className="px-4 py-3" style={{ borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
+                      <div key={`task-${result.id}`} data-result-index={idx} className="px-4 py-3" style={{ borderBottom: "1px solid var(--theme-bg-tertiary)", background: idx === selectedIndex ? "var(--theme-surface-elevated)" : undefined }}>
                         <div className="text-sm flex items-center gap-2" style={{ color: "var(--theme-text-bright)" }}>
                           <CheckSquare className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
                           {result.title}
@@ -336,7 +369,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
                     )
                   }
                   return (
-                    <div key={`doc-${result.id}`} className="px-4 py-3" style={{ borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
+                    <div key={`doc-${result.id}`} data-result-index={idx} className="px-4 py-3" style={{ borderBottom: "1px solid var(--theme-bg-tertiary)", background: idx === selectedIndex ? "var(--theme-surface-elevated)" : undefined }}>
                       <div className="text-sm flex items-center gap-2" style={{ color: "var(--theme-text-bright)" }}>
                         <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
                         {result.title}

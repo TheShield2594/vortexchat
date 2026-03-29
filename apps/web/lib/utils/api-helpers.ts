@@ -7,6 +7,9 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api-helpers")
 
 // ---------------------------------------------------------------------------
 // Auth helpers
@@ -131,11 +134,11 @@ export interface DbErrorContext {
 export function dbError(error: { message: string } | null, context?: string | DbErrorContext): NextResponse | null {
   if (!error) return null
   if (typeof context === "string") {
-    console.error(`[dbError] ${context}:`, error.message)
+    log.error({ context, err: error.message }, "Database operation failed")
   } else if (context) {
-    console.error("[dbError]", { ...context, message: error.message })
+    log.error({ ...context, err: error.message }, "Database operation failed")
   } else {
-    console.error("[dbError] Unspecified context:", error.message)
+    log.error({ err: error.message }, "Database operation failed (no context)")
   }
   return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 }

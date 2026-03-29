@@ -34,14 +34,11 @@ export async function POST(request: Request) {
   const ipAddress = getClientIp(request.headers)
 
   // Rate limit by IP — 20 attempts per 15 minutes
+  // failClosed: auth endpoints must not allow unlimited attempts when Redis is down
   const rateLimitKey = `login:${ipAddress ?? "unknown"}`
-  try {
-    const rl = await rateLimiter.check(rateLimitKey, { limit: 20, windowMs: 15 * 60 * 1000 })
-    if (!rl.allowed) {
-      return NextResponse.json({ error: "Too many login attempts. Please try again later." }, { status: 429 })
-    }
-  } catch {
-    // Fail open — don't block login if rate limiter is down
+  const rl = await rateLimiter.check(rateLimitKey, { limit: 20, windowMs: 15 * 60 * 1000, failClosed: true })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many login attempts. Please try again later." }, { status: 429 })
   }
 
   const admin = await createServiceRoleClient()

@@ -97,11 +97,30 @@ const useRedis =
   !!process.env.UPSTASH_REDIS_REST_URL &&
   !!process.env.UPSTASH_REDIS_REST_TOKEN
 
+interface CheckOptions {
+  limit: number
+  windowMs: number
+  /** When true, treat rate-limiter infrastructure failures as "blocked" instead of
+   *  allowing the request through.  Use for auth endpoints where fail-open would
+   *  let attackers bypass brute-force protection when Redis is down. */
+  failClosed?: boolean
+}
+
 export const rateLimiter = {
-  async check(key: string, opts: { limit: number; windowMs: number }): Promise<RateLimitResult> {
-    if (useRedis) {
-      return checkUpstash(key, opts)
+  async check(key: string, opts: CheckOptions): Promise<RateLimitResult> {
+    try {
+      if (useRedis) {
+        return await checkUpstash(key, opts)
+      }
+      return inMemory.check(key, opts)
+    } catch (err) {
+      if (opts.failClosed) {
+        // Structured log import avoided here to prevent circular deps;
+        // Sentry will also capture this via global error handling.
+        console.error("[rate-limit] Infrastructure failure (fail-closed):", (err as Error).message)
+        return { allowed: false, remaining: 0, resetAt: Date.now() + 60_000 }
+      }
+      throw err
     }
-    return inMemory.check(key, opts)
   },
 }

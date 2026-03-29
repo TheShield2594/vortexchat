@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 import { hasPermission as checkPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
+import { rateLimiter } from "@/lib/rate-limit"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/bans")
 
 // GET /api/servers/[serverId]/bans — list bans
 export async function GET(
@@ -48,9 +52,16 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
+
+  // Rate limit: 10 ban actions per 5 minutes per moderator
+  const rl = await rateLimiter.check(`ban:${user.id}`, { limit: 10, windowMs: 5 * 60_000 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many ban actions. Please slow down." }, { status: 429 })
+  }
 
   const { userId, reason } = await req.json()
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 })
@@ -123,12 +134,12 @@ export async function POST(
       rollbackError = rollbackResult.error
     }
 
-    console.warn("failed to remove member after ban", {
+    log.warn({
       serverId,
       userId,
-      error: memberDeleteError.message,
+      err: memberDeleteError.message,
       rollbackError: rollbackError?.message,
-    })
+    }, "Failed to remove member after ban")
     return NextResponse.json({ error: "Failed to ban user" }, { status: 500 })
   }
 
@@ -139,7 +150,7 @@ export async function POST(
     .eq("user_id", userId)
 
   if (voiceDeleteError) {
-    console.warn("failed to remove voice state after ban", { serverId, userId, error: voiceDeleteError.message })
+    log.warn({ serverId, userId, err: voiceDeleteError.message }, "Failed to remove voice state after ban")
   }
 
   // Audit log
@@ -153,6 +164,10 @@ export async function POST(
   })
 
   return NextResponse.json({ message: "User banned" })
+  } catch (err) {
+    log.error({ err }, "Unexpected error in ban handler")
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 // DELETE /api/servers/[serverId]/bans?userId= — unban
@@ -160,6 +175,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -208,9 +224,13 @@ export async function DELETE(
   })
 
   if (auditError) {
-    console.warn("Failed to write unban audit log", { serverId, userId, error: auditError.message })
-    return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
+    log.warn({ serverId, userId, err: auditError.message }, "Failed to write unban audit log")
+    // Unban already succeeded — don't fail the request over a non-critical audit log write
   }
 
   return NextResponse.json({ message: "User unbanned" })
+  } catch (err) {
+    log.error({ err }, "Unexpected error in unban handler")
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

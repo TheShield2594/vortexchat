@@ -156,6 +156,29 @@
 | Reminder Bot — slash commands | Done | `/reminder`, `/reminders`, `/rcancel` |
 | Giveaway Bot + Reminder Bot marketplace visibility | Done | Fixed via migration 00071 — upsert ensures `is_published = TRUE` (00066/00068 used `ON CONFLICT DO NOTHING` which silently skipped rows) |
 
+## Vanity Invite URLs
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Vanity URL column on servers table | Done | Migration 00078 — `vanity_url TEXT UNIQUE` with slug format CHECK constraint |
+| Vanity URL validation (3-32 chars, lowercase slug) | Done | Regex `^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$` enforced at DB + API level |
+| Vanity URL setting in server settings | Done | Owner-only UI in Invites tab with live preview and copy button |
+| Invite lookup resolves vanity URLs | Done | `GET/POST /api/invites/[code]` checks `invite_code` then `vanity_url` |
+| Vanity URL uniqueness check | Done | API checks uniqueness before save; DB UNIQUE constraint as safety net |
+
+## Profile Badges & Achievements
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Badge definitions table (catalog) | Done | Migration 00079 — `badge_definitions` with category, rarity, icon, color |
+| User badges table (assignments) | Done | `user_badges` with `UNIQUE(user_id, badge_id)`, awarded_by tracking |
+| 10 default badge definitions seeded | Done | early_adopter, bug_hunter, server_owner, moderator, message_veteran, voice_regular, streak_master, event_host, community_star, verified |
+| Badge catalog API | Done | `GET /api/badges` — public catalog of all badge definitions |
+| User badges API (read/award/revoke) | Done | `GET/POST/DELETE /api/users/badges` — ADMINISTRATOR permission required for award/revoke |
+| Profile badges component | Done | `ProfileBadges` with icon rendering, rarity glow, tooltips |
+| Badges section in profile panel | Done | Shown between Roles and Connections sections |
+| RLS policies for badges | Done | Public read; service_role manages inserts/updates |
+
 ---
 
-*Last updated: 2026-03-19*
+*Last updated: 2026-03-28*
