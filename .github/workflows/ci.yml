@@ -130,13 +130,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
       - name: Build web app
         run: npm run build --workspace=apps/web
       - name: Start server and run E2E tests
         run: |
           npm run start --workspace=apps/web &
           npx wait-on http://localhost:3000 --timeout 30000
-          npx playwright test --workspace=apps/web
+          npx playwright test
         working-directory: apps/web
       - name: Upload E2E report
         if: failure()
