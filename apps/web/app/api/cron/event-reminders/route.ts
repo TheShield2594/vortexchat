@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
     if (eventsError) {
       console.error("[event-reminders] Failed to fetch events:", eventsError.message)
-      return NextResponse.json({ error: eventsError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
     }
 
     if (!events || events.length === 0) {

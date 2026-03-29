@@ -122,6 +122,7 @@ export async function DELETE(
       .from("invites")
       .select("created_by")
       .eq("code", code)
+      .eq("server_id", serverId)
       .single()
 
     const isOwner = server?.owner_id === user.id
@@ -131,7 +132,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const { error } = await supabase.from("invites").delete().eq("code", code)
+    const { error } = await supabase.from("invites").delete().eq("code", code).eq("server_id", serverId)
     if (error) return NextResponse.json({ error: "Failed to revoke invite" }, { status: 500 })
     return NextResponse.json({ message: "Invite revoked" })
   } catch (err) {

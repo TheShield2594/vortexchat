@@ -153,8 +153,8 @@ export async function POST(req: NextRequest) {
           .select("dm_channel_id")
           .eq("user_id", partnerId),
       ])
-      if (userMemsError) return NextResponse.json({ error: userMemsError.message }, { status: 500 })
-      if (partnerMemsError) return NextResponse.json({ error: partnerMemsError.message }, { status: 500 })
+      if (userMemsError) return NextResponse.json({ error: "Failed to check existing channels" }, { status: 500 })
+      if (partnerMemsError) return NextResponse.json({ error: "Failed to check existing channels" }, { status: 500 })
 
       const userChannelIds = new Set((userMems ?? []).map((m) => m.dm_channel_id))
       const sharedChannelIds = (partnerMems ?? [])
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
           .in("id", sharedChannelIds)
           .eq("is_group", false)
           .eq("is_encrypted", encrypted)
-        if (nonGroupChannelsError) return NextResponse.json({ error: nonGroupChannelsError.message }, { status: 500 })
+        if (nonGroupChannelsError) return NextResponse.json({ error: "Failed to check existing channels" }, { status: 500 })
 
         const existingChannel = (nonGroupChannels ?? [])[0]
         if (existingChannel) {
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (chanErr) return NextResponse.json({ error: chanErr.message }, { status: 500 })
+    if (chanErr) return NextResponse.json({ error: "Failed to create DM channel" }, { status: 500 })
 
     // Add all members
     const memberRows = allMembers.map((uid) => ({
@@ -198,7 +198,10 @@ export async function POST(req: NextRequest) {
       .from("dm_channel_members")
       .insert(memberRows)
 
-    if (memErr) return NextResponse.json({ error: memErr.message }, { status: 500 })
+    if (memErr) {
+      await supabase.from("dm_channels").delete().eq("id", channel.id)
+      return NextResponse.json({ error: "Failed to create DM channel" }, { status: 500 })
+    }
 
     return NextResponse.json({ id: channel.id, existing: false }, { status: 201 })
   } catch (err) {

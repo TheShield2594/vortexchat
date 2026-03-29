@@ -30,6 +30,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const auth = await requireModerator(serverId)
   if (auth.error || !auth.user) return auth.error!
@@ -74,4 +75,8 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: "Failed to create appeal template" }, { status: 500 })
   return NextResponse.json(data, { status: 201 })
+  } catch (err) {
+    console.error("[servers/[serverId]/appeal-templates POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

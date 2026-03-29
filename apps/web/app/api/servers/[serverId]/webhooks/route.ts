@@ -39,6 +39,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -66,9 +67,13 @@ export async function POST(
     .select("id, name, token, channel_id, created_at")
     .single()
 
-  if (error) return NextResponse.json({ error: "Failed to create webhook" }, { status: 500 })
+  if (error || !data) return NextResponse.json({ error: "Failed to create webhook" }, { status: 500 })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
   return NextResponse.json({ ...data, url: `${appUrl}/api/webhooks/${data.token}` }, { status: 201 })
+  } catch (err) {
+    console.error("[servers/[serverId]/webhooks POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 // DELETE /api/servers/[serverId]/webhooks?webhookId=xxx

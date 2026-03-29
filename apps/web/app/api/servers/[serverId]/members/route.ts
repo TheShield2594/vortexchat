@@ -8,6 +8,7 @@ export async function GET(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const params = await paramsPromise
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -81,6 +82,10 @@ export async function GET(
   return NextResponse.json(visibleMembers, {
     headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
   })
+  } catch (err) {
+    console.error("[servers/[serverId]/members GET] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function DELETE(

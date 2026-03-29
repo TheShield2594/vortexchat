@@ -45,6 +45,7 @@ export async function PATCH(
   request: Request,
   { params: paramsPromise }: RouteContext
 ) {
+  try {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
   const service = await createServiceRoleClient()
@@ -194,6 +195,10 @@ export async function PATCH(
   }
 
   return NextResponse.json(updated)
+  } catch (err) {
+    console.error("[servers/[serverId]/events/[eventId] PATCH] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function DELETE(

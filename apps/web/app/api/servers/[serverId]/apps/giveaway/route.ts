@@ -47,6 +47,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
  * Create a new giveaway or update giveaway config.
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const { serverId } = await params
   const { supabase, user, error } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
   if (error) return error
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("*")
       .single()
 
-    if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
+    if (upsertError) return NextResponse.json({ error: "Failed to update giveaway configuration" }, { status: 500 })
     return NextResponse.json(data)
   }
 
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("*")
       .single()
 
-    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+    if (insertError) return NextResponse.json({ error: "Failed to create giveaway" }, { status: 500 })
 
     // Post announcement message in the giveaway channel
     const serviceClient = await createServiceRoleClient()
@@ -157,4 +158,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/giveaway POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

@@ -41,7 +41,7 @@ export async function POST(
     .eq("dm_channel_id", channelId)
 
   if (channelMembersError || !channelMembers) {
-    return NextResponse.json({ error: channelMembersError?.message ?? "Failed to load DM members" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to load DM members" }, { status: 500 })
   }
 
   if (!channelMembers.some((member) => member.user_id === user.id)) {

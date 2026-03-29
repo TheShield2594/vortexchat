@@ -137,7 +137,7 @@ export async function POST(
       .eq("dm_channel_id", channelId)
 
     if (memberCountError) {
-      return NextResponse.json({ error: memberCountError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to verify channel membership" }, { status: 500 })
     }
 
     const maxAllowed = Math.max((memberCount ?? 0) * PER_USER_DEVICE_LIMIT, PER_USER_DEVICE_LIMIT)
@@ -165,7 +165,7 @@ export async function POST(
       .from("dm_channel_keys")
       .upsert(rows)
 
-    if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
+    if (upsertError) return NextResponse.json({ error: "Failed to store encryption keys" }, { status: 500 })
 
     return NextResponse.json({ ok: true })
 

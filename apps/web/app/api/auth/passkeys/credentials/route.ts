@@ -14,7 +14,7 @@ export async function GET() {
       .eq("user_id", auth.user.id)
       .order("created_at", { ascending: false })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) return NextResponse.json({ error: "Failed to process passkey request" }, { status: 400 })
     return NextResponse.json({ credentials: data })
 
   } catch (err) {
@@ -39,7 +39,7 @@ export async function PATCH(request: Request) {
       .eq("id", id)
       .eq("user_id", auth.user.id)
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) return NextResponse.json({ error: "Failed to process passkey request" }, { status: 400 })
     return NextResponse.json({ ok: true })
 
   } catch (err) {
@@ -64,7 +64,7 @@ export async function DELETE(request: Request) {
       .eq("id", id)
       .eq("user_id", auth.user.id)
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) return NextResponse.json({ error: "Failed to process passkey request" }, { status: 400 })
     return NextResponse.json({ ok: true })
 
   } catch (err) {

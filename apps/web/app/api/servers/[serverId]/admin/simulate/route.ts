@@ -48,7 +48,7 @@ export async function GET(
       .from("roles")
       .select("id, name, permissions, is_default, position, color")
       .eq("server_id", serverId)
-    if (rolesError) return NextResponse.json({ error: rolesError.message }, { status: 500 })
+    if (rolesError) return NextResponse.json({ error: "Failed to load roles" }, { status: 500 })
 
     const rolesMap = new Map<string, RoleSnapshot>((allRoles ?? []).map((r) => [r.id, r as RoleSnapshot]))
     const defaultRole = (allRoles ?? []).find((r) => r.is_default) ?? null
@@ -76,7 +76,7 @@ export async function GET(
         .select("role_id")
         .eq("server_id", serverId)
         .eq("user_id", userId)
-      if (mrError) return NextResponse.json({ error: mrError.message }, { status: 500 })
+      if (mrError) return NextResponse.json({ error: "Failed to load member roles" }, { status: 500 })
 
       assignedRoles = (memberRoles ?? [])
         .map((mr) => rolesMap.get(mr.role_id))
@@ -94,7 +94,7 @@ export async function GET(
         .select("role_id, allow_permissions, deny_permissions")
         .eq("channel_id", channelId)
         .in("role_id", Array.from(relevantRoleIds))
-      if (owError) return NextResponse.json({ error: owError.message }, { status: 500 })
+      if (owError) return NextResponse.json({ error: "Failed to load channel overwrites" }, { status: 500 })
       overwrites = (owData ?? []) as ChannelOverwriteSnapshot[]
     }
 

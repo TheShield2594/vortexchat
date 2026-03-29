@@ -53,6 +53,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
  * Body: { speaker_user_id, source_language, text, started_at, ended_at, confidence, provider }
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const { id: sessionId } = await params
   const supabase = await createServerSupabaseClient()
   const {
@@ -138,4 +139,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ segment }, { status: 201 })
+  } catch (err) {
+    console.error("[voice/sessions/[id]/transcript POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

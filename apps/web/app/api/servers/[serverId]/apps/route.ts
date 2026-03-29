@@ -52,6 +52,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -115,6 +116,10 @@ export async function POST(
   })
 
   return NextResponse.json(data, { status: 201 })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function DELETE(

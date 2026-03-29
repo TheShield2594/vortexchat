@@ -52,6 +52,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
+  try {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const {
@@ -88,6 +89,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   if (error) return NextResponse.json({ error: "Failed to update screening config" }, { status: 500 })
   return NextResponse.json(data)
+  } catch (err) {
+    console.error("[servers/[serverId]/screening PUT] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {

@@ -48,6 +48,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
  * Actions: save_config, create_incident
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("*")
       .single()
 
-    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+    if (insertError) return NextResponse.json({ error: "Failed to create incident" }, { status: 500 })
 
     // Post announcement
     const serviceClient = await createServiceRoleClient()
@@ -179,4 +180,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/incidents POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

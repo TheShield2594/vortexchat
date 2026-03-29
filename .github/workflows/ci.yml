@@ -135,7 +135,7 @@ jobs:
         run: npm run build --workspace=apps/web
       - name: Start server and run E2E tests
         run: |
-          npm run start --workspace=apps/web &
+          npm run start &
           npx wait-on http://localhost:3000 --timeout 30000
           npx playwright test
         working-directory: apps/web

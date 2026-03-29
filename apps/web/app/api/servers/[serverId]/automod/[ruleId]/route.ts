@@ -64,6 +64,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
+  try {
   const { serverId, ruleId } = await params
   const { supabase, user, rule, error } = await requireOwnerWithRule(serverId, ruleId)
   if (error) return error
@@ -122,7 +123,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .select()
     .single()
 
-  if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
+  if (dbErr) return NextResponse.json({ error: "Failed to update automod rule" }, { status: 500 })
 
   await supabase.from("audit_logs").insert({
     server_id: serverId,
@@ -134,6 +135,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   })
 
   return NextResponse.json(updated)
+  } catch (err) {
+    console.error("[servers/[serverId]/automod/[ruleId] PATCH] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
@@ -143,7 +148,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     if (error) return error
 
     const { error: dbErr } = await supabase.from("automod_rules").delete().eq("id", ruleId).eq("server_id", serverId)
-    if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
+    if (dbErr) return NextResponse.json({ error: "Failed to delete automod rule" }, { status: 500 })
 
     await supabase.from("audit_logs").insert({
       server_id: serverId,

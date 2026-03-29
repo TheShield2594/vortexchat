@@ -103,7 +103,10 @@ export async function POST(
       .select()
       .single()
 
-    if (insertError) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
+    if (insertError || !emoji) {
+      await supabase.storage.from("server-emojis").remove([path])
+      return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
+    }
 
     // Audit log
     await supabase.from("audit_logs").insert({
@@ -141,12 +144,13 @@ export async function DELETE(
     }
 
     // Fetch the emoji to check ownership and get storage path
-    const { data: emoji } = await supabase
+    const { data: emoji, error: emojiError } = await supabase
       .from("server_emojis")
       .select("id, name, image_url, uploader_id")
       .eq("id", emojiId)
       .eq("server_id", serverId)
       .maybeSingle()
+    if (emojiError) return NextResponse.json({ error: "Failed to load emoji" }, { status: 500 })
     if (!emoji) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     // Allow owner, uploader, or users with MANAGE_EMOJIS permission

@@ -44,6 +44,7 @@ export async function GET(_request: Request, { params: paramsPromise }: Params) 
 
 // PATCH /api/threads/[threadId]  { archived?, locked?, name?, auto_archive_duration? }
 export async function PATCH(request: Request, { params: paramsPromise }: Params) {
+  try {
   const { threadId } = await paramsPromise
   const supabase = await createServerSupabaseClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -110,6 +111,10 @@ export async function PATCH(request: Request, { params: paramsPromise }: Params)
   if (error) return NextResponse.json({ error: "Failed to update thread" }, { status: 500 })
 
   return NextResponse.json(thread)
+  } catch (err) {
+    console.error("[threads/[threadId] PATCH] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 // DELETE /api/threads/[threadId]

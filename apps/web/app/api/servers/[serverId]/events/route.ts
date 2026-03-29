@@ -101,6 +101,7 @@ export async function POST(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const params = await paramsPromise
   const supabase = await createServerSupabaseClient()
   const service = await createServiceRoleClient()
@@ -240,4 +241,8 @@ export async function POST(
   }
 
   return NextResponse.json(created, { status: 201 })
+  } catch (err) {
+    console.error("[servers/[serverId]/events POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

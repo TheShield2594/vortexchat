@@ -82,7 +82,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ c
     if (typeof docId !== "string" || !docId.trim()) return NextResponse.json({ error: "docId required" }, { status: 400 })
 
     const { error } = await supabase.from("channel_docs").delete().eq("id", docId).eq("channel_id", channelId)
-    if (error) return NextResponse.json({ error: "Failed to update doc" }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to delete doc" }, { status: 500 })
     return NextResponse.json({ ok: true })
 
   } catch (err) {

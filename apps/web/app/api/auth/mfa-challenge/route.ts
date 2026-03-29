@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
     if (challengeError || !challengeData) {
       return NextResponse.json(
-        { error: challengeError?.message || "Failed to create MFA challenge" },
+        { error: "Failed to create MFA challenge" },
         { status: 400 }
       )
     }
