@@ -24,6 +24,7 @@ import type { IndexedDocument } from "@/lib/local-search-index"
 import { ChannelRowSkeleton, MessageListSkeleton } from "@/components/ui/skeleton"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { useKeyboardAvoidance } from "@/hooks/use-keyboard-avoidance"
+import { computeDecay } from "@vortex/shared"
 
 interface User {
   id: string
@@ -856,12 +857,22 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       if (msg) {
         // Store attachment metadata in dm_attachments table for proxy access
         // dm_attachments table not yet in generated Supabase types
+        const now = new Date()
+        const decay = computeDecay({ sizeBytes: file.size, uploadedAt: now })
         const { data: insertedAtt, error: attInsertError } = await (supabase as any).from("dm_attachments").insert({
           dm_id: msg.id,
           url: signedUrl,
           filename: file.name,
           size: file.size,
           content_type: file.type || "application/octet-stream",
+          ...(decay
+            ? {
+                expires_at: decay.expiresAt.toISOString(),
+                last_accessed_at: now.toISOString(),
+                lifetime_days: decay.days,
+                decay_cost: decay.cost,
+              }
+            : {}),
         }).select("id, filename, size, content_type").single()
         if (attInsertError) {
           console.error("[dm file upload] failed to insert attachment metadata:", attInsertError)

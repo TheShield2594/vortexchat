@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
+import { maybeRenewExpiry } from "@vortex/shared"
 
 export async function GET(
   _request: NextRequest,
@@ -14,15 +15,20 @@ export async function GET(
     // dm_attachments table is not yet in generated Supabase types
     const { data: attachment, error } = await (supabase as any)
       .from("dm_attachments")
-      .select("id, url, dm_id, filename, content_type")
+      .select("id, url, dm_id, filename, content_type, size, expires_at, purged_at")
       .eq("id", attachmentId)
-      .maybeSingle() as { data: { id: string; url: string; dm_id: string; filename: string; content_type: string } | null; error: any }
+      .maybeSingle() as { data: { id: string; url: string; dm_id: string; filename: string; content_type: string; size: number; expires_at: string | null; purged_at: string | null } | null; error: unknown }
 
     if (error) {
-      console.error("dm-attachments/download: fetch failed", { userId: user.id, attachmentId, error: error.message })
+      console.error("dm-attachments/download: fetch failed", { userId: user.id, attachmentId, error: String(error) })
       return NextResponse.json({ error: "Failed to fetch attachment" }, { status: 500 })
     }
     if (!attachment) return NextResponse.json({ error: "Attachment not found" }, { status: 404 })
+
+    // Block access to purged (expired + deleted from storage) attachments
+    if (attachment.purged_at) {
+      return NextResponse.json({ error: "This file has expired and is no longer available" }, { status: 410 })
+    }
 
     // Get the DM to find the channel
     const { data: dm, error: dmError } = await supabase
@@ -50,6 +56,27 @@ export async function GET(
       return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
     }
     if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    // ── Decay renewal: extend expiry if accessed near deadline ──────────────
+    if (attachment.expires_at && attachment.size) {
+      const now = new Date()
+      const sizeMB = attachment.size / 1024 / 1024
+      const renewed = maybeRenewExpiry({
+        currentExpiry: new Date(attachment.expires_at),
+        now,
+        sizeMB,
+      })
+      const updatePayload: Record<string, string> = { last_accessed_at: now.toISOString() }
+      if (renewed) {
+        updatePayload.expires_at = renewed.toISOString()
+      }
+      // Fire-and-forget update
+      ;(supabase as any)
+        .from("dm_attachments")
+        .update(updatePayload)
+        .eq("id", attachment.id)
+        .then(() => {}, () => {})
+    }
 
     // Extract the storage path from the URL and create a fresh signed URL
     const storagePath = extractStoragePath(attachment.url)

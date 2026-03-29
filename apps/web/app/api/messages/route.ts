@@ -17,6 +17,7 @@ import { filterMentionsByBlockState } from "@/lib/blocking"
 import { validateAttachments, validateAttachmentContent } from "@/lib/attachment-validation"
 import { MESSAGE_PROJECTION, withReplyTo, type ServerSupabaseClient } from "@/lib/messages/hydration"
 import { parsePostMessageRequestBody, type MessageAttachment, type PostMessageRequestBody } from "@/lib/messages/validators"
+import { computeDecay } from "@vortex/shared"
 import { validateChannelTypeMessagePolicy, type SupportedMessageChannelType } from "@/lib/messages/channel-type-policy"
 import { cached } from "@/lib/server-cache"
 async function getChannelForRead(supabase: ServerSupabaseClient, channelId: string, userId: string) {
@@ -434,10 +435,25 @@ async function insertMessageWithAttachments({
   }
 
   if (attachments.length > 0 && message) {
+    const now = new Date()
     const { data: insertedAttachments } = await supabase
       .from("attachments")
       .insert(
-        attachments.map((a) => ({ ...a, message_id: message.id }))
+        attachments.map((a) => {
+          const decay = computeDecay({ sizeBytes: a.size, uploadedAt: now })
+          return {
+            ...a,
+            message_id: message.id,
+            ...(decay
+              ? {
+                  expires_at: decay.expiresAt.toISOString(),
+                  last_accessed_at: now.toISOString(),
+                  lifetime_days: decay.days,
+                  decay_cost: decay.cost,
+                }
+              : {}),
+          }
+        })
       )
       .select("id, filename, content_type, message_id")
   }
