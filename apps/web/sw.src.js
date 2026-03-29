@@ -127,6 +127,9 @@ self.addEventListener("fetch", (event) => {
 })
 
 // ─── Push notifications ───────────────────────────────────────────────────────
+// Suppress notification when the user is actively viewing the target
+// conversation (inspired by Fluxer's approach of only showing push
+// when the app is backgrounded/unfocused).
 self.addEventListener("push", (event) => {
   if (!event.data) return
 
@@ -145,23 +148,44 @@ self.addEventListener("push", (event) => {
     tag,
   } = data
 
-  const actions = url !== "/channels/me" ? [
-    { action: "open", title: "Open" },
-    { action: "dismiss", title: "Dismiss" },
-  ] : []
-
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon,
-      badge: "/icon-192.png",
-      tag: tag || "vortexchat-message",
-      data: { url },
-      renotify: true,
-      requireInteraction: false,
-      actions,
-      silent: false,
-    })
+    (async () => {
+      // Check if the user has a focused window on the target URL.
+      // If so, skip the notification — they're already reading the conversation.
+      try {
+        const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: false })
+        const isFocused = clients.some((client) => {
+          if (!client.focused || client.visibilityState !== "visible") return false
+          try {
+            const clientUrl = new URL(client.url)
+            return clientUrl.pathname === url
+          } catch {
+            return false
+          }
+        })
+
+        if (isFocused) return
+      } catch {
+        // clients API failed — continue to show notification
+      }
+
+      const actions = url !== "/channels/me" ? [
+        { action: "open", title: "Open" },
+        { action: "dismiss", title: "Dismiss" },
+      ] : []
+
+      await self.registration.showNotification(title, {
+        body,
+        icon,
+        badge: "/icon-192.png",
+        tag: tag || "vortexchat-message",
+        data: { url },
+        renotify: true,
+        requireInteraction: false,
+        actions,
+        silent: false,
+      })
+    })()
   )
 })
 

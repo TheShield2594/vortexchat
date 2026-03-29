@@ -824,8 +824,15 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabase.storage.from("attachments").getPublicUrl(path)
-      const fileContent = `[${file.name}](${publicUrl})`
+      // Use signed URL since the attachments bucket is private
+      const { data: signedData, error: signError } = await supabase.storage
+        .from("attachments")
+        .createSignedUrl(path, 60 * 60 * 24 * 7) // 7 day expiry
+
+      if (signError || !signedData?.signedUrl) throw new Error("Failed to create signed URL")
+
+      const signedUrl = signedData.signedUrl
+      const fileContent = `[${file.name}](${signedUrl})`
       let outbound = fileContent
       if (channel?.is_encrypted) {
         const key = conversationKey ?? await ensureConversationKey(channel)
@@ -834,6 +841,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       }
       const msg = await sendDmPayload({ content: outbound })
       if (msg) {
+        // Store attachment metadata in dm_attachments table for proxy access
+        await supabase.from("dm_attachments").insert({
+          dm_id: msg.id,
+          url: signedUrl,
+          filename: file.name,
+          size: file.size,
+          content_type: file.type || "application/octet-stream",
+        })
         setMessages((prev) => [...prev, msg])
       } else {
         toast({ variant: "destructive", title: "Failed to send file" })
@@ -1065,8 +1080,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const renderedContent = channel.is_encrypted ? (decryptedContent[msg.id]?.text ?? "Decrypting…") : msg.content
           const decryptFailed = channel.is_encrypted ? Boolean(decryptedContent[msg.id]?.failed) : false
 
-          // Render image attachments inline (markdown-style links to images)
-          const imageMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
+          // Render file attachments inline (markdown-style links)
+          const attachmentMatch = renderedContent?.match(/^\[(.+)\]\((https?:\/\/.+)\)$/)
+          const isImageAttachment = attachmentMatch
+            ? /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i.test(attachmentMatch[1])
+            : false
+          const isVideoAttachment = attachmentMatch
+            ? /\.(mp4|webm|mov|ogg)$/i.test(attachmentMatch[1])
+            : false
           // Detect standalone GIF URLs (Klipy/Giphy) for inline rendering
           const gifMediaUrl = extractGifUrl(renderedContent)
 
@@ -1127,17 +1148,60 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                       <button type="button" onClick={() => handleEditSave(msg.id)} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--theme-accent)", color: "white" }}>Save</button>
                       <button type="button" onClick={() => setEditingId(null)} className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Cancel</button>
                     </div>
-                  ) : imageMatch ? (
+                  ) : attachmentMatch && isImageAttachment ? (
                     <div className="mt-1">
-                      <a href={imageMatch[2]} target="_blank" rel="noopener noreferrer">
+                      <a href={attachmentMatch[2]} target="_blank" rel="noopener noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={imageMatch[2]}
-                          alt={imageMatch[1]}
-                          className="max-w-xs max-h-60 rounded object-contain"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                          src={attachmentMatch[2]}
+                          alt={attachmentMatch[1]}
+                          className="max-w-xs max-h-60 rounded object-contain cursor-pointer"
+                          loading="lazy"
+                          onError={(e) => {
+                            // Hide broken image and show filename fallback
+                            const el = e.target as HTMLImageElement
+                            el.style.display = "none"
+                            const fallback = el.parentElement?.querySelector("[data-fallback]")
+                            if (fallback) (fallback as HTMLElement).style.display = "flex"
+                          }}
                         />
                       </a>
-                      <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{imageMatch[1]}</span>
+                      <div
+                        data-fallback
+                        className="hidden items-center gap-2 px-3 py-2 rounded border text-sm"
+                        style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)", color: "var(--theme-text-secondary)" }}
+                      >
+                        <Paperclip className="w-4 h-4 flex-shrink-0" />
+                        <a href={attachmentMatch[2]} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
+                          {attachmentMatch[1]}
+                        </a>
+                      </div>
+                      <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{attachmentMatch[1]}</span>
+                    </div>
+                  ) : attachmentMatch && isVideoAttachment ? (
+                    <div className="mt-1">
+                      <video
+                        src={attachmentMatch[2]}
+                        controls
+                        preload="metadata"
+                        className="max-w-xs max-h-60 rounded"
+                      />
+                      <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{attachmentMatch[1]}</span>
+                    </div>
+                  ) : attachmentMatch ? (
+                    <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded border text-sm"
+                      style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)" }}
+                    >
+                      <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
+                      <a
+                        href={attachmentMatch[2]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline truncate"
+                        style={{ color: "var(--theme-link)" }}
+                      >
+                        {attachmentMatch[1]}
+                      </a>
                     </div>
                   ) : gifMediaUrl ? (
                     <div className="mt-1">

@@ -34,7 +34,10 @@ export async function sendPushToUser(
   payload: PushPayload
 ): Promise<void> {
   try {
-    if (!VAPID_PUBLIC || !VAPID_PRIVATE) return // push not configured
+    if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+      console.warn("sendPushToUser: VAPID keys not configured — push notifications disabled")
+      return
+    }
     ensureVapid()
 
     const supabase = await createServerSupabaseClient()
@@ -110,7 +113,10 @@ export async function sendPushToChannel(opts: {
   excludeUserId: string
 }): Promise<void> {
   try {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+    console.warn("sendPushToChannel: VAPID keys not configured — push notifications disabled")
+    return
+  }
   ensureVapid()
 
   const { serverId, channelId, threadId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts

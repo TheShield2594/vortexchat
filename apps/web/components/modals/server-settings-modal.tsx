@@ -218,74 +218,74 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-5xl max-h-[90vh] overflow-hidden p-0"
+        className="max-w-5xl max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto overflow-hidden p-0"
         style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">{liveServer.name} — Server Settings</DialogTitle>
-        <Tabs defaultValue="overview" orientation="vertical" className="flex h-[85vh]">
+        <Tabs defaultValue="overview" orientation="vertical" className="flex flex-col md:flex-row h-[85vh]">
           {/* Settings sidebar */}
-          <div className="w-52 flex-shrink-0 flex flex-col overflow-hidden" style={{ background: 'var(--theme-bg-secondary)' }}>
+          <div className="w-full md:w-52 flex-shrink-0 flex flex-col overflow-hidden" style={{ background: 'var(--theme-bg-secondary)' }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
               {liveServer.name}
             </h3>
-            <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full flex-1 overflow-y-auto px-4 pb-4 justify-start items-start">
-              <TabsTrigger value="overview" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+            <TabsList className="flex flex-row md:flex-col h-auto bg-transparent gap-0.5 w-full md:flex-1 overflow-x-auto md:overflow-x-visible overflow-y-hidden md:overflow-y-auto px-4 pb-2 md:pb-4 justify-start items-start">
+              <TabsTrigger value="overview" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="invites" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+              <TabsTrigger value="invites" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Invites
               </TabsTrigger>
-              <TabsTrigger value="roles" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+              <TabsTrigger value="roles" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Roles
               </TabsTrigger>
-              <TabsTrigger value="emojis" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+              <TabsTrigger value="emojis" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Emoji
               </TabsTrigger>
-              <TabsTrigger value="webhooks" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+              <TabsTrigger value="webhooks" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Webhooks
               </TabsTrigger>
-              <TabsTrigger value="apps" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+              <TabsTrigger value="apps" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Apps
               </TabsTrigger>
-              <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
+              <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider hidden md:block" style={{ color: 'var(--theme-text-muted)' }}>
                 Moderation
               </div>
-              <TabsTrigger value="moderation" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
-                <Shield className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="moderation" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                <Shield className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Settings
               </TabsTrigger>
-              <TabsTrigger value="screening" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
-                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="screening" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Screening
               </TabsTrigger>
-              <TabsTrigger value="automod" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
-                <Zap className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="automod" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                <Zap className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 AutoMod
               </TabsTrigger>
-              <TabsTrigger value="reports" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
-                <Flag className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="reports" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                <Flag className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Reports
               </TabsTrigger>
-              <TabsTrigger value="templates" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+              <TabsTrigger value="templates" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Templates
               </TabsTrigger>
-              <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
+              <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider hidden md:block" style={{ color: 'var(--theme-text-muted)' }}>
                 Safety Tools
               </div>
-              <TabsTrigger value="admin-activity" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
-                <Activity className="mr-1.5 h-3.5 w-3.5" />
-                Activity Log
+              <TabsTrigger value="admin-activity" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                <Activity className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
+                Activity
               </TabsTrigger>
-              <TabsTrigger value="permission-sandbox" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
-                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Perm Sandbox
+              <TabsTrigger value="permission-sandbox" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                <Eye className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
+                Perms
               </TabsTrigger>
             </TabsList>
           </div>
 
           {/* Main content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6">
             <TabsContent value="overview" className="mt-0 space-y-4">
               {/* Server Icon */}
               {isOwner && (

@@ -38,63 +38,63 @@ function TabLoadingFallback() {
 
 export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }: Props) {
   return (
-    <main className="flex-1 overflow-y-auto p-6" style={{ background: "var(--theme-bg-tertiary)" }}>
+    <main className="flex-1 overflow-y-auto p-4 md:p-6" style={{ background: "var(--theme-bg-tertiary)" }}>
       <div className="mx-auto max-w-6xl">
         <h1 className="text-2xl font-semibold text-white">Server Settings</h1>
         <p className="mt-1 text-sm" style={{ color: "var(--theme-text-muted)" }}>{serverName}</p>
 
-        <Tabs defaultValue="roles" className="mt-6 flex gap-6">
-          <div className="w-56 flex-shrink-0">
-            <TabsList className="flex h-auto w-full flex-col gap-1 bg-transparent p-0">
-              <TabsTrigger value="roles" className="w-full justify-start">Roles</TabsTrigger>
-              <TabsTrigger value="emojis" className="w-full justify-start">Emoji</TabsTrigger>
-              <TabsTrigger value="webhooks" className="w-full justify-start">Webhooks</TabsTrigger>
-              <TabsTrigger value="apps" className="w-full justify-start">Apps</TabsTrigger>
-              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+        <Tabs defaultValue="roles" className="mt-6 flex flex-col md:flex-row gap-4 md:gap-6">
+          <div className="w-full md:w-56 flex-shrink-0">
+            <TabsList className="flex h-auto w-full flex-row md:flex-col gap-1 bg-transparent p-0 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
+              <TabsTrigger value="roles" className="w-full justify-start whitespace-nowrap">Roles</TabsTrigger>
+              <TabsTrigger value="emojis" className="w-full justify-start whitespace-nowrap">Emoji</TabsTrigger>
+              <TabsTrigger value="webhooks" className="w-full justify-start whitespace-nowrap">Webhooks</TabsTrigger>
+              <TabsTrigger value="apps" className="w-full justify-start whitespace-nowrap">Apps</TabsTrigger>
+              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider hidden md:block" style={{ color: "var(--theme-text-muted)" }}>
                 Moderation
               </div>
-              <TabsTrigger value="moderation" className="w-full justify-start">
-                <Shield className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="moderation" className="w-full justify-start whitespace-nowrap">
+                <Shield className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Settings
               </TabsTrigger>
-              <TabsTrigger value="screening" className="w-full justify-start">
-                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="screening" className="w-full justify-start whitespace-nowrap">
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Screening
               </TabsTrigger>
-              <TabsTrigger value="automod" className="w-full justify-start">
-                <Zap className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="automod" className="w-full justify-start whitespace-nowrap">
+                <Zap className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 AutoMod
               </TabsTrigger>
-              <TabsTrigger value="reports" className="w-full justify-start">
-                <Flag className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="reports" className="w-full justify-start whitespace-nowrap">
+                <Flag className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Reports
               </TabsTrigger>
-              <TabsTrigger value="templates" className="w-full justify-start">Templates</TabsTrigger>
-              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+              <TabsTrigger value="templates" className="w-full justify-start whitespace-nowrap">Templates</TabsTrigger>
+              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider hidden md:block" style={{ color: "var(--theme-text-muted)" }}>
                 Safety Tools
               </div>
-              <TabsTrigger value="audit-log" className="w-full justify-start">
-                <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+              <TabsTrigger value="audit-log" className="w-full justify-start whitespace-nowrap">
+                <BookOpen className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Audit Log
               </TabsTrigger>
-              <TabsTrigger value="admin-activity" className="w-full justify-start">
-                <Activity className="mr-1.5 h-3.5 w-3.5" />
-                Activity Log
+              <TabsTrigger value="admin-activity" className="w-full justify-start whitespace-nowrap">
+                <Activity className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
+                Activity
               </TabsTrigger>
-              <TabsTrigger value="permission-sandbox" className="w-full justify-start">
-                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                Perm Sandbox
+              <TabsTrigger value="permission-sandbox" className="w-full justify-start whitespace-nowrap">
+                <Eye className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
+                Perms
               </TabsTrigger>
-              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+              <div className="mt-2 mb-1 px-3 text-xs font-semibold uppercase tracking-wider hidden md:block" style={{ color: "var(--theme-text-muted)" }}>
                 Insights
               </div>
-              <TabsTrigger value="community-health" className="w-full justify-start">
-                <Heart className="mr-1.5 h-3.5 w-3.5" />
-                Community Health
+              <TabsTrigger value="community-health" className="w-full justify-start whitespace-nowrap">
+                <Heart className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
+                Health
               </TabsTrigger>
-              <TabsTrigger value="server-theme" className="w-full justify-start">
-                <Palette className="mr-1.5 h-3.5 w-3.5" />
-                Server Theme
+              <TabsTrigger value="server-theme" className="w-full justify-start whitespace-nowrap">
+                <Palette className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
+                Theme
               </TabsTrigger>
             </TabsList>
           </div>

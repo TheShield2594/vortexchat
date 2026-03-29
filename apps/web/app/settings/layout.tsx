@@ -24,7 +24,12 @@ export default async function SettingsLayout({ children }: { children: React.Rea
     <SettingsAppearanceProvider>
       <div
         className="flex h-screen overflow-hidden"
-        style={{ background: "var(--theme-bg-primary)", paddingTop: "env(safe-area-inset-top)" }}
+        style={{
+          background: "var(--theme-bg-primary)",
+          paddingTop: "env(safe-area-inset-top)",
+          paddingLeft: "env(safe-area-inset-left)",
+          paddingRight: "env(safe-area-inset-right)",
+        }}
       >
         <SettingsResponsiveContent user={profile}>
           {children}
