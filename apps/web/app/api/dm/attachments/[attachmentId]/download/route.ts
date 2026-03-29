@@ -5,11 +5,11 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ attachmentId: string }> }
 ): Promise<NextResponse> {
-  const { attachmentId } = await params
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
-
   try {
+    const { attachmentId } = await params
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
+
     // dm_attachments table is not yet in generated Supabase types
     const { data: attachment, error } = await (supabase as any)
       .from("dm_attachments")
@@ -21,38 +21,41 @@ export async function GET(
     if (!attachment) return NextResponse.json({ error: "Attachment not found" }, { status: 404 })
 
     // Get the DM to find the channel
-    const { data: dm } = await supabase
+    const { data: dm, error: dmError } = await supabase
       .from("direct_messages")
       .select("dm_channel_id")
       .eq("id", attachment.dm_id)
       .maybeSingle()
 
-    if (!dm?.dm_channel_id) return NextResponse.json({ error: "Attachment not accessible" }, { status: 403 })
+    if (dmError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
+    if (!dm?.dm_channel_id) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
     // Verify the user is a member of this DM channel
-    const { data: membership } = await supabase
+    const { data: membership, error: membershipError } = await supabase
       .from("dm_channel_members")
       .select("user_id")
       .eq("dm_channel_id", dm.dm_channel_id)
       .eq("user_id", user.id)
       .maybeSingle()
 
+    if (membershipError) return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
     if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     // Extract the storage path from the URL and create a fresh signed URL
     const storagePath = extractStoragePath(attachment.url)
-    if (storagePath) {
-      const { data: signedData, error: signError } = await supabase.storage
-        .from("attachments")
-        .createSignedUrl(storagePath, 3600) // 1 hour expiry
-
-      if (!signError && signedData?.signedUrl) {
-        return NextResponse.redirect(signedData.signedUrl)
-      }
+    if (!storagePath) {
+      return NextResponse.json({ error: "Invalid attachment URL" }, { status: 400 })
     }
 
-    // Fallback to stored URL
-    return NextResponse.redirect(attachment.url)
+    const { data: signedData, error: signError } = await supabase.storage
+      .from("attachments")
+      .createSignedUrl(storagePath, 3600) // 1 hour expiry
+
+    if (signError || !signedData?.signedUrl) {
+      return NextResponse.json({ error: "Failed to generate signed URL" }, { status: 500 })
+    }
+
+    return NextResponse.redirect(signedData.signedUrl)
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

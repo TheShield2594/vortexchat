@@ -136,7 +136,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     useShallow((s) => ({ activeServerId: s.activeServerId, members: s.members, serverRoles: s.serverRoles }))
   )
   const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
-  const roles = activeServerId ? rolesByServer[activeServerId] ?? [] : []
+  const roles = serverId ? rolesByServer[serverId] ?? [] : []
   const mention = useMentionAutocomplete({ content, cursorPosition, members, roles })
 
   // Slash command state (needed by moderation hook below)

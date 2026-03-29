@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server"
 import { DELETE, PUT } from "@/app/api/messages/[messageId]/pin/route"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { sendPushToChannel } from "@/lib/push"
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: vi.fn(),
@@ -75,6 +76,7 @@ function createSupabaseMock() {
       messageSingleMock,
       messagesTable,
       messagesSelectChain,
+      usersMaybeSingleMock,
     },
   }
 }
@@ -96,6 +98,15 @@ describe("message pin route lifecycle", () => {
     expect(vi.mocked(getChannelPermissions)).toHaveBeenCalledWith(supabase, "s1", "c1", "u1")
     expect(supabase.__mocks.updateMock).toHaveBeenCalledWith(expect.objectContaining({ pinned: true, pinned_by: "u1" }))
     expect(supabase.__mocks.insertMock).toHaveBeenCalledWith(expect.objectContaining({ action: "message_pin", target_id: "m1" }))
+    expect(vi.mocked(sendPushToChannel)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverId: "s1",
+        channelId: "c1",
+        senderName: "📌 TestUser",
+        content: "pinned a message",
+        excludeUserId: "u1",
+      })
+    )
   })
 
   it("rejects pin attempts without MANAGE_MESSAGES", async () => {
