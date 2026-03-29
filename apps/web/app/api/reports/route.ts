@@ -25,106 +25,106 @@ const VALID_REASONS = REPORT_REASON_VALUES
  */
 export async function POST(req: NextRequest) {
   try {
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  const limited = await checkRateLimit(user.id, "reports:submit", { limit: 10, windowMs: 3600_000 })
-  if (limited) return limited
+    const limited = await checkRateLimit(user.id, "reports:submit", { limit: 10, windowMs: 3600_000 })
+    if (limited) return limited
 
-  const { data: body, error: parseError } = await parseJsonBody<{
-    reported_user_id?: string
-    reported_message_id?: string
-    server_id?: string
-    reason?: string
-    description?: string
-  }>(req)
-  if (parseError) return parseError
+    const { data: body, error: parseError } = await parseJsonBody<{
+      reported_user_id?: string
+      reported_message_id?: string
+      server_id?: string
+      reason?: string
+      description?: string
+    }>(req)
+    if (parseError) return parseError
 
-  const { reported_user_id, reported_message_id, server_id, reason, description } = body
+    const { reported_user_id, reported_message_id, server_id, reason, description } = body
 
-  if (!reported_user_id || typeof reported_user_id !== "string") {
-    return NextResponse.json({ error: "reported_user_id is required" }, { status: 400 })
-  }
-
-  if (reported_user_id === user.id) {
-    return NextResponse.json({ error: "You cannot report yourself" }, { status: 400 })
-  }
-
-  if (!reason || !VALID_REASONS.includes(reason as ReportReason)) {
-    return NextResponse.json(
-      { error: `reason must be one of: ${VALID_REASONS.join(", ")}` },
-      { status: 400 }
-    )
-  }
-
-  if (description !== undefined && description !== null) {
-    if (typeof description !== "string") {
-      return NextResponse.json({ error: "description must be a string" }, { status: 400 })
+    if (!reported_user_id || typeof reported_user_id !== "string") {
+      return NextResponse.json({ error: "reported_user_id is required" }, { status: 400 })
     }
-    if (description.length > 1000) {
+
+    if (reported_user_id === user.id) {
+      return NextResponse.json({ error: "You cannot report yourself" }, { status: 400 })
+    }
+
+    if (!reason || !VALID_REASONS.includes(reason as ReportReason)) {
       return NextResponse.json(
-        { error: "description must not exceed 1000 characters" },
+        { error: `reason must be one of: ${VALID_REASONS.join(", ")}` },
         { status: 400 }
       )
     }
-  }
 
-  // Validate server_id if provided — reporter must be a member
-  if (server_id) {
-    const { data: membership } = await supabase
-      .from("server_members")
-      .select("server_id")
-      .eq("server_id", server_id)
-      .eq("user_id", user.id)
-      .maybeSingle()
-
-    if (!membership) {
-      return NextResponse.json({ error: "You are not a member of this server" }, { status: 403 })
-    }
-  }
-
-  // Validate reported_message_id if provided
-  if (reported_message_id) {
-    const { data: message } = await supabase
-      .from("messages")
-      .select("id, author_id, channel_id, channels!inner(server_id)")
-      .eq("id", reported_message_id)
-      .maybeSingle()
-
-    if (!message) {
-      return NextResponse.json({ error: "Reported message not found" }, { status: 404 })
-    }
-
-    if (message.author_id !== reported_user_id) {
-      return NextResponse.json({ error: "Reported user does not match message author" }, { status: 400 })
-    }
-
-    // Verify the message belongs to the reported server
-    if (server_id) {
-      const msgServerId = (message as any).channels?.server_id
-      if (msgServerId && msgServerId !== server_id) {
-        return NextResponse.json({ error: "Message does not belong to this server" }, { status: 400 })
+    if (description !== undefined && description !== null) {
+      if (typeof description !== "string") {
+        return NextResponse.json({ error: "description must be a string" }, { status: 400 })
+      }
+      if (description.length > 1000) {
+        return NextResponse.json(
+          { error: "description must not exceed 1000 characters" },
+          { status: 400 }
+        )
       }
     }
-  }
 
-  const { data: report, error } = await supabase
-    .from("reports")
-    .insert({
-      reporter_id: user.id,
-      reported_user_id,
-      reported_message_id: reported_message_id || null,
-      server_id: server_id || null,
-      reason: reason as "spam" | "harassment" | "inappropriate_content" | "other",
-      description: description?.trim() || null,
-      status: "pending" as const,
-    })
-    .select()
-    .single()
+    // Validate server_id if provided — reporter must be a member
+    if (server_id) {
+      const { data: membership } = await supabase
+        .from("server_members")
+        .select("server_id")
+        .eq("server_id", server_id)
+        .eq("user_id", user.id)
+        .maybeSingle()
 
-  if (error) return NextResponse.json({ error: "Failed to create report" }, { status: 500 })
+      if (!membership) {
+        return NextResponse.json({ error: "You are not a member of this server" }, { status: 403 })
+      }
+    }
 
-  return NextResponse.json(report, { status: 201 })
+    // Validate reported_message_id if provided
+    if (reported_message_id) {
+      const { data: message } = await supabase
+        .from("messages")
+        .select("id, author_id, channel_id, channels!inner(server_id)")
+        .eq("id", reported_message_id)
+        .maybeSingle()
+
+      if (!message) {
+        return NextResponse.json({ error: "Reported message not found" }, { status: 404 })
+      }
+
+      if (message.author_id !== reported_user_id) {
+        return NextResponse.json({ error: "Reported user does not match message author" }, { status: 400 })
+      }
+
+      // Verify the message belongs to the reported server
+      if (server_id) {
+        const msgServerId = (message as any).channels?.server_id
+        if (msgServerId && msgServerId !== server_id) {
+          return NextResponse.json({ error: "Message does not belong to this server" }, { status: 400 })
+        }
+      }
+    }
+
+    const { data: report, error } = await supabase
+      .from("reports")
+      .insert({
+        reporter_id: user.id,
+        reported_user_id,
+        reported_message_id: reported_message_id || null,
+        server_id: server_id || null,
+        reason: reason as "spam" | "harassment" | "inappropriate_content" | "other",
+        description: description?.trim() || null,
+        status: "pending" as const,
+      })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: "Failed to create report" }, { status: 500 })
+
+    return NextResponse.json(report, { status: 201 })
   } catch (err) {
     console.error("[reports POST] error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
