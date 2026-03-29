@@ -96,9 +96,30 @@ export async function GET(
       }
     }
 
+    // Fetch dm_attachments for these messages so the client can render
+    // images through the proxy endpoint instead of expired signed URLs.
+    const messageIds: string[] = (messages ?? []).map((m: any) => m.id as string)
+    let attachmentMap: Record<string, Array<{ id: string; filename: string; size: number; content_type: string }>> = {}
+    if (messageIds.length > 0) {
+      const { data: dmAttachments, error: attachmentError } = await (supabase as unknown as { from: (table: string) => any })
+        .from("dm_attachments")
+        .select("id, dm_id, filename, size, content_type")
+        .in("dm_id", messageIds)
+      if (attachmentError) {
+        console.error("[dm/channels/[channelId] GET] failed to fetch dm_attachments:", attachmentError)
+      }
+      if (dmAttachments) {
+        for (const att of dmAttachments as Array<{ id: string; dm_id: string; filename: string; size: number; content_type: string }>) {
+          if (!attachmentMap[att.dm_id]) attachmentMap[att.dm_id] = []
+          attachmentMap[att.dm_id].push({ id: att.id, filename: att.filename, size: att.size, content_type: att.content_type })
+        }
+      }
+    }
+
     const enrichedMessages = (messages ?? []).map((m: any) => ({
       ...m,
       reply_to: m.reply_to_id ? (replyMap[m.reply_to_id] ?? null) : null,
+      dm_attachments: attachmentMap[m.id] ?? [],
     }))
 
     // Mark as read
