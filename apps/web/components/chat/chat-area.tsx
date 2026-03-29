@@ -527,7 +527,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         if (!res.ok) return
         older = await res.json() as MessageWithAuthor[]
       } catch (error) {
-        console.error("Failed to paginate older messages", error)
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to paginate older messages", error)
+        }
         return
       }
 
@@ -604,7 +606,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           if (!res.ok) return false
           older = await res.json() as MessageWithAuthor[]
         } catch (error) {
-          console.error("Failed to load message jump target", error)
+          if (process.env.NODE_ENV !== "production") {
+            console.error("Failed to load message jump target", error)
+          }
           return false
         }
 
@@ -659,7 +663,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setHasMoreHistory(Boolean(payload.hasMoreBefore))
       return true
     } catch (error) {
-      console.error("Failed to load message context window", error)
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to load message context window", error)
+      }
       return false
     }
   }, [channel.id])
@@ -709,13 +715,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
       })
     } catch (e) {
-      console.error("pull-to-refresh failed", {
-        action: "refreshMessages",
-        channelId: channel.id,
-        route: `/channels/${serverId}/${channel.id}`,
-        currentUserId: currentUser?.id,
-        error: e instanceof Error ? e.message : String(e),
-      })
+      if (process.env.NODE_ENV !== "production") {
+        console.error("pull-to-refresh failed", {
+          action: "refreshMessages",
+          channelId: channel.id,
+          route: `/channels/${serverId}/${channel.id}`,
+          currentUserId: currentUser?.id,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      }
     }
   }, [channel.id, serverId, currentUser?.id])
 
@@ -787,13 +795,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
         })
       } catch (e) {
-        console.error("visibilitychange resync failed", {
-          action: "refreshMessages",
-          channelId: channel.id,
-          route: `/channels/${serverId}/${channel.id}`,
-          currentUserId: currentUser?.id,
-          error: e instanceof Error ? e.message : String(e),
-        })
+        if (process.env.NODE_ENV !== "production") {
+          console.error("visibilitychange resync failed", {
+            action: "refreshMessages",
+            channelId: channel.id,
+            route: `/channels/${serverId}/${channel.id}`,
+            currentUserId: currentUser?.id,
+            error: e instanceof Error ? e.message : String(e),
+          })
+        }
       }
     }
     document.addEventListener("visibilitychange", onVisibility)
@@ -1225,10 +1235,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         if (!signed) {
           const { error: cleanupError } = await supabase.storage.from("attachments").remove([path])
           if (cleanupError) {
-            console.warn("failed to cleanup orphaned attachment after signed URL failure", {
-              path,
-              error: cleanupError.message,
-            })
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("failed to cleanup orphaned attachment after signed URL failure", {
+                path,
+                error: cleanupError.message,
+              })
+            }
           }
           continue
         }
@@ -1312,7 +1324,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     const message = await apiResponse.json() as MessageWithAuthor
-    console.log(`[msg-send-client] ${(performance.now() - sendT0).toFixed(0)}ms round-trip (fetch + parse)`)
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[msg-send-client] ${(performance.now() - sendT0).toFixed(0)}ms round-trip (fetch + parse)`)
+    }
 
     setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
     upsertMessage(message)
@@ -1325,7 +1339,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const entry = outbox.find((candidate) => candidate.id === messageId)
     if (!entry) return
     void sendOutboxEntry({ ...entry, status: "queued" }).catch((error) => {
-      console.error("Failed to retry message", error)
+      if (process.env.NODE_ENV !== "production") { console.error("Failed to retry message", error) }
       setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
         status: "failed",
         lastError: error instanceof Error ? error.message : "Retry failed",

@@ -96,7 +96,7 @@ export function PwaInstallBanner() {
       className="fixed left-0 right-0 z-banner flex items-center gap-3 border-t border-accent bg-card px-4 py-3 shadow-lg bottom-[calc(60px+env(safe-area-inset-bottom))] md:bottom-0"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icon-192.png" alt="" width={40} height={40} className="shrink-0 rounded-lg" />
+      <img src="/icon-192.png" alt="VortexChat icon" width={40} height={40} className="shrink-0 rounded-lg" />
 
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">Add VortexChat to Home Screen</p>

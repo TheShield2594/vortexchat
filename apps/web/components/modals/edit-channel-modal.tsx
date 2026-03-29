@@ -104,10 +104,11 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
         <div className="space-y-4 mt-2">
           {/* Channel Name */}
           <div>
-            <Label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
+            <Label htmlFor="edit-channel-name" className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
               Channel Name
             </Label>
             <Input
+              id="edit-channel-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={100}
@@ -119,10 +120,11 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
           {/* Topic */}
           {channel.type !== "category" && (
             <div>
-              <Label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
+              <Label htmlFor="edit-channel-topic" className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
                 Channel Topic
               </Label>
               <Input
+                id="edit-channel-topic"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="What is this channel about?"
@@ -139,10 +141,11 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
           {/* Forum Guidelines */}
           {isForum && (
             <div>
-              <Label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
+              <Label htmlFor="edit-channel-guidelines" className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
                 Post Guidelines
               </Label>
               <textarea
+                id="edit-channel-guidelines"
                 value={forumGuidelines}
                 onChange={(e) => setForumGuidelines(e.target.value)}
                 placeholder="Set rules and expectations for posts in this forum channel..."
@@ -159,10 +162,11 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
 
           {channel.type === "stage" && (
             <div>
-              <Label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
+              <Label htmlFor="edit-channel-stream-url" className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
                 YouTube Stream URL
               </Label>
               <Input
+                id="edit-channel-stream-url"
                 value={streamUrl}
                 onChange={(e) => setStreamUrl(e.target.value)}
                 placeholder="https://www.youtube.com/watch?v=..."
@@ -191,10 +195,11 @@ export function EditChannelModal({ open, onClose, channel }: Props) {
           {/* Slowmode */}
           {channel.type !== "category" && channel.type !== "voice" && (
             <div>
-              <Label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
+              <Label htmlFor="edit-channel-slowmode" className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--theme-text-secondary)" }}>
                 Slowmode (seconds)
               </Label>
               <Input
+                id="edit-channel-slowmode"
                 type="number"
                 min={0}
                 max={21600}

@@ -39,7 +39,9 @@ export function VoiceRecapCard({
     try {
       const res = await fetch(`/api/voice/sessions/${sessionId}/summary`)
       if (!res.ok) {
-        console.error(`[VoiceRecapCard] Failed to fetch summary for session ${sessionId}: HTTP ${res.status}`)
+        if (process.env.NODE_ENV !== "production") {
+          console.error(`[VoiceRecapCard] Failed to fetch summary for session ${sessionId}: HTTP ${res.status}`)
+        }
         setStatus("failed")
         return
       }
@@ -57,7 +59,9 @@ export function VoiceRecapCard({
         setSummary(data.summary)
       }
     } catch (err: unknown) {
-      console.error(`[VoiceRecapCard] Error fetching summary for session ${sessionId}:`, err instanceof Error ? err.message : "unknown error")
+      if (process.env.NODE_ENV !== "production") {
+        console.error(`[VoiceRecapCard] Error fetching summary for session ${sessionId}:`, err instanceof Error ? err.message : "unknown error")
+      }
       setStatus("failed")
     }
   }, [sessionId])

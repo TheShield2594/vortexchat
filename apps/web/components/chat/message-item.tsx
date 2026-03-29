@@ -1035,14 +1035,14 @@ export const MessageItem = memo(function MessageItem({
         </ContextMenuItem>
         {message.content && (
           <ContextMenuItem onClick={() => {
-            navigator.clipboard.writeText(message.content!)
+            navigator.clipboard.writeText(message.content!).catch(() => {})
             toast({ title: "Text copied!" })
           }}>
             <Clipboard className="w-4 h-4 mr-2" /> Copy Text
           </ContextMenuItem>
         )}
         <ContextMenuItem onClick={() => {
-          navigator.clipboard.writeText(message.id)
+          navigator.clipboard.writeText(message.id).catch(() => {})
           toast({ title: "Message ID copied!" })
         }}>
           <Hash className="w-4 h-4 mr-2" /> Copy Message ID

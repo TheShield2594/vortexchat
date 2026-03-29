@@ -202,12 +202,13 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+            <Label htmlFor="channel-name" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
               Channel Name <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
               {type !== "category" && getInputIcon()}
               <Input
+                id="channel-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={

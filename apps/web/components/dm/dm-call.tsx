@@ -243,7 +243,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
         {!connected && (
           <div className="flex flex-col items-center gap-4">
             <Avatar className="w-24 h-24">
-              {partner.avatar_url && <AvatarImage src={partner.avatar_url} />}
+              {partner.avatar_url && <AvatarImage src={partner.avatar_url} alt={`${partnerName}'s avatar`} />}
               <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "32px" }}>{initials}</AvatarFallback>
             </Avatar>
             <div className="text-white font-semibold text-lg">{partnerName}</div>
@@ -334,7 +334,7 @@ export function IncomingCallToast({ call, onAccept, onDecline }: IncomingCallToa
       style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
     >
       {call.callerAvatar ? (
-        <img src={call.callerAvatar} alt="" className="w-12 h-12 rounded-full object-cover" />
+        <img src={call.callerAvatar} alt={`${call.callerName}'s avatar`} className="w-12 h-12 rounded-full object-cover" />
       ) : (
         <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold" style={{ background: "var(--theme-accent)" }}>
           {call.callerName.slice(0, 2).toUpperCase()}
@@ -393,7 +393,7 @@ export function CallerRingingOverlay({ partnerName, partnerAvatar, withVideo, on
   return (
     <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-6" style={{ background: "var(--theme-bg-tertiary)" }}>
       <Avatar className="w-24 h-24">
-        {partnerAvatar && <AvatarImage src={partnerAvatar} />}
+        {partnerAvatar && <AvatarImage src={partnerAvatar} alt={`${partnerName}'s avatar`} />}
         <AvatarFallback style={{ background: "var(--theme-accent)", color: "white", fontSize: "32px" }}>{initials}</AvatarFallback>
       </Avatar>
       <div className="text-center">

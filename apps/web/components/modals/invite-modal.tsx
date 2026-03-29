@@ -46,7 +46,7 @@ const USE_OPTIONS = [
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
   function handleCopy() {
-    navigator.clipboard.writeText(text)
+    navigator.clipboard.writeText(text).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }

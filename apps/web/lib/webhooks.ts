@@ -15,8 +15,13 @@ export async function deleteWebhook(serverId: string, webhookId: string) {
   return fetch(`/api/servers/${serverId}/webhooks?webhookId=${encodeURIComponent(webhookId)}`, { method: "DELETE" })
 }
 
-export function copyToClipboard(text: string) {
-  return navigator.clipboard.writeText(text)
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function formatChannelName(channelId: string, channels: WebhookChannel[]) {

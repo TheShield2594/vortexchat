@@ -401,7 +401,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
                   style={{ borderColor: "var(--theme-text-faint)" }}
                 >
                   {iconPreview ? (
-                    <img src={iconPreview} alt="" className="w-full h-full object-cover" />
+                    <img src={iconPreview} alt="Server icon preview" className="w-full h-full object-cover" />
                   ) : (
                     <Upload className="w-5 h-5" style={{ color: "var(--theme-text-muted)" }} />
                   )}

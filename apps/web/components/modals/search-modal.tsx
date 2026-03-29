@@ -104,7 +104,9 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return
-      console.error("[SearchModal] Search failed:", e)
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[SearchModal] Search failed:", e)
+      }
     } finally {
       if (!controller.signal.aborted) setLoading(false)
     }

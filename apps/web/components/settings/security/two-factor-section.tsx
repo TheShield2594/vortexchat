@@ -147,7 +147,7 @@ export function TwoFactorSection(): React.JSX.Element {
 
   function copySecret(): void {
     if (!secret) return
-    navigator.clipboard.writeText(secret)
+    navigator.clipboard.writeText(secret).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -247,7 +247,7 @@ export function TwoFactorSection(): React.JSX.Element {
           <div className="flex items-center gap-2">
             <button
               onClick={async () => {
-                await navigator.clipboard.writeText(recoveryCodes.join("\n"))
+                try { await navigator.clipboard.writeText(recoveryCodes.join("\n")) } catch { /* clipboard unavailable */ }
                 setRecoveryCopied(true)
                 setTimeout(() => setRecoveryCopied(false), 2000)
               }}

@@ -799,7 +799,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                       onEdit={() => setEditCategoryTarget(category)}
                       onDelete={() => setDeleteCategoryTarget({ id: category.id, name: category.name })}
                       onCopyId={() => {
-                        navigator.clipboard.writeText(category.id)
+                        navigator.clipboard.writeText(category.id).catch(() => {})
                         toast({ title: "Category ID copied!" })
                       }}
                     />

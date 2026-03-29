@@ -299,14 +299,14 @@ function ServerIcon({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => {
-          navigator.clipboard.writeText(server.invite_code)
+          navigator.clipboard.writeText(server.invite_code).catch(() => {})
           toast({ title: "Invite code copied!" })
         }}>
           <UserPlus className="w-4 h-4 mr-2" /> Invite People
           <ContextMenuShortcut>I</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem onClick={() => {
-          navigator.clipboard.writeText(server.id)
+          navigator.clipboard.writeText(server.id).catch(() => {})
           toast({ title: "Server ID copied!" })
         }}>
           <Clipboard className="w-4 h-4 mr-2" /> Copy Server ID

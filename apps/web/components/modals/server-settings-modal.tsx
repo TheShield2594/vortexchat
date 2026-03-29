@@ -140,13 +140,13 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   }
 
   function copyInvite() {
-    navigator.clipboard.writeText(liveServer.invite_code)
+    navigator.clipboard.writeText(liveServer.invite_code).catch(() => {})
     toast({ title: "Invite code copied!" })
   }
 
   function copyVanityUrl() {
     if (liveServer.vanity_url) {
-      navigator.clipboard.writeText(`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${liveServer.vanity_url}`)
+      navigator.clipboard.writeText(`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${liveServer.vanity_url}`).catch(() => {})
       toast({ title: "Vanity invite URL copied!" })
     }
   }
@@ -292,7 +292,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                       {iconPreview || liveServer.icon_url ? (
                         <img
                           src={iconPreview || liveServer.icon_url!}
-                          alt=""
+                          alt="Server icon"
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -325,10 +325,11 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
               )}
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+                <Label htmlFor="server-name" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                   Server Name
                 </Label>
                 <Input
+                  id="server-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={!isOwner}
@@ -338,10 +339,11 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+                <Label htmlFor="server-description" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                   Description
                 </Label>
                 <textarea
+                  id="server-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   disabled={!isOwner}
@@ -381,7 +383,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
             <TabsContent value="invites" className="mt-0 space-y-4">
               {/* Legacy invite code section */}
               <div>
-                <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
+                <Label htmlFor="invite-code" className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
                   Permanent Invite Code
                 </Label>
                 <div className="flex gap-2">
@@ -980,10 +982,11 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
 
       {/* Verification Level */}
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+        <Label htmlFor="server-verification-level" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
           Verification Level
         </Label>
         <select
+          id="server-verification-level"
           value={settings.verification_level}
           onChange={(e) => setSettings({ ...settings, verification_level: Number(e.target.value) })}
           className="w-full px-3 py-2 rounded text-sm focus:outline-none"
@@ -997,10 +1000,11 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
 
       {/* Explicit Content Filter */}
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+        <Label htmlFor="server-explicit-content-filter" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
           Explicit Content Filter
         </Label>
         <select
+          id="server-explicit-content-filter"
           value={settings.explicit_content_filter}
           onChange={(e) => setSettings({ ...settings, explicit_content_filter: Number(e.target.value) })}
           className="w-full px-3 py-2 rounded text-sm focus:outline-none"
@@ -1014,10 +1018,11 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
 
       {/* Default Notifications */}
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+        <Label htmlFor="server-default-notifications" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
           Default Message Notifications
         </Label>
         <select
+          id="server-default-notifications"
           value={settings.default_message_notifications}
           onChange={(e) => setSettings({ ...settings, default_message_notifications: Number(e.target.value) })}
           className="w-full px-3 py-2 rounded text-sm focus:outline-none"
@@ -1044,13 +1049,14 @@ export function ModerationTab({ serverId, open }: { serverId: string; open: bool
 
       {/* Auto-assign Role on Join */}
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+        <Label htmlFor="server-join-role" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
           Auto-assign Role on Join
         </Label>
         <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           Automatically give new members this role when they join the server.
         </p>
         <select
+          id="server-join-role"
           value={settings.join_role_id ?? ""}
           onChange={(e) => setSettings({ ...settings, join_role_id: e.target.value || null })}
           className="w-full px-3 py-2 rounded text-sm focus:outline-none"
@@ -1172,8 +1178,9 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Title</Label>
+        <Label htmlFor="screening-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Title</Label>
         <Input
+          id="screening-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-surface-elevated)', color: 'var(--theme-text-primary)' }}
@@ -1181,8 +1188,9 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Description (optional)</Label>
+        <Label htmlFor="screening-description" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Description (optional)</Label>
         <Input
+          id="screening-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="A short intro shown above the rules"
@@ -1191,8 +1199,9 @@ export function ScreeningTab({ serverId, open }: { serverId: string; open: boole
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Rules Text</Label>
+        <Label htmlFor="screening-rules-text" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>Rules Text</Label>
         <textarea
+          id="screening-rules-text"
           value={rulesText}
           onChange={(e) => setRulesText(e.target.value)}
           rows={8}
@@ -1897,7 +1906,7 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
       toast({ title: "Invite created!" })
 
       // Copy to clipboard automatically
-      navigator.clipboard.writeText(invite.code)
+      navigator.clipboard.writeText(invite.code).catch(() => {})
       toast({ title: "Invite code copied to clipboard!" })
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to create invite", description: error.message })
@@ -1925,7 +1934,7 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
   }
 
   function copyCode(code: string) {
-    navigator.clipboard.writeText(code)
+    navigator.clipboard.writeText(code).catch(() => {})
     toast({ title: "Invite code copied!" })
   }
 
@@ -2050,10 +2059,11 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+              <Label htmlFor="invite-max-uses" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                 Max Number of Uses
               </Label>
               <Input
+                id="invite-max-uses"
                 type="number"
                 min={0}
                 value={maxUses}
