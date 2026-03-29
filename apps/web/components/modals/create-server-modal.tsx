@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Upload, X } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -175,6 +175,7 @@ export function CreateServerModal({ open, onClose }: Props) {
                 ? "Join a Server"
                 : "Import a Blueprint"}
           </DialogTitle>
+          <DialogDescription className="sr-only">Create a new server</DialogDescription>
           <p className="text-center text-sm" style={{ color: 'var(--theme-text-secondary)' }}>
             {mode === "create"
               ? "Give your server a personality with a name and icon."
@@ -218,7 +219,7 @@ export function CreateServerModal({ open, onClose }: Props) {
                 style={{ borderColor: 'var(--theme-text-faint)' }}
               >
                 {iconPreview ? (
-                  <img src={iconPreview} alt="" className="w-full h-full object-cover" />
+                  <img src={iconPreview} alt="Server icon preview" className="w-full h-full object-cover" />
                 ) : (
                   <div className="text-center">
                     <Upload className="w-5 h-5 mx-auto mb-1" style={{ color: 'var(--theme-text-muted)' }} />
@@ -230,10 +231,11 @@ export function CreateServerModal({ open, onClose }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+              <Label htmlFor="server-name" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                 Server Name <span className="text-red-500">*</span>
               </Label>
               <Input
+                id="server-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Awesome Server"
@@ -255,10 +257,11 @@ export function CreateServerModal({ open, onClose }: Props) {
         ) : mode === "join" ? (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+              <Label htmlFor="server-invite-code" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                 Invite Code
               </Label>
               <Input
+                id="server-invite-code"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
                 placeholder="e.g. abc123def456"
@@ -280,10 +283,11 @@ export function CreateServerModal({ open, onClose }: Props) {
         ) : (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+              <Label htmlFor="server-template-name" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
                 Server Name <span className="text-red-500">*</span>
               </Label>
               <Input
+                id="server-template-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Blueprint Powered Server"

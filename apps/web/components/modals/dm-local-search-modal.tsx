@@ -102,7 +102,8 @@ export function DmLocalSearchModal({
       style={{ background: "rgba(0,0,0,0.7)" }}
       role="dialog"
       aria-modal="true"
-      aria-label={channelLabel ? `Search in ${channelLabel}` : "Search messages"}
+      aria-labelledby="dm-search-title"
+      aria-describedby="dm-search-desc"
       tabIndex={0}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) onClose() }}
@@ -111,6 +112,8 @@ export function DmLocalSearchModal({
         className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col"
         style={{ background: "var(--theme-bg-secondary)", maxHeight: "70vh" }}
       >
+        <h2 id="dm-search-title" className="sr-only">Search Direct Messages</h2>
+        <p id="dm-search-desc" className="sr-only">Search messages in this conversation</p>
         {/* Header */}
         <div
           className="flex items-center gap-3 px-4 py-3 border-b"

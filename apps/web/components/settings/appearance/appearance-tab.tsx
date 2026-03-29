@@ -190,8 +190,10 @@ export function AppearanceTab(): React.JSX.Element {
               variant="outline"
               size="sm"
               onClick={async () => {
-                await navigator.clipboard.writeText(CSS_TEMPLATE)
-                toast({ title: "Template copied" })
+                try {
+                  await navigator.clipboard.writeText(CSS_TEMPLATE)
+                  toast({ title: "Template copied" })
+                } catch { /* clipboard unavailable */ }
               }}
             >
               Copy Template

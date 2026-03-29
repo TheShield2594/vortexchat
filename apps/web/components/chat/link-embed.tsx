@@ -135,7 +135,7 @@ export function LinkEmbed({ url }: Props) {
           <div className="flex-shrink-0 w-20 h-16 rounded overflow-hidden" style={{ background: "var(--theme-bg-tertiary)" }}>
             <img
               src={data.image}
-              alt=""
+              alt={data.title || "Link preview"}
               className="w-full h-full object-cover"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
             />

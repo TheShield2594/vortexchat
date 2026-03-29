@@ -175,6 +175,8 @@ function useVoiceViaLivekit(
     setAudioSettings,
     cpuBypassActive: false,
     audioInitError: lk.error,
+    isPermissionError: lk.error?.toLowerCase().includes("denied") ?? false,
+    retryAudioInit: noop,
     networkQuality: null,
     reconnectInfo,
     manualReconnect: noop,

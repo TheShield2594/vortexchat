@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, createContext, useContext } from "react"
+import { useState, createContext, useContext, useEffect } from "react"
 import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { useSwipe } from "@/hooks/use-swipe"
@@ -37,6 +37,7 @@ export function MobileMenuButton() {
       style={{ color: "var(--theme-text-secondary)" }}
       onClick={() => setSidebarOpen(!sidebarOpen)}
       aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+      aria-expanded={sidebarOpen}
     >
       {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
     </button>
@@ -47,6 +48,33 @@ export function MobileMenuButton() {
 export function MobileOverlay() {
   const { sidebarOpen, setSidebarOpen } = useMobileNav()
   const swipe = useSwipe({ onSwipeLeft: () => setSidebarOpen(false) })
+
+  // Set inert on main content when drawer is open to trap focus inside the drawer.
+  // Only applies when the viewport is mobile-width; if the user resizes to desktop
+  // while the sidebar is open, inert is removed immediately via a media-query listener.
+  useEffect(() => {
+    const main = document.querySelector("[data-main-content]")
+    if (!main) return
+
+    const mql = window.matchMedia("(max-width: 768px)")
+
+    function sync(): void {
+      if (sidebarOpen && mql.matches) {
+        main?.setAttribute("inert", "")
+      } else {
+        main?.removeAttribute("inert")
+      }
+    }
+
+    sync()
+    mql.addEventListener("change", sync)
+
+    return () => {
+      main?.removeAttribute("inert")
+      mql.removeEventListener("change", sync)
+    }
+  }, [sidebarOpen])
+
   if (!sidebarOpen) return null
   return (
     <div

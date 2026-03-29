@@ -177,7 +177,9 @@ export function QuickSwitcherModal({ onClose }: Props) {
       style={{ background: "rgba(0,0,0,0.7)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-xl rounded-xl overflow-hidden shadow-2xl" style={{ background: "var(--theme-bg-secondary)" }}>
+      <div className="w-full max-w-xl rounded-xl overflow-hidden shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="qs-title" aria-describedby="qs-desc" style={{ background: "var(--theme-bg-secondary)" }}>
+        <h2 id="qs-title" className="sr-only">Quick Switcher</h2>
+        <p id="qs-desc" className="sr-only">Quickly jump to a channel or conversation</p>
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
           {loading

@@ -60,7 +60,7 @@ const nextConfig = {
           {
             key: "Permissions-Policy",
             // Allow microphone for voice channels; deny camera, geolocation, payment
-            value: "camera=(), microphone=(self), geolocation=(), payment=()",
+            value: "camera=(self), microphone=(self), geolocation=(), payment=()",
           },
           {
             key: "Strict-Transport-Security",

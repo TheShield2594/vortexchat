@@ -131,6 +131,18 @@ export default function LoginPage() {
   const [showPasskeyInfo, setShowPasskeyInfo] = useState(false)
   const supabase = createClientSupabaseClient()
 
+  // Show toast if redirected here due to expired session
+  useEffect(() => {
+    if (searchParams.get("expired") === "true") {
+      toast({
+        variant: "destructive",
+        title: "Session expired",
+        description: "Please sign in again.",
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Derive combined "any submission in flight" flag for disabling the whole form
   const formBusy = loading || magicLinkLoading || passkeyLoading || forgotLoading
 

@@ -163,9 +163,11 @@ export function UserPanel() {
             </ContextMenuSubContent>
           </ContextMenuSub>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => {
-            navigator.clipboard.writeText(currentUser.username)
-            toast({ title: "Username copied!" })
+          <ContextMenuItem onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(currentUser.username)
+              toast({ title: "Username copied!" })
+            } catch { /* clipboard unavailable */ }
           }}>
             <Clipboard className="w-4 h-4 mr-2" /> Copy Username
           </ContextMenuItem>

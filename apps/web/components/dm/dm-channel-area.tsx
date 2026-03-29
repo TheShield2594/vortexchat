@@ -1826,7 +1826,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
             style={{ background: "var(--theme-accent)", transition: "box-shadow 240ms ease" }}
           >
             {partner?.avatar_url ? (
-              <img src={partner.avatar_url} alt="" className="w-full h-full object-cover" />
+              <img src={partner.avatar_url} alt={`${displayName}'s avatar`} className="w-full h-full object-cover" />
             ) : (
               <span className="text-white font-bold text-4xl">{displayName.slice(0, 2).toUpperCase()}</span>
             )}

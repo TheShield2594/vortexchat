@@ -236,7 +236,9 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
         throw new Error("Failed to update thread notifications")
       }
     } catch (error) {
-      console.warn("failed to update thread notifications", { threadId: thread.id, error })
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("failed to update thread notifications", { threadId: thread.id, error })
+      }
       setThreadNotifyMode(previousMode)
       setThreadNotifyInherited(previousInherited)
       toast({ variant: "destructive", title: "Failed to update thread notifications" })
@@ -264,7 +266,9 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
         setThreadNotifyMode(refreshed.mode)
       }
     } catch (error) {
-      console.warn("failed to reset thread notifications", { threadId: thread.id, error })
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("failed to reset thread notifications", { threadId: thread.id, error })
+      }
       setThreadNotifyMode(previousMode)
       setThreadNotifyInherited(previousInherited)
       toast({ variant: "destructive", title: "Failed to reset thread notifications" })

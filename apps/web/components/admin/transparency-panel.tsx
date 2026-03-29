@@ -76,7 +76,9 @@ export function TransparencyPanel({ serverId, channelId, inline, onOpenSimulator
       }
       setData(await res.json() as TransparencyData)
     } catch (err: unknown) {
-      console.error("[TransparencyPanel] Failed to load data", { serverId, channelId, error: err })
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[TransparencyPanel] Failed to load data", { serverId, channelId, error: err })
+      }
       setError("Network error")
     } finally {
       setLoading(false)

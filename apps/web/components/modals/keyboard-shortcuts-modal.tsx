@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { getDiscoverableShortcutMappings, type ShortcutHandlers } from "@/hooks/use-keyboard-shortcuts"
 
 interface Props {
@@ -23,6 +23,7 @@ export function KeyboardShortcutsModal({ open, onOpenChange, handlers }: Props) 
       <DialogContent className="max-w-2xl bg-zinc-900 border-zinc-700 text-white max-h-[80vh] overflow-auto">
         <DialogHeader>
           <DialogTitle>Keyboard Shortcuts</DialogTitle>
+          <DialogDescription className="sr-only">View available keyboard shortcuts</DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
           {Object.entries(grouped).map(([group, entries]) => (

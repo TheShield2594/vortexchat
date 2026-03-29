@@ -44,10 +44,17 @@ const USE_OPTIONS = [
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
-  function handleCopy() {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function handleCopy(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (error: unknown) {
+      setCopied(false)
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[InviteModal] copy invite link failed", { action: "copy_invite_link", error })
+      }
+    }
   }
   return (
     <button
@@ -108,14 +115,18 @@ export function InviteModal({ serverId, serverName, onClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="invite-modal-title"
+        aria-describedby="invite-modal-description"
         className="w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col"
         style={{ background: "var(--theme-bg-secondary)", maxHeight: "80vh" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
           <div>
-            <h2 className="text-lg font-bold text-white">Invite people to {serverName}</h2>
-            <p className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>
+            <h2 id="invite-modal-title" className="text-lg font-bold text-white">Invite people to {serverName}</h2>
+            <p id="invite-modal-description" className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>
               Share an invite link to let others join
             </p>
           </div>

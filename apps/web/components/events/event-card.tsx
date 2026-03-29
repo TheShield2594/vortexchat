@@ -173,7 +173,7 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
               {event.attendees.slice(0, 8).map((a: any) => (
                 <div key={a.user_id} className="h-6 w-6 rounded-full border-2 border-zinc-900 bg-zinc-700 overflow-hidden" title={a.display_name ?? "User"}>
                   {a.avatar_url ? (
-                    <img src={a.avatar_url} alt="" className="h-full w-full object-cover" />
+                    <img src={a.avatar_url} alt={a.display_name ? `${a.display_name}'s avatar` : "Event attendee"} className="h-full w-full object-cover" />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center text-[10px] text-zinc-300">
                       {(a.display_name ?? "?")[0].toUpperCase()}

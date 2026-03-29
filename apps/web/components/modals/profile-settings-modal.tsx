@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useRouter } from "next/navigation"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -497,6 +497,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
           <div className="flex-1 overflow-y-auto p-6">
                 <DialogHeader className="mb-6 space-y-1">
                   <DialogTitle className="text-2xl font-semibold leading-tight text-white">{tabMeta[activeTab].title}</DialogTitle>
+                  <DialogDescription className="sr-only">Edit your profile settings</DialogDescription>
                   <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>{tabMeta[activeTab].subtitle}</p>
                 </DialogHeader>
 
@@ -556,10 +557,11 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                   {/* Form fields */}
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
+                      <Label htmlFor="profile-display-name" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Display Name
                       </Label>
                       <Input
+                        id="profile-display-name"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder={user.username}
@@ -568,10 +570,11 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
+                      <Label htmlFor="profile-username" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Username
                       </Label>
                       <Input
+                        id="profile-username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
@@ -579,10 +582,11 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
+                      <Label htmlFor="profile-custom-tag" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Custom Tag / Subtitle
                       </Label>
                       <Input
+                        id="profile-custom-tag"
                         value={customTag}
                         onChange={(e) => setCustomTag(e.target.value)}
                         placeholder="e.g. Game Dev | Coffee Addict"
@@ -591,10 +595,11 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
+                      <Label htmlFor="profile-bio" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         About Me
                       </Label>
                       <Textarea
+                        id="profile-bio"
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
                         placeholder="Tell the world a little about yourself"
@@ -632,7 +637,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
+                      <Label htmlFor="profile-status-message" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
                         Custom Status
                       </Label>
                       <div className="grid grid-cols-[90px_1fr] gap-2">
@@ -763,6 +768,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           )}
                         </div>
                         <Input
+                          id="profile-status-message"
                           value={statusMessage}
                           onChange={(e) => setStatusMessage(e.target.value)}
                           placeholder="What are you up to?"

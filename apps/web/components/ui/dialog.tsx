@@ -17,7 +17,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 dialog-overlay data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-overlay dialog-overlay data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -117,7 +117,7 @@ const DialogContent = React.forwardRef<
         ref={setRefs}
         className={cn(
           // ── Mobile: bottom-sheet style ──
-          "fixed inset-x-0 bottom-0 z-50 grid w-full gap-4 border-t bg-background p-6 elevation-4 surface-active surface-focus-shift duration-200 rounded-t-2xl max-h-[85dvh] overflow-y-auto",
+          "fixed inset-x-0 bottom-0 z-overlay grid w-full gap-4 border-t bg-background p-6 elevation-4 surface-active surface-focus-shift duration-200 rounded-t-2xl max-h-[85dvh] overflow-y-auto",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full",
           // ── Desktop (sm+): centered dialog ──

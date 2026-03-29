@@ -145,11 +145,13 @@ export function TwoFactorSection(): React.JSX.Element {
     }
   }
 
-  function copySecret(): void {
+  async function copySecret(): Promise<void> {
     if (!secret) return
-    navigator.clipboard.writeText(secret)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(secret)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* clipboard unavailable */ }
   }
 
   const verified = factors.filter((f) => f.status === "verified")
@@ -247,9 +249,11 @@ export function TwoFactorSection(): React.JSX.Element {
           <div className="flex items-center gap-2">
             <button
               onClick={async () => {
-                await navigator.clipboard.writeText(recoveryCodes.join("\n"))
-                setRecoveryCopied(true)
-                setTimeout(() => setRecoveryCopied(false), 2000)
+                try {
+                  await navigator.clipboard.writeText(recoveryCodes.join("\n"))
+                  setRecoveryCopied(true)
+                  setTimeout(() => setRecoveryCopied(false), 2000)
+                } catch { /* clipboard unavailable */ }
               }}
               className="flex items-center gap-1 px-3 py-1.5 rounded text-sm"
               style={{ background: "var(--theme-surface-input)", color: "var(--theme-text-secondary)" }}

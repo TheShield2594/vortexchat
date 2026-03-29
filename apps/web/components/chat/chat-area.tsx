@@ -21,6 +21,7 @@ const SearchModal = lazy(() => import("@/components/modals/search-modal").then((
 const CreateThreadModal = lazy(() => import("@/components/modals/create-thread-modal").then((m) => ({ default: m.CreateThreadModal })))
 const KeyboardShortcutsModal = lazy(() => import("@/components/modals/keyboard-shortcuts-modal").then((m) => ({ default: m.KeyboardShortcutsModal })))
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
@@ -526,7 +527,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         if (!res.ok) return
         older = await res.json() as MessageWithAuthor[]
       } catch (error) {
-        console.error("Failed to paginate older messages", error)
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to paginate older messages", error)
+        }
         return
       }
 
@@ -603,7 +606,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           if (!res.ok) return false
           older = await res.json() as MessageWithAuthor[]
         } catch (error) {
-          console.error("Failed to load message jump target", error)
+          if (process.env.NODE_ENV !== "production") {
+            console.error("Failed to load message jump target", error)
+          }
           return false
         }
 
@@ -658,7 +663,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       setHasMoreHistory(Boolean(payload.hasMoreBefore))
       return true
     } catch (error) {
-      console.error("Failed to load message context window", error)
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to load message context window", error)
+      }
       return false
     }
   }, [channel.id])
@@ -708,13 +715,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
       })
     } catch (e) {
-      console.error("pull-to-refresh failed", {
-        action: "refreshMessages",
-        channelId: channel.id,
-        route: `/channels/${serverId}/${channel.id}`,
-        currentUserId: currentUser?.id,
-        error: e instanceof Error ? e.message : String(e),
-      })
+      if (process.env.NODE_ENV !== "production") {
+        console.error("pull-to-refresh failed", {
+          action: "refreshMessages",
+          channelId: channel.id,
+          route: `/channels/${serverId}/${channel.id}`,
+          currentUserId: currentUser?.id,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      }
     }
   }, [channel.id, serverId, currentUser?.id])
 
@@ -786,13 +795,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
         })
       } catch (e) {
-        console.error("visibilitychange resync failed", {
-          action: "refreshMessages",
-          channelId: channel.id,
-          route: `/channels/${serverId}/${channel.id}`,
-          currentUserId: currentUser?.id,
-          error: e instanceof Error ? e.message : String(e),
-        })
+        if (process.env.NODE_ENV !== "production") {
+          console.error("visibilitychange resync failed", {
+            action: "refreshMessages",
+            channelId: channel.id,
+            route: `/channels/${serverId}/${channel.id}`,
+            currentUserId: currentUser?.id,
+            error: e instanceof Error ? e.message : String(e),
+          })
+        }
       }
     }
     document.addEventListener("visibilitychange", onVisibility)
@@ -1224,10 +1235,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         if (!signed) {
           const { error: cleanupError } = await supabase.storage.from("attachments").remove([path])
           if (cleanupError) {
-            console.warn("failed to cleanup orphaned attachment after signed URL failure", {
-              path,
-              error: cleanupError.message,
-            })
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("failed to cleanup orphaned attachment after signed URL failure", {
+                path,
+                error: cleanupError.message,
+              })
+            }
           }
           continue
         }
@@ -1311,7 +1324,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     const message = await apiResponse.json() as MessageWithAuthor
-    console.log(`[msg-send-client] ${(performance.now() - sendT0).toFixed(0)}ms round-trip (fetch + parse)`)
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[msg-send-client] ${(performance.now() - sendT0).toFixed(0)}ms round-trip (fetch + parse)`)
+    }
 
     setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
     upsertMessage(message)
@@ -1324,7 +1339,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const entry = outbox.find((candidate) => candidate.id === messageId)
     if (!entry) return
     void sendOutboxEntry({ ...entry, status: "queued" }).catch((error) => {
-      console.error("Failed to retry message", error)
+      if (process.env.NODE_ENV !== "production") { console.error("Failed to retry message", error) }
       setAndPersistOutbox((current) => updateOutboxStatus(current, messageId, {
         status: "failed",
         lastError: error instanceof Error ? error.message : "Retry failed",
@@ -1617,30 +1632,34 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         <ConnectionBanner />
 
         {showSearchModal && (
-          <Suspense fallback={null}>
-            <SearchModal
-              serverId={serverId}
-              onClose={() => setShowSearchModal(false)}
-              onJumpToMessage={(channelId, messageId) => router.push(`/channels/${serverId}/${channelId}?message=${messageId}`)}
-            />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <SearchModal
+                serverId={serverId}
+                onClose={() => setShowSearchModal(false)}
+                onJumpToMessage={(channelId, messageId) => router.push(`/channels/${serverId}/${channelId}?message=${messageId}`)}
+              />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
         {showKeyboardShortcuts && (
-          <Suspense fallback={null}>
-            <KeyboardShortcutsModal
-              open={showKeyboardShortcuts}
-              onOpenChange={setShowKeyboardShortcuts}
-              handlers={{
-                onSearch: () => setShowSearchModal(true),
-                onSearchInChannel: () => setShowSearchModal(true),
-                onToggleMemberList: toggleMemberList,
-                onToggleThreadPanel: toggleThreadPanel,
-                onToggleWorkspacePanel: toggleWorkspacePanel,
-                onOpenShortcutHelp: () => setShowKeyboardShortcuts(true),
-              }}
-            />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <KeyboardShortcutsModal
+                open={showKeyboardShortcuts}
+                onOpenChange={setShowKeyboardShortcuts}
+                handlers={{
+                  onSearch: () => setShowSearchModal(true),
+                  onSearchInChannel: () => setShowSearchModal(true),
+                  onToggleMemberList: toggleMemberList,
+                  onToggleThreadPanel: toggleThreadPanel,
+                  onToggleWorkspacePanel: toggleWorkspacePanel,
+                  onOpenShortcutHelp: () => setShowKeyboardShortcuts(true),
+                }}
+              />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
@@ -1910,15 +1929,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       {activeThread && threadPanelOpen && (
         <div data-state="open" className="panel-surface-motion" style={{ ["--panel-transform-origin" as string]: "center right" }}>
-          <Suspense fallback={null}>
-            <ThreadPanel
-              thread={activeThread}
-              currentUserId={currentUserId}
-              onClose={() => setThreadPanelOpen(false)}
-              onThreadUpdate={(updated) => setActiveThread(updated)}
-              focusMessageId={openThreadId ? jumpToMessageId : null}
-            />
-          </Suspense>
+          <ErrorBoundary fallback={<p style={{ padding: "16px", color: "var(--theme-text-secondary)" }}>Thread failed to load.</p>}>
+            <Suspense fallback={null}>
+              <ThreadPanel
+                thread={activeThread}
+                currentUserId={currentUserId}
+                onClose={() => setThreadPanelOpen(false)}
+                onThreadUpdate={(updated) => setActiveThread(updated)}
+                focusMessageId={openThreadId ? jumpToMessageId : null}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       )}
 
@@ -1937,21 +1958,25 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         />
       )}
 
-      <WorkspacePanel channelId={channel.id} open={workspaceOpen} onClose={toggleWorkspacePanel} />
+      <ErrorBoundary fallback={<p style={{ padding: "16px", color: "var(--theme-text-secondary)" }}>Workspace panel failed to load.</p>}>
+        <WorkspacePanel channelId={channel.id} open={workspaceOpen} onClose={toggleWorkspacePanel} />
+      </ErrorBoundary>
 
       {showCreateChannelThread && (
-        <Suspense fallback={null}>
-          <CreateThreadModal
-            open={showCreateChannelThread}
-            onClose={() => setShowCreateChannelThread(false)}
-            channelId={channel.id}
-            onCreated={(thread) => {
-              setActiveThread(thread)
-              setThreadPanelOpen(true)
-              setShowCreateChannelThread(false)
-            }}
-          />
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={null}>
+            <CreateThreadModal
+              open={showCreateChannelThread}
+              onClose={() => setShowCreateChannelThread(false)}
+              channelId={channel.id}
+              onCreated={(thread) => {
+                setActiveThread(thread)
+                setThreadPanelOpen(true)
+                setShowCreateChannelThread(false)
+              }}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
     </div>
   )

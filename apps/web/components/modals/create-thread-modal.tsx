@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Loader2, MessageSquare } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -60,6 +60,7 @@ export function CreateThreadModal({ open, onClose, messageId, channelId, onCreat
             <MessageSquare className="w-5 h-5" style={{ color: "var(--theme-accent)" }} />
             Create Thread
           </DialogTitle>
+          <DialogDescription className="sr-only">Start a new thread from this message</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">

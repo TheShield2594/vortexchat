@@ -606,13 +606,13 @@ const MemberItem = memo(function MemberItem({
         )}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => {
-          navigator.clipboard.writeText(`@${member.user?.username ?? displayName}`)
+          navigator.clipboard.writeText(`@${member.user?.username ?? displayName}`).catch(() => {})
           toast({ title: "Mention copied!" })
         }}>
           <AtSign className="w-4 h-4 mr-2" /> Mention
         </ContextMenuItem>
         <ContextMenuItem onClick={() => {
-          navigator.clipboard.writeText(member.user_id)
+          navigator.clipboard.writeText(member.user_id).catch(() => {})
           toast({ title: "User ID copied!" })
         }}>
           <Clipboard className="w-4 h-4 mr-2" /> Copy User ID
