@@ -150,7 +150,8 @@ export async function POST(
 
   return NextResponse.json({ ...message, reply_to_id: replyToId, reply_to: replyToMessage }, { status: 201 })
   } catch (err) {
-    console.error("[dm/messages POST] error:", err)
+    const errMsg = err instanceof Error ? err.message : "Unknown error"
+    console.error("[dm/messages POST] error", { action: "dm_send", error: errMsg })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

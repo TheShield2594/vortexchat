@@ -107,7 +107,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // Create incident
   if (action === "create_incident") {
-    const { error: permError } = await requireServerPermission(serverId, "SEND_MESSAGES")
+    const { error: permError } = await requireServerPermission(serverId, "MANAGE_MESSAGES")
     if (permError) return permError
 
     const { title, description, severity } = body as {

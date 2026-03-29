@@ -106,7 +106,8 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     // Validate explicit channel_id belongs to this server
     if (targetChannelId) {
-      const { data: ch } = await supabase.from("channels").select("id").eq("id", targetChannelId).eq("server_id", serverId).maybeSingle()
+      const { data: ch, error: channelError } = await supabase.from("channels").select("id").eq("id", targetChannelId).eq("server_id", serverId).maybeSingle()
+      if (channelError) return NextResponse.json({ error: "Failed to validate channel" }, { status: 500 })
       if (!ch) return NextResponse.json({ error: "Channel not found in this server" }, { status: 400 })
     }
 
@@ -163,7 +164,14 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     if (announceError) {
       // Rollback: delete the giveaway we just created
-      await supabase.from("giveaways").delete().eq("id", giveaway.id)
+      const { error: rollbackError } = await supabase.from("giveaways").delete().eq("id", giveaway.id)
+      if (rollbackError) {
+        console.error("[servers/[serverId]/apps/giveaway POST] rollback failed", {
+          serverId,
+          giveawayId: giveaway.id,
+          error: rollbackError.message,
+        })
+      }
       return NextResponse.json({ error: "Failed to post giveaway announcement" }, { status: 500 })
     }
 

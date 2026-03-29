@@ -125,7 +125,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .maybeSingle()
 
   if (policyError) {
-    return NextResponse.json({ error: "Failed to validate session" }, { status: 500 })
+    console.error("[voice/transcript POST] policy lookup failed:", policyError.message)
   }
 
   const retentionDays = (policyRow as { retention_days?: number } | null)?.retention_days ?? 30
