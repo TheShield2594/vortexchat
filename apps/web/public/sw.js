@@ -83,10 +83,9 @@ self.addEventListener("fetch", (event) => {
   }
 })
 
-// Push notification handler — suppresses notification when the user is
-// actively viewing the target conversation in a focused window.
-// IMPORTANT: On iOS, every push event MUST call showNotification() or the
-// OS may revoke the push subscription.  Never return early without showing.
+// Push notification handler — always shows the notification regardless of
+// whether the app is focused.  On iOS, every push event MUST call
+// showNotification() or the OS may revoke the push subscription.
 self.addEventListener("push", (event) => {
   let data = {}
   try {
@@ -104,59 +103,20 @@ self.addEventListener("push", (event) => {
   } = data
 
   event.waitUntil(
-    (async () => {
-      // Check if the user has a focused window on the target URL.
-      // If so, suppress the notification — they're already reading it.
-      // On mobile PWA, backgrounded apps have zero visible clients,
-      // so this correctly allows notifications through.
-      let isFocused = false
-      try {
-        const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true })
-        isFocused = clients.some((client) => {
-          if (!client.focused || client.visibilityState !== "visible") return false
-          try {
-            const clientUrl = new URL(client.url)
-            return clientUrl.pathname === url
-          } catch {
-            return false
-          }
-        })
-      } catch {
-        // clients API failed — show notification to be safe
-      }
-
-      if (isFocused) {
-        // User is looking at this conversation.  On iOS we still must
-        // call showNotification to keep the subscription alive, so show
-        // a silent, auto-dismissing notification with a very short tag
-        // that gets immediately closed.
-        await self.registration.showNotification("", {
-          tag: "vortex-suppress",
-          silent: true,
-        })
-        // Immediately close it — user won't see it
-        const notifications = await self.registration.getNotifications({ tag: "vortex-suppress" })
-        notifications.forEach((n) => n.close())
-        return
-      }
-
-      const actions = url !== "/channels/me" ? [
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      badge: "/icon-192.png",
+      tag: tag || "vortexchat-message",
+      data: { url },
+      renotify: true,
+      requireInteraction: false,
+      actions: url !== "/channels/me" ? [
         { action: "open", title: "Open" },
         { action: "dismiss", title: "Dismiss" },
-      ] : []
-
-      await self.registration.showNotification(title, {
-        body,
-        icon,
-        badge: "/icon-192.png",
-        tag: tag || "vortexchat-message",
-        data: { url },
-        renotify: true,
-        requireInteraction: false,
-        actions,
-        silent: false,
-      })
-    })()
+      ] : [],
+      silent: false,
+    })
   )
 })
 
