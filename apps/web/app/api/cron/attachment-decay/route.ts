@@ -40,20 +40,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     for (const att of expiredAttachments ?? []) {
       const storagePath = extractStoragePath(att.url)
-      if (storagePath) {
-        const { error: removeError } = await serviceClient.storage
-          .from("attachments")
-          .remove([storagePath])
+      if (!storagePath) {
+        console.warn("[cron/attachment-decay] could not extract storage path, skipping", {
+          attachmentId: att.id,
+          url: att.url,
+        })
+        storageErrors++
+        continue
+      }
 
-        if (removeError) {
-          console.error("[cron/attachment-decay] storage remove failed", {
-            attachmentId: att.id,
-            path: storagePath,
-            error: removeError.message,
-          })
-          storageErrors++
-          // Still mark as purged — the file may already be gone
-        }
+      const { error: removeError } = await serviceClient.storage
+        .from("attachments")
+        .remove([storagePath])
+
+      if (removeError) {
+        console.error("[cron/attachment-decay] storage remove failed", {
+          attachmentId: att.id,
+          path: storagePath,
+          error: removeError.message,
+        })
+        storageErrors++
+        // Still mark as purged — the file may already be gone
       }
 
       await serviceClient
@@ -79,19 +86,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     for (const att of expiredDmAttachments ?? []) {
       const storagePath = extractStoragePath(att.url)
-      if (storagePath) {
-        const { error: removeError } = await serviceClient.storage
-          .from("attachments")
-          .remove([storagePath])
+      if (!storagePath) {
+        console.warn("[cron/attachment-decay] could not extract DM storage path, skipping", {
+          attachmentId: att.id,
+          url: att.url,
+        })
+        storageErrors++
+        continue
+      }
 
-        if (removeError) {
-          console.error("[cron/attachment-decay] dm storage remove failed", {
-            attachmentId: att.id,
-            path: storagePath,
-            error: removeError.message,
-          })
-          storageErrors++
-        }
+      const { error: removeError } = await serviceClient.storage
+        .from("attachments")
+        .remove([storagePath])
+
+      if (removeError) {
+        console.error("[cron/attachment-decay] dm storage remove failed", {
+          attachmentId: att.id,
+          path: storagePath,
+          error: removeError.message,
+        })
+        storageErrors++
+        // Still mark as purged — the file may already be gone
       }
 
       await (serviceClient as any)

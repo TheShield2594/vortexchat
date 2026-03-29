@@ -85,9 +85,10 @@ export function computeDecay({
       Math.log(sizeMB / DECAY_CONSTANTS.MIN_MB) /
       Math.log(DECAY_CONSTANTS.MAX_MB / DECAY_CONSTANTS.MIN_MB)
     const blend = (1 - curve) * linearFrac + curve * logFrac
-    lifetimeDays =
+    lifetimeDays = Math.round(
       DECAY_CONSTANTS.MAX_DAYS -
       blend * (DECAY_CONSTANTS.MAX_DAYS - DECAY_CONSTANTS.MIN_DAYS)
+    )
   }
 
   const expiresAt = new Date(uploadedAt)
@@ -100,7 +101,7 @@ export function computeDecay({
   return {
     expiresAt,
     cost,
-    days: Math.round(lifetimeDays),
+    days: lifetimeDays,
   }
 }
 

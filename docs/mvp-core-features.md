@@ -191,8 +191,8 @@
 | Access-based renewal on channel download | Done | `GET /api/attachments/[id]/download` — `maybeRenewExpiry()` extends deadline when accessed near expiry |
 | Access-based renewal on DM download | Done | `GET /api/dm/attachments/[id]/download` — same renewal logic |
 | Purged file access returns 410 Gone | Done | Both download endpoints return 410 for purged attachments |
-| Hourly cleanup cron job | Done | `GET /api/cron/attachment-decay` — purges expired files from Supabase Storage in batches of 200 |
-| Vercel cron schedule | Done | `vercel.json` — runs at `:15` past every hour |
+| Daily cleanup cron job | Done | `GET /api/cron/attachment-decay` — purges expired files from Supabase Storage in batches of 200 |
+| Vercel cron schedule | Done | `vercel.json` — runs daily at midnight UTC |
 
 ---
 

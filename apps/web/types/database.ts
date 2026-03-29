@@ -710,6 +710,11 @@ export type Database = {
           released_by: string | null
           released_at: string | null
           created_at: string
+          expires_at: string | null
+          last_accessed_at: string | null
+          purged_at: string | null
+          lifetime_days: number | null
+          decay_cost: number | null
         }
         Insert: {
           id?: string
@@ -731,6 +736,11 @@ export type Database = {
           released_by?: string | null
           released_at?: string | null
           created_at?: string
+          expires_at?: string | null
+          last_accessed_at?: string | null
+          purged_at?: string | null
+          lifetime_days?: number | null
+          decay_cost?: number | null
         }
         Update: {
           id?: string
@@ -752,6 +762,11 @@ export type Database = {
           released_by?: string | null
           released_at?: string | null
           created_at?: string
+          expires_at?: string | null
+          last_accessed_at?: string | null
+          purged_at?: string | null
+          lifetime_days?: number | null
+          decay_cost?: number | null
         }
         Relationships: [
           {

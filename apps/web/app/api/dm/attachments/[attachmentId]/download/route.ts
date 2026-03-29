@@ -75,7 +75,9 @@ export async function GET(
         .from("dm_attachments")
         .update(updatePayload)
         .eq("id", attachment.id)
-        .then(() => {}, () => {})
+        .then(() => {}, (err: unknown) => {
+          console.error("[dm-attachments/download] renewal update failed", { attachmentId: attachment.id, error: err })
+        })
     }
 
     // Extract the storage path from the URL and create a fresh signed URL

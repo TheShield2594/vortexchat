@@ -70,7 +70,9 @@ export async function GET(
         .from("attachments")
         .update(updatePayload)
         .eq("id", attachment.id)
-        .then(() => {}, () => {})
+        .then(() => {}, (err: unknown) => {
+          console.error("[attachments/download] renewal update failed", { attachmentId: attachment.id, error: err })
+        })
     }
 
     // Create a fresh signed URL from the storage path rather than using the
