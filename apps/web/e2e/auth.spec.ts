@@ -6,11 +6,17 @@ import { test, expect } from "@playwright/test"
  * Prerequisites:
  *   - Next.js dev server running on PLAYWRIGHT_BASE_URL (default localhost:3000)
  *   - Local Supabase instance running (supabase start)
+ *
+ * Tests that require a real Supabase backend are skipped when
+ * NEXT_PUBLIC_SUPABASE_URL is missing or set to a placeholder value.
  */
 
 const TEST_EMAIL = `e2e-${Date.now()}@test.local`
 const TEST_PASSWORD = "Test1234!@#$"
 const TEST_USERNAME = `e2euser${Date.now()}`
+
+const hasSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL
+  && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
 
 test.describe("Authentication", () => {
   test("register page loads and shows form", async ({ page }) => {
@@ -28,6 +34,8 @@ test.describe("Authentication", () => {
   })
 
   test("login with invalid credentials shows error", async ({ page }) => {
+    test.skip(!hasSupabase, "Requires a real Supabase backend")
+
     await page.goto("/login")
     await page.locator("input[type='email']").fill("nonexistent@test.local")
     await page.locator("input[type='password']").fill("wrongpassword")
@@ -53,6 +61,8 @@ test.describe("Authentication", () => {
   })
 
   test("register and login flow", async ({ page }) => {
+    test.skip(!hasSupabase, "Requires a real Supabase backend")
+
     // Register
     await page.goto("/register")
     await page.locator("input[type='email']").fill(TEST_EMAIL)
