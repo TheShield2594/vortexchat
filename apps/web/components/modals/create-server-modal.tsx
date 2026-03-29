@@ -294,6 +294,9 @@ export function CreateServerModal({ open, onClose }: Props) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Blueprint Powered Server"
+                required
+                aria-required="true"
+                aria-invalid={name.length > 0 && !name.trim()}
                 style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />
             </div>

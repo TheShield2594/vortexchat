@@ -107,7 +107,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
 
   // Fetch members from API (skipped when SSR data provided)
   useEffect(() => {
-    if (initialMembers) return
+    if (initialMembers && memberFetchKey === 0) return
 
     async function fetchMembers() {
       memberFetchControllerRef.current?.abort()
@@ -153,10 +153,13 @@ export function MemberList({ serverId, initialMembers }: Props) {
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return
 
-        console.error("Failed to fetch members:", error)
+        console.error("Failed to fetch members", {
+          action: "fetchMembers",
+          route: `/api/servers/${encodedServerId}/members`,
+          serverId,
+          error,
+        })
         setMemberFetchError(error instanceof Error ? error.message : "Failed to load members")
-        setMembers([])
-        useAppStore.getState().setMembers(serverId, [])
       } finally {
         if (memberFetchControllerRef.current === controller) {
           memberFetchControllerRef.current = null
