@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
+import { resolveGeminiApiKey } from "@/lib/ai/resolve-gemini-key"
 
 type Params = { params: Promise<{ serverId: string; channelId: string }> }
 
@@ -98,9 +99,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     })
     .join("\n")
 
-  const apiKey = process.env.GEMINI_API_KEY
+  const apiKey = await resolveGeminiApiKey(supabase, serverId)
   if (!apiKey) {
-    return NextResponse.json({ error: "AI summarization is not configured (missing GEMINI_API_KEY)" }, { status: 503 })
+    return NextResponse.json({ error: "AI summarization is not configured. The server owner must set a Gemini API key in server settings." }, { status: 503 })
   }
 
   try {

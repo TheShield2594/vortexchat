@@ -105,10 +105,11 @@ type GeminiResponse = {
  * can mark summary_status = 'failed' and retry later.
  */
 export async function generateVoiceCallSummary(
-  transcriptText: string
+  transcriptText: string,
+  apiKey?: string | null
 ): Promise<VoiceCallSummarySections | null> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) return null
+  const resolvedKey = apiKey ?? process.env.GEMINI_API_KEY
+  if (!resolvedKey) return null
 
   const systemPrompt = `You are an assistant that summarizes voice call transcripts.
 Return your response as JSON with this exact shape:
@@ -121,7 +122,7 @@ Be concise and factual. Use only information from the transcript.`
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${resolvedKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

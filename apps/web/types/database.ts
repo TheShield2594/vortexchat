@@ -281,6 +281,7 @@ export type Database = {
           automod_dry_run: boolean
           automod_emergency_disable: boolean
           join_role_id: string | null
+          gemini_api_key: string | null
           created_at: string
         }
         Insert: {
@@ -300,6 +301,7 @@ export type Database = {
           automod_dry_run?: boolean
           automod_emergency_disable?: boolean
           join_role_id?: string | null
+          gemini_api_key?: string | null
           created_at?: string
         }
         Update: {
@@ -319,6 +321,7 @@ export type Database = {
           automod_dry_run?: boolean
           automod_emergency_disable?: boolean
           join_role_id?: string | null
+          gemini_api_key?: string | null
           created_at?: string
         }
         Relationships: []

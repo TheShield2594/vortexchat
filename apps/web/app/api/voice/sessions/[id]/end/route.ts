@@ -7,6 +7,7 @@ import {
   writeAuditEvent,
   SUMMARY_MIN_SEGMENT_COUNT,
 } from "@/lib/voice/vortex-recap-service"
+import { resolveGeminiApiKey } from "@/lib/ai/resolve-gemini-key"
 import type { EndSessionRequest } from "@/types/vortex-recap"
 
 type Params = { params: Promise<{ id: string }> }
@@ -80,15 +81,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
+  // Resolve the server-level Gemini API key for summary generation
+  const serverId = session.scope_type === "server" ? session.scope_id : null
+  const geminiApiKey = serverId ? await resolveGeminiApiKey(supabase, serverId) : (process.env.GEMINI_API_KEY ?? null)
+
   // Trigger summary generation asynchronously (fire-and-forget from this request)
-  generateSummary(sessionId, user.id).catch(() => {
+  generateSummary(sessionId, user.id, geminiApiKey).catch(() => {
     // Summary failure is non-fatal; summary_status will remain 'failed'
   })
 
   return NextResponse.json({ session: updatedSession }, { status: 200 })
 }
 
-async function generateSummary(sessionId: string, actorUserId: string): Promise<void> {
+async function generateSummary(sessionId: string, actorUserId: string, geminiApiKey: string | null): Promise<void> {
   const serviceClient = await createServiceRoleClient()
 
   // Fetch all non-purged final segments for this session
@@ -109,7 +114,7 @@ async function generateSummary(sessionId: string, actorUserId: string): Promise<
   }
 
   const transcriptText = assembleTranscriptText(segments)
-  const summary = await generateVoiceCallSummary(transcriptText)
+  const summary = await generateVoiceCallSummary(transcriptText, geminiApiKey)
 
   if (!summary) {
     await serviceClient
