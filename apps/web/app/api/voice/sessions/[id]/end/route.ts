@@ -83,7 +83,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // Resolve the server-level Gemini API key for summary generation
   const serverId = session.scope_type === "server" ? session.scope_id : null
-  const geminiApiKey = serverId ? await resolveGeminiApiKey(supabase, serverId) : (process.env.GEMINI_API_KEY ?? null)
+  const geminiApiKey = serverId ? await resolveGeminiApiKey(supabase, serverId) : null
 
   // Trigger summary generation asynchronously (fire-and-forget from this request)
   generateSummary(sessionId, user.id, geminiApiKey).catch(() => {

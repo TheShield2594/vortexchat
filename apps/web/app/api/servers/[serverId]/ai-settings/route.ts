@@ -23,7 +23,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
     return NextResponse.json({
       hasGeminiKey: !!server?.gemini_api_key,
-      hasInstanceKey: !!process.env.GEMINI_API_KEY,
     })
   } catch (err) {
     console.error("[ai-settings GET] error:", err)

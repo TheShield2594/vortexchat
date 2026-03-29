@@ -1,7 +1,7 @@
 -- Server-level Gemini API key
--- Allows each server owner to provide their own Gemini API key for AI features
+-- Each server owner provides their own Gemini API key for AI features
 -- (channel summarization, voice post-call summaries).
--- Falls back to the instance-level GEMINI_API_KEY env var when not set.
+-- AI features are unavailable for a server until its owner sets a key.
 
 ALTER TABLE public.servers
   ADD COLUMN IF NOT EXISTS gemini_api_key TEXT DEFAULT NULL;

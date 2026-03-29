@@ -9,7 +9,6 @@ interface AiSettingsTabProps {
 
 export function AiSettingsTab({ serverId }: AiSettingsTabProps) {
   const [hasGeminiKey, setHasGeminiKey] = useState(false)
-  const [hasInstanceKey, setHasInstanceKey] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [apiKey, setApiKey] = useState("")
@@ -23,7 +22,6 @@ export function AiSettingsTab({ serverId }: AiSettingsTabProps) {
       if (!res.ok) throw new Error("Failed to load AI settings")
       const data = await res.json()
       setHasGeminiKey(data.hasGeminiKey)
-      setHasInstanceKey(data.hasInstanceKey)
     } catch {
       setError("Failed to load AI settings")
     } finally {
@@ -98,36 +96,19 @@ export function AiSettingsTab({ serverId }: AiSettingsTabProps) {
       {/* Status */}
       <div className="rounded-md p-4" style={{ background: "var(--theme-bg-secondary)" }}>
         <h3 className="text-sm font-medium text-white mb-3">Current Status</h3>
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            {hasGeminiKey ? (
-              <CheckCircle2 className="h-4 w-4 text-green-400" />
-            ) : (
-              <AlertCircle className="h-4 w-4" style={{ color: "var(--theme-text-muted)" }} />
-            )}
-            <span style={{ color: hasGeminiKey ? "var(--theme-text-primary)" : "var(--theme-text-muted)" }}>
-              Server API key: {hasGeminiKey ? "Configured" : "Not set"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {hasInstanceKey ? (
-              <CheckCircle2 className="h-4 w-4 text-green-400" />
-            ) : (
-              <AlertCircle className="h-4 w-4" style={{ color: "var(--theme-text-muted)" }} />
-            )}
-            <span style={{ color: hasInstanceKey ? "var(--theme-text-primary)" : "var(--theme-text-muted)" }}>
-              Instance fallback key: {hasInstanceKey ? "Available" : "Not configured"}
-            </span>
-          </div>
+        <div className="flex items-center gap-2 text-sm">
+          {hasGeminiKey ? (
+            <CheckCircle2 className="h-4 w-4 text-green-400" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-amber-400" />
+          )}
+          <span style={{ color: hasGeminiKey ? "var(--theme-text-primary)" : "var(--theme-text-muted)" }}>
+            Gemini API key: {hasGeminiKey ? "Configured" : "Not set"}
+          </span>
         </div>
-        {!hasGeminiKey && !hasInstanceKey && (
+        {!hasGeminiKey && (
           <p className="mt-3 text-xs text-amber-400">
-            No API key is available. AI features (channel summaries, voice call recaps) will be unavailable until a key is set.
-          </p>
-        )}
-        {hasGeminiKey && (
-          <p className="mt-3 text-xs" style={{ color: "var(--theme-text-muted)" }}>
-            The server-level key takes priority over the instance fallback.
+            AI features (channel summaries, voice call recaps) are unavailable until you set a Gemini API key.
           </p>
         )}
       </div>
@@ -170,9 +151,9 @@ export function AiSettingsTab({ serverId }: AiSettingsTabProps) {
       {/* Remove key */}
       {hasGeminiKey && (
         <div className="rounded-md p-4" style={{ background: "var(--theme-bg-secondary)" }}>
-          <h3 className="text-sm font-medium text-white mb-2">Remove Server Key</h3>
+          <h3 className="text-sm font-medium text-white mb-2">Remove API Key</h3>
           <p className="text-xs mb-3" style={{ color: "var(--theme-text-muted)" }}>
-            Remove the server-level key. AI features will {hasInstanceKey ? "fall back to the instance-level key." : "be unavailable."}
+            Removing the key will disable AI features (channel summaries, voice call recaps) for this server.
           </p>
           <button
             onClick={handleRemove}
