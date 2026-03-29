@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { supabase, serviceSupabase, user, error: authError } = await requireAuthWithServiceRole()
-    if (authError || !serviceSupabase) return authError ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (authError || !serviceSupabase || !user) return authError ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const body = await req.json().catch(() => null)
     if (!body || typeof body !== "object") {
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { supabase, serviceSupabase, user, error: authError } = await requireAuthWithServiceRole()
-    if (authError || !serviceSupabase) return authError ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (authError || !serviceSupabase || !user) return authError ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { searchParams } = new URL(req.url)
     const userId = searchParams.get("userId")

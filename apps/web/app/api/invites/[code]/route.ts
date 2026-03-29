@@ -2,6 +2,10 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import { rateLimiter } from "@/lib/rate-limit"
+import { getClientIp } from "@vortex/shared"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/invites")
 
 export async function GET(
   request: Request,
@@ -12,8 +16,7 @@ export async function GET(
     const supabase = await createServerSupabaseClient()
 
     // Rate limit: 20 invite lookups per minute per IP (prevents invite code enumeration)
-    const forwarded = request.headers.get("x-forwarded-for")
-    const ip = forwarded?.split(",")[0]?.trim() ?? "unknown"
+    const ip = getClientIp(request.headers) ?? "unknown"
     const rl = await rateLimiter.check(`invite-lookup:${ip}`, { limit: 20, windowMs: 60_000 })
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 })
@@ -24,20 +27,29 @@ export async function GET(
     // Try invite_code first, then vanity_url
     let server: { id: string; name: string; icon_url: string | null; description: string | null } | null = null
 
-    const { data: byCode } = await supabase
+    const { data: byCode, error: codeErr } = await supabase
       .from("servers")
       .select("id, name, icon_url, description")
       .eq("invite_code", code)
       .maybeSingle()
 
+    if (codeErr) {
+      log.error({ code, err: codeErr.message }, "Invite code lookup failed")
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
+
     if (byCode) {
       server = byCode
     } else {
-      const { data: byVanity } = await supabase
+      const { data: byVanity, error: vanityErr } = await supabase
         .from("servers")
         .select("id, name, icon_url, description")
         .eq("vanity_url", code)
         .maybeSingle()
+      if (vanityErr) {
+        log.error({ code, err: vanityErr.message }, "Vanity URL lookup failed")
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+      }
       server = byVanity
     }
 
@@ -81,20 +93,29 @@ export async function POST(
     // Try invite_code first, then vanity_url
     let server: { id: string; name: string } | null = null
 
-    const { data: byCode } = await supabase
+    const { data: byCode, error: codeErr } = await supabase
       .from("servers")
       .select("id, name")
       .eq("invite_code", code)
       .maybeSingle()
 
+    if (codeErr) {
+      log.error({ code, err: codeErr.message }, "Invite code lookup failed (POST)")
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
+
     if (byCode) {
       server = byCode
     } else {
-      const { data: byVanity } = await supabase
+      const { data: byVanity, error: vanityErr } = await supabase
         .from("servers")
         .select("id, name")
         .eq("vanity_url", code)
         .maybeSingle()
+      if (vanityErr) {
+        log.error({ code, err: vanityErr.message }, "Vanity URL lookup failed (POST)")
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+      }
       server = byVanity
     }
 

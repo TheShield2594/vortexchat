@@ -219,7 +219,7 @@ export async function DELETE(
 
   if (auditError) {
     log.warn({ serverId, userId, err: auditError.message }, "Failed to write unban audit log")
-    return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
+    // Unban already succeeded — don't fail the request over a non-critical audit log write
   }
 
   return NextResponse.json({ message: "User unbanned" })

@@ -56,6 +56,9 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { onClose(); return }
+      // Don't hijack arrow/enter keys while the user is typing in an input
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
       if (e.key === "ArrowDown") {
         e.preventDefault()
         setSelectedIndex((i) => (i < results.length - 1 ? i + 1 : 0))

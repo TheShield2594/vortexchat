@@ -213,8 +213,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .select()
     .single()
 
-  if (dbErr)
-    return NextResponse.json({ error: dbErr.message }, { status: 500 })
+  if (dbErr) {
+    if (dbErr.code === "23505") {
+      return NextResponse.json({ error: "This vanity URL is already taken" }, { status: 409 })
+    }
+    return NextResponse.json({ error: "Failed to update server" }, { status: 500 })
+  }
 
   // Audit log
   await insertAuditLog(supabase, {

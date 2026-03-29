@@ -92,7 +92,8 @@ export function ProfileBadges({ userId }: ProfileBadgesProps) {
           return (
             <Tooltip key={id}>
               <TooltipTrigger asChild>
-                <div
+                <button
+                  type="button"
                   className="w-8 h-8 rounded-lg flex items-center justify-center cursor-default transition-transform hover:scale-110"
                   style={{
                     background: `color-mix(in srgb, ${badge.color} 20%, var(--theme-bg-tertiary))`,
@@ -101,7 +102,7 @@ export function ProfileBadges({ userId }: ProfileBadgesProps) {
                   } as React.CSSProperties}
                 >
                   <Icon className="w-4 h-4" style={{ color: badge.color }} />
-                </div>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-52 text-center">
                 <p className="font-semibold text-xs">{badge.name}</p>

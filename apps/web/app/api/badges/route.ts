@@ -3,6 +3,9 @@
  */
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/badges")
 
 export async function GET() {
   try {
@@ -14,6 +17,7 @@ export async function GET() {
       .order("sort_order", { ascending: true })
 
     if (error) {
+      log.error({ err: error.message }, "Failed to fetch badge definitions")
       return NextResponse.json({ error: "Failed to fetch badges" }, { status: 500 })
     }
 

@@ -56,7 +56,8 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   useEffect(() => {
     setName(liveServer.name)
     setDescription(liveServer.description ?? "")
-  }, [liveServer.name, liveServer.description])
+    setVanityUrl(liveServer.vanity_url ?? "")
+  }, [liveServer.name, liveServer.description, liveServer.vanity_url])
 
   // Revoke blob URL on unmount
   const iconPreviewRef = useRef(iconPreview)
@@ -145,7 +146,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
 
   function copyVanityUrl() {
     if (liveServer.vanity_url) {
-      navigator.clipboard.writeText(`${window.location.origin}/invite/${liveServer.vanity_url}`)
+      navigator.clipboard.writeText(`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${liveServer.vanity_url}`)
       toast({ title: "Vanity invite URL copied!" })
     }
   }
@@ -460,7 +461,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                   )}
                   {liveServer.vanity_url && !vanityError && (
                     <p className="text-xs mt-1" style={{ color: 'var(--theme-success)' }}>
-                      Active: {window.location.origin}/invite/{liveServer.vanity_url}
+                      Active: /invite/{liveServer.vanity_url}
                     </p>
                   )}
                 </div>

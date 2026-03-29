@@ -280,7 +280,7 @@ export function validateConfigAndActions(
       return "regex_filter config must have regex_patterns: string[]"
     }
     for (const pattern of cfg.regex_patterns as string[]) {
-      if (UNSAFE_REGEX_RE.test(pattern)) return `regex pattern contains unsafe nested quantifiers: ${pattern}`
+      if (UNSAFE_REGEX_RE.test(pattern) || UNSAFE_NESTED_QUANTIFIER_RE.test(pattern)) return `regex pattern contains unsafe nested quantifiers: ${pattern}`
     }
   } else if (trigger_type === "mention_spam") {
     if (typeof cfg.mention_threshold !== "number" || cfg.mention_threshold <= 0) {

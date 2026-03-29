@@ -17,7 +17,13 @@ const STEP_UP_TTL_MS = 10 * 60 * 1000
  *   4. After STEP_UP_TTL_MS (10 min), remove STEP_UP_SECRET_PREV
  */
 function stepUpSecrets(): string[] {
-  const current = process.env.STEP_UP_SECRET || process.env.NEXTAUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "local-step-up-secret"
+  const current = process.env.STEP_UP_SECRET ?? process.env.NEXTAUTH_SECRET
+  if (!current) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Missing STEP_UP_SECRET (or NEXTAUTH_SECRET) in production")
+    }
+    return ["local-step-up-secret"]
+  }
   const prev = process.env.STEP_UP_SECRET_PREV
   return prev ? [current, prev] : [current]
 }
@@ -27,9 +33,10 @@ function sign(payload: string): string {
 }
 
 function verifySignature(payload: string, signature: string): boolean {
+  if (!/^[0-9a-f]{64}$/.test(signature)) return false
   for (const secret of stepUpSecrets()) {
     const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex")
-    if (expected.length === signature.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    if (crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"))) {
       return true
     }
   }
@@ -55,21 +62,26 @@ export async function clearStepUpToken() {
   cookieStore.delete(STEP_UP_COOKIE)
 }
 
-export async function hasValidStepUpToken(userId: string) {
-  const cookieStore = await cookies()
-  const raw = cookieStore.get(STEP_UP_COOKIE)?.value
-  if (!raw) return false
+export async function hasValidStepUpToken(userId: string): Promise<boolean> {
+  try {
+    const cookieStore = await cookies()
+    const raw = cookieStore.get(STEP_UP_COOKIE)?.value
+    if (!raw) return false
 
-  const [cookieUserId, issuedAtRaw, signature] = raw.split(":")
-  if (!cookieUserId || !issuedAtRaw || !signature) return false
-  if (cookieUserId !== userId) return false
+    const [cookieUserId, issuedAtRaw, signature] = raw.split(":")
+    if (!cookieUserId || !issuedAtRaw || !signature) return false
+    if (cookieUserId !== userId) return false
 
-  const payload = `${cookieUserId}:${issuedAtRaw}`
-  if (!verifySignature(payload, signature)) return false
+    const payload = `${cookieUserId}:${issuedAtRaw}`
+    if (!verifySignature(payload, signature)) return false
 
-  const issuedAt = Number(issuedAtRaw)
-  if (!Number.isFinite(issuedAt)) return false
-  return Date.now() - issuedAt <= STEP_UP_TTL_MS
+    const issuedAt = Number(issuedAtRaw)
+    if (!Number.isFinite(issuedAt)) return false
+    return Date.now() - issuedAt <= STEP_UP_TTL_MS
+  } catch {
+    // Crypto/parsing failure — treat as invalid token, never expose error details
+    return false
+  }
 }
 
 export const STEP_UP_WINDOW_SECONDS = STEP_UP_TTL_MS / 1000
