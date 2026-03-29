@@ -34,12 +34,11 @@ const PUSH_TTL_SECONDS = 86_400 // 24 hours
  * Send a push notification to all subscriptions for a given user.
  * Silently removes stale subscriptions (410 Gone).
  *
- * Notification suppression when the user is actively *viewing* the target
- * conversation is handled client-side by the service worker (sw.js push
- * handler), which checks for a focused window on the same URL.  This
- * avoids relying on the DB-level "online" status, which is unreliable on
- * mobile PWAs — iOS/Android keep WebSocket connections alive after the app
- * is backgrounded, so users appear "online" when they're not looking.
+ * We no longer filter by DB-level "online" status because it is unreliable
+ * on mobile PWAs — iOS/Android keep WebSocket connections alive after the
+ * app is backgrounded, so users appear "online" when they're not looking.
+ * Notifications are always delivered; the user sees them whether the app
+ * is open or not (matching Discord/Slack behavior).
  *
  * @param skipQuietHours  Pass `true` when quiet-hours were already checked
  *                        by the caller (e.g. sendPushToChannel batch path).
@@ -267,13 +266,23 @@ export async function sendPushToChannel(opts: {
   // ── Batch quiet-hours check ──────────────────────────────────────
   // Filter out members who are in their scheduled DND window so we
   // don't need per-user quiet-hours queries in sendPushToUser.
-  const { data: quietHoursPrefs } = await supabase
+  const { data: quietHoursPrefs, error: quietHoursError } = await supabase
     .from("user_notification_preferences")
     .select("user_id, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
     .in("user_id", memberIds)
     .eq("quiet_hours_enabled", true)
 
-  if (quietHoursPrefs?.length) {
+  if (quietHoursError) {
+    // Fail open — deliver notifications rather than silently suppressing
+    console.error("sendPushToChannel: failed to fetch quiet hours", {
+      action: "batch-quiet-hours",
+      recipientCount: memberIds.length,
+      channelId,
+      threadId,
+      dmChannelId,
+      error: quietHoursError.message,
+    })
+  } else if (quietHoursPrefs?.length) {
     const quietUserIds = new Set(
       quietHoursPrefs
         .filter((p: { user_id: string; quiet_hours_enabled: boolean; quiet_hours_start: string | null; quiet_hours_end: string | null; quiet_hours_timezone: string | null }) =>
