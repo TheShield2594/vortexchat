@@ -856,13 +856,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       if (msg) {
         // Store attachment metadata in dm_attachments table for proxy access
         // dm_attachments table not yet in generated Supabase types
-        const { data: insertedAtt } = await (supabase as any).from("dm_attachments").insert({
+        const { data: insertedAtt, error: attInsertError } = await (supabase as any).from("dm_attachments").insert({
           dm_id: msg.id,
           url: signedUrl,
           filename: file.name,
           size: file.size,
           content_type: file.type || "application/octet-stream",
         }).select("id, filename, size, content_type").single()
+        if (attInsertError) {
+          console.error("[dm file upload] failed to insert attachment metadata:", attInsertError)
+        }
         const msgWithAttachments: Message = {
           ...msg,
           dm_attachments: insertedAtt

@@ -101,10 +101,13 @@ export async function GET(
     const messageIds: string[] = (messages ?? []).map((m: any) => m.id as string)
     let attachmentMap: Record<string, Array<{ id: string; filename: string; size: number; content_type: string }>> = {}
     if (messageIds.length > 0) {
-      const { data: dmAttachments } = await (supabase as unknown as { from: (table: string) => any })
+      const { data: dmAttachments, error: attachmentError } = await (supabase as unknown as { from: (table: string) => any })
         .from("dm_attachments")
         .select("id, dm_id, filename, size, content_type")
         .in("dm_id", messageIds)
+      if (attachmentError) {
+        console.error("[dm/channels/[channelId] GET] failed to fetch dm_attachments:", attachmentError)
+      }
       if (dmAttachments) {
         for (const att of dmAttachments as Array<{ id: string; dm_id: string; filename: string; size: number; content_type: string }>) {
           if (!attachmentMap[att.dm_id]) attachmentMap[att.dm_id] = []
