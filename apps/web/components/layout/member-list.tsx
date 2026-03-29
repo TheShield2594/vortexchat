@@ -96,7 +96,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
         )
         setServerRoles(nonDefault)
       })
-      .catch(() => {})
+      .catch((err) => { console.error("Failed to fetch roles for server", { serverId, error: err }) })
   }, [serverId])
 
   useEffect(() => {

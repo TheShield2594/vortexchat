@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
         .eq("id", user.id)
         .maybeSingle()
       const reactorName = reactor?.display_name || reactor?.username || "Someone"
-      sendPushToUser(message.author_id, {
+      await sendPushToUser(message.author_id, {
         title: `${reactorName} reacted ${emoji}`,
         body: "to your message",
         url: channelServerId

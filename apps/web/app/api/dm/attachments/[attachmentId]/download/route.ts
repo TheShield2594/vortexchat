@@ -9,6 +9,7 @@ export async function GET(
     const { attachmentId } = await params
     const { supabase, user, error: authError } = await requireAuth()
     if (authError) return authError
+    if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     // dm_attachments table is not yet in generated Supabase types
     const { data: attachment, error } = await (supabase as any)
@@ -17,7 +18,10 @@ export async function GET(
       .eq("id", attachmentId)
       .maybeSingle() as { data: { id: string; url: string; dm_id: string; filename: string; content_type: string } | null; error: any }
 
-    if (error) return NextResponse.json({ error: "Failed to fetch attachment" }, { status: 500 })
+    if (error) {
+      console.error("dm-attachments/download: fetch failed", { userId: user.id, attachmentId, error: error.message })
+      return NextResponse.json({ error: "Failed to fetch attachment" }, { status: 500 })
+    }
     if (!attachment) return NextResponse.json({ error: "Attachment not found" }, { status: 404 })
 
     // Get the DM to find the channel
@@ -27,7 +31,10 @@ export async function GET(
       .eq("id", attachment.dm_id)
       .maybeSingle()
 
-    if (dmError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
+    if (dmError) {
+      console.error("dm-attachments/download: DM lookup failed", { userId: user.id, attachmentId, error: dmError.message })
+      return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
+    }
     if (!dm?.dm_channel_id) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
     // Verify the user is a member of this DM channel
@@ -38,7 +45,10 @@ export async function GET(
       .eq("user_id", user.id)
       .maybeSingle()
 
-    if (membershipError) return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
+    if (membershipError) {
+      console.error("dm-attachments/download: membership check failed", { userId: user.id, attachmentId, error: membershipError.message })
+      return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
+    }
     if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     // Extract the storage path from the URL and create a fresh signed URL
@@ -52,11 +62,13 @@ export async function GET(
       .createSignedUrl(storagePath, 3600) // 1 hour expiry
 
     if (signError || !signedData?.signedUrl) {
+      console.error("dm-attachments/download: signing failed", { userId: user.id, attachmentId, error: signError?.message })
       return NextResponse.json({ error: "Failed to generate signed URL" }, { status: 500 })
     }
 
     return NextResponse.redirect(signedData.signedUrl)
-  } catch {
+  } catch (err) {
+    console.error("dm-attachments/download: unexpected error", { error: err })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

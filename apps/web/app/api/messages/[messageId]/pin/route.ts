@@ -71,7 +71,7 @@ export async function PUT(
       .maybeSingle()
     const pinnerName = pinner?.display_name || pinner?.username || "Someone"
 
-    sendPushToChannel({
+    await sendPushToChannel({
       serverId,
       channelId,
       senderName: `📌 ${pinnerName}`,
@@ -100,6 +100,7 @@ export async function DELETE(
       .from("messages")
       .select("id, channel_id, channels(server_id)")
       .eq("id", messageId)
+      .is("deleted_at", null)
       .single()
 
     if (!message) return NextResponse.json({ error: "Not found" }, { status: 404 })

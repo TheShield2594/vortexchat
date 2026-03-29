@@ -10,10 +10,6 @@ interface Props {
   selectedIndex: number
   query: string
   onSelect: (suggestion: MentionSuggestion) => void
-  /** @deprecated Use suggestions + onSelect instead */
-  members?: MemberForMention[]
-  /** @deprecated Use onSelect with MentionSuggestion instead */
-  onSelectMember?: (member: MemberForMention) => void
 }
 
 function getMatchConfidence(name: string, query: string): "Exact" | "Strong" | "Weak" {
@@ -114,7 +110,7 @@ export function MentionSuggestions({ suggestions, selectedIndex, query, onSelect
         const initials = displayName.slice(0, 2).toUpperCase()
         const confidence = getMemberMatchConfidence(member, query)
         const confidenceTone =
-          confidence === "Exact" ? "#3ba55d" : confidence === "Strong" ? "var(--theme-accent)" : "#faa81a"
+          confidence === "Exact" ? "#3ba55d" : confidence === "Strong" ? "#5865f2" : "#faa81a"
 
         return (
           <button

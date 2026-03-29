@@ -206,7 +206,7 @@ export async function PATCH(
     }
 
     // Push notification to the appeal owner about the status change
-    sendPushToUser(appeal.user_id, {
+    await sendPushToUser(appeal.user_id, {
       title: "Appeal updated",
       body: `Your appeal status is now ${nextStatus}.`,
       url: `/appeals`,

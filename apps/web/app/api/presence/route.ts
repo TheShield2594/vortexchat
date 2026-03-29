@@ -51,7 +51,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error("presence: unexpected error", { route: "presence", error: err })
+    console.error("presence: unexpected error", { route: "presence", action: "update_status", error: err })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
