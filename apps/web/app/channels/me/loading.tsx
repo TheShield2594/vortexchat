@@ -1,7 +1,8 @@
+import React from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { VortexSpinner, VortexMotif } from "@/components/ui/vortex-spinner"
 
-export default function DMListLoading() {
+export default function DMListLoading(): React.ReactElement {
   return (
     <div className="flex flex-1 flex-col overflow-hidden" style={{ background: "var(--theme-bg-primary)" }}>
       {/* Header skeleton */}

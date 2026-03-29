@@ -987,6 +987,13 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
           console.warn("hark VAD failed to load:", e)
         }
       } catch (error: any) {
+        // Stop any acquired mic stream to avoid a dangling active-mic indicator
+        if (rawLocalStreamRef.current) {
+          rawLocalStreamRef.current.getTracks().forEach(t => t.stop())
+          rawLocalStreamRef.current = null
+        }
+        setRawLocalStream(null)
+
         const errMsg = error?.message ?? String(error)
         let userMessage: string
         if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {

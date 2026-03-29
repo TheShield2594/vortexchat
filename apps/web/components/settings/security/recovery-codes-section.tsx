@@ -56,9 +56,11 @@ export function RecoveryCodesSection(): React.JSX.Element {
 
   async function handleCopyCodes(): Promise<void> {
     if (!codes) return
-    try { await navigator.clipboard.writeText(codes.join("\n")) } catch { /* clipboard unavailable */ }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(codes.join("\n"))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* clipboard unavailable */ }
   }
 
   function handleDismissCodes(): void {

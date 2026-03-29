@@ -17,7 +17,7 @@ const VoiceChannelDynamic = dynamic<VoiceChannelProps>(
  *  Wrapped in an ErrorBoundary so voice failures don't crash the whole app. */
 export function VoiceChannelLazy(props: VoiceChannelProps): JSX.Element {
   return (
-    <ErrorBoundary fallback={<p style={{ padding: "16px", color: "var(--theme-text-secondary)" }}>Voice channel failed to load.</p>}>
+    <ErrorBoundary>
       <VoiceChannelDynamic {...props} />
     </ErrorBoundary>
   )

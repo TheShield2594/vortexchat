@@ -1,6 +1,7 @@
+import React from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export default function SettingsLoading() {
+export default function SettingsLoading(): React.ReactElement {
   return (
     <div className="flex flex-1 overflow-hidden" style={{ background: "var(--theme-bg-primary)" }}>
       {/* Sidebar */}

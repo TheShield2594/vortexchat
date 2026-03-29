@@ -1034,16 +1034,20 @@ export const MessageItem = memo(function MessageItem({
           <CheckSquare className="w-4 h-4 mr-2" /> Convert to Task
         </ContextMenuItem>
         {message.content && (
-          <ContextMenuItem onClick={() => {
-            navigator.clipboard.writeText(message.content!).catch(() => {})
-            toast({ title: "Text copied!" })
+          <ContextMenuItem onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(message.content!)
+              toast({ title: "Text copied!" })
+            } catch { /* clipboard unavailable */ }
           }}>
             <Clipboard className="w-4 h-4 mr-2" /> Copy Text
           </ContextMenuItem>
         )}
-        <ContextMenuItem onClick={() => {
-          navigator.clipboard.writeText(message.id).catch(() => {})
-          toast({ title: "Message ID copied!" })
+        <ContextMenuItem onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(message.id)
+            toast({ title: "Message ID copied!" })
+          } catch { /* clipboard unavailable */ }
         }}>
           <Hash className="w-4 h-4 mr-2" /> Copy Message ID
         </ContextMenuItem>

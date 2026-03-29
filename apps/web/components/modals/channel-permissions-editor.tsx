@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
-import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { PERMISSIONS, type Permission } from "@vortex/shared"
 import { detectChannelOverwriteRisks, type PermissionRisk } from "@/lib/permission-simulation"
@@ -127,9 +126,9 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
   if (loading) return <div className="flex justify-center py-4"><Loader2 className="animate-spin" style={{ color: "var(--theme-text-muted)" }} /></div>
 
   return (
-    <div className="flex gap-3 h-72">
-      <DialogTitle className="sr-only">Channel Permissions</DialogTitle>
-      <DialogDescription className="sr-only">Configure channel permission overrides</DialogDescription>
+    <div className="flex gap-3 h-72" role="dialog" aria-modal="true" aria-labelledby="cp-title" aria-describedby="cp-desc">
+      <h2 id="cp-title" className="sr-only">Channel Permissions</h2>
+      <p id="cp-desc" className="sr-only">Configure channel permission overrides</p>
       {/* Role list */}
       <div className="w-40 flex-shrink-0 space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>Roles</p>

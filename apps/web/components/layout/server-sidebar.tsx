@@ -298,16 +298,20 @@ function ServerIcon({
           <Bell className="w-4 h-4 mr-2" /> Notification Settings
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => {
-          navigator.clipboard.writeText(server.invite_code).catch(() => {})
-          toast({ title: "Invite code copied!" })
+        <ContextMenuItem onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(server.invite_code)
+            toast({ title: "Invite code copied!" })
+          } catch { /* clipboard unavailable */ }
         }}>
           <UserPlus className="w-4 h-4 mr-2" /> Invite People
           <ContextMenuShortcut>I</ContextMenuShortcut>
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => {
-          navigator.clipboard.writeText(server.id).catch(() => {})
-          toast({ title: "Server ID copied!" })
+        <ContextMenuItem onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(server.id)
+            toast({ title: "Server ID copied!" })
+          } catch { /* clipboard unavailable */ }
         }}>
           <Clipboard className="w-4 h-4 mr-2" /> Copy Server ID
           {copyShortcutLabel && <ContextMenuShortcut>{copyShortcutLabel}</ContextMenuShortcut>}

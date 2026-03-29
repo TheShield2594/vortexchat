@@ -49,17 +49,29 @@ export function MobileOverlay() {
   const { sidebarOpen, setSidebarOpen } = useMobileNav()
   const swipe = useSwipe({ onSwipeLeft: () => setSidebarOpen(false) })
 
-  // Set inert on main content when drawer is open to trap focus inside the drawer
+  // Set inert on main content when drawer is open to trap focus inside the drawer.
+  // Only applies when the viewport is mobile-width; if the user resizes to desktop
+  // while the sidebar is open, inert is removed immediately via a media-query listener.
   useEffect(() => {
     const main = document.querySelector("[data-main-content]")
     if (!main) return
-    if (sidebarOpen) {
-      main.setAttribute("inert", "")
-    } else {
-      main.removeAttribute("inert")
+
+    const mql = window.matchMedia("(max-width: 768px)")
+
+    function sync(): void {
+      if (sidebarOpen && mql.matches) {
+        main!.setAttribute("inert", "")
+      } else {
+        main!.removeAttribute("inert")
+      }
     }
+
+    sync()
+    mql.addEventListener("change", sync)
+
     return () => {
       main.removeAttribute("inert")
+      mql.removeEventListener("change", sync)
     }
   }, [sidebarOpen])
 

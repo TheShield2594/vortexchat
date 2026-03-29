@@ -139,15 +139,19 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
     }
   }
 
-  function copyInvite() {
-    navigator.clipboard.writeText(liveServer.invite_code).catch(() => {})
-    toast({ title: "Invite code copied!" })
+  async function copyInvite() {
+    try {
+      await navigator.clipboard.writeText(liveServer.invite_code)
+      toast({ title: "Invite code copied!" })
+    } catch { /* clipboard unavailable */ }
   }
 
-  function copyVanityUrl() {
+  async function copyVanityUrl() {
     if (liveServer.vanity_url) {
-      navigator.clipboard.writeText(`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${liveServer.vanity_url}`).catch(() => {})
-      toast({ title: "Vanity invite URL copied!" })
+      try {
+        await navigator.clipboard.writeText(`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${liveServer.vanity_url}`)
+        toast({ title: "Vanity invite URL copied!" })
+      } catch { /* clipboard unavailable */ }
     }
   }
 
@@ -1907,8 +1911,10 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
       toast({ title: "Invite created!" })
 
       // Copy to clipboard automatically
-      navigator.clipboard.writeText(invite.code).catch(() => {})
-      toast({ title: "Invite code copied to clipboard!" })
+      try {
+        await navigator.clipboard.writeText(invite.code)
+        toast({ title: "Invite code copied to clipboard!" })
+      } catch { /* clipboard unavailable */ }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to create invite", description: error.message })
     } finally {
@@ -1934,9 +1940,11 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
     }
   }
 
-  function copyCode(code: string) {
-    navigator.clipboard.writeText(code).catch(() => {})
-    toast({ title: "Invite code copied!" })
+  async function copyCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code)
+      toast({ title: "Invite code copied!" })
+    } catch { /* clipboard unavailable */ }
   }
 
   return (
