@@ -2261,6 +2261,45 @@ h1, h2, h3, h4, h5, h6 {
   100% { transform: scale(1); }
 }
 
+/* ── Reduced motion: disable or minimize remaining animations ──────────── */
+@media (prefers-reduced-motion: reduce) {
+  .message-arrival {
+    animation: none !important;
+  }
+
+  .reaction-chip-pop {
+    animation: none !important;
+  }
+
+  .speaking-ring {
+    animation: none !important;
+  }
+
+  .speaking-waveform,
+  .speaking-waveform span {
+    animation: none !important;
+  }
+
+  .typing-dot {
+    animation: none !important;
+  }
+
+  .composer-presence-rail {
+    animation: none !important;
+  }
+
+  .vortex-orbit,
+  .vortex-orbit-slow,
+  .vortex-orbit-rev,
+  .vortex-glow {
+    animation: none !important;
+  }
+
+  .recent-activity-halo {
+    animation: none !important;
+  }
+}
+
 .chat-area-root-surface {
   background: var(--theme-bg-primary);
 }

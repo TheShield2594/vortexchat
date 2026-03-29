@@ -61,6 +61,10 @@ interface UseVoiceReturn {
   setAudioSettings: (settings: VoiceAudioSettings) => void
   cpuBypassActive: boolean
   audioInitError: string | null
+  /** True when audioInitError was caused by a browser permission denial. */
+  isPermissionError: boolean
+  /** Re-attempt microphone acquisition after a permission or init error. */
+  retryAudioInit: () => void
   /** Network quality stats from getStats() polling (null until first poll). */
   networkQuality: NetworkQualityStats | null
   /** Reconnect state machine info. */
@@ -145,6 +149,8 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
   const [videoEnabled, setVideoEnabled] = useState(false)
   const [cpuBypassActive, setCpuBypassActive] = useState(false)
   const [audioInitError, setAudioInitError] = useState<string | null>(null)
+  const [isPermissionError, setIsPermissionError] = useState(false)
+  const [audioRetryCounter, setAudioRetryCounter] = useState(0)
   const [rawLocalStream, setRawLocalStream] = useState<MediaStream | null>(null)
   const [networkQuality, setNetworkQuality] = useState<NetworkQualityStats | null>(null)
   const [reconnectInfo, setReconnectInfo] = useState<ReconnectInfo>({
@@ -932,6 +938,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     async function init() {
       try {
         setAudioInitError(null)
+        setIsPermissionError(false)
         const audioConstraints: MediaTrackConstraints = {
           echoCancellation: true,
           noiseSuppression: true,
@@ -983,7 +990,8 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         const errMsg = error?.message ?? String(error)
         let userMessage: string
         if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
-          userMessage = "Microphone permission denied. Check browser permissions."
+          userMessage = "Microphone access was denied. Check your browser's site permissions and try again."
+          setIsPermissionError(true)
         } else if (error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError") {
           userMessage = "No microphone found. Connect a mic and try again."
         } else if (error?.name === "NotReadableError" || error?.name === "TrackStartError") {
@@ -1059,7 +1067,12 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       manualReconnectRef.current = null
       cleanupVoiceSession(supabase)
     }
-  }, [channelId, userId, selectedInputId, cleanupVoiceSession, setConnectionState])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId, userId, selectedInputId, audioRetryCounter, cleanupVoiceSession, setConnectionState])
+
+  const retryAudioInit = useCallback(() => {
+    setAudioRetryCounter((c) => c + 1)
+  }, [])
 
   const toggleMute = useCallback(() => {
     const tracks = rawLocalStreamRef.current?.getAudioTracks() ?? []
@@ -1203,6 +1216,8 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     setAudioSettings,
     cpuBypassActive,
     audioInitError,
+    isPermissionError,
+    retryAudioInit,
     networkQuality,
     reconnectInfo,
     manualReconnect,

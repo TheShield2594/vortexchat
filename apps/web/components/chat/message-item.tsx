@@ -113,7 +113,7 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight }: { onSelect: (emoji: 
   return (
     <EmojiPicker.Root
       onEmojiSelect={({ emoji }) => handleSelect(emoji)}
-      style={{ display: "flex", flexDirection: "column", width: "320px", height: maxHeight ?? "400px", maxHeight: maxHeight ?? "400px", overflow: "hidden" }}
+      style={{ display: "flex", flexDirection: "column", width: "min(320px, 90vw)", height: maxHeight ?? "400px", maxHeight: maxHeight ?? "400px", overflow: "hidden" }}
     >
       <div style={{ padding: "8px 8px 4px" }}>
         <EmojiPicker.Search

@@ -176,6 +176,8 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
     setAudioSettings,
     cpuBypassActive,
     audioInitError,
+    isPermissionError,
+    retryAudioInit,
     networkQuality,
     reconnectInfo,
     manualReconnect,
@@ -466,7 +468,13 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
               onToggle={() => setStatsOverlayOpen(false)}
             />
             {cpuBypassActive && <span className="text-xs" style={{ color: "var(--theme-warning)" }}>CPU bypass enabled</span>}
-            {audioInitError && <span className="text-xs" style={{ color: "var(--theme-warning)" }}>{audioInitError}</span>}
+            {audioInitError && (
+              <MediaPermissionRecovery
+                message={audioInitError}
+                isPermissionError={isPermissionError}
+                onRetry={retryAudioInit}
+              />
+            )}
           </div>
         </div>
 
@@ -742,6 +750,53 @@ const QUALITY_LABELS: Record<NetworkQualityTier, string> = {
   good: "Good",
   degraded: "Unstable",
   poor: "Poor",
+}
+
+/** Recovery banner shown when microphone or camera permission is denied or audio init fails. */
+function MediaPermissionRecovery({
+  message,
+  isPermissionError,
+  onRetry,
+}: {
+  message: string
+  isPermissionError: boolean
+  onRetry: () => void
+}): React.ReactElement {
+  return (
+    <div
+      className="flex flex-col gap-2 rounded-md px-3 py-2 text-xs"
+      style={{
+        background: "rgba(240,70,70,0.12)",
+        border: "1px solid rgba(240,70,70,0.25)",
+        color: "var(--theme-text-primary)",
+      }}
+      role="alert"
+    >
+      <div className="flex items-center gap-2">
+        <MicOff size={14} style={{ color: "var(--theme-error)", flexShrink: 0 }} />
+        <span>{message}</span>
+      </div>
+
+      {isPermissionError && (
+        <span style={{ color: "var(--theme-text-secondary)" }}>
+          Click the lock icon in your browser&apos;s address bar to reset site permissions, then retry.
+        </span>
+      )}
+
+      <button
+        type="button"
+        onClick={onRetry}
+        className="inline-flex items-center gap-1.5 self-start rounded px-2 py-1 text-xs font-medium transition-colors"
+        style={{
+          background: "var(--theme-bg-tertiary)",
+          color: "var(--theme-text-primary)",
+        }}
+      >
+        <RefreshCw size={12} />
+        Retry
+      </button>
+    </div>
+  )
 }
 
 function NetworkQualityIndicator({ quality }: { quality: NetworkQualityStats | null }) {
