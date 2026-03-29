@@ -7,6 +7,7 @@ import {
   writeAuditEvent,
   SUMMARY_MIN_SEGMENT_COUNT,
 } from "@/lib/voice/vortex-recap-service"
+import { resolveGeminiApiKey } from "@/lib/ai/resolve-gemini-key"
 import type { EndSessionRequest } from "@/types/vortex-recap"
 
 type Params = { params: Promise<{ id: string }> }
@@ -80,15 +81,28 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
+  // Resolve the server-level Gemini API key for summary generation
+  let geminiApiKey: string | null = null
+  if (session.scope_type === "server_channel") {
+    const { data: channel } = await supabase
+      .from("channels")
+      .select("server_id")
+      .eq("id", session.scope_id)
+      .single()
+    if (channel?.server_id) {
+      geminiApiKey = await resolveGeminiApiKey(supabase, channel.server_id)
+    }
+  }
+
   // Trigger summary generation asynchronously (fire-and-forget from this request)
-  generateSummary(sessionId, user.id).catch(() => {
-    // Summary failure is non-fatal; summary_status will remain 'failed'
+  generateSummary(sessionId, user.id, geminiApiKey).catch((err) => {
+    console.error("[voice/sessions/end] generateSummary failed", { sessionId, userId: user.id, error: err })
   })
 
   return NextResponse.json({ session: updatedSession }, { status: 200 })
 }
 
-async function generateSummary(sessionId: string, actorUserId: string): Promise<void> {
+async function generateSummary(sessionId: string, actorUserId: string, geminiApiKey: string | null): Promise<void> {
   const serviceClient = await createServiceRoleClient()
 
   // Fetch all non-purged final segments for this session
@@ -109,7 +123,7 @@ async function generateSummary(sessionId: string, actorUserId: string): Promise<
   }
 
   const transcriptText = assembleTranscriptText(segments)
-  const summary = await generateVoiceCallSummary(transcriptText)
+  const summary = await generateVoiceCallSummary(transcriptText, geminiApiKey)
 
   if (!summary) {
     await serviceClient

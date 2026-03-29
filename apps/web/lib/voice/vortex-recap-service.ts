@@ -105,9 +105,9 @@ type GeminiResponse = {
  * can mark summary_status = 'failed' and retry later.
  */
 export async function generateVoiceCallSummary(
-  transcriptText: string
+  transcriptText: string,
+  apiKey: string | null
 ): Promise<VoiceCallSummarySections | null> {
-  const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) return null
 
   const systemPrompt = `You are an assistant that summarizes voice call transcripts.

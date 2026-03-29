@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
+import { resolveGeminiApiKey } from "@/lib/ai/resolve-gemini-key"
 
 type Params = { params: Promise<{ serverId: string; channelId: string }> }
 
@@ -43,7 +44,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     .single()
 
   if (channelError) {
-    return NextResponse.json({ error: channelError.message }, { status: 500 })
+    console.error("[summarize] channel query failed", { serverId, channelId, error: channelError.message })
+    return NextResponse.json({ error: "Failed to verify channel" }, { status: 500 })
   }
 
   if (!channel) {
@@ -98,9 +100,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     })
     .join("\n")
 
-  const apiKey = process.env.GEMINI_API_KEY
+  const apiKey = await resolveGeminiApiKey(supabase, serverId)
   if (!apiKey) {
-    return NextResponse.json({ error: "AI summarization is not configured (missing GEMINI_API_KEY)" }, { status: 503 })
+    return NextResponse.json({ error: "AI summarization is not configured. The server owner must set a Gemini API key in server settings." }, { status: 503 })
   }
 
   try {

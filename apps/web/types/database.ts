@@ -323,6 +323,24 @@ export type Database = {
         }
         Relationships: []
       }
+      server_secrets: {
+        Row: {
+          server_id: string
+          gemini_api_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          server_id: string
+          gemini_api_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          server_id?: string
+          gemini_api_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       screening_configs: {
         Row: {
           server_id: string

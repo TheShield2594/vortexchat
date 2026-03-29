@@ -1,7 +1,7 @@
 "use client"
 
 import { lazy, Suspense } from "react"
-import { Activity, BookOpen, Eye, Flag, Heart, Palette, Shield, ShieldCheck, Zap } from "lucide-react"
+import { Activity, BookOpen, Bot, Eye, Flag, Heart, Palette, Shield, ShieldCheck, Zap } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AutoModTab, EmojisTab, ModerationTab, ScreeningTab, WebhooksTab } from "@/components/modals/server-settings-modal"
 
@@ -15,6 +15,7 @@ const PermissionSandbox = lazy(() => import("@/components/admin/permission-sandb
 const AuditLogPage = lazy(() => import("@/components/admin/audit-log-page").then((m) => ({ default: m.AuditLogPage })))
 const CommunityHealthDashboard = lazy(() => import("@/components/admin/community-health-dashboard").then((m) => ({ default: m.CommunityHealthDashboard })))
 const ServerRecommendedTheme = lazy(() => import("@/components/settings/theme-identity-section").then((m) => ({ default: m.ServerRecommendedTheme })))
+const AiSettingsTab = lazy(() => import("@/components/settings/ai-settings-tab").then((m) => ({ default: m.AiSettingsTab })))
 
 interface Channel {
   id: string
@@ -96,6 +97,10 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
                 <Palette className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Theme
               </TabsTrigger>
+              <TabsTrigger value="ai-settings" className="w-full justify-start whitespace-nowrap">
+                <Bot className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
+                AI
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -142,6 +147,9 @@ export function ServerSettingsAdmin({ serverId, serverName, isOwner, channels }:
               </TabsContent>
               <TabsContent value="server-theme" className="mt-0">
                 <ServerRecommendedTheme serverId={serverId} />
+              </TabsContent>
+              <TabsContent value="ai-settings" className="mt-0">
+                {isOwner ? <AiSettingsTab serverId={serverId} /> : <p style={{ color: "var(--theme-text-secondary)" }}>Only the server owner can manage AI settings.</p>}
               </TabsContent>
             </Suspense>
           </div>
