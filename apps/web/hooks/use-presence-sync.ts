@@ -169,6 +169,20 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
       if (!currentUserId) return
 
       channelRef.current?.untrack()
+
+      // Persist offline status to the database via sendBeacon so the server
+      // knows the user is no longer connected. This is critical for push
+      // notification eligibility — without it, users.status stays "online"
+      // indefinitely after the tab closes.
+      try {
+        const blob = new Blob(
+          [JSON.stringify({ status: "offline" })],
+          { type: "application/json" }
+        )
+        navigator.sendBeacon("/api/presence", blob)
+      } catch {
+        // sendBeacon may fail in some environments — not critical
+      }
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload)

@@ -2,7 +2,7 @@ import webpush from "web-push"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { resolveNotification } from "@/lib/notification-resolver"
 import { isInQuietHours } from "@/lib/quiet-hours"
-import { PERMISSIONS, computePermissions } from "@vortex/shared"
+import { PERMISSIONS } from "@vortex/shared"
 
 // VAPID keys — set these env vars (generate once with: npx web-push generate-vapid-keys)
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""
@@ -25,8 +25,14 @@ export interface PushPayload {
   icon?: string
 }
 
+// How recently the users.updated_at timestamp must be for us to trust that
+// the user is truly "online" and receiving messages via the real-time channel.
+// If updated_at is older than this, the status is stale and we push anyway.
+const PRESENCE_STALE_MS = 6 * 60 * 1000 // 6 minutes (idle timeout is 5 min)
+
 /**
  * Send a push notification to all subscriptions for a given user.
+ * Skips users who are actively online (receiving messages via real-time).
  * Silently removes stale subscriptions (410 Gone).
  */
 export async function sendPushToUser(
@@ -41,6 +47,26 @@ export async function sendPushToUser(
     ensureVapid()
 
     const supabase = await createServerSupabaseClient()
+
+    // ── Presence-based eligibility check ──────────────────────────────
+    // If the user is actively online (status "online" with a fresh
+    // updated_at), they're receiving messages through the Supabase
+    // real-time channel and don't need a push notification. This mirrors
+    // Fluxer's server-side push eligibility pattern.
+    const { data: userStatus } = await supabase
+      .from("users")
+      .select("status, updated_at")
+      .eq("id", userId)
+      .maybeSingle()
+
+    if (userStatus?.status === "online" && userStatus.updated_at) {
+      const lastSeen = new Date(userStatus.updated_at).getTime()
+      const isRecent = Date.now() - lastSeen < PRESENCE_STALE_MS
+      if (isRecent) {
+        // User is actively online — skip push, they'll see the message in real-time
+        return
+      }
+    }
 
     // Check quiet hours — suppress push if the user is in their scheduled DND window
     const { data: quietPrefs, error: quietError } = await supabase
@@ -231,6 +257,33 @@ export async function sendPushToChannel(opts: {
       }
     } else {
       memberIds = allMemberIds
+    }
+  }
+
+  if (!memberIds.length) return
+
+  // ── Batch presence eligibility check ──────────────────────────────
+  // Filter out members who are actively online and receiving messages
+  // via the real-time channel. This is a single batched query instead
+  // of per-user checks, avoiding N+1 queries in sendPushToUser.
+  const { data: onlineUsers } = await supabase
+    .from("users")
+    .select("id, status, updated_at")
+    .in("id", memberIds)
+    .eq("status", "online")
+
+  if (onlineUsers?.length) {
+    const now = Date.now()
+    const activeOnlineIds = new Set(
+      onlineUsers
+        .filter((u: { id: string; status: string; updated_at: string | null }) => {
+          if (!u.updated_at) return false
+          return now - new Date(u.updated_at).getTime() < PRESENCE_STALE_MS
+        })
+        .map((u: { id: string }) => u.id)
+    )
+    if (activeOnlineIds.size > 0) {
+      memberIds = memberIds.filter((uid: string) => !activeOnlineIds.has(uid))
     }
   }
 
