@@ -1,18 +1,25 @@
 import { useCallback } from "react"
-import type { MemberForMention } from "@/lib/stores/app-store"
+import type { MemberForMention, RoleForMention } from "@/lib/stores/app-store"
 import { useAutocomplete } from "./use-autocomplete"
+
+export type MentionSuggestion =
+  | { type: "member"; data: MemberForMention }
+  | { type: "role"; data: RoleForMention }
 
 interface Options {
   content: string
   cursorPosition: number
   members: MemberForMention[]
+  roles?: RoleForMention[]
 }
 
 interface Result {
   isOpen: boolean
   query: string | null
   filteredMembers: MemberForMention[]
+  filteredSuggestions: MentionSuggestion[]
   selectedIndex: number
+  selectSuggestion: (suggestion: MentionSuggestion) => { newContent: string; newCursorPosition: number }
   selectMember: (member: MemberForMention) => { newContent: string; newCursorPosition: number }
   handleKeyDown: (e: React.KeyboardEvent) => boolean
   close: () => void
@@ -36,20 +43,29 @@ function findMentionQuery(text: string, cursor: number): string | null {
   return null
 }
 
-export function useMentionAutocomplete({ content, cursorPosition, members }: Options): Result {
+export function useMentionAutocomplete({ content, cursorPosition, members, roles = [] }: Options): Result {
   const filter = useCallback(
-    (query: string) => {
+    (query: string): MentionSuggestion[] => {
       const lower = query.toLowerCase()
-      return members
+
+      const memberResults: MentionSuggestion[] = members
         .filter(
           (m) =>
             m.username.toLowerCase().includes(lower) ||
             (m.display_name?.toLowerCase().includes(lower) ?? false) ||
             (m.nickname?.toLowerCase().includes(lower) ?? false)
         )
-        .slice(0, 10)
+        .slice(0, 8)
+        .map((m) => ({ type: "member", data: m }))
+
+      const roleResults: MentionSuggestion[] = roles
+        .filter((r) => r.mentionable && r.name.toLowerCase().includes(lower))
+        .slice(0, 4)
+        .map((r) => ({ type: "role", data: r }))
+
+      return [...roleResults, ...memberResults].slice(0, 10)
     },
-    [members]
+    [members, roles]
   )
 
   const { isOpen, query, matches, selectedIndex, handleKeyDown, close } = useAutocomplete({
@@ -59,22 +75,36 @@ export function useMentionAutocomplete({ content, cursorPosition, members }: Opt
     cursorPosition,
   })
 
-  function selectMember(member: MemberForMention) {
+  function selectSuggestion(suggestion: MentionSuggestion): { newContent: string; newCursorPosition: number } {
     const atIndex = content.lastIndexOf("@", cursorPosition - 1)
     const before = content.slice(0, atIndex)
     const after = content.slice(cursorPosition)
-    const mention = `<@${member.username}> `
+
+    let mention: string
+    if (suggestion.type === "role") {
+      mention = `<@&${suggestion.data.id}> `
+    } else {
+      mention = `<@${suggestion.data.username}> `
+    }
+
     return {
       newContent: before + mention + after,
       newCursorPosition: before.length + mention.length,
     }
   }
 
+  // Backwards-compatible: select a member directly
+  function selectMember(member: MemberForMention) {
+    return selectSuggestion({ type: "member", data: member })
+  }
+
   return {
     isOpen,
     query,
-    filteredMembers: matches,
+    filteredMembers: matches.filter((s): s is MentionSuggestion & { type: "member" } => s.type === "member").map((s) => s.data),
+    filteredSuggestions: matches,
     selectedIndex,
+    selectSuggestion,
     selectMember,
     handleKeyDown,
     close,

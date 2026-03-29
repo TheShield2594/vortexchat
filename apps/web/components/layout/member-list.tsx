@@ -85,6 +85,19 @@ export function MemberList({ serverId, initialMembers }: Props) {
     }
   }, [serverId, initialMembers])
 
+  // Fetch roles for @role mention autocomplete + rendering
+  useEffect(() => {
+    fetch(`/api/servers/${encodeURIComponent(serverId)}/roles`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: RoleRow[]) => {
+        useAppStore.getState().setServerRoles(serverId, data
+          .filter((r) => !r.is_default)
+          .map((r) => ({ id: r.id, name: r.name, color: r.color, mentionable: r.mentionable }))
+        )
+      })
+      .catch(() => {})
+  }, [serverId])
+
   useEffect(() => {
     setSelectedMemberId(null)
   }, [serverId])

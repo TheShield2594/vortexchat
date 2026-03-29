@@ -342,6 +342,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     let errorMsg: string | null = null
     try {
       const mentions = (entry.content.match(/<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? []).map((m) => m.slice(2, -1))
+      const mentionRoleIds = (entry.content.match(/<@&([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? []).map((m) => m.slice(3, -1))
       const mentionEveryone = entry.content.includes("@everyone")
       const apiResponse = await fetch("/api/messages", {
         method: "POST",
@@ -351,6 +352,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           content: entry.content.trim() || undefined,
           replyToId: entry.replyToId ?? undefined,
           mentions,
+          mentionRoleIds,
           mentionEveryone,
           attachments: (entry.attachments ?? []).map(({ url, filename, size, content_type }) => ({ url, filename, size, content_type })),
           clientNonce: entry.id,
@@ -1273,6 +1275,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
 
     const mentions = (content.match(/<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? []).map((m) => m.slice(2, -1))
+    const mentionRoleIds = (content.match(/<@&([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? []).map((m) => m.slice(3, -1))
     const mentionEveryone = content.includes("@everyone")
     const sendT0 = performance.now()
     const apiResponse = await fetch("/api/messages", {
@@ -1284,6 +1287,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         content: content.trim() || undefined,
         replyToId: replyTo?.id || undefined,
         mentions,
+        mentionRoleIds,
         mentionEveryone,
         attachments: attachments.map(({ url, filename, size, content_type }) => ({ url, filename, size, content_type })),
         clientNonce: messageId,

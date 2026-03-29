@@ -132,11 +132,12 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   }, [])
 
   // Mention autocomplete
-  const { activeServerId, members: membersByServer } = useAppStore(
-    useShallow((s) => ({ activeServerId: s.activeServerId, members: s.members }))
+  const { activeServerId, members: membersByServer, serverRoles: rolesByServer } = useAppStore(
+    useShallow((s) => ({ activeServerId: s.activeServerId, members: s.members, serverRoles: s.serverRoles }))
   )
   const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
-  const mention = useMentionAutocomplete({ content, cursorPosition, members })
+  const roles = activeServerId ? rolesByServer[activeServerId] ?? [] : []
+  const mention = useMentionAutocomplete({ content, cursorPosition, members, roles })
 
   // Slash command state (needed by moderation hook below)
   const [appCommands, setAppCommands] = useState<SlashCommand[]>([])
@@ -585,8 +586,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     }
   }
 
-  function insertMention(member: typeof members[number]) {
-    const { newContent, newCursorPosition } = mention.selectMember(member)
+  function insertMention(suggestion: Parameters<typeof mention.selectSuggestion>[0]) {
+    const { newContent, newCursorPosition } = mention.selectSuggestion(suggestion)
     setContent(newContent)
     onDraftChange(newContent)
     setCursorPosition(newCursorPosition)
@@ -1049,11 +1050,11 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           {mention.isOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-1 z-50">
               <MentionSuggestions
-                members={mention.filteredMembers}
+                suggestions={mention.filteredSuggestions}
                 selectedIndex={mention.selectedIndex}
                 query={mention.query ?? ""}
-                onSelect={(member) => {
-                  insertMention(member)
+                onSelect={(suggestion) => {
+                  insertMention(suggestion)
                   textareaRef.current?.focus()
                 }}
               />

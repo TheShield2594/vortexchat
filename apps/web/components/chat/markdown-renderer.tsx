@@ -104,6 +104,12 @@ const remarkMentions = splitTextByPattern(
   (m) => `<vortex-mention data-uid="${m[1]}"></vortex-mention>`,
 )
 
+/** Remark plugin: <@&roleId> → <vortex-role-mention> elements. */
+const remarkRoleMentions = splitTextByPattern(
+  /<@&(\w+)>/g,
+  (m) => `<vortex-role-mention data-rid="${m[1]}"></vortex-role-mention>`,
+)
+
 /** Remark plugin: ||spoiler|| → <vortex-spoiler> elements. */
 const remarkSpoiler = splitTextByPattern(
   /\|\|([\s\S]*?)\|\|/g,
@@ -450,6 +456,25 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
       )
     },
 
+    "vortex-role-mention": ({ node, ...props }: any) => {
+      const rid = props.dataRid ?? props["data-rid"] ?? node?.properties?.dataRid ?? ""
+      const roles = serverId ? useAppStore.getState().serverRoles[serverId] ?? [] : []
+      const role = roles.find((r) => r.id === rid)
+      const roleColor = role?.color && role.color !== "#000000" ? role.color : "var(--theme-accent)"
+      return (
+        <span
+          className="px-0.5 rounded cursor-pointer"
+          style={{
+            color: roleColor,
+            background: `${roleColor}1a`,
+          }}
+          title={role ? `Role: ${role.name}` : rid}
+        >
+          @{role?.name ?? rid}
+        </span>
+      )
+    },
+
     "vortex-timestamp": ({ node, ...props }: any) => {
       const epoch = parseInt(props.dataEpoch ?? props["data-epoch"] ?? node?.properties?.dataEpoch ?? "0", 10)
       const format = props.dataFormat ?? props["data-format"] ?? node?.properties?.dataFormat ?? "f"
@@ -479,7 +504,7 @@ function preProcessContent(content: string): string {
 
 // ─── Stable plugin arrays ───────────────────────────────────────────────────
 
-const remarkPlugins = [remarkGfm, remarkBreaks, remarkCustomEmoji, remarkMentions, remarkSpoiler, remarkTimestamps, remarkUnicodeEmoji]
+const remarkPlugins = [remarkGfm, remarkBreaks, remarkCustomEmoji, remarkMentions, remarkRoleMentions, remarkSpoiler, remarkTimestamps, remarkUnicodeEmoji]
 const sanitizeSchema = {
   ...defaultSchema,
   tagNames: [
@@ -487,6 +512,7 @@ const sanitizeSchema = {
     // Custom elements produced by our remark plugins
     "vortex-emoji",
     "vortex-mention",
+    "vortex-role-mention",
     "vortex-spoiler",
     "vortex-timestamp",
   ],
@@ -494,6 +520,7 @@ const sanitizeSchema = {
     ...defaultSchema.attributes,
     "vortex-emoji": ["dataName"],
     "vortex-mention": ["dataUid"],
+    "vortex-role-mention": ["dataRid"],
     "vortex-timestamp": ["dataEpoch", "dataFormat"],
     // Allow only src and alt on img — className/draggable/loading are hardcoded
     // in the component handler, not parsed from HTML attributes

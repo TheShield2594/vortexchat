@@ -17,6 +17,13 @@ export interface MemberForMention {
   nickname: string | null
 }
 
+export interface RoleForMention {
+  id: string
+  name: string
+  color: string
+  mentionable: boolean
+}
+
 interface AppState {
   // Current user
   currentUser: UserRow | null
@@ -41,6 +48,10 @@ interface AppState {
   // Members (for mention autocomplete)
   members: Record<string, MemberForMention[]> // serverId -> members
   setMembers: (serverId: string, members: MemberForMention[]) => void
+
+  // Roles (for @role mention autocomplete + rendering)
+  serverRoles: Record<string, RoleForMention[]> // serverId -> roles
+  setServerRoles: (serverId: string, roles: RoleForMention[]) => void
 
   // Active state
   activeServerId: string | null
@@ -159,6 +170,10 @@ export const useAppStore = create<AppState>((set) => ({
   members: {},
   setMembers: (serverId, members) =>
     set((state) => ({ members: { ...state.members, [serverId]: members } })),
+
+  serverRoles: {},
+  setServerRoles: (serverId, roles) =>
+    set((state) => ({ serverRoles: { ...state.serverRoles, [serverId]: roles } })),
 
   activeServerId: null,
   activeChannelId: null,
