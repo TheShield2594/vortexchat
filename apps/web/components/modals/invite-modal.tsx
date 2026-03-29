@@ -44,12 +44,17 @@ const USE_OPTIONS = [
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
-  async function handleCopy() {
+  async function handleCopy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch { /* clipboard unavailable */ }
+    } catch (error: unknown) {
+      setCopied(false)
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[InviteModal] copy invite link failed", { action: "copy_invite_link", error })
+      }
+    }
   }
   return (
     <button

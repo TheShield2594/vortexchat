@@ -12,12 +12,21 @@ export async function handleAuthError(response: Response): Promise<Response> {
       const supabase = createClientSupabaseClient()
       const { error } = await supabase.auth.refreshSession()
       if (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[api-client.handleAuthError] refreshSession failed", { status: response.status, reason: error.message })
+        }
         // Session is truly expired — redirect to login
         if (typeof window !== "undefined") {
           window.location.href = "/login?expired=true"
         }
       }
-    } catch {
+    } catch (err: unknown) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[api-client.handleAuthError] refreshSession threw", {
+          status: response.status,
+          reason: err instanceof Error ? err.message : String(err),
+        })
+      }
       // refreshSession threw — treat as expired
       if (typeof window !== "undefined") {
         window.location.href = "/login?expired=true"

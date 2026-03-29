@@ -70,7 +70,7 @@ export function MobileOverlay() {
     mql.addEventListener("change", sync)
 
     return () => {
-      main.removeAttribute("inert")
+      main?.removeAttribute("inert")
       mql.removeEventListener("change", sync)
     }
   }, [sidebarOpen])

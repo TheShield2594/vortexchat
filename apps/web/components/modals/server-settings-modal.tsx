@@ -1928,6 +1928,7 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
         if (process.env.NODE_ENV !== "production") {
           console.warn("[ServerSettingsModal] clipboard write failed", { action: "copyNewInvite", serverId })
         }
+        toast({ variant: "destructive", title: "Copy failed" })
       }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to create invite", description: error.message })
