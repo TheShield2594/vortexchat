@@ -79,11 +79,21 @@ export async function GET(
     // stored URL (which may have expired — signed URLs have a 7-day TTL).
     const storagePath = extractStoragePath(attachment.url)
     if (!storagePath) {
+      let urlPath: string | null = null
+      try {
+        urlPath = new URL(attachment.url).pathname
+      } catch {
+        urlPath = null
+      }
       console.error("[attachments/download] failed to extract storage path", {
+        route: "/api/attachments/[attachmentId]/download",
+        userId: user.id,
+        action: "extractStoragePath",
         attachmentId: attachment.id,
-        url: attachment.url.substring(0, 120),
+        urlPath,
       })
-      return NextResponse.json({ error: "Attachment unavailable" }, { status: 500 })
+      // Fallback to stored URL to preserve redirect semantics for img/video/audio src consumers
+      return NextResponse.redirect(attachment.url)
     }
 
     const { data: signedData, error: signError } = await supabase.storage
@@ -92,11 +102,15 @@ export async function GET(
 
     if (signError || !signedData?.signedUrl) {
       console.error("[attachments/download] signed URL creation failed", {
+        route: "/api/attachments/[attachmentId]/download",
+        userId: user.id,
+        action: "createSignedUrl",
         attachmentId: attachment.id,
         storagePath,
         error: signError?.message,
       })
-      return NextResponse.json({ error: "Failed to generate download link" }, { status: 500 })
+      // Fallback to stored URL to preserve redirect semantics for img/video/audio src consumers
+      return NextResponse.redirect(attachment.url)
     }
 
     return NextResponse.redirect(signedData.signedUrl)

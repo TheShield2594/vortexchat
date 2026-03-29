@@ -153,7 +153,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const body = JSON.stringify({ eventType, payload, channelId: channel.id, serverId, timestamp: Date.now() })
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon("/api/t/ccb", body)
+        navigator.sendBeacon("/api/t/ccb", new Blob([body], { type: "application/json" }))
       } else {
         fetch("/api/t/ccb", { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {})
       }
