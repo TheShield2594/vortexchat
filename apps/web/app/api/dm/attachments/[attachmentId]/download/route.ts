@@ -10,11 +10,12 @@ export async function GET(
   if (authError) return authError
 
   try {
-    const { data: attachment, error } = await supabase
+    // dm_attachments table is not yet in generated Supabase types
+    const { data: attachment, error } = await (supabase as any)
       .from("dm_attachments")
       .select("id, url, dm_id, filename, content_type")
       .eq("id", attachmentId)
-      .maybeSingle()
+      .maybeSingle() as { data: { id: string; url: string; dm_id: string; filename: string; content_type: string } | null; error: any }
 
     if (error) return NextResponse.json({ error: "Failed to fetch attachment" }, { status: 500 })
     if (!attachment) return NextResponse.json({ error: "Attachment not found" }, { status: 404 })
@@ -26,7 +27,7 @@ export async function GET(
       .eq("id", attachment.dm_id)
       .maybeSingle()
 
-    if (!dm) return NextResponse.json({ error: "Attachment not accessible" }, { status: 403 })
+    if (!dm?.dm_channel_id) return NextResponse.json({ error: "Attachment not accessible" }, { status: 403 })
 
     // Verify the user is a member of this DM channel
     const { data: membership } = await supabase

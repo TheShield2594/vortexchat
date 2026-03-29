@@ -842,7 +842,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       const msg = await sendDmPayload({ content: outbound })
       if (msg) {
         // Store attachment metadata in dm_attachments table for proxy access
-        await supabase.from("dm_attachments").insert({
+        // dm_attachments table not yet in generated Supabase types
+        await (supabase as any).from("dm_attachments").insert({
           dm_id: msg.id,
           url: signedUrl,
           filename: file.name,

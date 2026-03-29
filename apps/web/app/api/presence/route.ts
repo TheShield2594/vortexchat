@@ -32,7 +32,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const supabase = await createServerSupabaseClient()
     const { error: updateError } = await supabase
       .from("users")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({ status: status as "online" | "idle" | "dnd" | "invisible" | "offline", updated_at: new Date().toISOString() })
       .eq("id", user.id)
 
     if (updateError) {
