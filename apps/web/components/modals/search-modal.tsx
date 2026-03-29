@@ -7,6 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils/cn"
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 type SearchResult = any
 
@@ -146,6 +147,8 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
         className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col"
         style={{ background: "var(--theme-bg-secondary)", maxHeight: "70vh" }}
       >
+        <DialogTitle className="sr-only">Search Messages</DialogTitle>
+        <DialogDescription className="sr-only">Search messages across this server</DialogDescription>
         {/* Search input row */}
         <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
           <Search className="w-5 h-5 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />

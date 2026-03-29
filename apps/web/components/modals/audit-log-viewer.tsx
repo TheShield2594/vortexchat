@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { format } from "date-fns"
 import { Shield, UserX, Ban, Loader2 } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 interface AuditEntry {
   id: string
@@ -72,6 +73,8 @@ export function AuditLogViewer({ serverId }: { serverId: string }) {
 
   return (
     <div className="space-y-1 max-h-96 overflow-y-auto">
+      <DialogTitle className="sr-only">Audit Log</DialogTitle>
+      <DialogDescription className="sr-only">View server audit log entries</DialogDescription>
       {entries.map((entry) => {
         const actorName = entry.actor?.display_name || entry.actor?.username || "Unknown"
         const targetName = entry.target?.display_name || entry.target?.username || "Unknown"

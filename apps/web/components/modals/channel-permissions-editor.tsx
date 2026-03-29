@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { PERMISSIONS, type Permission } from "@vortex/shared"
 import { detectChannelOverwriteRisks, type PermissionRisk } from "@/lib/permission-simulation"
@@ -127,6 +128,8 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
 
   return (
     <div className="flex gap-3 h-72">
+      <DialogTitle className="sr-only">Channel Permissions</DialogTitle>
+      <DialogDescription className="sr-only">Configure channel permission overrides</DialogDescription>
       {/* Role list */}
       <div className="w-40 flex-shrink-0 space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>Roles</p>

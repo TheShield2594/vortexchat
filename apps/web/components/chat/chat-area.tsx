@@ -21,6 +21,7 @@ const SearchModal = lazy(() => import("@/components/modals/search-modal").then((
 const CreateThreadModal = lazy(() => import("@/components/modals/create-thread-modal").then((m) => ({ default: m.CreateThreadModal })))
 const KeyboardShortcutsModal = lazy(() => import("@/components/modals/keyboard-shortcuts-modal").then((m) => ({ default: m.KeyboardShortcutsModal })))
 import { WorkspacePanel } from "@/components/chat/workspace-panel"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
@@ -1617,30 +1618,34 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         <ConnectionBanner />
 
         {showSearchModal && (
-          <Suspense fallback={null}>
-            <SearchModal
-              serverId={serverId}
-              onClose={() => setShowSearchModal(false)}
-              onJumpToMessage={(channelId, messageId) => router.push(`/channels/${serverId}/${channelId}?message=${messageId}`)}
-            />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <SearchModal
+                serverId={serverId}
+                onClose={() => setShowSearchModal(false)}
+                onJumpToMessage={(channelId, messageId) => router.push(`/channels/${serverId}/${channelId}?message=${messageId}`)}
+              />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
         {showKeyboardShortcuts && (
-          <Suspense fallback={null}>
-            <KeyboardShortcutsModal
-              open={showKeyboardShortcuts}
-              onOpenChange={setShowKeyboardShortcuts}
-              handlers={{
-                onSearch: () => setShowSearchModal(true),
-                onSearchInChannel: () => setShowSearchModal(true),
-                onToggleMemberList: toggleMemberList,
-                onToggleThreadPanel: toggleThreadPanel,
-                onToggleWorkspacePanel: toggleWorkspacePanel,
-                onOpenShortcutHelp: () => setShowKeyboardShortcuts(true),
-              }}
-            />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <KeyboardShortcutsModal
+                open={showKeyboardShortcuts}
+                onOpenChange={setShowKeyboardShortcuts}
+                handlers={{
+                  onSearch: () => setShowSearchModal(true),
+                  onSearchInChannel: () => setShowSearchModal(true),
+                  onToggleMemberList: toggleMemberList,
+                  onToggleThreadPanel: toggleThreadPanel,
+                  onToggleWorkspacePanel: toggleWorkspacePanel,
+                  onOpenShortcutHelp: () => setShowKeyboardShortcuts(true),
+                }}
+              />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
@@ -1910,15 +1915,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       {activeThread && threadPanelOpen && (
         <div data-state="open" className="panel-surface-motion" style={{ ["--panel-transform-origin" as string]: "center right" }}>
-          <Suspense fallback={null}>
-            <ThreadPanel
-              thread={activeThread}
-              currentUserId={currentUserId}
-              onClose={() => setThreadPanelOpen(false)}
-              onThreadUpdate={(updated) => setActiveThread(updated)}
-              focusMessageId={openThreadId ? jumpToMessageId : null}
-            />
-          </Suspense>
+          <ErrorBoundary fallback={<p style={{ padding: "16px", color: "var(--theme-text-secondary)" }}>Thread failed to load.</p>}>
+            <Suspense fallback={null}>
+              <ThreadPanel
+                thread={activeThread}
+                currentUserId={currentUserId}
+                onClose={() => setThreadPanelOpen(false)}
+                onThreadUpdate={(updated) => setActiveThread(updated)}
+                focusMessageId={openThreadId ? jumpToMessageId : null}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       )}
 
@@ -1937,21 +1944,25 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         />
       )}
 
-      <WorkspacePanel channelId={channel.id} open={workspaceOpen} onClose={toggleWorkspacePanel} />
+      <ErrorBoundary fallback={<p style={{ padding: "16px", color: "var(--theme-text-secondary)" }}>Workspace panel failed to load.</p>}>
+        <WorkspacePanel channelId={channel.id} open={workspaceOpen} onClose={toggleWorkspacePanel} />
+      </ErrorBoundary>
 
       {showCreateChannelThread && (
-        <Suspense fallback={null}>
-          <CreateThreadModal
-            open={showCreateChannelThread}
-            onClose={() => setShowCreateChannelThread(false)}
-            channelId={channel.id}
-            onCreated={(thread) => {
-              setActiveThread(thread)
-              setThreadPanelOpen(true)
-              setShowCreateChannelThread(false)
-            }}
-          />
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={null}>
+            <CreateThreadModal
+              open={showCreateChannelThread}
+              onClose={() => setShowCreateChannelThread(false)}
+              channelId={channel.id}
+              onCreated={(thread) => {
+                setActiveThread(thread)
+                setThreadPanelOpen(true)
+                setShowCreateChannelThread(false)
+              }}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
     </div>
   )

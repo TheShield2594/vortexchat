@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Copy, Check, Trash2, Plus, Loader2, X, Link } from "lucide-react"
 import { format } from "date-fns"
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 interface Invite {
   code: string
@@ -111,6 +112,8 @@ export function InviteModal({ serverId, serverName, onClose }: Props) {
         className="w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col"
         style={{ background: "var(--theme-bg-secondary)", maxHeight: "80vh" }}
       >
+        <DialogTitle className="sr-only">Invite People</DialogTitle>
+        <DialogDescription className="sr-only">Invite people to this server</DialogDescription>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
           <div>

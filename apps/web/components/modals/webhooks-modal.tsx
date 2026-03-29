@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Loader2, Plus, Trash2, Copy, Check, Webhook } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { copyToClipboard, createWebhook, deleteWebhook, formatChannelName } from "@/lib/webhooks"
 
@@ -106,6 +106,7 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
             <Webhook className="w-5 h-5" style={{ color: "var(--theme-accent)" }} />
             Webhooks
           </DialogTitle>
+          <DialogDescription className="sr-only">Manage server webhooks</DialogDescription>
           <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
             Create URLs that allow external services to post messages to your server.
           </p>

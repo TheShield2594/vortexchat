@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { ServerRow } from "@/types/database"
 
 interface Props {
@@ -82,6 +83,8 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
 
   return (
     <div className="space-y-3">
+      <DialogTitle className="sr-only">Server Template Manager</DialogTitle>
+      <DialogDescription className="sr-only">Manage server templates</DialogDescription>
       <div className="space-y-1">
         <Label className="text-xs uppercase" style={{ color: 'var(--theme-text-secondary)' }}>Starter blueprint</Label>
         <select

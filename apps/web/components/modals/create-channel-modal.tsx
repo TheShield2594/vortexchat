@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Hash, Volume2, FolderOpen, MessageSquare, Mic2, Megaphone, Image, Clock } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -167,6 +167,7 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
       <DialogContent style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)', maxWidth: '460px' }}>
         <DialogHeader>
           <DialogTitle className="text-white">Create Channel</DialogTitle>
+          <DialogDescription className="sr-only">Create a new channel in this server</DialogDescription>
           {categoryId && (
             <p className="text-sm" style={{ color: 'var(--theme-text-secondary)' }}>in a category</p>
           )}

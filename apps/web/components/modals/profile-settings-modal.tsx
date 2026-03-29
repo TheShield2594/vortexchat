@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useRouter } from "next/navigation"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -497,6 +497,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
           <div className="flex-1 overflow-y-auto p-6">
                 <DialogHeader className="mb-6 space-y-1">
                   <DialogTitle className="text-2xl font-semibold leading-tight text-white">{tabMeta[activeTab].title}</DialogTitle>
+                  <DialogDescription className="sr-only">Edit your profile settings</DialogDescription>
                   <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>{tabMeta[activeTab].subtitle}</p>
                 </DialogHeader>
 

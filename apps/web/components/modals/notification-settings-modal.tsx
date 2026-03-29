@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Bell, BellOff, AtSign, Loader2 } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useAppStore } from "@/lib/stores/app-store"
 
 type Mode = "all" | "mentions" | "muted"
@@ -59,6 +59,7 @@ export function NotificationSettingsModal({ open, onClose, serverId, channelId, 
       <DialogContent style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }} className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-white">Notification Settings</DialogTitle>
+          <DialogDescription className="sr-only">Configure notification preferences</DialogDescription>
           <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>{label}</p>
         </DialogHeader>
 

@@ -28,13 +28,25 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "VortexChat",
   },
+  openGraph: {
+    title: "VortexChat — Chat, Hang Out, Belong",
+    description: "The chat platform for focused teams and creative communities",
+    siteName: "VortexChat",
+    type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "VortexChat" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VortexChat — Chat, Hang Out, Belong",
+    description: "The chat platform for focused teams and creative communities",
+    images: ["/og-image.png"],
+  },
 }
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
   themeColor: "#00e5ff",

@@ -14,6 +14,7 @@ import { format } from "date-fns"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { LocalSearchResult } from "@/lib/local-search-index"
 
 interface Props {
@@ -111,6 +112,8 @@ export function DmLocalSearchModal({
         className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col"
         style={{ background: "var(--theme-bg-secondary)", maxHeight: "70vh" }}
       >
+        <DialogTitle className="sr-only">Search Direct Messages</DialogTitle>
+        <DialogDescription className="sr-only">Search messages in this conversation</DialogDescription>
         {/* Header */}
         <div
           className="flex items-center gap-3 px-4 py-3 border-b"

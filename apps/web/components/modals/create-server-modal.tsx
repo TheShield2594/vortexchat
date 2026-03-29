@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Upload, X } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -175,6 +175,7 @@ export function CreateServerModal({ open, onClose }: Props) {
                 ? "Join a Server"
                 : "Import a Blueprint"}
           </DialogTitle>
+          <DialogDescription className="sr-only">Create a new server</DialogDescription>
           <p className="text-center text-sm" style={{ color: 'var(--theme-text-secondary)' }}>
             {mode === "create"
               ? "Give your server a personality with a name and icon."
