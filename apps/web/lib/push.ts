@@ -136,6 +136,7 @@ export async function sendPushToChannel(opts: {
   senderName: string
   content: string
   mentionedIds?: string[]
+  mentionEveryone?: boolean
   excludeUserId: string
 }): Promise<void> {
   try {
@@ -145,7 +146,7 @@ export async function sendPushToChannel(opts: {
   }
   ensureVapid()
 
-  const { serverId, channelId, threadId, dmChannelId, senderName, content, mentionedIds = [], excludeUserId } = opts
+  const { serverId, channelId, threadId, dmChannelId, senderName, content, mentionedIds = [], mentionEveryone = false, excludeUserId } = opts
   const mentionedSet = new Set(mentionedIds)
   const supabase = await createServerSupabaseClient()
 
@@ -353,7 +354,7 @@ export async function sendPushToChannel(opts: {
 
   await Promise.allSettled(
     memberIds.map((uid) => {
-      const eventType = mentionedSet.has(uid) ? "mention" : "message"
+      const eventType = (mentionEveryone || mentionedSet.has(uid)) ? "mention" : "message"
       const resolved = resolveNotification(
         uid,
         serverId ?? null,

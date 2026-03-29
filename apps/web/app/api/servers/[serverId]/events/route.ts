@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+import { sendPushToUser } from "@/lib/push"
 
 // New columns (event_type, external_url, banner_url) from migration 00060 are not yet
 // reflected in the generated Supabase types. We use a typed interface and cast to any
@@ -201,8 +202,9 @@ export async function POST(
       .select("user_id")
       .eq("server_id", params.serverId)
     if (members?.length) {
+      // In-app notifications
       await service.from("notifications").insert(
-        members.map((member: any) => ({
+        members.map((member: { user_id: string }) => ({
           user_id: member.user_id,
           type: "system" as const,
           title: `New event: ${title}`,
@@ -211,6 +213,23 @@ export async function POST(
           channel_id: body.linkedChannelId ?? null,
         }))
       )
+
+      // Push notifications for all server members (except event creator)
+      const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", params.serverId).maybeSingle()
+      const serverName = serverInfo?.name ?? "a server"
+      const startDate = body.startAt ? new Date(body.startAt).toLocaleString() : ""
+      Promise.allSettled(
+        members
+          .filter((m: { user_id: string }) => m.user_id !== user.id)
+          .map((m: { user_id: string }) =>
+            sendPushToUser(m.user_id, {
+              title: `📅 New event in ${serverName}`,
+              body: `${title}${startDate ? ` — ${startDate}` : ""}`,
+              url: `/channels/${params.serverId}`,
+              tag: `event-${created.id}`,
+            })
+          )
+      ).catch(() => {})
     }
   }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
+import { sendPushToUser } from "@/lib/push"
 
 interface Body {
   emoji?: string
@@ -54,6 +55,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
     .upsert({ message_id: messageId, user_id: user.id, emoji }, { onConflict: "message_id,user_id,emoji", ignoreDuplicates: true })
 
   if (error) return NextResponse.json({ error: "Failed to add reaction" }, { status: 500 })
+
+  // Notify the message author about the reaction (fire-and-forget)
+  if (message.author_id && message.author_id !== user.id) {
+    const { data: reactor } = await supabase
+      .from("users")
+      .select("display_name, username")
+      .eq("id", user.id)
+      .maybeSingle()
+    const reactorName = reactor?.display_name || reactor?.username || "Someone"
+    const channelServerId2 = (message as unknown as { channels?: { server_id?: string } })?.channels?.server_id
+    sendPushToUser(message.author_id, {
+      title: `${reactorName} reacted ${emoji}`,
+      body: "to your message",
+      url: channelServerId2
+        ? `/channels/${channelServerId2}/${message.channel_id}`
+        : "/channels/me",
+      tag: `reaction-${messageId}`,
+    }).catch(() => {})
+  }
 
   return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
 }

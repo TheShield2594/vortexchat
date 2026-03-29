@@ -732,12 +732,19 @@ export async function POST(request: Request) {
     })
     .catch((err) => { console.error("messages POST: in-app notification insert failed", err) })
 
+  // When @everyone/@here is used, treat all channel members as mentioned
+  // so they receive push notifications even if their mode is "mentions only"
+  const pushMentionedIds = mentionEveryone
+    ? undefined // handled below — we pass a flag instead
+    : safeMentions
+
   sendPushToChannel({
     serverId: channel.server_id,
     channelId,
     senderName,
     content: content?.trim() ?? "Sent an attachment",
-    mentionedIds: safeMentions,
+    mentionedIds: pushMentionedIds,
+    mentionEveryone,
     excludeUserId: user.id,
   }).catch((err) => { console.error("messages POST: sendPushToChannel failed", err) })
 

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { sendPushToChannel } from "@/lib/push"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/pin")
 
 // PUT /api/messages/[messageId]/pin — pin a message
 export async function PUT(
@@ -57,6 +61,22 @@ export async function PUT(
     target_id: messageId,
     target_type: "message",
   })
+
+  // Notify channel members about the pinned message
+  const { data: pinner } = await supabase
+    .from("users")
+    .select("display_name, username")
+    .eq("id", user.id)
+    .maybeSingle()
+  const pinnerName = pinner?.display_name || pinner?.username || "Someone"
+
+  sendPushToChannel({
+    serverId,
+    channelId,
+    senderName: `📌 ${pinnerName}`,
+    content: "pinned a message",
+    excludeUserId: user.id,
+  }).catch((err) => { log.error({ err }, "Failed to send pin push notification") })
 
   return NextResponse.json({ message: "Pinned" })
 }

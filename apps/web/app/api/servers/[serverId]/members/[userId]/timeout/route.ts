@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { PERMISSIONS } from "@vortex/shared"
+import { sendPushToUser } from "@/lib/push"
 
 const MAX_TIMEOUT_SECONDS = 2_419_200  // 28 days
 
@@ -91,6 +92,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
       target_type: "user",
       changes: { duration_seconds, reason: reason ?? null, until },
     })
+
+    // Notify the timed-out user
+    const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", serverId).maybeSingle()
+    sendPushToUser(userId, {
+      title: `Timed out in ${serverInfo?.name ?? "a server"}`,
+      body: reason ? `Reason: ${reason}` : `You are timed out until ${new Date(until).toLocaleString()}`,
+      url: `/channels/${serverId}`,
+      tag: `timeout-${serverId}`,
+    }).catch(() => {})
 
     return NextResponse.json({ message: "Member timed out", until })
   } catch {

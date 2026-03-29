@@ -4,6 +4,7 @@ import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { isTerminalAppealStatus, isValidAppealStatus, isValidAppealTransition } from "@/lib/appeals"
 import { canModerate } from "@/lib/moderation-auth"
 import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
+import { sendPushToUser } from "@/lib/push"
 
 export async function GET(
   _req: NextRequest,
@@ -198,6 +199,14 @@ export async function PATCH(
       console.warn("Failed appeal notification insert", { appealId, moderatorId: user.id, action: "status_update", error: notificationError })
       return NextResponse.json({ error: "Failed to send notifications" }, { status: 500 })
     }
+
+    // Push notification to the appeal owner about the status change
+    sendPushToUser(appeal.user_id, {
+      title: "Appeal updated",
+      body: `Your appeal status is now ${nextStatus}.`,
+      url: `/appeals`,
+      tag: `appeal-${appealId}`,
+    }).catch(() => {})
   }
 
   return NextResponse.json({ message: "Appeal updated" })

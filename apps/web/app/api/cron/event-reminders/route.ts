@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
+import { sendPushToUser } from "@/lib/push"
 
 /**
  * Notify RSVP'd members about events starting within 10–20 minutes.
@@ -67,6 +68,18 @@ export async function GET(request: Request) {
     } else {
       totalNotified += notifications.length
     }
+
+    // Push notifications for RSVP'd members
+    Promise.allSettled(
+      rsvps.map((r: { user_id: string }) =>
+        sendPushToUser(r.user_id, {
+          title: `⏰ Starting soon: ${event.title}`,
+          body: `${event.title} starts in about 15 minutes.`,
+          url: `/channels/${event.server_id}`,
+          tag: `event-reminder-${event.id}`,
+        })
+      )
+    ).catch(() => {})
   }
 
   return NextResponse.json({ notified: totalNotified, eventsProcessed: events.length })
