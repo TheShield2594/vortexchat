@@ -139,10 +139,6 @@ function extractStoragePath(url: string): string | null {
     const renderMatch = parsed.pathname.match(/\/(?:storage\/v1\/)?render\/image\/(?:public|authenticated)\/attachments\/(.+)/)
     if (renderMatch?.[1]) return decodeURIComponent(renderMatch[1])
 
-    // Generic fallback: anything after /attachments/ in the path
-    const genericMatch = parsed.pathname.match(/\/attachments\/(.+)/)
-    if (genericMatch?.[1]) return decodeURIComponent(genericMatch[1])
-
     return null
   } catch {
     return null

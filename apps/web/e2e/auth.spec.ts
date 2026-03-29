@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { hasSupabase } from "./utils"
 
 /**
  * E2E tests for the authentication flow.
@@ -14,9 +15,6 @@ import { test, expect } from "@playwright/test"
 const TEST_EMAIL = `e2e-${Date.now()}@test.local`
 const TEST_PASSWORD = "Test1234!@#$"
 const TEST_USERNAME = `e2euser${Date.now()}`
-
-const hasSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL
-  && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
 
 test.describe("Authentication", () => {
   test("register page loads and shows form", async ({ page }) => {

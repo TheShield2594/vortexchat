@@ -153,12 +153,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const body = JSON.stringify({ eventType, payload, channelId: channel.id, serverId, timestamp: Date.now() })
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon("/api/t/ccb", new Blob([body], { type: "application/json" }))
+        const queued = navigator.sendBeacon("/api/t/ccb", new Blob([body], { type: "application/json" }))
+        if (!queued) {
+          fetch("/api/t/ccb", { method: "POST", headers: { "Content-Type": "application/json" }, body })
+            .catch((err: unknown) => {
+              console.warn("[telemetry] send failed", { route: "/api/t/ccb", channelId: channel.id, error: err instanceof Error ? err.message : String(err) })
+            })
+        }
       } else {
-        fetch("/api/t/ccb", { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {})
+        fetch("/api/t/ccb", { method: "POST", headers: { "Content-Type": "application/json" }, body })
+          .catch((err: unknown) => {
+            console.warn("[telemetry] send failed", { route: "/api/t/ccb", channelId: channel.id, error: err instanceof Error ? err.message : String(err) })
+          })
       }
-    } catch {
-      // best-effort telemetry only
+    } catch (err) {
+      console.warn("[telemetry] send failed", { route: "/api/t/ccb", channelId: channel.id, error: err instanceof Error ? err.message : String(err) })
     }
   }, [channel.id, serverId])
 
