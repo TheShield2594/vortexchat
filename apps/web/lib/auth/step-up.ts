@@ -78,8 +78,10 @@ export async function hasValidStepUpToken(userId: string): Promise<boolean> {
     const issuedAt = Number(issuedAtRaw)
     if (!Number.isFinite(issuedAt)) return false
     return Date.now() - issuedAt <= STEP_UP_TTL_MS
-  } catch {
+  } catch (err) {
     // Crypto/parsing failure — treat as invalid token, never expose error details
+    const { createLogger } = await import("@/lib/logger")
+    createLogger("step-up").warn({ userId, err: err instanceof Error ? err.message : "unknown" }, "Step-up token validation failed")
     return false
   }
 }

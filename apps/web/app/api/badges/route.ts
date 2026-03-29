@@ -22,7 +22,8 @@ export async function GET() {
     }
 
     return NextResponse.json(badges)
-  } catch {
+  } catch (err) {
+    log.error({ err }, "Unexpected error in GET /api/badges")
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

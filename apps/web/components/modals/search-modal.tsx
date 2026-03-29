@@ -103,7 +103,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return
-      throw e
+      console.error("[SearchModal] Search failed:", e)
     } finally {
       if (!controller.signal.aborted) setLoading(false)
     }
@@ -339,8 +339,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
                           borderBottom: "1px solid var(--theme-bg-tertiary)",
                           background: idx === selectedIndex ? "var(--theme-surface-elevated)" : undefined,
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--theme-surface-elevated)"; setSelectedIndex(idx) }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = idx === selectedIndex ? "var(--theme-surface-elevated)" : "" }}
+                        onMouseEnter={() => setSelectedIndex(idx)}
                       >
                         <Avatar className="w-8 h-8 mt-0.5 flex-shrink-0">
                           {result.author?.avatar_url && <AvatarImage src={result.author.avatar_url} />}

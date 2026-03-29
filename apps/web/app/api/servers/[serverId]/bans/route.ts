@@ -52,6 +52,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -163,6 +164,10 @@ export async function POST(
   })
 
   return NextResponse.json({ message: "User banned" })
+  } catch (err) {
+    log.error({ err }, "Unexpected error in ban handler")
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 // DELETE /api/servers/[serverId]/bans?userId= — unban
@@ -170,6 +175,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
@@ -223,4 +229,8 @@ export async function DELETE(
   }
 
   return NextResponse.json({ message: "User unbanned" })
+  } catch (err) {
+    log.error({ err }, "Unexpected error in unban handler")
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

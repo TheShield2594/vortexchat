@@ -94,6 +94,7 @@ export function ProfileBadges({ userId }: ProfileBadgesProps) {
               <TooltipTrigger asChild>
                 <button
                   type="button"
+                  aria-label={`${badge.name}: ${badge.description}`}
                   className="w-8 h-8 rounded-lg flex items-center justify-center cursor-default transition-transform hover:scale-110"
                   style={{
                     background: `color-mix(in srgb, ${badge.color} 20%, var(--theme-bg-tertiary))`,
@@ -101,7 +102,7 @@ export function ProfileBadges({ userId }: ProfileBadgesProps) {
                     filter: glow,
                   } as React.CSSProperties}
                 >
-                  <Icon className="w-4 h-4" style={{ color: badge.color }} />
+                  <Icon className="w-4 h-4" aria-hidden="true" style={{ color: badge.color }} />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-52 text-center">

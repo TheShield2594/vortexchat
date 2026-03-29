@@ -133,7 +133,7 @@ export async function POST(
 
     // Fire-and-forget: post welcome message if Welcome Bot is configured
     if (!error) {
-      postWelcomeMessage(server.id, user.id).catch(() => {/* non-fatal */})
+      postWelcomeMessage(server.id, user.id) // errors logged internally
     }
 
     return NextResponse.json({ server_id: server.id, name: server.name })
@@ -147,6 +147,7 @@ export async function POST(
  * joins and the Welcome Bot app is installed + configured on the server.
  */
 async function postWelcomeMessage(serverId: string, userId: string): Promise<void> {
+  try {
   const serviceClient = await createServiceRoleClient()
 
   // Check if welcome app is configured and enabled
@@ -163,9 +164,9 @@ async function postWelcomeMessage(serverId: string, userId: string): Promise<voi
     .from("users")
     .select("display_name, username")
     .eq("id", userId)
-    .single()
+    .maybeSingle()
 
-  const memberName = profile?.display_name || profile?.username || "New Member"
+  const memberName = profile?.display_name ?? profile?.username ?? "New Member"
   const message = config.welcome_message.replace(/{user}/g, `**${memberName}**`)
 
   const rules = Array.isArray(config.rules) ? config.rules as string[] : []
@@ -178,4 +179,7 @@ async function postWelcomeMessage(serverId: string, userId: string): Promise<voi
     author_id: SYSTEM_BOT_ID,
     content: message + rulesSection,
   })
+  } catch (err) {
+    log.warn({ serverId, userId, err: err instanceof Error ? err.message : "unknown" }, "Failed to send welcome message")
+  }
 }
