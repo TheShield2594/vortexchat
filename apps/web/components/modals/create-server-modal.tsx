@@ -240,6 +240,9 @@ export function CreateServerModal({ open, onClose }: Props) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Awesome Server"
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                required
+                aria-required="true"
+                aria-invalid={name.length > 0 && !name.trim()}
                 style={{ background: 'var(--theme-bg-tertiary)', borderColor: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-primary)' }}
               />
             </div>

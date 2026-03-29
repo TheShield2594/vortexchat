@@ -716,6 +716,36 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     await persistAllChannelStructure()
   }
 
+  // Keyboard alternative for drag-and-drop channel reordering (Ctrl/Cmd+Alt+Arrow)
+  const moveActiveChannel = useCallback((direction: "up" | "down") => {
+    if (!canManageChannels || !activeChannelId) return
+    const containerId = findContainer(activeChannelId)
+    if (!containerId) return
+    const containerItems = [...(itemsRef.current[containerId] ?? [])]
+    const idx = containerItems.indexOf(activeChannelId)
+    if (idx === -1) return
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= containerItems.length) return
+    const reordered = arrayMove(containerItems, idx, targetIdx)
+    const next = { ...itemsRef.current, [containerId]: reordered }
+    itemsRef.current = next
+    containerIndexRef.current = buildContainerIndex(next)
+    setItems(next)
+    persistChannelOrder()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManageChannels, activeChannelId])
+
+  const moveChannelHandlers: ShortcutHandlers = useMemo(() =>
+    canManageChannels
+      ? {
+          onMoveChannelUp: () => moveActiveChannel("up"),
+          onMoveChannelDown: () => moveActiveChannel("down"),
+        }
+      : {},
+    [canManageChannels, moveActiveChannel]
+  )
+  useKeyboardShortcuts(moveChannelHandlers)
+
   const activeChannel = activeId ? channels.find((c) => c.id === activeId) : null
   const activeCategoryId = activeId ? getCategoryIdFromDragId(activeId) : null
   const activeCategory = activeCategoryId ? channels.find((c) => c.id === activeCategoryId) : null
@@ -743,7 +773,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div
+      <nav
+        aria-label="Channels"
         className="w-full md:w-60 h-full flex flex-col flex-shrink-0 channel-sidebar-surface"
       >
         {/* Server header */}
@@ -1029,7 +1060,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             onClose={() => setEditCategoryTarget(null)}
           />
         )}
-      </div>
+      </nav>
     </TooltipProvider>
   )
 }

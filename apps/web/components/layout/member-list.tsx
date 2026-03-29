@@ -62,6 +62,8 @@ export function MemberList({ serverId, initialMembers }: Props) {
   const previousPresenceRef = useRef<PresenceState>({})
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(!initialMembers?.length)
+  const [memberFetchError, setMemberFetchError] = useState<string | null>(null)
+  const [memberFetchKey, setMemberFetchKey] = useState(0)
   const [serverRoles, setServerRoles] = useState<RoleRow[]>([])
   const channelRef = useRef<RealtimeChannel | null>(null)
   const memberFetchControllerRef = useRef<AbortController | null>(null)
@@ -114,6 +116,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
       const encodedServerId = encodeURIComponent(serverId)
 
       setLoadingMembers(true)
+      setMemberFetchError(null)
       try {
         const response = await fetch(`/api/servers/${encodedServerId}/members`, {
           method: "GET",
@@ -151,6 +154,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
         if (error instanceof DOMException && error.name === "AbortError") return
 
         console.error("Failed to fetch members:", error)
+        setMemberFetchError(error instanceof Error ? error.message : "Failed to load members")
         setMembers([])
         useAppStore.getState().setMembers(serverId, [])
       } finally {
@@ -167,7 +171,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
       memberFetchControllerRef.current?.abort()
       memberFetchControllerRef.current = null
     }
-  }, [serverId, initialMembers])
+  }, [serverId, initialMembers, memberFetchKey])
 
   // Presence subscription (always runs regardless of SSR data)
   useEffect(() => {
@@ -322,8 +326,23 @@ export function MemberList({ serverId, initialMembers }: Props) {
           </div>
         )}
 
+        {!loadingMembers && memberFetchError && (
+          <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+            <p className="text-sm font-medium" style={{ color: "var(--theme-danger)" }}>
+              {memberFetchError}
+            </p>
+            <button
+              onClick={() => setMemberFetchKey((k) => k + 1)}
+              className="text-xs font-medium px-3 py-1.5 rounded-md focus-ring"
+              style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Online */}
-        {!loadingMembers && onlineMembers.length > 0 && (
+        {!loadingMembers && !memberFetchError && onlineMembers.length > 0 && (
           <div className="mb-2">
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"
@@ -349,7 +368,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
         )}
 
         {/* Offline */}
-        {!loadingMembers && offlineMembers.length > 0 && (
+        {!loadingMembers && !memberFetchError && offlineMembers.length > 0 && (
           <div>
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"

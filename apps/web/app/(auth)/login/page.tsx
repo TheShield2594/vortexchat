@@ -129,6 +129,7 @@ export default function LoginPage() {
   const [recoveryCode, setRecoveryCode] = useState("")
   const [mfaLoading, setMfaLoading] = useState(false)
   const [showPasskeyInfo, setShowPasskeyInfo] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
   const supabase = createClientSupabaseClient()
 
   // Show toast if redirected here due to expired session
@@ -148,6 +149,7 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
+    setLoginError(null)
     setLoading(true)
     try {
       const res = await fetch("/api/auth/login", {
@@ -164,7 +166,9 @@ export default function LoginPage() {
       }
 
       if (!res.ok) {
-        toast({ variant: "destructive", title: "Login failed", description: data.error || "Invalid credentials" })
+        const msg = data.error || "Invalid credentials"
+        setLoginError(msg)
+        toast({ variant: "destructive", title: "Login failed", description: msg })
         return
       }
 
@@ -185,6 +189,7 @@ export default function LoginPage() {
       window.location.href = safeDest
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Something went wrong"
+      setLoginError(message)
       toast({ variant: "destructive", title: "Login failed", description: message })
     } finally {
       setLoading(false)
@@ -509,10 +514,12 @@ export default function LoginPage() {
                 inputMode="email"
                 autoComplete="email"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => { setForm({ ...form, email: e.target.value }); setLoginError(null) }}
                 required
                 autoFocus
                 disabled={formBusy}
+                aria-invalid={!!loginError}
+                aria-describedby={loginError ? "login-error" : undefined}
                 className="auth-input h-10 border"
               />
             </div>
@@ -541,9 +548,11 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, password: e.target.value }); setLoginError(null) }}
                   required
                   disabled={formBusy}
+                  aria-invalid={!!loginError}
+                  aria-describedby={loginError ? "login-error" : undefined}
                   className="auth-input h-10 border pr-10"
                 />
                 <button
@@ -558,6 +567,11 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            {loginError && (
+              <p id="login-error" role="alert" className="text-xs font-medium" style={{ color: "var(--theme-danger)" }}>
+                {loginError}
+              </p>
+            )}
             <Button
               type="submit"
               disabled={formBusy}

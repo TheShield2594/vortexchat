@@ -1116,9 +1116,19 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
               el.addEventListener("touchend", onEnd, { once: true })
             }}
           >
-              {/* Drag handle — visible on mobile only */}
-              <div className="flex justify-center pt-1 pb-1 md:hidden" aria-hidden>
-                <div className="w-10 h-1 rounded-full" style={{ background: "var(--theme-bg-tertiary)" }} />
+              {/* Drag handle + close button — visible on mobile only */}
+              <div className="flex items-center justify-between pt-1 pb-1 md:hidden">
+                <div className="w-8" />
+                <div className="w-10 h-1 rounded-full" style={{ background: "var(--theme-bg-tertiary)" }} aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(false)}
+                  aria-label="Close picker"
+                  className="w-8 h-8 flex items-center justify-center rounded-full focus-ring"
+                  style={{ color: "var(--theme-text-muted)" }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
               <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
                 {([
