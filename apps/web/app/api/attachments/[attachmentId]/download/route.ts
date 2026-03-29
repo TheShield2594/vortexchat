@@ -78,18 +78,28 @@ export async function GET(
     // Create a fresh signed URL from the storage path rather than using the
     // stored URL (which may have expired — signed URLs have a 7-day TTL).
     const storagePath = extractStoragePath(attachment.url)
-    if (storagePath) {
-      const { data: signedData, error: signError } = await supabase.storage
-        .from("attachments")
-        .createSignedUrl(storagePath, 3600) // 1 hour
-
-      if (!signError && signedData?.signedUrl) {
-        return NextResponse.redirect(signedData.signedUrl)
-      }
+    if (!storagePath) {
+      console.error("[attachments/download] failed to extract storage path", {
+        attachmentId: attachment.id,
+        url: attachment.url.substring(0, 120),
+      })
+      return NextResponse.json({ error: "Attachment unavailable" }, { status: 500 })
     }
 
-    // Fallback to stored URL if path extraction fails
-    return NextResponse.redirect(attachment.url)
+    const { data: signedData, error: signError } = await supabase.storage
+      .from("attachments")
+      .createSignedUrl(storagePath, 3600) // 1 hour
+
+    if (signError || !signedData?.signedUrl) {
+      console.error("[attachments/download] signed URL creation failed", {
+        attachmentId: attachment.id,
+        storagePath,
+        error: signError?.message,
+      })
+      return NextResponse.json({ error: "Failed to generate download link" }, { status: 500 })
+    }
+
+    return NextResponse.redirect(signedData.signedUrl)
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
@@ -106,6 +116,18 @@ function extractStoragePath(url: string): string | null {
     // Supabase public URLs: /storage/v1/object/public/attachments/...
     const pubMatch = parsed.pathname.match(/\/(?:storage\/v1\/)?object\/public\/attachments\/(.+)/)
     if (pubMatch?.[1]) return decodeURIComponent(pubMatch[1])
+
+    // Supabase authenticated URLs: /storage/v1/object/authenticated/attachments/...
+    const authMatch = parsed.pathname.match(/\/(?:storage\/v1\/)?object\/authenticated\/attachments\/(.+)/)
+    if (authMatch?.[1]) return decodeURIComponent(authMatch[1])
+
+    // Render URLs: /storage/v1/render/image/public/attachments/...
+    const renderMatch = parsed.pathname.match(/\/(?:storage\/v1\/)?render\/image\/(?:public|authenticated)\/attachments\/(.+)/)
+    if (renderMatch?.[1]) return decodeURIComponent(renderMatch[1])
+
+    // Generic fallback: anything after /attachments/ in the path
+    const genericMatch = parsed.pathname.match(/\/attachments\/(.+)/)
+    if (genericMatch?.[1]) return decodeURIComponent(genericMatch[1])
 
     return null
   } catch {

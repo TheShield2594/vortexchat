@@ -153,9 +153,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const body = JSON.stringify({ eventType, payload, channelId: channel.id, serverId, timestamp: Date.now() })
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon("/api/telemetry/channel-command-bar", body)
+        navigator.sendBeacon("/api/t/ccb", body)
       } else {
-        fetch("/api/telemetry/channel-command-bar", { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {})
+        fetch("/api/t/ccb", { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {})
       }
     } catch {
       // best-effort telemetry only
