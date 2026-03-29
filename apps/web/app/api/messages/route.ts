@@ -446,52 +446,59 @@ async function insertMessageWithAttachments({
 }
 
 export async function GET(request: Request) {
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
+  try {
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
 
-  const { searchParams } = new URL(request.url)
-  const channelId = searchParams.get("channelId")
-  const before = searchParams.get("before")
-  const around = searchParams.get("around")
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 100)
+    const { searchParams } = new URL(request.url)
+    const channelId = searchParams.get("channelId")
+    const before = searchParams.get("before")
+    const around = searchParams.get("around")
+    const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 100)
 
-  if (!channelId) {
-    return NextResponse.json({ error: "channelId required" }, { status: 400 })
+    if (!channelId) {
+      return NextResponse.json({ error: "channelId required" }, { status: 400 })
+    }
+
+    const { error: channelError } = await getChannelForRead(supabase, channelId, user.id)
+    if (channelError) return channelError
+
+    if (around) {
+      const aroundResult = await getMessagesAroundTarget(supabase, channelId, around, limit)
+      if (aroundResult.error) return aroundResult.error
+      return NextResponse.json(aroundResult.data)
+    }
+
+    let query = supabase
+      .from("messages")
+      .select(MESSAGE_PROJECTION)
+      .eq("channel_id", channelId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+
+    if (before) {
+      query = query.lt("created_at", before)
+    }
+
+    const { data: messages, error } = await query
+
+    if (error) return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
+
+    return NextResponse.json(await withReplyTo(supabase, (messages ?? []).reverse()))
+
+  } catch (err) {
+    console.error("[messages GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const { error: channelError } = await getChannelForRead(supabase, channelId, user.id)
-  if (channelError) return channelError
-
-  if (around) {
-    const aroundResult = await getMessagesAroundTarget(supabase, channelId, around, limit)
-    if (aroundResult.error) return aroundResult.error
-    return NextResponse.json(aroundResult.data)
-  }
-
-  let query = supabase
-    .from("messages")
-    .select(MESSAGE_PROJECTION)
-    .eq("channel_id", channelId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(limit)
-
-  if (before) {
-    query = query.lt("created_at", before)
-  }
-
-  const { data: messages, error } = await query
-
-  if (error) return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
-
-  return NextResponse.json(await withReplyTo(supabase, (messages ?? []).reverse()))
 }
 
 export async function POST(request: Request) {
+  try {
   const t0 = performance.now()
   const lap = (label: string) => {
     const elapsed = (performance.now() - t0).toFixed(1)
-    console.log(`[msg-send] ${elapsed}ms — ${label}`)
+    console.info(`[msg-send] ${elapsed}ms — ${label}`)
   }
 
   const { supabase, user, error: authError } = await requireAuth()
@@ -792,4 +799,8 @@ export async function POST(request: Request) {
     : { ...message, reply_to: null }
   lap("total")
   return NextResponse.json(hydratedMessage, { status: 201 })
+  } catch (err) {
+    console.error("[messages POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

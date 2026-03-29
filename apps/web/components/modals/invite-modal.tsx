@@ -61,6 +61,7 @@ function CopyButton({ text }: { text: string }) {
       onClick={handleCopy}
       className="w-7 h-7 flex items-center justify-center rounded transition-colors hover:bg-white/10"
       title={copied ? "Copied!" : "Copy link"}
+      aria-label={copied ? "Copied" : "Copy invite link"}
       style={{ color: copied ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
     >
       {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -130,7 +131,7 @@ export function InviteModal({ serverId, serverName, onClose }: Props) {
               Share an invite link to let others join
             </p>
           </div>
-          <button onClick={onClose} style={{ color: "var(--theme-text-muted)" }} className="hover:text-white">
+          <button onClick={onClose} style={{ color: "var(--theme-text-muted)" }} className="hover:text-white" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -231,6 +232,7 @@ export function InviteModal({ serverId, serverName, onClose }: Props) {
                       className="w-7 h-7 flex items-center justify-center rounded transition-colors hover:bg-red-500/20"
                       style={{ color: "var(--theme-danger)" }}
                       title="Revoke"
+                      aria-label="Revoke invite"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

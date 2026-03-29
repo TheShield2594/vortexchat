@@ -47,54 +47,60 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string; userId: string }> }
 ) {
-  const { serverId, userId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId, userId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { roleId } = await req.json()
-  if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
+    const { roleId } = await req.json()
+    if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
 
-  const permissionError = await assertRoleMutationAllowed(
-    supabase,
-    serverId,
-    user.id,
-    roleId,
-    "Cannot assign a role at or above your own highest role"
-  )
-  if (permissionError) return permissionError
+    const permissionError = await assertRoleMutationAllowed(
+      supabase,
+      serverId,
+      user.id,
+      roleId,
+      "Cannot assign a role at or above your own highest role"
+    )
+    if (permissionError) return permissionError
 
-  const { data: roleData } = await supabase
-    .from("roles")
-    .select("id, name")
-    .eq("id", roleId)
-    .eq("server_id", serverId)
-    .single()
+    const { data: roleData } = await supabase
+      .from("roles")
+      .select("id, name")
+      .eq("id", roleId)
+      .eq("server_id", serverId)
+      .single()
 
-  const { error } = await supabase
-    .from("member_roles")
-    .insert({ server_id: serverId, user_id: userId, role_id: roleId })
+    const { error } = await supabase
+      .from("member_roles")
+      .insert({ server_id: serverId, user_id: userId, role_id: roleId })
 
-  if (error) {
-    if (error.code === "23505") return NextResponse.json({ ok: true }) // already assigned
-    return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
+    if (error) {
+      if (error.code === "23505") return NextResponse.json({ ok: true }) // already assigned
+      return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
+    }
+
+    await supabase.from("audit_logs").insert({
+      server_id: serverId,
+      actor_id: user.id,
+      action: "role_assigned",
+      target_id: userId,
+      target_type: "user",
+      changes: {
+        role_id: roleId,
+        role_name: roleData?.name ?? null,
+        before: { has_role: false },
+        after: { has_role: true },
+      },
+    })
+
+    return NextResponse.json({ ok: true })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/members/[userId]/roles POST] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  await supabase.from("audit_logs").insert({
-    server_id: serverId,
-    actor_id: user.id,
-    action: "role_assigned",
-    target_id: userId,
-    target_type: "user",
-    changes: {
-      role_id: roleId,
-      role_name: roleData?.name ?? null,
-      before: { has_role: false },
-      after: { has_role: true },
-    },
-  })
-
-  return NextResponse.json({ ok: true })
 }
 
 // DELETE /api/servers/[serverId]/members/[userId]/roles?roleId=... — remove a role
@@ -102,53 +108,59 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string; userId: string }> }
 ) {
-  const { serverId, userId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId, userId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const roleId = searchParams.get("roleId")
-  if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
+    const { searchParams } = new URL(req.url)
+    const roleId = searchParams.get("roleId")
+    if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
 
-  const permissionError = await assertRoleMutationAllowed(
-    supabase,
-    serverId,
-    user.id,
-    roleId,
-    "Cannot remove a role at or above your own highest role"
-  )
-  if (permissionError) return permissionError
+    const permissionError = await assertRoleMutationAllowed(
+      supabase,
+      serverId,
+      user.id,
+      roleId,
+      "Cannot remove a role at or above your own highest role"
+    )
+    if (permissionError) return permissionError
 
-  const { error } = await supabase
-    .from("member_roles")
-    .delete()
-    .eq("server_id", serverId)
-    .eq("user_id", userId)
-    .eq("role_id", roleId)
+    const { error } = await supabase
+      .from("member_roles")
+      .delete()
+      .eq("server_id", serverId)
+      .eq("user_id", userId)
+      .eq("role_id", roleId)
 
-  if (error) return NextResponse.json({ error: "Failed to remove role" }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to remove role" }, { status: 500 })
 
-  const { data: roleData } = await supabase
-    .from("roles")
-    .select("id, name")
-    .eq("id", roleId)
-    .eq("server_id", serverId)
-    .single()
+    const { data: roleData } = await supabase
+      .from("roles")
+      .select("id, name")
+      .eq("id", roleId)
+      .eq("server_id", serverId)
+      .single()
 
-  await supabase.from("audit_logs").insert({
-    server_id: serverId,
-    actor_id: user.id,
-    action: "role_removed",
-    target_id: userId,
-    target_type: "user",
-    changes: {
-      role_id: roleId,
-      role_name: roleData?.name ?? null,
-      before: { has_role: true },
-      after: { has_role: false },
-    },
-  })
+    await supabase.from("audit_logs").insert({
+      server_id: serverId,
+      actor_id: user.id,
+      action: "role_removed",
+      target_id: userId,
+      target_type: "user",
+      changes: {
+        role_id: roleId,
+        role_name: roleData?.name ?? null,
+        before: { has_role: true },
+        after: { has_role: false },
+      },
+    })
 
-  return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/members/[userId]/roles DELETE] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

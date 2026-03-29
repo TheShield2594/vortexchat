@@ -40,5 +40,11 @@ export async function POST(request: Request) {
  * This endpoint only supports POST. Returns 405 Method Not Allowed.
  */
 export async function GET() {
-  return NextResponse.json({ error: "Method Not Allowed. Use POST." }, { status: 405, headers: { Allow: "POST" } })
+  try {
+    return NextResponse.json({ error: "Method Not Allowed. Use POST." }, { status: 405, headers: { Allow: "POST" } })
+
+  } catch (err) {
+    console.error("[channels/cleanup GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

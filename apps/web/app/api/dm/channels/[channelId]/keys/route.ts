@@ -25,52 +25,58 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ channelId: string }> }
 ) {
-  const { channelId } = await params
-  const { supabase, user, error } = await assertMembership(channelId)
-  if (error || !user) return error!
+  try {
+    const { channelId } = await params
+    const { supabase, user, error } = await assertMembership(channelId)
+    if (error || !user) return error!
 
-  const [channelResult, memberRowsResult, keyRowsResult] = await Promise.all([
-    (supabase as any)
-      .from("dm_channels")
-      .select("id, is_encrypted, encryption_key_version, encryption_membership_epoch")
-      .eq("id", channelId)
-      .maybeSingle(),
-    supabase.from("dm_channel_members").select("user_id").eq("dm_channel_id", channelId),
-    (supabase as any).from("dm_channel_keys")
-      .select("key_version, target_user_id, target_device_id, wrapped_key, wrapped_by_user_id, wrapped_by_device_id, sender_public_key")
-      .eq("dm_channel_id", channelId)
-      .eq("target_user_id", user.id),
-  ])
+    const [channelResult, memberRowsResult, keyRowsResult] = await Promise.all([
+      (supabase as any)
+        .from("dm_channels")
+        .select("id, is_encrypted, encryption_key_version, encryption_membership_epoch")
+        .eq("id", channelId)
+        .maybeSingle(),
+      supabase.from("dm_channel_members").select("user_id").eq("dm_channel_id", channelId),
+      (supabase as any).from("dm_channel_keys")
+        .select("key_version, target_user_id, target_device_id, wrapped_key, wrapped_by_user_id, wrapped_by_device_id, sender_public_key")
+        .eq("dm_channel_id", channelId)
+        .eq("target_user_id", user.id),
+    ])
 
-  if (channelResult.error) return NextResponse.json({ error: "Failed to fetch channel encryption data" }, { status: 500 })
-  if (!channelResult.data) return NextResponse.json({ error: "DM channel not found" }, { status: 404 })
-  if (memberRowsResult.error) return NextResponse.json({ error: "Failed to fetch channel members" }, { status: 500 })
-  if (keyRowsResult.error) return NextResponse.json({ error: "Failed to fetch encryption keys" }, { status: 500 })
+    if (channelResult.error) return NextResponse.json({ error: "Failed to fetch channel encryption data" }, { status: 500 })
+    if (!channelResult.data) return NextResponse.json({ error: "DM channel not found" }, { status: 404 })
+    if (memberRowsResult.error) return NextResponse.json({ error: "Failed to fetch channel members" }, { status: 500 })
+    if (keyRowsResult.error) return NextResponse.json({ error: "Failed to fetch encryption keys" }, { status: 500 })
 
-  const memberIds = (memberRowsResult.data ?? []).map((m) => m.user_id)
-  const deviceRowsResult = memberIds.length
-    ? await (supabase as any)
-      .from("user_device_keys")
-      .select("user_id, device_id, public_key, updated_at")
-      .in("user_id", memberIds)
-      .order("updated_at", { ascending: false })
-    : { data: [], error: null }
+    const memberIds = (memberRowsResult.data ?? []).map((m) => m.user_id)
+    const deviceRowsResult = memberIds.length
+      ? await (supabase as any)
+        .from("user_device_keys")
+        .select("user_id, device_id, public_key, updated_at")
+        .in("user_id", memberIds)
+        .order("updated_at", { ascending: false })
+      : { data: [], error: null }
 
-  if (deviceRowsResult.error) return NextResponse.json({ error: "Failed to fetch device keys" }, { status: 500 })
+    if (deviceRowsResult.error) return NextResponse.json({ error: "Failed to fetch device keys" }, { status: 500 })
 
-  const grouped = new Map<string, Array<{ user_id: string; device_id: string; public_key: string }>>()
-  for (const row of (deviceRowsResult.data ?? []) as Array<{ user_id: string; device_id: string; public_key: string }>) {
-    const list = grouped.get(row.user_id) ?? []
-    if (list.length < PER_USER_DEVICE_LIMIT) list.push(row)
-    grouped.set(row.user_id, list)
+    const grouped = new Map<string, Array<{ user_id: string; device_id: string; public_key: string }>>()
+    for (const row of (deviceRowsResult.data ?? []) as Array<{ user_id: string; device_id: string; public_key: string }>) {
+      const list = grouped.get(row.user_id) ?? []
+      if (list.length < PER_USER_DEVICE_LIMIT) list.push(row)
+      grouped.set(row.user_id, list)
+    }
+    const boundedDeviceRows = Array.from(grouped.values()).flat()
+
+    return NextResponse.json({
+      channel: channelResult.data,
+      memberDeviceKeys: boundedDeviceRows,
+      wrappedKeys: keyRowsResult.data ?? [],
+    })
+
+  } catch (err) {
+    console.error("[dm/channels/[channelId]/keys GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-  const boundedDeviceRows = Array.from(grouped.values()).flat()
-
-  return NextResponse.json({
-    channel: channelResult.data,
-    memberDeviceKeys: boundedDeviceRows,
-    wrappedKeys: keyRowsResult.data ?? [],
-  })
 }
 
 function validateWrappedKeyEntry(entry: unknown, index: number) {
@@ -98,67 +104,73 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ channelId: string }> }
 ) {
-  const { channelId } = await params
-  const { supabase, user, error } = await assertMembership(channelId)
-  if (error || !user) return error!
+  try {
+    const { channelId } = await params
+    const { supabase, user, error } = await assertMembership(channelId)
+    if (error || !user) return error!
 
-  const body = await req.json().catch(() => null)
-  const keyVersion = Number.isInteger(body?.keyVersion) ? body.keyVersion : null
-  const wrappedKeys = Array.isArray(body?.wrappedKeys) ? body.wrappedKeys : null
+    const body = await req.json().catch(() => null)
+    const keyVersion = Number.isInteger(body?.keyVersion) ? body.keyVersion : null
+    const wrappedKeys = Array.isArray(body?.wrappedKeys) ? body.wrappedKeys : null
 
-  if (keyVersion == null || !wrappedKeys?.length) {
-    return NextResponse.json({ error: "keyVersion and wrappedKeys[] required" }, { status: 400 })
+    if (keyVersion == null || !wrappedKeys?.length) {
+      return NextResponse.json({ error: "keyVersion and wrappedKeys[] required" }, { status: 400 })
+    }
+
+    const { data: channelInfo, error: channelError } = await (supabase as any)
+      .from("dm_channels")
+      .select("encryption_key_version")
+      .eq("id", channelId)
+      .maybeSingle()
+
+    if (channelError || !channelInfo) {
+      return NextResponse.json({ error: "Unable to verify channel key version" }, { status: 500 })
+    }
+
+    if (keyVersion < 0 || keyVersion > MAX_KEY_VERSION || keyVersion > channelInfo.encryption_key_version) {
+      return NextResponse.json({ error: "Invalid keyVersion" }, { status: 400 })
+    }
+
+    const { count: memberCount, error: memberCountError } = await supabase
+      .from("dm_channel_members")
+      .select("user_id", { count: "exact", head: true })
+      .eq("dm_channel_id", channelId)
+
+    if (memberCountError) {
+      return NextResponse.json({ error: "Failed to verify channel membership" }, { status: 500 })
+    }
+
+    const maxAllowed = Math.max((memberCount ?? 0) * PER_USER_DEVICE_LIMIT, PER_USER_DEVICE_LIMIT)
+    if (wrappedKeys.length > maxAllowed) {
+      return NextResponse.json({ error: "Too many wrappedKeys" }, { status: 400 })
+    }
+
+    for (let index = 0; index < wrappedKeys.length; index += 1) {
+      const entryError = validateWrappedKeyEntry(wrappedKeys[index], index)
+      if (entryError) return NextResponse.json({ error: entryError }, { status: 400 })
+    }
+
+    const rows = wrappedKeys.map((entry: any) => ({
+      dm_channel_id: channelId,
+      key_version: keyVersion,
+      target_user_id: entry.targetUserId,
+      target_device_id: entry.targetDeviceId,
+      wrapped_key: entry.wrappedKey,
+      wrapped_by_user_id: user.id,
+      wrapped_by_device_id: entry.wrappedByDeviceId,
+      sender_public_key: entry.senderPublicKey,
+    }))
+
+    const { error: upsertError } = await (supabase as any)
+      .from("dm_channel_keys")
+      .upsert(rows)
+
+    if (upsertError) return NextResponse.json({ error: "Failed to store encryption keys" }, { status: 500 })
+
+    return NextResponse.json({ ok: true })
+
+  } catch (err) {
+    console.error("[dm/channels/[channelId]/keys POST] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const { data: channelInfo, error: channelError } = await (supabase as any)
-    .from("dm_channels")
-    .select("encryption_key_version")
-    .eq("id", channelId)
-    .maybeSingle()
-
-  if (channelError || !channelInfo) {
-    return NextResponse.json({ error: "Unable to verify channel key version" }, { status: 500 })
-  }
-
-  if (keyVersion < 0 || keyVersion > MAX_KEY_VERSION || keyVersion > channelInfo.encryption_key_version) {
-    return NextResponse.json({ error: "Invalid keyVersion" }, { status: 400 })
-  }
-
-  const { count: memberCount, error: memberCountError } = await supabase
-    .from("dm_channel_members")
-    .select("user_id", { count: "exact", head: true })
-    .eq("dm_channel_id", channelId)
-
-  if (memberCountError) {
-    return NextResponse.json({ error: memberCountError.message }, { status: 500 })
-  }
-
-  const maxAllowed = Math.max((memberCount ?? 0) * PER_USER_DEVICE_LIMIT, PER_USER_DEVICE_LIMIT)
-  if (wrappedKeys.length > maxAllowed) {
-    return NextResponse.json({ error: "Too many wrappedKeys" }, { status: 400 })
-  }
-
-  for (let index = 0; index < wrappedKeys.length; index += 1) {
-    const entryError = validateWrappedKeyEntry(wrappedKeys[index], index)
-    if (entryError) return NextResponse.json({ error: entryError }, { status: 400 })
-  }
-
-  const rows = wrappedKeys.map((entry: any) => ({
-    dm_channel_id: channelId,
-    key_version: keyVersion,
-    target_user_id: entry.targetUserId,
-    target_device_id: entry.targetDeviceId,
-    wrapped_key: entry.wrappedKey,
-    wrapped_by_user_id: user.id,
-    wrapped_by_device_id: entry.wrappedByDeviceId,
-    sender_public_key: entry.senderPublicKey,
-  }))
-
-  const { error: upsertError } = await (supabase as any)
-    .from("dm_channel_keys")
-    .upsert(rows)
-
-  if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
-
-  return NextResponse.json({ ok: true })
 }

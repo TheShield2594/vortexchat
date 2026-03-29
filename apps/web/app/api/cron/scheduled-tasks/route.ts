@@ -9,29 +9,34 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
  * Schedule: daily at midnight UTC via Vercel cron (see vercel.json).
  */
 export async function GET(request: Request) {
-  // Fail closed: require CRON_SECRET to be configured
-  if (!process.env.CRON_SECRET) {
-    console.error("[scheduled-tasks] CRON_SECRET is not configured")
-    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 })
+  try {
+    // Fail closed: require CRON_SECRET to be configured
+    if (!process.env.CRON_SECRET) {
+      console.error("[scheduled-tasks] CRON_SECRET is not configured")
+      return NextResponse.json({ error: "Server misconfigured" }, { status: 500 })
+    }
+
+    const authHeader = request.headers.get("authorization")
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const service = await createServiceRoleClient()
+
+    // Run all tasks concurrently — each is independent.
+    const [eventReminders, threadAutoArchive] = await Promise.allSettled([
+      runEventReminders(service),
+      runThreadAutoArchive(service),
+    ])
+
+    return NextResponse.json({
+      eventReminders: eventReminders.status === "fulfilled" ? eventReminders.value : { error: (eventReminders as PromiseRejectedResult).reason?.message },
+      threadAutoArchive: threadAutoArchive.status === "fulfilled" ? threadAutoArchive.value : { error: (threadAutoArchive as PromiseRejectedResult).reason?.message },
+    })
+  } catch (err) {
+    console.error("[cron/scheduled-tasks GET] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  const authHeader = request.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const service = await createServiceRoleClient()
-
-  // Run all tasks concurrently — each is independent.
-  const [eventReminders, threadAutoArchive] = await Promise.allSettled([
-    runEventReminders(service),
-    runThreadAutoArchive(service),
-  ])
-
-  return NextResponse.json({
-    eventReminders: eventReminders.status === "fulfilled" ? eventReminders.value : { error: (eventReminders as PromiseRejectedResult).reason?.message },
-    threadAutoArchive: threadAutoArchive.status === "fulfilled" ? threadAutoArchive.value : { error: (threadAutoArchive as PromiseRejectedResult).reason?.message },
-  })
 }
 
 // ── Event reminders ──────────────────────────────────────────────────────────
@@ -100,7 +105,7 @@ async function runThreadAutoArchive(service: Awaited<ReturnType<typeof createSer
   const archivedCount = typeof data === "number" ? data : 0
 
   if (archivedCount > 0) {
-    console.log(`[thread-auto-archive] Archived ${archivedCount} inactive thread(s)`)
+    console.info(`[thread-auto-archive] Archived ${archivedCount} inactive thread(s)`)
   }
 
   return { archived: archivedCount }

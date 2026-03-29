@@ -309,6 +309,7 @@ export default function NotificationsPage() {
                     className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
                     style={{ color: "var(--theme-text-muted)" }}
                     title="Mark as read"
+                    aria-label="Mark as read"
                   >
                     <Check className="w-3.5 h-3.5" />
                   </button>
@@ -319,6 +320,7 @@ export default function NotificationsPage() {
                   className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
                   style={{ color: "var(--theme-text-faint)" }}
                   title="Dismiss"
+                  aria-label="Dismiss notification"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>

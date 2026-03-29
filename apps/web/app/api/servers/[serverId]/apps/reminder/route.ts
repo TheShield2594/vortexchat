@@ -11,33 +11,39 @@ const MAX_REMINDER_MINUTES = 1440 // 24 hours
  * Returns reminder config + user's active reminders.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const [configResult, remindersResult] = await Promise.all([
-    supabase
-      .from("reminder_app_configs")
-      .select("*")
-      .eq("server_id", serverId)
-      .maybeSingle(),
-    supabase
-      .from("reminders")
-      .select("id, user_id, channel_id, message, remind_at, delivered, created_at")
-      .eq("server_id", serverId)
-      .eq("user_id", user.id)
-      .eq("delivered", false)
-      .order("remind_at", { ascending: true }),
-  ])
+    const [configResult, remindersResult] = await Promise.all([
+      supabase
+        .from("reminder_app_configs")
+        .select("*")
+        .eq("server_id", serverId)
+        .maybeSingle(),
+      supabase
+        .from("reminders")
+        .select("id, user_id, channel_id, message, remind_at, delivered, created_at")
+        .eq("server_id", serverId)
+        .eq("user_id", user.id)
+        .eq("delivered", false)
+        .order("remind_at", { ascending: true }),
+    ])
 
-  if (configResult.error) return NextResponse.json({ error: "Failed to fetch reminder configuration" }, { status: 500 })
+    if (configResult.error) return NextResponse.json({ error: "Failed to fetch reminder configuration" }, { status: 500 })
 
-  return NextResponse.json({
-    config: configResult.data,
-    reminders: remindersResult.data ?? [],
-    currentUserId: user.id,
-  })
+    return NextResponse.json({
+      config: configResult.data,
+      reminders: remindersResult.data ?? [],
+      currentUserId: user.id,
+    })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/reminder GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 /**

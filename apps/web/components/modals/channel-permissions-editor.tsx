@@ -141,7 +141,7 @@ export function ChannelPermissionsEditor({ channelId, serverId }: { channelId: s
           >
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.role.color }} />
             <span className="truncate flex-1">{p.role.name}</span>
-            <button onClick={(e) => { e.stopPropagation(); remove(p.role_id) }} style={{ color: "var(--theme-danger)" }}>
+            <button onClick={(e) => { e.stopPropagation(); remove(p.role_id) }} style={{ color: "var(--theme-danger)" }} aria-label={`Remove ${p.role.name} override`}>
               <Trash2 className="w-3 h-3" />
             </button>
           </button>

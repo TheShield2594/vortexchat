@@ -323,6 +323,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                         className="p-1.5 rounded hover:bg-white/10 transition-colors"
                         style={{ color: 'var(--theme-text-muted)' }}
                         title="Remove selected icon"
+                        aria-label="Remove selected icon"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -721,6 +722,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
                 className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors"
                 style={{ color: 'var(--theme-text-faint)' }}
                 title="Delete"
+                aria-label={`Delete emoji :${e.name}:`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -858,6 +860,7 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
             disabled={creating || !newChannelId}
             className="px-3 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50"
             style={{ background: 'var(--theme-accent)', color: 'white' }}
+            aria-label="Create webhook"
           >
             {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           </button>
@@ -888,6 +891,7 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
                   className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors disabled:opacity-50"
                   style={{ color: 'var(--theme-text-faint)' }}
                   title="Delete"
+                  aria-label={`Delete webhook ${wh.name}`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -901,6 +905,7 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
                   className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded transition-colors hover:bg-white/10"
                   style={{ color: copiedId === wh.id ? 'var(--theme-success)' : 'var(--theme-text-muted)' }}
                   title="Copy URL"
+                  aria-label="Copy webhook URL"
                 >
                   {copiedId === wh.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
@@ -2020,6 +2025,7 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
                       className="p-0.5 rounded hover:bg-white/10"
                       style={{ color: 'var(--theme-text-muted)' }}
                       title="Copy invite code"
+                      aria-label="Copy invite code"
                     >
                       <Copy className="w-3 h-3" />
                     </button>
@@ -2048,6 +2054,7 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
                     className="p-1.5 rounded hover:bg-red-500/20 transition-colors flex-shrink-0"
                     style={{ color: 'var(--theme-text-faint)' }}
                     title="Revoke invite"
+                    aria-label="Revoke invite"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

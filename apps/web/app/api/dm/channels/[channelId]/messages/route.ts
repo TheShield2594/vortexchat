@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendPushToChannel } from "@/lib/push"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
+import { checkRateLimit } from "@/lib/utils/api-helpers"
 
 function isValidDmE2eeEnvelope(value: unknown): boolean {
   if (!value || typeof value !== "object") return false
@@ -24,10 +25,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ channelId: string }> }
 ) {
+  try {
   const { channelId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const limited = await checkRateLimit(user.id, "dm:send", { limit: 15, windowMs: 10_000 })
+  if (limited) return limited
 
   // Fetch all channel members (verifies membership and gets other member IDs in one query)
   const { data: channelMembers, error: channelMembersError } = await supabase
@@ -36,7 +41,7 @@ export async function POST(
     .eq("dm_channel_id", channelId)
 
   if (channelMembersError || !channelMembers) {
-    return NextResponse.json({ error: channelMembersError?.message ?? "Failed to load DM members" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to load DM members" }, { status: 500 })
   }
 
   if (!channelMembers.some((member) => member.user_id === user.id)) {
@@ -63,11 +68,9 @@ export async function POST(
   ])
 
   if (blockCheckResult.error) {
+    console.error("[dm/messages POST] block check failed:", blockCheckResult.error.message)
     return NextResponse.json(
-      {
-        error: "Error checking block status",
-        details: blockCheckResult.error.message,
-      },
+      { error: "Error checking block status" },
       { status: 500 }
     )
   }
@@ -146,4 +149,9 @@ export async function POST(
   }).catch(() => {})
 
   return NextResponse.json({ ...message, reply_to_id: replyToId, reply_to: replyToMessage }, { status: 201 })
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : "Unknown error"
+    console.error("[dm/messages POST] error", { action: "dm_send", error: errMsg })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

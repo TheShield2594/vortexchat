@@ -9,27 +9,33 @@ type Params = { params: Promise<{ serverId: string; incidentId: string }> }
  * Returns incident details with full timeline.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId, incidentId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId, incidentId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data: incident } = await supabase
-    .from("incidents")
-    .select("*")
-    .eq("id", incidentId)
-    .eq("server_id", serverId)
-    .maybeSingle()
+    const { data: incident } = await supabase
+      .from("incidents")
+      .select("*")
+      .eq("id", incidentId)
+      .eq("server_id", serverId)
+      .maybeSingle()
 
-  if (!incident) return NextResponse.json({ error: "Incident not found" }, { status: 404 })
+    if (!incident) return NextResponse.json({ error: "Incident not found" }, { status: 404 })
 
-  const { data: updates } = await supabase
-    .from("incident_updates")
-    .select("id, author_id, status, message, created_at, users:author_id(display_name, username)")
-    .eq("incident_id", incidentId)
-    .order("created_at", { ascending: true })
+    const { data: updates } = await supabase
+      .from("incident_updates")
+      .select("id, author_id, status, message, created_at, users:author_id(display_name, username)")
+      .eq("incident_id", incidentId)
+      .order("created_at", { ascending: true })
 
-  return NextResponse.json({ incident, updates: updates ?? [] })
+    return NextResponse.json({ incident, updates: updates ?? [] })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/incidents/[incidentId] GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 /**

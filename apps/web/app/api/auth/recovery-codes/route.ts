@@ -7,24 +7,30 @@ import { generateRecoveryCodes, hashRecoveryCode } from "@/lib/auth/recovery-cod
  * Returns the count of remaining (unused) recovery codes for the authenticated user.
  */
 export async function GET() {
-  const supabase = await createServerSupabaseClient()
-  const db = supabase as any
-  const { data: auth } = await supabase.auth.getUser()
-  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const supabase = await createServerSupabaseClient()
+    const db = supabase as any
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data, error } = await db
-    .from("recovery_codes")
-    .select("id,used_at,created_at")
-    .eq("user_id", auth.user.id)
-    .order("created_at", { ascending: true })
+    const { data, error } = await db
+      .from("recovery_codes")
+      .select("id,used_at,created_at")
+      .eq("user_id", auth.user.id)
+      .order("created_at", { ascending: true })
 
-  if (error) return NextResponse.json({ error: "Failed to fetch recovery codes" }, { status: 500 })
+    if (error) return NextResponse.json({ error: "Failed to fetch recovery codes" }, { status: 500 })
 
-  const codes = data || []
-  const total = codes.length
-  const remaining = codes.filter((c: any) => !c.used_at).length
+    const codes = data || []
+    const total = codes.length
+    const remaining = codes.filter((c: any) => !c.used_at).length
 
-  return NextResponse.json({ total, remaining })
+    return NextResponse.json({ total, remaining })
+
+  } catch (err) {
+    console.error("[auth/recovery-codes GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 /**
@@ -33,32 +39,38 @@ export async function GET() {
  * Returns the plaintext codes — this is the ONLY time they are shown.
  */
 export async function POST() {
-  const supabase = await createServerSupabaseClient()
-  const { data: auth } = await supabase.auth.getUser()
-  if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const supabase = await createServerSupabaseClient()
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const admin = await createServiceRoleClient()
-  const adminDb = admin as any
+    const admin = await createServiceRoleClient()
+    const adminDb = admin as any
 
-  // Delete all existing recovery codes for this user
-  const { error: deleteError } = await adminDb.from("recovery_codes").delete().eq("user_id", auth.user.id)
-  if (deleteError) {
-    return NextResponse.json({ error: "Failed to clear existing recovery codes" }, { status: 500 })
+    // Delete all existing recovery codes for this user
+    const { error: deleteError } = await adminDb.from("recovery_codes").delete().eq("user_id", auth.user.id)
+    if (deleteError) {
+      return NextResponse.json({ error: "Failed to clear existing recovery codes" }, { status: 500 })
+    }
+
+    // Generate new codes
+    const plaintextCodes = generateRecoveryCodes()
+
+    // Hash and store each code
+    const rows = await Promise.all(
+      plaintextCodes.map(async (code) => ({
+        user_id: auth.user!.id,
+        code_hash: await hashRecoveryCode(code),
+      }))
+    )
+
+    const { error } = await adminDb.from("recovery_codes").insert(rows)
+    if (error) return NextResponse.json({ error: "Failed to generate recovery codes" }, { status: 500 })
+
+    return NextResponse.json({ codes: plaintextCodes })
+
+  } catch (err) {
+    console.error("[auth/recovery-codes POST] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  // Generate new codes
-  const plaintextCodes = generateRecoveryCodes()
-
-  // Hash and store each code
-  const rows = await Promise.all(
-    plaintextCodes.map(async (code) => ({
-      user_id: auth.user!.id,
-      code_hash: await hashRecoveryCode(code),
-    }))
-  )
-
-  const { error } = await adminDb.from("recovery_codes").insert(rows)
-  if (error) return NextResponse.json({ error: "Failed to generate recovery codes" }, { status: 500 })
-
-  return NextResponse.json({ codes: plaintextCodes })
 }

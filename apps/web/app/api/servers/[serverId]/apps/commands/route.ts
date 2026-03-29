@@ -14,66 +14,72 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Fetch member roles + server ownership in parallel with app installs
-  const [memberResult, serverResult, installsResult] = await Promise.all([
-    supabase
-      .from("server_members")
-      .select("user_id, member_roles(roles(permissions))")
-      .eq("server_id", serverId)
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("servers")
-      .select("owner_id")
-      .eq("id", serverId)
-      .single(),
-    supabase
-      .from("server_app_installs")
-      .select("app_id")
-      .eq("server_id", serverId),
-  ])
+    // Fetch member roles + server ownership in parallel with app installs
+    const [memberResult, serverResult, installsResult] = await Promise.all([
+      supabase
+        .from("server_members")
+        .select("user_id, member_roles(roles(permissions))")
+        .eq("server_id", serverId)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("servers")
+        .select("owner_id")
+        .eq("id", serverId)
+        .single(),
+      supabase
+        .from("server_app_installs")
+        .select("app_id")
+        .eq("server_id", serverId),
+    ])
 
-  if (!serverResult.data) {
-    return NextResponse.json({ error: "Server not found" }, { status: 404 })
+    if (!serverResult.data) {
+      return NextResponse.json({ error: "Server not found" }, { status: 404 })
+    }
+
+    if (!memberResult.data) {
+      return NextResponse.json({ error: "Not a member" }, { status: 403 })
+    }
+
+    const permissions = aggregateMemberPermissions((memberResult.data as any)?.member_roles ?? [])
+    const isOwner = serverResult.data.owner_id === user.id
+
+    // Build app commands list
+    let appCommands: Array<{ id: string; appId: string; appName: string; commandName: string; description: string | null }> = []
+
+    const installs = installsResult.data
+    if (installs && installs.length > 0) {
+      const appIds = installs.map((i) => i.app_id)
+      const { data: commands } = await supabase
+        .from("app_commands")
+        .select("id, app_id, command_name, description, app_catalog(name)")
+        .in("app_id", appIds)
+        .eq("enabled", true)
+
+      appCommands = (commands ?? []).map((cmd) => ({
+        id: cmd.id,
+        appId: cmd.app_id,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        appName: (cmd.app_catalog as any)?.name ?? cmd.app_id,
+        commandName: cmd.command_name,
+        description: cmd.description ?? null,
+      }))
+    }
+
+    return NextResponse.json({
+      commands: appCommands,
+      permissions,
+      isOwner,
+    })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/commands GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  if (!memberResult.data) {
-    return NextResponse.json({ error: "Not a member" }, { status: 403 })
-  }
-
-  const permissions = aggregateMemberPermissions((memberResult.data as any)?.member_roles ?? [])
-  const isOwner = serverResult.data.owner_id === user.id
-
-  // Build app commands list
-  let appCommands: Array<{ id: string; appId: string; appName: string; commandName: string; description: string | null }> = []
-
-  const installs = installsResult.data
-  if (installs && installs.length > 0) {
-    const appIds = installs.map((i) => i.app_id)
-    const { data: commands } = await supabase
-      .from("app_commands")
-      .select("id, app_id, command_name, description, app_catalog(name)")
-      .in("app_id", appIds)
-      .eq("enabled", true)
-
-    appCommands = (commands ?? []).map((cmd) => ({
-      id: cmd.id,
-      appId: cmd.app_id,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      appName: (cmd.app_catalog as any)?.name ?? cmd.app_id,
-      commandName: cmd.command_name,
-      description: cmd.description ?? null,
-    }))
-  }
-
-  return NextResponse.json({
-    commands: appCommands,
-    permissions,
-    isOwner,
-  })
 }

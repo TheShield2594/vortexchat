@@ -129,72 +129,78 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ serverId: string; roleId: string }> }
 ) {
-  const { serverId, roleId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId, roleId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Permission check: MANAGE_ROLES required
-  const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
-  if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
-    return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
-  }
+    // Permission check: MANAGE_ROLES required
+    const { isAdmin, permissions } = await getMemberPermissions(supabase, serverId, user.id)
+    if (!isAdmin && !hasPermission(permissions, "MANAGE_ROLES")) {
+      return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
+    }
 
-  // Fetch the target role
-  const { data: targetRole, error: roleError } = await supabase
-    .from("roles")
-    .select("*")
-    .eq("id", roleId)
-    .eq("server_id", serverId)
-    .single()
+    // Fetch the target role
+    const { data: targetRole, error: roleError } = await supabase
+      .from("roles")
+      .select("*")
+      .eq("id", roleId)
+      .eq("server_id", serverId)
+      .single()
 
-  if (roleError || !targetRole) {
-    return NextResponse.json({ error: "Role not found" }, { status: 404 })
-  }
+    if (roleError || !targetRole) {
+      return NextResponse.json({ error: "Role not found" }, { status: 404 })
+    }
 
-  // Cannot delete the @everyone default role
-  if (targetRole.is_default) {
-    return NextResponse.json(
-      { error: "Cannot delete the default role" },
-      { status: 400 }
-    )
-  }
-
-  // Role hierarchy enforcement: non-admins cannot delete roles at or above their own highest role
-  if (!isAdmin) {
-    const actorMaxPosition = await getActorMaxRolePosition(supabase, serverId, user.id)
-    if (targetRole.position >= actorMaxPosition) {
+    // Cannot delete the @everyone default role
+    if (targetRole.is_default) {
       return NextResponse.json(
-        { error: "Cannot delete a role at or above your own highest role" },
-        { status: 403 }
+        { error: "Cannot delete the default role" },
+        { status: 400 }
       )
     }
+
+    // Role hierarchy enforcement: non-admins cannot delete roles at or above their own highest role
+    if (!isAdmin) {
+      const actorMaxPosition = await getActorMaxRolePosition(supabase, serverId, user.id)
+      if (targetRole.position >= actorMaxPosition) {
+        return NextResponse.json(
+          { error: "Cannot delete a role at or above your own highest role" },
+          { status: 403 }
+        )
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from("roles")
+      .delete()
+      .eq("id", roleId)
+      .eq("server_id", serverId)
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    }
+
+    // Audit log the deletion
+    await supabase.from("audit_logs").insert({
+      server_id: serverId,
+      actor_id: user.id,
+      action: "role_deleted",
+      target_id: roleId,
+      target_type: "role",
+      changes: {
+        role_name: targetRole.name,
+        role_color: targetRole.color,
+        role_position: targetRole.position,
+        role_permissions: targetRole.permissions,
+      },
+    })
+
+    return new NextResponse(null, { status: 204 })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/roles/[roleId] DELETE] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const { error: deleteError } = await supabase
-    .from("roles")
-    .delete()
-    .eq("id", roleId)
-    .eq("server_id", serverId)
-
-  if (deleteError) {
-    return NextResponse.json({ error: deleteError.message }, { status: 500 })
-  }
-
-  // Audit log the deletion
-  await supabase.from("audit_logs").insert({
-    server_id: serverId,
-    actor_id: user.id,
-    action: "role_deleted",
-    target_id: roleId,
-    target_type: "role",
-    changes: {
-      role_name: targetRole.name,
-      role_color: targetRole.color,
-      role_position: targetRole.position,
-      role_permissions: targetRole.permissions,
-    },
-  })
-
-  return new NextResponse(null, { status: 204 })
 }

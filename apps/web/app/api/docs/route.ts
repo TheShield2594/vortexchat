@@ -649,15 +649,21 @@ const OPENAPI_SPEC = {
 } as const
 
 export async function GET() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  try {
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
-  if (error || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (error || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    return NextResponse.json(OPENAPI_SPEC)
+
+  } catch (err) {
+    console.error("[docs GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  return NextResponse.json(OPENAPI_SPEC)
 }

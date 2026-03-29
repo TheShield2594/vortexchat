@@ -22,106 +22,112 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const perms = await getMemberPermissions(supabase, serverId, user.id)
-  const canView =
-    perms.isOwner ||
-    perms.isAdmin ||
-    hasPermission(perms.permissions, "MANAGE_CHANNELS")
+    const perms = await getMemberPermissions(supabase, serverId, user.id)
+    const canView =
+      perms.isOwner ||
+      perms.isAdmin ||
+      hasPermission(perms.permissions, "MANAGE_CHANNELS")
 
-  if (!canView) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+    if (!canView) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
-  const { searchParams } = new URL(req.url)
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 100)
-  const before = searchParams.get("before")
-  const actionFilter = searchParams.get("action")
-  const actorFilter = searchParams.get("actor_id")
-  const targetFilter = searchParams.get("target_id")
-  const from = searchParams.get("from")
-  const to = searchParams.get("to")
-  const exportFormat = searchParams.get("format") ?? "json"
+    const { searchParams } = new URL(req.url)
+    const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 100)
+    const before = searchParams.get("before")
+    const actionFilter = searchParams.get("action")
+    const actorFilter = searchParams.get("actor_id")
+    const targetFilter = searchParams.get("target_id")
+    const from = searchParams.get("from")
+    const to = searchParams.get("to")
+    const exportFormat = searchParams.get("format") ?? "json"
 
-  // Enforce 180-day retention window
-  const retentionCutoff = new Date()
-  retentionCutoff.setDate(retentionCutoff.getDate() - 180)
+    // Enforce 180-day retention window
+    const retentionCutoff = new Date()
+    retentionCutoff.setDate(retentionCutoff.getDate() - 180)
 
-  let query = supabase
-    .from("audit_logs")
-    .select("id, action, actor_id, target_id, target_type, changes, created_at")
-    .eq("server_id", serverId)
-    .gte("created_at", retentionCutoff.toISOString())
-    .order("created_at", { ascending: false })
-    .limit(exportFormat !== "json" ? 5000 : limit)
+    let query = supabase
+      .from("audit_logs")
+      .select("id, action, actor_id, target_id, target_type, changes, created_at")
+      .eq("server_id", serverId)
+      .gte("created_at", retentionCutoff.toISOString())
+      .order("created_at", { ascending: false })
+      .limit(exportFormat !== "json" ? 5000 : limit)
 
-  if (before) query = query.lt("created_at", before)
-  if (from) query = query.gte("created_at", from)
-  if (to) query = query.lte("created_at", to)
-  if (actionFilter) query = query.eq("action", actionFilter)
-  if (actorFilter) query = query.eq("actor_id", actorFilter)
-  if (targetFilter) query = query.eq("target_id", targetFilter)
+    if (before) query = query.lt("created_at", before)
+    if (from) query = query.gte("created_at", from)
+    if (to) query = query.lte("created_at", to)
+    if (actionFilter) query = query.eq("action", actionFilter)
+    if (actorFilter) query = query.eq("actor_id", actorFilter)
+    if (targetFilter) query = query.eq("target_id", targetFilter)
 
-  const { data: entries, error } = await query
-  if (error) return NextResponse.json({ error: "Failed to fetch audit log" }, { status: 500 })
-  if (!entries?.length) {
+    const { data: entries, error } = await query
+    if (error) return NextResponse.json({ error: "Failed to fetch audit log" }, { status: 500 })
+    if (!entries?.length) {
+      if (exportFormat === "csv") {
+        return new NextResponse(buildCsv([]), {
+          headers: {
+            "Content-Type": "text/csv",
+            "Content-Disposition": `attachment; filename="audit-log-${serverId}.csv"`,
+          },
+        })
+      }
+      return NextResponse.json({ entries: [], next_before: null })
+    }
+
+    // Hydrate actor and target user info
+    const userIds = new Set<string>()
+    for (const e of entries) {
+      if (e.actor_id) userIds.add(e.actor_id)
+      if (e.target_id && e.target_type === "user") userIds.add(e.target_id)
+    }
+
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, username, display_name, avatar_url")
+      .in("id", Array.from(userIds))
+
+    const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]))
+
+    const result = entries.map((e) => ({
+      id: e.id,
+      action: e.action,
+      reason: (e.changes as { reason?: string } | null | undefined)?.reason ?? null,
+      metadata: e.changes,
+      created_at: e.created_at,
+      actor: e.actor_id ? (userMap[e.actor_id] ?? null) : null,
+      target:
+        e.target_id && e.target_type === "user"
+          ? (userMap[e.target_id] ?? null)
+          : null,
+      target_id: e.target_id,
+      target_type: e.target_type,
+    }))
+
     if (exportFormat === "csv") {
-      return new NextResponse(buildCsv([]), {
+      return new NextResponse(buildCsv(result), {
         headers: {
           "Content-Type": "text/csv",
           "Content-Disposition": `attachment; filename="audit-log-${serverId}.csv"`,
         },
       })
     }
-    return NextResponse.json({ entries: [], next_before: null })
+
+    const next_before =
+      result.length === limit ? result[result.length - 1]!.created_at : null
+
+    return NextResponse.json({ entries: result, next_before })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/audit-log GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  // Hydrate actor and target user info
-  const userIds = new Set<string>()
-  for (const e of entries) {
-    if (e.actor_id) userIds.add(e.actor_id)
-    if (e.target_id && e.target_type === "user") userIds.add(e.target_id)
-  }
-
-  const { data: users } = await supabase
-    .from("users")
-    .select("id, username, display_name, avatar_url")
-    .in("id", Array.from(userIds))
-
-  const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]))
-
-  const result = entries.map((e) => ({
-    id: e.id,
-    action: e.action,
-    reason: (e.changes as { reason?: string } | null | undefined)?.reason ?? null,
-    metadata: e.changes,
-    created_at: e.created_at,
-    actor: e.actor_id ? (userMap[e.actor_id] ?? null) : null,
-    target:
-      e.target_id && e.target_type === "user"
-        ? (userMap[e.target_id] ?? null)
-        : null,
-    target_id: e.target_id,
-    target_type: e.target_type,
-  }))
-
-  if (exportFormat === "csv") {
-    return new NextResponse(buildCsv(result), {
-      headers: {
-        "Content-Type": "text/csv",
-        "Content-Disposition": `attachment; filename="audit-log-${serverId}.csv"`,
-      },
-    })
-  }
-
-  const next_before =
-    result.length === limit ? result[result.length - 1]!.created_at : null
-
-  return NextResponse.json({ entries: result, next_before })
 }
 
 // ---------------------------------------------------------------------------

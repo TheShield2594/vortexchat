@@ -123,6 +123,8 @@ export function VoiceRecapCard({
       <button
         className="w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/5"
         onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        aria-label={expanded ? "Collapse voice recap" : "Expand voice recap"}
       >
         <div className="flex items-center gap-3">
           <div

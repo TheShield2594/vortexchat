@@ -9,34 +9,40 @@ type Params = { params: Promise<{ serverId: string }> }
  * Returns standup config + today's entries.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const { serverId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const today = new Date().toISOString().split("T")[0]
+    const today = new Date().toISOString().split("T")[0]
 
-  const [configResult, entriesResult] = await Promise.all([
-    supabase
-      .from("standup_app_configs")
-      .select("*")
-      .eq("server_id", serverId)
-      .maybeSingle(),
-    supabase
-      .from("standup_entries")
-      .select("id, user_id, answers, standup_date, submitted_at, users:user_id(display_name, username, avatar_url)")
-      .eq("server_id", serverId)
-      .eq("standup_date", today)
-      .order("submitted_at", { ascending: true }),
-  ])
+    const [configResult, entriesResult] = await Promise.all([
+      supabase
+        .from("standup_app_configs")
+        .select("*")
+        .eq("server_id", serverId)
+        .maybeSingle(),
+      supabase
+        .from("standup_entries")
+        .select("id, user_id, answers, standup_date, submitted_at, users:user_id(display_name, username, avatar_url)")
+        .eq("server_id", serverId)
+        .eq("standup_date", today)
+        .order("submitted_at", { ascending: true }),
+    ])
 
-  if (configResult.error) return NextResponse.json({ error: "Failed to fetch standup configuration" }, { status: 500 })
+    if (configResult.error) return NextResponse.json({ error: "Failed to fetch standup configuration" }, { status: 500 })
 
-  return NextResponse.json({
-    config: configResult.data,
-    entries: entriesResult.data ?? [],
-    currentUserId: user.id,
-  })
+    return NextResponse.json({
+      config: configResult.data,
+      entries: entriesResult.data ?? [],
+      currentUserId: user.id,
+    })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/standup GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 /**
@@ -44,6 +50,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
  * Actions: save_config, submit_standup, view_date
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -156,4 +163,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/standup POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

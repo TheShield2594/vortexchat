@@ -10,30 +10,36 @@ type Params = { params: Promise<{ serverId: string }> }
  * Returns giveaway config + active giveaways for the server.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const { supabase, error } = await requireServerPermission(serverId, "SEND_MESSAGES")
-  if (error) return error
+  try {
+    const { serverId } = await params
+    const { supabase, error } = await requireServerPermission(serverId, "SEND_MESSAGES")
+    if (error) return error
 
-  const [configResult, giveawaysResult] = await Promise.all([
-    supabase
-      .from("giveaway_app_configs")
-      .select("*")
-      .eq("server_id", serverId)
-      .maybeSingle(),
-    supabase
-      .from("giveaways")
-      .select("*, giveaway_entries(count)")
-      .eq("server_id", serverId)
-      .order("created_at", { ascending: false })
-      .limit(50),
-  ])
+    const [configResult, giveawaysResult] = await Promise.all([
+      supabase
+        .from("giveaway_app_configs")
+        .select("*")
+        .eq("server_id", serverId)
+        .maybeSingle(),
+      supabase
+        .from("giveaways")
+        .select("*, giveaway_entries(count)")
+        .eq("server_id", serverId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ])
 
-  if (configResult.error) return NextResponse.json({ error: "Failed to fetch giveaway configuration" }, { status: 500 })
+    if (configResult.error) return NextResponse.json({ error: "Failed to fetch giveaway configuration" }, { status: 500 })
 
-  return NextResponse.json({
-    config: configResult.data,
-    giveaways: giveawaysResult.data ?? [],
-  })
+    return NextResponse.json({
+      config: configResult.data,
+      giveaways: giveawaysResult.data ?? [],
+    })
+
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/giveaway GET] error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 /**
@@ -41,6 +47,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
  * Create a new giveaway or update giveaway config.
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const { serverId } = await params
   const { supabase, user, error } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
   if (error) return error
@@ -74,7 +81,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("*")
       .single()
 
-    if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
+    if (upsertError) return NextResponse.json({ error: "Failed to update giveaway configuration" }, { status: 500 })
     return NextResponse.json(data)
   }
 
@@ -96,6 +103,14 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     // Determine channel — use explicit channel_id or fall back to configured giveaway channel
     let targetChannelId = channel_id
+
+    // Validate explicit channel_id belongs to this server
+    if (targetChannelId) {
+      const { data: ch, error: channelError } = await supabase.from("channels").select("id").eq("id", targetChannelId).eq("server_id", serverId).maybeSingle()
+      if (channelError) return NextResponse.json({ error: "Failed to validate channel" }, { status: 500 })
+      if (!ch) return NextResponse.json({ error: "Channel not found in this server" }, { status: 400 })
+    }
+
     if (!targetChannelId) {
       const { data: config } = await supabase
         .from("giveaway_app_configs")
@@ -127,7 +142,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("*")
       .single()
 
-    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+    if (insertError) return NextResponse.json({ error: "Failed to create giveaway" }, { status: 500 })
 
     // Post announcement message in the giveaway channel
     const serviceClient = await createServiceRoleClient()
@@ -141,14 +156,31 @@ export async function POST(req: NextRequest, { params }: Params) {
       `\nUse \`/genter ${giveaway.id.slice(0, 8)}\` to enter!`,
     ].filter(Boolean).join("\n")
 
-    await serviceClient.from("messages").insert({
+    const { error: announceError } = await serviceClient.from("messages").insert({
       channel_id: targetChannelId,
       author_id: SYSTEM_BOT_ID,
       content: announceContent,
     })
 
+    if (announceError) {
+      // Rollback: delete the giveaway we just created
+      const { error: rollbackError } = await supabase.from("giveaways").delete().eq("id", giveaway.id)
+      if (rollbackError) {
+        console.error("[servers/[serverId]/apps/giveaway POST] rollback failed", {
+          serverId,
+          giveawayId: giveaway.id,
+          error: rollbackError.message,
+        })
+      }
+      return NextResponse.json({ error: "Failed to post giveaway announcement" }, { status: 500 })
+    }
+
     return NextResponse.json(giveaway, { status: 201 })
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/giveaway POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

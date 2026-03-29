@@ -103,8 +103,8 @@ export function PasskeysSection(): React.JSX.Element {
               <p className="text-sm text-white">{cred.name}</p>
               <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Last used: {cred.last_used_at ? new Date(cred.last_used_at).toLocaleString() : "Never"}</p>
             </div>
-            <button onClick={() => openRenameDialog(cred.id, cred.name)} className="p-2 rounded" style={{ background: "var(--theme-surface-input)" }}><Pencil className="w-4 h-4" /></button>
-            <button onClick={() => revoke(cred.id)} className="p-2 rounded" style={{ background: "rgba(242,63,67,0.15)", color: "var(--theme-danger)" }}><Trash2 className="w-4 h-4" /></button>
+            <button onClick={() => openRenameDialog(cred.id, cred.name)} className="p-2 rounded" style={{ background: "var(--theme-surface-input)" }} aria-label="Rename passkey"><Pencil className="w-4 h-4" /></button>
+            <button onClick={() => revoke(cred.id)} className="p-2 rounded" style={{ background: "rgba(242,63,67,0.15)", color: "var(--theme-danger)" }} aria-label="Revoke passkey"><Trash2 className="w-4 h-4" /></button>
           </div>
         ))}
         {credentials.length === 0 && <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>No passkeys yet. Add one now and keep password/magic-link recovery enabled until you register a backup device.</p>}

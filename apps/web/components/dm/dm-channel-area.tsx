@@ -978,6 +978,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
               className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
               style={{ color: (activeCall && !activeCall.withVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start voice call"
+              aria-label="Start voice call"
               disabled={!!activeCall || !!ringing}
             >
               <Phone className="w-[18px] h-[18px]" />
@@ -987,6 +988,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
               className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
               style={{ color: (activeCall?.withVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start video call"
+              aria-label="Start video call"
               disabled={!!activeCall || !!ringing}
             >
               <Video className="w-[18px] h-[18px]" />
@@ -1233,6 +1235,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
                       style={{ color: "var(--theme-text-muted)" }}
                       title="Reply"
+                      aria-label="Reply"
                     >
                       <Reply className="w-3.5 h-3.5 -scale-x-100" />
                     </button>
@@ -1244,6 +1247,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                           className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
                           style={{ color: "var(--theme-text-muted)" }}
                           title="Edit"
+                          aria-label="Edit message"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -1253,6 +1257,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                           className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20"
                           style={{ color: "var(--theme-text-muted)" }}
                           title="Delete"
+                          aria-label="Delete message"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1300,7 +1305,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 ? (decryptedContent[replyTo.id]?.text ?? "Encrypted message")
                 : replyTo.content}
             </span>
-            <button type="button" onClick={() => setReplyTo(null)} style={{ color: "var(--theme-text-muted)" }}>
+            <button type="button" onClick={() => setReplyTo(null)} style={{ color: "var(--theme-text-muted)" }} aria-label="Cancel reply">
               <X className="w-3 h-3 hover:text-white" />
             </button>
           </div>
@@ -1313,6 +1318,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             className="flex-shrink-0 transition-colors hover:text-white"
             style={{ color: "var(--theme-text-muted)" }}
             title="Attach file"
+            aria-label="Attach file"
           >
             {uploadingFile
               ? <div className="w-5 h-5 rounded-full motion-spinner" aria-label="Uploading…" />
@@ -1631,7 +1637,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             <Smile className="w-5 h-5" />
           </button>
           {content.trim() && (
-            <button onClick={handleSend} disabled={sending} style={{ color: "var(--theme-accent)" }}>
+            <button onClick={handleSend} disabled={sending} style={{ color: "var(--theme-accent)" }} aria-label="Send message">
               <Send className="w-5 h-5" />
             </button>
           )}
@@ -1917,6 +1923,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
           style={{ background: muted ? "var(--theme-danger)" : "var(--theme-text-faint)" }}
           title={muted ? "Unmute" : "Mute"}
+          aria-label={muted ? "Unmute" : "Mute"}
         >
           {muted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
         </button>
@@ -1926,6 +1933,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
             className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
             style={{ background: videoOff ? "var(--theme-danger)" : "var(--theme-text-faint)" }}
             title={videoOff ? "Turn on camera" : "Turn off camera"}
+            aria-label={videoOff ? "Turn on camera" : "Turn off camera"}
           >
             {videoOff ? <VideoOff className="w-5 h-5 text-white" /> : <Video className="w-5 h-5 text-white" />}
           </button>
@@ -1935,6 +1943,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           className="w-12 h-12 rounded-full flex items-center justify-center"
           style={{ background: "var(--theme-danger)" }}
           title="Hang up"
+          aria-label="Hang up"
         >
           <PhoneOff className="w-5 h-5 text-white" />
         </button>
