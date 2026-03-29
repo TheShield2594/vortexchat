@@ -419,7 +419,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
               {/* Vanity Invite URL */}
               {isOwner && (
                 <div className="border-t pt-4 mt-4" style={{ borderColor: 'var(--theme-bg-tertiary)' }}>
-                  <Label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
+                  <Label htmlFor="server-vanity-url" className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--theme-text-secondary)' }}>
                     Vanity Invite URL
                   </Label>
                   <p className="text-xs mb-2" style={{ color: 'var(--theme-text-muted)' }}>
@@ -429,6 +429,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                     <div className="flex-1 flex items-center rounded overflow-hidden" style={{ background: 'var(--theme-bg-tertiary)', border: '1px solid var(--theme-bg-tertiary)' }}>
                       <span className="px-2 text-xs shrink-0" style={{ color: 'var(--theme-text-muted)' }}>/invite/</span>
                       <input
+                        id="server-vanity-url"
                         type="text"
                         value={vanityUrl}
                         onChange={(e) => { setVanityUrl(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setVanityError(null) }}
