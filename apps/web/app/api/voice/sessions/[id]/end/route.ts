@@ -95,8 +95,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // Trigger summary generation asynchronously (fire-and-forget from this request)
-  generateSummary(sessionId, user.id, geminiApiKey).catch(() => {
-    // Summary failure is non-fatal; summary_status will remain 'failed'
+  generateSummary(sessionId, user.id, geminiApiKey).catch((err) => {
+    console.error("[voice/sessions/end] generateSummary failed", { sessionId, userId: user.id, error: err })
   })
 
   return NextResponse.json({ session: updatedSession }, { status: 200 })

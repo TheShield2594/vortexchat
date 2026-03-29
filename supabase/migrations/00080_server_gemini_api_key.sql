@@ -2,13 +2,58 @@
 -- Each server owner provides their own Gemini API key for AI features
 -- (channel summarization, voice post-call summaries).
 -- AI features are unavailable for a server until its owner sets a key.
+--
+-- Stored in a dedicated table with owner-only RLS so members cannot
+-- read the key via direct Supabase queries.
 
-ALTER TABLE public.servers
-  ADD COLUMN IF NOT EXISTS gemini_api_key TEXT DEFAULT NULL;
+CREATE TABLE IF NOT EXISTS public.server_secrets (
+  server_id UUID PRIMARY KEY REFERENCES public.servers(id) ON DELETE CASCADE,
+  gemini_api_key TEXT DEFAULT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- Only server owners (and service role) should read this column.
--- RLS on the servers table already restricts row access; the column is
--- excluded from public select queries by the application layer.
+ALTER TABLE public.server_secrets ENABLE ROW LEVEL SECURITY;
 
-COMMENT ON COLUMN public.servers.gemini_api_key IS
-  'Server-specific Gemini API key provided by the server owner. NULL = use instance default.';
+-- Only the server owner can read or write secrets
+CREATE POLICY "Server owners can view their server secrets"
+  ON public.server_secrets FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.servers
+      WHERE servers.id = server_secrets.server_id
+        AND servers.owner_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Server owners can upsert their server secrets"
+  ON public.server_secrets FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.servers
+      WHERE servers.id = server_secrets.server_id
+        AND servers.owner_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Server owners can update their server secrets"
+  ON public.server_secrets FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.servers
+      WHERE servers.id = server_secrets.server_id
+        AND servers.owner_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Server owners can delete their server secrets"
+  ON public.server_secrets FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.servers
+      WHERE servers.id = server_secrets.server_id
+        AND servers.owner_id = auth.uid()
+    )
+  );
+
+COMMENT ON TABLE public.server_secrets IS
+  'Owner-only server secrets. RLS restricts access to the server owner.';

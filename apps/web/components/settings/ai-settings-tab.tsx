@@ -118,13 +118,18 @@ export function AiSettingsTab({ serverId }: AiSettingsTabProps) {
         <h3 className="text-sm font-medium text-white mb-2">
           {hasGeminiKey ? "Replace" : "Set"} Gemini API Key
         </h3>
-        <p className="text-xs mb-3" style={{ color: "var(--theme-text-muted)" }}>
+        <p id="gemini-api-key-help" className="text-xs mb-3" style={{ color: "var(--theme-text-muted)" }}>
           You can get a Gemini API key from Google AI Studio. The key is stored securely and never shown again after saving.
         </p>
         <div className="flex gap-2">
           <div className="relative flex-1">
+            <label htmlFor="gemini-api-key" className="sr-only">
+              Gemini API key
+            </label>
             <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--theme-text-muted)" }} />
             <input
+              id="gemini-api-key"
+              aria-describedby="gemini-api-key-help"
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}

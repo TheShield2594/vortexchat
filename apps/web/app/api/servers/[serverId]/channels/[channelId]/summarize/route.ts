@@ -44,7 +44,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     .single()
 
   if (channelError) {
-    return NextResponse.json({ error: channelError.message }, { status: 500 })
+    console.error("[summarize] channel query failed", { serverId, channelId, error: channelError.message })
+    return NextResponse.json({ error: "Failed to verify channel" }, { status: 500 })
   }
 
   if (!channel) {

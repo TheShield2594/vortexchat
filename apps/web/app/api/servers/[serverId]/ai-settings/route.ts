@@ -10,19 +10,19 @@ type Params = { params: Promise<{ serverId: string }> }
  * Owner only.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const { supabase, error } = await requireServerOwner(serverId)
-  if (error) return error
-
   try {
-    const { data: server } = await supabase
-      .from("servers")
+    const { serverId } = await params
+    const { supabase, error } = await requireServerOwner(serverId)
+    if (error) return error
+
+    const { data: secrets } = await supabase
+      .from("server_secrets")
       .select("gemini_api_key")
-      .eq("id", serverId)
-      .single()
+      .eq("server_id", serverId)
+      .maybeSingle()
 
     return NextResponse.json({
-      hasGeminiKey: !!server?.gemini_api_key,
+      hasGeminiKey: !!secrets?.gemini_api_key,
     })
   } catch (err) {
     console.error("[ai-settings GET] error:", err)
@@ -37,39 +37,56 @@ export async function GET(_req: NextRequest, { params }: Params) {
  * Owner only. Accepts { geminiApiKey: string | null }.
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const { supabase, error } = await requireServerOwner(serverId)
-  if (error) return error
-
-  let body: { geminiApiKey?: string | null }
   try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
+    const { serverId } = await params
+    const { supabase, error } = await requireServerOwner(serverId)
+    if (error) return error
 
-  if (body.geminiApiKey !== undefined && body.geminiApiKey !== null && typeof body.geminiApiKey !== "string") {
-    return NextResponse.json({ error: "geminiApiKey must be a string or null" }, { status: 400 })
-  }
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
 
-  // Basic format validation — Gemini keys are non-empty strings
-  if (typeof body.geminiApiKey === "string" && body.geminiApiKey.trim().length === 0) {
-    return NextResponse.json({ error: "geminiApiKey cannot be empty" }, { status: 400 })
-  }
+    if (body === null || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
 
-  try {
-    const { error: updateError } = await supabase
-      .from("servers")
-      .update({ gemini_api_key: body.geminiApiKey ?? null })
-      .eq("id", serverId)
+    const rawGeminiApiKey = (body as Record<string, unknown>).geminiApiKey
+    if (rawGeminiApiKey === undefined) {
+      return NextResponse.json({ error: "geminiApiKey is required" }, { status: 400 })
+    }
 
-    if (updateError) {
-      console.error("[ai-settings PATCH] update error:", updateError)
+    const geminiApiKey =
+      rawGeminiApiKey === null
+        ? null
+        : typeof rawGeminiApiKey === "string"
+          ? rawGeminiApiKey.trim()
+          : undefined
+
+    if (geminiApiKey === undefined) {
+      return NextResponse.json({ error: "geminiApiKey must be a string or null" }, { status: 400 })
+    }
+
+    if (geminiApiKey === "") {
+      return NextResponse.json({ error: "geminiApiKey cannot be empty" }, { status: 400 })
+    }
+
+    const { error: upsertError } = await supabase
+      .from("server_secrets")
+      .upsert(
+        { server_id: serverId, gemini_api_key: geminiApiKey, updated_at: new Date().toISOString() },
+        { onConflict: "server_id" }
+      )
+
+    if (upsertError) {
+      console.error("[ai-settings PATCH] upsert error:", upsertError)
       return NextResponse.json({ error: "Failed to update AI settings" }, { status: 500 })
     }
 
     return NextResponse.json({
-      hasGeminiKey: !!body.geminiApiKey,
+      hasGeminiKey: !!geminiApiKey,
     })
   } catch (err) {
     console.error("[ai-settings PATCH] error:", err)
