@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
+import { maybeRenewExpiry } from "@vortex/shared"
 
 export async function GET(
   _request: NextRequest,
@@ -12,12 +13,17 @@ export async function GET(
   try {
     const { data: attachment, error } = await supabase
       .from("attachments")
-      .select("id, url, message_id, filename")
+      .select("id, url, message_id, filename, size, expires_at, purged_at")
       .eq("id", attachmentId)
       .maybeSingle()
 
     if (error) return NextResponse.json({ error: "Failed to fetch attachment" }, { status: 500 })
     if (!attachment) return NextResponse.json({ error: "Attachment not found" }, { status: 404 })
+
+    // Block access to purged (expired + deleted from storage) attachments
+    if (attachment.purged_at) {
+      return NextResponse.json({ error: "This file has expired and is no longer available" }, { status: 410 })
+    }
 
     const { data: message } = await supabase
       .from("messages")
@@ -44,6 +50,29 @@ export async function GET(
         .maybeSingle()
 
       if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // ── Decay renewal: extend expiry if accessed near deadline ──────────────
+    if (attachment.expires_at && attachment.size) {
+      const now = new Date()
+      const sizeMB = attachment.size / 1024 / 1024
+      const renewed = maybeRenewExpiry({
+        currentExpiry: new Date(attachment.expires_at),
+        now,
+        sizeMB,
+      })
+      // Fire-and-forget: update last_accessed_at (and expires_at if renewed)
+      const updatePayload: Record<string, string> = { last_accessed_at: now.toISOString() }
+      if (renewed) {
+        updatePayload.expires_at = renewed.toISOString()
+      }
+      supabase
+        .from("attachments")
+        .update(updatePayload)
+        .eq("id", attachment.id)
+        .then(() => {}, (err: unknown) => {
+          console.error("[attachments/download] renewal update failed", { attachmentId: attachment.id, error: err })
+        })
     }
 
     // Create a fresh signed URL from the storage path rather than using the

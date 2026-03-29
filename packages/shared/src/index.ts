@@ -1,5 +1,17 @@
 // Shared types for Vortex
 
+export {
+  DECAY_CONSTANTS,
+  RENEWAL_CONSTANTS,
+  computeDecay,
+  computeRenewalWindowDays,
+  computeRenewalThresholdDays,
+  maybeRenewExpiry,
+  extendExpiry,
+  computeCost,
+} from './attachment-decay'
+export type { DecayInput, DecayResult } from './attachment-decay'
+
 export const PERMISSIONS = {
   // General
   VIEW_CHANNELS:             1 << 0,   // 1

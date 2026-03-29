@@ -179,6 +179,21 @@
 | Badges section in profile panel | Done | Shown between Roles and Connections sections |
 | RLS policies for badges | Done | Public read; service_role manages inserts/updates |
 
+## Attachment Retention / Decay
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Size-based expiry calculation (Fluxer-style) | Done | `@vortex/shared` `computeDecay()` — ≤5 MB → 3 years, ≥500 MB → 14 days, log-linear blend |
+| Decay columns on attachments + dm_attachments | Done | Migration 00081 — `expires_at`, `last_accessed_at`, `purged_at`, `lifetime_days`, `decay_cost` |
+| Backfill existing attachments with expiry | Done | Migration 00081 DO block computes expiry for all pre-existing rows |
+| Expiry set on channel attachment upload | Done | `POST /api/messages` — `insertMessageWithAttachments()` calls `computeDecay()` |
+| Expiry set on DM attachment upload | Done | `dm-channel-area.tsx` — `computeDecay()` called on DM file upload |
+| Access-based renewal on channel download | Done | `GET /api/attachments/[id]/download` — `maybeRenewExpiry()` extends deadline when accessed near expiry |
+| Access-based renewal on DM download | Done | `GET /api/dm/attachments/[id]/download` — same renewal logic |
+| Purged file access returns 410 Gone | Done | Both download endpoints return 410 for purged attachments |
+| Daily cleanup cron job | Done | `GET /api/cron/attachment-decay` — purges expired files from Supabase Storage in batches of 200 |
+| Vercel cron schedule | Done | `vercel.json` — runs daily at midnight UTC |
+
 ---
 
-*Last updated: 2026-03-28*
+*Last updated: 2026-03-29*
