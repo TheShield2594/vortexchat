@@ -820,13 +820,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const r = payload.new as DmReaction
           // Skip our own reactions (already handled optimistically)
           if (r.user_id === currentUserId) return
-          setMessages((prev) =>
-            prev.map((m) => {
+          setMessages((prev) => {
+            if (!prev.some((m) => m.id === r.dm_id)) return prev
+            return prev.map((m) => {
               if (m.id !== r.dm_id) return m
               if (m.reactions.some((er) => er.dm_id === r.dm_id && er.user_id === r.user_id && er.emoji === r.emoji)) return m
               return { ...m, reactions: [...m.reactions, r] }
             })
-          )
+          })
         }
       )
       .on(
@@ -835,12 +836,13 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         (payload) => {
           const r = payload.old as DmReaction
           if (r.user_id === currentUserId) return
-          setMessages((prev) =>
-            prev.map((m) => {
+          setMessages((prev) => {
+            if (!prev.some((m) => m.id === r.dm_id)) return prev
+            return prev.map((m) => {
               if (m.id !== r.dm_id) return m
               return { ...m, reactions: m.reactions.filter((er) => !(er.dm_id === r.dm_id && er.user_id === r.user_id && er.emoji === r.emoji)) }
             })
-          )
+          })
         }
       )
       .subscribe()
