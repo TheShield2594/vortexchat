@@ -17,7 +17,7 @@ const nextConfig = {
       },
       {
         // Cache icons for 1 day so updates propagate within 24h
-        source: "/icon-:path*.png",
+        source: "/icon-:slug.png",
         headers: [
           { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=3600" },
         ],
@@ -29,7 +29,13 @@ const nextConfig = {
         ],
       },
       {
-        source: "/favicon:path*",
+        source: "/favicon-:slug.png",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=3600" },
+        ],
+      },
+      {
+        source: "/favicon.ico",
         headers: [
           { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=3600" },
         ],
