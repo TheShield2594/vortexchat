@@ -40,12 +40,13 @@ export function MobileBottomTabBar() {
     <nav
       className="md:hidden fixed z-40 left-3 right-3"
       style={{
-        bottom: "calc(8px + env(safe-area-inset-bottom))",
+        bottom: "calc(var(--mobile-tabbar-gap) + env(safe-area-inset-bottom))",
       }}
       aria-label="Mobile sections"
     >
       <ul
-        className="flex items-center justify-around rounded-2xl h-[56px] px-1"
+        className="flex items-center justify-around rounded-2xl px-1"
+        style={{ height: "var(--mobile-tabbar-height)" }}
         style={{
           background: "color-mix(in srgb, var(--theme-bg-secondary) 82%, transparent)",
           backdropFilter: "blur(24px) saturate(1.4)",
