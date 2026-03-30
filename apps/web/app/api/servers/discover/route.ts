@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
+import type { DiscoverServersResponse } from "@vortex/shared"
 
 const PAGE_SIZE = 24
 
@@ -86,5 +87,6 @@ export async function GET(req: NextRequest) {
   const page = hasMore ? items.slice(0, PAGE_SIZE) : items
   const nextCursor = hasMore ? page[page.length - 1].id : null
 
-  return NextResponse.json({ servers: page, nextCursor })
+  const response: DiscoverServersResponse = { servers: page, nextCursor }
+  return NextResponse.json(response)
 }

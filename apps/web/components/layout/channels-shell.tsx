@@ -2,7 +2,6 @@
 
 import { useEffect } from "react"
 import { usePathname } from "next/navigation"
-import { MobileNavProvider } from "./mobile-nav"
 import { ServerSidebarWrapper } from "./server-sidebar-wrapper"
 import { setupMobileBackGuard } from "@/utils/mobile-navigation"
 import { isFullScreenChannel } from "@/lib/utils/navigation"
@@ -17,24 +16,22 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <MobileNavProvider>
-      {/* Reserve nav-pill height + gap + safe-area on mobile; omitted in full-screen channel view */}
-      <div
-        className="flex h-screen overflow-hidden md:!pb-0"
-        style={{
-          background: "var(--app-bg-primary)",
-          paddingTop: "env(safe-area-inset-top)",
-          paddingBottom: isFullScreen ? undefined : "var(--mobile-tabbar-reserve)",
-        }}
-      >
-        {/* Guild rail: always visible on desktop; hidden in full-screen channel views on mobile */}
-        <div className={isFullScreen ? "hidden md:flex" : "flex"}>
-          <ServerSidebarWrapper />
-        </div>
-        <main id="main-content" className="flex flex-1 overflow-hidden min-w-0" data-main-content>
-          {children}
-        </main>
+    // Reserve nav-pill height + gap + safe-area on mobile; omitted in full-screen channel view
+    <div
+      className="flex h-screen overflow-hidden md:!pb-0"
+      style={{
+        background: "var(--app-bg-primary)",
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: isFullScreen ? undefined : "var(--mobile-tabbar-reserve)",
+      }}
+    >
+      {/* Guild rail: desktop only — mobile uses bottom tab bar */}
+      <div className="hidden md:flex">
+        <ServerSidebarWrapper />
       </div>
-    </MobileNavProvider>
+      <main id="main-content" className="flex flex-1 overflow-hidden min-w-0" data-main-content>
+        {children}
+      </main>
+    </div>
   )
 }
