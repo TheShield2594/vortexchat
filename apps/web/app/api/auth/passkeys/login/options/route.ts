@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
-import { getOrigin, getRpId, PASSKEY_CHALLENGE_TTL_SECONDS, randomChallenge } from "@/lib/auth/passkeys"
+import { getRpId, PASSKEY_CHALLENGE_TTL_SECONDS, randomChallenge, resolveRequestOrigin } from "@/lib/auth/passkeys"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
 
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
 
     const challenge = randomChallenge()
     const expiresAt = new Date(Date.now() + PASSKEY_CHALLENGE_TTL_SECONDS * 1000).toISOString()
-    const origin = getOrigin()
+    const origin = resolveRequestOrigin(request.headers)
     const rpID = getRpId(origin)
 
     const { error: challengeError } = await db.from("auth_challenges").insert({

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
-import { getOrigin, getRpId, verifyWithAdapter } from "@/lib/auth/passkeys"
+import { verifyWithAdapter } from "@/lib/auth/passkeys"
 import { createAuthSession, issueTrustedDevice } from "@/lib/auth/security"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
@@ -48,11 +48,15 @@ export async function POST(request: Request) {
       .eq("flow", "login")
       .is("used_at", null)
       .gt("expires_at", new Date().toISOString())
-      .select("id,user_id,expires_at")
+      .select("id,user_id,expires_at,origin,rp_id")
       .maybeSingle()
 
     if (claimError || !claimedChallenge) {
       return NextResponse.json({ error: "Challenge is invalid or expired" }, { status: 400 })
+    }
+
+    if (!claimedChallenge.origin || !claimedChallenge.rp_id) {
+      return NextResponse.json({ error: "Challenge metadata is incomplete" }, { status: 400 })
     }
 
     const { data: credential } = await db
@@ -73,8 +77,8 @@ export async function POST(request: Request) {
       challenge: body.challenge,
       credentialId: body.credentialId,
       response: body.response,
-      expectedOrigin: getOrigin(),
-      expectedRpId: getRpId(getOrigin()),
+      expectedOrigin: claimedChallenge.origin,
+      expectedRpId: claimedChallenge.rp_id,
       publicKey: credential.public_key,
       prevCounter: credential.counter,
     })

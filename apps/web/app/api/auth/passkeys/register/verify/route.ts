@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
-import { getOrigin, getRpId, verifyWithAdapter } from "@/lib/auth/passkeys"
+import { verifyWithAdapter } from "@/lib/auth/passkeys"
 
 export async function POST(request: Request) {
   try {
@@ -40,24 +40,31 @@ export async function POST(request: Request) {
 
     const admin = await createServiceRoleClient()
     const adminDb = admin as any
-    const { data: challengeRow } = await adminDb
+    const { data: challengeRow, error: claimError } = await adminDb
       .from("auth_challenges")
-      .select("id,expires_at,used_at")
+      .update({ used_at: new Date().toISOString() })
       .eq("user_id", auth.user.id)
       .eq("challenge", body.challenge)
       .eq("flow", "register")
+      .is("used_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .select("id,expires_at,origin,rp_id")
       .maybeSingle()
 
-    if (!challengeRow || challengeRow.used_at || new Date(challengeRow.expires_at).getTime() < Date.now()) {
+    if (claimError || !challengeRow) {
       return NextResponse.json({ error: "Challenge is invalid or expired" }, { status: 400 })
+    }
+
+    if (!challengeRow.origin || !challengeRow.rp_id) {
+      return NextResponse.json({ error: "Challenge metadata is incomplete" }, { status: 400 })
     }
 
     const verify = await verifyWithAdapter("registration", {
       challenge: body.challenge,
       credentialId: body.credentialId,
       response: body.response,
-      expectedOrigin: getOrigin(),
-      expectedRpId: getRpId(getOrigin()),
+      expectedOrigin: challengeRow.origin,
+      expectedRpId: challengeRow.rp_id,
     })
 
     if (!verify.verified) {
@@ -74,8 +81,6 @@ export async function POST(request: Request) {
       device_type: verify.deviceType ?? "singleDevice",
       name: body.name?.trim() || "Passkey",
     })
-
-    await adminDb.from("auth_challenges").update({ used_at: new Date().toISOString() }).eq("id", challengeRow.id)
 
     return NextResponse.json({ ok: true })
 
