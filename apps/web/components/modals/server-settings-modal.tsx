@@ -219,7 +219,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-5xl max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto overflow-hidden p-0"
+        className="sm:max-w-5xl sm:max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto sm:overflow-hidden p-0"
         style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
         aria-describedby={undefined}
       >
