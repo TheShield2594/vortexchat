@@ -1187,7 +1187,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           })
         )
       }
-    } catch {
+    } catch (err) {
+      console.error("[dm reaction toggle] network error:", { messageId, emoji, action: remove ? "remove" : "add", error: err })
       // Revert on network error
       setMessages((prev) =>
         prev.map((m) => {
