@@ -1338,7 +1338,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
                   ) : (
                     <div
-                      className="grid grid-cols-3 gap-2 overflow-y-auto flex-1 min-h-0"
+                      className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 min-h-0"
                       onKeyDown={handleGifGridKeyDown}
                     >
                       {media.gifResults.map((gif) => (
@@ -1368,7 +1368,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                           title={gif.title}
                           aria-label={gif.title}
                         >
-                          <img src={gif.previewUrl} alt={gif.title} className="w-full h-16 object-cover" />
+                          <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-video object-cover" />
                           <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
                         </button>
                       ))}
@@ -1401,7 +1401,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading memes…</p>
                   ) : (
                     <div
-                      className="grid grid-cols-3 gap-2 overflow-y-auto flex-1 min-h-0"
+                      className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 min-h-0"
                       onKeyDown={handleGifGridKeyDown}
                     >
                       {media.memeResults.map((meme) => (
@@ -1431,7 +1431,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                           title={meme.title}
                           aria-label={meme.title}
                         >
-                          <img src={meme.previewUrl} alt={meme.title} className="w-full h-16 object-cover" />
+                          <img src={meme.previewUrl} alt={meme.title} className="w-full aspect-video object-cover" />
                           <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{meme.title || "Meme"}</span>
                         </button>
                       ))}

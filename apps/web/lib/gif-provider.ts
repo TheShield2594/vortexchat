@@ -63,7 +63,7 @@ export async function klipyTrending(apiKey: string, limit = 30): Promise<GifResu
 export async function klipySearchStickers(apiKey: string, query: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
-      `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&type=stickers&media_filter=gif,tinygif`
+      `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&searchfilter=sticker&media_filter=gif,tinygif`
     )
     if (!res.ok) return []
     const json = await res.json()
@@ -76,7 +76,7 @@ export async function klipySearchStickers(apiKey: string, query: string, limit =
 export async function klipyTrendingStickers(apiKey: string, limit = 30): Promise<GifResult[]> {
   try {
     const res = await fetchWithTimeout(
-      `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&type=stickers&media_filter=gif,tinygif`
+      `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&searchfilter=sticker&media_filter=gif,tinygif`
     )
     if (!res.ok) return []
     const json = await res.json()
@@ -87,7 +87,7 @@ export async function klipyTrendingStickers(apiKey: string, limit = 30): Promise
 }
 
 export async function klipySearchMemes(apiKey: string, query: string, limit = 30): Promise<GifResult[]> {
-  const url = `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&type=memes&media_filter=gif,tinygif`
+  const url = `https://api.klipy.com/v2/search?key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&contentfilter=medium&searchfilter=meme&media_filter=gif,tinygif`
   const res = await fetchWithTimeout(url)
   if (!res.ok) throw new Error(`Klipy meme search failed (${res.status})`)
   const json = await res.json()
@@ -95,7 +95,7 @@ export async function klipySearchMemes(apiKey: string, query: string, limit = 30
 }
 
 export async function klipyTrendingMemes(apiKey: string, limit = 30): Promise<GifResult[]> {
-  const url = `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&type=memes&media_filter=gif,tinygif`
+  const url = `https://api.klipy.com/v2/featured?key=${apiKey}&limit=${limit}&contentfilter=medium&searchfilter=meme&media_filter=gif,tinygif`
   const res = await fetchWithTimeout(url)
   if (!res.ok) throw new Error(`Klipy trending memes failed (${res.status})`)
   const json = await res.json()

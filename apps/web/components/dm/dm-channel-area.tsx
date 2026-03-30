@@ -2233,7 +2233,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   {gifLoading ? (
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
                   ) : (
-                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
                       {gifResults.map((gif) => (
                         <button
                           key={gif.id}
@@ -2245,7 +2245,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                           title={gif.title}
                           aria-label={gif.title}
                         >
-                          <img src={gif.previewUrl} alt={gif.title} className="w-full h-16 object-cover" />
+                          <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-video object-cover" />
                           <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
                         </button>
                       ))}
