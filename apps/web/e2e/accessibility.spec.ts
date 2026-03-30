@@ -86,7 +86,7 @@ test.describe("Accessibility", () => {
     await page.goto("/login")
 
     // Wait for splash screen overlay to fade out before testing Tab order
-    await page.waitForSelector("[aria-hidden='true'][style*='opacity']", { state: "hidden", timeout: 5_000 }).catch(() => {})
+    await page.waitForSelector("[aria-hidden='true'][style*='pointer-events']", { state: "detached", timeout: 5_000 }).catch(() => {})
 
     // Tab through the page and collect focused element types
     const focusedElements: string[] = []

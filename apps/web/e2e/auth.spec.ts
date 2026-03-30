@@ -98,9 +98,9 @@ test.describe("Authentication", () => {
   test("skip-to-content link is keyboard accessible", async ({ page }) => {
     await page.goto("/login")
 
-    // Wait for the splash screen overlay to fade out (it has pointer-events: auto
-    // and covers the viewport for ~500ms, intercepting Tab key presses)
-    await page.waitForSelector("[aria-hidden='true'][style*='opacity']", { state: "hidden", timeout: 5_000 }).catch(() => {})
+    // Wait for the splash screen overlay to unmount from DOM (~500ms after hydration).
+    // It has pointer-events:auto and covers the viewport, intercepting Tab key presses.
+    await page.waitForSelector("[aria-hidden='true'][style*='pointer-events']", { state: "detached", timeout: 5_000 }).catch(() => {})
 
     // Tab to reach the skip link
     await page.keyboard.press("Tab")
