@@ -23,17 +23,14 @@ jobs:
       - run: npm ci
       - run: npm audit --audit-level=critical
 
-  lint:
-    name: Lint (Node ${{ matrix.node-version }})
+  checks:
+    name: Lint & Type Check
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
           cache: npm
       - run: npm ci
       # Run ESLint only. The style-guardrails check uses a locally-generated
@@ -42,51 +39,20 @@ jobs:
       # Style-guardrail regressions are caught in local dev via `npm run lint`.
       - run: npx eslint . --max-warnings 0
         working-directory: apps/web
-
-  type-check:
-    name: Type Check (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20, 22]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm ci
       - run: npm run type-check --workspace=apps/web
       - run: npm run type-check --workspace=apps/signal
 
   test:
-    name: Tests (Node ${{ matrix.node-version }})
+    name: Tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test --workspace=apps/web
-
-  parity-gates:
-    name: Parity Gates (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20, 22]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm ci
       - run: npm run test:parity:critical --workspace=apps/web
       - run: npm run test:a11y:focus --workspace=apps/web
       - run: npm test --workspace=apps/signal
@@ -158,7 +124,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, type-check, test, parity-gates]
+    needs: [checks, test]
     env:
       # Dummy values so Next.js build doesn't fail on missing env vars
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
