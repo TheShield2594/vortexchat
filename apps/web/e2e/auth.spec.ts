@@ -15,13 +15,14 @@ import { hasSupabase } from "./utils"
 const TEST_EMAIL = `e2e-${Date.now()}@test.local`
 const TEST_PASSWORD = "Test1234!@#$"
 const TEST_USERNAME = `e2euser${Date.now()}`
+const REGISTER_SUBMIT_NAME = /create account|sign up|register|continue/i
 
 test.describe("Authentication", () => {
   test("register page loads and shows form", async ({ page }) => {
     await page.goto("/register")
     await expect(page.locator("input[type='email']")).toBeVisible()
     await expect(page.locator("input[type='password']").first()).toBeVisible()
-    await expect(page.getByRole("button", { name: /create account|sign up|register|continue/i })).toBeVisible()
+    await expect(page.getByRole("button", { name: REGISTER_SUBMIT_NAME })).toBeVisible()
   })
 
   test("login page loads and shows form", async ({ page }) => {
@@ -47,7 +48,7 @@ test.describe("Authentication", () => {
     await page.goto("/register")
 
     // Try submitting empty form
-    const submitButton = page.getByRole("button", { name: /create account|sign up|register|continue/i })
+    const submitButton = page.getByRole("button", { name: REGISTER_SUBMIT_NAME })
     await submitButton.click()
 
     // HTML5 validation should prevent submission — email should be invalid
@@ -67,7 +68,7 @@ test.describe("Authentication", () => {
     await page.locator("input[type='text']").first().fill(TEST_USERNAME)
     await page.locator("input[type='password']").first().fill(TEST_PASSWORD)
     await page.locator("input[type='password']").last().fill(TEST_PASSWORD)
-    await page.getByRole("button", { name: /create account|sign up|register/i }).click()
+    await page.getByRole("button", { name: REGISTER_SUBMIT_NAME }).click()
 
     // Should redirect to login or auto-login
     await page.waitForURL(/\/(login|servers|$)/, { timeout: 15_000 })

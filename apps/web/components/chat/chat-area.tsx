@@ -150,26 +150,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [mobilePendingAction, setMobilePendingAction])
 
   const trackCommandEvent = useCallback((eventType: "action" | "discoverability", payload: Record<string, string | number | boolean>) => {
+    const route = "/api/t/ccb"
+    const logTelemetryFailure = (err: unknown): void => {
+      console.warn("[telemetry] send failed", {
+        route,
+        userId: currentUserId,
+        action: eventType,
+        channelId: channel.id,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
     const body = JSON.stringify({ eventType, payload, channelId: channel.id, serverId, timestamp: Date.now() })
     try {
       if (navigator.sendBeacon) {
-        const queued = navigator.sendBeacon("/api/t/ccb", new Blob([body], { type: "application/json" }))
+        const queued = navigator.sendBeacon(route, new Blob([body], { type: "application/json" }))
         if (!queued) {
-          fetch("/api/t/ccb", { method: "POST", headers: { "Content-Type": "application/json" }, body })
-            .catch((err: unknown) => {
-              console.warn("[telemetry] send failed", { route: "/api/t/ccb", channelId: channel.id, error: err instanceof Error ? err.message : String(err) })
-            })
+          fetch(route, { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(logTelemetryFailure)
         }
       } else {
-        fetch("/api/t/ccb", { method: "POST", headers: { "Content-Type": "application/json" }, body })
-          .catch((err: unknown) => {
-            console.warn("[telemetry] send failed", { route: "/api/t/ccb", channelId: channel.id, error: err instanceof Error ? err.message : String(err) })
-          })
+        fetch(route, { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(logTelemetryFailure)
       }
     } catch (err) {
-      console.warn("[telemetry] send failed", { route: "/api/t/ccb", channelId: channel.id, error: err instanceof Error ? err.message : String(err) })
+      logTelemetryFailure(err)
     }
-  }, [channel.id, serverId])
+  }, [channel.id, currentUserId, serverId])
 
   // ── Message index map ────────────────────────────────────────────────────
   // O(1) lookup of message index by ID — used for jump-to-message

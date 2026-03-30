@@ -20,7 +20,7 @@ test.describe("Server and Chat", () => {
 
   test("app shell loads with server sidebar", async ({ page }) => {
     // This test requires auth — skip if no test account is seeded
-    test.skip(!hasSupabase || !process.env.E2E_TEST_EMAIL, "Requires a real Supabase backend and E2E_TEST_EMAIL env var")
+    test.skip(!hasSupabase || !process.env.E2E_TEST_EMAIL || !process.env.E2E_TEST_PASSWORD, "Requires a real Supabase backend plus E2E_TEST_EMAIL and E2E_TEST_PASSWORD env vars")
 
     await page.goto("/login")
     await page.locator("input[type='email']").fill(process.env.E2E_TEST_EMAIL!)
@@ -34,7 +34,7 @@ test.describe("Server and Chat", () => {
   })
 
   test("message input is visible in a channel", async ({ page }) => {
-    test.skip(!hasSupabase || !process.env.E2E_TEST_EMAIL, "Requires a real Supabase backend and E2E_TEST_EMAIL env var")
+    test.skip(!hasSupabase || !process.env.E2E_TEST_EMAIL || !process.env.E2E_TEST_PASSWORD, "Requires a real Supabase backend plus E2E_TEST_EMAIL and E2E_TEST_PASSWORD env vars")
 
     await page.goto("/login")
     await page.locator("input[type='email']").fill(process.env.E2E_TEST_EMAIL!)
@@ -56,7 +56,7 @@ test.describe("Server and Chat", () => {
   })
 
   test("search modal opens with keyboard shortcut", async ({ page }) => {
-    test.skip(!hasSupabase || !process.env.E2E_TEST_EMAIL, "Requires a real Supabase backend and E2E_TEST_EMAIL env var")
+    test.skip(!hasSupabase || !process.env.E2E_TEST_EMAIL || !process.env.E2E_TEST_PASSWORD, "Requires a real Supabase backend plus E2E_TEST_EMAIL and E2E_TEST_PASSWORD env vars")
 
     await page.goto("/login")
     await page.locator("input[type='email']").fill(process.env.E2E_TEST_EMAIL!)
