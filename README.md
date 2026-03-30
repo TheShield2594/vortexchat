@@ -1,7 +1,7 @@
 # VortexChat
 
 <p align="center">
-  <img src="favicon_io/android-chrome-192x192.png" alt="VortexChat" width="80" />
+  <img src="apps/web/public/icon-192.png" alt="VortexChat" width="80" />
 </p>
 
 <h1 align="center">VortexChat</h1>
