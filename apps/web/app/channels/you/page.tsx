@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { User, Palette, Bell, Shield, Volume2, Keyboard, LogOut, Circle } from "lucide-react"
+import { User, Palette, Bell, Shield, Volume2, LogOut, Circle } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -17,7 +17,6 @@ const SETTINGS_LINKS = [
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/voice", label: "Voice & Video", icon: Volume2 },
   { href: "/settings/security", label: "Security & Privacy", icon: Shield },
-  { href: "/settings/keybinds", label: "Keybinds", icon: Keyboard },
 ]
 
 export default function YouPage() {
