@@ -46,8 +46,8 @@ export function MobileBottomTabBar() {
     >
       <ul
         className="flex items-center justify-around rounded-2xl px-1"
-        style={{ height: "var(--mobile-tabbar-height)" }}
         style={{
+          height: "var(--mobile-tabbar-height)",
           background: "color-mix(in srgb, var(--theme-bg-secondary) 82%, transparent)",
           backdropFilter: "blur(24px) saturate(1.4)",
           WebkitBackdropFilter: "blur(24px) saturate(1.4)",
