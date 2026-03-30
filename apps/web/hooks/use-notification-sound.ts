@@ -5,6 +5,9 @@ import { persistBooleanStorage } from "@/lib/utils/storage"
 
 const STORAGE_KEY = "vortexchat:notification-sound-enabled"
 
+// Path to the notification sound file served from /public
+const NOTIFICATION_SOUND_URL = "/sounds/notification.wav"
+
 // ---------------------------------------------------------------------------
 // localStorage-backed setting with useSyncExternalStore for React sync
 // ---------------------------------------------------------------------------
@@ -48,47 +51,78 @@ function setNotificationSoundEnabled(enabled: boolean) {
 }
 
 // ---------------------------------------------------------------------------
-// Web Audio API tone generator
+// Audio file player (replaces Web Audio API tone generator)
 // ---------------------------------------------------------------------------
 
-async function playTone() {
-  try {
-    const ctx = new AudioContext()
+// Preloaded Audio element — we clone it for each play to allow overlapping
+let preloadedAudio: HTMLAudioElement | null = null
 
-    // Browsers suspend AudioContext until a user gesture has been received.
-    // Without resuming first, start() queues the sound but it is never played.
-    if (ctx.state === "suspended") {
-      await ctx.resume()
-    }
-
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-
-    osc.type = "sine"
-    osc.frequency.setValueAtTime(880, ctx.currentTime)
-    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.08)
-
-    gain.gain.setValueAtTime(0.15, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
-
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + 0.2)
-
-    osc.onended = () => {
-      ctx.close().catch((err: unknown) => { console.warn("AudioContext.close() failed:", err) })
-    }
-    // Safety net: close context after 1s even if onended never fires
-    setTimeout(() => {
-      if (ctx.state !== "closed") {
-        ctx.close().catch((err: unknown) => { console.warn("AudioContext.close() failed:", err) })
-      }
-    }, 1000)
-  } catch {
-    // Audio context unavailable — silent fallback
+function getPreloadedAudio(): HTMLAudioElement {
+  if (!preloadedAudio) {
+    preloadedAudio = new Audio(NOTIFICATION_SOUND_URL)
+    preloadedAudio.preload = "auto"
+    preloadedAudio.volume = 0.5
   }
+  return preloadedAudio
+}
+
+async function playNotificationSound(): Promise<void> {
+  try {
+    const template = getPreloadedAudio()
+    // Clone so we can play overlapping sounds if rapid notifications arrive
+    const audio = template.cloneNode(true) as HTMLAudioElement
+    audio.volume = 0.5
+    audio.currentTime = 0
+    await audio.play()
+  } catch {
+    // Autoplay blocked or audio unavailable — fall back to Web Audio API tone
+    try {
+      await playFallbackTone()
+    } catch {
+      // Silent fallback — audio not available in this environment
+    }
+  }
+}
+
+/** Fallback: Web Audio API two-tone chime if <audio> playback fails */
+async function playFallbackTone(): Promise<void> {
+  const ctx = new AudioContext()
+
+  if (ctx.state === "suspended") {
+    await ctx.resume()
+  }
+
+  const osc1 = ctx.createOscillator()
+  const gain1 = ctx.createGain()
+  osc1.connect(gain1)
+  gain1.connect(ctx.destination)
+  osc1.type = "sine"
+  osc1.frequency.setValueAtTime(1047, ctx.currentTime) // C6
+  gain1.gain.setValueAtTime(0.15, ctx.currentTime)
+  gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
+  osc1.start(ctx.currentTime)
+  osc1.stop(ctx.currentTime + 0.12)
+
+  const osc2 = ctx.createOscillator()
+  const gain2 = ctx.createGain()
+  osc2.connect(gain2)
+  gain2.connect(ctx.destination)
+  osc2.type = "sine"
+  osc2.frequency.setValueAtTime(1319, ctx.currentTime + 0.08) // E6
+  gain2.gain.setValueAtTime(0, ctx.currentTime)
+  gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.08)
+  gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25)
+  osc2.start(ctx.currentTime + 0.08)
+  osc2.stop(ctx.currentTime + 0.25)
+
+  osc2.onended = () => {
+    ctx.close().catch(() => {})
+  }
+  setTimeout(() => {
+    if (ctx.state !== "closed") {
+      ctx.close().catch(() => {})
+    }
+  }, 1000)
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +141,7 @@ export function useNotificationSound() {
     if (now - lastPlayedRef.current < 500) return
     lastPlayedRef.current = now
 
-    playTone()
+    playNotificationSound()
   }, [])
 
   return {

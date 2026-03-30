@@ -47,6 +47,8 @@ const DEFAULT_SETTINGS: NotificationSettingsRow = {
 
 // localStorage key kept for sound_enabled cross-component sync
 const soundStorageKey = (userId: string) => `vortexchat:notif-sound:${userId}`
+// The hook reads from this key — keep it in sync when the user changes preferences
+const GLOBAL_SOUND_STORAGE_KEY = "vortexchat:notification-sound-enabled"
 
 export function NotificationsSettingsPage({ userId }: Props) {
   const { toast } = useToast()
@@ -70,6 +72,8 @@ export function NotificationsSettingsPage({ userId }: Props) {
           if (typeof window !== "undefined") {
             try {
               window.localStorage.setItem(soundStorageKey(userId), String(validated.sound_enabled))
+              // Also sync the global key that the sound hook reads
+              window.localStorage.setItem(GLOBAL_SOUND_STORAGE_KEY, validated.sound_enabled ? "true" : "false")
             } catch { /* ignore */ }
           }
         }
@@ -110,10 +114,13 @@ export function NotificationsSettingsPage({ userId }: Props) {
       if (typeof window !== "undefined") {
         try {
           window.localStorage.setItem(soundStorageKey(userId), String(next.sound_enabled))
+          // Also sync the global key that the sound hook reads
+          const globalValue = next.sound_enabled ? "true" : "false"
+          window.localStorage.setItem(GLOBAL_SOUND_STORAGE_KEY, globalValue)
           // Dispatch storage event so cross-tab hook reacts
           window.dispatchEvent(new StorageEvent("storage", {
-            key: soundStorageKey(userId),
-            newValue: String(next.sound_enabled),
+            key: GLOBAL_SOUND_STORAGE_KEY,
+            newValue: globalValue,
           }))
         } catch { /* ignore */ }
       }

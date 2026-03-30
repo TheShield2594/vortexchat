@@ -9,6 +9,7 @@ import { usePresenceSync } from "@/hooks/use-presence-sync"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
 import { useGifAutoplay } from "@/hooks/use-gif-autoplay"
+import { prefetchNotificationPreferences } from "@/hooks/use-notification-preferences"
 import type { UserRow, ServerRow } from "@/types/database"
 
 interface AppProviderProps {
@@ -37,7 +38,11 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     setServers(servers)
     setIsLoadingServers(false)
     hydrateFromSettings(user?.appearance_settings as Parameters<typeof hydrateFromSettings>[0], user?.id ?? null)
-    if (user) void loadNotificationSettings()
+    if (user) {
+      void loadNotificationSettings()
+      // Pre-warm notification preferences cache (sound_enabled, quiet hours, etc.)
+      prefetchNotificationPreferences()
+    }
   }, [user, servers, setCurrentUser, setServers, setIsLoadingServers, hydrateFromSettings, loadNotificationSettings])
 
   // Auto-sync presence: marks user online on mount, offline on tab close

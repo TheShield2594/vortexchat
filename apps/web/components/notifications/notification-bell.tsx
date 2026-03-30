@@ -6,6 +6,7 @@ import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, Trash2, X } from "luci
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
+import { useNotificationPreferences } from "@/hooks/use-notification-preferences"
 import { format } from "date-fns"
 
 interface Notification {
@@ -38,6 +39,9 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
   const { playNotification } = useNotificationSound()
+  const { prefs } = useNotificationPreferences(userId)
+  const soundEnabledRef = useRef(prefs.sound_enabled)
+  soundEnabledRef.current = prefs.sound_enabled
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -72,7 +76,10 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           const n = payload.new as Notification
           setNotifications((prev) => [n, ...prev.slice(0, 29)])
           setUnreadCount((c) => c + 1)
-          playNotification()
+          // Play sound if both local setting AND DB preference allow it
+          if (soundEnabledRef.current) {
+            playNotification()
+          }
         }
       )
       .on(

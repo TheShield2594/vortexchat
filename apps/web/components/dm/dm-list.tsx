@@ -11,6 +11,7 @@ import { Skeleton, ChannelRowSkeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { toast } from "@/components/ui/use-toast"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FriendsSidebar } from "./friends-sidebar"
 import type { FriendWithUser } from "@/types/database"
@@ -150,6 +151,7 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const searchParams = useSearchParams()
   const initialTab = searchParams.get("tab") === "friends" ? "friends" : "messages"
   const [activeTab, setActiveTab] = useState<DMTab>(initialTab)
+  const { playNotification } = useNotificationSound()
 
   // Keep activeTab in sync with URL search params
   useEffect(() => {
@@ -218,7 +220,18 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "direct_messages", filter: dmMessageFilter },
-        () => refreshChannels()
+        (payload) => {
+          refreshChannels()
+          // Play notification sound for DMs from other users
+          const msg = payload.new as { sender_id?: string; dm_channel_id?: string } | undefined
+          if (msg?.sender_id && msg.sender_id !== currentUserId) {
+            // Don't play sound if the user is currently viewing this DM channel
+            const currentPath = window.location.pathname
+            if (!currentPath.includes(`/channels/me/${msg.dm_channel_id}`)) {
+              playNotification()
+            }
+          }
+        }
       )
       .on(
         "postgres_changes",
