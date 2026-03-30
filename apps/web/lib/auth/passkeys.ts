@@ -53,7 +53,12 @@ export function resolveRequestOrigin(headers: Headers): string {
   if (host) {
     const rawProto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim()?.toLowerCase()
     const proto = rawProto === "http" ? "http" : "https"
-    return `${proto}://${host}`
+    const candidate = `${proto}://${host}`
+    try {
+      return new URL(candidate).origin
+    } catch {
+      // Fall through to env-based origin
+    }
   }
 
   return getOrigin()

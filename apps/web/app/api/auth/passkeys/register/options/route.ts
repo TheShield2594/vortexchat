@@ -17,7 +17,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const admin = await createServiceRoleClient()
     const adminDb = admin as any
-    await adminDb.from("auth_challenges").insert({
+    const { error: insertError } = await adminDb.from("auth_challenges").insert({
       user_id: auth.user.id,
       flow: "register",
       challenge,
@@ -25,6 +25,11 @@ export async function POST(request: Request): Promise<Response> {
       origin,
       expires_at: expiresAt,
     })
+
+    if (insertError) {
+      console.error("[auth/passkeys/register/options POST] insert error:", insertError.message)
+      return NextResponse.json({ error: "Failed to create challenge" }, { status: 500 })
+    }
 
     const { data: existing } = await adminDb
       .from("passkey_credentials")
