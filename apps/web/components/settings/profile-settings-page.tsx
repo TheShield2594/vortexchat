@@ -224,7 +224,7 @@ export function ProfileSettingsPage({ user }: Props) {
         const ALLOWED_EXTS = new Set(["jpg", "jpeg", "png", "gif", "webp"])
         const rawExt = avatarFile.name.split(".").pop()?.toLowerCase() ?? ""
         const ext = ALLOWED_EXTS.has(rawExt) ? rawExt : "jpg"
-        const path = `avatars/${user.id}.${ext}`
+        const path = `${user.id}/avatar.${ext}`
         const { error: uploadError } = await supabase.storage
           .from("avatars")
           .upload(path, avatarFile, { upsert: true })
