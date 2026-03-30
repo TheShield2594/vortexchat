@@ -14,17 +14,7 @@ import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils/cn"
 import { perfMarkNavStart } from "@/lib/perf"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
-
-/* ─── Types ─── */
-interface PublicServer {
-  id: string
-  name: string
-  description: string | null
-  icon_url: string | null
-  member_count: number
-  invite_code: string
-  created_at: string
-}
+import type { PublicServer, DiscoverServersResponse } from "@vortex/shared"
 
 /* ─── Constants ─── */
 const RECENT_SERVERS_KEY = "vortexchat:recent-servers"
@@ -80,6 +70,7 @@ export default function ServersPage(): React.ReactElement {
   const [discoverLoading, setDiscoverLoading] = useState(false)
   const [discoverCursor, setDiscoverCursor] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [discoverError, setDiscoverError] = useState<string | null>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const discoverCursorRef = useRef(discoverCursor)
   const loadingMoreRef = useRef(loadingMore)
@@ -101,7 +92,7 @@ export default function ServersPage(): React.ReactElement {
 
   // ── Fetch discover servers ──
   const fetchDiscover = useCallback(
-    async (q?: string, cursor?: string): Promise<{ servers: PublicServer[]; nextCursor: string | null }> => {
+    async (q?: string, cursor?: string): Promise<DiscoverServersResponse> => {
       try {
         const params = new URLSearchParams()
         if (q) params.set("q", q)
@@ -120,7 +111,7 @@ export default function ServersPage(): React.ReactElement {
         ) {
           throw new Error("Invalid discover response shape")
         }
-        return body as { servers: PublicServer[]; nextCursor: string | null }
+        return body as DiscoverServersResponse
       } catch (err) {
         console.error("fetchDiscover failed", { q, cursor, err })
         throw err
@@ -132,6 +123,7 @@ export default function ServersPage(): React.ReactElement {
   // Debounced discover fetch
   useEffect(() => {
     if (segment !== "discover") return
+    const trimmed = searchQuery.trim()
     let cancelled = false
     // Reset pagination immediately so the infinite-scroll observer can't
     // fire with a stale cursor during the debounce window.
@@ -139,26 +131,27 @@ export default function ServersPage(): React.ReactElement {
     discoverCursorRef.current = null
     setLoadingMore(false)
     loadingMoreRef.current = false
+    setDiscoverError(null)
     const timer = setTimeout(
       async () => {
         setDiscoverLoading(true)
         try {
-          const result = await fetchDiscover(searchQuery || undefined)
+          const result = await fetchDiscover(trimmed || undefined)
           if (!cancelled) {
             setDiscoverServers(result.servers)
             setDiscoverCursor(result.nextCursor)
+            setDiscoverError(null)
           }
         } catch (err) {
           if (!cancelled) {
             console.error("Failed to fetch discover servers:", err)
-            setDiscoverServers([])
-            setDiscoverCursor(null)
+            setDiscoverError(err instanceof Error ? err.message : "Failed to load servers")
           }
         } finally {
           if (!cancelled) setDiscoverLoading(false)
         }
       },
-      searchQuery ? 300 : 0
+      trimmed ? 300 : 0
     )
     return () => {
       cancelled = true
@@ -171,6 +164,7 @@ export default function ServersPage(): React.ReactElement {
     if (segment !== "discover" || !discoverCursor) return
     const sentinel = sentinelRef.current
     if (!sentinel) return
+    const trimmed = searchQuery.trim()
     let cancelled = false
 
     const observer = new IntersectionObserver(
@@ -181,7 +175,7 @@ export default function ServersPage(): React.ReactElement {
         if (entry.isIntersecting && cur && !loadingMoreRef.current) {
           loadingMoreRef.current = true
           setLoadingMore(true)
-          fetchDiscover(searchQuery || undefined, cur)
+          fetchDiscover(trimmed || undefined, cur)
             .then((result) => {
               if (!cancelled) {
                 setDiscoverServers((prev) => [...prev, ...result.servers])
@@ -252,7 +246,7 @@ export default function ServersPage(): React.ReactElement {
       const res = await fetch(`/api/invites/${inviteCode}`, { method: "POST" })
       if (res.ok) {
         const { server_id } = await res.json()
-        router.push(`/channels/${server_id}`)
+        navigateToServer(server_id)
       } else {
         const body = await res.json().catch(() => null)
         toast({
@@ -271,9 +265,12 @@ export default function ServersPage(): React.ReactElement {
     }
   }
 
+  // Normalize search to avoid whitespace-only vs empty inconsistency
+  const normalizedQuery = searchQuery.trim()
+
   // ── Filtered "My Servers" list ──
-  const filteredServers = searchQuery
-    ? servers.filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredServers = normalizedQuery
+    ? servers.filter((s) => s.name.toLowerCase().includes(normalizedQuery.toLowerCase()))
     : servers
 
   // ── Recent servers resolved against current server list ──
@@ -282,7 +279,7 @@ export default function ServersPage(): React.ReactElement {
     .filter((s): s is NonNullable<typeof s> => s != null)
 
   // Show recents only when on "my-servers", not searching, and have > 1 server
-  const showRecents = segment === "my-servers" && !searchQuery && recentServers.length > 1
+  const showRecents = segment === "my-servers" && !normalizedQuery && recentServers.length > 1
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden" style={{ background: "var(--theme-bg-primary)" }}>
@@ -321,6 +318,7 @@ export default function ServersPage(): React.ReactElement {
             ref={searchRef}
             type="text"
             inputMode="search"
+            aria-label={segment === "my-servers" ? "Search my servers" : "Search public servers"}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setSearchFocused(true)}
@@ -500,7 +498,7 @@ export default function ServersPage(): React.ReactElement {
             )}
 
             {/* Search results info */}
-            {searchQuery && (
+            {normalizedQuery && (
               <span
                 className="text-xs px-1 mb-2 block"
                 style={{ color: "var(--theme-text-muted)" }}
@@ -578,10 +576,10 @@ export default function ServersPage(): React.ReactElement {
             </div>
 
             {/* No search results */}
-            {searchQuery && filteredServers.length === 0 && servers.length > 0 && (
+            {normalizedQuery && filteredServers.length === 0 && servers.length > 0 && (
               <div className="text-center py-8">
                 <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
-                  No servers matching &ldquo;{searchQuery}&rdquo;
+                  No servers matching &ldquo;{normalizedQuery}&rdquo;
                 </p>
                 <button
                   type="button"
@@ -609,18 +607,46 @@ export default function ServersPage(): React.ReactElement {
                   </div>
                 ))}
               </div>
+            ) : discoverError ? (
+              <div className="py-8 text-center">
+                <Compass className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--theme-text-muted)" }} />
+                <p className="text-sm font-medium mb-1" style={{ color: "var(--theme-text-primary)" }}>
+                  Something went wrong
+                </p>
+                <p className="text-xs mb-4" style={{ color: "var(--theme-text-muted)" }}>
+                  {discoverError}
+                </p>
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => {
+                    setDiscoverError(null)
+                    setDiscoverServers([])
+                    setDiscoverCursor(null)
+                    // Re-trigger the effect by toggling segment
+                    setSegment("my-servers")
+                    requestAnimationFrame(() => setSegment("discover"))
+                  }}
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--theme-text-primary) 12%, transparent)",
+                    color: "var(--theme-text-secondary)",
+                  }}
+                >
+                  Retry
+                </Button>
+              </div>
             ) : discoverServers.length === 0 ? (
               <div className="py-8">
                 <BrandedEmptyState
                   icon={Compass}
                   title="No servers found"
                   description={
-                    searchQuery
+                    normalizedQuery
                       ? "No public communities match your search."
                       : "No public communities to discover yet."
                   }
                   hint={
-                    searchQuery
+                    normalizedQuery
                       ? "Try a different search term."
                       : "Be the first — create a server and make it public!"
                   }

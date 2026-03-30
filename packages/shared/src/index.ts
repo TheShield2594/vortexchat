@@ -61,6 +61,25 @@ export function removePermission(permissions: number, permission: Permission): n
 
 export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
 
+// ── Discover API contract ──────────────────────────────────────────────────
+
+/** A public server returned by the discover endpoint. */
+export interface PublicServer {
+  id: string
+  name: string
+  description: string | null
+  icon_url: string | null
+  member_count: number
+  invite_code: string
+  created_at: string
+}
+
+/** Response shape from GET /api/servers/discover. */
+export interface DiscoverServersResponse {
+  servers: PublicServer[]
+  nextCursor: string | null
+}
+
 // ── Client IP extraction ────────────────────────────────────────────────────
 
 /**
