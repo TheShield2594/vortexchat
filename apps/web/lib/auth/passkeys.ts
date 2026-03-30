@@ -27,6 +27,23 @@ export function getOrigin() {
   return process.env.NEXT_PUBLIC_APP_ORIGIN ?? "http://localhost:3000"
 }
 
+/**
+ * Resolve the request origin from headers, falling back to the env-based origin.
+ * Prefers the Origin header, then derives from Host/X-Forwarded-Host.
+ */
+export function resolveRequestOrigin(headers: Headers): string {
+  const origin = headers.get("origin")
+  if (origin) return origin
+
+  const host = headers.get("x-forwarded-host") || headers.get("host")
+  if (host) {
+    const proto = headers.get("x-forwarded-proto") || "https"
+    return `${proto}://${host}`
+  }
+
+  return getOrigin()
+}
+
 export type WebAuthnAdapterPayload = {
   challenge: string
   credentialId: string

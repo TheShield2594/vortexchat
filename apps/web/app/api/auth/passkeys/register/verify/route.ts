@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
-import { getOrigin, getRpId, verifyWithAdapter } from "@/lib/auth/passkeys"
+import { getRpId, resolveRequestOrigin, verifyWithAdapter } from "@/lib/auth/passkeys"
 
 export async function POST(request: Request) {
   try {
@@ -52,12 +52,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Challenge is invalid or expired" }, { status: 400 })
     }
 
+    const origin = resolveRequestOrigin(request.headers)
     const verify = await verifyWithAdapter("registration", {
       challenge: body.challenge,
       credentialId: body.credentialId,
       response: body.response,
-      expectedOrigin: getOrigin(),
-      expectedRpId: getRpId(getOrigin()),
+      expectedOrigin: origin,
+      expectedRpId: getRpId(origin),
     })
 
     if (!verify.verified) {

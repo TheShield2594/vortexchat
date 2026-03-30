@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
-import { getOrigin, getRpId, verifyWithAdapter } from "@/lib/auth/passkeys"
+import { getRpId, resolveRequestOrigin, verifyWithAdapter } from "@/lib/auth/passkeys"
 import { createAuthSession, issueTrustedDevice } from "@/lib/auth/security"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
@@ -69,12 +69,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Credential/user mismatch" }, { status: 403 })
     }
 
+    const origin = resolveRequestOrigin(request.headers)
     const verify = await verifyWithAdapter("authentication", {
       challenge: body.challenge,
       credentialId: body.credentialId,
       response: body.response,
-      expectedOrigin: getOrigin(),
-      expectedRpId: getRpId(getOrigin()),
+      expectedOrigin: origin,
+      expectedRpId: getRpId(origin),
       publicKey: credential.public_key,
       prevCounter: credential.counter,
     })
