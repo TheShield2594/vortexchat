@@ -334,6 +334,11 @@ describe("Appearance", () => {
   })
 
   describe("hydration from profile settings", () => {
+    beforeEach(() => {
+      // Hydration only applies when sync-to-account is enabled
+      useAppearanceStore.getState().setSyncToAccount(true)
+    })
+
     it("merges incoming settings into state", () => {
       const incoming: AppearanceSettings = {
         themePreset: "oled-black",
@@ -379,6 +384,14 @@ describe("Appearance", () => {
 
     it("marks hydrated even with null/empty settings", () => {
       useAppearanceStore.getState().hydrateFromSettings(null, "user-1")
+      expect(useAppearanceStore.getState().hasHydratedFromProfile).toBe(true)
+    })
+
+    it("skips DB hydration when syncToAccount is disabled", () => {
+      useAppearanceStore.getState().setSyncToAccount(false)
+      useAppearanceStore.getState().setThemePreset("synthwave")
+      useAppearanceStore.getState().hydrateFromSettings({ themePreset: "carbon" }, "user-1")
+      expect(useAppearanceStore.getState().themePreset).toBe("synthwave") // local wins
       expect(useAppearanceStore.getState().hasHydratedFromProfile).toBe(true)
     })
   })
