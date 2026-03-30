@@ -52,6 +52,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const isMobile = useMobileLayout()
   const [content, setContent] = useState(draft)
   const [cursorPosition, setCursorPosition] = useState(0)
+  const composingRef = useRef(false)
   const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
@@ -520,6 +521,10 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // During IME composition (mobile predictive text, CJK input, etc.),
+    // let the browser handle all keys — intervening here would break input.
+    if (composingRef.current || e.nativeEvent.isComposing) return
+
     const mentionHandledNavigation = mention.handleKeyDown(e)
     const emojiHandledNavigation = emoji.handleKeyDown(e)
     const slashHandledNavigation = slash.handleKeyDown(e)
@@ -687,15 +692,37 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setContent(e.target.value)
     debouncedDraftChange(e.target.value)
-    setCursorPosition(e.target.selectionStart)
+    // During IME composition (common on mobile keyboards), selectionStart is
+    // unreliable — defer the read until the browser finalises the cursor.
+    if (composingRef.current) {
+      const ta = e.target
+      requestAnimationFrame(() => {
+        if (ta) setCursorPosition(ta.selectionStart)
+      })
+    } else {
+      setCursorPosition(e.target.selectionStart)
+    }
     const el = e.target
     el.style.height = "28px"
     el.style.height = Math.min(el.scrollHeight, 200) + "px"
     if (e.target.value) onTyping?.()
   }
 
-  function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>) {
+  function handleCompositionStart(): void {
+    composingRef.current = true
+  }
+
+  function handleCompositionEnd(e: React.CompositionEvent<HTMLTextAreaElement>): void {
+    composingRef.current = false
+    // After composition finishes, sync the real cursor position so mention
+    // detection picks up the newly committed text (e.g. "@" typed via IME).
     setCursorPosition(e.currentTarget.selectionStart)
+  }
+
+  function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>): void {
+    if (!composingRef.current) {
+      setCursorPosition(e.currentTarget.selectionStart)
+    }
   }
 
   function handleEmojiGridKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -1082,6 +1109,17 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             onSelect={handleSelect}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
+            onTouchEnd={(e) => {
+              // Mobile browsers don't always fire onSelect after a tap —
+              // read the cursor position on touchEnd so mention detection stays in sync.
+              // Capture currentTarget synchronously — React nullifies it after the handler returns.
+              const ta = e.currentTarget
+              requestAnimationFrame(() => {
+                if (ta) setCursorPosition(ta.selectionStart)
+              })
+            }}
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
             placeholder={replyTo
