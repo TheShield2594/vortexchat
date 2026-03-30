@@ -102,12 +102,29 @@ export default function ServersPage(): React.ReactElement {
   // ── Fetch discover servers ──
   const fetchDiscover = useCallback(
     async (q?: string, cursor?: string): Promise<{ servers: PublicServer[]; nextCursor: string | null }> => {
-      const params = new URLSearchParams()
-      if (q) params.set("q", q)
-      if (cursor) params.set("cursor", cursor)
-      const res = await fetch(`/api/servers/discover?${params.toString()}`)
-      if (!res.ok) throw new Error(`Discover API error ${res.status}`)
-      return (await res.json()) as { servers: PublicServer[]; nextCursor: string | null }
+      try {
+        const params = new URLSearchParams()
+        if (q) params.set("q", q)
+        if (cursor) params.set("cursor", cursor)
+        const res = await fetch(`/api/servers/discover?${params.toString()}`)
+        if (!res.ok) {
+          console.error("Discover API error", { status: res.status, q, cursor })
+          throw new Error(`Discover API error ${res.status}`)
+        }
+        const body: unknown = await res.json()
+        if (
+          !body ||
+          typeof body !== "object" ||
+          !("servers" in body) ||
+          !Array.isArray((body as { servers: unknown }).servers)
+        ) {
+          throw new Error("Invalid discover response shape")
+        }
+        return body as { servers: PublicServer[]; nextCursor: string | null }
+      } catch (err) {
+        console.error("fetchDiscover failed", { q, cursor, err })
+        throw err
+      }
     },
     []
   )
@@ -116,6 +133,12 @@ export default function ServersPage(): React.ReactElement {
   useEffect(() => {
     if (segment !== "discover") return
     let cancelled = false
+    // Reset pagination immediately so the infinite-scroll observer can't
+    // fire with a stale cursor during the debounce window.
+    setDiscoverCursor(null)
+    discoverCursorRef.current = null
+    setLoadingMore(false)
+    loadingMoreRef.current = false
     const timer = setTimeout(
       async () => {
         setDiscoverLoading(true)
@@ -152,8 +175,11 @@ export default function ServersPage(): React.ReactElement {
 
     const observer = new IntersectionObserver(
       (entries) => {
+        const entry = entries[0]
+        if (!entry) return
         const cur = discoverCursorRef.current
-        if (entries[0].isIntersecting && cur && !loadingMoreRef.current) {
+        if (entry.isIntersecting && cur && !loadingMoreRef.current) {
+          loadingMoreRef.current = true
           setLoadingMore(true)
           fetchDiscover(searchQuery || undefined, cur)
             .then((result) => {
@@ -166,6 +192,7 @@ export default function ServersPage(): React.ReactElement {
               if (!cancelled) console.error("Failed to load more servers:", err)
             })
             .finally(() => {
+              loadingMoreRef.current = false
               if (!cancelled) setLoadingMore(false)
             })
         }
@@ -224,8 +251,8 @@ export default function ServersPage(): React.ReactElement {
     try {
       const res = await fetch(`/api/invites/${inviteCode}`, { method: "POST" })
       if (res.ok) {
-        const { serverId } = await res.json()
-        router.push(`/channels/${serverId}`)
+        const { server_id } = await res.json()
+        router.push(`/channels/${server_id}`)
       } else {
         const body = await res.json().catch(() => null)
         toast({
@@ -323,7 +350,7 @@ export default function ServersPage(): React.ReactElement {
       <div className="px-3 pt-2 pb-1 flex-shrink-0">
         <div
           className="flex rounded-xl p-1 gap-1"
-          role="tablist"
+          role="group"
           aria-label="Server sections"
           style={{
             background: "color-mix(in srgb, var(--theme-bg-tertiary) 50%, transparent)",
@@ -338,8 +365,7 @@ export default function ServersPage(): React.ReactElement {
               <button
                 key={id}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                aria-pressed={active}
                 onClick={() => {
                   setSegment(id)
                   setSearchQuery("")
@@ -367,7 +393,7 @@ export default function ServersPage(): React.ReactElement {
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-y-auto" role="tabpanel" aria-label={segment === "my-servers" ? "My Servers" : "Discover"}>
+      <div className="flex-1 overflow-y-auto" aria-label={segment === "my-servers" ? "My Servers" : "Discover"}>
         {segment === "my-servers" ? (
           <div className="px-3 py-2">
             {/* Loading skeleton */}
