@@ -523,7 +523,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     // During IME composition (mobile predictive text, CJK input, etc.),
     // let the browser handle all keys — intervening here would break input.
-    if (e.nativeEvent.isComposing) return
+    if (composingRef.current || e.nativeEvent.isComposing) return
 
     const mentionHandledNavigation = mention.handleKeyDown(e)
     const emojiHandledNavigation = emoji.handleKeyDown(e)
@@ -719,7 +719,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     setCursorPosition(e.currentTarget.selectionStart)
   }
 
-  function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>) {
+  function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>): void {
     if (!composingRef.current) {
       setCursorPosition(e.currentTarget.selectionStart)
     }
