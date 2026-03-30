@@ -50,7 +50,7 @@ export function MobileBottomTabBar() {
           background: "color-mix(in srgb, var(--theme-bg-secondary) 82%, transparent)",
           backdropFilter: "blur(24px) saturate(1.4)",
           WebkitBackdropFilter: "blur(24px) saturate(1.4)",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.08)",
+          boxShadow: "0 4px 24px color-mix(in srgb, var(--theme-bg-tertiary) 70%, transparent), inset 0 0.5px 0 color-mix(in srgb, var(--theme-text-primary) 6%, transparent)",
           border: "1px solid color-mix(in srgb, var(--theme-text-primary) 8%, transparent)",
         }}
       >
