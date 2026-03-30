@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useRef, lazy, Suspense } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { User, Palette, Bell, Shield, Volume2, Keyboard, LogOut, Circle, Settings } from "lucide-react"
+import { User, Palette, Bell, Shield, Volume2, Keyboard, LogOut, Circle } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -10,10 +10,6 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import type { UserRow } from "@/types/database"
 import { STATUS_OPTIONS } from "@/lib/utils/status-options"
-
-const ProfileSettingsModal = lazy(() =>
-  import("@/components/modals/profile-settings-modal").then((m) => ({ default: m.ProfileSettingsModal }))
-)
 
 const SETTINGS_LINKS = [
   { href: "/settings/profile", label: "My Profile", icon: User },
@@ -31,7 +27,6 @@ export default function YouPage() {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
-  const [showProfileSettings, setShowProfileSettings] = useState(false)
   const statusAbortRef = useRef<AbortController | null>(null)
 
   if (!currentUser) {
@@ -45,7 +40,7 @@ export default function YouPage() {
   const displayName = currentUser.display_name || currentUser.username
   const initials = displayName.slice(0, 2).toUpperCase()
 
-  async function handleSetStatus(status: UserRow["status"]) {
+  async function handleSetStatus(status: UserRow["status"]): Promise<void> {
     const latestUser = useAppStore.getState().currentUser
     if (!latestUser) return
 
@@ -67,19 +62,23 @@ export default function YouPage() {
       }
       const updatedUser = await res.json()
       setCurrentUser(updatedUser)
-    } catch (error: any) {
-      if (error.name === "AbortError") return
-      toast({ variant: "destructive", title: "Failed to update status", description: error.message })
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === "AbortError") return
+      toast({ variant: "destructive", title: "Failed to update status", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
-  async function handleLogout() {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      toast({ variant: "destructive", title: "Sign out failed", description: error.message })
-      return
+  async function handleLogout(): Promise<void> {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        toast({ variant: "destructive", title: "Sign out failed", description: error.message })
+        return
+      }
+      router.push("/login")
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Sign out failed", description: err instanceof Error ? err.message : "Unknown error" })
     }
-    router.push("/login")
   }
 
   return (
@@ -92,10 +91,8 @@ export default function YouPage() {
         >
           <button
             type="button"
-            onClick={() => setShowProfileSettings(true)}
+            onClick={() => router.push("/settings/profile")}
             aria-label="Open profile settings"
-            aria-haspopup="dialog"
-            aria-expanded={showProfileSettings}
             className="relative group"
           >
             <Avatar className="w-20 h-20">
@@ -192,15 +189,6 @@ export default function YouPage() {
         </button>
       </div>
 
-      <Suspense fallback={null}>
-        {showProfileSettings && (
-          <ProfileSettingsModal
-            open
-            onClose={() => setShowProfileSettings(false)}
-            user={currentUser}
-          />
-        )}
-      </Suspense>
     </div>
   )
 }
