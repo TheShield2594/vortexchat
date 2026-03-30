@@ -1114,8 +1114,9 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
             onTouchEnd={(e) => {
               // Mobile browsers don't always fire onSelect after a tap —
               // read the cursor position on touchEnd so mention detection stays in sync.
+              // Capture currentTarget synchronously — React nullifies it after the handler returns.
+              const ta = e.currentTarget
               requestAnimationFrame(() => {
-                const ta = e.currentTarget
                 if (ta) setCursorPosition(ta.selectionStart)
               })
             }}
