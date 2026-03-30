@@ -78,7 +78,8 @@ export async function POST(
     if (error) return NextResponse.json({ error: "Failed to add reaction" }, { status: 500 })
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
-  } catch {
+  } catch (err) {
+    console.error("[dm reactions POST] error:", { action: "createReaction", error: err })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -111,7 +112,8 @@ export async function DELETE(
     if (error) return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 })
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
-  } catch {
+  } catch (err) {
+    console.error("[dm reactions DELETE] error:", { action: "deleteReaction", error: err })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

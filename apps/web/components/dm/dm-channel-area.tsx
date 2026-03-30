@@ -422,7 +422,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [poppingReactions, setPoppingReactions] = useState<Record<string, Record<string, number>>>({})
   const popTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const reactionCountsRef = useRef<Record<string, Record<string, number>>>({})
-  const [reactionRecents, setReactionRecents] = useState<string[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
