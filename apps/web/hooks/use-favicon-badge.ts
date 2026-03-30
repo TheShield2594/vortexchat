@@ -209,12 +209,14 @@ export function useFaviconBadge(badge: BadgeValue): void {
         linkRef.current.href = dataUrl
       }
     })
+  }, [badge])
 
-    // Cleanup: restore original on unmount
+  // Cleanup: restore original favicon on unmount only (not on every badge change)
+  useEffect(() => {
     return () => {
       if (linkRef.current && originalHrefRef.current) {
         linkRef.current.href = originalHrefRef.current
       }
     }
-  }, [badge])
+  }, [])
 }

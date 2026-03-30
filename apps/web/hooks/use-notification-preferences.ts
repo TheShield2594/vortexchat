@@ -47,11 +47,13 @@ async function fetchPreferences(): Promise<NotificationPreferences> {
   try {
     const res = await fetch("/api/user/notification-preferences")
     if (!res.ok) return cachedPrefs
-    const data = await res.json() as NotificationPreferences
-    cachedPrefs = data
+    const data: unknown = await res.json()
+    if (typeof data !== "object" || data === null) return cachedPrefs
+    // Merge with defaults to ensure all fields are present even if DB row is partial
+    cachedPrefs = { ...DEFAULTS, ...(data as Partial<NotificationPreferences>) }
     cacheTimestamp = Date.now()
     notifyPrefsListeners()
-    return data
+    return cachedPrefs
   } catch {
     return cachedPrefs
   }

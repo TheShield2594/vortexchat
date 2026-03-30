@@ -23,6 +23,17 @@ interface Notification {
   created_at: string
 }
 
+function isNotification(obj: unknown): obj is Notification {
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    "id" in obj &&
+    typeof (obj as Record<string, unknown>).id === "string" &&
+    "type" in obj &&
+    "title" in obj
+  )
+}
+
 const TYPE_ICONS: Record<Notification["type"], React.ReactNode> = {
   mention: <AtSign className="w-3.5 h-3.5" />,
   reply: <Hash className="w-3.5 h-3.5" />,
@@ -79,7 +90,8 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload) => {
-          const n = payload.new as Notification
+          if (!isNotification(payload.new)) return
+          const n = payload.new
           setNotifications((prev) => [n, ...prev.slice(0, 29)])
           setUnreadCount((c) => c + 1)
 
@@ -138,8 +150,10 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
 
   // Sync unread + mention counts to Zustand store (consumed by useTabUnreadTitle)
   useEffect(() => {
-    useAppStore.getState().setNotificationUnreadCount(unreadCount)
-    useAppStore.getState().setNotificationMentionCount(computeMentionCount(notifications))
+    useAppStore.setState({
+      notificationUnreadCount: unreadCount,
+      notificationMentionCount: computeMentionCount(notifications),
+    })
   }, [unreadCount, notifications, computeMentionCount])
 
   // Close on outside click

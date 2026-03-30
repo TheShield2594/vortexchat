@@ -31,7 +31,7 @@ function updateAppBadge(count: number) {
  *   - unread only: "• VortexChat"
  *   - nothing: "VortexChat — Chat, Hang Out, Belong"
  */
-export function useTabUnreadTitle(userId: string | null) {
+export function useTabUnreadTitle(userId: string | null): void {
   const { notificationUnreadCount, notificationMentionCount, dmUnreadCount } = useAppStore(
     useShallow((s) => ({
       notificationUnreadCount: s.notificationUnreadCount,

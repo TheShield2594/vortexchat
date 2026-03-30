@@ -88,8 +88,13 @@ async function playNotificationSound(): Promise<void> {
 async function playFallbackTone(): Promise<void> {
   const ctx = new AudioContext()
 
-  if (ctx.state === "suspended") {
-    await ctx.resume()
+  try {
+    if (ctx.state === "suspended") {
+      await ctx.resume()
+    }
+  } catch {
+    ctx.close().catch(() => {})
+    return
   }
 
   const osc1 = ctx.createOscillator()

@@ -17,17 +17,22 @@
  */
 
 // ---------------------------------------------------------------------------
-// Window focus tracking
+// Window focus tracking (lazy-initialized to avoid SSR side effects)
 // ---------------------------------------------------------------------------
 
-let windowFocused = typeof document !== "undefined" && document.hasFocus()
+let windowFocused = false
+let focusListenersInitialized = false
 
-if (typeof window !== "undefined") {
+function ensureFocusListeners(): void {
+  if (focusListenersInitialized || typeof window === "undefined") return
+  focusListenersInitialized = true
+  windowFocused = document.hasFocus()
   window.addEventListener("focus", () => { windowFocused = true })
   window.addEventListener("blur", () => { windowFocused = false })
 }
 
 export function isWindowFocused(): boolean {
+  ensureFocusListeners()
   return windowFocused
 }
 
@@ -217,10 +222,9 @@ export function showBrowserNotification(opts: {
       event.preventDefault()
       window.focus()
       if (opts.url) {
-        // Use router-based navigation if available
-        window.dispatchEvent(new CustomEvent("vortex:notification-navigate", {
-          detail: { url: opts.url },
-        }))
+        // Navigate directly — window.location works universally; Next.js
+        // will handle client-side routing for same-origin paths.
+        window.location.href = opts.url
       }
       notification.close()
     })

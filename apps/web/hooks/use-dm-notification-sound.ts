@@ -34,18 +34,20 @@ export function useDmNotificationSound(userId: string | null): void {
           table: "direct_messages",
         },
         (payload) => {
-          const msg = payload.new as {
-            id?: string
-            sender_id?: string
-            dm_channel_id?: string
-            content?: string
-          } | undefined
+          const raw = payload.new
+          if (!raw || typeof raw !== "object") return
 
-          if (!msg?.sender_id || msg.sender_id === userId) return
+          const msg = raw as Record<string, unknown>
+          const senderId = typeof msg.sender_id === "string" ? msg.sender_id : undefined
+          const msgId = typeof msg.id === "string" ? msg.id : undefined
+          const dmChannelId = typeof msg.dm_channel_id === "string" ? msg.dm_channel_id : undefined
+          const content = typeof msg.content === "string" ? msg.content : undefined
+
+          if (!senderId || senderId === userId) return
 
           const { shouldPlaySound, shouldShowBrowserNotification } = shouldNotify({
-            dmChannelId: msg.dm_channel_id,
-            messageId: msg.id,
+            dmChannelId,
+            messageId: msgId,
           })
 
           if (shouldPlaySound) {
@@ -55,9 +57,9 @@ export function useDmNotificationSound(userId: string | null): void {
           if (shouldShowBrowserNotification) {
             showBrowserNotification({
               title: "New Message",
-              body: msg.content?.slice(0, 100) || "Sent a message",
-              channelId: msg.dm_channel_id,
-              url: msg.dm_channel_id ? `/channels/me/${msg.dm_channel_id}` : "/channels/me",
+              body: content?.slice(0, 100) || "Sent a message",
+              channelId: dmChannelId,
+              url: dmChannelId ? `/channels/me/${dmChannelId}` : "/channels/me",
             })
           }
         }
