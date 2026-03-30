@@ -1,9 +1,11 @@
 "use client"
 
-import React from "react"
+import React, { useState, useCallback } from "react"
 import Link from "next/link"
+import { Loader2 } from "lucide-react"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useAutoSyncAppearance } from "@/hooks/use-auto-sync-appearance"
+import { useToast } from "@/components/ui/use-toast"
 import type { ReducedMotion, Saturation, FocusIndicator } from "@/lib/stores/appearance-store"
 
 /* ─── Option definitions ──────────────────────────────── */
@@ -154,6 +156,32 @@ function ToggleSwitch({
 export function AccessibilitySettingsPage(): React.ReactElement {
   const store = useAppearanceStore()
   useAutoSyncAppearance()
+  const { toast } = useToast()
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = useCallback(async (): Promise<void> => {
+    if (!store.syncToAccount) {
+      toast({ title: "Accessibility settings saved!" })
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch("/api/users/appearance", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appearance_settings: store.toSettingsPayload() }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Failed to save")
+      }
+      toast({ title: "Accessibility settings saved!" })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to save settings", description: error instanceof Error ? error.message : "Unknown error" })
+    } finally {
+      setSaving(false)
+    }
+  }, [store, toast])
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -289,9 +317,24 @@ export function AccessibilitySettingsPage(): React.ReactElement {
         />
       </section>
 
-      <p className="text-xs pb-4" style={{ color: "var(--theme-text-muted)" }}>
-        Accessibility settings apply immediately and are saved to your browser.
-      </p>
+      {/* ── Save ── */}
+      <div className="flex items-center justify-between pt-2 pb-4">
+        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+          {store.syncToAccount
+            ? "Settings are synced to your account and apply across devices."
+            : "Settings are saved to your browser and apply immediately."}
+        </p>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2 rounded-md font-semibold text-sm transition-all hover:brightness-110 disabled:opacity-60 shrink-0 ml-4"
+          style={{ background: "var(--theme-accent)", color: "white" }}
+        >
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+          {saving ? "Saving…" : "Save Changes"}
+        </button>
+      </div>
     </div>
   )
 }

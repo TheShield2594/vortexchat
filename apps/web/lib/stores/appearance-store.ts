@@ -213,6 +213,14 @@ export const useAppearanceStore = create<AppearanceState>()(
         const state = get()
         if (state.hasHydratedFromProfile && state.lastHydratedUserId === userId) return
 
+        // When sync-to-account is disabled, local browser state is the
+        // source of truth — don't overwrite it with (potentially stale)
+        // database settings.
+        if (!state.syncToAccount) {
+          set({ hasHydratedFromProfile: true, lastHydratedUserId: userId })
+          return
+        }
+
         // If settings is null/undefined/empty, mark as hydrated but don't
         // clobber existing local preferences with defaults.
         if (!settings || Object.keys(settings).length === 0) {

@@ -1,8 +1,10 @@
 "use client"
 
 import React, { useRef, useCallback, useState, useEffect } from "react"
+import { Loader2 } from "lucide-react"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useAutoSyncAppearance } from "@/hooks/use-auto-sync-appearance"
+import { useToast } from "@/components/ui/use-toast"
 import type {
   MessageDisplay, FontScale, FontFamily, LineHeight, CodeFont,
   ThemePreset, ColorMode, ChatBubbleStyle, MessageGrouping,
@@ -311,11 +313,13 @@ function ScrollArrow({ direction, onClick }: { direction: "left" | "right"; onCl
 export function AppearanceSettingsPage(): React.ReactElement {
   const store = useAppearanceStore()
   useAutoSyncAppearance()
+  const { toast } = useToast()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [customAccent, setCustomAccent] = useState(store.accentColorOverride)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const activeTheme = THEME_PRESET_OPTIONS.find((t) => t.value === store.themePreset) ?? THEME_PRESET_OPTIONS[0]
 
@@ -370,6 +374,31 @@ export function AppearanceSettingsPage(): React.ReactElement {
     setCustomAccent("")
     setShowResetConfirm(false)
   }, [store])
+
+  const handleSave = useCallback(async (): Promise<void> => {
+    if (!store.syncToAccount) {
+      // Settings are already persisted to localStorage via Zustand
+      toast({ title: "Appearance saved!" })
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch("/api/users/appearance", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appearance_settings: store.toSettingsPayload() }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Failed to save appearance")
+      }
+      toast({ title: "Appearance saved!" })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to save appearance", description: error instanceof Error ? error.message : "Unknown error" })
+    } finally {
+      setSaving(false)
+    }
+  }, [store, toast])
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -681,11 +710,24 @@ export function AppearanceSettingsPage(): React.ReactElement {
         )}
       </section>
 
-      <p className="text-xs pb-4" style={{ color: "var(--theme-text-muted)" }}>
-        {store.syncToAccount
-          ? "Settings are synced to your account and apply across devices."
-          : "Settings are saved to your browser and apply immediately."}
-      </p>
+      {/* ── Save ──────────────────────────────────────── */}
+      <div className="flex items-center justify-between pt-2 pb-4">
+        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+          {store.syncToAccount
+            ? "Settings are synced to your account and apply across devices."
+            : "Settings are saved to your browser and apply immediately."}
+        </p>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2 rounded-md font-semibold text-sm transition-all hover:brightness-110 disabled:opacity-60 shrink-0 ml-4"
+          style={{ background: "var(--theme-accent)", color: "white" }}
+        >
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+          {saving ? "Saving…" : "Save Changes"}
+        </button>
+      </div>
     </div>
   )
 }
