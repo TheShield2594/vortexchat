@@ -1,28 +1,25 @@
 "use client"
 
-import { useState, useMemo, useEffect, lazy, Suspense } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Mic, MicOff, Headphones, PhoneOff, Settings, Clipboard, Circle, LogOut, UserRound } from "lucide-react"
+import { Mic, MicOff, Headphones, PhoneOff, Settings } from "lucide-react"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
-const ProfileSettingsModal = lazy(() => import("@/components/modals/profile-settings-modal").then((m) => ({ default: m.ProfileSettingsModal })))
+import { UserPopover } from "@/components/layout/user-popover"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import type { UserRow } from "@/types/database"
-import { STATUS_OPTIONS, getStatusColor } from "@/lib/utils/status-options"
+import { getStatusColor } from "@/lib/utils/status-options"
 
 /** Bottom-bar user panel with avatar, status selector, mute/deafen/disconnect controls, and settings shortcut. */
 export function UserPanel() {
-  const { currentUser, voiceChannelId, setVoiceChannel, setCurrentUser } = useAppStore(
-    useShallow((s) => ({ currentUser: s.currentUser, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, setCurrentUser: s.setCurrentUser }))
+  const { currentUser, voiceChannelId, setVoiceChannel } = useAppStore(
+    useShallow((s) => ({ currentUser: s.currentUser, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel }))
   )
   const router = useRouter()
   const [muted, setMuted] = useState(false)
   const [deafened, setDeafened] = useState(false)
-  const [showProfileSettings, setShowProfileSettings] = useState(false)
   const { toast } = useToast()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [isStatusExpired, setIsStatusExpired] = useState(() => Boolean(currentUser?.status_expires_at && new Date(currentUser.status_expires_at).getTime() <= Date.now()))
@@ -71,30 +68,6 @@ export function UserPanel() {
   const initials = displayName.slice(0, 2).toUpperCase()
   const customStatusText = !isStatusExpired ? [currentUser.status_emoji, currentUser.status_message].filter(Boolean).join(" ").trim() : ""
 
-  async function handleLogout() {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      toast({ variant: "destructive", title: "Sign out failed", description: error.message })
-      return
-    }
-    router.push("/login")
-  }
-
-  async function handleSetStatus(status: UserRow["status"]) {
-    try {
-      const latestUser = useAppStore.getState().currentUser
-      if (!latestUser) return
-      const { error } = await supabase
-        .from("users")
-        .update({ status })
-        .eq("id", latestUser.id)
-      if (error) throw error
-      setCurrentUser({ ...latestUser, status })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to update status", description: error.message })
-    }
-  }
-
   return (
     <div
       className="hidden md:flex items-center gap-2 p-2"
@@ -103,80 +76,40 @@ export function UserPanel() {
         boxShadow: '0 -1px 0 var(--theme-bg-tertiary), inset 0 1px 0 color-mix(in srgb, var(--theme-accent) 7%, transparent)',
       }}
     >
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <div className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer focus-ring rounded" role="button" tabIndex={0} aria-label="Open profile settings" onClick={() => setShowProfileSettings(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowProfileSettings(true) }}>
-            {/* Avatar with status */}
-            <div className="relative flex-shrink-0">
-              <Avatar className="w-8 h-8">
-                {currentUser.avatar_url && <AvatarImage src={currentUser.avatar_url} />}
-                <AvatarFallback style={{ background: 'var(--theme-accent)', color: 'white', fontSize: '12px' }}>
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <span
-                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-                style={{
-                  background: getStatusColor(currentUser.status),
-                  borderColor: 'var(--theme-bg-secondary)',
-                }}
-              />
-            </div>
-
-            {/* Username */}
-            <div className="min-w-0">
-              <div className="text-xs font-semibold truncate" style={{ color: 'var(--theme-text-bright)' }}>{displayName}</div>
-              {customStatusText ? (
-                <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
-                  {customStatusText}
-                </div>
-              ) : (
-                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-                  #{currentUser.username}
-                </div>
-              )}
-            </div>
+      <UserPopover user={currentUser} isStatusExpired={isStatusExpired}>
+        <div className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer focus-ring rounded" role="button" tabIndex={0} aria-label="Open profile popover">
+          {/* Avatar with status */}
+          <div className="relative flex-shrink-0">
+            <Avatar className="w-8 h-8">
+              {currentUser.avatar_url && <AvatarImage src={currentUser.avatar_url} />}
+              <AvatarFallback style={{ background: 'var(--theme-accent)', color: 'white', fontSize: '12px' }}>
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <span
+              className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
+              style={{
+                background: getStatusColor(currentUser.status),
+                borderColor: 'var(--theme-bg-secondary)',
+              }}
+            />
           </div>
-        </ContextMenuTrigger>
 
-        <ContextMenuContent className="w-48">
-          <ContextMenuItem onClick={() => setShowProfileSettings(true)}>
-            <UserRound className="w-4 h-4 mr-2" /> Edit Profile
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => setShowProfileSettings(true)}>
-            <Circle className="w-4 h-4 mr-2" style={{ color: "var(--theme-text-muted)" }} />
-            {customStatusText ? "Edit Custom Status…" : "Set Custom Status…"}
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuSub>
-            <ContextMenuSubTrigger>
-              <Circle className="w-4 h-4 mr-2 fill-current" style={{ color: getStatusColor(currentUser.status) }} /> Set Status
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent>
-              {STATUS_OPTIONS.map(({ value, label, color }) => (
-                <ContextMenuItem key={value} onClick={() => handleSetStatus(value)}>
-                  <Circle className="w-3 h-3 mr-2 fill-current" style={{ color }} />
-                  {label}
-                  {currentUser.status === value && <span className="ml-auto text-xs" style={{ color: 'var(--theme-text-muted)' }}>&#10003;</span>}
-                </ContextMenuItem>
-              ))}
-            </ContextMenuSubContent>
-          </ContextMenuSub>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(currentUser.username)
-              toast({ title: "Username copied!" })
-            } catch { /* clipboard unavailable */ }
-          }}>
-            <Clipboard className="w-4 h-4 mr-2" /> Copy Username
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem variant="destructive" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" /> Log Out
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+          {/* Username */}
+          <div className="min-w-0">
+            <div className="text-xs font-semibold truncate" style={{ color: 'var(--theme-text-bright)' }}>{displayName}</div>
+            {customStatusText ? (
+              <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
+                {customStatusText}
+              </div>
+            ) : (
+              <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
+                #{currentUser.username}
+              </div>
+            )}
+          </div>
+        </div>
+      </UserPopover>
 
       {/* Controls */}
       <TooltipProvider delayDuration={200}>
@@ -267,15 +200,6 @@ export function UserPanel() {
       </div>
       </TooltipProvider>
 
-      {showProfileSettings && (
-        <Suspense fallback={null}>
-          <ProfileSettingsModal
-            open={showProfileSettings}
-            onClose={() => setShowProfileSettings(false)}
-            user={currentUser}
-          />
-        </Suspense>
-      )}
     </div>
   )
 }
