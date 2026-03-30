@@ -94,6 +94,187 @@ const STICKER_SEARCH_URL = "/api/sticker/search"
 
 const DM_QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 
+const EMOJI_RECENTS_KEY = "vortexchat:emoji-recents"
+const EMOJI_RECENTS_MAX = 18
+
+function getEmojiRecents(): string[] {
+  if (typeof window === "undefined") return []
+  try {
+    return JSON.parse(localStorage.getItem(EMOJI_RECENTS_KEY) ?? "[]")
+  } catch {
+    return []
+  }
+}
+
+function addEmojiRecent(emoji: string): void {
+  if (typeof window === "undefined") return
+  try {
+    const current = getEmojiRecents().filter((e) => e !== emoji)
+    localStorage.setItem(EMOJI_RECENTS_KEY, JSON.stringify([emoji, ...current].slice(0, EMOJI_RECENTS_MAX)))
+  } catch {
+    // localStorage unavailable — no-op
+  }
+}
+
+/** Reusable reaction picker content with recent emojis, search, categories, and skin tone selector. */
+function DmReactionPickerContent({ msgId, onReaction, onClose, maxHeight }: { msgId: string; onReaction: (emoji: string) => void; onClose: () => void; maxHeight?: string }) {
+  const [recents, setRecents] = useState<string[]>([])
+  const [searchActive, setSearchActive] = useState(false)
+
+  useEffect(() => {
+    setRecents(getEmojiRecents())
+  }, [])
+
+  function handleSelect(emoji: string) {
+    addEmojiRecent(emoji)
+    setRecents(getEmojiRecents())
+    onReaction(emoji)
+    onClose()
+  }
+
+  return (
+    <EmojiPicker.Root
+      onEmojiSelect={({ emoji }) => handleSelect(emoji)}
+      style={{ display: "flex", flexDirection: "column", width: "min(320px, 90vw)", height: maxHeight ?? "400px", maxHeight: maxHeight ?? "400px", overflow: "hidden" }}
+    >
+      <div style={{ padding: "8px 8px 4px" }}>
+        <EmojiPicker.Search
+          aria-label="Search emoji"
+          style={{
+            all: "unset",
+            display: "block",
+            width: "100%",
+            padding: "6px 10px",
+            borderRadius: "6px",
+            fontSize: "13px",
+            boxSizing: "border-box",
+            background: "var(--theme-bg-tertiary)",
+            color: "var(--theme-text-normal)",
+          }}
+          placeholder="Search emoji…"
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchActive(e.target.value.length > 0)}
+        />
+      </div>
+
+      {/* Recently used row — hidden while the search field has input */}
+      {recents.length > 0 && !searchActive && (
+        <div style={{ padding: "4px 8px 0" }}>
+          <div
+            style={{
+              padding: "4px 0 2px",
+              fontSize: "10px",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--theme-text-muted)",
+            }}
+          >
+            Recently used
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "2px" }}>
+            {recents.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handleSelect(emoji)}
+                title={emoji}
+                style={{
+                  fontSize: "20px",
+                  width: "34px",
+                  height: "34px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "4px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: "transparent",
+                  fontFamily: "var(--frimousse-emoji-font)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--theme-surface-elevated)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <div style={{ height: "1px", background: "var(--theme-bg-tertiary)", margin: "6px 0 2px" }} />
+        </div>
+      )}
+
+      <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+        <EmojiPicker.Loading>
+          <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>Loading…</div>
+        </EmojiPicker.Loading>
+        <EmojiPicker.Empty>
+          {({ search }) => (
+            <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>
+              No emoji found for &ldquo;{search}&rdquo;
+            </div>
+          )}
+        </EmojiPicker.Empty>
+        <EmojiPicker.List
+          components={{
+            CategoryHeader: ({ category, ...props }) => (
+              <div
+                {...props}
+                style={{
+                  padding: "4px 8px",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  color: "var(--theme-text-muted)",
+                  background: "var(--theme-bg-secondary)",
+                  position: "sticky",
+                  top: 0,
+                }}
+              >
+                {category.label}
+              </div>
+            ),
+            Emoji: ({ emoji, ...props }) => (
+              <button
+                type="button"
+                {...props}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
+                  width: "100%",
+                  aspectRatio: "1",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  border: "none",
+                  background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
+                  fontFamily: "var(--frimousse-emoji-font)",
+                }}
+              >
+                {emoji.emoji}
+              </button>
+            ),
+          }}
+        />
+      </EmojiPicker.Viewport>
+      <div style={{ padding: "4px 8px 8px", display: "flex", justifyContent: "flex-end" }}>
+        <EmojiPicker.SkinToneSelector
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            fontSize: "16px",
+            padding: "2px 4px",
+            borderRadius: "4px",
+            border: "1px solid var(--theme-bg-tertiary)",
+            background: "var(--theme-bg-tertiary)",
+          }}
+          aria-label="Change skin tone"
+        />
+      </div>
+    </EmojiPicker.Root>
+  )
+}
+
 /** Format a date for the day separator. */
 function formatDaySeparator(date: Date): string {
   if (isToday(date)) return "Today"
@@ -238,6 +419,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const emojiFetchedRef = useRef(false)
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null)
   const [reactionPickerPos, setReactionPickerPos] = useState<{ top: number; left: number } | null>(null)
+  const [poppingReactions, setPoppingReactions] = useState<Record<string, Record<string, number>>>({})
+  const popTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const reactionCountsRef = useRef<Record<string, Record<string, number>>>({})
+  const [reactionRecents, setReactionRecents] = useState<string[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -664,6 +849,62 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     return () => { supabase.removeChannel(ch) }
   }, [channelId, currentUserId, supabase])
 
+  // Reaction chip pop animation — track count changes per message
+  useEffect(() => {
+    const nextAll: Record<string, Record<string, number>> = {}
+    for (const msg of messages) {
+      const counts: Record<string, number> = {}
+      for (const r of msg.reactions ?? []) {
+        counts[r.emoji] = (counts[r.emoji] ?? 0) + 1
+      }
+      nextAll[msg.id] = counts
+    }
+
+    const prev = reactionCountsRef.current
+    const pops: Record<string, Record<string, number>> = {}
+    for (const msgId of Object.keys(nextAll)) {
+      const prevCounts = prev[msgId]
+      if (!prevCounts) continue
+      const nextCounts = nextAll[msgId]
+      for (const emoji of Object.keys(nextCounts)) {
+        if (prevCounts[emoji] !== undefined && prevCounts[emoji] !== nextCounts[emoji]) {
+          if (!pops[msgId]) pops[msgId] = {}
+          pops[msgId][emoji] = (pops[msgId]?.[emoji] ?? 0) + 1
+        }
+      }
+    }
+
+    if (Object.keys(pops).length > 0) {
+      setPoppingReactions((current) => {
+        const next = { ...current }
+        for (const [msgId, emojis] of Object.entries(pops)) {
+          next[msgId] = { ...(next[msgId] ?? {}), ...emojis }
+          for (const emoji of Object.keys(emojis)) {
+            const key = `${msgId}:${emoji}`
+            const existing = popTimersRef.current.get(key)
+            if (existing) clearTimeout(existing)
+            const timer = setTimeout(() => {
+              setPoppingReactions((c) => {
+                const updated = { ...c }
+                if (updated[msgId]) {
+                  const { [emoji]: _, ...rest } = updated[msgId]
+                  updated[msgId] = rest
+                  if (Object.keys(updated[msgId]).length === 0) delete updated[msgId]
+                }
+                return updated
+              })
+              popTimersRef.current.delete(key)
+            }, 180)
+            popTimersRef.current.set(key, timer)
+          }
+        }
+        return next
+      })
+    }
+
+    reactionCountsRef.current = nextAll
+  }, [messages])
+
   // Close emoji/GIF picker on outside click
   useEffect(() => {
     if (!showEmojiPicker) {
@@ -907,6 +1148,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   }
 
   async function handleDmReaction(messageId: string, emoji: string): Promise<void> {
+    navigator.vibrate?.(6)
+    addEmojiRecent(emoji)
     const msg = messages.find((m) => m.id === messageId)
     if (!msg) return
     const existing = msg.reactions.find((r) => r.user_id === currentUserId && r.emoji === emoji)
@@ -1529,12 +1772,31 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     <button
                       type="button"
                       onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setReactionPickerMsgId(reactionPickerMsgId === msg.id ? null : msg.id)
-                        setReactionPickerPos({ top: rect.bottom + 4, left: Math.max(8, rect.left - 140) })
+                        if (reactionPickerMsgId === msg.id) {
+                          setReactionPickerMsgId(null)
+                          setReactionPickerPos(null)
+                        } else if (window.matchMedia("(pointer: coarse)").matches) {
+                          // Mobile: open bottom sheet directly (no position needed)
+                          setReactionPickerPos(null)
+                          setReactionPickerMsgId(msg.id)
+                          navigator.vibrate?.(10)
+                        } else {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          const pickerW = 320
+                          const pickerH = 400
+                          const gap = 4
+                          let top = rect.top - pickerH - gap
+                          if (top < 8) top = rect.bottom + gap
+                          if (top + pickerH > window.innerHeight - 8) top = window.innerHeight - pickerH - 8
+                          let left = rect.right - pickerW
+                          if (left < 8) left = 8
+                          if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8
+                          setReactionPickerPos({ top, left })
+                          setReactionPickerMsgId(msg.id)
+                        }
                       }}
                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
-                      style={{ color: "var(--theme-text-muted)" }}
+                      style={{ color: reactionPickerMsgId === msg.id ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
                       title="Add Reaction"
                       aria-label="Add reaction"
                     >
@@ -1583,10 +1845,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 <div className={cn("flex flex-wrap gap-1 mt-1", isGrouped ? "pl-0" : "ml-11")}>
                   {reactionEntries.map(([emoji, { count, hasOwn, users }]) => (
                     <button
-                      key={emoji}
+                      key={`${emoji}-${poppingReactions[msg.id]?.[emoji] ?? 0}`}
                       onClick={() => handleDmReaction(msg.id, emoji)}
                       title={users.map((id) => id === currentUserId ? "You" : (channel.members.find((m) => m.id === id)?.display_name || channel.members.find((m) => m.id === id)?.username || "Unknown")).join(", ")}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm hover:-translate-y-px transition-transform"
+                      className={cn("motion-interactive motion-press flex items-center gap-1 px-2 py-0.5 rounded-full text-sm hover:-translate-y-px", poppingReactions[msg.id]?.[emoji] && "reaction-chip-pop")}
                       aria-label={`Toggle ${emoji} reaction`}
                       style={{
                         background: hasOwn ? "rgba(88,101,242,0.3)" : "rgba(255,255,255,0.06)",
@@ -1599,111 +1861,72 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   ))}
                 </div>
               )}
-              {/* Quick reactions bar when emoji picker is open for this message */}
+              {/* Desktop: positioned reaction emoji picker */}
               {reactionPickerMsgId === msg.id && reactionPickerPos && createPortal(
                 <div
                   data-dm-reaction-picker-portal
-                  className="fixed z-[9999]"
+                  onClick={(e) => { if (e.target === e.currentTarget) { setReactionPickerMsgId(null); setReactionPickerPos(null) } }}
+                  className="hidden md:block fixed z-[9999]"
                   style={{ top: reactionPickerPos.top, left: reactionPickerPos.left }}
                 >
                   <div
                     className="rounded-lg shadow-xl overflow-hidden"
                     style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
                   >
-                    {/* Quick reaction row */}
-                    <div className="flex items-center gap-1 p-2 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+                    <DmReactionPickerContent
+                      msgId={msg.id}
+                      onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                      onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                    />
+                  </div>
+                </div>,
+                document.body,
+              )}
+              {/* Mobile: reaction emoji picker as bottom sheet */}
+              {reactionPickerMsgId === msg.id && createPortal(
+                <div
+                  data-dm-reaction-picker-portal
+                  className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end"
+                  onClick={(e) => { if (e.target === e.currentTarget) { setReactionPickerMsgId(null); setReactionPickerPos(null) } }}
+                >
+                  <div className="absolute inset-0 bg-black/50" aria-hidden />
+                  <div
+                    className="relative rounded-t-2xl shadow-xl overflow-hidden animate-in slide-in-from-bottom duration-200"
+                    style={{
+                      background: "var(--theme-bg-secondary)",
+                      borderTop: "1px solid var(--theme-bg-tertiary)",
+                      maxHeight: "70vh",
+                      paddingBottom: "env(safe-area-inset-bottom)",
+                    }}
+                  >
+                    {/* Drag handle */}
+                    <div className="flex justify-center py-2" aria-hidden>
+                      <div className="w-10 h-1 rounded-full" style={{ background: "var(--theme-bg-tertiary)" }} />
+                    </div>
+                    {/* Quick reactions row */}
+                    <div className="flex justify-center gap-2 px-4 pb-2">
                       {DM_QUICK_REACTIONS.map((emoji) => (
                         <button
                           key={emoji}
                           type="button"
                           onClick={() => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
-                          className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-lg"
-                          title={emoji}
+                          className="w-11 h-11 flex items-center justify-center rounded-full text-xl active:scale-90 transition-transform"
+                          style={{ background: "var(--theme-bg-tertiary)" }}
+                          aria-label={`React with ${emoji}`}
                         >
                           {emoji}
                         </button>
                       ))}
                     </div>
-                    <EmojiPicker.Root
-                      onEmojiSelect={({ emoji }) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
-                      style={{ display: "flex", flexDirection: "column", width: "min(320px, 90vw)", height: "350px", maxHeight: "350px", overflow: "hidden" }}
-                    >
-                      <div style={{ padding: "8px 8px 4px" }}>
-                        <EmojiPicker.Search
-                          aria-label="Search emoji"
-                          style={{
-                            all: "unset",
-                            display: "block",
-                            width: "100%",
-                            padding: "6px 10px",
-                            borderRadius: "6px",
-                            fontSize: "13px",
-                            boxSizing: "border-box",
-                            background: "var(--theme-bg-tertiary)",
-                            color: "var(--theme-text-normal)",
-                          }}
-                          placeholder="Search emoji…"
-                        />
-                      </div>
-                      <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
-                        <EmojiPicker.Loading>
-                          <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>Loading…</div>
-                        </EmojiPicker.Loading>
-                        <EmojiPicker.Empty>
-                          {({ search }) => (
-                            <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>
-                              No emoji found for &ldquo;{search}&rdquo;
-                            </div>
-                          )}
-                        </EmojiPicker.Empty>
-                        <EmojiPicker.List
-                          components={{
-                            CategoryHeader: ({ category, ...props }) => (
-                              <div
-                                {...props}
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "10px",
-                                  fontWeight: 600,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                  color: "var(--theme-text-muted)",
-                                  background: "var(--theme-bg-secondary)",
-                                  position: "sticky",
-                                  top: 0,
-                                }}
-                              >
-                                {category.label}
-                              </div>
-                            ),
-                            Emoji: ({ emoji, ...props }) => (
-                              <button
-                                type="button"
-                                {...props}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  fontSize: "18px",
-                                  width: "100%",
-                                  aspectRatio: "1",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  border: "none",
-                                  background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
-                                  fontFamily: "var(--frimousse-emoji-font)",
-                                }}
-                              >
-                                {emoji.emoji}
-                              </button>
-                            ),
-                          }}
-                        />
-                      </EmojiPicker.Viewport>
-                    </EmojiPicker.Root>
+                    <DmReactionPickerContent
+                      msgId={msg.id}
+                      onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                      onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                      maxHeight="calc(70vh - 100px)"
+                    />
                   </div>
                 </div>,
-                document.body
+                document.body,
               )}
             </div>
             </div>
