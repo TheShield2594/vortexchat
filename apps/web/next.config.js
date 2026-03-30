@@ -16,16 +16,28 @@ const nextConfig = {
         ],
       },
       {
-        // Long-lived cache for PWA icons and splash screens
-        source: "/icon-:size(\\d+).png",
+        // Cache icons for 1 day so updates propagate within 24h
+        source: "/icon-:slug.png",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=3600" },
         ],
       },
       {
         source: "/apple-touch-icon.png",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=3600" },
+        ],
+      },
+      {
+        source: "/favicon-:slug.png",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=3600" },
+        ],
+      },
+      {
+        source: "/favicon.ico",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=3600" },
         ],
       },
       {

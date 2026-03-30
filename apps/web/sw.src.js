@@ -5,9 +5,9 @@
 // In development, public/sw.js is used directly as a fallback.
 
 // ─── Cache names ────────────────────────────────────────────────────────────
-const PRECACHE = "vortexchat-precache-v6"
-const RUNTIME = "vortexchat-runtime-v6"
-const APP_SHELL = "vortexchat-shell-v6"
+const PRECACHE = "vortexchat-precache-v7"
+const RUNTIME = "vortexchat-runtime-v7"
+const APP_SHELL = "vortexchat-shell-v7"
 const ALL_CACHES = [PRECACHE, RUNTIME, APP_SHELL]
 
 // ─── Precache manifest ───────────────────────────────────────────────────────
@@ -24,10 +24,10 @@ const APP_SHELL_ASSETS = [
   "/channels/me",
   "/offline",
   "/manifest.json",
-  "/icon-192.png",
-  "/icon-192-maskable.png",
-  "/icon-512.png",
-  "/icon-512-maskable.png",
+  "/icon-192.png?v=2",
+  "/icon-192-maskable.png?v=2",
+  "/icon-512.png?v=2",
+  "/icon-512-maskable.png?v=2",
 ]
 
 // ─── Install ─────────────────────────────────────────────────────────────────
