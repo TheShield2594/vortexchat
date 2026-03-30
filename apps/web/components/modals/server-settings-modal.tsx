@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap, Upload, X, Clock, Users, Activity, Eye, Flag } from "lucide-react"
+import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap, Upload, X, Clock, Users, Activity, Eye, Flag, Sparkles } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +19,7 @@ import { AppsTab } from "@/components/settings/apps-tab"
 import { ReportsTab } from "@/components/settings/reports-tab"
 import { AdminActivityTimeline } from "@/components/admin/admin-activity-timeline"
 import { PermissionSandbox } from "@/components/admin/permission-sandbox"
+import { AiSettingsTab } from "@/components/settings/ai-settings-tab"
 
 interface Channel {
   id: string
@@ -218,7 +219,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-5xl max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto overflow-hidden p-0"
+        className="sm:max-w-5xl sm:max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto sm:overflow-hidden p-0"
         style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
         aria-describedby={undefined}
       >
@@ -281,6 +282,17 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                 <Eye className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
                 Perms
               </TabsTrigger>
+              {isOwner && (
+                <>
+                  <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider hidden md:block" style={{ color: 'var(--theme-text-muted)' }}>
+                    AI
+                  </div>
+                  <TabsTrigger value="ai" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5 hidden md:block" />
+                    AI Settings
+                  </TabsTrigger>
+                </>
+              )}
             </TabsList>
           </div>
 
@@ -533,6 +545,12 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
             <TabsContent value="permission-sandbox" className="mt-0">
               <PermissionSandbox serverId={server.id} channels={channels} />
             </TabsContent>
+
+            {isOwner && (
+              <TabsContent value="ai" className="mt-0">
+                <AiSettingsTab serverId={server.id} />
+              </TabsContent>
+            )}
 
           </div>
         </Tabs>
