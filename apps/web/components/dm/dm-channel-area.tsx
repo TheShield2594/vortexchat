@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
 import { EmojiPicker } from "frimousse"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
-import { format } from "date-fns"
+import { format, isToday, isYesterday } from "date-fns"
 import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
 import { useDMCall, IncomingCallToast, CallerRingingOverlay } from "@/components/dm/dm-call"
@@ -48,6 +49,13 @@ interface DmAttachment {
   content_type: string
 }
 
+interface DmReaction {
+  dm_id: string
+  user_id: string
+  emoji: string
+  created_at: string
+}
+
 interface Message {
   id: string
   content: string
@@ -56,6 +64,7 @@ interface Message {
   sender_id: string
   sender: User
   dm_attachments?: DmAttachment[]
+  reactions: DmReaction[]
   reply_to_id: string | null
   reply_to: ReplyToMessage | null
 }
@@ -82,6 +91,15 @@ const GIF_TRENDING_URL = "/api/gif/trending"
 const GIF_SEARCH_URL = "/api/gif/search"
 const STICKER_TRENDING_URL = "/api/sticker/trending"
 const STICKER_SEARCH_URL = "/api/sticker/search"
+
+const DM_QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
+
+/** Format a date for the day separator. */
+function formatDaySeparator(date: Date): string {
+  if (isToday(date)) return "Today"
+  if (isYesterday(date)) return "Yesterday"
+  return format(date, "MMMM d, yyyy")
+}
 
 /** Detect if a message is a standalone GIF URL (Klipy or Giphy media link). */
 function extractGifUrl(content: string | null): string | null {
@@ -218,6 +236,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [stickerLoading, setStickerLoading] = useState(false)
   const [allServerEmojis, setAllServerEmojis] = useState<Array<{ server: { id: string; name: string; icon_url: string | null }; emojis: Array<{ id: string; name: string; image_url: string }> }>>([])
   const emojiFetchedRef = useRef(false)
+  const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null)
+  const [reactionPickerPos, setReactionPickerPos] = useState<{ top: number; left: number } | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -256,14 +276,15 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const { incomingCall, activeCall, ringing, startCall, cancelCall, acceptCall, declineCall, endCall } =
     useDMCall(channelId, currentUserId, currentDisplayName)
 
-  const sendDmPayload = useCallback(async (payload: { content: string; reply_to_id?: string }) => {
+  const sendDmPayload = useCallback(async (payload: { content: string; reply_to_id?: string }): Promise<Message | null> => {
     const res = await fetch(`/api/dm/channels/${channelId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
     if (!res.ok) return null
-    return await res.json()
+    const data = await res.json()
+    return { ...data, reactions: data.reactions ?? [] }
   }, [channelId])
 
   const syncDeviceRegistration = useCallback(async (deviceId: string, publicKey: string) => {
@@ -570,7 +591,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   .from("dm_attachments")
                   .select("id, filename, size, content_type")
                   .eq("dm_id", data.id)
-                const newMsg: Message = { ...data, reply_to: replyToMsg, dm_attachments: attRows ?? [] }
+                const newMsg: Message = { ...data, reply_to: replyToMsg, dm_attachments: attRows ?? [], reactions: [] }
                 setMessages((prev) => [...prev, newMsg])
 
                 // Incrementally index the new message if the channel is encrypted
@@ -604,6 +625,45 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     return () => { supabase.removeChannel(ch) }
   }, [channelId, currentUserId, supabase, channel, conversationKey])
 
+  // Realtime subscription for DM reactions
+  useEffect(() => {
+    const ch = supabase
+      .channel(`dm-reactions:${channelId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "dm_reactions" },
+        (payload) => {
+          const r = payload.new as DmReaction
+          // Skip our own reactions (already handled optimistically)
+          if (r.user_id === currentUserId) return
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== r.dm_id) return m
+              if (m.reactions.some((er) => er.dm_id === r.dm_id && er.user_id === r.user_id && er.emoji === r.emoji)) return m
+              return { ...m, reactions: [...m.reactions, r] }
+            })
+          )
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "dm_reactions" },
+        (payload) => {
+          const r = payload.old as DmReaction
+          if (r.user_id === currentUserId) return
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== r.dm_id) return m
+              return { ...m, reactions: m.reactions.filter((er) => !(er.dm_id === r.dm_id && er.user_id === r.user_id && er.emoji === r.emoji)) }
+            })
+          )
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(ch) }
+  }, [channelId, currentUserId, supabase])
+
   // Close emoji/GIF picker on outside click
   useEffect(() => {
     if (!showEmojiPicker) {
@@ -619,6 +679,26 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     document.addEventListener("pointerdown", handlePointerDown)
     return () => document.removeEventListener("pointerdown", handlePointerDown)
   }, [showEmojiPicker])
+
+  // Close reaction picker on outside click or Escape
+  useEffect(() => {
+    if (!reactionPickerMsgId) return
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as HTMLElement
+      if (target.closest?.("[data-dm-reaction-picker-portal]")) return
+      setReactionPickerMsgId(null)
+      setReactionPickerPos(null)
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") { setReactionPickerMsgId(null); setReactionPickerPos(null) }
+    }
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [reactionPickerMsgId])
 
   // Fetch GIF results (trending or search)
   useEffect(() => {
@@ -823,6 +903,61 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       indexedIdsRef.current.delete(messageId)
     } else {
       toast({ variant: "destructive", title: "Failed to delete message" })
+    }
+  }
+
+  async function handleDmReaction(messageId: string, emoji: string): Promise<void> {
+    const msg = messages.find((m) => m.id === messageId)
+    if (!msg) return
+    const existing = msg.reactions.find((r) => r.user_id === currentUserId && r.emoji === emoji)
+    const remove = Boolean(existing)
+
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m
+        return {
+          ...m,
+          reactions: remove
+            ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+            : [...m.reactions, { dm_id: messageId, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+        }
+      })
+    )
+
+    try {
+      const res = await fetch(`/api/dm/channels/${channelId}/messages/${messageId}/reactions`, {
+        method: remove ? "DELETE" : "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ emoji, nonce: crypto.randomUUID() }),
+      })
+      if (!res.ok) {
+        // Revert optimistic update
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== messageId) return m
+            return {
+              ...m,
+              reactions: remove
+                ? [...m.reactions, { dm_id: messageId, user_id: currentUserId, emoji, created_at: new Date().toISOString() }]
+                : m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji)),
+            }
+          })
+        )
+      }
+    } catch {
+      // Revert on network error
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m
+          return {
+            ...m,
+            reactions: remove
+              ? [...m.reactions, { dm_id: messageId, user_id: currentUserId, emoji, created_at: new Date().toISOString() }]
+              : m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji)),
+          }
+        })
+      )
     }
   }
 
@@ -1104,14 +1239,31 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
         {messages.map((msg, i) => {
           const prev = messages[i - 1]
+          const msgDate = new Date(msg.created_at)
+          const prevDate = prev ? new Date(prev.created_at) : null
+          const showDaySeparator = !prevDate || msgDate.toDateString() !== prevDate.toDateString()
           const isGrouped = prev &&
             prev.sender_id === msg.sender_id &&
             !msg.reply_to_id &&
+            !showDaySeparator &&
             new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime() < 5 * 60 * 1000
           const isOwn = msg.sender_id === currentUserId
           const senderName = msg.sender?.display_name || msg.sender?.username || "Unknown"
           const senderInitials = senderName.slice(0, 2).toUpperCase()
           const isEditing = editingId === msg.id
+
+          // Group reactions by emoji
+          const reactionGroups = (msg.reactions ?? []).reduce(
+            (acc, r) => {
+              if (!acc[r.emoji]) acc[r.emoji] = { count: 0, users: [] as string[], hasOwn: false }
+              acc[r.emoji].count++
+              acc[r.emoji].users.push(r.user_id)
+              if (r.user_id === currentUserId) acc[r.emoji].hasOwn = true
+              return acc
+            },
+            {} as Record<string, { count: number; users: string[]; hasOwn: boolean }>
+          )
+          const reactionEntries = Object.entries(reactionGroups)
 
           const renderedContent = channel.is_encrypted ? (decryptedContent[msg.id]?.text ?? "Decrypting…") : msg.content
           const decryptFailed = channel.is_encrypted ? Boolean(decryptedContent[msg.id]?.failed) : false
@@ -1136,7 +1288,18 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const gifMediaUrl = extractGifUrl(renderedContent)
 
           return (
-            <div key={msg.id} data-message-id={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
+            <div key={msg.id}>
+              {/* Date separator */}
+              {showDaySeparator && (
+                <div className="flex items-center gap-3 my-3 px-1">
+                  <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
+                  <span className="text-xs font-medium flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+                    {formatDaySeparator(msgDate)}
+                  </span>
+                  <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
+                </div>
+              )}
+            <div data-message-id={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
               {/* Reply reference */}
               {msg.reply_to_id && msg.reply_to && (
                 <div
@@ -1362,6 +1525,21 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 {/* Hover actions */}
                 {!isEditing && (
                   <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-opacity">
+                    {/* Reaction button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setReactionPickerMsgId(reactionPickerMsgId === msg.id ? null : msg.id)
+                        setReactionPickerPos({ top: rect.bottom + 4, left: Math.max(8, rect.left - 140) })
+                      }}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
+                      style={{ color: "var(--theme-text-muted)" }}
+                      title="Add Reaction"
+                      aria-label="Add reaction"
+                    >
+                      <Smile className="w-3.5 h-3.5" />
+                    </button>
                     {/* Reply button — available for all messages */}
                     <button
                       type="button"
@@ -1400,6 +1578,134 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   </div>
                 )}
               </div>
+              {/* Reactions display */}
+              {reactionEntries.length > 0 && (
+                <div className={cn("flex flex-wrap gap-1 mt-1", isGrouped ? "pl-0" : "ml-11")}>
+                  {reactionEntries.map(([emoji, { count, hasOwn, users }]) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleDmReaction(msg.id, emoji)}
+                      title={users.map((id) => id === currentUserId ? "You" : (channel.members.find((m) => m.id === id)?.display_name || channel.members.find((m) => m.id === id)?.username || "Unknown")).join(", ")}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm hover:-translate-y-px transition-transform"
+                      aria-label={`Toggle ${emoji} reaction`}
+                      style={{
+                        background: hasOwn ? "rgba(88,101,242,0.3)" : "rgba(255,255,255,0.06)",
+                        border: `1px solid ${hasOwn ? "var(--theme-accent)" : "transparent"}`,
+                        color: "var(--theme-text-normal)",
+                      }}
+                    >
+                      {emoji} {count}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Quick reactions bar when emoji picker is open for this message */}
+              {reactionPickerMsgId === msg.id && reactionPickerPos && createPortal(
+                <div
+                  data-dm-reaction-picker-portal
+                  className="fixed z-[9999]"
+                  style={{ top: reactionPickerPos.top, left: reactionPickerPos.left }}
+                >
+                  <div
+                    className="rounded-lg shadow-xl overflow-hidden"
+                    style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                  >
+                    {/* Quick reaction row */}
+                    <div className="flex items-center gap-1 p-2 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+                      {DM_QUICK_REACTIONS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                          className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-lg"
+                          title={emoji}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                    <EmojiPicker.Root
+                      onEmojiSelect={({ emoji }) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                      style={{ display: "flex", flexDirection: "column", width: "min(320px, 90vw)", height: "350px", maxHeight: "350px", overflow: "hidden" }}
+                    >
+                      <div style={{ padding: "8px 8px 4px" }}>
+                        <EmojiPicker.Search
+                          aria-label="Search emoji"
+                          style={{
+                            all: "unset",
+                            display: "block",
+                            width: "100%",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            fontSize: "13px",
+                            boxSizing: "border-box",
+                            background: "var(--theme-bg-tertiary)",
+                            color: "var(--theme-text-normal)",
+                          }}
+                          placeholder="Search emoji…"
+                        />
+                      </div>
+                      <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+                        <EmojiPicker.Loading>
+                          <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>Loading…</div>
+                        </EmojiPicker.Loading>
+                        <EmojiPicker.Empty>
+                          {({ search }) => (
+                            <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>
+                              No emoji found for &ldquo;{search}&rdquo;
+                            </div>
+                          )}
+                        </EmojiPicker.Empty>
+                        <EmojiPicker.List
+                          components={{
+                            CategoryHeader: ({ category, ...props }) => (
+                              <div
+                                {...props}
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "10px",
+                                  fontWeight: 600,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                  color: "var(--theme-text-muted)",
+                                  background: "var(--theme-bg-secondary)",
+                                  position: "sticky",
+                                  top: 0,
+                                }}
+                              >
+                                {category.label}
+                              </div>
+                            ),
+                            Emoji: ({ emoji, ...props }) => (
+                              <button
+                                type="button"
+                                {...props}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: "18px",
+                                  width: "100%",
+                                  aspectRatio: "1",
+                                  borderRadius: "4px",
+                                  cursor: "pointer",
+                                  border: "none",
+                                  background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
+                                  fontFamily: "var(--frimousse-emoji-font)",
+                                }}
+                              >
+                                {emoji.emoji}
+                              </button>
+                            ),
+                          }}
+                        />
+                      </EmojiPicker.Viewport>
+                    </EmojiPicker.Root>
+                  </div>
+                </div>,
+                document.body
+              )}
+            </div>
             </div>
           )
         })}

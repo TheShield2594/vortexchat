@@ -96,22 +96,37 @@ export async function GET(
       }
     }
 
-    // Fetch dm_attachments for these messages so the client can render
-    // images through the proxy endpoint instead of expired signed URLs.
+    // Fetch dm_attachments and dm_reactions for these messages in parallel
     const messageIds: string[] = (messages ?? []).map((m: any) => m.id as string)
     let attachmentMap: Record<string, Array<{ id: string; filename: string; size: number; content_type: string }>> = {}
+    let reactionMap: Record<string, Array<{ dm_id: string; user_id: string; emoji: string; created_at: string }>> = {}
     if (messageIds.length > 0) {
-      const { data: dmAttachments, error: attachmentError } = await (supabase as unknown as { from: (table: string) => any })
-        .from("dm_attachments")
-        .select("id, dm_id, filename, size, content_type")
-        .in("dm_id", messageIds)
-      if (attachmentError) {
-        console.error("[dm/channels/[channelId] GET] failed to fetch dm_attachments:", attachmentError)
+      const [attachmentResult, reactionResult] = await Promise.all([
+        (supabase as unknown as { from: (table: string) => any })
+          .from("dm_attachments")
+          .select("id, dm_id, filename, size, content_type")
+          .in("dm_id", messageIds),
+        (supabase as unknown as { from: (table: string) => any })
+          .from("dm_reactions")
+          .select("dm_id, user_id, emoji, created_at")
+          .in("dm_id", messageIds),
+      ])
+      if (attachmentResult.error) {
+        console.error("[dm/channels/[channelId] GET] failed to fetch dm_attachments:", attachmentResult.error)
       }
-      if (dmAttachments) {
-        for (const att of dmAttachments as Array<{ id: string; dm_id: string; filename: string; size: number; content_type: string }>) {
+      if (attachmentResult.data) {
+        for (const att of attachmentResult.data as Array<{ id: string; dm_id: string; filename: string; size: number; content_type: string }>) {
           if (!attachmentMap[att.dm_id]) attachmentMap[att.dm_id] = []
           attachmentMap[att.dm_id].push({ id: att.id, filename: att.filename, size: att.size, content_type: att.content_type })
+        }
+      }
+      if (reactionResult.error) {
+        console.error("[dm/channels/[channelId] GET] failed to fetch dm_reactions:", reactionResult.error)
+      }
+      if (reactionResult.data) {
+        for (const r of reactionResult.data as Array<{ dm_id: string; user_id: string; emoji: string; created_at: string }>) {
+          if (!reactionMap[r.dm_id]) reactionMap[r.dm_id] = []
+          reactionMap[r.dm_id].push(r)
         }
       }
     }
@@ -120,6 +135,7 @@ export async function GET(
       ...m,
       reply_to: m.reply_to_id ? (replyMap[m.reply_to_id] ?? null) : null,
       dm_attachments: attachmentMap[m.id] ?? [],
+      reactions: reactionMap[m.id] ?? [],
     }))
 
     // Mark as read
