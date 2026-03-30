@@ -59,7 +59,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <meta name="color-scheme" content="dark" />
         <meta name="format-detection" content="telephone=no" />
@@ -75,7 +75,7 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1206-2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1320-2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" />
       </head>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`} style={{ background: "var(--theme-bg-primary)" }}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`} style={{ background: "var(--theme-bg-primary)" }} suppressHydrationWarning>
         <a href="#main-content" className="skip-nav-link">Skip to main content</a>
         <SplashScreen />
         {children}

@@ -150,17 +150,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [mobilePendingAction, setMobilePendingAction])
 
   const trackCommandEvent = useCallback((eventType: "action" | "discoverability", payload: Record<string, string | number | boolean>) => {
+    const route = "/api/t/ccb"
+    const logTelemetryFailure = (err: unknown): void => {
+      console.warn("[telemetry] send failed", {
+        route,
+        userId: currentUserId,
+        action: eventType,
+        channelId: channel.id,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
     const body = JSON.stringify({ eventType, payload, channelId: channel.id, serverId, timestamp: Date.now() })
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon("/api/telemetry/channel-command-bar", body)
+        const queued = navigator.sendBeacon(route, new Blob([body], { type: "application/json" }))
+        if (!queued) {
+          fetch(route, { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(logTelemetryFailure)
+        }
       } else {
-        fetch("/api/telemetry/channel-command-bar", { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {})
+        fetch(route, { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(logTelemetryFailure)
       }
-    } catch {
-      // best-effort telemetry only
+    } catch (err) {
+      logTelemetryFailure(err)
     }
-  }, [channel.id, serverId])
+  }, [channel.id, currentUserId, serverId])
 
   // ── Message index map ────────────────────────────────────────────────────
   // O(1) lookup of message index by ID — used for jump-to-message

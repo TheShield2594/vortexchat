@@ -78,18 +78,42 @@ export async function GET(
     // Create a fresh signed URL from the storage path rather than using the
     // stored URL (which may have expired — signed URLs have a 7-day TTL).
     const storagePath = extractStoragePath(attachment.url)
-    if (storagePath) {
-      const { data: signedData, error: signError } = await supabase.storage
-        .from("attachments")
-        .createSignedUrl(storagePath, 3600) // 1 hour
-
-      if (!signError && signedData?.signedUrl) {
-        return NextResponse.redirect(signedData.signedUrl)
+    if (!storagePath) {
+      let urlPath: string | null = null
+      try {
+        urlPath = new URL(attachment.url).pathname
+      } catch {
+        urlPath = null
       }
+      console.error("[attachments/download] failed to extract storage path", {
+        route: "/api/attachments/[attachmentId]/download",
+        userId: user.id,
+        action: "extractStoragePath",
+        attachmentId: attachment.id,
+        urlPath,
+      })
+      // Fallback to stored URL to preserve redirect semantics for img/video/audio src consumers
+      return NextResponse.redirect(attachment.url)
     }
 
-    // Fallback to stored URL if path extraction fails
-    return NextResponse.redirect(attachment.url)
+    const { data: signedData, error: signError } = await supabase.storage
+      .from("attachments")
+      .createSignedUrl(storagePath, 3600) // 1 hour
+
+    if (signError || !signedData?.signedUrl) {
+      console.error("[attachments/download] signed URL creation failed", {
+        route: "/api/attachments/[attachmentId]/download",
+        userId: user.id,
+        action: "createSignedUrl",
+        attachmentId: attachment.id,
+        storagePath,
+        error: signError?.message,
+      })
+      // Fallback to stored URL to preserve redirect semantics for img/video/audio src consumers
+      return NextResponse.redirect(attachment.url)
+    }
+
+    return NextResponse.redirect(signedData.signedUrl)
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
@@ -106,6 +130,14 @@ function extractStoragePath(url: string): string | null {
     // Supabase public URLs: /storage/v1/object/public/attachments/...
     const pubMatch = parsed.pathname.match(/\/(?:storage\/v1\/)?object\/public\/attachments\/(.+)/)
     if (pubMatch?.[1]) return decodeURIComponent(pubMatch[1])
+
+    // Supabase authenticated URLs: /storage/v1/object/authenticated/attachments/...
+    const authMatch = parsed.pathname.match(/\/(?:storage\/v1\/)?object\/authenticated\/attachments\/(.+)/)
+    if (authMatch?.[1]) return decodeURIComponent(authMatch[1])
+
+    // Render URLs: /storage/v1/render/image/public/attachments/...
+    const renderMatch = parsed.pathname.match(/\/(?:storage\/v1\/)?render\/image\/(?:public|authenticated)\/attachments\/(.+)/)
+    if (renderMatch?.[1]) return decodeURIComponent(renderMatch[1])
 
     return null
   } catch {
