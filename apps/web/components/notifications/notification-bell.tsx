@@ -6,6 +6,8 @@ import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, Trash2, X } from "luci
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
+import { useNotificationPreferences } from "@/hooks/use-notification-preferences"
+import { shouldNotify, showBrowserNotification } from "@/lib/notification-manager"
 import { format } from "date-fns"
 
 interface Notification {
@@ -19,6 +21,17 @@ interface Notification {
   message_id: string | null
   read: boolean
   created_at: string
+}
+
+function isNotification(obj: unknown): obj is Notification {
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    "id" in obj &&
+    typeof (obj as Record<string, unknown>).id === "string" &&
+    "type" in obj &&
+    "title" in obj
+  )
 }
 
 const TYPE_ICONS: Record<Notification["type"], React.ReactNode> = {
@@ -38,12 +51,20 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const router = useRouter()
   const { playNotification } = useNotificationSound()
+  const { prefs } = useNotificationPreferences(userId)
+  const soundEnabledRef = useRef(prefs.sound_enabled)
+  soundEnabledRef.current = prefs.sound_enabled
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+
+  /** Count unread mentions (type=mention) for favicon numeric badge */
+  const computeMentionCount = useCallback((items: Notification[]): number => {
+    return items.filter((n) => !n.read && n.type === "mention").length
+  }, [])
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -69,17 +90,43 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload) => {
-          const n = payload.new as Notification
+          if (!isNotification(payload.new)) return
+          const n = payload.new
           setNotifications((prev) => [n, ...prev.slice(0, 29)])
           setUnreadCount((c) => c + 1)
-          playNotification()
+
+          // Focused-window suppression (Fluxer-style):
+          // - Viewing the same channel → no sound, no browser notification
+          // - App focused, different channel → sound only
+          // - App not focused → sound + browser notification
+          const { shouldPlaySound, shouldShowBrowserNotification } = shouldNotify({
+            channelId: n.channel_id,
+            messageId: n.message_id,
+          })
+
+          if (shouldPlaySound && soundEnabledRef.current) {
+            playNotification()
+          }
+
+          if (shouldShowBrowserNotification && n.title) {
+            const url = n.server_id && n.channel_id
+              ? `/channels/${n.server_id}/${n.channel_id}${n.message_id ? `?message=${n.message_id}` : ""}`
+              : undefined
+            showBrowserNotification({
+              title: n.title,
+              body: n.body || "",
+              channelId: n.channel_id || undefined,
+              url,
+            })
+          }
         }
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload: { new: unknown }) => {
-          const updated = payload.new as unknown as Notification
+          if (!isNotification(payload.new)) return
+          const updated = payload.new
           setNotifications((prev: Notification[]) => {
             const next = prev.map((n: Notification) => (n.id === updated.id ? updated : n))
             setUnreadCount(next.filter((n: Notification) => !n.read).length)
@@ -102,10 +149,13 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     return () => { supabase.removeChannel(ch) }
   }, [userId, supabase])
 
-  // Sync unread count to Zustand store (consumed by useTabUnreadTitle)
+  // Sync unread + mention counts to Zustand store (consumed by useTabUnreadTitle)
   useEffect(() => {
-    useAppStore.getState().setNotificationUnreadCount(unreadCount)
-  }, [unreadCount])
+    useAppStore.setState({
+      notificationUnreadCount: unreadCount,
+      notificationMentionCount: computeMentionCount(notifications),
+    })
+  }, [unreadCount, notifications, computeMentionCount])
 
   // Close on outside click
   useEffect(() => {

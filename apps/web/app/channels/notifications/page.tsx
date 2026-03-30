@@ -6,6 +6,8 @@ import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, X } from "lucide-react
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
+import { useNotificationPreferences } from "@/hooks/use-notification-preferences"
+import { shouldNotify, showBrowserNotification } from "@/lib/notification-manager"
 import { format } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -47,6 +49,7 @@ export default function NotificationsPage() {
   const router = useRouter()
   const { playNotification } = useNotificationSound()
   const currentUser = useAppStore((s) => s.currentUser)
+  const { prefs } = useNotificationPreferences(currentUser?.id ?? null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>("all")
@@ -104,12 +107,29 @@ export default function NotificationsPage() {
               (useAppStore.getState().notificationUnreadCount ?? 0) + 1
             )
           }
-          playNotification()
+          const { shouldPlaySound, shouldShowBrowserNotification } = shouldNotify({
+            channelId: n.channel_id,
+            messageId: n.message_id,
+          })
+          if (shouldPlaySound && prefs.sound_enabled) {
+            playNotification()
+          }
+          if (shouldShowBrowserNotification && n.title) {
+            const url = n.server_id && n.channel_id
+              ? `/channels/${n.server_id}/${n.channel_id}`
+              : undefined
+            showBrowserNotification({
+              title: n.title,
+              body: n.body || "",
+              channelId: n.channel_id || undefined,
+              url,
+            })
+          }
         }
       )
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [currentUser, supabase, playNotification])
+  }, [currentUser, supabase, playNotification, prefs.sound_enabled])
 
   async function markAllRead(): Promise<void> {
     if (!currentUser) return

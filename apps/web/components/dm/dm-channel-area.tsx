@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } fro
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import { setActiveDmChannel } from "@/lib/notification-manager"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
 import { EmojiPicker } from "frimousse"
@@ -616,6 +617,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     setPendingNewMessageCount(0)
     setIsAtBottom(true)
     prevLastMsgIdRef.current = null
+  }, [channelId])
+
+  // Track active DM channel for notification suppression
+  useEffect(() => {
+    setActiveDmChannel(channelId)
+    return () => { setActiveDmChannel(null) }
   }, [channelId])
 
   // Track isAtBottom via scroll listener

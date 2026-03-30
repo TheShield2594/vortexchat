@@ -77,6 +77,9 @@ interface AppState {
   // Notification + DM unread counts (shared between NotificationBell, DMList, and useTabUnreadTitle)
   notificationUnreadCount: number
   setNotificationUnreadCount: (count: number) => void
+  // Mention-type notification count (drives numeric favicon badge vs dot)
+  notificationMentionCount: number
+  setNotificationMentionCount: (count: number) => void
   dmUnreadCount: number
   setDmUnreadCount: (count: number) => void
 
@@ -220,6 +223,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   notificationUnreadCount: 0,
   setNotificationUnreadCount: (count) => set({ notificationUnreadCount: count }),
+  notificationMentionCount: 0,
+  setNotificationMentionCount: (count) => set({ notificationMentionCount: count }),
   dmUnreadCount: 0,
   setDmUnreadCount: (count) => set({ dmUnreadCount: count }),
 

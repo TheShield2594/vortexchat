@@ -101,9 +101,10 @@ self.addEventListener("fetch", (event) => {
   }
 })
 
-// Push notification handler — always shows the notification regardless of
-// whether the app is focused.  On iOS, every push event MUST call
-// showNotification() or the OS may revoke the push subscription.
+// Push notification handler — always calls showNotification() (required on
+// iOS or the OS revokes the push subscription).  When a tab is focused the
+// in-app realtime handler already plays sound, so the push notification is
+// made silent to prevent double-play.
 self.addEventListener("push", (event) => {
   let data = {}
   try {
@@ -121,19 +122,25 @@ self.addEventListener("push", (event) => {
   } = data
 
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon,
-      badge: "/icon-192.png",
-      tag: tag || "vortexchat-message",
-      data: { url },
-      renotify: true,
-      requireInteraction: false,
-      actions: url !== "/channels/me" ? [
-        { action: "open", title: "Open" },
-        { action: "dismiss", title: "Dismiss" },
-      ] : [],
-      silent: false,
+    self.clients.matchAll({ type: "window", includeUncontrolled: false }).then((clients) => {
+      // If any tab is focused, the in-app handler will play the sound — make
+      // the push notification silent to prevent double-play.
+      const anyFocused = clients.some((c) => c.focused)
+
+      return self.registration.showNotification(title, {
+        body,
+        icon,
+        badge: "/icon-192.png",
+        tag: tag || "vortexchat-message",
+        data: { url },
+        renotify: !anyFocused,
+        requireInteraction: false,
+        actions: url !== "/channels/me" ? [
+          { action: "open", title: "Open" },
+          { action: "dismiss", title: "Dismiss" },
+        ] : [],
+        silent: anyFocused,
+      })
     })
   )
 })

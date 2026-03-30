@@ -218,7 +218,12 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "direct_messages", filter: dmMessageFilter },
-        () => refreshChannels()
+        () => {
+          // Sound/browser notifications are handled by the global
+          // useDmNotificationSound hook in AppProvider — DMList only
+          // needs to refresh the channel list.
+          refreshChannels()
+        }
       )
       .on(
         "postgres_changes",
