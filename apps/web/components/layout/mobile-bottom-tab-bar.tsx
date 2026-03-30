@@ -38,15 +38,22 @@ export function MobileBottomTabBar() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t backdrop-blur supports-[backdrop-filter]:bg-black/70"
+      className="md:hidden fixed z-40 left-3 right-3"
       style={{
-        background: "color-mix(in srgb, var(--theme-bg-secondary) 92%, transparent)",
-        borderColor: "var(--theme-bg-tertiary)",
-        paddingBottom: "env(safe-area-inset-bottom)",
+        bottom: "calc(8px + env(safe-area-inset-bottom))",
       }}
       aria-label="Mobile sections"
     >
-      <ul className="grid grid-cols-4 h-[60px]">
+      <ul
+        className="flex items-center justify-around rounded-2xl h-[56px] px-1"
+        style={{
+          background: "color-mix(in srgb, var(--theme-bg-secondary) 82%, transparent)",
+          backdropFilter: "blur(24px) saturate(1.4)",
+          WebkitBackdropFilter: "blur(24px) saturate(1.4)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.08)",
+          border: "1px solid color-mix(in srgb, var(--theme-text-primary) 8%, transparent)",
+        }}
+      >
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = isTabActive(href, pathname)
           const showNotifBadge = href === "/channels/notifications" && notificationUnreadCount > 0
@@ -54,33 +61,39 @@ export function MobileBottomTabBar() {
           const showServerBadge = href === "/channels/servers" && serverUnreadCount > 0
           const badgeCount = showNotifBadge ? notificationUnreadCount : showDmBadge ? dmUnreadCount : showServerBadge ? serverUnreadCount : 0
           return (
-            <li key={label}>
+            <li key={label} className="flex-1 flex justify-center">
               <Link
                 href={href}
                 onClick={() => { if (!active) navigator.vibrate?.(10) }}
                 aria-current={active ? "page" : undefined}
-                className={cn("h-full w-full flex flex-col items-center justify-center gap-1 text-xs relative", active && "font-semibold")}
-                style={{ color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
-              >
-                {/* Active pill indicator */}
-                {active && (
-                  <span
-                    className="absolute top-1.5 left-1/2 -translate-x-1/2 w-5 h-[3px] rounded-full motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-75 motion-safe:duration-200"
-                    style={{ background: "var(--theme-accent)" }}
-                  />
+                className={cn(
+                  "relative flex items-center justify-center gap-1.5 rounded-xl px-3 h-[40px] transition-all",
+                  "motion-safe:duration-200 motion-safe:ease-out",
+                  active ? "min-w-[72px]" : "w-10",
                 )}
-                <span className="relative overflow-visible mt-1">
-                  <Icon className="h-6 w-6" />
+                style={{
+                  background: active
+                    ? "color-mix(in srgb, var(--theme-accent) 16%, transparent)"
+                    : "transparent",
+                  color: active ? "var(--theme-accent)" : "var(--theme-text-secondary)",
+                }}
+              >
+                <span className="relative overflow-visible flex-shrink-0">
+                  <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.2 : 1.8} />
                   {badgeCount > 0 && (
                     <span
-                      className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[11px] font-bold px-1"
+                      className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[10px] font-bold px-0.5"
                       style={{ background: "var(--theme-danger)", color: "white" }}
                     >
                       {badgeCount > 99 ? "99+" : badgeCount}
                     </span>
                   )}
                 </span>
-                <span>{label}</span>
+                {active && (
+                  <span className="text-xs font-semibold whitespace-nowrap motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-200">
+                    {label}
+                  </span>
+                )}
               </Link>
             </li>
           )
