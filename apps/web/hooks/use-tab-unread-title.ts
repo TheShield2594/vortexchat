@@ -8,7 +8,7 @@ import { useFaviconBadge, UNREAD_INDICATOR } from "@/hooks/use-favicon-badge"
 const BASE_TITLE = "VortexChat — Chat, Hang Out, Belong"
 
 /** Post the unread count to the service worker so it can call navigator.setAppBadge(). */
-function updateAppBadge(count: number) {
+function updateAppBadge(count: number): void {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return
   navigator.serviceWorker.ready
     .then((reg) => {

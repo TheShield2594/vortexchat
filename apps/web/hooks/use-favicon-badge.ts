@@ -28,7 +28,6 @@ type BadgeValue = number // 0 = clear, -1 = dot, >0 = numeric
 
 function drawBadgeDot(
   ctx: CanvasRenderingContext2D,
-  _size: number,
 ): void {
   const radius = 5
   const cx = FAVICON_SIZE - radius - 1
@@ -108,7 +107,7 @@ function drawFaviconWithBadge(
 
   // Draw badge overlay
   if (badge === UNREAD_INDICATOR) {
-    drawBadgeDot(ctx, FAVICON_SIZE)
+    drawBadgeDot(ctx)
   } else if (badge > 0) {
     drawBadgeNumber(ctx, badge)
   }

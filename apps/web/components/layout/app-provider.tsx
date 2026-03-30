@@ -9,7 +9,7 @@ import { usePresenceSync } from "@/hooks/use-presence-sync"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
 import { useGifAutoplay } from "@/hooks/use-gif-autoplay"
-import { prefetchNotificationPreferences } from "@/hooks/use-notification-preferences"
+import { prefetchNotificationPreferences, clearPreferencesCache } from "@/hooks/use-notification-preferences"
 import { useDmNotificationSound } from "@/hooks/use-dm-notification-sound"
 import { setActiveChannel as setNotifManagerActiveChannel } from "@/lib/notification-manager"
 import type { UserRow, ServerRow } from "@/types/database"
@@ -44,6 +44,9 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
       void loadNotificationSettings()
       // Pre-warm notification preferences cache (sound_enabled, quiet hours, etc.)
       prefetchNotificationPreferences()
+    } else {
+      // Clear cached prefs on logout so next user doesn't inherit stale values
+      clearPreferencesCache()
     }
   }, [user, servers, setCurrentUser, setServers, setIsLoadingServers, hydrateFromSettings, loadNotificationSettings])
 

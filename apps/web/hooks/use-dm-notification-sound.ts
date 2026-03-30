@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
+import { isSoundEnabled } from "@/hooks/use-notification-preferences"
 import { shouldNotify, showBrowserNotification } from "@/lib/notification-manager"
 
 /**
@@ -50,7 +51,7 @@ export function useDmNotificationSound(userId: string | null): void {
             messageId: msgId,
           })
 
-          if (shouldPlaySound) {
+          if (shouldPlaySound && isSoundEnabled()) {
             playRef.current()
           }
 

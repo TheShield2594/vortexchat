@@ -134,7 +134,11 @@ async function playFallbackTone(): Promise<void> {
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useNotificationSound() {
+export function useNotificationSound(): {
+  playNotification: () => void
+  notificationSoundEnabled: boolean
+  setNotificationSoundEnabled: (enabled: boolean) => void
+} {
   const enabled = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
   const lastPlayedRef = useRef(0)
 

@@ -33,6 +33,13 @@ let cachedPrefs: NotificationPreferences = DEFAULTS
 let cacheTimestamp = 0
 const CACHE_TTL = 60_000 // 1 minute
 
+/** Reset the cached preferences on logout so the next user doesn't inherit stale prefs. */
+export function clearPreferencesCache(): void {
+  cachedPrefs = DEFAULTS
+  cacheTimestamp = 0
+  notifyPrefsListeners()
+}
+
 const prefsListeners = new Set<() => void>()
 
 function notifyPrefsListeners(): void {

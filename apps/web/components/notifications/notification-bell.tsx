@@ -125,7 +125,8 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload: { new: unknown }) => {
-          const updated = payload.new as unknown as Notification
+          if (!isNotification(payload.new)) return
+          const updated = payload.new
           setNotifications((prev: Notification[]) => {
             const next = prev.map((n: Notification) => (n.id === updated.id ? updated : n))
             setUnreadCount(next.filter((n: Notification) => !n.read).length)
