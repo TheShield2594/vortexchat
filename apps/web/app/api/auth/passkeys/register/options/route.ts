@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getRpId, PASSKEY_CHALLENGE_TTL_SECONDS, randomChallenge, resolveRequestOrigin } from "@/lib/auth/passkeys"
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   try {
     const supabase = await createServerSupabaseClient()
     const db = supabase as any

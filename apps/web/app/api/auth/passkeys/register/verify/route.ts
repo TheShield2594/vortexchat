@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
-import { getRpId, resolveRequestOrigin, verifyWithAdapter } from "@/lib/auth/passkeys"
+import { verifyWithAdapter } from "@/lib/auth/passkeys"
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const adminDb = admin as any
     const { data: challengeRow } = await adminDb
       .from("auth_challenges")
-      .select("id,expires_at,used_at")
+      .select("id,expires_at,used_at,origin,rp_id")
       .eq("user_id", auth.user.id)
       .eq("challenge", body.challenge)
       .eq("flow", "register")
@@ -52,13 +52,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Challenge is invalid or expired" }, { status: 400 })
     }
 
-    const origin = resolveRequestOrigin(request.headers)
+    if (!challengeRow.origin || !challengeRow.rp_id) {
+      return NextResponse.json({ error: "Challenge metadata is incomplete" }, { status: 400 })
+    }
+
     const verify = await verifyWithAdapter("registration", {
       challenge: body.challenge,
       credentialId: body.credentialId,
       response: body.response,
-      expectedOrigin: origin,
-      expectedRpId: getRpId(origin),
+      expectedOrigin: challengeRow.origin,
+      expectedRpId: challengeRow.rp_id,
     })
 
     if (!verify.verified) {

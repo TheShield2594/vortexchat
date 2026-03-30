@@ -30,14 +30,29 @@ export function getOrigin() {
 /**
  * Resolve the request origin from headers, falling back to the env-based origin.
  * Prefers the Origin header, then derives from Host/X-Forwarded-Host.
+ * Handles comma-separated proxy chains and validates the result.
  */
 export function resolveRequestOrigin(headers: Headers): string {
-  const origin = headers.get("origin")
+  const normalizeOrigin = (raw: string | null): string | null => {
+    if (!raw) return null
+    const first = raw.split(",")[0]?.trim()
+    if (!first || first.toLowerCase() === "null") return null
+    try {
+      const parsed = new URL(first)
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null
+      return parsed.origin
+    } catch {
+      return null
+    }
+  }
+
+  const origin = normalizeOrigin(headers.get("origin"))
   if (origin) return origin
 
-  const host = headers.get("x-forwarded-host") || headers.get("host")
+  const host = headers.get("x-forwarded-host")?.split(",")[0]?.trim() || headers.get("host")?.trim()
   if (host) {
-    const proto = headers.get("x-forwarded-proto") || "https"
+    const rawProto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim()?.toLowerCase()
+    const proto = rawProto === "http" ? "http" : "https"
     return `${proto}://${host}`
   }
 
