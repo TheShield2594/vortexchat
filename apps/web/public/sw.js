@@ -2,9 +2,9 @@
 // In production this file is replaced by the output of `scripts/build-sw.mjs`
 // (workbox-build injectManifest), which precaches all /_next/static/ chunks.
 
-const PRECACHE = "vortexchat-precache-v5"
-const RUNTIME = "vortexchat-runtime-v5"
-const APP_SHELL = "vortexchat-shell-v5"
+const PRECACHE = "vortexchat-precache-v6"
+const RUNTIME = "vortexchat-runtime-v6"
+const APP_SHELL = "vortexchat-shell-v6"
 const ALL_CACHES = [PRECACHE, RUNTIME, APP_SHELL]
 
 const APP_SHELL_ASSETS = [
@@ -13,7 +13,9 @@ const APP_SHELL_ASSETS = [
   "/offline",
   "/manifest.json",
   "/icon-192.png",
+  "/icon-192-maskable.png",
   "/icon-512.png",
+  "/icon-512-maskable.png",
 ]
 
 self.addEventListener("install", (event) => {

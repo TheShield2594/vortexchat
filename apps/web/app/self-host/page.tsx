@@ -103,7 +103,7 @@ export default function SelfHostPage(): React.JSX.Element {
       >
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3 md:px-10">
           <Link href="/" className="flex items-center gap-2.5">
-            <VortexLogo size={22} />
+            <VortexLogo size={32} />
             <span className="text-base font-bold tracking-tight font-display" style={{ color: "var(--theme-text-bright)" }}>
               VortexChat
             </span>
@@ -496,7 +496,7 @@ export default function SelfHostPage(): React.JSX.Element {
             style={{ color: "var(--theme-text-muted)" }}
           >
             <div className="flex items-center gap-2">
-              <VortexLogo size={16} />
+              <VortexLogo size={24} />
               <p>&copy; {new Date().getFullYear()} VortexChat. Open source, free forever.</p>
             </div>
             <div className="flex items-center gap-4">
