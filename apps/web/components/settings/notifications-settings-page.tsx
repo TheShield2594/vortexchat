@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Bell, BellOff, Volume2, VolumeX, Moon } from "lucide-react"
+import { Bell, BellOff, Volume2, VolumeX, Moon, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Props {
@@ -319,10 +319,25 @@ export function NotificationsSettingsPage({ userId }: Props) {
         )}
       </section>
 
-      <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-        Per-server and per-channel notification overrides can be set by right-clicking on servers and channels.
-        Preferences sync across all your devices.
-      </p>
+      {/* ── Save ── */}
+      <div className="flex items-center justify-between pt-2 pb-4">
+        <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+          Per-server and per-channel notification overrides can be set by right-clicking on servers and channels.
+        </p>
+        <button
+          type="button"
+          onClick={async () => {
+            await persistSetting(settings)
+            toast({ title: "Notification preferences saved!" })
+          }}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2 rounded-md font-semibold text-sm transition-all hover:brightness-110 disabled:opacity-60 shrink-0 ml-4"
+          style={{ background: "var(--theme-accent)", color: "white" }}
+        >
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+          {saving ? "Saving…" : "Save Changes"}
+        </button>
+      </div>
     </div>
   )
 }

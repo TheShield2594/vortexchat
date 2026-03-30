@@ -605,19 +605,6 @@ export function ProfileSettingsPage({ user }: Props) {
         </div>
       </section>
 
-      <div className="flex items-center gap-3 pt-2">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-2 rounded-md font-semibold text-sm transition-all hover:brightness-110 disabled:opacity-60"
-          style={{ background: "var(--theme-accent)", color: "white" }}
-        >
-          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-          {saving ? "Saving…" : "Save Changes"}
-        </button>
-      </div>
-
       {/* ── Interests / Tags ── */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -867,6 +854,20 @@ export function ProfileSettingsPage({ user }: Props) {
           ))}
         </div>
       </section>
+
+      {/* ── Save ── */}
+      <div className="flex items-center justify-end pt-2 pb-4">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2 rounded-md font-semibold text-sm transition-all hover:brightness-110 disabled:opacity-60"
+          style={{ background: "var(--theme-accent)", color: "white" }}
+        >
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+          {saving ? "Saving…" : "Save Changes"}
+        </button>
+      </div>
     </div>
   )
 }
