@@ -56,7 +56,8 @@
 | Push permission soft-ask | Done | 60s delay, contextual prompt |
 | Offline banner + connection state machine | Done | `use-connection-status` FSM, color-coded banner |
 | Message outbox (offline queue) | Done | localStorage-persisted, flushes on reconnect |
-| Mobile bottom tab bar + drawer nav | Done | Responsive `md:` breakpoint with hysteresis |
+| Mobile bottom tab bar (no drawer) | Done | 4-tab pill nav, drawer removed; server sidebar desktop-only |
+| Servers page segmented control | Done | My Servers / Discover tabs, inline search, recent servers row |
 | Mobile back-button handling | Done | Two-entry history stack prevents PWA exit |
 | Branded splash + skeleton screens | Done | Shimmer animation, respects reduced-motion |
 | SW update detection + toast | Done | Hourly polling, "New version available" toast |
