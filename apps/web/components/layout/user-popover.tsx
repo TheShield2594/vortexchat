@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Circle, Clipboard, Pencil, ChevronRight, Users } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -28,6 +28,53 @@ export function UserPopover({ user, children, isStatusExpired }: Props) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [open, setOpen] = useState(false)
   const [showStatusMenu, setShowStatusMenu] = useState(false)
+  const [focusedStatusIndex, setFocusedStatusIndex] = useState(-1)
+  const [submenuSide, setSubmenuSide] = useState<"right" | "left">("right")
+  const statusTriggerRef = useRef<HTMLButtonElement>(null)
+  const statusMenuRef = useRef<HTMLDivElement>(null)
+  const statusItemRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  // Measure available space and pick submenu side when it opens
+  useEffect(() => {
+    if (!showStatusMenu || !statusTriggerRef.current) return
+    const rect = statusTriggerRef.current.getBoundingClientRect()
+    const submenuWidth = 176 + 4 // w-44 (176px) + ml-1 gap
+    const spaceRight = window.innerWidth - rect.right
+    setSubmenuSide(spaceRight >= submenuWidth ? "right" : "left")
+    // Focus first item (or current status)
+    const currentIndex = STATUS_OPTIONS.findIndex((s) => s.value === user.status)
+    const idx = currentIndex >= 0 ? currentIndex : 0
+    setFocusedStatusIndex(idx)
+  }, [showStatusMenu, user.status])
+
+  // Focus the item when focusedStatusIndex changes
+  useEffect(() => {
+    if (showStatusMenu && focusedStatusIndex >= 0) {
+      statusItemRefs.current[focusedStatusIndex]?.focus()
+    }
+  }, [focusedStatusIndex, showStatusMenu])
+
+  const handleStatusMenuKeyDown = useCallback((e: React.KeyboardEvent): void => {
+    switch (e.key) {
+      case "ArrowDown": {
+        e.preventDefault()
+        setFocusedStatusIndex((prev) => (prev + 1) % STATUS_OPTIONS.length)
+        break
+      }
+      case "ArrowUp": {
+        e.preventDefault()
+        setFocusedStatusIndex((prev) => (prev - 1 + STATUS_OPTIONS.length) % STATUS_OPTIONS.length)
+        break
+      }
+      case "Escape": {
+        e.preventDefault()
+        e.stopPropagation()
+        setShowStatusMenu(false)
+        statusTriggerRef.current?.focus()
+        break
+      }
+    }
+  }, [])
 
   const displayName = user.display_name || user.username
   const initials = displayName.slice(0, 2).toUpperCase()
@@ -124,8 +171,17 @@ export function UserPopover({ user, children, isStatusExpired }: Props) {
           {/* Online status */}
           <div className="relative">
             <button
+              ref={statusTriggerRef}
               type="button"
               onClick={() => setShowStatusMenu((v) => !v)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowRight" && !showStatusMenu) {
+                  e.preventDefault()
+                  setShowStatusMenu(true)
+                }
+              }}
+              aria-haspopup="menu"
+              aria-expanded={showStatusMenu}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors hover:brightness-110"
               style={{
                 color: "var(--theme-text-primary)",
@@ -142,17 +198,27 @@ export function UserPopover({ user, children, isStatusExpired }: Props) {
 
             {showStatusMenu && (
               <div
-                className="absolute left-full top-0 ml-1 w-44 rounded-lg p-1 shadow-xl z-50"
+                ref={statusMenuRef}
+                role="menu"
+                aria-label="Set status"
+                onKeyDown={handleStatusMenuKeyDown}
+                className={`absolute top-0 w-44 rounded-lg p-1 shadow-xl z-50 ${
+                  submenuSide === "right" ? "left-full ml-1" : "right-full mr-1"
+                }`}
                 style={{
                   background: "var(--theme-bg-secondary)",
                   border: "1px solid var(--theme-bg-tertiary)",
                 }}
               >
-                {STATUS_OPTIONS.map(({ value, label, color }) => (
+                {STATUS_OPTIONS.map(({ value, label, color }, index) => (
                   <button
                     key={value}
+                    ref={(el) => { statusItemRefs.current[index] = el }}
                     type="button"
+                    role="menuitem"
+                    tabIndex={focusedStatusIndex === index ? 0 : -1}
                     onClick={() => handleSetStatus(value)}
+                    onFocus={() => setFocusedStatusIndex(index)}
                     className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm transition-colors hover:brightness-110"
                     style={{
                       color: "var(--theme-text-primary)",
