@@ -136,12 +136,17 @@ jobs:
       - name: Build web app
         run: npm run build
         working-directory: apps/web
-      - name: Start server and run E2E tests
+      - name: Start server
         run: |
-          npx next start &
-          npx wait-on http://localhost:3000 --timeout 30000
-          npx playwright test
+          npx next start > /tmp/next-server.log 2>&1 &
+          npx wait-on http://localhost:3000 --timeout 60000
         working-directory: apps/web
+      - name: Run E2E tests
+        run: npx playwright test
+        working-directory: apps/web
+      - name: Print server logs
+        if: failure()
+        run: cat /tmp/next-server.log || true
       - name: Upload E2E report
         if: failure()
         uses: actions/upload-artifact@v4
