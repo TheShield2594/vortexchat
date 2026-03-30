@@ -7,6 +7,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { useNotificationPreferences } from "@/hooks/use-notification-preferences"
+import { shouldNotify, showBrowserNotification } from "@/lib/notification-manager"
 import { format } from "date-fns"
 
 interface Notification {
@@ -49,6 +50,11 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
+  /** Count unread mentions (type=mention) for favicon numeric badge */
+  const computeMentionCount = useCallback((items: Notification[]): number => {
+    return items.filter((n) => !n.read && n.type === "mention").length
+  }, [])
+
   const loadNotifications = useCallback(async () => {
     try {
       const res = await fetch("/api/notifications?limit=30")
@@ -76,9 +82,30 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           const n = payload.new as Notification
           setNotifications((prev) => [n, ...prev.slice(0, 29)])
           setUnreadCount((c) => c + 1)
-          // Play sound if both local setting AND DB preference allow it
-          if (soundEnabledRef.current) {
+
+          // Focused-window suppression (Fluxer-style):
+          // - Viewing the same channel → no sound, no browser notification
+          // - App focused, different channel → sound only
+          // - App not focused → sound + browser notification
+          const { shouldPlaySound, shouldShowBrowserNotification } = shouldNotify({
+            channelId: n.channel_id,
+            messageId: n.message_id,
+          })
+
+          if (shouldPlaySound && soundEnabledRef.current) {
             playNotification()
+          }
+
+          if (shouldShowBrowserNotification && n.title) {
+            const url = n.server_id && n.channel_id
+              ? `/channels/${n.server_id}/${n.channel_id}${n.message_id ? `?message=${n.message_id}` : ""}`
+              : undefined
+            showBrowserNotification({
+              title: n.title,
+              body: n.body || "",
+              channelId: n.channel_id || undefined,
+              url,
+            })
           }
         }
       )
@@ -109,10 +136,11 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
     return () => { supabase.removeChannel(ch) }
   }, [userId, supabase])
 
-  // Sync unread count to Zustand store (consumed by useTabUnreadTitle)
+  // Sync unread + mention counts to Zustand store (consumed by useTabUnreadTitle)
   useEffect(() => {
     useAppStore.getState().setNotificationUnreadCount(unreadCount)
-  }, [unreadCount])
+    useAppStore.getState().setNotificationMentionCount(computeMentionCount(notifications))
+  }, [unreadCount, notifications, computeMentionCount])
 
   // Close on outside click
   useEffect(() => {

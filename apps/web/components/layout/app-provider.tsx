@@ -10,6 +10,8 @@ import { usePushNotifications } from "@/hooks/use-push-notifications"
 import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
 import { useGifAutoplay } from "@/hooks/use-gif-autoplay"
 import { prefetchNotificationPreferences } from "@/hooks/use-notification-preferences"
+import { useDmNotificationSound } from "@/hooks/use-dm-notification-sound"
+import { setActiveChannel as setNotifManagerActiveChannel } from "@/lib/notification-manager"
 import type { UserRow, ServerRow } from "@/types/database"
 
 interface AppProviderProps {
@@ -54,6 +56,16 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
   // Register service worker + push notifications if previously granted
   usePushNotifications()
   useTabUnreadTitle(user?.id ?? null)
+
+  // Global DM notification sound — always mounted so DM sounds fire even on server pages
+  useDmNotificationSound(user?.id ?? null)
+
+  // Sync Zustand activeChannelId to the notification manager so it can
+  // suppress sounds/notifications when the user is viewing a channel
+  const activeChannelId = useAppStore((s) => s.activeChannelId)
+  useEffect(() => {
+    setNotifManagerActiveChannel(activeChannelId)
+  }, [activeChannelId])
 
   return <>{children}</>
 }

@@ -7,6 +7,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { useNotificationPreferences } from "@/hooks/use-notification-preferences"
+import { shouldNotify, showBrowserNotification } from "@/lib/notification-manager"
 import { format } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -106,8 +107,23 @@ export default function NotificationsPage() {
               (useAppStore.getState().notificationUnreadCount ?? 0) + 1
             )
           }
-          if (prefs.sound_enabled) {
+          const { shouldPlaySound, shouldShowBrowserNotification } = shouldNotify({
+            channelId: n.channel_id,
+            messageId: n.message_id,
+          })
+          if (shouldPlaySound && prefs.sound_enabled) {
             playNotification()
+          }
+          if (shouldShowBrowserNotification && n.title) {
+            const url = n.server_id && n.channel_id
+              ? `/channels/${n.server_id}/${n.channel_id}`
+              : undefined
+            showBrowserNotification({
+              title: n.title,
+              body: n.body || "",
+              channelId: n.channel_id || undefined,
+              url,
+            })
           }
         }
       )
