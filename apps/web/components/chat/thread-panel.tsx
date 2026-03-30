@@ -10,6 +10,14 @@ import { MessageInput } from "@/components/chat/message-input"
 import { useRealtimeThreadMessages } from "@/hooks/use-realtime-threads"
 import { cn } from "@/lib/utils/cn"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
+import { format, isToday, isYesterday } from "date-fns"
+
+/** Format a date for the day separator. */
+function formatDaySeparator(date: Date): string {
+  if (isToday(date)) return "Today"
+  if (isYesterday(date)) return "Yesterday"
+  return format(date, "MMMM d, yyyy")
+}
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AUTO_ARCHIVE_OPTIONS, DEFAULT_AUTO_ARCHIVE_DURATION } from "@vortex/shared"
@@ -495,17 +503,30 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
             {messages.map((message, i) => {
               const prevMessage = messages[i - 1]
               const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
+              const msgDate = new Date(message.created_at)
+              const prevDate = prevMessage ? new Date(prevMessage.created_at) : null
+              const showDaySeparator = !prevDate || msgDate.toDateString() !== prevDate.toDateString()
               const isGrouped =
                 messageGrouping !== "never" &&
+                !showDaySeparator &&
                 prevMessage &&
                 prevMessage.author_id === message.author_id &&
-                new Date(message.created_at).getTime() -
+                msgDate.getTime() -
                   new Date(prevMessage.created_at).getTime() <
                   groupingThresholdMs
 
               return (
+                <div key={message.id}>
+                  {showDaySeparator && (
+                    <div className="flex items-center gap-3 my-3 px-4">
+                      <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
+                      <span className="text-xs font-medium flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+                        {formatDaySeparator(msgDate)}
+                      </span>
+                      <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
+                    </div>
+                  )}
                 <MessageItem
-                  key={message.id}
                   message={message}
                   isGrouped={!!isGrouped}
                   currentUserId={currentUserId}
@@ -560,6 +581,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
                       )
                     }
                   }}                />
+                </div>
               )
             })}
             <div ref={bottomRef} />

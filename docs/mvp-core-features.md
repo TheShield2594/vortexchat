@@ -118,6 +118,7 @@
 |---------|--------|-------|
 | Reactions in DMs | Done | `dm_reactions` table (migration 00082); `POST/DELETE /api/dm/channels/[channelId]/messages/[messageId]/reactions`; full emoji picker + quick reactions in `dm-channel-area`; realtime sync via Supabase |
 | Date separators in DMs | Done | Day-boundary dividers ("Today", "Yesterday", "March 28, 2026") between messages in `dm-channel-area`; timestamps shown on non-grouped messages |
+| Date separators in channels | Done | Day-boundary dividers ("Today", "Yesterday", "March 28, 2026") in `chat-area` and `thread-panel`; messages do not group across day boundaries |
 
 ## Threads
 
