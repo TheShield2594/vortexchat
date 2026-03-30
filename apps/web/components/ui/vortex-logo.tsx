@@ -13,11 +13,11 @@ interface VortexLogoProps {
 export function VortexLogo({ size = 32, className }: VortexLogoProps): JSX.Element {
   return (
     <Image
-      src="/icon-192-maskable.png"
+      src="/icon-192.png"
       alt="VortexChat"
       width={size}
       height={size}
-      className={`rounded-md ${className ?? ""}`}
+      className={className}
       priority={size >= 40}
     />
   )
