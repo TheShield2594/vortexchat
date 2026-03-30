@@ -178,7 +178,7 @@ export default async function HomePage() {
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3 md:px-10">
           <div className="flex items-center gap-2.5">
-            <VortexLogo size={22} />
+            <VortexLogo size={32} />
             <span className="text-base font-bold tracking-tight font-display" style={{ color: "var(--theme-text-bright)" }}>
               VortexChat
             </span>
@@ -608,7 +608,7 @@ export default async function HomePage() {
           style={{ background: "color-mix(in srgb, var(--theme-accent) 12%, transparent)" }}
           aria-hidden="true"
         >
-          <VortexLogo size={28} />
+          <VortexLogo size={40} />
         </div>
         <h2
           id="cta-heading"
@@ -656,7 +656,7 @@ export default async function HomePage() {
             {/* Brand */}
             <div className="max-w-xs">
               <div className="mb-3 flex items-center gap-2">
-                <VortexLogo size={20} />
+                <VortexLogo size={28} />
                 <span className="font-bold font-display" style={{ color: "var(--theme-text-bright)" }}>
                   VortexChat
                 </span>
