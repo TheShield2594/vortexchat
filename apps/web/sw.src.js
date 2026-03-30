@@ -231,9 +231,11 @@ self.addEventListener("pushsubscriptionchange", (event) => {
             const keyRes = await fetch("/api/push/vapid-key")
             if (keyRes.ok) {
               const { key } = await keyRes.json()
-              subscribeOptions = {
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(key),
+              if (typeof key === "string" && key) {
+                subscribeOptions = {
+                  userVisibleOnly: true,
+                  applicationServerKey: urlBase64ToUint8Array(key),
+                }
               }
             }
           } catch {
