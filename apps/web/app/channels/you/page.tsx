@@ -40,7 +40,7 @@ export default function YouPage() {
   const displayName = currentUser.display_name || currentUser.username
   const initials = displayName.slice(0, 2).toUpperCase()
 
-  async function handleSetStatus(status: UserRow["status"]) {
+  async function handleSetStatus(status: UserRow["status"]): Promise<void> {
     const latestUser = useAppStore.getState().currentUser
     if (!latestUser) return
 
@@ -62,19 +62,23 @@ export default function YouPage() {
       }
       const updatedUser = await res.json()
       setCurrentUser(updatedUser)
-    } catch (error: any) {
-      if (error.name === "AbortError") return
-      toast({ variant: "destructive", title: "Failed to update status", description: error.message })
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === "AbortError") return
+      toast({ variant: "destructive", title: "Failed to update status", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
-  async function handleLogout() {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      toast({ variant: "destructive", title: "Sign out failed", description: error.message })
-      return
+  async function handleLogout(): Promise<void> {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        toast({ variant: "destructive", title: "Sign out failed", description: error.message })
+        return
+      }
+      router.push("/login")
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Sign out failed", description: err instanceof Error ? err.message : "Unknown error" })
     }
-    router.push("/login")
   }
 
   return (

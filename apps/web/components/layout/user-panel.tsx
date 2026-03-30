@@ -139,8 +139,8 @@ export function UserPanel() {
                       router.push(textChannel ? `/channels/${sid}/${textChannel.id}` : `/channels/${sid}`)
                     }
                     toast({ title: "Disconnected from voice" })
-                  } catch (error: any) {
-                    toast({ variant: "destructive", title: "Failed to disconnect", description: error.message })
+                  } catch (error: unknown) {
+                    toast({ variant: "destructive", title: "Failed to disconnect", description: error instanceof Error ? error.message : "Unknown error" })
                   }
                 }}
                 aria-label="Disconnect from voice"

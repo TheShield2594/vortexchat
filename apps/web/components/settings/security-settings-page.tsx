@@ -27,12 +27,16 @@ export function SecuritySettingsPage({ userId: _userId, hasTOTP: _hasTOTP, userE
   const [exporting, setExporting] = useState(false)
 
   async function handleForcedLogout(): Promise<void> {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      toast({ variant: "destructive", title: "Sign out failed", description: error.message })
-      return
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        toast({ variant: "destructive", title: "Sign out failed", description: error.message })
+        return
+      }
+      router.replace("/login")
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Sign out failed", description: err instanceof Error ? err.message : "Unknown error" })
     }
-    router.replace("/login")
   }
 
   return (

@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/components/ui/use-toast"
 import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { STATUS_OPTIONS, getStatusColor } from "@/lib/utils/status-options"
 import type { UserRow } from "@/types/database"
@@ -21,7 +22,9 @@ interface Props {
 export function UserPopover({ user, children, isStatusExpired }: Props) {
   const router = useRouter()
   const { toast } = useToast()
-  const { setCurrentUser } = useAppStore()
+  const { setCurrentUser } = useAppStore(
+    useShallow((s) => ({ setCurrentUser: s.setCurrentUser }))
+  )
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [open, setOpen] = useState(false)
   const [showStatusMenu, setShowStatusMenu] = useState(false)
@@ -46,7 +49,11 @@ export function UserPopover({ user, children, isStatusExpired }: Props) {
       setCurrentUser({ ...latestUser, status })
       setShowStatusMenu(false)
     } catch (err: unknown) {
-      toast({ variant: "destructive", title: "Failed to update status", description: err instanceof Error ? err.message : "Unknown error" })
+      toast({
+        variant: "destructive",
+        title: "Failed to update status",
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
     }
   }
 
@@ -196,7 +203,7 @@ export function UserPopover({ user, children, isStatusExpired }: Props) {
           {/* Copy User ID */}
           <button
             type="button"
-            onClick={async () => {
+            onClick={async (): Promise<void> => {
               try {
                 await navigator.clipboard.writeText(user.id)
                 toast({ title: "User ID copied!" })
