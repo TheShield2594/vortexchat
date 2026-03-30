@@ -102,7 +102,11 @@ test.describe("Authentication", () => {
     // It has pointer-events:auto and covers the viewport, intercepting Tab key presses.
     await page.waitForSelector("[aria-hidden='true'][style*='pointer-events']", { state: "detached", timeout: 5_000 }).catch(() => {})
 
-    // Tab to reach the skip link
+    // The email input has autofocus — blur it so Tab starts from the top of the
+    // document instead of advancing forward from mid-page.
+    await page.evaluate(() => (document.activeElement as HTMLElement)?.blur?.())
+
+    // Tab to reach the skip link (first focusable element in DOM)
     await page.keyboard.press("Tab")
     const skipLink = page.locator(".skip-nav-link")
     await expect(skipLink).toBeFocused()
