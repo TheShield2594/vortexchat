@@ -4,6 +4,21 @@
 // content-hashed /_next/static/ assets and writes the result to public/sw.js.
 // In development, public/sw.js is used directly as a fallback.
 
+// ─── VAPID key helper ────────────────────────────────────────────────────────
+// Convert a base64url-encoded VAPID public key to a Uint8Array.
+// PushManager.subscribe() requires BufferSource on iOS Safari; the string
+// form is not universally supported.
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+  const rawData = atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
 // ─── Cache names ────────────────────────────────────────────────────────────
 const PRECACHE = "vortexchat-precache-v7"
 const RUNTIME = "vortexchat-runtime-v7"
@@ -194,13 +209,32 @@ self.addEventListener("pushsubscriptionchange", (event) => {
     (async () => {
       try {
         const oldSub = event.oldSubscription
+
+        // Clean up the stale old endpoint from the server (best-effort).
+        if (oldSub?.endpoint) {
+          fetch("/api/push", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: oldSub.endpoint }),
+          }).catch(() => {})
+        }
+
+        // Build subscribe options — prefer the old subscription's options
+        // (which already contain the applicationServerKey as an ArrayBuffer),
+        // but fall back to fetching the VAPID public key from the server and
+        // converting it to a Uint8Array.  The string form of
+        // applicationServerKey is NOT supported on all browsers (notably iOS
+        // Safari), so we must always pass a BufferSource.
         let subscribeOptions = oldSub?.options
         if (!subscribeOptions?.applicationServerKey) {
           try {
             const keyRes = await fetch("/api/push/vapid-key")
             if (keyRes.ok) {
               const { key } = await keyRes.json()
-              subscribeOptions = { userVisibleOnly: true, applicationServerKey: key }
+              subscribeOptions = {
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(key),
+              }
             }
           } catch {
             // VAPID key fetch failed — proceed with userVisibleOnly only

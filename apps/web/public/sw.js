@@ -2,6 +2,21 @@
 // In production this file is replaced by the output of `scripts/build-sw.mjs`
 // (workbox-build injectManifest), which precaches all /_next/static/ chunks.
 
+// ─── VAPID key helper ────────────────────────────────────────────────────────
+// Convert a base64url-encoded VAPID public key to a Uint8Array.
+// PushManager.subscribe() requires BufferSource on iOS Safari; the string
+// form is not universally supported.
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+  const rawData = atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
 const PRECACHE = "vortexchat-precache-v7"
 const RUNTIME = "vortexchat-runtime-v7"
 const APP_SHELL = "vortexchat-shell-v7"
@@ -60,7 +75,8 @@ self.addEventListener("fetch", (event) => {
           return (
             (await cache.match("/channels/me")) ||
             (await cache.match("/offline")) ||
-            (await cache.match("/"))
+            (await cache.match("/")) ||
+            new Response("Offline", { status: 503, statusText: "Service Unavailable" })
           )
         })
     )
@@ -122,12 +138,14 @@ self.addEventListener("push", (event) => {
   )
 })
 
+// ─── App badge helper ────────────────────────────────────────────────────────
 function updateAppBadge(count) {
-  if (!navigator.setAppBadge) return
+  // In service worker scope, badge API is on `self` (ServiceWorkerGlobalScope)
+  if (!self.navigator?.setAppBadge) return
   if (count > 0) {
-    navigator.setAppBadge(count)
+    self.navigator.setAppBadge(count)
   } else {
-    navigator.clearAppBadge()
+    self.navigator.clearAppBadge()
   }
 }
 
@@ -140,21 +158,42 @@ self.addEventListener("message", (event) => {
   }
 })
 
+// ─── Push subscription rotation ───────────────────────────────────────────────
+// Re-subscribe if the browser rotates push keys, then sync to the server.
 self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
     (async () => {
       try {
         const oldSub = event.oldSubscription
+
+        // Clean up the stale old endpoint from the server (best-effort).
+        if (oldSub?.endpoint) {
+          fetch("/api/push", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: oldSub.endpoint }),
+          }).catch(() => {})
+        }
+
+        // Build subscribe options — prefer the old subscription's options
+        // (which already contain the applicationServerKey as an ArrayBuffer),
+        // but fall back to fetching the VAPID public key from the server and
+        // converting it to a Uint8Array.  The string form of
+        // applicationServerKey is NOT supported on all browsers (notably iOS
+        // Safari), so we must always pass a BufferSource.
         let subscribeOptions = oldSub?.options
         if (!subscribeOptions?.applicationServerKey) {
           try {
             const keyRes = await fetch("/api/push/vapid-key")
             if (keyRes.ok) {
               const { key } = await keyRes.json()
-              subscribeOptions = { userVisibleOnly: true, applicationServerKey: key }
+              subscribeOptions = {
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(key),
+              }
             }
           } catch {
-            // VAPID key fetch failed
+            // VAPID key fetch failed — proceed with userVisibleOnly only
           }
         }
         const newSub = await self.registration.pushManager.subscribe(
