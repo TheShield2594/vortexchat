@@ -795,7 +795,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
 
   return (
     <div
-      className="px-4 pb-4 flex-shrink-0 relative"
+      className="px-4 pb-2 md:pb-4 flex-shrink-0 relative"
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
       onDragEnter={(e) => { e.preventDefault(); if (e.dataTransfer.types.includes("Files")) { dragCounterRef.current += 1; setIsDraggingOver(true) } }}

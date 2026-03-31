@@ -1960,7 +1960,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       <TypingIndicator users={typingUsers.map((user) => user.displayName)} />
 
       {/* Input */}
-      <div className="px-4 pb-4 flex-shrink-0">
+      <div className="px-4 pb-2 md:pb-4 flex-shrink-0">
         {/* Reply indicator */}
         {replyTo && (
           <div

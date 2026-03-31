@@ -22,7 +22,7 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
       style={{
         background: "var(--app-bg-primary)",
         paddingTop: "env(safe-area-inset-top)",
-        paddingBottom: isFullScreen ? undefined : "var(--mobile-tabbar-reserve)",
+        paddingBottom: isFullScreen ? "env(safe-area-inset-bottom)" : "var(--mobile-tabbar-reserve)",
       }}
     >
       {/* Guild rail: desktop only — mobile uses bottom tab bar */}
