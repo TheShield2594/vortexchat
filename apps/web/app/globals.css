@@ -28,7 +28,7 @@
     --radius: 0.5rem;
     /* ── Mobile bottom-nav pill geometry ──────────────────────────────────── */
     --mobile-tabbar-height: 56px;
-    --mobile-tabbar-gap: 8px;
+    --mobile-tabbar-gap: 4px;
     --mobile-tabbar-reserve: calc(var(--mobile-tabbar-height) + var(--mobile-tabbar-gap) + env(safe-area-inset-bottom));
     /* ── Motion timing tokens ─────────────────────────────────────────────── */
     --motion-duration-instant: 80ms;
