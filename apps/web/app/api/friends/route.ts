@@ -74,22 +74,18 @@ export async function POST(req: NextRequest) {
     // to non-discoverable users by exact username match; this trades privacy for convenience,
     // mitigated by a strict 20 req/hr rate limit; consider a future opt-in flag like
     // `allow_friend_requests_from_anyone` for better privacy control
-    const { data: targets, error: targetErr } = await serviceSupabase
+    const { data: target, error: targetErr } = await serviceSupabase
       .from("users")
       .select("id, username, display_name, avatar_url, status")
-      .ilike("username", username.trim())
+      .eq("username", username.trim())
+      .maybeSingle()
 
     if (targetErr) {
       return NextResponse.json({ error: "Database error occurred" }, { status: 500 })
     }
-    if (!targets || targets.length === 0) {
+    if (!target) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
-    if (targets.length > 1) {
-      return NextResponse.json({ error: "Ambiguous username — multiple users found" }, { status: 400 })
-    }
-
-    const target = targets[0]
 
     if (target.id === user.id) {
       return NextResponse.json({ error: "Cannot add yourself" }, { status: 400 })

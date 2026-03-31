@@ -503,22 +503,28 @@ function preProcessContent(content: string): string {
   // Strip [POLL]...[/POLL] blocks (handled separately by MessageItem)
   let processed = content.replace(/\[POLL\][\s\S]*?\[\/POLL\]/gi, "")
   
-  // Temporarily replace valid mention/role mention/timestamp patterns with placeholders
-  // to prevent them from being escaped, allowing remark plugins to process them
-  processed = processed.replace(/<@(\w+)>/g, "__MENTION_$1__")
-  processed = processed.replace(/<@&([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi, "__ROLE_MENTION_$1__")
-  processed = processed.replace(/<t:(\d+)(?::([tTdDfFR]))?>/g, (match, epoch, format) => 
-    format ? `__TIMESTAMP_${epoch}_${format}__` : `__TIMESTAMP_${epoch}__`
-  )
+  // Collect valid mention/role mention/timestamp patterns into a token array
+  // to preserve exact original text, then replace with index tokens
+  const tokens: string[] = []
+  
+  processed = processed.replace(/<@(\w+)>/g, (match) => {
+    tokens.push(match)
+    return `__TOKEN_${tokens.length - 1}__`
+  })
+  processed = processed.replace(/<@&([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi, (match) => {
+    tokens.push(match)
+    return `__TOKEN_${tokens.length - 1}__`
+  })
+  processed = processed.replace(/<t:(\d+)(?::([tTdDfFR]))?>/g, (match) => {
+    tokens.push(match)
+    return `__TOKEN_${tokens.length - 1}__`
+  })
   
   // Escape remaining angle brackets to prevent them from being interpreted as HTML tags
   processed = processed.replace(/</g, "&lt;").replace(/>/g, "&gt;")
   
-  // Restore the valid patterns
-  processed = processed.replace(/__MENTION_(\w+)__/g, "<@$1>")
-  processed = processed.replace(/__ROLE_MENTION_([0-9a-f-]{36})__/g, "<@&$1>")
-  processed = processed.replace(/__TIMESTAMP_(\d+)_([tTdDfFR])__/g, "<t:$1:$2>")
-  processed = processed.replace(/__TIMESTAMP_(\d+)__/g, "<t:$1>")
+  // Restore the valid patterns from the token array
+  processed = processed.replace(/__TOKEN_(\d+)__/g, (match, index) => tokens[parseInt(index)])
   
   return processed
 }
