@@ -29,6 +29,8 @@
 | 8 | should validate required fields | Submit empty form | Validation errors |
 | 9 | should validate date is in the future | Set past date | Error |
 | 10 | should require MANAGE_EVENTS permission | Login without permission | Create button hidden |
+| 11 | should handle timezone correctly | Create event in PST → view in EST | Correct local time shown |
+| 12 | should display timezone in event details | View event | Timezone label visible |
 
 ---
 
@@ -71,6 +73,22 @@
 | 3 | should show upcoming events widget | View channel sidebar | Widget with next events |
 | 4 | should edit event | Click edit | Edit form opens |
 | 5 | should delete event | Click delete → confirm | Event removed |
+| 6 | should show event capacity | Create event with max attendees → view card | "X/Y spots filled" shown |
+| 7 | should prevent RSVP when at capacity | Event at capacity → try to RSVP | RSVP disabled; message shown |
+| 8 | should respect event visibility | Create private event → login as non-member | Event not visible |
+
+---
+
+## 18.7 Event Cancellation
+
+### `event-cancel.spec.ts`
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| 1 | should cancel an event | Click cancel → confirm | Event cancelled |
+| 2 | should notify RSVP'd users on cancellation | Cancel event with RSVPs | Attendees receive notification |
+| 3 | should show cancelled status | View cancelled event | "Cancelled" badge shown |
+| 4 | should require MANAGE_EVENTS to cancel | Login without permission | Cancel option hidden |
 
 ---
 

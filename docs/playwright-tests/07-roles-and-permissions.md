@@ -65,7 +65,7 @@
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
 | 1 | should block message send without SEND_MESSAGES | Remove permission → try sending | 403; input disabled |
-| 2 | should block channel view without VIEW_CHANNEL | Remove permission → navigate | Channel hidden/403 |
+| 2 | should block channel view without VIEW_CHANNELS | Remove permission → navigate | Channel hidden/403 |
 | 3 | should block file upload without ATTACH_FILES | Remove permission → try upload | Upload blocked |
 | 4 | should block emoji management without MANAGE_EMOJIS | Login without permission → try upload | 403 |
 | 5 | should block ban without BAN_MEMBERS | Login without permission → try ban | 403 |
@@ -74,7 +74,7 @@
 | 8 | should block channel create without MANAGE_CHANNELS | Login without permission → try create | 403 |
 | 9 | should block webhook management without MANAGE_WEBHOOKS | Login without permission → try create | 403 |
 | 10 | should allow ADMINISTRATOR to bypass all checks | Login as admin → do everything | All allowed |
-| 11 | should block voice connect without CONNECT | Login without permission → try join | Join blocked |
+| 11 | should block voice connect without CONNECT_VOICE | Login without permission → try join | Join blocked |
 | 12 | should block speaking without SPEAK | Login without permission → unmute | Unmute blocked |
 
 ---
@@ -114,8 +114,8 @@
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 1 | should correctly compute has() for single permission | Call `has(bitmask, SEND_MESSAGES)` | Correct boolean |
-| 2 | should correctly compute has() for ADMINISTRATOR | Call `has(adminMask, anything)` | Always true |
-| 3 | should correctly compute add() | Call `add(bitmask, NEW_PERM)` | Bit set |
-| 4 | should correctly compute remove() | Call `remove(bitmask, PERM)` | Bit cleared |
+| 1 | should correctly compute hasPermission() for single permission | Call `hasPermission(bitmask, "SEND_MESSAGES")` from `@vortex/shared` | Correct boolean |
+| 2 | should correctly compute hasPermission() for ADMINISTRATOR | Call `hasPermission(adminMask, "SEND_MESSAGES")` | Always true (ADMINISTRATOR bypasses) |
+| 3 | should correctly compute addPermission() | Call `addPermission(bitmask, "MANAGE_MESSAGES")` | Bit set |
+| 4 | should correctly compute removePermission() | Call `removePermission(bitmask, "MANAGE_MESSAGES")` | Bit cleared |
 | 5 | should never import permissions from anywhere except @vortex/shared | Grep codebase | No hardcoded permission bits |

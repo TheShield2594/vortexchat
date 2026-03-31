@@ -29,7 +29,7 @@
 | 4 | should uninstall an app | Click Uninstall → confirm | App removed |
 | 5 | should require MANAGE_WEBHOOKS or USE_APPLICATION_COMMANDS | Login as regular user | Install button hidden |
 | 6 | should show marketplace on discover page | Navigate to discover → Apps | Public app catalog |
-| 7 | should install from discover page | Click "Add to Server" → select server | App installed on chosen server |
+| 7 | should install from Discover page | Click "Add to Server" → select server | App installed on chosen server |
 | 8 | should show installed apps indicator | View already-installed app | "Installed" badge |
 
 ---
@@ -64,7 +64,7 @@
 | 3 | should create a timed giveaway | Fill prize, description, duration, winners → create | Giveaway created; announcement posted |
 | 4 | should enter a giveaway | Click enter on giveaway message | User entered |
 | 5 | should leave a giveaway | Click leave | User removed from entries |
-| 6 | should draw winners automatically | Wait for timer | Winners randomly selected; announcement posted |
+| 6 | should draw winners automatically | Fast-forward mocked clock (`page.clock.advance()`) to giveaway end | Winners selected; announcement posted |
 | 7 | should end giveaway early | Admin clicks "End Early" | Winners drawn immediately |
 | 8 | should cancel giveaway | Admin clicks "Cancel" → confirm | Giveaway cancelled |
 | 9 | should reroll winners | Admin clicks "Reroll" | New winners selected |
@@ -127,7 +127,7 @@
 | 4 | should cancel reminder via `/rcancel` | Type `/rcancel [id]` | Reminder cancelled |
 | 5 | should enforce max 24h duration | Set 25h | Error |
 | 6 | should enforce per-user max limit | Create beyond limit | Error |
-| 7 | should fire reminder at scheduled time | Wait for timer | Reminder notification received |
+| 7 | should fire reminder at scheduled time | Fast-forward mocked clock to trigger time | Reminder notification received |
 
 ---
 

@@ -85,9 +85,9 @@
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 1 | should meet WCAG AA contrast ratio (4.5:1 for text) | Scan all text | All text meets 4.5:1 |
-| 2 | should meet WCAG AA for large text (3:1) | Scan large text | All large text meets 3:1 |
-| 3 | should not rely solely on color for information | Review indicators | Shape/icon + color used |
+| 1 | should meet WCAG AA contrast ratio (4.5:1 for text) | Run axe-core `color-contrast` rule + scripted checks on `body, p, button, a, input` selectors | All ratios >= 4.5:1 |
+| 2 | should meet WCAG AA for large text (3:1) | Run axe-core `color-contrast` on `.large-text, h1, h2, h3` selectors | All ratios >= 3:1 |
+| 3 | should not rely solely on color for information | Run axe-core `color-contrast` + `link-in-text-block` rules; verify status indicators use shape/icon + color | Shape/icon accompanies color |
 | 4 | should work in high contrast mode | Enable high contrast | All content readable |
 | 5 | should work in dark and light themes | Switch themes | Contrast maintained |
 

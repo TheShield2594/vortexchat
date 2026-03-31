@@ -80,6 +80,7 @@ See [00-setup-and-conventions.md](./00-setup-and-conventions.md) for full config
 When implementing tests, follow this priority:
 
 ### P0 — Critical Path (implement first)
+
 1. `01-authentication.md` — Login, register, email verification
 2. `03-channels-and-messaging.md` — Send/receive messages, reactions
 3. `04-direct-messages.md` — DM send/receive
@@ -87,27 +88,30 @@ When implementing tests, follow this priority:
 5. `21-api-routes.md` — Cross-cutting API checks (401/403/400)
 
 ### P1 — Core Features
-6. `02-server-management.md` — Server CRUD, invites
-7. `07-roles-and-permissions.md` — Permission enforcement
-8. `06-moderation.md` — Ban, kick, audit log
-9. `09-notifications.md` — Unread indicators, push
-10. `17-threads.md` — Thread messaging
+
+1. `02-server-management.md` — Server CRUD, invites
+2. `07-roles-and-permissions.md` — Permission enforcement
+3. `06-moderation.md` — Ban, kick, audit log
+4. `09-notifications.md` — Unread indicators, push
+5. `17-threads.md` — Thread messaging
 
 ### P2 — Feature Completeness
-11. `05-voice-and-webrtc.md` — Voice channels
-12. `11-app-store-and-bots.md` — Bot functionality
-13. `08-search-and-discovery.md` — Search, discover
-14. `12-media-and-attachments.md` — Upload, playback
-15. `24-realtime-and-subscriptions.md` — Realtime sync
+
+1. `05-voice-and-webrtc.md` — Voice channels
+2. `11-app-store-and-bots.md` — Bot functionality
+3. `08-search-and-discovery.md` — Search, discover
+4. `12-media-and-attachments.md` — Upload, playback
+5. `24-realtime-and-subscriptions.md` — Realtime sync
 
 ### P3 — Polish & Quality
-16. `10-user-settings.md` — All settings pages
-17. `13-profile-and-badges.md` — Profile features
-18. `14-onboarding.md` — First-time experience
-19. `15-pwa-and-mobile.md` — Mobile, offline
-20. `18-events-and-calendar.md` — Events
-21. `19-accessibility.md` — a11y compliance
-22. `20-performance.md` — Performance budgets
-23. `22-visual-regression.md` — Visual baselines
-24. `23-webhooks-and-integrations.md` — Integrations
-25. `25-edge-cases-and-error-handling.md` — Edge cases
+
+1. `10-user-settings.md` — All settings pages
+2. `13-profile-and-badges.md` — Profile features
+3. `14-onboarding.md` — First-time experience
+4. `15-pwa-and-mobile.md` — Mobile, offline
+5. `18-events-and-calendar.md` — Events
+6. `19-accessibility.md` — a11y compliance
+7. `20-performance.md` — Performance budgets
+8. `22-visual-regression.md` — Visual baselines
+9. `23-webhooks-and-integrations.md` — Integrations
+10. `25-edge-cases-and-error-handling.md` — Edge cases

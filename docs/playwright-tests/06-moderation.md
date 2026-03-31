@@ -125,6 +125,8 @@
 | 3 | should reject content | Click reject on item | Content removed; notification to author |
 | 4 | should show preview of flagged content | View queue | Content preview visible |
 | 5 | should require MANAGE_MESSAGES permission | Login as regular user | Queue not accessible |
+| 6 | should bulk accept content | Select multiple items → accept all | All items approved; audit entries created |
+| 7 | should bulk reject content | Select multiple items → reject all | All items removed; authors notified; audit entries created |
 
 ---
 
@@ -195,3 +197,5 @@
 | 3 | should execute /mute command | Type `/mute @user duration` | User muted |
 | 4 | should execute /timeout command | Type `/timeout @user 1h` | User timed out |
 | 5 | should show error for insufficient permissions | Regular user types `/ban` | Permission denied |
+| 6 | should create audit log for slash /ban | Execute `/ban @user` → check audit log | `ban_member` audit entry created |
+| 7 | should log failed slash command attempt | Execute `/ban` without BAN_MEMBERS permission → check audit log | Failed attempt audit entry logged |

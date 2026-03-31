@@ -46,7 +46,7 @@
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 1 | should show push permission prompt after 60s | Wait 60s on first visit | Soft-ask prompt appears |
+| 1 | should show push permission prompt after delay | Use fake timers (`page.clock.install()`) → advance 60s | Soft-ask prompt appears (no real wait) |
 | 2 | should register push subscription on accept | Accept push prompt | Subscription sent to `/api/push` |
 | 3 | should not show prompt after dismissal | Dismiss → reload | Prompt does not reappear |
 | 4 | should receive push notification for mentions | Get mentioned while app in background | Push notification |

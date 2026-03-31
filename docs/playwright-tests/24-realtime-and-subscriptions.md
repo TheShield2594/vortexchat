@@ -23,6 +23,7 @@
 | 5 | should unsubscribe on channel leave | Navigate away | Subscription cleaned up |
 | 6 | should handle subscription reconnect | Simulate disconnect → reconnect | Messages resume |
 | 7 | should not duplicate messages on reconnect | Reconnect | No duplicates |
+| 8 | should sync new messages across tabs | Open two tabs for User B; User A sends | Message appears in both tabs |
 
 ---
 
@@ -35,6 +36,7 @@
 | 1 | should receive new reaction in real time | User A reacts → User B sees | Reaction appears |
 | 2 | should receive reaction removal in real time | User A removes → User B | Reaction disappears |
 | 3 | should update reaction count in real time | Multiple users react | Count updates |
+| 4 | should sync reactions across tabs | Open two tabs; react in one | Reaction appears in both |
 
 ---
 
@@ -61,6 +63,7 @@
 | 2 | should receive typing indicator | Other user types | "User is typing..." shown |
 | 3 | should timeout typing after inactivity | Stop typing | Indicator disappears |
 | 4 | should handle multiple concurrent typers | 3 users type | "User1, User2, and User3 are typing..." |
+| 5 | should sync typing indicators across tabs | Open two tabs; other user types | Indicator appears in both tabs |
 
 ---
 
@@ -74,6 +77,7 @@
 | 2 | should sync idle status | User goes idle | Yellow status |
 | 3 | should sync offline status | User disconnects | Gray status |
 | 4 | should update member list | Status changes | Member list reflects change |
+| 5 | should sync presence across tabs | Open two tabs; user changes status | Both tabs update |
 
 ---
 

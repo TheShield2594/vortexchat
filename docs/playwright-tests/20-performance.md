@@ -16,7 +16,7 @@
 | 4 | should load discover page < 3s | Navigate → measure | LCP < 3000ms |
 | 5 | should load settings page < 2s | Navigate → measure | LCP < 2000ms |
 | 6 | should achieve CLS < 0.1 | Navigate + wait | CLS < 0.1 |
-| 7 | should achieve FID < 100ms | Interact → measure | FID < 100ms |
+| 7 | should achieve INP ≤ 200ms | Interact → measure | INP ≤ 200ms |
 | 8 | should achieve TTFB < 800ms | Request → measure | TTFB < 800ms |
 
 ---

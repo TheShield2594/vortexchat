@@ -25,8 +25,9 @@
 | 7 | should jump to message on click | Click result | Navigates to message in channel |
 | 8 | should respect channel permissions | Search as user without channel access | No results from hidden channels |
 | 9 | should handle no results | Search nonsense | "No results found" |
-| 10 | should cap query length at 500 chars | Enter 501+ chars | Truncated or error |
+| 10 | should cap query length at 500 chars | Enter 501+ chars | 400 Bad Request |
 | 11 | should highlight matching text | View results | Query terms highlighted |
+| 13 | should require authentication | Search without login | 401 Unauthorized |
 | 12 | should paginate results | Many results → scroll | More results load |
 
 ---
@@ -74,8 +75,9 @@
 | 1 | should show Apps tab on discover page | Navigate to discover → Apps tab | App catalog shown |
 | 2 | should search apps | Type app name | Filtered results |
 | 3 | should show app details | Click app | Description, features, install button |
-| 4 | should install app from discover | Click "Add to Server" → select server | App installed |
+| 4 | should install app from Discover page | Click "Add to Server" → select server | App installed |
 | 5 | should show installed indicator | View app already installed | "Installed" badge |
+| 6 | should allow unauthenticated browsing | Browse apps without login | Apps catalog visible (public endpoint) |
 
 ---
 
@@ -88,3 +90,4 @@
 | 1 | should show friend suggestions | Navigate to friends page | Suggestions section |
 | 2 | should send friend request from suggestion | Click "Add Friend" | Request sent |
 | 3 | should dismiss suggestion | Click dismiss/X | Suggestion removed |
+| 4 | should require authentication | Access suggestions without login | 401 Unauthorized |

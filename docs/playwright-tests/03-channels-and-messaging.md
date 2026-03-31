@@ -68,7 +68,7 @@
 | 7 | should not group messages across day boundaries | Send message at 11:59pm and 12:01am | Date separator between them |
 | 8 | should show date separators ("Today", "Yesterday") | View messages from different days | Correct labels |
 | 9 | should handle empty message submission | Press Enter with empty input | Nothing sent |
-| 10 | should handle very long message | Paste 4000+ characters | Message sent or truncation warning |
+| 10 | should reject message exceeding max length | Paste 4001+ characters | 400 validation error; message not created (max 4000 chars) |
 | 11 | should support multiline messages | Shift+Enter for newline | Newlines preserved |
 | 12 | should trim leading/trailing whitespace | Send "  hello  " | "hello" displayed |
 | 13 | should send message with keyboard shortcut | Type → Enter | Sends (not newline) |

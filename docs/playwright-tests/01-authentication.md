@@ -33,7 +33,7 @@
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 1 | should handle network failure gracefully | Intercept `/api/auth/login` → 500 | Error toast; form remains filled |
+| 1 | should handle network failure gracefully | Intercept `/api/auth/register` → 500 | Error toast; form remains filled |
 | 2 | should prevent double submission | Click submit rapidly twice | Only one request sent |
 | 3 | should handle very long email (255 chars) | Enter max-length email | Either accepts or shows length error |
 | 4 | should handle unicode username | Enter emoji/CJK username | Appropriate handling per validation rules |

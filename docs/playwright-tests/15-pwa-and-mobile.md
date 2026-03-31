@@ -37,7 +37,7 @@
 | 1 | should register service worker | Page load | SW registered |
 | 2 | should cache assets with correct strategy | Network → check cache | Multi-strategy caching active |
 | 3 | should detect SW update | Deploy new version → wait for poll | "New version available" toast |
-| 4 | should poll hourly for updates | Check poll interval | Polling active |
+| 4 | should poll hourly for updates | Use fake timers / injected interval; advance clock | Polling callback fires at expected cadence |
 | 5 | should update on toast action | Click "Update" on toast | SW activates new version; page reloads |
 | 6 | should handle SW registration failure | Mock registration error | Graceful degradation |
 

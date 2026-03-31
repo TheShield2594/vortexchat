@@ -6,7 +6,7 @@
 - `create-server-modal.tsx`, `server-settings-modal.tsx`, `invite-modal.tsx`
 - `server-sidebar.tsx`, `server-sidebar-wrapper.tsx`, `channel-sidebar.tsx`
 - `template-manager.tsx`, `theme-identity-section.tsx`, `server-settings-admin.tsx`
-- Pages: `channels/[serverId]/page.tsx`, `channels/[serverId]/settings/page.tsx`, `channels/servers/page.tsx`
+- Pages: `channels/[serverId]/page.tsx`, `channels/[serverId]/settings/page.tsx`, `channels/discover/page.tsx`
 - API: `/api/servers`, `/api/servers/[serverId]`, `/api/servers/[serverId]/invites`, `/api/servers/discover`, `/api/server-templates`
 - API: `/api/servers/[serverId]/settings/theme`, `/api/servers/[serverId]/members/*`
 
@@ -112,7 +112,7 @@
 | 1 | should show discover page | Navigate to `/channels/discover` | Discover page loads |
 | 2 | should list public servers | View discover page | Server cards shown |
 | 3 | should search servers by name | Type in search → results | Filtered results shown |
-| 4 | should join server from discover page | Click join on a server card | Server joined; appears in sidebar |
+| 4 | should join server from Discover page | Click join on a server card | Server joined; appears in sidebar |
 | 5 | should show server details (members, description) | View server card | Info displayed |
 | 6 | should paginate/infinite scroll results | Scroll down | More servers load |
 

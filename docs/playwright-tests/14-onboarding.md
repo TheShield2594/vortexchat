@@ -56,13 +56,15 @@
 
 ---
 
-## 14.4 Onboarding Gate
+## 14.4 Onboarding Routing Gate (layout/page-level)
 
 ### `onboarding-gate.spec.ts`
 
+> Note: `onboarding-gate.tsx` is a lazy-loading wrapper. Route gating is enforced at the layout/page decision point. Tests target the redirect behavior at that level.
+
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 1 | should gate app until onboarding complete or skipped | New user navigates to `/channels` | Redirected to onboarding |
+| 1 | should gate app until onboarding complete or skipped | New user navigates to `/channels` | Layout/page redirects to onboarding flow |
 | 2 | should allow access after completion | Complete onboarding → navigate | Access granted |
 | 3 | should allow access after skip | Skip onboarding → navigate | Access granted |
 | 4 | should handle `onboarding_completed_at` timestamp | Check DB value | Timestamp correctly stored |

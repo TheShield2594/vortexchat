@@ -122,6 +122,52 @@ export default defineConfig({
 
 ---
 
+## Test Data Management & Isolation
+
+Since `fullyParallel: true` is set, tests run concurrently across workers. Each test must be self-contained.
+
+### Database Isolation Strategy
+- **Unique test data** — Each test creates servers/channels/users with UUID-suffixed names (e.g., `test-server-${crypto.randomUUID().slice(0,8)}`) to avoid collisions between parallel workers
+- **Per-worker test databases** — Each Playwright worker can target a separate Supabase schema/project if needed for heavy isolation
+- **Transaction rollback** — Where Supabase supports it, wrap test setup/teardown in transactions
+
+### Cleanup Patterns
+
+```ts
+test.afterEach(async ({ request }) => {
+  // Clean up test data created during the test
+  if (testServerId) {
+    await request.delete(`/api/servers/${testServerId}`);
+  }
+  // Clean up storage state artifacts if needed
+  // fs.rmSync('.auth/temp-user.json', { force: true });
+});
+
+// Per-worker setup for isolated test databases
+test.beforeAll(async ({ browser }) => {
+  const workerIndex = test.info().parallelIndex;
+  // Configure worker-specific Supabase schema or test database
+});
+```
+
+### Mocking External Services
+
+- **Supabase Realtime** — Use isolated test channels with unique names; unsubscribe in `afterEach`
+- **WebRTC** — Mock `navigator.mediaDevices.getUserMedia` and `RTCPeerConnection` via `page.addInitScript()`:
+  ```ts
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => new MediaStream();
+  });
+  ```
+- **External APIs** (Klipy, Giphy, Sentry) — Intercept with `page.route()`:
+  ```ts
+  await page.route('**/api.klipy.com/**', route =>
+    route.fulfill({ json: { results: [] } })
+  );
+  ```
+
+---
+
 ## Naming Conventions
 
 | Item | Convention | Example |

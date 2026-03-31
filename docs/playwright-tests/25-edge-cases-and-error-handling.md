@@ -55,13 +55,13 @@
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
 | 1 | should handle message at max length | Send 4000-char message | Sent successfully |
-| 2 | should handle message at max+1 length | Send 4001-char message | Truncated or rejected |
-| 3 | should handle empty server name | Submit "" | Validation error |
-| 4 | should handle max channels per server | Create at limit | Appropriate limit handling |
-| 5 | should handle max roles per server | Create at limit | Appropriate handling |
-| 6 | should handle 0-byte file upload | Upload empty file | Rejected or handled |
-| 7 | should handle exactly 10 MB upload | Upload 10 MB | Accepted |
-| 8 | should handle 10 MB + 1 byte upload | Upload 10MB+1 | Rejected with 413 |
+| 2 | should reject message at max+1 length | Send 4001-char message | 400 validation error; message not created |
+| 3 | should reject empty server name | Submit "" | 400 `{ error: "Server name is required" }` |
+| 4 | should reject channel creation at server limit | Create channel beyond max | 400 `{ error: "Channel limit reached" }` |
+| 5 | should reject role creation at server limit | Create role beyond max | 400 `{ error: "Role limit reached" }` |
+| 6 | should reject 0-byte file upload | Upload empty file | 400 `{ error: "Empty file" }` |
+| 7 | should accept exactly 10 MB upload | Upload 10 MB | 200/201; file stored |
+| 8 | should reject 10 MB + 1 byte upload | Upload 10MB+1 | 413 Payload Too Large |
 | 9 | should handle unicode in all text fields | Enter emoji/CJK/RTL text | Stored and displayed correctly |
 | 10 | should handle very long URLs in messages | Send 2000-char URL | Displayed (possibly truncated) |
 

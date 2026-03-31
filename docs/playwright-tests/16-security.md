@@ -41,7 +41,8 @@
 | 3 | should reject cross-origin DELETE | DELETE with wrong Origin | 403 |
 | 4 | should reject cross-origin PATCH | PATCH with wrong Origin | 403 |
 | 5 | should allow same-origin requests | POST from app origin | Allowed |
-| 6 | should bypass CSRF for bearer token routes | Authorization: Bearer token | Allowed |
+| 6 | should bypass CSRF for token-only auth routes | Send request with `Authorization: Bearer` header (no cookie/session) | CSRF bypassed; bearer token validated |
+| 7 | should NOT bypass CSRF for cookie/session auth routes | Send mutation with cookie auth but wrong Origin | 403 (CSRF enforced for session-based auth) |
 | 7 | should check Referer when Origin missing | POST without Origin but with bad Referer | 403 |
 | 8 | should allow GET without CSRF check | GET from anywhere | Allowed |
 

@@ -79,14 +79,14 @@
 
 | # | Test | Steps | Expected |
 |---|------|-------|----------|
-| 1 | should auto-archive after inactivity | Thread inactive > configured duration | Thread archived |
-| 2 | should support 1h duration | Set 1h → wait | Archived after 1h |
-| 3 | should support 24h duration | Set 24h → wait | Archived after 24h |
-| 4 | should support 3d duration | Set 3d → wait | Archived after 3 days |
-| 5 | should support 1w duration | Set 1w → wait | Archived after 1 week |
+| 1 | should auto-archive after inactivity | Use fake clock → advance past configured duration → trigger cron handler | Thread archived |
+| 2 | should support 1h duration | Set 1h → advance clock 61 min → invoke `/api/cron/thread-auto-archive` | Archived after 1h |
+| 3 | should support 24h duration | Set 24h → advance clock 25h → invoke cron | Archived after 24h |
+| 4 | should support 3d duration | Set 3d → advance clock 73h → invoke cron | Archived after 3 days |
+| 5 | should support 1w duration | Set 1w → advance clock 8d → invoke cron | Archived after 1 week |
 | 6 | should auto-unarchive on new message | Send message to archived thread | Thread unarchived |
 | 7 | should change archive duration | Thread panel → change duration | Duration updated |
-| 8 | should run via Vercel cron every 5 min | Check cron config | Cron scheduled at 5-min interval |
+| 8 | should run via Vercel cron every 5 min | Invoke cron handler directly via API call | Cron processes correctly (verify via `vercel.json` schedule config) |
 
 ---
 

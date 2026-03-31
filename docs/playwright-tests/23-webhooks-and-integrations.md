@@ -36,6 +36,9 @@
 | 3 | should reject invalid payload | POST with malformed body | 400 |
 | 4 | should support rich embeds | POST with embed object | Embed displayed |
 | 5 | should rate limit excessive requests | 100 requests in 1 minute | Rate limited |
+| 6 | should reject invalid signature/secret | POST with wrong signature | 401/403 |
+| 7 | should retry delivery on target failure | Mock delivery endpoint down | Retries with backoff; failure recorded |
+| 8 | should log delivery attempts | Trigger webhook delivery | Delivery audit record created |
 
 ---
 
@@ -53,6 +56,10 @@
 | 6 | should handle Steam callback | Return | Connection saved |
 | 7 | should show connected accounts publicly | View public profile | Connections shown |
 | 8 | should disconnect account | Click disconnect | Connection removed |
+| 9 | should handle OAuth denial | User denies permissions on provider | No connection saved; graceful error shown |
+| 10 | should handle invalid OAuth state | Tamper with state parameter in callback | 400/403 error |
+| 11 | should refresh expired OAuth tokens | Expire access token → trigger refresh | Connection continues working with new token |
+| 12 | should handle refresh token failure | Simulate refresh failure | User prompted to reconnect |
 
 ---
 
