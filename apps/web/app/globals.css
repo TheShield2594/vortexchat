@@ -114,6 +114,8 @@
     overscroll-behavior-x: none;
     /* Prevent double-tap zoom on mobile — keeps the app feeling native */
     touch-action: manipulation;
+    /* Prevent any child element from causing horizontal scroll on mobile */
+    overflow-x: hidden;
   }
 
   /* iOS Safari auto-zooms inputs with font-size < 16px — force 16px on mobile
