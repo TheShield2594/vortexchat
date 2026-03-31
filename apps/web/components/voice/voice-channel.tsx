@@ -635,46 +635,48 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
 
         </div>{/* end scrollable content area */}
 
-        <div className="min-h-16 md:min-h-20 flex-shrink-0 border-t px-1 sm:px-2 md:px-6 flex items-center justify-center gap-1 sm:gap-1.5 md:gap-3 overflow-x-auto" style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="min-h-16 md:min-h-20 flex-shrink-0 border-t relative" style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <div className="flex items-center justify-center gap-1 sm:gap-1.5 md:gap-3 px-1 sm:px-2 md:px-6 py-2 overflow-x-auto">
           <Tooltip><TooltipTrigger asChild><button onClick={toggleMute} disabled={!canConnect || (isStage && !canSpeak)} aria-label={muted ? "Unmute" : "Mute"} aria-pressed={muted} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: muted ? "var(--theme-danger)" : "var(--theme-text-faint)" }}>{muted ? <MicOff className="w-4 h-4 md:w-5 md:h-5 text-white" /> : <Mic className="w-4 h-4 md:w-5 md:h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{muted ? "Unmute" : "Mute"}</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><button onClick={toggleDeafen} aria-label={deafened ? "Undeafen" : "Deafen"} aria-pressed={deafened} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-colors" style={{ background: deafened ? "var(--theme-danger)" : "var(--theme-text-faint)" }}><Headphones className="w-4 h-4 md:w-5 md:h-5 text-white" /></button></TooltipTrigger><TooltipContent>{deafened ? "Undeafen" : "Deafen"}</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><button onClick={() => setPttEnabled((v) => !v)} aria-label={pttEnabled ? "Disable Push-to-Talk" : "Enable Push-to-Talk"} aria-pressed={pttEnabled} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-colors" style={{ background: pttEnabled ? "var(--theme-accent)" : "var(--theme-text-faint)" }} title="Push-to-Talk (Space)"><Radio className="w-4 h-4 md:w-5 md:h-5 text-white" /></button></TooltipTrigger><TooltipContent>{pttEnabled ? "Disable PTT" : "Enable Push-to-Talk (Space)"}</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><button onClick={toggleVideo} disabled={!canConnect || (isStage && !canSpeak)} aria-label={videoEnabled ? "Turn Off Camera" : "Turn On Camera"} aria-pressed={videoEnabled} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: videoEnabled ? "var(--theme-success)" : "var(--theme-text-faint)" }}>{videoEnabled ? <Video className="w-4 h-4 md:w-5 md:h-5 text-white" /> : <VideoOff className="w-4 h-4 md:w-5 md:h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{videoEnabled ? "Turn Off Camera" : "Turn On Camera"}</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><button onClick={toggleScreenShare} disabled={!canConnect || (isStage && !canSpeak)} aria-label={screenSharing ? "Stop Sharing Screen" : "Share Screen"} aria-pressed={screenSharing} className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: screenSharing ? "var(--theme-success)" : "var(--theme-text-faint)" }}>{screenSharing ? <MonitorOff className="w-4 h-4 md:w-5 md:h-5 text-white" /> : <Monitor className="w-4 h-4 md:w-5 md:h-5 text-white" />}</button></TooltipTrigger><TooltipContent>{screenSharing ? "Stop Sharing" : "Share Screen"}</TooltipContent></Tooltip>
 
-          <div className="relative flex-shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  ref={settingsButtonRef}
-                  onClick={() => setDeviceMenuOpen((v) => !v)}
-                  aria-label="Audio Settings"
-                  aria-expanded={deviceMenuOpen}
-                  className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors"
-                  style={{ background: deviceMenuOpen ? "var(--theme-accent)" : "var(--theme-text-faint)" }}
-                >
-                  <Settings className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Audio Settings</TooltipContent>
-            </Tooltip>
-            {deviceMenuOpen && (
-              <VoiceSettingsPanel
-                audioInputDevices={audioInputDevices}
-                audioOutputDevices={audioOutputDevices}
-                selectedInputId={selectedInputId}
-                selectedOutputId={selectedOutputId}
-                setSelectedInputId={setSelectedInputId}
-                setSelectedOutputId={setSelectedOutputId}
-                settings={audioSettings}
-                setSettings={setAudioSettings}
-                onClose={closeDeviceMenu}
-                settingsButtonRef={settingsButtonRef}
-              />
-            )}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                ref={settingsButtonRef}
+                onClick={() => setDeviceMenuOpen((v) => !v)}
+                aria-label="Audio Settings"
+                aria-expanded={deviceMenuOpen}
+                className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-colors"
+                style={{ background: deviceMenuOpen ? "var(--theme-accent)" : "var(--theme-text-faint)" }}
+              >
+                <Settings className="w-4 h-4 md:w-5 md:h-5 text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Audio Settings</TooltipContent>
+          </Tooltip>
 
           <Tooltip><TooltipTrigger asChild><button onClick={handleLeave} aria-label="Disconnect" className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-colors" style={{ background: "var(--theme-danger)" }}><PhoneOff className="w-4 h-4 md:w-5 md:h-5 text-white" /></button></TooltipTrigger><TooltipContent>Disconnect</TooltipContent></Tooltip>
+          </div>
+
+          {/* Settings panel rendered outside the scrollable button row to avoid overflow clipping */}
+          {deviceMenuOpen && (
+            <VoiceSettingsPanel
+              audioInputDevices={audioInputDevices}
+              audioOutputDevices={audioOutputDevices}
+              selectedInputId={selectedInputId}
+              selectedOutputId={selectedOutputId}
+              setSelectedInputId={setSelectedInputId}
+              setSelectedOutputId={setSelectedOutputId}
+              settings={audioSettings}
+              setSettings={setAudioSettings}
+              onClose={closeDeviceMenu}
+              settingsButtonRef={settingsButtonRef}
+            />
+          )}
         </div>
 
         {peerArray.map(([peerId, { stream, userId }], idx) => (
