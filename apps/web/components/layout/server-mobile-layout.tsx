@@ -286,20 +286,25 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
         {/* Channel content */}
         <main id="main-content" className="flex flex-1 overflow-hidden relative">
           {children}
-          {/* Member list slides in as an overlay panel with backdrop */}
+          {/* Member list stays mounted for @mention store sync; visibility toggled via CSS */}
           {mobileMemberListOpen && (
-            <>
-              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-              <div
-                className="absolute inset-0 z-10 bg-black/50"
-                onClick={dismissMobileMemberList}
-                aria-hidden="true"
-              />
-              <div className="absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl" style={{ background: "var(--theme-bg-secondary)" }} {...memberListSwipeHandlers}>
-                {memberList}
-              </div>
-            </>
+            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+            <div
+              className="absolute inset-0 z-10 bg-black/50"
+              onClick={dismissMobileMemberList}
+              aria-hidden="true"
+            />
           )}
+          <div
+            className={`absolute inset-y-0 right-0 z-20 w-[280px] max-w-[85vw] overflow-hidden shadow-xl transition-transform ${
+              mobileMemberListOpen ? "translate-x-0" : "translate-x-full pointer-events-none"
+            }`}
+            style={{ background: "var(--theme-bg-secondary)" }}
+            aria-hidden={mobileMemberListOpen ? undefined : "true"}
+            {...memberListSwipeHandlers}
+          >
+            {memberList}
+          </div>
         </main>
       </div>
     )

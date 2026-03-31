@@ -439,7 +439,7 @@ export const MessageItem = memo(function MessageItem({
         if (!start) return
         const dx = e.touches[0].clientX - start.x
         const dy = e.touches[0].clientY - start.y
-        if (!start.active && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (!start.active && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
           start.active = true
         }
         if (!start.active) return

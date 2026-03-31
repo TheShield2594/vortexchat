@@ -12,6 +12,7 @@ const baseState = {
   mentionHandledNavigation: false,
   emojiHandledNavigation: false,
   slashHandledNavigation: false,
+  isMobile: false,
 }
 
 describe("resolveComposerKeybinding", () => {
@@ -85,6 +86,15 @@ describe("resolveComposerKeybinding", () => {
     })
 
     expect(action.acceptMention).toBe(false)
+    expect(action.sendMessage).toBe(false)
+    expect(action.preventDefault).toBe(false)
+  })
+
+  it("inserts newline on Enter when on mobile", () => {
+    const action = resolveComposerKeybinding("Enter", false, {
+      ...baseState,
+      isMobile: true,
+    })
     expect(action.sendMessage).toBe(false)
     expect(action.preventDefault).toBe(false)
   })
