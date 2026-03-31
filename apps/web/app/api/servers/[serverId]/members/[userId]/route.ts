@@ -24,8 +24,10 @@ async function getMemberPermissions(supabase: Awaited<ReturnType<typeof createSe
     .eq("user_id", userId)
     .single()
 
-  const memberRoles = (member as unknown as { member_roles?: unknown[] } | null)?.member_roles ?? []
-  return aggregateMemberPermissions(memberRoles)
+  const memberRolesRaw = member && typeof member === "object"
+    ? (member as Record<string, unknown>).member_roles
+    : undefined
+  return aggregateMemberPermissions(Array.isArray(memberRolesRaw) ? memberRolesRaw : [])
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {

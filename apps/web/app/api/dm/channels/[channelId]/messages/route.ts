@@ -3,7 +3,6 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendPushToChannel } from "@/lib/push"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
 import { checkRateLimit } from "@/lib/utils/api-helpers"
-import type { DmChannelEncryptionInfo } from "@/types/database"
 
 function isValidDmE2eeEnvelope(value: unknown): boolean {
   if (!value || typeof value !== "object") return false
@@ -62,7 +61,7 @@ export async function POST(
     req.json().then((b: unknown) => ({ body: b as { content?: string; reply_to_id?: string }, error: null as string | null }))
       .catch(() => ({ body: null as { content?: string; reply_to_id?: string } | null, error: "Invalid JSON body" })),
     supabase
-      .from("dm_channels" as "direct_messages")
+      .from("dm_channels")
       .select("is_encrypted, encryption_key_version")
       .eq("id", channelId)
       .maybeSingle(),
@@ -88,7 +87,7 @@ export async function POST(
   if (channelError || !channel) {
     return NextResponse.json({ error: "Unable to verify channel encryption" }, { status: 500 })
   }
-  const channelInfo = channel as unknown as DmChannelEncryptionInfo
+  const channelInfo = channel
   if (typeof body.content !== "string") return NextResponse.json({ error: "Content required" }, { status: 400 })
   const content = body.content.trim()
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 })

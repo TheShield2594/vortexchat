@@ -27,15 +27,18 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: "Failed to fetch friends" }, { status: 500 })
 
-    const accepted: Array<typeof data[number] & { friend: unknown }> = []
-    const pending_received: Array<typeof data[number] & { friend: unknown }> = []
-    const pending_sent: Array<typeof data[number] & { friend: unknown }> = []
-    const blocked: Array<typeof data[number] & { friend: unknown }> = []
+    type FriendRow = NonNullable<typeof data>[number]
+    type FriendEntry = FriendRow & { friend: FriendRow["requester"] }
+
+    const accepted: FriendEntry[] = []
+    const pending_received: FriendEntry[] = []
+    const pending_sent: FriendEntry[] = []
+    const blocked: FriendEntry[] = []
 
     for (const row of data ?? []) {
       const isRequester = row.requester_id === user.id
       const friend = isRequester ? row.addressee : row.requester
-      const entry = { ...row, friend }
+      const entry: FriendEntry = { ...row, friend }
 
       if (row.status === "accepted") {
         accepted.push(entry)

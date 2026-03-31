@@ -33,8 +33,10 @@ export async function GET(
       .single()
 
     const isOwner = server?.owner_id === user.id
-    const memberRoles = (member as unknown as { member_roles?: unknown[] } | null)?.member_roles ?? []
-    const permissions = aggregateMemberPermissions(memberRoles)
+    const memberRolesRaw = member && typeof member === "object"
+      ? (member as Record<string, unknown>).member_roles
+      : undefined
+    const permissions = aggregateMemberPermissions(Array.isArray(memberRolesRaw) ? memberRolesRaw : [])
 
     if (!isOwner && !checkPermission(permissions, "BAN_MEMBERS")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -92,8 +94,10 @@ export async function POST(
       .eq("user_id", user.id)
       .single()
 
-    const memberRoles = (member as unknown as { member_roles?: unknown[] } | null)?.member_roles ?? []
-    const permissions = aggregateMemberPermissions(memberRoles)
+    const memberRolesRaw = member && typeof member === "object"
+      ? (member as Record<string, unknown>).member_roles
+      : undefined
+    const permissions = aggregateMemberPermissions(Array.isArray(memberRolesRaw) ? memberRolesRaw : [])
 
     if (!checkPermission(permissions, "BAN_MEMBERS")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -217,8 +221,10 @@ export async function DELETE(
       .eq("user_id", user.id)
       .single()
 
-    const memberRoles = (member as unknown as { member_roles?: unknown[] } | null)?.member_roles ?? []
-    const permissions = aggregateMemberPermissions(memberRoles)
+    const memberRolesRaw = member && typeof member === "object"
+      ? (member as Record<string, unknown>).member_roles
+      : undefined
+    const permissions = aggregateMemberPermissions(Array.isArray(memberRolesRaw) ? memberRolesRaw : [])
 
     if (!checkPermission(permissions, "BAN_MEMBERS")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
