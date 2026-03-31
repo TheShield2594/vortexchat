@@ -63,7 +63,10 @@ export async function POST(
   ])
 
   if (commandError || !command) return NextResponse.json({ error: "Command not found or disabled." }, { status: 404 })
-  if (installError) return NextResponse.json({ error: installError.message }, { status: 500 })
+  if (installError) {
+    console.error("[servers/[serverId]/apps/commands/execute POST] install check error:", installError.message)
+    return NextResponse.json({ error: "Failed to verify app installation" }, { status: 500 })
+  }
   if (!install) return NextResponse.json({ error: "App is not installed on this server." }, { status: 403 })
 
   // Fetch rate limit config for this app

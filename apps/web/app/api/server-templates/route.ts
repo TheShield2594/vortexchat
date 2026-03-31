@@ -73,7 +73,10 @@ export async function POST(request: Request) {
       p_server_id: serverId,
       p_template: result.template as unknown as never,
     })
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) {
+      console.error("[server-templates POST apply] error:", error.message)
+      return NextResponse.json({ error: "Failed to apply template" }, { status: 400 })
+    }
     return NextResponse.json({ ok: true, result: data, warnings: result.warnings })
   }
 
@@ -87,7 +90,10 @@ export async function POST(request: Request) {
       p_icon_url: String(body?.iconUrl ?? ""),
       p_template: result.template as unknown as never,
     })
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) {
+      console.error("[server-templates POST create-server] error:", error.message)
+      return NextResponse.json({ error: "Failed to create server from template" }, { status: 400 })
+    }
     return NextResponse.json({ server: data, warnings: result.warnings }, { status: 201 })
   }
 
@@ -96,7 +102,10 @@ export async function POST(request: Request) {
     if (!serverId) return NextResponse.json({ error: "serverId is required" }, { status: 400 })
 
     const { data, error } = await supabase.rpc("export_server_template", { p_server_id: serverId })
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) {
+      console.error("[server-templates POST export] error:", error.message)
+      return NextResponse.json({ error: "Failed to export template" }, { status: 400 })
+    }
     return NextResponse.json({ template: data })
   }
 

@@ -14,13 +14,19 @@ export async function GET(req: NextRequest) {
 
     if (type === "task") {
       const { data, error } = await supabase.from("channel_tasks").select("id, title, status, due_date, channel_id").eq("id", id).single()
-      if (error) return NextResponse.json({ error: error.message }, { status: 404 })
+      if (error) {
+        console.error("[workspace/reference GET] task lookup error:", error.message)
+        return NextResponse.json({ error: "Reference not found" }, { status: 404 })
+      }
       return NextResponse.json({ reference: data })
     }
 
     if (type === "doc") {
       const { data, error } = await supabase.from("channel_docs").select("id, title, updated_at, channel_id").eq("id", id).single()
-      if (error) return NextResponse.json({ error: error.message }, { status: 404 })
+      if (error) {
+        console.error("[workspace/reference GET] doc lookup error:", error.message)
+        return NextResponse.json({ error: "Reference not found" }, { status: 404 })
+      }
       return NextResponse.json({ reference: data })
     }
 
