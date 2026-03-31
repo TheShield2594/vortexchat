@@ -13,6 +13,10 @@ const VALID_STATUSES = new Set<UserStatus>(["online", "idle", "dnd", "invisible"
  * Client-side heartbeat endpoint. Called every 30s by the presence hook.
  * Updates `last_heartbeat_at` and optionally `status` in the users table.
  *
+ * Uses a conditional UPDATE with a WHERE clause so the debounce is atomic:
+ * only writes when the heartbeat is stale OR the status has changed.
+ * This prevents concurrent tabs from stampeding writes.
+ *
  * A separate cron job (`/api/cron/presence-cleanup`) marks users with stale
  * heartbeats as offline, providing reliable server-side disconnect detection
  * even when the client crashes without calling sendBeacon.
@@ -42,41 +46,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 })
     }
 
-    const now = new Date().toISOString()
+    const now = new Date()
+    const nowIso = now.toISOString()
+    const debounceThreshold = new Date(now.getTime() - PRESENCE_HEARTBEAT_DEBOUNCE_MS).toISOString()
     const supabase = await createServerSupabaseClient()
 
-    // Check if we should debounce this heartbeat to avoid DB write stampede.
-    // Read the current heartbeat timestamp and skip the write if it's recent.
-    const { data: current } = await supabase
+    // Atomic conditional UPDATE: only writes when either the heartbeat is stale
+    // (older than debounce threshold) OR the status has changed. This prevents
+    // concurrent tabs from all writing when they observe the same stale value.
+    //
+    // The .or() filter ensures we only touch rows that actually need updating:
+    // - last_heartbeat_at is null (first heartbeat / legacy user)
+    // - last_heartbeat_at is older than the debounce window
+    // - status differs from the desired status
+    const { data: updatedUser, error: updateError } = await supabase
       .from("users")
-      .select("last_heartbeat_at, status")
+      .update({
+        last_heartbeat_at: nowIso,
+        updated_at: nowIso,
+        status: status as UserStatus,
+      })
       .eq("id", user.id)
+      .or(`last_heartbeat_at.is.null,last_heartbeat_at.lt.${debounceThreshold},status.neq.${status}`)
+      .select("id")
       .maybeSingle()
-
-    if (current?.last_heartbeat_at) {
-      const lastBeat = new Date(current.last_heartbeat_at).getTime()
-      const elapsed = Date.now() - lastBeat
-      // If the last heartbeat was very recent and status hasn't changed,
-      // skip the write to reduce DB load.
-      if (elapsed < PRESENCE_HEARTBEAT_DEBOUNCE_MS && current.status === status) {
-        return NextResponse.json({ ok: true, debounced: true })
-      }
-    }
-
-    const updatePayload: Record<string, string> = {
-      last_heartbeat_at: now,
-      updated_at: now,
-    }
-
-    // Only update status if it actually changed (reduces unnecessary writes)
-    if (!current || current.status !== status) {
-      updatePayload.status = status
-    }
-
-    const { error: updateError } = await supabase
-      .from("users")
-      .update(updatePayload)
-      .eq("id", user.id)
 
     if (updateError) {
       console.error("presence/heartbeat: failed to update", {
@@ -85,6 +78,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         error: updateError.message,
       })
       return NextResponse.json({ error: "Failed to update heartbeat" }, { status: 500 })
+    }
+
+    // No row matched: either debounced (heartbeat recent + same status) or
+    // user doesn't exist. Distinguish by checking if the user row exists.
+    if (!updatedUser) {
+      const { data: exists } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      if (!exists) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 })
+      }
+
+      // User exists but the conditional UPDATE didn't match → debounced
+      return NextResponse.json({ ok: true, debounced: true })
     }
 
     return NextResponse.json({ ok: true })

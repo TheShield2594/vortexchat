@@ -60,30 +60,37 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const staleIds = staleUsers.map((u) => u.id)
 
-    // Batch update all stale users to offline
-    const { error: updateError } = await supabase
+    // Batch update all stale users to offline.
+    // Reapply the staleness predicate so a user who heartbeated between the
+    // SELECT and this UPDATE is not incorrectly flipped to offline.
+    const { data: cleanedUsers, error: updateError } = await supabase
       .from("users")
       .update({
         status: "offline",
         updated_at: now.toISOString(),
       })
       .in("id", staleIds)
+      .in("status", ["online", "idle", "dnd"])
+      .or(`last_heartbeat_at.is.null,last_heartbeat_at.lt.${staleThreshold}`)
+      .select("id")
 
     if (updateError) {
       console.error("presence-cleanup: update failed", {
         route: "cron/presence-cleanup",
         error: updateError.message,
-        count: staleIds.length,
+        count: cleanedUsers?.length ?? 0,
       })
       return NextResponse.json({ error: "Update failed" }, { status: 500 })
     }
 
+    const cleanedCount = cleanedUsers?.length ?? 0
+
     console.log("presence-cleanup: marked users offline", {
       route: "cron/presence-cleanup",
-      count: staleIds.length,
+      count: cleanedCount,
     })
 
-    return NextResponse.json({ ok: true, cleaned: staleIds.length })
+    return NextResponse.json({ ok: true, cleaned: cleanedCount })
   } catch (err) {
     console.error("presence-cleanup: unexpected error", {
       route: "cron/presence-cleanup",

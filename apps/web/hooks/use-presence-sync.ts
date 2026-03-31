@@ -21,16 +21,25 @@ const TAB_ID = typeof crypto !== "undefined" && crypto.randomUUID
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Statuses that are explicitly set by the user and should not be auto-changed. */
-function isExplicitStatus(status: UserStatus): boolean {
-  return status === "dnd" || status === "invisible"
-}
-
 /** Resolve the initial presence status from the DB-stored value. */
 function resolveInitialStatus(status?: UserStatus): UserStatus {
   if (status === "dnd" || status === "invisible") return status
   // "idle" and "offline" from DB are transient — user is now active
   return "online"
+}
+
+/**
+ * Compute the aggregated status for all tabs including this one.
+ */
+function computeAggregated(
+  tabStatus: UserStatus,
+  otherTabs: Map<string, UserStatus>
+): UserStatus {
+  const allStatuses: UserStatus[] = [tabStatus]
+  for (const s of otherTabs.values()) {
+    allStatuses.push(s)
+  }
+  return aggregateStatus(allStatuses)
 }
 
 /**
@@ -61,10 +70,16 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
 
   // Current status for THIS tab
   const tabStatusRef = useRef<UserStatus>(resolveInitialStatus(status))
-  // The user's explicit preference (dnd, invisible) — survives idle transitions
-  const explicitStatusRef = useRef<UserStatus>(resolveInitialStatus(status))
+  // The user's explicit preference (dnd, invisible). null = no explicit
+  // preference, so auto-idle and visibility changes behave normally.
+  const explicitStatusRef = useRef<UserStatus | null>(
+    status === "dnd" || status === "invisible" ? status : null
+  )
   // Whether this tab is currently idle (auto-detected, not user-set)
   const autoIdleRef = useRef(false)
+  // Aggregated status across all tabs — used for heartbeats so the server
+  // always sees the combined multi-tab state.
+  const aggregatedStatusRef = useRef<UserStatus>(resolveInitialStatus(status))
 
   const userIdRef = useRef<string | null>(null)
   const heartbeatTimerRef = useRef<number | undefined>(undefined)
@@ -78,9 +93,12 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
 
   // Sync explicit status prop changes (e.g., user changes status in settings)
   useEffect(() => {
-    if (status === "dnd" || status === "invisible") {
-      explicitStatusRef.current = status
-      tabStatusRef.current = status
+    // When user sets dnd/invisible, remember it. When they clear it (any
+    // other status), reset so visibility-change handler doesn't restore stale values.
+    explicitStatusRef.current =
+      status === "dnd" || status === "invisible" ? status : null
+    if (explicitStatusRef.current) {
+      tabStatusRef.current = explicitStatusRef.current
     }
   }, [status])
 
@@ -118,11 +136,8 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
       }
 
       // Compute aggregated status across all tabs
-      const allStatuses: UserStatus[] = [nextStatus]
-      for (const s of otherTabStatusesRef.current.values()) {
-        allStatuses.push(s)
-      }
-      const aggregated = aggregateStatus(allStatuses)
+      const aggregated = computeAggregated(nextStatus, otherTabStatusesRef.current)
+      aggregatedStatusRef.current = aggregated
 
       // Only broadcast + persist if the aggregated status actually changed
       if (aggregated === prevBroadcastedStatus) return
@@ -148,13 +163,25 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
         if (!msg || typeof msg !== "object") return
 
         if (msg.type === "status-update" && msg.tabId !== TAB_ID) {
+          // When we see a new peer for the first time, echo our status back
+          // so it discovers us. This bootstraps peer state — a tab opened
+          // after us will learn about us from this reply.
+          const isNewPeer = !otherTabStatusesRef.current.has(msg.tabId)
           otherTabStatusesRef.current.set(msg.tabId, msg.status)
-          // Re-aggregate and broadcast if needed
-          const allStatuses: UserStatus[] = [tabStatusRef.current]
-          for (const s of otherTabStatusesRef.current.values()) {
-            allStatuses.push(s)
+          if (isNewPeer) {
+            try {
+              broadcastChannelRef.current?.postMessage({
+                type: "status-update",
+                status: tabStatusRef.current,
+                tabId: TAB_ID,
+              } satisfies PresenceBroadcastMessage)
+            } catch {
+              // BroadcastChannel may be unavailable
+            }
           }
-          const aggregated = aggregateStatus(allStatuses)
+          // Re-aggregate and broadcast if needed
+          const aggregated = computeAggregated(tabStatusRef.current, otherTabStatusesRef.current)
+          aggregatedStatusRef.current = aggregated
           if (aggregated !== prevBroadcastedStatus) {
             prevBroadcastedStatus = aggregated
             broadcastPresence(aggregated)
@@ -162,11 +189,8 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
         } else if (msg.type === "tab-closing" && msg.tabId !== TAB_ID) {
           otherTabStatusesRef.current.delete(msg.tabId)
           // Re-aggregate — the closing tab is gone
-          const allStatuses: UserStatus[] = [tabStatusRef.current]
-          for (const s of otherTabStatusesRef.current.values()) {
-            allStatuses.push(s)
-          }
-          const aggregated = aggregateStatus(allStatuses)
+          const aggregated = computeAggregated(tabStatusRef.current, otherTabStatusesRef.current)
+          aggregatedStatusRef.current = aggregated
           if (aggregated !== prevBroadcastedStatus) {
             prevBroadcastedStatus = aggregated
             broadcastPresence(aggregated)
@@ -178,6 +202,13 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
           }
         }
       }
+
+      // Announce ourselves so existing tabs discover us
+      bc.postMessage({
+        type: "status-update",
+        status: tabStatusRef.current,
+        tabId: TAB_ID,
+      } satisfies PresenceBroadcastMessage)
     } catch {
       // BroadcastChannel not supported — single-tab mode
     }
@@ -192,17 +223,18 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
       if (now - lastHeartbeatSentRef.current < PRESENCE_HEARTBEAT_INTERVAL_MS * 0.8) return
       lastHeartbeatSentRef.current = now
 
-      const currentStatus = tabStatusRef.current
-      // Don't heartbeat for invisible/offline — let the cron handle it
+      // Use the aggregated multi-tab status so the server sees the combined
+      // state, not just this tab's state. Prevents flapping between online/idle
+      // when one tab is active and another is hidden.
+      const currentStatus = aggregatedStatusRef.current
+      // Don't heartbeat if aggregated status is offline
       if (currentStatus === "offline") return
 
-      // For invisible users, still heartbeat but the server stores "invisible"
-      // so the cron won't mark them offline
       try {
         await fetch("/api/presence/heartbeat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: currentStatus === "invisible" ? "invisible" : currentStatus }),
+          body: JSON.stringify({ status: currentStatus }),
           keepalive: true,
         })
       } catch {
@@ -215,7 +247,7 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
     // We do the same: every 2.5 minutes, check if the user has been inactive
     // for 10 minutes.
     function checkIdle(): void {
-      if (isExplicitStatus(tabStatusRef.current)) return
+      if (explicitStatusRef.current) return
 
       const elapsed = Date.now() - lastActivityRef.current
       if (elapsed >= IDLE_TIMEOUT_MS) {
@@ -252,7 +284,7 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
       // Tab regained focus
       lastActivityRef.current = Date.now()
 
-      if (isExplicitStatus(explicitStatusRef.current)) {
+      if (explicitStatusRef.current) {
         // User has an explicit status set — restore it
         if (tabStatusRef.current !== explicitStatusRef.current) {
           setTabStatus(explicitStatusRef.current)

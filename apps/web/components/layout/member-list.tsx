@@ -278,8 +278,8 @@ export function MemberList({ serverId, initialMembers }: Props) {
               ...prev,
               [updatedUser.id!]: {
                 status: newStatus,
-                speaking: existing?.speaking,
-                voice_channel_id: existing?.voice_channel_id,
+                speaking: newStatus === "offline" ? undefined : existing?.speaking,
+                voice_channel_id: newStatus === "offline" ? undefined : existing?.voice_channel_id,
               },
             }
           })
