@@ -171,8 +171,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         .from("server-icons")
         .upload(path, iconFile, { upsert: true })
 
-      if (uploadError)
-        return NextResponse.json({ error: `Icon upload failed: ${uploadError.message}` }, { status: 500 })
+      if (uploadError) {
+        console.error("[servers/[serverId] PATCH] icon upload error:", uploadError.message)
+        return NextResponse.json({ error: "Icon upload failed" }, { status: 500 })
+      }
 
       const { data: urlData } = supabase.storage
         .from("server-icons")

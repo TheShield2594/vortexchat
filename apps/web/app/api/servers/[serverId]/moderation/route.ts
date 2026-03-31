@@ -22,7 +22,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .eq("id", serverId)
       .single()
 
-    if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
+    if (dbErr) {
+      console.error("[servers/[serverId]/moderation GET] db error:", dbErr.message)
+      return NextResponse.json({ error: "Failed to fetch moderation settings" }, { status: 500 })
+    }
     return NextResponse.json(data)
 
   } catch (err) {
@@ -97,7 +100,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
 
     const { error: dbErr } = await supabase.from("servers").update(updates).eq("id", serverId)
-    if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
+    if (dbErr) {
+      console.error("[servers/[serverId]/moderation PATCH] db error:", dbErr.message)
+      return NextResponse.json({ error: "Failed to update moderation settings" }, { status: 500 })
+    }
 
     // Audit log
     await insertAuditLog(supabase, {

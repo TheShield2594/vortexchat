@@ -75,7 +75,8 @@ async function getMessagesAroundTarget(supabase: ServerSupabaseClient, channelId
   ])
 
   if (beforeError || afterError) {
-    return { error: NextResponse.json({ error: beforeError?.message ?? afterError?.message ?? "Failed to load message context" }, { status: 500 }) }
+    console.error("[messages GET] around query error:", beforeError?.message ?? afterError?.message)
+    return { error: NextResponse.json({ error: "Failed to load message context" }, { status: 500 }) }
   }
 
   const hasMoreBefore = (beforeRows?.length ?? 0) > sideLimit
@@ -101,9 +102,10 @@ async function resolveSafeMentions(supabase: ServerSupabaseClient, userId: strin
     const filteredMentions = await filterMentionsByBlockState(supabase, userId, mentions)
     return { safeMentions: filteredMentions.allowed }
   } catch (error) {
+    console.error("[messages POST] mention validation error:", error instanceof Error ? error.message : error)
     return {
       error: NextResponse.json(
-        { error: error instanceof Error ? error.message : "Failed to validate mentions" },
+        { error: "Failed to validate mentions" },
         { status: 400 }
       ),
     }

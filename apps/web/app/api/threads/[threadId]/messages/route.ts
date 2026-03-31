@@ -169,7 +169,10 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
     .select(`*, author:users!messages_author_id_fkey(*), attachments(*), reactions(*)`)
     .single()
 
-  if (msgError) return NextResponse.json({ error: msgError.message }, { status: 500 })
+  if (msgError) {
+    console.error("[threads/[threadId]/messages POST] insert error:", msgError.message)
+    return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
+  }
 
   // Insert attachments
   if (attachments.length > 0 && message) {

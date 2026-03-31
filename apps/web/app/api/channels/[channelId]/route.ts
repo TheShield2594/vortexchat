@@ -146,7 +146,8 @@ export async function PATCH(
       .single()
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+      console.error("[channels/[channelId] PATCH] update error:", updateError.message)
+      return NextResponse.json({ error: "Failed to update channel" }, { status: 500 })
     }
 
     // Build before/after diff for audit log
