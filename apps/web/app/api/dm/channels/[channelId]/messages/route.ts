@@ -79,8 +79,8 @@ export async function POST(
     return NextResponse.json({ error: "Cannot send messages while blocked" }, { status: 403 })
   }
 
-  if (bodyResult.error) {
-    return NextResponse.json({ error: bodyResult.error }, { status: 400 })
+  if (bodyResult.error || !bodyResult.body) {
+    return NextResponse.json({ error: bodyResult.error ?? "Invalid JSON body" }, { status: 400 })
   }
   const body = bodyResult.body
 

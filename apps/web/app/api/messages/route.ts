@@ -285,18 +285,12 @@ async function runServerAutomodChecks({
         ? r.conditions
         : {}
     const actions = Array.isArray(r.actions)
-      ? r.actions.filter((a: unknown): a is AutoModRuleWithParsed["actions"][number] => {
+      ? (r.actions as unknown[]).filter((a): a is Record<string, unknown> => {
           if (!a || typeof a !== "object") return false
           return typeof (a as Record<string, unknown>).type === "string"
         })
       : []
-    const parsed: AutoModRuleWithParsed = {
-      ...r,
-      config: config as AutoModRuleWithParsed["config"],
-      conditions: conditions as AutoModRuleWithParsed["conditions"],
-      actions,
-    }
-    acc.push(parsed)
+    acc.push({ ...r, config, conditions, actions } as unknown as AutoModRuleWithParsed)
     return acc
   }, [])
 
