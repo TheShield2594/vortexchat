@@ -524,7 +524,7 @@ function preProcessContent(content: string): string {
   processed = processed.replace(/</g, "&lt;").replace(/>/g, "&gt;")
   
   // Restore the valid patterns from the token array
-  processed = processed.replace(/__TOKEN_(\d+)__/g, (match, index) => tokens[parseInt(index)])
+  processed = processed.replace(/__TOKEN_(\d+)__/g, (match, index) => tokens[parseInt(index)] ?? match)
   
   return processed
 }

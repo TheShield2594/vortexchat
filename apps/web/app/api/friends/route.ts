@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     const { data: target, error: targetErr } = await serviceSupabase
       .from("users")
       .select("id, username, display_name, avatar_url, status")
-      .eq("username", username.trim())
+      .eq("username", username.trim().toLowerCase())
       .maybeSingle()
 
     if (targetErr) {
