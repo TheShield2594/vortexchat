@@ -96,6 +96,7 @@ export default function RegisterPage() {
       })
       router.push("/login?registered=true")
     } catch (error: unknown) {
+      console.error("[register] signup failed:", error instanceof Error ? error.message : error)
       const message = error instanceof Error ? error.message : "An unexpected error occurred. Please try again."
       const friendly = friendlySignupError(message)
       setFormError(friendly)
