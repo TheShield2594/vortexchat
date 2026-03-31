@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { Loader2, Copy, RefreshCw, Trash2, Webhook, Smile, Plus, Check, Shield, ShieldCheck, Zap, Upload, X, Clock, Users, Activity, Eye, Flag, Sparkles } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,7 @@ interface Props {
 /** Tabbed server settings dialog with overview, invites, emojis, webhooks, moderation, screening, and automod configuration. */
 export function ServerSettingsModal({ open, onClose, server, isOwner, canManageApps, channels = [] }: Props) {
   const { toast } = useToast()
+  const isMobile = useMobileLayout()
   const { updateServer, removeServer, servers } = useAppStore(
     useShallow((s) => ({ updateServer: s.updateServer, removeServer: s.removeServer, servers: s.servers }))
   )
@@ -219,14 +221,14 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className="sm:max-w-5xl sm:max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto sm:overflow-hidden p-0"
+        className={`md:max-w-5xl md:max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto md:overflow-hidden p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none' : ''}`}
         style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">{liveServer.name} — Server Settings</DialogTitle>
-        <Tabs defaultValue="overview" orientation="vertical" className="flex flex-col md:flex-row h-[85vh]">
+        <Tabs defaultValue="overview" orientation="vertical" className={`flex ${isMobile ? 'flex-col h-full' : 'flex-col md:flex-row h-[85vh]'}`}>
           {/* Settings sidebar */}
-          <div className="w-full md:w-52 flex-shrink-0 flex flex-col overflow-hidden" style={{ background: 'var(--theme-bg-secondary)' }}>
+          <div className={`w-full md:w-52 flex-shrink-0 flex flex-col overflow-hidden ${isMobile ? 'hidden' : ''}`} style={{ background: 'var(--theme-bg-secondary)' }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
               {liveServer.name}
             </h3>
@@ -297,7 +299,78 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
           </div>
 
           {/* Main content */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 overflow-x-hidden">
+            {isMobile && (
+              <div className="flex flex-col" style={{ background: 'var(--theme-bg-secondary)' }}>
+                <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
+                  {liveServer.name}
+                </h3>
+                <TabsList className="flex flex-col gap-0.5 w-full bg-transparent px-4 pb-2 justify-start items-start h-auto">
+                  <TabsTrigger value="overview" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger value="invites" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Invites
+                  </TabsTrigger>
+                  <TabsTrigger value="roles" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Roles
+                  </TabsTrigger>
+                  <TabsTrigger value="emojis" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Emoji
+                  </TabsTrigger>
+                  <TabsTrigger value="webhooks" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Webhooks
+                  </TabsTrigger>
+                  <TabsTrigger value="apps" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Apps
+                  </TabsTrigger>
+                  <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
+                    Moderation
+                  </div>
+                  <TabsTrigger value="moderation" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    <Shield className="mr-1.5 h-3.5 w-3.5" />
+                    Settings
+                  </TabsTrigger>
+                  <TabsTrigger value="screening" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                    Screening
+                  </TabsTrigger>
+                  <TabsTrigger value="automod" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    <Zap className="mr-1.5 h-3.5 w-3.5" />
+                    AutoMod
+                  </TabsTrigger>
+                  <TabsTrigger value="reports" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    <Flag className="mr-1.5 h-3.5 w-3.5" />
+                    Reports
+                  </TabsTrigger>
+                  <TabsTrigger value="templates" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    Templates
+                  </TabsTrigger>
+                  <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
+                    Safety Tools
+                  </div>
+                  <TabsTrigger value="admin-activity" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    <Activity className="mr-1.5 h-3.5 w-3.5" />
+                    Activity
+                  </TabsTrigger>
+                  <TabsTrigger value="permission-sandbox" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    Perms
+                  </TabsTrigger>
+                  {isOwner && (
+                    <>
+                      <div className="mt-2 mb-1 px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
+                        AI
+                      </div>
+                      <TabsTrigger value="ai" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                        AI Settings
+                      </TabsTrigger>
+                    </>
+                  )}
+                </TabsList>
+              </div>
+            )}
             <TabsContent value="overview" className="mt-0 space-y-4">
               {/* Server Icon */}
               {isOwner && (

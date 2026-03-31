@@ -501,7 +501,32 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
 
 function preProcessContent(content: string): string {
   // Strip [POLL]...[/POLL] blocks (handled separately by MessageItem)
-  return content.replace(/\[POLL\][\s\S]*?\[\/POLL\]/gi, "")
+  let processed = content.replace(/\[POLL\][\s\S]*?\[\/POLL\]/gi, "")
+  
+  // Collect valid mention/role mention/timestamp patterns into a token array
+  // to preserve exact original text, then replace with index tokens
+  const tokens: string[] = []
+  
+  processed = processed.replace(/<@(\w+)>/g, (match) => {
+    tokens.push(match)
+    return `__TOKEN_${tokens.length - 1}__`
+  })
+  processed = processed.replace(/<@&([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi, (match) => {
+    tokens.push(match)
+    return `__TOKEN_${tokens.length - 1}__`
+  })
+  processed = processed.replace(/<t:(\d+)(?::([tTdDfFR]))?>/g, (match) => {
+    tokens.push(match)
+    return `__TOKEN_${tokens.length - 1}__`
+  })
+  
+  // Escape remaining angle brackets to prevent them from being interpreted as HTML tags
+  processed = processed.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  
+  // Restore the valid patterns from the token array
+  processed = processed.replace(/__TOKEN_(\d+)__/g, (match, index) => tokens[parseInt(index)] ?? match)
+  
+  return processed
 }
 
 // ─── Stable plugin arrays ───────────────────────────────────────────────────

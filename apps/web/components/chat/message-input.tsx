@@ -1360,42 +1360,49 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   {media.gifLoading ? (
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
                   ) : (
-                    <div
-                      className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 min-h-0"
-                      onKeyDown={handleGifGridKeyDown}
-                    >
-                      {media.gifResults.map((gif) => (
-                        <button
-                          key={gif.id}
-                          onClick={async () => {
-                            if (sending) return
-                            const gifUrl = gif.url || gif.gifUrl
-                            if (!gifUrl?.trim()) {
-                              setSendError("Cannot send empty GIF.")
-                              return
-                            }
-                            setShowEmojiPicker(false)
-                            setSending(true)
-                            setSendError(null)
-                            onSent?.()
-                            try {
-                              await onSend(gifUrl)
-                            } catch (error: unknown) {
-                              setSendError(error instanceof Error ? error.message : "Failed to send GIF. Try again.")
-                            } finally {
-                              setSending(false)
-                              textareaRef.current?.focus()
-                            }
-                          }}
-                          className="rounded overflow-hidden hover:opacity-90 focus-ring"
-                          title={gif.title}
-                          aria-label={gif.title}
-                        >
-                          <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-video object-cover" />
-                          <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <>
+                      <div
+                        className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 min-h-0"
+                        onKeyDown={handleGifGridKeyDown}
+                      >
+                        {media.gifResults.map((gif) => (
+                          <button
+                            key={gif.id}
+                            onClick={async () => {
+                              if (sending) return
+                              const gifUrl = gif.url || gif.gifUrl
+                              if (!gifUrl?.trim()) {
+                                setSendError("Cannot send empty GIF.")
+                                return
+                              }
+                              setShowEmojiPicker(false)
+                              setSending(true)
+                              setSendError(null)
+                              onSent?.()
+                              try {
+                                await onSend(gifUrl)
+                              } catch (error: unknown) {
+                                setSendError(error instanceof Error ? error.message : "Failed to send GIF. Try again.")
+                              } finally {
+                                setSending(false)
+                                textareaRef.current?.focus()
+                              }
+                            }}
+                            className="rounded overflow-hidden hover:opacity-90 focus-ring"
+                            title={gif.title}
+                            aria-label={gif.title}
+                          >
+                            <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-video object-cover" />
+                            <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {media.gifResults.length === 0 && (
+                        <p className="text-xs text-center py-4" style={{ color: "var(--theme-text-muted)" }}>
+                          {media.gifQuery.trim() ? "No GIFs found for your search." : "GIFs are currently unavailable."}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1417,42 +1424,49 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   {media.stickerLoading ? (
                     <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading stickers…</p>
                   ) : (
-                    <div
-                      className="grid grid-cols-4 gap-2 overflow-y-auto flex-1 min-h-0"
-                      onKeyDown={handleGifGridKeyDown}
-                    >
-                      {media.stickerResults.map((sticker) => (
-                        <button
-                          key={sticker.id}
-                          onClick={async () => {
-                            if (sending) return
-                            const stickerUrl = sticker.url || sticker.gifUrl
-                            if (!stickerUrl?.trim()) {
-                              setSendError("Cannot send empty sticker.")
-                              return
-                            }
-                            setShowEmojiPicker(false)
-                            setSending(true)
-                            setSendError(null)
-                            onSent?.()
-                            try {
-                              await onSend(stickerUrl)
-                            } catch (error: unknown) {
-                              setSendError(error instanceof Error ? error.message : "Failed to send sticker. Try again.")
-                            } finally {
-                              setSending(false)
-                              textareaRef.current?.focus()
-                            }
-                          }}
-                          className="rounded-lg overflow-hidden hover:scale-105 transition-transform focus-ring aspect-square"
-                          style={{ background: "transparent" }}
-                          title={sticker.title}
-                          aria-label={sticker.title}
-                        >
-                          <img src={sticker.previewUrl} alt={sticker.title} className="w-full h-full object-contain" />
-                        </button>
-                      ))}
-                    </div>
+                    <>
+                      <div
+                        className="grid grid-cols-4 gap-2 overflow-y-auto flex-1 min-h-0"
+                        onKeyDown={handleGifGridKeyDown}
+                      >
+                        {media.stickerResults.map((sticker) => (
+                          <button
+                            key={sticker.id}
+                            onClick={async () => {
+                              if (sending) return
+                              const stickerUrl = sticker.url || sticker.gifUrl
+                              if (!stickerUrl?.trim()) {
+                                setSendError("Cannot send empty sticker.")
+                                return
+                              }
+                              setShowEmojiPicker(false)
+                              setSending(true)
+                              setSendError(null)
+                              onSent?.()
+                              try {
+                                await onSend(stickerUrl)
+                              } catch (error: unknown) {
+                                setSendError(error instanceof Error ? error.message : "Failed to send sticker. Try again.")
+                              } finally {
+                                setSending(false)
+                                textareaRef.current?.focus()
+                              }
+                            }}
+                            className="rounded-lg overflow-hidden hover:scale-105 transition-transform focus-ring aspect-square"
+                            style={{ background: "transparent" }}
+                            title={sticker.title}
+                            aria-label={sticker.title}
+                          >
+                            <img src={sticker.previewUrl} alt={sticker.title} className="w-full h-full object-contain" />
+                          </button>
+                        ))}
+                      </div>
+                      {media.stickerResults.length === 0 && (
+                        <p className="text-xs text-center py-4" style={{ color: "var(--theme-text-muted)" }}>
+                          {media.stickerQuery.trim() ? "No stickers found for your search." : "Stickers are currently unavailable."}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )}

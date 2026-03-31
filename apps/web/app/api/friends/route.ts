@@ -65,17 +65,25 @@ export async function POST(req: NextRequest) {
     const limited = await checkRateLimit(user.id, "friends:request", { limit: 20, windowMs: 3600_000 })
     if (limited) return limited
 
+    const serviceSupabase = await createServiceRoleClient()
+
     const { username } = await req.json()
     if (!username?.trim()) return NextResponse.json({ error: "Username required" }, { status: 400 })
 
-    // Find target user
-    const { data: target, error: targetErr } = await supabase
+    // Find target user — intentionally bypass discoverability RLS to allow friend requests
+    // to non-discoverable users by exact username match; this trades privacy for convenience,
+    // mitigated by a strict 20 req/hr rate limit; consider a future opt-in flag like
+    // `allow_friend_requests_from_anyone` for better privacy control
+    const { data: target, error: targetErr } = await serviceSupabase
       .from("users")
       .select("id, username, display_name, avatar_url, status")
-      .ilike("username", username.trim())
-      .single()
+      .eq("username", username.trim().toLowerCase())
+      .maybeSingle()
 
-    if (targetErr || !target) {
+    if (targetErr) {
+      return NextResponse.json({ error: "Database error occurred" }, { status: 500 })
+    }
+    if (!target) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
