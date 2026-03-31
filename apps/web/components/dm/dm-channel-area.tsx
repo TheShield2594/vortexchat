@@ -1610,7 +1610,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   ) : hasDbAttachments ? (
                     <div className="mt-1 space-y-1">
                       {dbAttachments.map((att) => {
-                        const proxyUrl = `/api/dm/attachments/${att.id}/download`
+                        const proxyUrl = att.id.startsWith("local-") ? att.url : `/api/dm/attachments/${att.id}/download`
                         const isImg = att.content_type?.startsWith("image/")
                         const isVid = att.content_type?.startsWith("video/")
                         const isAud = att.content_type?.startsWith("audio/")

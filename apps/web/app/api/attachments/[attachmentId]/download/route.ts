@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { maybeRenewExpiry } from "@vortex/shared"
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ attachmentId: string }> }
 ): Promise<NextResponse> {
   const { attachmentId } = await params
+
+  if (!UUID_RE.test(attachmentId)) {
+    return NextResponse.json({ error: "Attachment not found" }, { status: 404 })
+  }
+
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
 
