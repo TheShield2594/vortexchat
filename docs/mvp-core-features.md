@@ -203,6 +203,20 @@
 | Daily cleanup cron job | Done | `GET /api/cron/attachment-decay` — purges expired files from Supabase Storage in batches of 200 |
 | Vercel cron schedule | Done | `vercel.json` — runs daily at midnight UTC |
 
+## User Status / Presence (Fluxer-style)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Server-side heartbeat endpoint | Done | `POST /api/presence/heartbeat` — client pings every 30s; updates `last_heartbeat_at` in users table |
+| Stale-presence cron cleanup | Done | `GET /api/cron/presence-cleanup` — marks users with stale heartbeats (>90s) as offline; runs every minute via Vercel Cron |
+| DB migration for heartbeat column | Done | Migration 00083 — `last_heartbeat_at TIMESTAMPTZ` + partial index on online/idle/dnd users |
+| Multi-tab session coordination | Done | `BroadcastChannel` API syncs status across tabs; closing one tab doesn't mark offline when others remain |
+| Status aggregation (multi-session) | Done | `@vortex/shared` `aggregateStatus()` — precedence: online > dnd > idle > offline; invisible overrides all |
+| Idle detection (10min, Fluxer-style) | Done | 10-minute timeout with 25%-interval checks; tab visibility triggers instant idle |
+| Presence constants in shared package | Done | `@vortex/shared` — heartbeat interval, stale threshold, idle timeout, activity throttle |
+| DB-level status change listener | Done | `member-list.tsx` subscribes to `postgres_changes` on users table for immediate cron-triggered offline updates |
+| sendBeacon as fast-path fallback | Done | Still used on tab close for immediate offline; heartbeat cron is the safety net |
+
 ---
 
-*Last updated: 2026-03-30*
+*Last updated: 2026-03-31*
