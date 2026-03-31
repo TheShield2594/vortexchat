@@ -40,7 +40,7 @@ export default function RegisterPage() {
   })
   const supabase = createClientSupabaseClient()
 
-  async function handleRegister(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent): Promise<void> {
     e.preventDefault()
 
     setFormError(null)
@@ -66,7 +66,6 @@ export default function RegisterPage() {
     }
 
     setLoading(true)
-    setFormError(null)
     try {
       const { data, error } = await supabase.auth.signUp({
         email: form.email,
@@ -83,7 +82,7 @@ export default function RegisterPage() {
 
       // Supabase returns a fake success (200, no error) for duplicate emails
       // when email confirmation is enabled — detect via empty identities array
-      if (data.user && data.user.identities && data.user.identities.length === 0) {
+      if (data.user?.identities?.length === 0) {
         const msg = "An account with this email already exists. Try logging in instead."
         setFormError(msg)
         toast({ variant: "destructive", title: "Registration failed", description: msg })
