@@ -502,8 +502,24 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
 function preProcessContent(content: string): string {
   // Strip [POLL]...[/POLL] blocks (handled separately by MessageItem)
   let processed = content.replace(/\[POLL\][\s\S]*?\[\/POLL\]/gi, "")
-  // Escape angle brackets to prevent them from being interpreted as HTML tags
+  
+  // Temporarily replace valid mention/role mention/timestamp patterns with placeholders
+  // to prevent them from being escaped, allowing remark plugins to process them
+  processed = processed.replace(/<@(\w+)>/g, "__MENTION_$1__")
+  processed = processed.replace(/<@&([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi, "__ROLE_MENTION_$1__")
+  processed = processed.replace(/<t:(\d+)(?::([tTdDfFR]))?>/g, (match, epoch, format) => 
+    format ? `__TIMESTAMP_${epoch}_${format}__` : `__TIMESTAMP_${epoch}__`
+  )
+  
+  // Escape remaining angle brackets to prevent them from being interpreted as HTML tags
   processed = processed.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  
+  // Restore the valid patterns
+  processed = processed.replace(/__MENTION_(\w+)__/g, "<@$1>")
+  processed = processed.replace(/__ROLE_MENTION_([0-9a-f-]{36})__/g, "<@&$1>")
+  processed = processed.replace(/__TIMESTAMP_(\d+)_([tTdDfFR])__/g, "<t:$1:$2>")
+  processed = processed.replace(/__TIMESTAMP_(\d+)__/g, "<t:$1>")
+  
   return processed
 }
 

@@ -221,7 +221,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className={`sm:max-w-5xl sm:max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto sm:overflow-hidden p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none' : ''}`}
+        className={`md:max-w-5xl md:max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto md:overflow-hidden p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none' : ''}`}
         style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
         aria-describedby={undefined}
       >
@@ -305,7 +305,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                 <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
                   {liveServer.name}
                 </h3>
-                <TabsList className="flex flex-col gap-0.5 w-full bg-transparent px-4 pb-2 justify-start items-start">
+                <TabsList className="flex flex-col gap-0.5 w-full bg-transparent px-4 pb-2 justify-start items-start h-auto">
                   <TabsTrigger value="overview" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                     Overview
                   </TabsTrigger>

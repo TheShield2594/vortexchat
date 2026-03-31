@@ -148,7 +148,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // ========== DESKTOP LAYOUT — all panels inline ==========
   if (!isMobile) {
     return (
-      <div className="flex flex-1 overflow-hidden" suppressHydrationWarning>
+      <div className="flex flex-1 overflow-hidden">
         {/* Channel sidebar */}
         <div className="flex-shrink-0 h-full">{sidebar}</div>
         {/* Channel content */}
@@ -166,7 +166,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
   // sidebar can safely unmount when viewing channel content.
   if (isInChannel && !isSpecialPage) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden relative" {...swipeHandlers} suppressHydrationWarning>
+      <div className="flex flex-1 flex-col overflow-hidden relative" {...swipeHandlers}>
         {/* Peek element: sidebar shadow shown during swipe-right gesture */}
         <div
           data-mobile-sidebar-peek=""
@@ -312,7 +312,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
 
   if (isSpecialPage) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers} suppressHydrationWarning>
+      <div className="flex flex-1 flex-col overflow-hidden" {...swipeHandlers}>
         {/* Special pages (settings/moderation/events) */}
         <div
           className="flex items-center gap-2 px-2.5 py-3 border-b flex-shrink-0"
@@ -343,7 +343,7 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
 
   // Channel sidebar shown full-screen on mobile with push-in animation
   return (
-    <div className="flex flex-1 flex-col overflow-hidden animate-slide-in-from-right" suppressHydrationWarning>
+    <div className="flex flex-1 flex-col overflow-hidden animate-slide-in-from-right">
       <div className="flex-1 overflow-hidden">{sidebar}</div>
     </div>
   )
