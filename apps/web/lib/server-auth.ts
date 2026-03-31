@@ -23,7 +23,13 @@ export type SupabaseServerClient = Awaited<ReturnType<typeof createServerSupabas
 export function aggregateMemberPermissions(memberRoles: unknown): number {
   if (!Array.isArray(memberRoles)) return 0
   return memberRoles
-    .map((mr: any) => mr.roles?.permissions ?? 0)
+    .map((mr: unknown) => {
+      if (!mr || typeof mr !== "object") return 0
+      const roles = (mr as Record<string, unknown>).roles
+      if (!roles || typeof roles !== "object") return 0
+      const permissions = (roles as Record<string, unknown>).permissions
+      return typeof permissions === "number" ? permissions : 0
+    })
     .reduce((acc: number, p: number) => acc | p, 0)
 }
 

@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
       // Verify the message belongs to the reported server
       if (server_id) {
-        const msgServerId = (message as any).channels?.server_id
+        const msgServerId = (message as unknown as { channels?: { server_id?: string } }).channels?.server_id
         if (msgServerId && msgServerId !== server_id) {
           return NextResponse.json({ error: "Message does not belong to this server" }, { status: 400 })
         }

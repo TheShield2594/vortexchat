@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
 import { sendPushToUser } from "@/lib/push"
+import type { MessageWithChannelServerId } from "@/types/database"
 
 interface Body {
   emoji?: string
@@ -39,7 +40,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
     if (messageError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
     if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
-    const channelServerId = (message as any)?.channels?.server_id as string | null
+    const typedMessage = message as unknown as MessageWithChannelServerId
+    const channelServerId = typedMessage.channels?.server_id ?? null
     if (channelServerId) {
       const { isAdmin, permissions } = await getChannelPermissions(supabase, channelServerId, message.channel_id, user.id)
       if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
@@ -96,7 +98,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
     if (messageError) return NextResponse.json({ error: "Failed to fetch message" }, { status: 500 })
     if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
-    const channelServerId = (message as any)?.channels?.server_id as string | null
+    const typedMessage = message as unknown as MessageWithChannelServerId
+    const channelServerId = typedMessage.channels?.server_id ?? null
     if (channelServerId) {
       const { isAdmin, permissions } = await getChannelPermissions(supabase, channelServerId, message.channel_id, user.id)
       if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { requireWorkspaceAccess } from "@/lib/workspace-auth"
+import type { MessageWithChannelServerId } from "@/types/database"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ messageId: string }> }) {
   try {
@@ -16,7 +17,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
       .single()
 
     if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
-    const serverId = (message as any).channels.server_id as string
+    const typedMessage = message as unknown as MessageWithChannelServerId
+    const serverId = typedMessage.channels?.server_id
+    if (!serverId) return NextResponse.json({ error: "Channel has no server context" }, { status: 400 })
     const access = await requireWorkspaceAccess(supabase, serverId, user.id)
     if (!access.canEdit) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 

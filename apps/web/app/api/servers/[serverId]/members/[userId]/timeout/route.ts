@@ -32,7 +32,8 @@ async function checkModeratePermission(
     .eq("user_id", actorId)
     .single()
 
-  const perms = aggregateMemberPermissions((member as any)?.member_roles ?? [])
+  const memberRoles = (member as unknown as { member_roles?: unknown[] } | null)?.member_roles ?? []
+  const perms = aggregateMemberPermissions(memberRoles)
   return (perms & PERMISSIONS.MODERATE_MEMBERS) !== 0
 }
 
