@@ -1337,11 +1337,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   return (
     <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "var(--app-bg-primary)" }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+      <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
         {/* Mobile: back arrow to DM list. Desktop: hidden (sidebar always visible). */}
         <button
           type="button"
-          className="md:hidden w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
+          className="md:hidden w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
           style={{ color: "var(--theme-text-secondary)" }}
           onClick={() => router.push("/channels/me")}
           aria-label="Back to messages"
@@ -1361,7 +1361,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           </Avatar>
         )}
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-white truncate">{displayName}</div>
+          <div className="font-semibold text-sm md:text-base text-white truncate">{displayName}</div>
           {channel.is_encrypted && (
             <div className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
               End-to-end encrypted • Device fingerprint: {deviceFingerprint ?? "verifying…"}
@@ -1370,24 +1370,24 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         </div>
 
         <button
-          className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
+          className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
           style={{ color: "var(--theme-text-secondary)" }}
           title="Search in conversation"
           aria-label="Search in conversation"
           type="button"
           onClick={handleSearchClick}
         >
-          <Search className="w-[18px] h-[18px]" />
+          <Search className="w-4 h-4 md:w-[18px] md:h-[18px]" />
         </button>
         <button
-          className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
+          className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
           style={{ color: "var(--theme-text-secondary)" }}
           title="Pinned messages"
           aria-label="Pinned messages"
           type="button"
           onClick={handlePinClick}
         >
-          <Pin className="w-[18px] h-[18px]" />
+          <Pin className="w-4 h-4 md:w-[18px] md:h-[18px]" />
         </button>
 
         {/* Call buttons — voice-only vs video differentiated */}
@@ -1395,23 +1395,23 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           <>
             <button
               onClick={startVoiceCall}
-              className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
+              className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
               style={{ color: (activeCall && !activeCall.withVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start voice call"
               aria-label="Start voice call"
               disabled={!!activeCall || !!ringing}
             >
-              <Phone className="w-[18px] h-[18px]" />
+              <Phone className="w-4 h-4 md:w-[18px] md:h-[18px]" />
             </button>
             <button
               onClick={startVideoCall}
-              className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
+              className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-md hover:bg-white/10 active:bg-white/15 transition-colors"
               style={{ color: (activeCall?.withVideo) ? "var(--theme-success)" : "var(--theme-text-secondary)" }}
               title="Start video call"
               aria-label="Start video call"
               disabled={!!activeCall || !!ringing}
             >
-              <Video className="w-[18px] h-[18px]" />
+              <Video className="w-4 h-4 md:w-[18px] md:h-[18px]" />
             </button>
           </>
         )}
