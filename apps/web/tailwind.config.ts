@@ -85,8 +85,8 @@ const config = {
        *  sticky headers           →  z-sticky      (100)
        *  overlays / modals        →  z-overlay     (200)
        *  toasts / notifications   →  z-toast       (500)
-       *  push-permission prompt   →  z-banner-low  (9998)
-       *  PWA install banner       →  z-banner      (9999)
+       *  PWA install banner       →  z-banner      (9998)
+       *  push-permission prompt   →  z-banner-high (9999)
        *  splash screen            →  z-splash      (99999)
        */
       zIndex: {
@@ -94,8 +94,8 @@ const config = {
         sticky: "100",
         overlay: "200",
         toast: "500",
-        "banner-low": "9998",
-        banner: "9999",
+        banner: "9998",
+        "banner-high": "9999",
         splash: "99999",
       },
       borderRadius: {
