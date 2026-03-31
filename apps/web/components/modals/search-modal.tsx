@@ -144,6 +144,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
       style={{ background: "rgba(0,0,0,0.7)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       role="dialog"
+      aria-modal="true"
       aria-labelledby="search-modal-title"
       aria-describedby="search-modal-desc"
     >
