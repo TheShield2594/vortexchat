@@ -1960,8 +1960,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       {/* Typing indicator */}
       <TypingIndicator users={typingUsers.map((user) => user.displayName)} />
 
-      {/* Input */}
-      <div className="px-4 pb-2 md:pb-4 flex-shrink-0">
+      {/* Input — hidden during active/ringing calls */}
+      {!activeCall && !ringing && <div className="px-4 pb-2 md:pb-4 flex-shrink-0">
         {/* Reply indicator */}
         {replyTo && (
           <div
@@ -2315,7 +2315,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             </button>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Local search modal for encrypted DM channels */}
       {showLocalSearch && channel?.is_encrypted && (
