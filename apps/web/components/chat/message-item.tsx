@@ -1265,7 +1265,7 @@ function AttachmentGallery({ attachments, canManageMessages }: { attachments: At
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/api/attachments/${currentAttachment.id}/download`}
+                  src={currentAttachment.id.startsWith("local-") ? currentAttachment.url : `/api/attachments/${currentAttachment.id}/download`}
                   alt={currentAttachment.filename}
                   className="object-contain"
                   draggable={false}
@@ -1307,7 +1307,10 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
   const isImage = attachment.content_type?.startsWith("image/")
   const isVideo = attachment.content_type?.startsWith("video/")
   const isAudio = attachment.content_type?.startsWith("audio/")
-  const downloadUrl = `/api/attachments/${attachment.id}/download`
+  // Optimistic attachments have local-* IDs and no server-side record yet;
+  // use their direct signed URL instead of the download API endpoint.
+  const isOptimistic = attachment.id.startsWith("local-")
+  const downloadUrl = isOptimistic ? attachment.url : `/api/attachments/${attachment.id}/download`
 
   if (isImage) {
     return (
