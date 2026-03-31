@@ -47,11 +47,18 @@ export function persistStringStorage(key: string, value: string): void {
 }
 
 /** Read a JSON value from localStorage with a safe fallback. */
-export function loadJsonStorage<T>(key: string, fallback: T): T {
+export function loadJsonStorage<T>(
+  key: string,
+  fallback: T,
+  validator?: (value: unknown) => value is T
+): T {
   if (typeof window === "undefined") return fallback
   try {
     const stored = window.localStorage.getItem(key)
-    return stored == null ? fallback : (JSON.parse(stored) as T)
+    if (stored == null) return fallback
+    const parsed: unknown = JSON.parse(stored)
+    if (validator && !validator(parsed)) return fallback
+    return parsed as T
   } catch {
     return fallback
   }

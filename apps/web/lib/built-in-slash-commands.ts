@@ -39,7 +39,6 @@ export const BUILT_IN_SLASH_COMMANDS: BuiltInSlashCommand[] = [
   // --- General (everyone) ---
   def("giphy", "Search for a GIF to send"),
   def("gif", "Search for a GIF to send"),
-  def("meme", "Search for a meme to send"),
   def("sticker", "Search for a sticker to send"),
   def("poll", "Create a poll in the current channel"),
   def("thread", "Create a new thread"),

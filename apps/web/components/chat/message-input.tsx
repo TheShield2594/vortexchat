@@ -73,7 +73,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
   const [emojiSearch, setEmojiSearch] = useState("")
   const emojiGridRef = useRef<HTMLDivElement>(null)
   const [showPlusMenu, setShowPlusMenu] = useState(false)
-  const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "meme" | "sticker">("emoji")
+  const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "sticker">("emoji")
   const uploadAbortRef = useRef<AbortController | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -94,13 +94,6 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
     textareaRef,
   })
 
-  // Handle meme unavailability fallback
-  useEffect(() => {
-    if (media.shouldFallbackToGif) {
-      setPickerTab("gif")
-      media.clearFallbackSignal()
-    }
-  }, [media.shouldFallbackToGif, media.clearFallbackSignal])
 
   // Lock body scroll on mobile when the picker bottom sheet is open
   useEffect(() => {
@@ -358,15 +351,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           setShowEmojiPicker(true)
           return
         }
-        if (commandName === "meme") {
-          setContent("")
-          onDraftChange("")
-          if (textareaRef.current) textareaRef.current.style.height = "28px"
-          setPickerTab("meme")
-          media.setMemeQuery(args)
-          setShowEmojiPicker(true)
-          return
-        }
+
         if (commandName === "sticker") {
           setContent("")
           onDraftChange("")
