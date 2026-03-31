@@ -18,7 +18,7 @@ export function ChannelsShell({ children }: { children: React.ReactNode }) {
   return (
     // Reserve nav-pill height + gap + safe-area on mobile; omitted in full-screen channel view
     <div
-      className="flex h-screen overflow-hidden md:!pb-0"
+      className="flex h-dvh overflow-hidden md:!pb-0"
       style={{
         background: "var(--app-bg-primary)",
         paddingTop: "env(safe-area-inset-top)",
