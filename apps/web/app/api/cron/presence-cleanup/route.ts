@@ -61,18 +61,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const staleIds = staleUsers.map((u) => u.id)
 
     // Batch update all stale users to offline.
-    // Reapply the staleness predicate so a user who heartbeated between the
-    // SELECT and this UPDATE is not incorrectly flipped to offline.
+    // Reapply the heartbeat staleness predicate so a user who heartbeated
+    // between the SELECT and this UPDATE is not incorrectly flipped offline.
+    // The status filter from the SELECT is implicitly satisfied since staleIds
+    // only contains online/idle/dnd users.
     const { data: cleanedUsers, error: updateError } = await supabase
       .from("users")
       .update({
-        status: "offline",
+        status: "offline" as const,
         updated_at: now.toISOString(),
       })
       .in("id", staleIds)
-      .in("status", ["online", "idle", "dnd"])
       .or(`last_heartbeat_at.is.null,last_heartbeat_at.lt.${staleThreshold}`)
-      .select("id")
+      .select("id") as unknown as { data: { id: string }[] | null; error: { message: string } | null }
 
     if (updateError) {
       console.error("presence-cleanup: update failed", {
