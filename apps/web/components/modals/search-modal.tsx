@@ -7,7 +7,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils/cn"
-import { DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 type SearchResult = any
 
@@ -144,13 +143,16 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
       className="fixed inset-0 z-50 flex items-start justify-center pt-24"
       style={{ background: "rgba(0,0,0,0.7)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      role="dialog"
+      aria-labelledby="search-modal-title"
+      aria-describedby="search-modal-desc"
     >
       <div
         className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col"
         style={{ background: "var(--theme-bg-secondary)", maxHeight: "70vh" }}
       >
-        <DialogTitle className="sr-only">Search Messages</DialogTitle>
-        <DialogDescription className="sr-only">Search messages across this server</DialogDescription>
+        <h2 id="search-modal-title" className="sr-only">Search Messages</h2>
+        <p id="search-modal-desc" className="sr-only">Search messages across this server</p>
         {/* Search input row */}
         <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
           <Search className="w-5 h-5 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
