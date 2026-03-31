@@ -177,6 +177,13 @@ export function MemberList({ serverId, initialMembers }: Props) {
     }
   }, [serverId, initialMembers, memberFetchKey])
 
+  // Keep a ref of current member IDs for the DB-change listener (avoids
+  // re-subscribing on every member list change).
+  const memberUserIdsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    memberUserIdsRef.current = new Set(members.map((m) => m.user_id))
+  }, [members])
+
   // Presence subscription (always runs regardless of SSR data)
   useEffect(() => {
     const channel = supabase.channel(`presence:${serverId}`)
@@ -241,9 +248,49 @@ export function MemberList({ serverId, initialMembers }: Props) {
         }
       })
 
+    // ── DB-level status change listener ──────────────────────────────────
+    // When the cron marks a user offline (or any server-side status update),
+    // the Realtime presence channel may lag behind. This postgres_changes
+    // listener catches DB-level status updates and merges them into the
+    // presence state immediately, ensuring the member list is always accurate.
+    const dbChannel = supabase
+      .channel(`presence-db:${serverId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "users",
+          filter: "status=in.(online,idle,dnd,invisible,offline)",
+        },
+        (payload: { new: Record<string, unknown> }) => {
+          const updatedUser = payload.new as { id?: string; status?: string }
+          if (!updatedUser?.id || !updatedUser?.status) return
+          // Only process if this user is a member of the current server
+          if (!memberUserIdsRef.current.has(updatedUser.id)) return
+
+          setPresence((prev) => {
+            const existing = prev[updatedUser.id!]
+            const newStatus = updatedUser.status!
+            // If Realtime presence already has the correct status, skip
+            if (existing?.status === newStatus) return prev
+            return {
+              ...prev,
+              [updatedUser.id!]: {
+                status: newStatus,
+                speaking: existing?.speaking,
+                voice_channel_id: existing?.voice_channel_id,
+              },
+            }
+          })
+        }
+      )
+      .subscribe()
+
     return () => {
       channelRef.current = null
       supabase.removeChannel(channel)
+      supabase.removeChannel(dbChannel)
       for (const timer of recentActivityTimersRef.current.values()) {
         clearTimeout(timer)
       }

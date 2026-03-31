@@ -12,6 +12,18 @@ export {
 } from './attachment-decay'
 export type { DecayInput, DecayResult } from './attachment-decay'
 
+export {
+  PRESENCE_HEARTBEAT_INTERVAL_MS,
+  PRESENCE_STALE_THRESHOLD_MS,
+  PRESENCE_HEARTBEAT_DEBOUNCE_MS,
+  IDLE_TIMEOUT_MS,
+  IDLE_CHECK_INTERVAL_MS,
+  ACTIVITY_THROTTLE_MS,
+  aggregateStatus,
+  PRESENCE_BROADCAST_CHANNEL,
+} from './presence'
+export type { PresenceBroadcastMessage } from './presence'
+
 export const PERMISSIONS = {
   // General
   VIEW_CHANNELS:             1 << 0,   // 1

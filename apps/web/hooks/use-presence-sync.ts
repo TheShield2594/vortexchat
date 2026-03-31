@@ -2,30 +2,85 @@
 
 import { useEffect, useMemo, useRef } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
+import {
+  PRESENCE_HEARTBEAT_INTERVAL_MS,
+  IDLE_TIMEOUT_MS,
+  IDLE_CHECK_INTERVAL_MS,
+  ACTIVITY_THROTTLE_MS,
+  PRESENCE_BROADCAST_CHANNEL,
+  aggregateStatus,
+  type UserStatus,
+  type PresenceBroadcastMessage,
+} from "@vortex/shared"
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000
+// ── Tab ID ───────────────────────────────────────────────────────────────────
+// Unique per-tab identifier for multi-tab session tracking.
+const TAB_ID = typeof crypto !== "undefined" && crypto.randomUUID
+  ? crypto.randomUUID()
+  : `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-type PresenceStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-function resolveInitialPresenceStatus(status?: PresenceStatus): PresenceStatus {
-  return status === "idle" || status === "dnd" || status === "invisible" ? status : "online"
+/** Statuses that are explicitly set by the user and should not be auto-changed. */
+function isExplicitStatus(status: UserStatus): boolean {
+  return status === "dnd" || status === "invisible"
 }
 
-export function usePresenceSync(userId: string | null, status?: PresenceStatus) {
+/** Resolve the initial presence status from the DB-stored value. */
+function resolveInitialStatus(status?: UserStatus): UserStatus {
+  if (status === "dnd" || status === "invisible") return status
+  // "idle" and "offline" from DB are transient — user is now active
+  return "online"
+}
+
+/**
+ * usePresenceSync — Reliable user presence tracking.
+ *
+ * Architecture (modeled after Fluxer):
+ * 1. Server-side heartbeat: POST /api/presence/heartbeat every 30s so the
+ *    server always knows which clients are alive. A cron job marks users
+ *    with stale heartbeats as offline — this handles crashes, kills, and
+ *    network drops that sendBeacon misses.
+ *
+ * 2. Multi-tab coordination via BroadcastChannel: tabs share their status
+ *    so that closing one tab doesn't mark the user offline when other tabs
+ *    remain open. Status is aggregated using Fluxer's precedence rules:
+ *    online > dnd > idle > offline. Invisible overrides everything.
+ *
+ * 3. Idle detection: 10-minute timeout (Fluxer production value) with
+ *    periodic checks at 25% intervals. Tab visibility changes trigger
+ *    immediate idle (matching Discord/Slack behavior).
+ *
+ * 4. Supabase Realtime presence: still used for real-time distribution to
+ *    other clients (member lists, profile indicators). The heartbeat system
+ *    ensures the DB is always eventually consistent even if Realtime hiccups.
+ */
+export function usePresenceSync(userId: string | null, status?: UserStatus): void {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
-  const currentStatusRef = useRef<PresenceStatus>(resolveInitialPresenceStatus(status))
-  const explicitStatusRef = useRef<PresenceStatus>(resolveInitialPresenceStatus(status))
-  const isIdleExplicitRef = useRef<boolean>(status === "idle")
-  const idleTimerRef = useRef<number | undefined>(undefined)
+
+  // Current status for THIS tab
+  const tabStatusRef = useRef<UserStatus>(resolveInitialStatus(status))
+  // The user's explicit preference (dnd, invisible) — survives idle transitions
+  const explicitStatusRef = useRef<UserStatus>(resolveInitialStatus(status))
+  // Whether this tab is currently idle (auto-detected, not user-set)
+  const autoIdleRef = useRef(false)
+
   const userIdRef = useRef<string | null>(null)
+  const heartbeatTimerRef = useRef<number | undefined>(undefined)
+  const idleCheckTimerRef = useRef<number | undefined>(undefined)
+  const lastActivityRef = useRef(Date.now())
+  const lastHeartbeatSentRef = useRef(0)
 
-  const persistStatusRef = useRef<(nextStatus: PresenceStatus) => void>(() => {})
+  // Track other tabs' statuses for aggregation
+  const otherTabStatusesRef = useRef<Map<string, UserStatus>>(new Map())
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null)
 
+  // Sync explicit status prop changes (e.g., user changes status in settings)
   useEffect(() => {
-    if (status === "idle" || status === "dnd" || status === "invisible") {
+    if (status === "dnd" || status === "invisible") {
       explicitStatusRef.current = status
-      isIdleExplicitRef.current = status === "idle"
+      tabStatusRef.current = status
     }
   }, [status])
 
@@ -33,147 +88,241 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
     if (!userId) return
     userIdRef.current = userId
 
-    let isInitialCall = true
-    const persistStatus = (nextStatus: PresenceStatus, options?: { persistUserRecord?: boolean; rememberExplicit?: boolean }) => {
-      const persistUserRecord = options?.persistUserRecord ?? true
-      const rememberExplicit = options?.rememberExplicit ?? (nextStatus === "idle" || nextStatus === "dnd" || nextStatus === "invisible")
-
-      const statusChanged = currentStatusRef.current !== nextStatus
-
-      currentStatusRef.current = nextStatus
-      if (rememberExplicit) {
-        explicitStatusRef.current = nextStatus
-      }
-
-      if (nextStatus === "idle") {
-        isIdleExplicitRef.current = rememberExplicit
-      } else if (nextStatus === "online") {
-        isIdleExplicitRef.current = false
-      } else if (rememberExplicit) {
-        isIdleExplicitRef.current = false
-      }
-
-      // Skip redundant track/persist calls when status hasn't actually changed
-      if (!statusChanged && !isInitialCall) return
-      isInitialCall = false
-
-      if (persistUserRecord) {
-        supabase
-          .from("users")
-          .update({ status: nextStatus, updated_at: new Date().toISOString() })
-          .eq("id", userId)
-          .then()
-      }
-
+    // ── Broadcast & track to Supabase Realtime ─────────────────────────────
+    function broadcastPresence(nextStatus: UserStatus): void {
       channelRef.current?.track({
-        user_id: userId,
+        user_id: userId!,
         status: nextStatus,
         online_at: new Date().toISOString(),
       })
     }
 
-    persistStatusRef.current = persistStatus
+    // ── Status update (local tab) ──────────────────────────────────────────
+    let prevBroadcastedStatus: UserStatus | null = null
 
-    const clearIdleTimer = () => {
-      if (idleTimerRef.current) {
-        window.clearTimeout(idleTimerRef.current)
+    function setTabStatus(nextStatus: UserStatus, options?: { isAutoIdle?: boolean }): void {
+      const isAutoIdle = options?.isAutoIdle ?? false
+
+      tabStatusRef.current = nextStatus
+      autoIdleRef.current = isAutoIdle && nextStatus === "idle"
+
+      // Notify other tabs
+      try {
+        broadcastChannelRef.current?.postMessage({
+          type: "status-update",
+          status: nextStatus,
+          tabId: TAB_ID,
+        } satisfies PresenceBroadcastMessage)
+      } catch {
+        // BroadcastChannel may be unavailable
       }
-      idleTimerRef.current = undefined
+
+      // Compute aggregated status across all tabs
+      const allStatuses: UserStatus[] = [nextStatus]
+      for (const s of otherTabStatusesRef.current.values()) {
+        allStatuses.push(s)
+      }
+      const aggregated = aggregateStatus(allStatuses)
+
+      // Only broadcast + persist if the aggregated status actually changed
+      if (aggregated === prevBroadcastedStatus) return
+      prevBroadcastedStatus = aggregated
+
+      broadcastPresence(aggregated)
+
+      // Persist to DB (non-blocking)
+      supabase
+        .from("users")
+        .update({ status: aggregated, updated_at: new Date().toISOString() })
+        .eq("id", userId!)
+        .then()
     }
 
-    const scheduleIdle = () => {
-      clearIdleTimer()
-      idleTimerRef.current = window.setTimeout(() => {
-        if (document.hidden) return
-        if (currentStatusRef.current === "online") {
-          persistStatus("idle", { persistUserRecord: false, rememberExplicit: false })
+    // ── BroadcastChannel for multi-tab coordination ────────────────────────
+    try {
+      const bc = new BroadcastChannel(PRESENCE_BROADCAST_CHANNEL)
+      broadcastChannelRef.current = bc
+
+      bc.onmessage = (event: MessageEvent<PresenceBroadcastMessage>) => {
+        const msg = event.data
+        if (!msg || typeof msg !== "object") return
+
+        if (msg.type === "status-update" && msg.tabId !== TAB_ID) {
+          otherTabStatusesRef.current.set(msg.tabId, msg.status)
+          // Re-aggregate and broadcast if needed
+          const allStatuses: UserStatus[] = [tabStatusRef.current]
+          for (const s of otherTabStatusesRef.current.values()) {
+            allStatuses.push(s)
+          }
+          const aggregated = aggregateStatus(allStatuses)
+          if (aggregated !== prevBroadcastedStatus) {
+            prevBroadcastedStatus = aggregated
+            broadcastPresence(aggregated)
+          }
+        } else if (msg.type === "tab-closing" && msg.tabId !== TAB_ID) {
+          otherTabStatusesRef.current.delete(msg.tabId)
+          // Re-aggregate — the closing tab is gone
+          const allStatuses: UserStatus[] = [tabStatusRef.current]
+          for (const s of otherTabStatusesRef.current.values()) {
+            allStatuses.push(s)
+          }
+          const aggregated = aggregateStatus(allStatuses)
+          if (aggregated !== prevBroadcastedStatus) {
+            prevBroadcastedStatus = aggregated
+            broadcastPresence(aggregated)
+            supabase
+              .from("users")
+              .update({ status: aggregated, updated_at: new Date().toISOString() })
+              .eq("id", userId!)
+              .then()
+          }
         }
-      }, IDLE_TIMEOUT_MS)
+      }
+    } catch {
+      // BroadcastChannel not supported — single-tab mode
     }
 
-    const initialStatus = resolveInitialPresenceStatus(status)
-    persistStatus(initialStatus)
+    // ── Heartbeat ──────────────────────────────────────────────────────────
+    // Fluxer's gateway tracks session liveness via heartbeat ACKs. We achieve
+    // the same by periodically POSTing to /api/presence/heartbeat. The server
+    // updates last_heartbeat_at; a cron job marks stale entries as offline.
+    async function sendHeartbeat(): Promise<void> {
+      const now = Date.now()
+      // Don't send if we just sent one (debounce)
+      if (now - lastHeartbeatSentRef.current < PRESENCE_HEARTBEAT_INTERVAL_MS * 0.8) return
+      lastHeartbeatSentRef.current = now
 
+      const currentStatus = tabStatusRef.current
+      // Don't heartbeat for invisible/offline — let the cron handle it
+      if (currentStatus === "offline") return
+
+      // For invisible users, still heartbeat but the server stores "invisible"
+      // so the cron won't mark them offline
+      try {
+        await fetch("/api/presence/heartbeat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: currentStatus === "invisible" ? "invisible" : currentStatus }),
+          keepalive: true,
+        })
+      } catch {
+        // Network error — the cron will handle stale detection
+      }
+    }
+
+    // ── Idle detection (Fluxer-style) ──────────────────────────────────────
+    // Fluxer's IdleStore checks at 25% intervals of the idle threshold.
+    // We do the same: every 2.5 minutes, check if the user has been inactive
+    // for 10 minutes.
+    function checkIdle(): void {
+      if (isExplicitStatus(tabStatusRef.current)) return
+
+      const elapsed = Date.now() - lastActivityRef.current
+      if (elapsed >= IDLE_TIMEOUT_MS) {
+        if (tabStatusRef.current !== "idle") {
+          setTabStatus("idle", { isAutoIdle: true })
+        }
+      }
+    }
+
+    // ── Activity tracking ──────────────────────────────────────────────────
+    let lastActivityEventTime = 0
+
+    function onActivity(): void {
+      const now = Date.now()
+      if (now - lastActivityEventTime < ACTIVITY_THROTTLE_MS) return
+      lastActivityEventTime = now
+      lastActivityRef.current = now
+
+      // If we were auto-idle, go back to online
+      if (autoIdleRef.current && tabStatusRef.current === "idle") {
+        setTabStatus("online")
+      }
+    }
+
+    function onVisibilityChange(): void {
+      if (document.hidden) {
+        // Tab hidden → mark as idle if currently online (Discord/Slack behavior)
+        if (tabStatusRef.current === "online") {
+          setTabStatus("idle", { isAutoIdle: true })
+        }
+        return
+      }
+
+      // Tab regained focus
+      lastActivityRef.current = Date.now()
+
+      if (isExplicitStatus(explicitStatusRef.current)) {
+        // User has an explicit status set — restore it
+        if (tabStatusRef.current !== explicitStatusRef.current) {
+          setTabStatus(explicitStatusRef.current)
+        }
+        return
+      }
+
+      // Go back to online
+      if (tabStatusRef.current !== "online") {
+        setTabStatus("online")
+      }
+    }
+
+    // ── Supabase Realtime presence channel ─────────────────────────────────
     const channel = supabase.channel("presence:global", {
       config: { presence: { key: userId } },
     })
-
     channelRef.current = channel
 
     channel
       .on("presence", { event: "sync" }, () => {})
       .subscribe(async (subscribeStatus) => {
         if (subscribeStatus === "SUBSCRIBED") {
-          await channel.track({
-            user_id: userId,
-            status: currentStatusRef.current,
-            online_at: new Date().toISOString(),
-          })
+          const initialStatus = resolveInitialStatus(status)
+          setTabStatus(initialStatus)
+          // Send initial heartbeat immediately
+          await sendHeartbeat()
         }
       })
 
-    let lastActivityTime = 0
-    const ACTIVITY_THROTTLE_MS = 3000
-    const onActivity = () => {
-      const now = Date.now()
-      if (now - lastActivityTime < ACTIVITY_THROTTLE_MS) return
-      lastActivityTime = now
-      if (currentStatusRef.current === "idle" && !isIdleExplicitRef.current) {
-        persistStatus("online", { persistUserRecord: false, rememberExplicit: false })
-      }
-      scheduleIdle()
-    }
+    // ── Start timers ───────────────────────────────────────────────────────
+    heartbeatTimerRef.current = window.setInterval(() => {
+      sendHeartbeat()
+    }, PRESENCE_HEARTBEAT_INTERVAL_MS)
 
-    const onVisibility = () => {
-      if (document.hidden) {
-        // Tab hidden → mark as idle (not offline). The user is still reachable;
-        // they just aren't actively looking at the tab — matching Discord/Slack
-        // behaviour where switching tabs shows a yellow idle indicator, not a
-        // full "offline" state.
-        if (currentStatusRef.current === "online") {
-          persistStatus("idle", { persistUserRecord: false, rememberExplicit: false })
-        }
-        return
-      }
+    idleCheckTimerRef.current = window.setInterval(checkIdle, IDLE_CHECK_INTERVAL_MS)
 
-      // Tab regained focus — restore the user's explicit status if they had one,
-      // otherwise go back to "online" and restart the idle timer.
-      if (explicitStatusRef.current === "idle" || explicitStatusRef.current === "dnd" || explicitStatusRef.current === "invisible") {
-        persistStatus(explicitStatusRef.current)
-        return
-      }
-
-      persistStatus("online", { persistUserRecord: false, rememberExplicit: false })
-      scheduleIdle()
-    }
-
-    scheduleIdle()
+    // ── Event listeners ────────────────────────────────────────────────────
     window.addEventListener("mousemove", onActivity)
     window.addEventListener("keydown", onActivity)
-    window.addEventListener("focus", onActivity)
-    document.addEventListener("visibilitychange", onVisibility)
+    window.addEventListener("pointerdown", onActivity)
+    window.addEventListener("scroll", onActivity, { passive: true })
+    document.addEventListener("visibilitychange", onVisibilityChange)
 
-    return () => {
-      clearIdleTimer()
-      window.removeEventListener("mousemove", onActivity)
-      window.removeEventListener("keydown", onActivity)
-      window.removeEventListener("focus", onActivity)
-      document.removeEventListener("visibilitychange", onVisibility)
-      supabase.removeChannel(channel)
-    }
-  }, [userId, status, supabase])
+    // ── Tab close handler ──────────────────────────────────────────────────
+    // Still use sendBeacon as a best-effort fast path. But the heartbeat
+    // cron is the real safety net — if sendBeacon fails, the user gets
+    // marked offline within 90s by the cron.
+    function handleBeforeUnload(): void {
+      // Notify other tabs that we're leaving
+      try {
+        broadcastChannelRef.current?.postMessage({
+          type: "tab-closing",
+          tabId: TAB_ID,
+        } satisfies PresenceBroadcastMessage)
+      } catch {
+        // Ignore
+      }
 
-  useEffect(() => {
-    function handleBeforeUnload() {
-      const currentUserId = userIdRef.current
-      if (!currentUserId) return
+      // Check if other tabs are still open
+      const otherTabCount = otherTabStatusesRef.current.size
+      if (otherTabCount > 0) {
+        // Other tabs are open — don't mark offline. The remaining tabs will
+        // continue heartbeating and the aggregated status will be correct.
+        channelRef.current?.untrack()
+        return
+      }
 
+      // Last tab closing — mark offline via sendBeacon (fast path)
       channelRef.current?.untrack()
-
-      // Persist offline status to the database via sendBeacon so the server
-      // knows the user is no longer connected. This is critical for push
-      // notification eligibility — without it, users.status stays "online"
-      // indefinitely after the tab closes.
       try {
         const blob = new Blob(
           [JSON.stringify({ status: "offline" })],
@@ -181,13 +330,39 @@ export function usePresenceSync(userId: string | null, status?: PresenceStatus) 
         )
         navigator.sendBeacon("/api/presence", blob)
       } catch {
-        // sendBeacon may fail in some environments — not critical
+        // sendBeacon failed — heartbeat cron will handle it within 90s
       }
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload)
+
+    // ── Cleanup ────────────────────────────────────────────────────────────
     return () => {
+      if (heartbeatTimerRef.current) {
+        window.clearInterval(heartbeatTimerRef.current)
+        heartbeatTimerRef.current = undefined
+      }
+      if (idleCheckTimerRef.current) {
+        window.clearInterval(idleCheckTimerRef.current)
+        idleCheckTimerRef.current = undefined
+      }
+
+      window.removeEventListener("mousemove", onActivity)
+      window.removeEventListener("keydown", onActivity)
+      window.removeEventListener("pointerdown", onActivity)
+      window.removeEventListener("scroll", onActivity)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
       window.removeEventListener("beforeunload", handleBeforeUnload)
+
+      try {
+        broadcastChannelRef.current?.close()
+        broadcastChannelRef.current = null
+      } catch {
+        // Ignore
+      }
+      otherTabStatusesRef.current.clear()
+
+      supabase.removeChannel(channel)
     }
-  }, [supabase])
+  }, [userId, status, supabase])
 }

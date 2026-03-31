@@ -34,9 +34,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const supabase = await createServerSupabaseClient()
+    const now = new Date().toISOString()
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
-      .update({ status: status as "online" | "idle" | "dnd" | "invisible" | "offline", updated_at: new Date().toISOString() })
+      .update({
+        status: status as "online" | "idle" | "dnd" | "invisible" | "offline",
+        updated_at: now,
+        // Clear heartbeat when going offline so the cron doesn't
+        // fight with the explicit offline request.
+        ...(status === "offline" ? { last_heartbeat_at: null } : { last_heartbeat_at: now }),
+      })
       .eq("id", user.id)
       .select("id")
       .maybeSingle()
