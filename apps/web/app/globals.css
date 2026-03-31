@@ -28,7 +28,7 @@
     --radius: 0.5rem;
     /* ── Mobile bottom-nav pill geometry ──────────────────────────────────── */
     --mobile-tabbar-height: 56px;
-    --mobile-tabbar-gap: 4px;
+    --mobile-tabbar-gap: 2px;
     --mobile-tabbar-reserve: calc(var(--mobile-tabbar-height) + var(--mobile-tabbar-gap) + env(safe-area-inset-bottom));
     /* ── Motion timing tokens ─────────────────────────────────────────────── */
     --motion-duration-instant: 80ms;
@@ -105,7 +105,7 @@
   * {
     @apply border-border;
   }
-  body {
+  html, body {
     @apply bg-background text-foreground;
     background-color: var(--app-bg-primary);
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -116,6 +116,7 @@
     touch-action: manipulation;
     /* Prevent any child element from causing horizontal scroll on mobile */
     overflow-x: hidden;
+    max-width: 100vw;
   }
 
   /* iOS Safari auto-zooms inputs with font-size < 16px — force 16px on mobile

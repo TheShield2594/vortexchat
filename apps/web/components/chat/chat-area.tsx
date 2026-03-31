@@ -802,9 +802,13 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   // Resync messages when the browser tab regains focus — browsers throttle
   // WebSockets in background tabs so Supabase Realtime can silently drop.
+  // We both fetch missed messages AND kick the realtime channel so it
+  // reconnects immediately rather than waiting for the FSM backoff timer.
   useEffect(() => {
     const onVisibility = async () => {
       if (document.hidden) return
+      // Kick the realtime channel so it reconnects immediately
+      window.dispatchEvent(new CustomEvent("vortex:realtime-retry"))
       try {
         const res = await fetch(`/api/messages?channelId=${channel.id}&limit=50`)
         if (!res.ok) return
@@ -1711,8 +1715,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none", overscrollBehaviorY: "contain" }}
           {...(isMobile ? pullToRefreshHandlers : {})}
         >
-          {/* Pull-to-refresh indicator (mobile only, column-reverse so this renders at visual top) */}
-          {isMobile && (pullDistance > 0 || pullRefreshing) && (
+          {/* Pull-to-refresh indicator (mobile only) — require meaningful pull before showing */}
+          {isMobile && (pullDistance > 20 || pullRefreshing) && (
             <div
               className="flex items-center justify-center py-2 select-none"
               style={{ minHeight: `${Math.max(pullDistance, pullRefreshing ? 40 : 0)}px` }}

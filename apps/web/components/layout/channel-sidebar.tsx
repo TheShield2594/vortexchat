@@ -209,7 +209,22 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel, setServerHasUnread } = useAppStore(
     useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList, toggleThreadPanel: s.toggleThreadPanel, toggleWorkspacePanel: s.toggleWorkspacePanel, setServerHasUnread: s.setServerHasUnread }))
   )
-  const [categoryExpansionOverrides, setCategoryExpansionOverrides] = useState<Record<string, boolean>>({})
+  const [categoryExpansionOverrides, setCategoryExpansionOverridesRaw] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {}
+    try {
+      const stored = window.localStorage.getItem(`vortexchat:category-expansion:${server.id}`)
+      return stored ? (JSON.parse(stored) as Record<string, boolean>) : {}
+    } catch {
+      return {}
+    }
+  })
+  const setCategoryExpansionOverrides: typeof setCategoryExpansionOverridesRaw = (action) => {
+    setCategoryExpansionOverridesRaw((prev) => {
+      const next = typeof action === "function" ? action(prev) : action
+      try { window.localStorage.setItem(`vortexchat:category-expansion:${server.id}`, JSON.stringify(next)) } catch { /* best effort */ }
+      return next
+    })
+  }
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showServerSettings, setShowServerSettings] = useState(false)
   const [createChannelCategoryId, setCreateChannelCategoryId] = useState<string | undefined>()

@@ -542,6 +542,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
       mentionHandledNavigation,
       emojiHandledNavigation,
       slashHandledNavigation,
+      isMobile,
     })
 
     if (action.preventDefault) {
@@ -1172,7 +1173,6 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                 {([
                   { key: "emoji" as const, label: "Emoji", panel: "emoji-tab-panel" },
                   { key: "gif" as const, label: "GIFs", panel: "gif-tab-panel" },
-                  ...(media.memesAvailable !== false ? [{ key: "meme" as const, label: "Memes", panel: "meme-tab-panel" }] : []),
                   { key: "sticker" as const, label: "Stickers", panel: "sticker-tab-panel" },
                 ] as const).map((tab) => (
                   <button
@@ -1411,71 +1411,6 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                         </button>
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
-              {pickerTab === "meme" && (
-                <div id="meme-tab-panel" role="tabpanel" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
-                  {media.memesAvailable === false ? (
-                    <div className="flex-1 flex items-center justify-center">
-                      <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Memes are not available with the current provider.</p>
-                    </div>
-                  ) : (
-                  <>
-                  <input
-                    value={media.memeQuery}
-                    onChange={(e) => media.setMemeQuery(e.target.value)}
-                    placeholder="Search memes"
-                    aria-label="Search memes"
-                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
-                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
-                  />
-                  {!media.memeQuery.trim() && !media.memeLoading && media.memeResults.length > 0 && (
-                    <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
-                      Trending
-                    </p>
-                  )}
-                  {media.memeLoading ? (
-                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading memes…</p>
-                  ) : (
-                    <div
-                      className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 min-h-0"
-                      onKeyDown={handleGifGridKeyDown}
-                    >
-                      {media.memeResults.map((meme) => (
-                        <button
-                          key={meme.id}
-                          onClick={async () => {
-                            if (sending) return
-                            const memeUrl = meme.url || meme.gifUrl
-                            if (!memeUrl?.trim()) {
-                              setSendError("Cannot send empty meme.")
-                              return
-                            }
-                            setShowEmojiPicker(false)
-                            setSending(true)
-                            setSendError(null)
-                            onSent?.()
-                            try {
-                              await onSend(memeUrl)
-                            } catch (error: unknown) {
-                              setSendError(error instanceof Error ? error.message : "Failed to send meme. Try again.")
-                            } finally {
-                              setSending(false)
-                              textareaRef.current?.focus()
-                            }
-                          }}
-                          className="rounded overflow-hidden hover:opacity-90 focus-ring"
-                          title={meme.title}
-                          aria-label={meme.title}
-                        >
-                          <img src={meme.previewUrl} alt={meme.title} className="w-full aspect-video object-cover" />
-                          <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{meme.title || "Meme"}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  </>
                   )}
                 </div>
               )}

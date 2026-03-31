@@ -9,6 +9,7 @@ export interface ComposerKeybindingState {
   mentionHandledNavigation: boolean
   emojiHandledNavigation: boolean
   slashHandledNavigation: boolean
+  isMobile: boolean
 }
 
 export interface ComposerKeybindingResult {
@@ -90,6 +91,9 @@ export function resolveComposerKeybinding(
   }
 
   if (key === "Enter" && !shiftKey) {
+    // On mobile, Enter inserts a newline (like most mobile chat apps).
+    // Users tap the dedicated Send button to send. On desktop, Enter sends.
+    if (state.isMobile) return NOOP
     return { ...NOOP, preventDefault: true, sendMessage: true }
   }
 

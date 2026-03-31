@@ -286,6 +286,10 @@ export function ServerMobileLayout({ serverId, sidebar, memberList, children }: 
         {/* Channel content */}
         <main id="main-content" className="flex flex-1 overflow-hidden relative">
           {children}
+          {/* Hidden mount: ensure MemberList populates the store for @mention autocomplete */}
+          {!mobileMemberListOpen && (
+            <div className="hidden" aria-hidden="true">{memberList}</div>
+          )}
           {/* Member list slides in as an overlay panel with backdrop */}
           {mobileMemberListOpen && (
             <>
