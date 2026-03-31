@@ -53,7 +53,7 @@ When reviewing any system, always ask:
 1. **Never recommend disabling security controls** as a solution — find the root cause
 2. **All user input is hostile** — validate and sanitize at every trust boundary (client, API gateway, service, database)
 3. **No custom crypto** — use well-tested libraries. Never roll your own encryption, hashing, or random number generation
-4. **Secrets are sacred** — no hardcoded credentials, no secrets in logs, no secrets in client-side code, no secrets in environment variables without encryption
+4. **Secrets are sacred** — no hardcoded credentials, no secrets in logs, no secrets in client-side code; store secrets in a managed secret store with rotation and inject at runtime (never commit plaintext secrets)
 5. **Default deny** — whitelist over blacklist in access control, input validation, CORS, and CSP
 6. **Fail securely** — errors must not leak stack traces, internal paths, database schemas, or version information
 7. **Least privilege everywhere** — IAM roles, database users, API scopes, file permissions, container capabilities

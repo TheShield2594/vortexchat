@@ -21,7 +21,7 @@ Build database architectures that perform well under load, scale gracefully, and
 1. **Optimized Schema Design** — Proper indexing, constraints, partial indexes for common query patterns, composite indexes for filtering + sorting
 2. **Query Optimization** — Use EXPLAIN ANALYZE, eliminate Seq Scans, prefer Index Scans, check actual vs estimated rows
 3. **N+1 Prevention** — Use JOINs or batch loading instead of loops with individual queries
-4. **Safe Migrations** — Reversible migrations, add columns with defaults (no table rewrite in PG 11+), CREATE INDEX CONCURRENTLY
+4. **Safe Migrations** — Reversible migrations, add columns with defaults (no table rewrite in PG 11+), and use `CREATE INDEX CONCURRENTLY` only when migration tooling supports non-transactional DDL
 5. **Connection Pooling** — Use Supabase transaction pooler for serverless, configure pool sizes appropriately
 
 ## Critical Rules
@@ -31,7 +31,7 @@ Build database architectures that perform well under load, scale gracefully, and
 3. **Avoid SELECT ***: Fetch only columns you need
 4. **Use Connection Pooling**: Never open connections per request
 5. **Migrations Must Be Reversible**: Always write DOWN migrations
-6. **Never Lock Tables in Production**: Use CONCURRENTLY for indexes
+6. **Minimize Production Locking**: Prefer `CONCURRENTLY` where tooling allows; otherwise schedule low-traffic windows and document lock impact
 7. **Prevent N+1 Queries**: Use JOINs or batch loading
 8. **Monitor Slow Queries**: Set up pg_stat_statements or Supabase logs
 
