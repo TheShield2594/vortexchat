@@ -48,6 +48,7 @@ const QuickSwitcherModal = dynamic(() => import("@/components/modals/quickswitch
 const NotificationSettingsModal = dynamic(() => import("@/components/modals/notification-settings-modal").then((m) => ({ default: m.NotificationSettingsModal })))
 const SearchModal = dynamic(() => import("@/components/modals/search-modal").then((m) => ({ default: m.SearchModal })))
 const KeyboardShortcutsModal = dynamic(() => import("@/components/modals/keyboard-shortcuts-modal").then((m) => ({ default: m.KeyboardShortcutsModal })))
+const TransparencyPanel = dynamic(() => import("@/components/admin/transparency-panel").then((m) => ({ default: m.TransparencyPanel })))
 import { PERMISSIONS, hasPermission } from "@vortex/shared"
 import { useUnreadChannels } from "@/hooks/use-unread-channels"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
@@ -239,6 +240,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
+  const [transparencyTarget, setTransparencyTarget] = useState<{ serverId: string; channelId: string } | null>(null)
   const [activeThreadCounts, setActiveThreadCounts] = useState<Record<string, number>>(initialThreadCounts ?? {})
   const router = useRouter()
   const { toast } = useToast()
@@ -258,6 +260,18 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   useEffect(() => {
     perfLogSinceNav("ChannelSidebar mounted")
   }, [server.id])
+
+  // Listen for transparency report open event from channel context menu
+  useEffect(() => {
+    const handler = (e: Event): void => {
+      const detail = (e as CustomEvent<{ serverId: string; channelId: string }>).detail
+      if (detail?.serverId && detail?.channelId) {
+        setTransparencyTarget(detail)
+      }
+    }
+    window.addEventListener("vortex:open-transparency", handler)
+    return () => window.removeEventListener("vortex:open-transparency", handler)
+  }, [])
 
   // Seed store with server-fetched channels once per server
   const seededServerRef = useRef<string | null>(null)
@@ -1072,6 +1086,23 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             onClose={() => setEditCategoryTarget(null)}
           />
         )}
+
+        {/* Transparency report dialog */}
+        <Dialog open={!!transparencyTarget} onOpenChange={(open) => { if (!open) setTransparencyTarget(null) }}>
+          <DialogContent className="channel-sidebar-dialog-content p-0 max-w-sm">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Channel Transparency Report</DialogTitle>
+              <DialogDescription>View channel visibility and recent moderation actions</DialogDescription>
+            </DialogHeader>
+            {transparencyTarget && (
+              <TransparencyPanel
+                serverId={transparencyTarget.serverId}
+                channelId={transparencyTarget.channelId}
+                inline
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </nav>
     </TooltipProvider>
   )
