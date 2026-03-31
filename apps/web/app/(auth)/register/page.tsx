@@ -11,10 +11,26 @@ import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { VortexLogo } from "@/components/ui/vortex-logo"
 
+function friendlySignupError(message: string): string {
+  const lower = message.toLowerCase()
+  if (lower.includes("already registered") || lower.includes("already been registered"))
+    return "An account with this email already exists. Try logging in instead."
+  if (lower.includes("password") && (lower.includes("strength") || lower.includes("weak") || lower.includes("short")))
+    return "Password is too weak. Use at least 12 characters with a mix of letters, numbers, and symbols."
+  if (lower.includes("rate") || lower.includes("too many"))
+    return "Too many signup attempts. Please wait a moment and try again."
+  if (lower.includes("invalid") && lower.includes("email"))
+    return "Please enter a valid email address."
+  if (lower.includes("not authorized") || lower.includes("signup is disabled"))
+    return "Signups are currently disabled. Please try again later."
+  return message
+}
+
 export default function RegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
   const [form, setForm] = useState({
     email: "",
     username: "",
@@ -24,8 +40,10 @@ export default function RegisterPage() {
   })
   const supabase = createClientSupabaseClient()
 
-  async function handleRegister(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent): Promise<void> {
     e.preventDefault()
+
+    setFormError(null)
 
     if (form.password !== form.confirmPassword) {
       toast({ variant: "destructive", title: "Passwords do not match" })
@@ -49,7 +67,7 @@ export default function RegisterPage() {
 
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: {
@@ -62,16 +80,29 @@ export default function RegisterPage() {
       })
       if (error) throw error
 
+      // Supabase returns a fake success (200, no error) for duplicate emails
+      // when email confirmation is enabled — detect via empty identities array
+      if (data.user?.identities?.length === 0) {
+        const msg = "An account with this email already exists. Try logging in instead."
+        setFormError(msg)
+        toast({ variant: "destructive", title: "Registration failed", description: msg })
+        return
+      }
+
       toast({
         title: "Account created!",
         description: "Check your email to verify your account, then log in.",
       })
       router.push("/login?registered=true")
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error("[register] signup failed:", error instanceof Error ? error.message : error)
+      const message = error instanceof Error ? error.message : "An unexpected error occurred. Please try again."
+      const friendly = friendlySignupError(message)
+      setFormError(friendly)
       toast({
         variant: "destructive",
         title: "Registration failed",
-        description: error.message,
+        description: friendly,
       })
     } finally {
       setLoading(false)
@@ -160,6 +191,16 @@ export default function RegisterPage() {
             className="auth-input h-10 border"
           />
         </div>
+
+        {formError && (
+          <div
+            role="alert"
+            className="rounded-md px-3 py-2 text-sm font-medium"
+            style={{ backgroundColor: 'var(--theme-danger-bg, rgba(255,0,0,0.1))', color: 'var(--theme-danger)' }}
+          >
+            {formError}
+          </div>
+        )}
 
         <Button
           type="submit"
