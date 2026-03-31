@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
-import { Send, X, Smile, Reply, Keyboard, FileUp, BarChart3, Plus, MessageSquare } from "lucide-react"
+import { Send, X, Smile, Reply, FileUp, BarChart3, Plus, MessageSquare } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -1573,10 +1573,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
         className="mt-1 px-1 hidden md:flex items-center justify-between text-[11px]"
         style={{ color: "var(--theme-text-muted)" }}
       >
-        <div className="flex items-center gap-1.5">
-          <Keyboard className="w-3 h-3" />
-          <span>Enter send · Shift+Enter newline</span>
-        </div>
+        <span>Enter send · Shift+Enter newline</span>
         {mention.isOpen && <span>↑↓ navigate · Tab/Enter accept · Esc dismiss</span>}
       </div>
     </div>
