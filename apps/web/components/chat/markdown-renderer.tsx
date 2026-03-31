@@ -501,7 +501,10 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
 
 function preProcessContent(content: string): string {
   // Strip [POLL]...[/POLL] blocks (handled separately by MessageItem)
-  return content.replace(/\[POLL\][\s\S]*?\[\/POLL\]/gi, "")
+  let processed = content.replace(/\[POLL\][\s\S]*?\[\/POLL\]/gi, "")
+  // Escape angle brackets to prevent them from being interpreted as HTML tags
+  processed = processed.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  return processed
 }
 
 // ─── Stable plugin arrays ───────────────────────────────────────────────────

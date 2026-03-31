@@ -65,11 +65,13 @@ export async function POST(req: NextRequest) {
     const limited = await checkRateLimit(user.id, "friends:request", { limit: 20, windowMs: 3600_000 })
     if (limited) return limited
 
+    const serviceSupabase = await createServiceRoleClient()
+
     const { username } = await req.json()
     if (!username?.trim()) return NextResponse.json({ error: "Username required" }, { status: 400 })
 
-    // Find target user
-    const { data: target, error: targetErr } = await supabase
+    // Find target user — use service role to bypass discoverability RLS
+    const { data: target, error: targetErr } = await serviceSupabase
       .from("users")
       .select("id, username, display_name, avatar_url, status")
       .ilike("username", username.trim())
