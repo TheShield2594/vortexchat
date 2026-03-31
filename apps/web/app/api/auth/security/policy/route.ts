@@ -47,7 +47,7 @@ export async function PATCH(request: Request) {
 
     if (error) {
       console.error("[auth/security/policy PATCH] db error:", error.message)
-      return NextResponse.json({ error: "Failed to update security policy" }, { status: 400 })
+      return NextResponse.json({ error: "Failed to update security policy" }, { status: 500 })
     }
     return NextResponse.json({ ok: true })
 
