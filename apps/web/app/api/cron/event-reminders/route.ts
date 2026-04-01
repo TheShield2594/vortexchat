@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { sendPushToUser } from "@/lib/push"
+import { verifyBearerToken } from "@/lib/utils/timing-safe"
 
 /**
  * Notify RSVP'd members about events starting within 10–20 minutes.
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Server misconfigured" }, { status: 500 })
     }
     const authHeader = request.headers.get("authorization")
-    if (authHeader !== `Bearer ${secret}`) {
+    if (!verifyBearerToken(authHeader, secret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

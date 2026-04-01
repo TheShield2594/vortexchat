@@ -104,6 +104,11 @@
 | CSP img-src/connect-src tightened (#544) | Done | Replaced `https:` / `wss:` wildcards with specific domain allowlists (Supabase, Klipy, Giphy, LiveKit, Sentry); domains derived from env vars |
 | Username enumeration via friend request (#543) | Done | Normalized POST `/api/friends` responses — always returns generic "Friend request sent (if user exists)" regardless of username validity |
 | Supabase `getUser()` error check in middleware (#550) | Done | `middleware.ts` now checks `error` from `getUser()` and returns `user: null` on failure instead of proceeding with undefined user |
+| TURN credentials moved server-side (#538) | Done | Replaced `NEXT_PUBLIC_TURN_*` env vars with server-side `TURN_URL`/`TURN_SECRET`; new `GET /api/turn-credentials` generates ephemeral HMAC-based credentials (TURN REST API); clients fetch via `fetchIceServers()` helper |
+| Step-up secret isolation (#541) | Done | Removed `STEP_UP_SECRET` fallback to `NEXTAUTH_SECRET`; production requires dedicated `STEP_UP_SECRET` env var |
+| Webhook HMAC request signing (#547) | Done | `POST /api/webhooks/[token]` validates optional `X-Webhook-Signature` header (HMAC-SHA256 with token as key); timing-safe comparison |
+| Rate limits on role assignment/removal (#551) | Done | `POST/DELETE /api/servers/[serverId]/members/[userId]/roles` — 10 actions per 5 min per moderator via `rateLimiter` |
+| Timing-safe cron/webhook token comparison (#555) | Done | All 6 cron endpoints use `verifyBearerToken()` with `crypto.timingSafeEqual` instead of `===` |
 
 ## Media Playback
 

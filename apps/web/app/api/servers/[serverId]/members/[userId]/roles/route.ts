@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
+import { rateLimiter } from "@/lib/rate-limit"
 
 async function assertRoleMutationAllowed(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
@@ -52,6 +53,12 @@ export async function POST(
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    // Rate limit: 10 role assignment actions per 5 minutes per moderator
+    const rl = await rateLimiter.check(`role_assign:${user.id}`, { limit: 10, windowMs: 5 * 60_000 })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many role changes. Please slow down." }, { status: 429 })
+    }
 
     const { roleId } = await req.json()
     if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
@@ -105,6 +112,12 @@ export async function DELETE(
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    // Rate limit: 10 role removal actions per 5 minutes per moderator
+    const rl = await rateLimiter.check(`role_remove:${user.id}`, { limit: 10, windowMs: 5 * 60_000 })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many role changes. Please slow down." }, { status: 429 })
+    }
 
     const { searchParams } = new URL(req.url)
     const roleId = searchParams.get("roleId")

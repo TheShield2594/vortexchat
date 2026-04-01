@@ -442,22 +442,10 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     const supabase = supabaseRef.current
     const myClientId = clientIdRef.current
 
-    /** Build ICE server configuration. */
-    function getIceServers(): RTCIceServer[] {
-      const iceServers: RTCIceServer[] = [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-      ]
-      const turnUrl = process.env.NEXT_PUBLIC_TURN_URL
-      const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL
-      const turnUsername = process.env.NEXT_PUBLIC_TURN_USERNAME
-      const turnCredential = process.env.NEXT_PUBLIC_TURN_CREDENTIAL
-      if (turnUrl && turnUsername && turnCredential) {
-        const urls: string[] = [turnUrl]
-        if (turnsUrl) urls.push(turnsUrl)
-        iceServers.push({ urls, username: turnUsername, credential: turnCredential })
-      }
-      return iceServers
+    /** Build ICE server configuration with ephemeral TURN credentials. */
+    async function getIceServers(): Promise<RTCIceServer[]> {
+      const { fetchIceServers } = await import("@/lib/webrtc/ice-servers")
+      return fetchIceServers()
     }
 
     /**
@@ -492,7 +480,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
             .catch((err) => {
               console.warn("[useVoice] ICE restart offer failed:", err)
               // Fall back to full re-negotiation
-              fullReconnectPeer(peerId, rtChannel)
+              fullReconnectPeer(peerId, rtChannel).catch(() => {})
             })
         }
         return true
@@ -503,10 +491,8 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     }
 
     /** Tear down and fully re-create a peer connection (new offer/answer exchange). */
-    function fullReconnectPeer(peerId: string, rtChannel: RealtimeChannel) {
+    async function fullReconnectPeer(peerId: string, rtChannel: RealtimeChannel): Promise<void> {
       const oldPc = peerConnections.current.get(peerId)
-      const peerUserId = Array.from(peerConnections.current.entries())
-        .find(([id]) => id === peerId)?.[0]
       // Get userId from peers ref
       const resolvedUserId = peersRef.current.get(peerId)?.userId ?? ""
 
@@ -520,12 +506,16 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       }
       iceRestartAttemptsRef.current.delete(peerId)
 
-      if (resolvedUserId) {
-        const stream = localStream.current ?? rawLocalStreamRef.current
-        if (stream) {
-          const initiator = myClientId > peerId
-          createPeerConnection(peerId, resolvedUserId, initiator, rtChannel, stream)
+      try {
+        if (resolvedUserId) {
+          const stream = localStream.current ?? rawLocalStreamRef.current
+          if (stream) {
+            const initiator = myClientId > peerId
+            await createPeerConnection(peerId, resolvedUserId, initiator, rtChannel, stream)
+          }
         }
+      } catch (err) {
+        console.warn("[useVoice] fullReconnectPeer failed for", peerId, err)
       }
     }
 
@@ -549,14 +539,14 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       })
     }
 
-    function createPeerConnection(
+    async function createPeerConnection(
       peerId: string,
       peerUserId: string,
       initiator: boolean,
       rtChannel: RealtimeChannel,
       stream: MediaStream
-    ): RTCPeerConnection {
-      const iceServers = getIceServers()
+    ): Promise<RTCPeerConnection> {
+      const iceServers = await getIceServers()
 
       const pc = new RTCPeerConnection({ iceServers })
       peerConnections.current.set(peerId, pc)
@@ -610,7 +600,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
             // Try ICE restart, fall back to full re-negotiation
             const restarted = attemptIceRestart(peerId, pc, rtChannel)
             if (!restarted) {
-              fullReconnectPeer(peerId, rtChannel)
+              fullReconnectPeer(peerId, rtChannel).catch(() => {})
             }
             break
 
@@ -637,13 +627,17 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
 
       if (initiator) {
         pc.onnegotiationneeded = async () => {
-          const offer = await pc.createOffer()
-          await pc.setLocalDescription(offer)
-          rtChannel.send({
-            type: "broadcast",
-            event: "offer",
-            payload: { to: peerId, from: myClientId, offer, userId },
-          })
+          try {
+            const offer = await pc.createOffer()
+            await pc.setLocalDescription(offer)
+            rtChannel.send({
+              type: "broadcast",
+              event: "offer",
+              payload: { to: peerId, from: myClientId, offer, userId },
+            })
+          } catch (err) {
+            console.warn("[useVoice] negotiationneeded failed for", peerId, err)
+          }
         }
       }
 
@@ -663,12 +657,16 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       return pc
     }
 
-    function handlePeer(peerClientId: string, peerUserId: string, rtChannel: RealtimeChannel, stream: MediaStream) {
+    async function handlePeer(peerClientId: string, peerUserId: string, rtChannel: RealtimeChannel, stream: MediaStream): Promise<void> {
       if (peerClientId === myClientId) return
       if (peerConnections.current.has(peerClientId)) return
       lastSeenByPeerRef.current.set(peerClientId, Date.now())
       const initiator = myClientId > peerClientId
-      createPeerConnection(peerClientId, peerUserId, initiator, rtChannel, stream)
+      try {
+        await createPeerConnection(peerClientId, peerUserId, initiator, rtChannel, stream)
+      } catch (err) {
+        console.warn("[useVoice] handlePeer failed for", peerClientId, err)
+      }
     }
 
     /**
@@ -745,7 +743,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
 
         let pc = peerConnections.current.get(from)
         if (!pc) {
-          pc = createPeerConnection(from, payload.userId as string, false, rtChannel, localStream.current ?? stream)
+          pc = await createPeerConnection(from, payload.userId as string, false, rtChannel, localStream.current ?? stream)
         }
 
         await pc.setRemoteDescription(payload.offer as RTCSessionDescriptionInit)
@@ -1034,7 +1032,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
           if (rtChannel) {
             const restarted = attemptIceRestart(peerId, pc, rtChannel)
             if (!restarted) {
-              fullReconnectPeer(peerId, rtChannel)
+              fullReconnectPeer(peerId, rtChannel).catch(() => {})
             }
           }
         }

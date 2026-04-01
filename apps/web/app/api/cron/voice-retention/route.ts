@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { writeAuditEvent } from "@/lib/voice/vortex-recap-service"
+import { verifyBearerToken } from "@/lib/utils/timing-safe"
 
 /**
  * GET /api/cron/voice-retention
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
     }
     const authHeader = req.headers.get("authorization")
-    if (authHeader !== `Bearer ${secret}`) {
+    if (!verifyBearerToken(authHeader, secret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
