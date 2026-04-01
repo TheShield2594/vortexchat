@@ -55,13 +55,21 @@ export const viewport: Viewport = {
   themeColor: "#00e5ff",
 }
 
+// Nonce-based CSP requires per-request rendering — cannot be statically generated
+export const dynamic = "force-dynamic"
+
 /** Top-level HTML shell — applies Inter (body) + Space Grotesk (display/headings), dark theme, and global toast notifications. */
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
-}) {
-  const nonce = (await headers()).get("x-nonce") ?? ""
+}): Promise<React.ReactElement> {
+  let nonce = ""
+  try {
+    nonce = (await headers()).get("x-nonce") ?? ""
+  } catch {
+    // Fallback to empty nonce if headers() is unavailable (e.g. static generation)
+  }
 
   return (
     <html lang="en" className="dark" suppressHydrationWarning nonce={nonce}>

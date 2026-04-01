@@ -273,7 +273,7 @@ The following areas are well-implemented and represent strong security posture:
 - Fix #3 (reduce auth cache) — config change
 
 **Sprint 2 (next cycle):**
-- Fix #2 (CSP hardening) — requires testing
+- ~~Fix #2 (CSP hardening)~~ — remediated (nonce-based CSP in proxy.ts)
 - Fix #5 (per-event auth) — architecture change
 - Fix #6 (username enumeration) — response normalization
 

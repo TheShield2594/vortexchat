@@ -8,13 +8,14 @@ import { updateSession } from "@/lib/supabase/middleware"
  * and 'strict-dynamic' allows scripts loaded by nonced scripts to run.
  */
 function buildCsp(): { nonce: string; header: string } {
+  const isDev = process.env.NODE_ENV === "development"
   const array = new Uint8Array(16)
   crypto.getRandomValues(array)
   const nonce = Buffer.from(array).toString("base64")
 
   const header = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' blob: data: https:",
     "font-src 'self' data: https://fonts.gstatic.com",
@@ -103,9 +104,12 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const { nonce, header: cspHeader } = buildCsp()
 
-  // Forward the nonce to server components via a request header
+  // Forward the nonce and CSP to server components via request headers.
+  // Next.js reads Content-Security-Policy from request headers during SSR
+  // to auto-nonce its framework scripts.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set("x-nonce", nonce)
+  requestHeaders.set("Content-Security-Policy", cspHeader)
 
   const isPassthrough = PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))
 
@@ -158,7 +162,7 @@ export async function proxy(request: NextRequest) {
   // Allow public routes and marketing homepage
   if (pathname === "/" || PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     try {
-      const { response } = await updateSession(request)
+      const { response } = await updateSession(request, requestHeaders)
       return applyCsp(response, nonce, cspHeader)
     } catch {
       return applyCsp(
@@ -174,7 +178,7 @@ export async function proxy(request: NextRequest) {
   let user: User | null = null
 
   try {
-    const result = await updateSession(request)
+    const result = await updateSession(request, requestHeaders)
     response = result.response
     user = result.user
   } catch {
