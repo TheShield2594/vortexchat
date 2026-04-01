@@ -21,15 +21,18 @@ import type { PeerInfo, IRoomManager } from "./rooms"
  * on room keys via REDIS_ROOM_TTL_SECONDS if you want automatic eviction.
  */
 export class RedisRoomManager implements IRoomManager {
-  private readonly redis: Redis
+  readonly redis: Redis
   private readonly roomPrefix = "vortex:room"
   private readonly socketPrefix = "vortex:socket"
+  /** TTL in seconds applied to room and socket keys for crash recovery cleanup. */
+  private readonly keyTtlSeconds: number
 
-  constructor(redisUrl: string) {
+  constructor(redisUrl: string, keyTtlSeconds = 300) {
     this.redis = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       lazyConnect: false,
     })
+    this.keyTtlSeconds = keyTtlSeconds
   }
 
   private roomKey(channelId: string): string {
@@ -56,13 +59,42 @@ export class RedisRoomManager implements IRoomManager {
     // Fetch existing peers before adding the new one
     const existing = await this.getRoomPeers(channelId)
 
-    // Persist peer into the room hash and record the socket→channel mapping
-    await Promise.all([
-      this.redis.hset(rKey, info.socketId, this.serialize(info)),
-      this.redis.sadd(sKey, channelId),
-    ])
+    // Persist peer into the room hash and record the socket→channel mapping.
+    // Apply TTL so stale keys from crashed processes auto-expire.
+    // Use MULTI/EXEC to ensure the socket key exists before any concurrent
+    // getRoomPeers() call can check it and classify the peer as stale.
+    await this.redis
+      .multi()
+      .sadd(sKey, channelId)
+      .expire(sKey, this.keyTtlSeconds)
+      .hset(rKey, info.socketId, this.serialize(info))
+      .expire(rKey, this.keyTtlSeconds)
+      .exec()
 
     return existing
+  }
+
+  /**
+   * Refresh TTL on all keys owned by the given socket.
+   * Call this periodically (e.g. on ping or heartbeat) to keep active
+   * sessions alive while allowing crashed sessions to auto-expire.
+   */
+  async refreshTtl(socketId: string): Promise<void> {
+    try {
+      const sKey = this.socketKey(socketId)
+      const channelIds = await this.redis.smembers(sKey)
+      if (channelIds.length === 0) return
+
+      const pipeline = this.redis.pipeline()
+      pipeline.expire(sKey, this.keyTtlSeconds)
+      for (const channelId of channelIds) {
+        pipeline.expire(this.roomKey(channelId), this.keyTtlSeconds)
+      }
+      await pipeline.exec()
+    } catch (err) {
+      console.error("[RedisRoomManager] refreshTtl failed", { socketId, err })
+      throw err
+    }
   }
 
   async leave(channelId: string, socketId: string): Promise<void> {
@@ -117,8 +149,47 @@ export class RedisRoomManager implements IRoomManager {
   }
 
   async getRoomPeers(channelId: string): Promise<PeerInfo[]> {
-    const hash = await this.redis.hgetall(this.roomKey(channelId))
-    return Object.values(hash ?? {}).map((v) => this.deserialize(v))
+    const rKey = this.roomKey(channelId)
+    const hash = await this.redis.hgetall(rKey)
+    if (!hash || Object.keys(hash).length === 0) return []
+
+    const entries = Object.entries(hash)
+    if (entries.length === 0) return []
+
+    // Batch EXISTS checks in a single pipeline (one RTT for all sockets)
+    const checkPipeline = this.redis.pipeline()
+    for (const [socketId] of entries) {
+      checkPipeline.exists(this.socketKey(socketId))
+    }
+    const existsResults = await checkPipeline.exec()
+
+    const peers: PeerInfo[] = []
+    const staleSocketIds: string[] = []
+
+    for (let i = 0; i < entries.length; i++) {
+      const [socketId, raw] = entries[i]
+      const exists = existsResults?.[i]?.[1] === 1
+      if (exists) {
+        peers.push(this.deserialize(raw))
+      } else {
+        staleSocketIds.push(socketId)
+      }
+    }
+
+    // Clean up stale entries
+    if (staleSocketIds.length > 0) {
+      try {
+        const cleanupPipeline = this.redis.pipeline()
+        for (const socketId of staleSocketIds) {
+          cleanupPipeline.hdel(rKey, socketId)
+        }
+        await cleanupPipeline.exec()
+      } catch (err) {
+        console.error("[RedisRoomManager] stale peer cleanup failed", { channelId, staleSocketIds, err })
+      }
+    }
+
+    return peers
   }
 
   async getRoomSize(channelId: string): Promise<number> {

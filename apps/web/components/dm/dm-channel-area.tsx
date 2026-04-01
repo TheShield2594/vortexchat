@@ -827,7 +827,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         (payload) => {
           const r = payload.new as DmReaction
           // Skip our own reactions (already handled optimistically)
-          if (r.user_id === currentUserId) return
+          if (!r.user_id || r.user_id === currentUserId) return
           setMessages((prev) => {
             if (!prev.some((m) => m.id === r.dm_id)) return prev
             return prev.map((m) => {
@@ -843,7 +843,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         { event: "DELETE", schema: "public", table: "dm_reactions" },
         (payload) => {
           const r = payload.old as DmReaction
-          if (r.user_id === currentUserId) return
+          // Always skip own-user DELETE events — own reactions are managed
+          // optimistically by handleDmReaction and must not be reverted by
+          // a stale or duplicate realtime event.
+          if (!r.user_id || r.user_id === currentUserId) return
           setMessages((prev) => {
             if (!prev.some((m) => m.id === r.dm_id)) return prev
             return prev.map((m) => {
@@ -1184,6 +1187,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         body: JSON.stringify({ emoji, nonce: crypto.randomUUID() }),
       })
       if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        console.error("[dm reaction toggle] API error:", { messageId, emoji, action: remove ? "remove" : "add", status: res.status, error: body?.error })
         // Revert optimistic update
         setMessages((prev) =>
           prev.map((m) => {

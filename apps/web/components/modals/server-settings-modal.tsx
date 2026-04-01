@@ -1561,14 +1561,20 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
   }
 
   async function toggleEnabled(rule: AutoModRuleRow) {
-    const res = await fetch(`/api/servers/${serverId}/automod/${rule.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: !rule.enabled }),
-    })
-    if (res.ok) {
-      const updated = await res.json()
-      setRules((prev) => prev.map((r) => (r.id === rule.id ? updated : r)))
+    try {
+      const res = await fetch(`/api/servers/${serverId}/automod/${rule.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !rule.enabled }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setRules((prev) => prev.map((r) => (r.id === rule.id ? updated : r)))
+      } else {
+        toast({ title: "Failed to toggle rule", description: "Could not update rule state. Please try again.", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Failed to toggle rule", description: "A network error occurred. Please try again.", variant: "destructive" })
     }
   }
 
@@ -1579,12 +1585,22 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
     if (index < 0 || swapIndex < 0 || swapIndex >= ordered.length) return
     const current = ordered[index]
     const other = ordered[swapIndex]
-    await Promise.all([
-      fetch(`/api/servers/${serverId}/automod/${current.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: other.priority ?? 100 }) }),
-      fetch(`/api/servers/${serverId}/automod/${other.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: current.priority ?? 100 }) }),
-    ])
-    const refreshed = await fetch(`/api/servers/${serverId}/automod`).then((r) => r.json())
-    setRules(Array.isArray(refreshed) ? refreshed : [])
+    try {
+      const [res1, res2] = await Promise.all([
+        fetch(`/api/servers/${serverId}/automod/${current.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: other.priority ?? 100 }) }),
+        fetch(`/api/servers/${serverId}/automod/${other.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: current.priority ?? 100 }) }),
+      ])
+      if (!res1.ok || !res2.ok) {
+        toast({ title: "Failed to reorder rules", description: "Could not update rule priorities. Please try again.", variant: "destructive" })
+        return
+      }
+      const refreshRes = await fetch(`/api/servers/${serverId}/automod`)
+      const refreshed = refreshRes.ok ? await refreshRes.json() : null
+      if (!refreshed) return
+      setRules(Array.isArray(refreshed) ? refreshed : [])
+    } catch {
+      toast({ title: "Failed to reorder rules", description: "A network error occurred. Please try again.", variant: "destructive" })
+    }
   }
 
   function updateForm(key: keyof AutoModRuleForm, value: unknown) {
