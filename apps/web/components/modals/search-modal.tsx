@@ -14,17 +14,34 @@ interface SearchResultAuthor {
   avatar_url?: string
 }
 
-interface SearchResult {
+interface MessageSearchResult {
+  type: "message"
   id: string
-  type: string
-  content?: string
-  title?: string
-  status?: string
+  content: string
   channel_id: string
-  channel_name?: string
   created_at: string
   author?: SearchResultAuthor
 }
+
+interface TaskSearchResult {
+  type: "task"
+  id: string
+  title: string
+  status?: string
+  channel_id: string
+  created_at: string
+}
+
+interface DocSearchResult {
+  type: "doc"
+  id: string
+  title: string
+  content?: string
+  channel_id: string
+  updated_at: string
+}
+
+type SearchResult = MessageSearchResult | TaskSearchResult | DocSearchResult
 
 interface ActiveFilters {
   from?: string

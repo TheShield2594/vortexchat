@@ -348,7 +348,7 @@ export function ThreadPanel({ thread, currentUserId, onClose, onThreadUpdate, fo
 
   return (
     <div
-      className="flex flex-col w-80 flex-shrink-0 border-l"
+      className="flex flex-col w-80 flex-shrink-0 border-l thread-panel-container"
       style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }}
     >
       {/* Header */}

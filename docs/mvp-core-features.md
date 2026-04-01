@@ -246,6 +246,15 @@
 | Event bus abstraction interface (#586) | Done | Added `IEventBus` interface with publish/subscribe/replay/acknowledge in `@vortex/shared`; typed event system with `VortexEvent` and `VortexEventType` |
 | Signal server graceful shutdown + Redis TTL (#587) | Done | 30s connection-draining shutdown; Redis room key TTL (5min) with periodic refresh; crash recovery via auto-expiry; SIGINT+SIGTERM handling |
 | Read position tracking API endpoints (#588) | Done | `POST /api/channels/:channelId/ack` for mark-as-read; `GET /api/users/me/read-states` for bulk hydration of channels, DMs, and threads |
+| PATCH roles handler try/catch (#567) | Done | Already had top-level try/catch wrapping entire handler body |
+| Server-templates POST try/catch + permission check (#568) | Done | Wrapped entire POST handler in try/catch; added membership verification before preview/apply/export modes |
+| Voice-channel fetchParticipants double-cast (#569) | Done | Replaced `as unknown as` with local `VoiceStateWithUser` interface; added error handling for Supabase query |
+| SearchResult discriminated union (#570) | Done | Split flat `SearchResult` into `MessageSearchResult \| TaskSearchResult \| DocSearchResult` discriminated union |
+| Audit log insert failure handling in roles (#571) | Done | PATCH and DELETE role handlers now return 500 if audit log insert fails instead of silently continuing |
+| CSS `color-scheme` for native dark mode (#574) | Done | Added `color-scheme: dark` to `:root`; added `color-scheme: light` to clarity preset; sakura-blossom already had it |
+| CSS container queries for component responsiveness (#575) | Done | Added `container-type: inline-size` to channel sidebar, member list, message input, thread panel; responsive `@container` rules |
+| Named view transitions (#576) | Done | Added `view-transition-name` to server sidebar, channel sidebar, chat area, and chat header surfaces; respects `prefers-reduced-motion` |
+| Suspicious login detection enforcement (#545) | Done | `computeLoginRisk` now returns `action` field; score >= 60 requires MFA/email challenge; score >= 80 locks session and requires email verification |
 
 ---
 
