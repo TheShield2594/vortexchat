@@ -23,7 +23,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 234 22% 22%;
     --input: 234 19% 14%;
-    --ring: 186 100% 50%;
+    --ring: var(--accent);
     --color-tertiary-metadata: #8f9bbf;
     --radius: 0.5rem;
     /* ── Mobile bottom-nav pill geometry ──────────────────────────────────── */
@@ -50,6 +50,84 @@
     --motion-select-bg: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface-elevated));
     --motion-skeleton-base: color-mix(in srgb, var(--theme-text-primary) 6%, transparent);
     --motion-skeleton-shimmer: color-mix(in srgb, var(--theme-text-primary) 12%, transparent);
+    /* ── Spacing scale (4px base grid) ──────────────────────────────────────── */
+    --space-0: 0px;
+    --space-px: 1px;
+    --space-0-5: 2px;
+    --space-1: 4px;
+    --space-1-5: 6px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    /* ── Typography scale ────────────────────────────────────────────────────── */
+    --font-size-2xs: 0.625rem;   /* 10px */
+    --font-size-xs: 0.6875rem;   /* 11px */
+    --font-size-sm: 0.8125rem;   /* 13px */
+    --font-size-base: 0.9375rem; /* 15px */
+    --font-size-lg: 1.0625rem;   /* 17px */
+    --font-size-xl: 1.25rem;     /* 20px */
+    --font-size-2xl: 1.5rem;     /* 24px */
+    --font-size-3xl: 2rem;       /* 32px */
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --letter-spacing-tight: -0.01em;
+    --letter-spacing-normal: 0em;
+    --letter-spacing-wide: 0.02em;
+    --letter-spacing-wider: 0.04em;
+    /* ── Z-index scale ───────────────────────────────────────────────────────── */
+    --z-base: 1;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-modal-backdrop: 300;
+    --z-modal: 310;
+    --z-popover: 400;
+    --z-tooltip: 500;
+    --z-notification: 600;
+    --z-overlay: 700;
+    /* ── Interactive state tokens ─────────────────────────────────────────────── */
+    --theme-state-disabled-opacity: 0.5;
+    --theme-state-disabled-bg: color-mix(in srgb, var(--theme-text-primary) 4%, transparent);
+    --theme-state-disabled-text: color-mix(in srgb, var(--theme-text-muted) 60%, transparent);
+    --theme-bg-hover: color-mix(in srgb, var(--theme-text-primary) 5%, transparent);
+    --theme-bg-pressed: color-mix(in srgb, var(--theme-text-primary) 10%, transparent);
+    --theme-bg-disabled: color-mix(in srgb, var(--theme-text-primary) 3%, transparent);
+    /* ── Input state tokens ──────────────────────────────────────────────────── */
+    --theme-input-border-default: color-mix(in srgb, var(--theme-text-muted) 20%, transparent);
+    --theme-input-border-focus: var(--theme-accent);
+    --theme-input-border-error: var(--theme-danger);
+    --theme-input-bg-disabled: color-mix(in srgb, var(--theme-text-primary) 3%, transparent);
+    /* ── Focus ring tokens ───────────────────────────────────────────────────── */
+    --theme-focus-ring-color: var(--theme-accent);
+    --theme-focus-ring-width: 2px;
+    --theme-focus-ring-offset: 2px;
+    /* ── Selection tokens ────────────────────────────────────────────────────── */
+    --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 35%, transparent);
+    --theme-selection-text: var(--theme-text-bright);
+    /* ── Overlay / backdrop tokens ───────────────────────────────────────────── */
+    --theme-overlay-bg: color-mix(in srgb, black 72%, transparent);
+    --theme-backdrop-blur: 8px;
+    /* ── Presence color system ───────────────────────────────────────────────── */
+    --theme-presence-online: #3ddc97;
+    --theme-presence-idle: #ffb84d;
+    --theme-presence-dnd: #ff5d73;
+    /* --theme-presence-offline already defined below */
+    /* ── Micro-interaction & focus duration tokens ────────────────────────────── */
+    --motion-duration-micro: 50ms;
+    --motion-duration-focus: 100ms;
+    /* ── Animation distance tokens ───────────────────────────────────────────── */
+    --motion-distance-xs: 2px;
+    --motion-distance-sm: 4px;
+    --motion-distance-md: 8px;
+    --motion-distance-lg: 16px;
+    --motion-distance-slide: 30%;
     --app-bg-primary: #1b1f31;
     --app-bg-secondary: #151829;
     /* Global semantic tokens for full custom themes */
@@ -140,6 +218,12 @@
     }
   }
 
+  /* Text selection */
+  ::selection {
+    background: var(--theme-selection-bg);
+    color: var(--theme-selection-text);
+  }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
@@ -165,8 +249,8 @@
     position: absolute;
     left: -9999px;
     top: 0;
-    z-index: 9999;
-    padding: 8px 16px;
+    z-index: var(--z-overlay);
+    padding: var(--space-2) var(--space-4);
     background: var(--theme-accent);
     color: var(--theme-bg-primary);
     font-weight: 600;
@@ -302,7 +386,9 @@
 
 
   .dialog-overlay {
-    background: color-mix(in srgb, black calc(var(--theme-opacity-overlay) * 100%), transparent);
+    background: var(--theme-overlay-bg);
+    backdrop-filter: blur(var(--theme-backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--theme-backdrop-blur));
   }
 
   .surface-muted-fg {
@@ -312,8 +398,10 @@
   .surface-muted-opacity {
     opacity: var(--theme-opacity-muted);
   }
-  .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[var(--theme-accent)];
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 var(--theme-focus-ring-offset) hsl(var(--background)),
+                0 0 0 calc(var(--theme-focus-ring-offset) + var(--theme-focus-ring-width)) var(--theme-focus-ring-color);
   }
 
   .surface-passive {
@@ -567,7 +655,7 @@
 @keyframes panel-enter {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.985);
+    transform: translateY(var(--motion-distance-sm)) scale(0.985);
   }
   to {
     opacity: 1;
@@ -582,14 +670,14 @@
   }
   to {
     opacity: 0;
-    transform: translateY(4px) scale(0.99);
+    transform: translateY(var(--motion-distance-sm)) scale(0.99);
   }
 }
 
 @keyframes slide-in-from-right {
   from {
     opacity: 0;
-    transform: translateX(30%);
+    transform: translateX(var(--motion-distance-slide));
   }
   to {
     opacity: 1;
@@ -672,15 +760,15 @@
 .message-content code {
   background: var(--theme-bg-tertiary);
   border-radius: 3px;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.875em;
 }
 
 .message-content pre {
   background: var(--theme-bg-tertiary);
-  border-radius: 4px;
-  padding: 8px 12px;
+  border-radius: var(--space-1);
+  padding: var(--space-2) var(--space-3);
   overflow-x: auto;
 }
 
@@ -713,8 +801,8 @@
 /* Blockquote */
 .message-content blockquote {
   border-left: 4px solid color-mix(in srgb, var(--theme-text-muted) 60%, transparent);
-  padding-left: 12px;
-  margin: 4px 0;
+  padding-left: var(--space-3);
+  margin: var(--space-1) 0;
   color: var(--theme-text-secondary);
 }
 
@@ -887,7 +975,16 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-cat-server: #f0b132;
   --theme-cat-automod: #e08050;
   --theme-cat-other: #80848e;
-
+  /* Presence */
+  --theme-presence-online: #23a55a;
+  --theme-presence-idle: #f0b132;
+  --theme-presence-dnd: #f23f43;
+  /* Selection */
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  --theme-selection-text: var(--theme-text-bright);
+  /* Overlay */
+  --theme-overlay-bg: color-mix(in srgb, black 72%, transparent);
+  --theme-backdrop-blur: 8px;
 }
 
 [data-theme-preset="midnight-neon"] {
@@ -910,7 +1007,7 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --muted-foreground: 217 24% 76%;
   --border: 234 22% 22%;
   --input: 234 19% 14%;
-  --ring: 315 100% 67%;
+  --ring: 186 100% 57%;
   /* Destructive */
   --destructive: 357 85% 62%;
   --destructive-foreground: 0 0% 100%;
@@ -960,7 +1057,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-cat-server: #ffb84d;
   --theme-cat-automod: #fb923c;
   --theme-cat-other: #6f7898;
-
+  --theme-presence-online: #3ddc97;
+  --theme-presence-idle: #ffb84d;
+  --theme-presence-dnd: #ff5d73;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 35%, transparent);
+  --theme-selection-text: var(--theme-text-bright);
+  --theme-overlay-bg: color-mix(in srgb, black 75%, transparent);
+  --theme-backdrop-blur: 10px;
 }
 
 [data-theme-preset="synthwave"] {
@@ -1033,7 +1136,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-cat-server: #ffc266;
   --theme-cat-automod: #ff9e5c;
   --theme-cat-other: #8674a8;
-
+  --theme-presence-online: #5ae6a9;
+  --theme-presence-idle: #ffc266;
+  --theme-presence-dnd: #ff5f8c;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 35%, transparent);
+  --theme-selection-text: var(--theme-text-bright);
+  --theme-overlay-bg: color-mix(in srgb, #1a1030 80%, transparent);
+  --theme-backdrop-blur: 12px;
 }
 
 [data-theme-preset="carbon"] {
@@ -1106,7 +1215,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-cat-server: #d19c4c;
   --theme-cat-automod: #c88050;
   --theme-cat-other: #7d858f;
-
+  --theme-presence-online: #3ba55c;
+  --theme-presence-idle: #d19c4c;
+  --theme-presence-dnd: #d65257;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  --theme-selection-text: var(--theme-text-bright);
+  --theme-overlay-bg: color-mix(in srgb, black 70%, transparent);
+  --theme-backdrop-blur: 6px;
 }
 
 [data-theme-preset="oled-black"] {
@@ -1179,7 +1294,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-cat-server: #e5a020;
   --theme-cat-automod: #d08848;
   --theme-cat-other: #5a7070;
-
+  --theme-presence-online: #30c97a;
+  --theme-presence-idle: #e5a020;
+  --theme-presence-dnd: #e8404a;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 40%, transparent);
+  --theme-selection-text: #ffffff;
+  --theme-overlay-bg: color-mix(in srgb, black 82%, transparent);
+  --theme-backdrop-blur: 4px;
 }
 
 [data-theme-preset="frost"] {
@@ -1252,7 +1373,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-cat-server: #e0a526;
   --theme-cat-automod: #d08850;
   --theme-cat-other: #6e7f92;
-
+  --theme-presence-online: #3dba6a;
+  --theme-presence-idle: #e0a526;
+  --theme-presence-dnd: #e05252;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  --theme-selection-text: var(--theme-text-bright);
+  --theme-overlay-bg: color-mix(in srgb, black 72%, transparent);
+  --theme-backdrop-blur: 8px;
 }
 
 /* ── Clarity — minimalist light theme inspired by Notion / Linear ── */
@@ -1321,7 +1448,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-cat-server: #d97706;
   --theme-cat-automod: #ea580c;
   --theme-cat-other: #6b7280;
-
+  --theme-presence-online: #16a34a;
+  --theme-presence-idle: #d97706;
+  --theme-presence-dnd: #dc2626;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 25%, transparent);
+  --theme-selection-text: #111111;
+  --theme-overlay-bg: color-mix(in srgb, black 40%, transparent);
+  --theme-backdrop-blur: 12px;
 }
 
 /* ── Velvet Dusk — soft pastel dark theme ── */
@@ -1390,7 +1523,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-cat-server: #f9e2af;
   --theme-cat-automod: #fab387;
   --theme-cat-other: #585b70;
-
+  --theme-presence-online: #a6e3a1;
+  --theme-presence-idle: #f9e2af;
+  --theme-presence-dnd: #f38ba8;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 25%, transparent);
+  --theme-selection-text: var(--theme-text-bright);
+  --theme-overlay-bg: color-mix(in srgb, #11111b 78%, transparent);
+  --theme-backdrop-blur: 10px;
 }
 
 /* ── Terminal — green phosphor CRT terminal ── */
@@ -1428,106 +1567,132 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-surface-elevation-5: #004a14;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
-  --theme-focus-shift: rgba(74, 239, 152, 0.15);
-  --theme-text-primary: rgb(74, 239, 152);
-  --theme-text-normal: rgb(74, 239, 152);
-  --theme-text-secondary: rgba(74, 239, 152, 0.6);
-  --theme-text-muted: rgba(74, 239, 152, 0.35);
-  --theme-text-faint: rgba(74, 239, 152, 0.25);
-  --theme-text-bright: rgb(140, 255, 200);
-  --theme-accent: rgb(74, 239, 152);
-  --theme-accent-secondary: rgba(74, 239, 152, 0.6);
-  --theme-link: rgb(140, 255, 200);
-  --theme-success: rgb(57, 255, 20);
-  --theme-positive: rgb(74, 239, 152);
-  --theme-warning: rgb(255, 255, 51);
-  --theme-danger: rgb(212, 18, 39);
-  --theme-presence-offline: rgba(74, 239, 152, 0.25);
-  --theme-shadow-elevation-1: 0 0 4px rgba(74, 239, 152, 0.06);
-  --theme-shadow-elevation-2: 0 0 8px rgba(74, 239, 152, 0.06);
-  --theme-shadow-elevation-3: 0 0 14px rgba(74, 239, 152, 0.08);
-  --theme-shadow-elevation-4: 0 0 20px rgba(74, 239, 152, 0.10);
-  --theme-shadow-elevation-5: 0 0 28px rgba(74, 239, 152, 0.12);
-  --theme-mention-self-color: rgb(255, 255, 51);
-  --theme-mention-self-bg: rgba(255, 255, 51, 0.12);
-  --theme-mention-self-border: rgba(255, 255, 51, 0.35);
-  --color-tertiary-metadata: rgba(74, 239, 152, 0.35);
-  --theme-cat-member: rgba(74, 239, 152, 0.7);
-  --theme-cat-role: rgba(74, 239, 152, 0.6);
-  --theme-cat-channel: rgba(74, 239, 152, 0.7);
-  --theme-cat-message: rgba(57, 255, 20, 0.7);
-  --theme-cat-server: rgba(255, 255, 51, 0.7);
-  --theme-cat-automod: rgba(255, 180, 50, 0.7);
-  --theme-cat-other: rgba(74, 239, 152, 0.35);
+  /* Terminal phosphor palette — extracted as variables for consistency */
+  --term-green: #4aef98;
+  --term-green-bright: #8cffc8;
+  --term-green-dim: color-mix(in srgb, var(--term-green) 60%, transparent);
+  --term-green-muted: color-mix(in srgb, var(--term-green) 35%, transparent);
+  --term-green-faint: color-mix(in srgb, var(--term-green) 25%, transparent);
+  --theme-focus-shift: color-mix(in srgb, var(--term-green) 15%, transparent);
+  --theme-text-primary: var(--term-green);
+  --theme-text-normal: var(--term-green);
+  --theme-text-secondary: var(--term-green-dim);
+  --theme-text-muted: var(--term-green-muted);
+  --theme-text-faint: var(--term-green-faint);
+  --theme-text-bright: var(--term-green-bright);
+  --theme-accent: var(--term-green);
+  --theme-accent-secondary: var(--term-green-dim);
+  --theme-link: var(--term-green-bright);
+  --theme-success: #39ff14;
+  --theme-positive: var(--term-green);
+  --theme-warning: #ffff33;
+  --theme-danger: #d41227;
+  --theme-presence-offline: var(--term-green-faint);
+  --theme-shadow-elevation-1: 0 0 4px color-mix(in srgb, var(--term-green) 6%, transparent);
+  --theme-shadow-elevation-2: 0 0 8px color-mix(in srgb, var(--term-green) 6%, transparent);
+  --theme-shadow-elevation-3: 0 0 14px color-mix(in srgb, var(--term-green) 8%, transparent);
+  --theme-shadow-elevation-4: 0 0 20px color-mix(in srgb, var(--term-green) 10%, transparent);
+  --theme-shadow-elevation-5: 0 0 28px color-mix(in srgb, var(--term-green) 12%, transparent);
+  --theme-mention-self-color: var(--theme-warning);
+  --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 12%, transparent);
+  --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 35%, transparent);
+  --color-tertiary-metadata: var(--term-green-muted);
+  --theme-cat-member: color-mix(in srgb, var(--term-green) 70%, transparent);
+  --theme-cat-role: var(--term-green-dim);
+  --theme-cat-channel: color-mix(in srgb, var(--term-green) 70%, transparent);
+  --theme-cat-message: color-mix(in srgb, var(--theme-success) 70%, transparent);
+  --theme-cat-server: color-mix(in srgb, var(--theme-warning) 70%, transparent);
+  --theme-cat-automod: color-mix(in srgb, #ffb432 70%, transparent);
+  --theme-cat-other: var(--term-green-muted);
+  --theme-presence-online: rgb(57, 255, 20);
+  --theme-presence-idle: rgb(255, 255, 51);
+  --theme-presence-dnd: rgb(212, 18, 39);
+  --theme-selection-bg: rgba(74, 239, 152, 0.25);
+  --theme-selection-text: rgb(140, 255, 200);
+  --theme-overlay-bg: rgba(0, 9, 0, 0.85);
+  --theme-backdrop-blur: 2px;
   --radius: 0rem;
 }
 
-/* ── Sakura Blossom — warm cherry-blossom aesthetic ── */
+/* ── Sakura Blossom — light Japanese garden: cherry blossoms, bamboo greens ── */
 [data-theme-preset="sakura-blossom"] {
-  --background: 293 25% 14%;
-  --foreground: 338 90% 96%;
-  --card: 293 28% 11%;
-  --card-foreground: 338 90% 96%;
-  --popover: 293 30% 8%;
-  --popover-foreground: 338 90% 96%;
-  --primary: 338 80% 58%;
+  --background: 340 30% 97%;
+  --foreground: 340 20% 15%;
+  --card: 340 25% 95%;
+  --card-foreground: 340 20% 15%;
+  --popover: 340 20% 98%;
+  --popover-foreground: 340 20% 15%;
+  --primary: 338 65% 55%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 293 20% 16%;
-  --secondary-foreground: 330 30% 75%;
-  --accent: 338 80% 58%;
+  --secondary: 340 18% 92%;
+  --secondary-foreground: 340 15% 45%;
+  --accent: 338 65% 55%;
   --accent-foreground: 0 0% 100%;
-  --muted: 293 18% 24%;
-  --muted-foreground: 330 25% 62%;
-  --border: 293 22% 22%;
-  --input: 293 25% 14%;
-  --ring: 338 80% 58%;
-  --destructive: 0 72% 63%;
+  --muted: 340 14% 88%;
+  --muted-foreground: 340 12% 50%;
+  --border: 340 16% 86%;
+  --input: 340 18% 93%;
+  --ring: 338 65% 55%;
+  --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --app-bg-primary: #2b1a2e;
-  --app-bg-secondary: #231525;
-  --theme-bg-primary: #2b1a2e;
-  --theme-bg-secondary: #231525;
-  --theme-bg-tertiary: #1a0e1c;
-  --theme-surface-elevated: #3d2540;
-  --theme-surface-input: #35203a;
-  --theme-surface-elevation-1: #2f1c33;
-  --theme-surface-elevation-2: #3d2540;
-  --theme-surface-elevation-3: #45294a;
-  --theme-surface-elevation-4: #4d2f54;
-  --theme-surface-elevation-5: #55355e;
+  /* Light surfaces — warm parchment with pink tint */
+  --app-bg-primary: #fdf6f8;
+  --app-bg-secondary: #f9eff2;
+  --theme-bg-primary: #fdf6f8;
+  --theme-bg-secondary: #f9eff2;
+  --theme-bg-tertiary: #f3e6eb;
+  --theme-surface-elevated: #ffffff;
+  --theme-surface-input: #f3e6eb;
+  --theme-surface-elevation-1: #f9eff2;
+  --theme-surface-elevation-2: #f3e6eb;
+  --theme-surface-elevation-3: #edddE2;
+  --theme-surface-elevation-4: #e5d0d8;
+  --theme-surface-elevation-5: #dcc4ce;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
-  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 35%, transparent);
-  --theme-shadow-elevation-1: 0 1px 2px color-mix(in srgb, black 24%, transparent), 0 0 0 1px color-mix(in srgb, #e84393 3%, transparent) inset;
-  --theme-shadow-elevation-2: 0 4px 12px color-mix(in srgb, black 30%, transparent), 0 1px 0 color-mix(in srgb, #e84393 5%, transparent) inset;
-  --theme-shadow-elevation-3: 0 8px 24px color-mix(in srgb, black 36%, transparent), 0 1px 0 color-mix(in srgb, #e84393 6%, transparent) inset;
-  --theme-shadow-elevation-4: 0 14px 32px color-mix(in srgb, black 40%, transparent), 0 1px 0 color-mix(in srgb, #e84393 8%, transparent) inset;
-  --theme-shadow-elevation-5: 0 24px 42px color-mix(in srgb, black 48%, transparent), 0 1px 0 color-mix(in srgb, #e84393 10%, transparent) inset;
-  --theme-text-primary: #fef0f5;
-  --theme-text-normal: #f5dde6;
-  --theme-text-secondary: #d4afc0;
-  --theme-text-muted: #b08a9e;
-  --theme-text-faint: #a08492;
-  --theme-text-bright: #fff5f9;
-  --theme-accent: #e84393;
-  --theme-accent-secondary: #fd79a8;
-  --theme-link: #f8a5c2;
-  --theme-success: #55efc4;
-  --theme-positive: #00b894;
-  --theme-warning: #fdcb6e;
-  --theme-danger: #ff6b6b;
-  --theme-presence-offline: #8a6a7d;
-  --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 60%, white);
-  --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);
-  --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
-  --color-tertiary-metadata: #b08a9e;
-  --theme-cat-member: #fd79a8;
-  --theme-cat-role: #e84393;
-  --theme-cat-channel: #f8a5c2;
-  --theme-cat-message: #55efc4;
-  --theme-cat-server: #fdcb6e;
-  --theme-cat-automod: #ff6b6b;
-  --theme-cat-other: #b08a9e;
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 15%, transparent);
+  /* Light-mode shadows — subtle, no white inset */
+  --theme-shadow-elevation-1: 0 1px 2px color-mix(in srgb, #8a4a6a 8%, transparent), 0 0 0 1px color-mix(in srgb, #8a4a6a 5%, transparent);
+  --theme-shadow-elevation-2: 0 4px 12px color-mix(in srgb, #8a4a6a 10%, transparent), 0 0 0 1px color-mix(in srgb, #8a4a6a 4%, transparent);
+  --theme-shadow-elevation-3: 0 8px 24px color-mix(in srgb, #8a4a6a 12%, transparent), 0 0 0 1px color-mix(in srgb, #8a4a6a 4%, transparent);
+  --theme-shadow-elevation-4: 0 14px 32px color-mix(in srgb, #8a4a6a 14%, transparent), 0 0 0 1px color-mix(in srgb, #8a4a6a 3%, transparent);
+  --theme-shadow-elevation-5: 0 24px 42px color-mix(in srgb, #8a4a6a 18%, transparent), 0 0 0 1px color-mix(in srgb, #8a4a6a 3%, transparent);
+  /* Dark text on light bg */
+  --theme-text-primary: #3d2232;
+  --theme-text-normal: #4a2d3e;
+  --theme-text-secondary: #7a5068;
+  --theme-text-muted: #a07a8e;
+  --theme-text-faint: #b89aaa;
+  --theme-text-bright: #2a1520;
+  /* Cherry blossom pink accent + bamboo green secondary */
+  --theme-accent: #d4507a;
+  --theme-accent-secondary: #5a9e6f;
+  --theme-link: #c44872;
+  --theme-success: #3a8f52;
+  --theme-positive: #4a9f62;
+  --theme-warning: #c49030;
+  --theme-danger: #c44040;
+  --theme-presence-offline: #b89aaa;
+  --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 70%, black);
+  --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 12%, transparent);
+  --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 40%, transparent);
+  --color-tertiary-metadata: #a07a8e;
+  --theme-cat-member: #d4507a;
+  --theme-cat-role: #9b59b6;
+  --theme-cat-channel: #5a9e6f;
+  --theme-cat-message: #3a8f52;
+  --theme-cat-server: #c49030;
+  --theme-cat-automod: #c44040;
+  --theme-cat-other: #a07a8e;
+  /* Per-theme tokens */
+  --theme-presence-online: #3a8f52;
+  --theme-presence-idle: #c49030;
+  --theme-presence-dnd: #c44040;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 20%, transparent);
+  --theme-selection-text: #2a1520;
+  --theme-overlay-bg: color-mix(in srgb, #3d2232 45%, transparent);
+  --theme-backdrop-blur: 12px;
+  color-scheme: light;
 }
 
 /* ── Frosthearth — Nordic frost meets warm tavern ── */
@@ -1609,6 +1774,13 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --frosthearth-aurora: color-mix(in srgb, var(--theme-accent) 18%, transparent);
   --frosthearth-hearth: color-mix(in srgb, var(--theme-accent-secondary) 14%, transparent);
   --frosthearth-engraving: color-mix(in srgb, var(--theme-text-bright) 8%, transparent);
+  --theme-presence-online: #6b9e4d;
+  --theme-presence-idle: #d4a740;
+  --theme-presence-dnd: #a83c3c;
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 25%, transparent);
+  --theme-selection-text: var(--theme-text-bright);
+  --theme-overlay-bg: color-mix(in srgb, #111213 75%, transparent);
+  --theme-backdrop-blur: 6px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1756,33 +1928,45 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   background: color-mix(in srgb, var(--theme-accent) 5%, var(--theme-bg-tertiary));
 }
 
-/* ── Sakura Blossom — cherry blossom glow, rose-tinted interactions ─────── */
+/* ── Sakura Blossom — light Japanese garden, soft petal + bamboo green accents ─ */
 [data-theme-preset="sakura-blossom"] .message-hover:hover {
-  background: color-mix(in srgb, var(--theme-accent) 4%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 6%, transparent);
 }
 
 [data-theme-preset="sakura-blossom"] ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 22%, transparent);
 }
 
 [data-theme-preset="sakura-blossom"] ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--theme-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 35%, transparent);
 }
 
 [data-theme-preset="sakura-blossom"] input:focus,
 [data-theme-preset="sakura-blossom"] textarea:focus {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 25%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 20%, transparent);
 }
 
 [data-theme-preset="sakura-blossom"] body {
   background-image:
-    radial-gradient(900px 360px at 85% -5%, color-mix(in srgb, var(--theme-accent) 8%, transparent), transparent 55%),
-    radial-gradient(700px 300px at 10% 105%, color-mix(in srgb, var(--theme-accent-secondary) 6%, transparent), transparent 60%);
+    radial-gradient(1000px 400px at 90% -5%, color-mix(in srgb, var(--theme-accent) 10%, transparent), transparent 55%),
+    radial-gradient(800px 350px at 5% 110%, color-mix(in srgb, var(--theme-accent-secondary) 8%, transparent), transparent 60%);
   background-attachment: fixed;
 }
 
 [data-theme-preset="sakura-blossom"] .channel-active {
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--theme-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, var(--theme-surface-elevated));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--theme-accent) 50%, transparent);
+}
+
+[data-theme-preset="sakura-blossom"] .channel-sidebar-surface {
+  border-right: 1px solid color-mix(in srgb, var(--theme-accent) 10%, transparent);
+}
+
+[data-theme-preset="sakura-blossom"] .chat-area-header-surface {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 4%, transparent), transparent 60%),
+    var(--theme-bg-primary);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-accent) 12%, transparent);
 }
 
 /* ── Frosthearth — frozen tundra + warm tavern signature behaviors ─────── */
@@ -2173,13 +2357,13 @@ h1, h2, h3, h4, h5, h6 {
 .auth-surface {
   background: color-mix(in srgb, var(--theme-bg-secondary) 85%, transparent);
   color: var(--theme-text-primary);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--theme-input-border-default);
 }
 
 .auth-input {
   background: var(--theme-surface-input);
   color: var(--theme-text-primary);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--theme-input-border-default);
 }
 
 .auth-input::placeholder {
@@ -2219,9 +2403,9 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 1px 6px;
-  font-size: 11px;
-  letter-spacing: 0.01em;
+  padding: var(--space-px) var(--space-1-5);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--letter-spacing-normal);
   border: 1px solid transparent;
   transition: color var(--motion-duration-standard) var(--motion-ease-standard),
     background-color var(--motion-duration-standard) var(--motion-ease-standard),
@@ -2260,7 +2444,7 @@ h1, h2, h3, h4, h5, h6 {
 @keyframes message-arrival {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(var(--motion-distance-md));
   }
   to {
     opacity: 1;
