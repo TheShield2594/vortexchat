@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, laz
 import { flushSync } from "react-dom"
 import { perfLogSinceNav, perfClearNav } from "@/lib/perf"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, MoreHorizontal } from "lucide-react"
+import { ChevronRight, CircleHelp, Hash, MessageSquareText, Pin, Search, Users, Briefcase, Sparkles, MoreHorizontal } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { sendReactionMutation } from "@/lib/reactions-client"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -86,9 +86,10 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
   const messageGrouping = useAppearanceStore((s) => s.messageGrouping)
   const isMobile = useMobileLayout()
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages, mobilePendingAction, setMobilePendingAction } = useAppStore(
-    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages, mobilePendingAction: s.mobilePendingAction, setMobilePendingAction: s.setMobilePendingAction }))
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages, mobilePendingAction, setMobilePendingAction, servers } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages, mobilePendingAction: s.mobilePendingAction, setMobilePendingAction: s.setMobilePendingAction, servers: s.servers }))
   )
+  const serverName = useMemo(() => servers.find((s) => s.id === serverId)?.name ?? "", [servers, serverId])
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [activeThread, setActiveThread] = useState<ThreadRow | null>(null)
@@ -1541,6 +1542,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         {!isMobile && <div
           className="flex items-center gap-2 px-4 py-2.5 border-b flex-shrink-0 chat-area-header-surface"
         >
+          {serverName && (
+            <>
+              <span className="text-sm chat-area-text-muted truncate max-w-[120px]">{serverName}</span>
+              <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 chat-area-text-faint" aria-hidden="true" />
+            </>
+          )}
           <Hash className="w-5 h-5 flex-shrink-0 chat-area-header-hash" />
           <span className="font-semibold chat-area-text-bright">{channel.name}</span>
           {!isOnline && (
