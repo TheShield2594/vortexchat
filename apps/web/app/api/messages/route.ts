@@ -256,7 +256,7 @@ async function runServerAutomodChecks({
   const resolvedRoleIds = rolesData
 
   const earliestWindowSeconds = rawRules.reduce((acc, rule) => {
-    const cfg = rule.config as Record<string, unknown>
+    const cfg = (rule.config && typeof rule.config === "object" && !Array.isArray(rule.config) ? rule.config : {}) as Record<string, unknown>
     const windowSeconds = typeof cfg.window_seconds === "number" ? cfg.window_seconds : null
     if (!windowSeconds) return acc
     if (acc === null) return windowSeconds
@@ -285,7 +285,10 @@ async function runServerAutomodChecks({
         ? r.conditions
         : {}
     const actions = Array.isArray(r.actions)
-      ? r.actions.filter((a: any) => a && typeof a === "object" && typeof a.type === "string")
+      ? (r.actions as unknown[]).filter((a): a is Record<string, unknown> => {
+          if (!a || typeof a !== "object") return false
+          return typeof (a as Record<string, unknown>).type === "string"
+        })
       : []
     acc.push({ ...r, config, conditions, actions } as unknown as AutoModRuleWithParsed)
     return acc
@@ -541,7 +544,8 @@ export async function POST(request: Request) {
   }
 
   // Client provides serverId so server-scoped queries can start alongside channel lookup
-  const clientServerId: string | null = typeof (body as any).serverId === "string" && (body as any).serverId ? (body as any).serverId : null
+  const rawServerId = (body as Record<string, unknown>).serverId
+  const clientServerId: string | null = typeof rawServerId === "string" && rawServerId ? rawServerId : null
 
   // --- Group 1: cached lookups + per-request checks ---
   // Channel metadata, permissions, and automod rules are cached (30-60s TTL).

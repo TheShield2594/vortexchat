@@ -3266,3 +3266,40 @@ export interface ThreadWithDetails extends ThreadRow {
 export interface MessageWithThread extends MessageWithAuthor {
   thread: ThreadRow | null
 }
+
+// --- Composite types for Supabase join queries ---
+
+/** Message with joined channel containing server_id — used by pin, reactions, task, reports routes */
+export interface MessageWithChannelServerId {
+  id: string
+  channel_id: string
+  channels: { server_id: string } | null
+}
+
+/** Message with channel + author context — used by reports route */
+export interface MessageWithChannelAndAuthor extends MessageWithChannelServerId {
+  author_id: string
+}
+
+/** Member role with nested role permissions — returned by member_roles(roles(permissions)) select */
+export interface MemberRoleWithPermissions {
+  roles: { permissions: number } | null
+}
+
+/** Friendship row with joined user data for categorization */
+export interface FriendshipEntry extends FriendshipRow {
+  requester: UserRow | null
+  addressee: UserRow | null
+  friend: UserRow | null
+}
+
+/** DM channel encryption info — returned by dm_channels select for encryption check */
+export interface DmChannelEncryptionInfo {
+  is_encrypted: boolean
+  encryption_key_version: number
+}
+
+/** Direct message with sender relation */
+export interface DirectMessageWithSender extends DirectMessageRow {
+  sender: Pick<UserRow, 'id' | 'username' | 'display_name' | 'avatar_url' | 'status'> | null
+}

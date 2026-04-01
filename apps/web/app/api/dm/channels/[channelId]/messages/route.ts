@@ -55,12 +55,12 @@ export async function POST(
   // Run blocking checks, body parsing, and channel encryption fetch in parallel
   const [blockCheckResult, bodyResult, channelResult] = await Promise.all([
     Promise.all(
-      otherMemberIds.map((memberId) => isBlockedBetweenUsers(supabase as any, user.id, memberId))
+      otherMemberIds.map((memberId) => isBlockedBetweenUsers(supabase, user.id, memberId))
     ).then((results) => ({ blocked: results.some(Boolean), error: null as Error | null }))
      .catch((error: Error) => ({ blocked: false, error })),
-    req.json().then((b: any) => ({ body: b as { content?: string; reply_to_id?: string }, error: null as string | null }))
-      .catch(() => ({ body: null as any, error: "Invalid JSON body" })),
-    (supabase as any)
+    req.json().then((b: unknown) => ({ body: b as { content?: string; reply_to_id?: string }, error: null as string | null }))
+      .catch(() => ({ body: null as { content?: string; reply_to_id?: string } | null, error: "Invalid JSON body" })),
+    supabase
       .from("dm_channels")
       .select("is_encrypted, encryption_key_version")
       .eq("id", channelId)
@@ -78,8 +78,8 @@ export async function POST(
     return NextResponse.json({ error: "Cannot send messages while blocked" }, { status: 403 })
   }
 
-  if (bodyResult.error) {
-    return NextResponse.json({ error: bodyResult.error }, { status: 400 })
+  if (bodyResult.error || !bodyResult.body) {
+    return NextResponse.json({ error: bodyResult.error ?? "Invalid JSON body" }, { status: 400 })
   }
   const body = bodyResult.body
 
@@ -87,7 +87,7 @@ export async function POST(
   if (channelError || !channel) {
     return NextResponse.json({ error: "Unable to verify channel encryption" }, { status: 500 })
   }
-  const channelInfo = channel as { is_encrypted: boolean; encryption_key_version: number }
+  const channelInfo = channel
   if (typeof body.content !== "string") return NextResponse.json({ error: "Content required" }, { status: 400 })
   const content = body.content.trim()
   if (!content) return NextResponse.json({ error: "Content required" }, { status: 400 })
@@ -108,7 +108,7 @@ export async function POST(
 
   // Validate reply_to_id and fetch full reply data in one query (avoids redundant re-fetch after insert)
   const replyToId = body.reply_to_id ?? null
-  let replyToMessage: any = null
+  let replyToMessage: Record<string, unknown> | null = null
   if (replyToId) {
     const { data: replyTarget, error: replyError } = await supabase
       .from("direct_messages")
@@ -123,7 +123,7 @@ export async function POST(
     if (replyTarget.dm_channel_id !== channelId) {
       return NextResponse.json({ error: "Replied-to message must be in the same channel" }, { status: 400 })
     }
-    replyToMessage = replyTarget
+    replyToMessage = replyTarget as unknown as Record<string, unknown>
   }
 
   const { data: message, error } = await supabase
@@ -133,14 +133,15 @@ export async function POST(
       sender_id: user.id,
       content,
       ...(replyToId ? { reply_to_id: replyToId } : {}),
-    } as any)
+    })
     .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
     .single()
 
   if (error) return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
 
   // Send push notifications (fire-and-forget)
-  const senderName = (message as any)?.sender?.display_name || (message as any)?.sender?.username || "Someone"
+  const sender = (message as unknown as { sender?: { display_name?: string; username?: string } }).sender
+  const senderName = sender?.display_name || sender?.username || "Someone"
   sendPushToChannel({
     dmChannelId: channelId,
     senderName,

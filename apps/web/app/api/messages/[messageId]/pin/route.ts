@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { sendPushToChannel } from "@/lib/push"
 import { createLogger } from "@/lib/logger"
+import type { MessageWithChannelServerId } from "@/types/database"
 
 const log = createLogger("api/pin")
 
@@ -27,16 +28,15 @@ export async function PUT(
 
     if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 })
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const serverId: string | undefined = (message as any).channels?.server_id
+    const typedMessage = message as unknown as MessageWithChannelServerId
+    const serverId: string | undefined = typedMessage.channels?.server_id
 
     if (!serverId) {
       return NextResponse.json({ error: "Cannot pin messages outside of a server channel" }, { status: 400 })
     }
 
     // Check permission: admin or MANAGE_MESSAGES
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const channelId: string | undefined = (message as any).channel_id
+    const channelId: string | undefined = typedMessage.channel_id
 
     if (!channelId) {
       return NextResponse.json({ error: "Channel context not found" }, { status: 404 })
@@ -105,15 +105,14 @@ export async function DELETE(
 
     if (!message) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const serverId: string | undefined = (message as any).channels?.server_id
+    const typedMessage = message as unknown as MessageWithChannelServerId
+    const serverId: string | undefined = typedMessage.channels?.server_id
 
     if (!serverId) {
       return NextResponse.json({ error: "Cannot unpin messages outside of a server channel" }, { status: 400 })
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const channelId: string | undefined = (message as any).channel_id
+    const channelId: string | undefined = typedMessage.channel_id
 
     if (!channelId) {
       return NextResponse.json({ error: "Channel context not found" }, { status: 404 })

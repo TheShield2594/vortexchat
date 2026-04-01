@@ -3,6 +3,7 @@ import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { requireAuth, parseJsonBody, insertAuditLog, checkRateLimit } from "@/lib/utils/api-helpers"
 import { REPORT_REASON_VALUES, type ReportReason } from "@/lib/report-reasons"
 import { REPORT_STATUSES, REPORT_STATUS_TRANSITIONS, type ReportStatus } from "@/lib/report-status"
+import type { MessageWithChannelServerId } from "@/types/database"
 
 const VALID_REASONS = REPORT_REASON_VALUES
 
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
 
       // Verify the message belongs to the reported server
       if (server_id) {
-        const msgServerId = (message as any).channels?.server_id
+        const msgServerId = (message as unknown as MessageWithChannelServerId).channels?.server_id
         if (msgServerId && msgServerId !== server_id) {
           return NextResponse.json({ error: "Message does not belong to this server" }, { status: 400 })
         }
