@@ -118,8 +118,8 @@ export function CreateServerModal({ open, onClose }: Props) {
       toast({ title: `Joined "${server.name}"!` })
       onClose()
       router.push(`/channels/${server.id}`)
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to join server", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to join server", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setLoading(false)
     }

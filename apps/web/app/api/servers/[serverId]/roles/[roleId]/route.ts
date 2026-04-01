@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
+import type { Json } from "@/types/database"
 
 // PATCH /api/servers/[serverId]/roles/[roleId] — update a role
 export async function PATCH(
@@ -19,10 +20,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any
+  let body: Record<string, unknown>
   try {
-    body = await req.json()
+    const parsed: unknown = await req.json()
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
+    body = parsed as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
@@ -59,8 +63,7 @@ export async function PATCH(
   }
 
   // Build update payload from allowed fields with explicit type validation
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updates: Record<string, any> = {}
+  const updates: Record<string, string | number | boolean> = {}
   if (body.name !== undefined) {
     if (typeof body.name !== "string") return NextResponse.json({ error: "name must be a string" }, { status: 400 })
     updates.name = body.name.trim()
@@ -94,15 +97,14 @@ export async function PATCH(
     .select()
     .single()
 
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError || !updatedRole) {
+    if (updateError) console.error("[roles PATCH] update failed", { serverId, roleId, userId: user.id, message: updateError.message })
+    return NextResponse.json({ error: "Failed to update role" }, { status: 500 })
   }
 
   // Build before/after diff for audit log
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const before: Record<string, any> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const after: Record<string, any> = {}
+  const before: Record<string, unknown> = {}
+  const after: Record<string, unknown> = {}
   for (const key of Object.keys(updates)) {
     before[key] = targetRole[key as keyof typeof targetRole]
     after[key] = updatedRole[key as keyof typeof updatedRole]
@@ -118,7 +120,7 @@ export async function PATCH(
       role_name: targetRole.name,
       before,
       after,
-    },
+    } as unknown as Json,
   })
 
   return NextResponse.json(updatedRole)
@@ -194,7 +196,7 @@ export async function DELETE(
         role_color: targetRole.color,
         role_position: targetRole.position,
         role_permissions: targetRole.permissions,
-      },
+      } as unknown as Json,
     })
 
     return new NextResponse(null, { status: 204 })

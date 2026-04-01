@@ -80,8 +80,8 @@ export function ServerSidebar() {
       removeServer(server.id)
       toast({ title: `Left ${server.name}` })
       router.push("/channels/me")
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to leave server", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to leave server", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 

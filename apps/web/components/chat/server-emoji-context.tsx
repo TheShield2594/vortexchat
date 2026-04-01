@@ -77,8 +77,8 @@ export function ServerEmojiProvider({ serverId, initialEmojis, children }: { ser
         setEmojis(data)
         setCachedEmojis(serverId, data)
       }
-    } catch (err: any) {
-      if (err.name !== "AbortError") console.error("Failed to reload emojis", err)
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== "AbortError") console.error("Failed to reload emojis", err)
     }
   }, [serverId])
 

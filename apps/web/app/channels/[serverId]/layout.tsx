@@ -152,7 +152,14 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
   }
 
   // Normalize voice states
-  const initialVoiceParticipants: VoiceParticipant[] = (voiceStateRows ?? []).map((d: any) => ({
+  interface VoiceStateRow {
+    user_id: string
+    channel_id: string
+    muted: boolean
+    deafened: boolean
+    users: VoiceParticipant["user"] | null
+  }
+  const initialVoiceParticipants: VoiceParticipant[] = ((voiceStateRows as unknown as VoiceStateRow[]) ?? []).map((d) => ({
     user_id: d.user_id,
     channel_id: d.channel_id,
     muted: d.muted,

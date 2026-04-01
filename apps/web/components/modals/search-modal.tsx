@@ -8,7 +8,23 @@ import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils/cn"
 
-type SearchResult = any
+interface SearchResultAuthor {
+  display_name?: string
+  username?: string
+  avatar_url?: string
+}
+
+interface SearchResult {
+  id: string
+  type: string
+  content?: string
+  title?: string
+  status?: string
+  channel_id: string
+  channel_name?: string
+  created_at: string
+  author?: SearchResultAuthor
+}
 
 interface ActiveFilters {
   from?: string

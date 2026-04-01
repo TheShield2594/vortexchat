@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 function formatIcalDate(date: Date): string {
   return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z"
@@ -19,11 +20,11 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    // Cast to any: new columns (external_url, banner_url, event_type) added by migration
+    // New columns (external_url, banner_url, event_type) added by migration
     // 00060_events_enhancements.sql are not yet in the generated Supabase types.
-    const { data: event } = await (supabase
-      .from("events")
-      .select("id, title, description, location, start_at, end_at, server_id") as any)
+    // Cast via unknown to satisfy TypeScript while preserving runtime correctness.
+    const { data: event } = await untypedFrom(supabase, "events")
+      .select("id, title, description, location, start_at, end_at, server_id")
       .eq("id", params.eventId)
       .eq("server_id", params.serverId)
       .single() as { data: {
@@ -40,9 +41,9 @@ export async function GET(
     // Re-fetch external_url separately via raw RPC to avoid type-gen issues
     let externalUrl: string | null = null
     if (event) {
-      const { data: extra } = await (supabase
-        .from("events")
-        .select("external_url") as any)
+      // external_url column from migration 00060 is not yet in generated types
+      const { data: extra } = await untypedFrom(supabase, "events")
+        .select("external_url")
         .eq("id", params.eventId)
         .single() as { data: { external_url?: string | null } | null }
       externalUrl = extra?.external_url ?? null

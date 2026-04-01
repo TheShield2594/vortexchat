@@ -5,6 +5,7 @@ import { cookies } from "next/headers"
 import { computeLoginRisk } from "@/lib/auth/risk"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
+import { untypedFrom, untypedRpc } from "@/lib/supabase/untyped-table"
 
 /**
  * POST /api/auth/login
@@ -42,12 +43,11 @@ export async function POST(request: Request) {
   }
 
   const admin = await createServiceRoleClient()
-  const adminDb = admin as any
 
   // Check if the email is locked out (fail-closed: treat RPC errors as locked out)
   let isLockedOut = false
   try {
-    const { data: lockoutResult } = await adminDb.rpc("is_login_locked_out", {
+    const { data: lockoutResult } = await untypedRpc(admin, "is_login_locked_out", {
       target_email: email,
     })
     isLockedOut = lockoutResult === true
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   if (error || !data.user) {
     // Record the failed attempt (best-effort; don't block login response on failure)
     try {
-      await adminDb.rpc("record_login_attempt", {
+      await untypedRpc(admin, "record_login_attempt", {
         target_email: email,
         target_ip: ipAddress,
       })
@@ -109,20 +109,18 @@ export async function POST(request: Request) {
 
   // Clear failed attempts on successful login (best-effort)
   try {
-    await adminDb.rpc("clear_login_attempts", { target_email: email })
+    await untypedRpc(admin, "clear_login_attempts", { target_email: email })
   } catch {
     // Swallow — failing to clear shouldn't block a successful login
   }
 
   // Risk telemetry + suspicious login alerts (best effort)
   try {
-    const db = admin as any
     const currentIp = ipAddress
     const currentUa = request.headers.get("user-agent") || null
     const currentLocation = request.headers.get("x-vercel-ip-country") || request.headers.get("cf-ipcountry") || null
 
-    const { data: prev } = await db
-      .from("login_risk_events")
+    const { data: prev } = await untypedFrom(admin, "login_risk_events")
       .select("ip_address,user_agent,location_hint")
       .eq("user_id", data.user.id)
       .eq("succeeded", true)
@@ -135,7 +133,7 @@ export async function POST(request: Request) {
       prev ? { ipAddress: prev.ip_address, userAgent: prev.user_agent, locationHint: prev.location_hint } : null
     )
 
-    await db.from("login_risk_events").insert({
+    await untypedFrom(admin, "login_risk_events").insert({
       user_id: data.user.id,
       email,
       ip_address: currentIp,
@@ -148,7 +146,7 @@ export async function POST(request: Request) {
     })
 
     if (risk.suspicious) {
-      await db.from("notifications").insert({
+      await admin.from("notifications").insert({
         user_id: data.user.id,
         type: "system",
         title: "Suspicious login detected",
@@ -161,7 +159,7 @@ export async function POST(request: Request) {
 
   // Check if user has TOTP enrolled (for MFA challenge redirect)
   const { data: factors } = await supabase.auth.mfa.listFactors()
-  const verifiedTotp = (factors?.totp ?? []).filter((f: any) => f.status === "verified")
+  const verifiedTotp = (factors?.totp ?? []).filter((f: { status: string }) => f.status === "verified")
   const requiresMfa = verifiedTotp.length > 0
 
   // Check assurance level

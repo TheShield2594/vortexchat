@@ -99,8 +99,8 @@ export function CreateChannelModal({ open, onClose, serverId, categoryId }: Prop
       if (type !== "voice" && type !== "category") {
         router.push(`/channels/${serverId}/${channel.id}`)
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create channel", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to create channel", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { generateRecoveryCodes, hashRecoveryCode } from "@/lib/auth/recovery-codes"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 /**
  * GET /api/auth/recovery-codes
@@ -9,12 +10,10 @@ import { generateRecoveryCodes, hashRecoveryCode } from "@/lib/auth/recovery-cod
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
-    const db = supabase as any
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data, error } = await db
-      .from("recovery_codes")
+    const { data, error } = await untypedFrom(supabase, "recovery_codes")
       .select("id,used_at,created_at")
       .eq("user_id", auth.user.id)
       .order("created_at", { ascending: true })
@@ -23,7 +22,7 @@ export async function GET() {
 
     const codes = data || []
     const total = codes.length
-    const remaining = codes.filter((c: any) => !c.used_at).length
+    const remaining = codes.filter((c: { used_at: string | null }) => !c.used_at).length
 
     return NextResponse.json({ total, remaining })
 
@@ -45,10 +44,9 @@ export async function POST() {
     if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const admin = await createServiceRoleClient()
-    const adminDb = admin as any
 
     // Delete all existing recovery codes for this user
-    const { error: deleteError } = await adminDb.from("recovery_codes").delete().eq("user_id", auth.user.id)
+    const { error: deleteError } = await untypedFrom(admin, "recovery_codes").delete().eq("user_id", auth.user.id)
     if (deleteError) {
       return NextResponse.json({ error: "Failed to clear existing recovery codes" }, { status: 500 })
     }
@@ -64,7 +62,7 @@ export async function POST() {
       }))
     )
 
-    const { error } = await adminDb.from("recovery_codes").insert(rows)
+    const { error } = await untypedFrom(admin, "recovery_codes").insert(rows)
     if (error) return NextResponse.json({ error: "Failed to generate recovery codes" }, { status: 500 })
 
     return NextResponse.json({ codes: plaintextCodes })

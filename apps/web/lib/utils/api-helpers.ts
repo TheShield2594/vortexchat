@@ -8,6 +8,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { createLogger } from "@/lib/logger"
+import type { Json } from "@/types/database"
 
 const log = createLogger("api-helpers")
 
@@ -34,9 +35,10 @@ export async function requireAuth() {
   } = await supabase.auth.getUser()
 
   if (authError && !user) {
-    const status = (authError as { status?: number }).status
-    const code = (authError as { code?: string }).code
-    const cause = (authError as { cause?: unknown }).cause
+    const errRecord = authError as unknown as Record<string, unknown>
+    const status = typeof errRecord.status === "number" ? errRecord.status : undefined
+    const code = typeof errRecord.code === "string" ? errRecord.code : undefined
+    const cause = errRecord.cause
 
     const isNetworkError =
       (typeof status === "number" && (status === 502 || status === 503 || status === 504))
@@ -187,8 +189,7 @@ interface AuditLogEntry {
   action: string
   target_id?: string | null
   target_type?: string | null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  changes?: Record<string, any> | null
+  changes?: Record<string, Json | undefined> | null
 }
 
 /**
@@ -201,6 +202,12 @@ export async function insertAuditLog(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   entry: AuditLogEntry
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return supabase.from("audit_logs").insert(entry as any)
+  return supabase.from("audit_logs").insert({
+    server_id: entry.server_id,
+    actor_id: entry.actor_id,
+    action: entry.action,
+    target_id: entry.target_id ?? null,
+    target_type: entry.target_type ?? null,
+    changes: (entry.changes as Json) ?? null,
+  })
 }

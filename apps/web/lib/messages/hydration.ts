@@ -11,15 +11,15 @@ export const REPLY_PROJECTION = "*, author:users!messages_author_id_fkey(*)"
 /** Fetch parent messages for any rows that have reply_to_id set and stitch them in. */
 export async function withReplyTo(
   supabase: ServerSupabaseClient,
-  rows: Array<Record<string, any>>,
-): Promise<Array<Record<string, any>>> {
+  rows: Array<Record<string, unknown>>,
+): Promise<Array<Record<string, unknown>>> {
   return hydrateReplyTo(supabase, rows)
 }
 
-export async function hydrateReplyTo<T extends { reply_to_id?: string | null } & Record<string, any>>(
+export async function hydrateReplyTo<T extends { reply_to_id?: string | null } & Record<string, unknown>>(
   supabase: ServerSupabaseClient,
   rows: T[],
-): Promise<Array<T & { reply_to: Record<string, any> | null }>> {
+): Promise<Array<T & { reply_to: Record<string, unknown> | null }>> {
   const replyIds = [...new Set(rows.map((row) => row.reply_to_id).filter(Boolean))] as string[]
 
   if (!replyIds.length) {
@@ -31,7 +31,7 @@ export async function hydrateReplyTo<T extends { reply_to_id?: string | null } &
     .select(REPLY_PROJECTION)
     .in("id", replyIds)
 
-  const replyMap = new Map((data ?? []).map((message: any) => [message.id, message]))
+  const replyMap = new Map((data ?? []).map((message: Record<string, unknown>) => [message.id, message]))
 
   return rows.map((row) => ({
     ...row,

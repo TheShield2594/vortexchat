@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     })
 
     const redirectTo = `${origin}/api/users/connections/oauth/callback?provider=${provider}&state=${state}`
-    const { data, error } = await (supabase.auth as any).linkIdentity({ provider, options: { redirectTo } })
+    const { data, error } = await (supabase.auth as unknown as { linkIdentity: (opts: { provider: string; options: { redirectTo: string } }) => Promise<{ data: { url?: string } | null; error: { message: string } | null }> }).linkIdentity({ provider, options: { redirectTo } })
     if (error || !data?.url) {
       console.error("[users/connections/oauth/start GET] link identity error:", { userId: auth.user.id, message: error?.message })
       return NextResponse.json({ error: "Unable to start link flow" }, { status: 500 })

@@ -45,8 +45,8 @@ export function CreateThreadModal({ open, onClose, messageId, channelId, onCreat
       setName("")
       onCreated(data as ThreadRow)
       onClose()
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Error", description: err instanceof Error ? err.message : "Unknown error" })
     } finally {
       setLoading(false)
     }

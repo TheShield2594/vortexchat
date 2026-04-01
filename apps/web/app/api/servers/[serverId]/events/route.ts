@@ -2,9 +2,10 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { sendPushToUser } from "@/lib/push"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 // New columns (event_type, external_url, banner_url) from migration 00060 are not yet
-// reflected in the generated Supabase types. We use a typed interface and cast to any
+// reflected in the generated Supabase types. We use a typed interface and cast via unknown
 // for the queries that reference those columns.
 interface EventRow {
   id: string
@@ -47,22 +48,21 @@ export async function GET(
     const from = searchParams.get("from")
     const to = searchParams.get("to")
 
-    // Cast to any to select new columns that aren't in generated types yet
-    let query = (supabase
-      .from("events")
+    // Cast via untypedFrom to select new columns that aren't in generated types yet
+    let query = untypedFrom(supabase, "events")
       .select(
         "id, server_id, title, description, location, event_type, external_url, banner_url, " +
         "linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, " +
         "recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, " +
         "created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status,users(id,display_name,avatar_url))"
-      ) as any)
+      )
       .eq("server_id", params.serverId)
       .order("start_at", { ascending: true })
 
     if (from) query = query.gte("start_at", from)
     if (to) query = query.lte("start_at", to)
 
-    const { data, error } = await query as { data: EventRow[] | null; error: any }
+    const { data, error } = await query as { data: EventRow[] | null; error: { message: string } | null }
     if (error) return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
 
     const events = (data ?? []).map((event) => {
@@ -79,8 +79,8 @@ export async function GET(
         myRsvp: rsvps.find((r) => r.user_id === user.id) ?? null,
         hosts: (event.event_hosts ?? []).map((h) => h.user_id),
         attendees: rsvps
-          .filter((r: any) => r.status === "going" || r.status === "maybe" || r.status === "interested")
-          .map((r: any) => ({
+          .filter((r) => r.status === "going" || r.status === "maybe" || r.status === "interested")
+          .map((r) => ({
             user_id: r.user_id,
             status: r.status,
             display_name: r.users?.display_name ?? null,
@@ -113,81 +113,92 @@ export async function POST(
     return NextResponse.json({ error: "Missing MANAGE_EVENTS permission" }, { status: 403 })
   }
 
-  let body: any
+  let body: unknown
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const title = String(body.title ?? "").trim()
+  const parsed = body as {
+    title?: unknown; description?: unknown; location?: unknown; eventType?: unknown;
+    externalUrl?: unknown; bannerUrl?: unknown; linkedChannelId?: unknown; voiceChannelId?: unknown;
+    startAt?: unknown; endAt?: unknown; timezone?: unknown; recurrence?: unknown;
+    recurrenceUntil?: unknown; capacity?: unknown; createVoiceChannel?: unknown;
+    postEventThread?: unknown; hosts?: unknown; linkedCategoryId?: unknown; notifyMembers?: unknown;
+  }
+
+  const title = String(parsed.title ?? "").trim()
   if (!title) return NextResponse.json({ error: "title required" }, { status: 400 })
 
   const validEventTypes = ["general", "voice", "external"]
-  const eventType = validEventTypes.includes(body.eventType) ? body.eventType : "general"
+  const eventType = typeof parsed.eventType === "string" && validEventTypes.includes(parsed.eventType) ? parsed.eventType : "general"
 
-  const hosts = Array.isArray(body.hosts) ? (body.hosts as string[]) : []
+  const hosts = Array.isArray(parsed.hosts) ? (parsed.hosts as string[]) : []
 
-  // Cast insert payload to any to include new columns not in generated types yet
-  const insertPayload: any = {
+  // New columns (event_type, external_url, banner_url) from migration 00060 are not yet
+  // in the generated Supabase types, so we use Record<string, unknown> for the insert payload.
+  const insertPayload: Record<string, unknown> = {
     server_id: params.serverId,
     title,
-    description: body.description ?? null,
-    location: body.location ?? null,
+    description: parsed.description ?? null,
+    location: parsed.location ?? null,
     event_type: eventType,
-    external_url: eventType === "external" ? (body.externalUrl ?? null) : null,
-    banner_url: body.bannerUrl ?? null,
-    linked_channel_id: body.linkedChannelId ?? null,
-    voice_channel_id: eventType === "voice" ? (body.voiceChannelId ?? null) : null,
-    start_at: body.startAt,
-    end_at: body.endAt,
-    timezone: body.timezone ?? "UTC",
-    recurrence: body.recurrence ?? "none",
-    recurrence_until: body.recurrenceUntil ?? null,
-    capacity: body.capacity ?? null,
-    create_voice_channel: !!body.createVoiceChannel,
-    post_event_thread: !!body.postEventThread,
+    external_url: eventType === "external" ? (parsed.externalUrl ?? null) : null,
+    banner_url: parsed.bannerUrl ?? null,
+    linked_channel_id: parsed.linkedChannelId ?? null,
+    voice_channel_id: eventType === "voice" ? (parsed.voiceChannelId ?? null) : null,
+    start_at: parsed.startAt,
+    end_at: parsed.endAt,
+    timezone: parsed.timezone ?? "UTC",
+    recurrence: parsed.recurrence ?? "none",
+    recurrence_until: parsed.recurrenceUntil ?? null,
+    capacity: parsed.capacity ?? null,
+    create_voice_channel: !!parsed.createVoiceChannel,
+    post_event_thread: !!parsed.postEventThread,
     created_by: user.id,
   }
 
-  const { data: created, error } = await (supabase
-    .from("events")
+  // Cast needed because insertPayload includes columns not yet in generated types
+  const { data: created, error } = await untypedFrom(supabase, "events")
     .insert(insertPayload)
     .select("*")
-    .single() as any) as { data: any; error: any }
+    .single() as { data: Record<string, unknown> | null; error: { message: string } | null }
 
   if (error || !created) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 
+  const createdId = created.id as string
+
   if (hosts.length > 0) {
     await supabase.from("event_hosts").insert(
-      hosts.map((hostUserId: string) => ({ event_id: created.id, user_id: hostUserId }))
+      hosts.map((hostUserId: string) => ({ event_id: createdId, user_id: hostUserId }))
     )
   }
 
-  if (body.createVoiceChannel) {
+  if (parsed.createVoiceChannel) {
     const { data: voiceChannel } = await supabase
       .from("channels")
       .insert({
         server_id: params.serverId,
         type: "voice",
         name: `${title} Voice`,
-        parent_id: body.linkedCategoryId ?? null,
+        parent_id: (parsed.linkedCategoryId as string) ?? null,
       })
       .select("id")
       .single()
 
     if (voiceChannel?.id) {
-      await supabase.from("events").update({ voice_channel_id: voiceChannel.id }).eq("id", created.id)
+      await supabase.from("events").update({ voice_channel_id: voiceChannel.id }).eq("id", createdId)
     }
   }
 
-  if (body.postEventThread && body.linkedChannelId) {
+  if (parsed.postEventThread && parsed.linkedChannelId) {
     const { data: message } = await supabase
       .from("messages")
       .insert({
-        channel_id: body.linkedChannelId,
+        channel_id: parsed.linkedChannelId as string,
         author_id: user.id,
-        content: `\uD83D\uDCC5 **${title}**\n${body.description ?? "Event created"}`,
+        content: `\uD83D\uDCC5 **${title}**\n${(parsed.description as string) ?? "Event created"}`,
       })
       .select("id")
       .single()
@@ -198,12 +209,13 @@ export async function POST(
         p_name: `${title} discussion`,
       })
       if (thread?.id) {
-        await (supabase.from("events").update({ thread_id: thread.id }).eq("id", created.id) as any)
+        // thread_id column from migration 00060 is not yet in generated types
+        await (supabase.from("events").update({ thread_id: thread.id }).eq("id", createdId) as unknown as Promise<{ error: { message: string } | null }>)
       }
     }
   }
 
-  if (body.notifyMembers) {
+  if (parsed.notifyMembers) {
     const { data: members } = await supabase
       .from("server_members")
       .select("user_id")
@@ -217,14 +229,14 @@ export async function POST(
           title: `New event: ${title}`,
           body: "A new event has been scheduled.",
           server_id: params.serverId,
-          channel_id: body.linkedChannelId ?? null,
+          channel_id: (parsed.linkedChannelId as string) ?? null,
         }))
       )
 
       // Push notifications for all server members (except event creator)
       const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", params.serverId).maybeSingle()
       const serverName = serverInfo?.name ?? "a server"
-      const startDate = body.startAt ? new Date(body.startAt).toLocaleString() : ""
+      const startDate = parsed.startAt ? new Date(String(parsed.startAt)).toLocaleString() : ""
       await Promise.allSettled(
         members
           .filter((m: { user_id: string }) => m.user_id !== user.id)
@@ -233,7 +245,7 @@ export async function POST(
               title: `📅 New event in ${serverName}`,
               body: `${title}${startDate ? ` — ${startDate}` : ""}`,
               url: `/channels/${params.serverId}`,
-              tag: `event-${created.id}`,
+              tag: `event-${createdId}`,
             })
           )
       )

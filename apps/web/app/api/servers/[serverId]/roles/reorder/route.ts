@@ -19,10 +19,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any
+  let body: { roleIds?: string[] }
   try {
-    body = await req.json()
+    body = await req.json() as { roleIds?: string[] }
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
@@ -80,10 +79,8 @@ export async function PATCH(
   }
 
   // Build the old positions for audit log
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const beforePositions: Record<string, any> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const afterPositions: Record<string, any> = {}
+  const beforePositions: Record<string, { name: string; position: number }> = {}
+  const afterPositions: Record<string, { name: string; position: number }> = {}
 
   // roleIds is ordered from highest to lowest, so position = (length - index)
   // The default role should remain at position 0; skip it if included

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 /**
  * GET /api/cron/attachment-decay
@@ -74,13 +75,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // ── Purge expired DM attachments ─────────────────────────────────────────
 
     // dm_attachments is not in generated Supabase types yet
-    const { data: expiredDmAttachments } = await (serviceClient as any)
-      .from("dm_attachments")
+    type DmAttRow = { id: string; url: string; filename: string; size: number; dm_id: string }
+    const { data: expiredDmAttachments, error: dmQueryError } = await untypedFrom(serviceClient, "dm_attachments")
       .select("id, url, filename, size, dm_id")
       .lt("expires_at", now)
       .is("purged_at", null)
       .not("expires_at", "is", null)
-      .limit(BATCH_LIMIT) as { data: Array<{ id: string; url: string; filename: string; size: number; dm_id: string }> | null }
+      .limit(BATCH_LIMIT) as { data: DmAttRow[] | null; error: { message: string } | null }
+
+    if (dmQueryError) {
+      console.error("[cron/attachment-decay] dm query failed", { error: dmQueryError.message })
+    }
 
     let purgedDm = 0
 
@@ -109,10 +114,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         // Still mark as purged — the file may already be gone
       }
 
-      await (serviceClient as any)
-        .from("dm_attachments")
+      const { error: updateError } = await untypedFrom(serviceClient, "dm_attachments")
         .update({ purged_at: now })
         .eq("id", att.id)
+
+      if (updateError) {
+        console.error("[cron/attachment-decay] dm update failed", { attachmentId: att.id, error: updateError })
+        storageErrors++
+        continue
+      }
 
       purgedDm++
     }

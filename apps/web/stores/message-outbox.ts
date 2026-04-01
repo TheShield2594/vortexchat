@@ -53,17 +53,17 @@ function loadPersistedMessages(): OutboxMessage[] {
     if (!Array.isArray(parsed)) return []
     return parsed
       .filter(
-        (m: any) =>
+        (m: Record<string, unknown>) =>
           typeof m.clientId === "string" &&
           typeof m.channelId === "string" &&
           typeof m.content === "string",
       )
-      .map((m: any): OutboxMessage => ({
-        clientId: m.clientId,
-        channelId: m.channelId,
-        content: m.content,
+      .map((m: Record<string, unknown>): OutboxMessage => ({
+        clientId: m.clientId as string,
+        channelId: m.channelId as string,
+        content: m.content as string,
         queuedAt: typeof m.queuedAt === "string" ? m.queuedAt : new Date().toISOString(),
-        status: VALID_STATUSES.includes(m.status) ? m.status : "pending",
+        status: VALID_STATUSES.includes(m.status as OutboxStatus) ? (m.status as OutboxStatus) : "pending",
         retries: typeof m.retries === "number" && Number.isFinite(m.retries) ? m.retries : 0,
         ...(typeof m.error === "string" ? { error: m.error } : {}),
       }))

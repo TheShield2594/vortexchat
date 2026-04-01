@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
 import { getRpId, PASSKEY_CHALLENGE_TTL_SECONDS, randomChallenge, resolveRequestOrigin } from "@/lib/auth/passkeys"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 /**
  * Look up a user by email via the GoTrue admin REST API.
@@ -54,9 +55,6 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createServiceRoleClient()
-    // Service-role client lacks generated DB types — cast required for untyped table access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any
 
     let userId: string | null = null
     let policy = {
@@ -70,8 +68,7 @@ export async function POST(request: Request) {
       userId = await getUserIdByEmail(email)
 
       if (userId) {
-        const { data: policyRow } = await db
-          .from("auth_security_policies")
+        const { data: policyRow } = await untypedFrom(supabase, "auth_security_policies")
           .select("passkey_first,enforce_passkey,fallback_password,fallback_magic_link")
           .eq("user_id", userId)
           .maybeSingle()
@@ -84,7 +81,7 @@ export async function POST(request: Request) {
     const origin = resolveRequestOrigin(request.headers)
     const rpID = getRpId(origin)
 
-    const { error: challengeError } = await db.from("auth_challenges").insert({
+    const { error: challengeError } = await untypedFrom(supabase, "auth_challenges").insert({
       user_id: userId,
       flow: "login",
       challenge,
@@ -100,8 +97,7 @@ export async function POST(request: Request) {
     // Only query credentials for a specific user — never expose the full table
     let credentials: Array<{ credential_id: string }> = []
     if (userId) {
-      const { data } = await db
-        .from("passkey_credentials")
+      const { data } = await untypedFrom(supabase, "passkey_credentials")
         .select("credential_id")
         .is("revoked_at", null)
         .eq("user_id", userId)

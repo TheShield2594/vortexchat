@@ -188,13 +188,13 @@ function mergeItemsPreservingOrder(
   return merged
 }
 
-export function normalizeVoiceParticipants(rows: any[]): VoiceParticipant[] {
-  return rows.map((d: any) => ({
-    user_id: d.user_id,
-    channel_id: d.channel_id,
-    muted: d.muted,
-    deafened: d.deafened,
-    user: d.users ?? null,
+export function normalizeVoiceParticipants(rows: Array<Record<string, unknown>>): VoiceParticipant[] {
+  return rows.map((d: Record<string, unknown>) => ({
+    user_id: d.user_id as string,
+    channel_id: d.channel_id as string,
+    muted: d.muted as boolean,
+    deafened: d.deafened as boolean,
+    user: (d.users as VoiceParticipant["user"]) ?? null,
   }))
 }
 
@@ -300,8 +300,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         if (!controller.signal.aborted && data) {
           setActiveThreadCounts(data)
         }
-      } catch (error: any) {
-        if (error?.name !== "AbortError") console.error("Failed to load thread counts", error)
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== "AbortError") console.error("Failed to load thread counts", error)
       }
     }
 
@@ -553,8 +553,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         router.push(`/channels/${server.id}`)
       }
       toast({ title: "Channel deleted" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to delete channel", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to delete channel", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
@@ -568,8 +568,8 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       if (error) throw error
       removeChannel(categoryId)
       toast({ title: "Category deleted" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to delete category", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to delete category", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
@@ -725,7 +725,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         p_updates: updates.map(({ id, position, parent_id }) => ({ id, position, parent_id })),
       })
       if (error) throw error
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Rollback: restore previous positions in a single store update
       const rollbackMap = new Map(previous.map(({ id, position, parent_id }) => [id, { position, parent_id }]))
       const rolledBack = channels.map((c) => {
@@ -733,7 +733,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         return rb ? { ...c, ...rb } : c
       })
       setChannels(server.id, rolledBack)
-      toast({ variant: "destructive", title: "Failed to save channel order", description: error.message })
+      toast({ variant: "destructive", title: "Failed to save channel order", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 

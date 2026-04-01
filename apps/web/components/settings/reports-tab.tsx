@@ -81,11 +81,11 @@ export function ReportsTab({ serverId }: Props) {
         if (!res.ok) throw new Error("Failed to fetch reports")
         const data = await res.json()
         setReports(data)
-      } catch (error: any) {
+      } catch (error: unknown) {
         toast({
           variant: "destructive",
           title: "Failed to load reports",
-          description: error?.message,
+          description: error instanceof Error ? error.message : "Unknown error",
         })
       } finally {
         setLoading(false)
@@ -118,11 +118,11 @@ export function ReportsTab({ serverId }: Props) {
         prev.map((r) => (r.id === reportId ? { ...r, ...updated } : r))
       )
       toast({ title: `Report ${newStatus}` })
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Failed to update report",
-        description: error?.message,
+        description: error instanceof Error ? error.message : "Unknown error",
       })
     } finally {
       setUpdatingId(null)

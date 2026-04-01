@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { formatInTimeZone } from "@/lib/events"
 import type { EventOccurrence } from "@/lib/events"
+import type { ServerEvent, EventAttendee } from "./events-calendar"
 
 type RsvpStatus = "interested" | "going" | "maybe" | "not_going" | "waitlist" | null
 
 interface EventCardProps {
-  event: any
+  event: ServerEvent
   occurrence: EventOccurrence
   timezone: string
   serverId: string
@@ -52,7 +53,7 @@ function computeLabel(startAt: Date): string {
 export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compact = false, canEdit = false, onDelete, onCancel }: EventCardProps) {
   const router = useRouter()
   const countdown = useCountdown(occurrence.startAt)
-  const myStatus: RsvpStatus = event?.myRsvp?.status ?? null
+  const myStatus: RsvpStatus = (event?.myRsvp?.status as RsvpStatus) ?? null
   const interestedCount = (event?.stats?.going ?? 0) + (event?.stats?.maybe ?? 0) + (event?.stats?.interested ?? 0)
 
   const isLive = countdown === "\uD83D\uDD34 Live now"
@@ -170,7 +171,7 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
         {event.attendees?.length > 0 && (
           <div className="flex items-center gap-2">
             <div className="flex -space-x-1.5">
-              {event.attendees.slice(0, 8).map((a: any) => (
+              {event.attendees.slice(0, 8).map((a: EventAttendee) => (
                 <div key={a.user_id} className="h-6 w-6 rounded-full border-2 border-zinc-900 bg-zinc-700 overflow-hidden" title={a.display_name ?? "User"}>
                   {a.avatar_url ? (
                     <img src={a.avatar_url} alt={a.display_name ? `${a.display_name}'s avatar` : "Event attendee"} className="h-full w-full object-cover" />

@@ -27,7 +27,7 @@ export function useSwRegistration() {
     // Toggle is-standalone class on <html> for conditional CSS
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as any).standalone === true
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
     if (isStandalone) {
       document.documentElement.classList.add("is-standalone")
     }

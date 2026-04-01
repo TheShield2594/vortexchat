@@ -11,8 +11,9 @@ export function useAsyncAction() {
     setLoading(true)
     try {
       await fn()
-    } catch (error: any) {
-      toast({ variant: "destructive", title: errorTitle, description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "An unexpected error occurred"
+      toast({ variant: "destructive", title: errorTitle, description: message })
     } finally {
       setLoading(false)
     }

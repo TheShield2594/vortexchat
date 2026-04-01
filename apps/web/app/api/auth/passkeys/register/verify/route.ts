@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { verifyWithAdapter } from "@/lib/auth/passkeys"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 export async function POST(request: Request) {
   try {
@@ -34,14 +35,11 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createServerSupabaseClient()
-    const db = supabase as any
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const admin = await createServiceRoleClient()
-    const adminDb = admin as any
-    const { data: challengeRow, error: claimError } = await adminDb
-      .from("auth_challenges")
+    const { data: challengeRow, error: claimError } = await untypedFrom(admin, "auth_challenges")
       .update({ used_at: new Date().toISOString() })
       .eq("user_id", auth.user.id)
       .eq("challenge", body.challenge)
@@ -71,7 +69,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Passkey attestation verification failed" }, { status: 400 })
     }
 
-    await adminDb.from("passkey_credentials").insert({
+    await untypedFrom(admin, "passkey_credentials").insert({
       user_id: auth.user.id,
       credential_id: body.credentialId,
       public_key: verify.publicKey || "",

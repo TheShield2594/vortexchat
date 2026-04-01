@@ -7,7 +7,7 @@ import { MediaChannel } from "@/components/channels/media-channel"
 import { VoiceChannelLazy as VoiceChannel } from "@/components/voice/voice-channel-lazy"
 import { hydrateReplyTo, MESSAGE_PROJECTION } from "@/lib/messages/hydration"
 import { PERMISSIONS, computePermissions, hasPermission } from "@vortex/shared"
-import type { RoleRow } from "@/types/database"
+import type { RoleRow, MessageWithAuthor } from "@/types/database"
 import { perfTimer } from "@/lib/perf"
 
 interface Props {
@@ -120,12 +120,11 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
   const canModerateStage = isAdmin || hasPermission(channelPerms, "MUTE_MEMBERS")
 
   // Filter messages to only text-based channel types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase returns untyped rows; hydration preserves the shape
-  let messages: any[] = []
+  let messages: MessageWithAuthor[] = []
   if ((MESSAGE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
     const hydrateTimer = perfTimer("channel-page reply hydration")
     const raw = (messagesData ?? []).reverse()
-    messages = await hydrateReplyTo(supabase, raw)
+    messages = await hydrateReplyTo(supabase, raw) as unknown as MessageWithAuthor[]
     hydrateTimer.end()
   }
 

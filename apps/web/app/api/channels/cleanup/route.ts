@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     if (error) throw error
 
     return NextResponse.json({ deleted: data ?? 0 })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[channels/cleanup] Error deleting expired channels:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

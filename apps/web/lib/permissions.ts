@@ -6,6 +6,7 @@
  */
 import { PERMISSIONS, hasPermission, computePermissions } from "@vortex/shared"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/types/database"
 
 export { PERMISSIONS, hasPermission, computePermissions }
 export type { Permission } from "@vortex/shared"
@@ -36,8 +37,7 @@ export interface MemberPerms {
  * silently falling back to deny-all.
  */
 export async function getMemberPermissions(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any>,
+  supabase: SupabaseClient<Database>,
   serverId: string,
   userId: string
 ): Promise<MemberPerms> {
@@ -60,9 +60,12 @@ export async function getMemberPermissions(
   const isOwner = ownerId === userId
   const isMember = member !== null || isOwner
 
+  interface MemberRoleJoin {
+    roles: { permissions: number } | null
+  }
+  const memberWithRoles = member as { member_roles?: MemberRoleJoin[] } | null
   const rawPerms: number[] =
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (member as any)?.member_roles?.flatMap((mr: any) =>
+    memberWithRoles?.member_roles?.flatMap((mr) =>
       mr.roles?.permissions != null ? [mr.roles.permissions] : []
     ) ?? []
 
@@ -72,7 +75,7 @@ export async function getMemberPermissions(
 
   const permissions = computePermissions(rawPerms)
   const isAdmin = isOwner || !!(permissions & PERMISSIONS.ADMINISTRATOR)
-  const screeningEnabled: boolean = !!(server as any)?.screening_enabled
+  const screeningEnabled: boolean = !!server?.screening_enabled
 
   return { isOwner, isMember, permissions, isAdmin, ownerId, screeningEnabled }
 }
@@ -82,8 +85,7 @@ export async function getMemberPermissions(
  * role-level channel overwrite rows (deny first, then allow).
  */
 export async function getChannelPermissions(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any>,
+  supabase: SupabaseClient<Database>,
   serverId: string,
   channelId: string,
   userId: string

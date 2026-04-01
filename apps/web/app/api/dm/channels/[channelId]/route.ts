@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 // GET /api/dm/channels/[channelId] — get channel info + messages
 export async function GET(
@@ -63,7 +64,7 @@ export async function GET(
     const before = searchParams.get("before")
     const limit = 50
 
-    let query = (supabase as any)
+    let query = supabase
       .from("direct_messages")
       .select("id, dm_channel_id, sender_id, content, edited_at, deleted_at, created_at, reply_to_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
       .eq("dm_channel_id", channelId)
@@ -73,17 +74,18 @@ export async function GET(
 
     if (before) query = query.lt("created_at", before)
 
-    const { data: messages, error } = await query
+    const { data: rawMessages, error } = await query
+    const messages = rawMessages as unknown as Array<{ id: string; dm_channel_id: string; sender_id: string; content: string; edited_at: string | null; deleted_at: string | null; created_at: string; reply_to_id: string | null; sender: unknown }> | null
 
     if (error) return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
 
     // Resolve replied-to messages
     const replyIds: string[] = (messages ?? [])
-      .map((m: any) => m.reply_to_id as string | null)
-      .filter((id: string | null): id is string => !!id)
+      .map((m) => m.reply_to_id)
+      .filter((id): id is string => !!id)
     const uniqueReplyIds: string[] = [...new Set(replyIds)]
 
-    let replyMap: Record<string, any> = {}
+    let replyMap: Record<string, Record<string, unknown>> = {}
     if (uniqueReplyIds.length > 0) {
       const { data: replyMessages } = await supabase
         .from("direct_messages")
@@ -97,17 +99,15 @@ export async function GET(
     }
 
     // Fetch dm_attachments and dm_reactions for these messages in parallel
-    const messageIds: string[] = (messages ?? []).map((m: any) => m.id as string)
+    const messageIds: string[] = (messages ?? []).map((m) => m.id)
     let attachmentMap: Record<string, Array<{ id: string; filename: string; size: number; content_type: string }>> = {}
     let reactionMap: Record<string, Array<{ dm_id: string; user_id: string; emoji: string; created_at: string }>> = {}
     if (messageIds.length > 0) {
       const [attachmentResult, reactionResult] = await Promise.all([
-        (supabase as unknown as { from: (table: string) => any })
-          .from("dm_attachments")
+        untypedFrom(supabase, "dm_attachments")
           .select("id, dm_id, filename, size, content_type")
           .in("dm_id", messageIds),
-        (supabase as unknown as { from: (table: string) => any })
-          .from("dm_reactions")
+        untypedFrom(supabase, "dm_reactions")
           .select("dm_id, user_id, emoji, created_at")
           .in("dm_id", messageIds),
       ])
@@ -131,7 +131,7 @@ export async function GET(
       }
     }
 
-    const enrichedMessages = (messages ?? []).map((m: any) => ({
+    const enrichedMessages = (messages ?? []).map((m) => ({
       ...m,
       reply_to: m.reply_to_id ? (replyMap[m.reply_to_id] ?? null) : null,
       dm_attachments: attachmentMap[m.id] ?? [],

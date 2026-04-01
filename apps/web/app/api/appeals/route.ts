@@ -9,7 +9,7 @@ export async function GET() {
     const { supabase, user, error: authError } = await requireAuth()
     if (authError) return authError
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("moderation_appeals")
       .select("id, server_id, status, submitted_at, updated_at, assigned_reviewer_id")
       .eq("user_id", user.id)
@@ -60,14 +60,14 @@ export async function POST(req: NextRequest) {
         .eq("server_id", serverId)
         .eq("user_id", user.id)
         .maybeSingle(),
-      (serviceSupabase as any)
+      serviceSupabase
         .from("moderation_appeals")
         .select("id")
         .eq("server_id", serverId)
         .eq("user_id", user.id)
         .in("status", ["submitted", "reviewing"])
         .maybeSingle(),
-      (serviceSupabase as any)
+      serviceSupabase
         .from("moderation_appeals")
         .select("id", { count: "exact", head: true })
         .eq("server_id", serverId)
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       recentAppealCount: count ?? 0,
     })
 
-    const { data: appeal, error } = await (serviceSupabase as any)
+    const { data: appeal, error } = await serviceSupabase
       .from("moderation_appeals")
       .insert({
         server_id: serverId,
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: "Failed to submit appeal" }, { status: 500 })
 
-    const { error: eventError } = await (serviceSupabase as any).from("moderation_appeal_status_events").insert({
+    const { error: eventError } = await serviceSupabase.from("moderation_appeal_status_events").insert({
       appeal_id: appeal.id,
       server_id: serverId,
       actor_id: user.id,
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     if (eventError) {
       console.warn("Failed appeal status event insert", { appealId: appeal.id, moderatorId: user.id, action: "create", error: eventError })
-      await (serviceSupabase as any).from("moderation_appeals").delete().eq("id", appeal.id)
+      await serviceSupabase.from("moderation_appeals").delete().eq("id", appeal.id)
       return NextResponse.json({ error: "Failed to create appeal status event" }, { status: 500 })
     }
 
@@ -135,12 +135,12 @@ export async function POST(req: NextRequest) {
 
     if (auditError) {
       console.warn("Failed appeal audit log insert", { appealId: appeal.id, moderatorId: user.id, action: "create", error: auditError })
-      await (serviceSupabase as any).from("moderation_appeal_status_events").delete().eq("appeal_id", appeal.id)
-      await (serviceSupabase as any).from("moderation_appeals").delete().eq("id", appeal.id)
+      await serviceSupabase.from("moderation_appeal_status_events").delete().eq("appeal_id", appeal.id)
+      await serviceSupabase.from("moderation_appeals").delete().eq("id", appeal.id)
       return NextResponse.json({ error: "Failed to write appeal audit log" }, { status: 500 })
     }
 
-    const { error: notificationError } = await (serviceSupabase as any).from("notifications").insert([
+    const { error: notificationError } = await serviceSupabase.from("notifications").insert([
       {
         user_id: user.id,
         type: "system",

@@ -7,6 +7,11 @@
  *              then `perfLogSinceNav()` in component mount effects.
  */
 
+interface PerfWindow extends Window {
+  __vortexNavStart?: number
+  __vortexNavContext?: string
+}
+
 const ENABLED = process.env.NODE_ENV !== "production"
 
 // ── Server-side timing ──────────────────────────────────────────────────────
@@ -28,7 +33,7 @@ export function perfTimer(label: string): { end: () => void } {
 /** Mark the start of a server/channel switch navigation. */
 export function perfMarkNavStart(context?: string) {
   if (!ENABLED || typeof window === "undefined") return
-  const w = window as any
+  const w = window as PerfWindow
   w.__vortexNavStart = performance.now()
   w.__vortexNavContext = context ?? "unknown"
   console.log(`[perf] ▶ navigation start${context ? ` (${context})` : ""}`)
@@ -37,8 +42,8 @@ export function perfMarkNavStart(context?: string) {
 /** Log elapsed time since the last `perfMarkNavStart()` call. */
 export function perfLogSinceNav(label: string) {
   if (!ENABLED || typeof window === "undefined") return
-  const w = window as any
-  const start = w.__vortexNavStart as number | undefined
+  const w = window as PerfWindow
+  const start = w.__vortexNavStart
   if (start == null) return
   const elapsed = (performance.now() - start).toFixed(1)
   const ctx = w.__vortexNavContext ?? ""
@@ -48,7 +53,7 @@ export function perfLogSinceNav(label: string) {
 /** Clear the navigation mark (call when the final component mounts). */
 export function perfClearNav() {
   if (!ENABLED || typeof window === "undefined") return
-  const w = window as any
+  const w = window as PerfWindow
   delete w.__vortexNavStart
   delete w.__vortexNavContext
 }

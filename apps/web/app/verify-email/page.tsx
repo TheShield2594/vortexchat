@@ -62,8 +62,9 @@ export default function VerifyEmailPage() {
       })
       if (error) throw error
       toast({ title: "Verification email sent!", description: `Check ${target} for a new verification link.` })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to resend", description: error.message })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "An unexpected error occurred"
+      toast({ variant: "destructive", title: "Failed to resend", description: message })
     } finally {
       setResending(false)
     }

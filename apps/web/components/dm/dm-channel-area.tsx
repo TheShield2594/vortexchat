@@ -27,6 +27,7 @@ import { ChannelRowSkeleton, MessageListSkeleton } from "@/components/ui/skeleto
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
 import { useKeyboardAvoidance } from "@/hooks/use-keyboard-avoidance"
 import { computeDecay } from "@vortex/shared"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 interface User {
   id: string
@@ -548,7 +549,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     const payload = await keyRes.json()
     const privateKey = identity.privateKey
 
-    const existingWrapped = (payload.wrappedKeys ?? []).find((row: any) => row.key_version === version && row.target_device_id === identity.deviceId)
+    const existingWrapped = (payload.wrappedKeys ?? []).find((row: { key_version: number; target_device_id: string; sender_public_key: string; wrapped_key: string }) => row.key_version === version && row.target_device_id === identity.deviceId)
     if (existingWrapped) {
       const senderPublic = await importPublicKey(existingWrapped.sender_public_key)
       const unwrapped = await unwrapConversationKey(existingWrapped.wrapped_key, privateKey, senderPublic)
@@ -560,7 +561,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     if (channelInfo.owner_id !== currentUserId) return null
 
     const nextKey = generateConversationKey()
-    const wrappedKeys = await Promise.all((payload.memberDeviceKeys ?? []).map(async (row: any) => ({
+    const wrappedKeys = await Promise.all((payload.memberDeviceKeys ?? []).map(async (row: { user_id: string; device_id: string; public_key: string }) => ({
       targetUserId: row.user_id,
       targetDeviceId: row.device_id,
       wrappedKey: await wrapConversationKey(nextKey, privateKey, await importPublicKey(row.public_key)),
@@ -755,16 +756,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           filter: `dm_channel_id=eq.${channelId}`,
         },
         (payload) => {
-          const msg = payload.new as any
+          const msg = payload.new as Record<string, unknown>
           // Only add if it's from someone else (we already added our own optimistically)
           if (msg.sender_id !== currentUserId) {
-            playNotification();
-            (supabase as any)
+            playNotification()
+            ;(supabase
               .from("direct_messages")
               .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status), reply_to_id")
-              .eq("id", msg.id)
-              .single()
-              .then(async ({ data }: { data: any }) => {
+              .eq("id", msg.id as string)
+              .single() as unknown as Promise<{ data: Record<string, unknown> | null }>)
+              .then(async ({ data }: { data: Record<string, unknown> | null }) => {
                 if (!data) return
                 // Resolve reply_to if present
                 let replyToMsg = null
@@ -772,18 +773,17 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   const { data: replyData } = await supabase
                     .from("direct_messages")
                     .select("id, content, sender_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
-                    .eq("id", data.reply_to_id)
+                    .eq("id", data.reply_to_id as string)
                     .eq("dm_channel_id", channelId)
                     .is("deleted_at", null)
                     .single()
                   replyToMsg = replyData ?? null
                 }
                 // Fetch dm_attachments so images render through the proxy
-                const { data: attRows } = await (supabase as any)
-                  .from("dm_attachments")
+                const { data: attRows } = await untypedFrom(supabase, "dm_attachments")
                   .select("id, filename, size, content_type")
-                  .eq("dm_id", data.id)
-                const newMsg: Message = { ...data, reply_to: replyToMsg, dm_attachments: attRows ?? [], reactions: [] }
+                  .eq("dm_id", data.id as string)
+                const newMsg: Message = { ...data as unknown as Message, reply_to: replyToMsg, dm_attachments: attRows ?? [], reactions: [] }
                 setMessages((prev) => [...prev, newMsg])
 
                 // Incrementally index the new message if the channel is encrypted
@@ -1247,7 +1247,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         // dm_attachments table not yet in generated Supabase types
         const now = new Date()
         const decay = computeDecay({ sizeBytes: file.size, uploadedAt: now })
-        const { data: insertedAtt, error: attInsertError } = await (supabase as any).from("dm_attachments").insert({
+        const { data: insertedAtt, error: attInsertError } = await untypedFrom(supabase, "dm_attachments").insert({
           dm_id: msg.id,
           url: signedUrl,
           filename: file.name,
@@ -2379,7 +2379,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   const remoteAudioRef = useRef<HTMLAudioElement>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
-  const sigChannelRef = useRef<any>(null)
+  const sigChannelRef = useRef<ReturnType<ReturnType<typeof createClientSupabaseClient>["channel"]> | null>(null)
   const clientId = useRef(crypto.randomUUID())
   const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting")
   const [failReason, setFailReason] = useState("")
@@ -2443,18 +2443,18 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
       }
     }
 
-    sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: any) => {
+    sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: { payload: Record<string, unknown> }) => {
       if (payload.from === clientId.current) return
       try {
         if (payload.type === "offer") {
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.offer ?? payload.payload))
+          await pc.setRemoteDescription(new RTCSessionDescription((payload.offer ?? payload.payload) as RTCSessionDescriptionInit))
           const answer = await pc.createAnswer()
           await pc.setLocalDescription(answer)
           sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
         } else if (payload.type === "answer") {
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.answer ?? payload.payload))
+          await pc.setRemoteDescription(new RTCSessionDescription((payload.answer ?? payload.payload) as RTCSessionDescriptionInit))
         } else if (payload.type === "ice-candidate") {
-          await pc.addIceCandidate(new RTCIceCandidate(payload.candidate ?? payload.payload))
+          await pc.addIceCandidate(new RTCIceCandidate((payload.candidate ?? payload.payload) as RTCIceCandidateInit))
         } else if (payload.type === "hangup") {
           onHangup()
         }
@@ -2482,11 +2482,12 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
           await pc.setLocalDescription(offer)
           sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "offer", offer, from: clientId.current } })
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setStatus("failed")
-        if (err?.name === "NotAllowedError") {
+        const errName = err instanceof DOMException ? err.name : ""
+        if (errName === "NotAllowedError") {
           setFailReason("Permission denied. Allow microphone" + (withVideo ? " and camera" : "") + " access and retry.")
-        } else if (err?.name === "NotFoundError") {
+        } else if (errName === "NotFoundError") {
           setFailReason("No " + (withVideo ? "camera or " : "") + "microphone found.")
         } else {
           setFailReason("Could not access media devices.")

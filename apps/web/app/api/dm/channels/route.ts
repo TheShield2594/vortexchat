@@ -70,7 +70,7 @@ export async function GET() {
       if (u) membersByChannel[row.dm_channel_id]!.push(u)
     }
 
-    const latestMessages: Record<string, any> = {}
+    const latestMessages: Record<string, Record<string, unknown>> = {}
     for (const msg of latestResult.data ?? []) {
       if (msg.dm_channel_id && !latestMessages[msg.dm_channel_id]) {
         latestMessages[msg.dm_channel_id] = msg
@@ -88,7 +88,7 @@ export async function GET() {
       const partner = ch.is_group ? null : (members.find((u) => u.id !== user.id) ?? null)
       const latest = latestMessages[ch.id] ?? null
       const lastRead = readStates[ch.id]
-      const isUnread = !!(latest && (!lastRead || latest.created_at > lastRead) && latest.sender_id !== user.id)
+      const isUnread = !!(latest && (!lastRead || (latest.created_at as string) > lastRead) && latest.sender_id !== user.id)
 
       return {
         id: ch.id,

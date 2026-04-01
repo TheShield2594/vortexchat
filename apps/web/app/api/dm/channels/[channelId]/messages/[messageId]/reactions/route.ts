@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 interface Body {
   emoji?: string
@@ -31,7 +32,7 @@ async function verifyMembershipAndMessage(
   if (!membership) return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), message: null }
 
   // Verify the message exists in this channel
-  const { data: message, error: messageError } = await (supabase as any)
+  const { data: message, error: messageError } = await supabase
     .from("direct_messages")
     .select("id, sender_id")
     .eq("id", messageId)
@@ -42,7 +43,7 @@ async function verifyMembershipAndMessage(
   if (messageError) return { error: NextResponse.json({ error: "Failed to fetch message" }, { status: 500 }), message: null }
   if (!message) return { error: NextResponse.json({ error: "Message not found" }, { status: 404 }), message: null }
 
-  return { error: null, message: message as { id: string; sender_id: string } }
+  return { error: null, message }
 }
 
 // POST — add a reaction to a DM message
@@ -68,8 +69,7 @@ export async function POST(
       return NextResponse.json({ error: "Cannot react due to block state" }, { status: 403 })
     }
 
-    const { error } = await (supabase as any)
-      .from("dm_reactions")
+    const { error } = await untypedFrom(supabase, "dm_reactions")
       .upsert(
         { dm_id: messageId, user_id: user.id, emoji },
         { onConflict: "dm_id,user_id,emoji", ignoreDuplicates: true }
@@ -102,8 +102,7 @@ export async function DELETE(
     const { error: verifyError } = await verifyMembershipAndMessage(supabase, channelId, messageId, user.id)
     if (verifyError) return verifyError
 
-    const { error } = await (supabase as any)
-      .from("dm_reactions")
+    const { error } = await untypedFrom(supabase, "dm_reactions")
       .delete()
       .eq("dm_id", messageId)
       .eq("user_id", user.id)

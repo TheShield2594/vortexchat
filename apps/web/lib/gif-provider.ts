@@ -23,14 +23,14 @@ async function fetchWithTimeout(input: string, timeoutMs = FETCH_TIMEOUT_MS): Pr
 
 // ── Klipy ────────────────────────────────────────────────────────────────────
 
-function mapKlipy(gif: Record<string, any>): GifResult {
-  const media = gif.files ?? gif.media_formats ?? {}
+function mapKlipy(gif: Record<string, unknown>): GifResult {
+  const media = (gif.files ?? gif.media_formats ?? {}) as Record<string, Record<string, string> | undefined>
   return {
-    id: gif.id,
-    title: gif.content_description || gif.title || "GIF",
+    id: gif.id as string,
+    title: (gif.content_description as string) || (gif.title as string) || "GIF",
     previewUrl: media.tinygif?.url ?? media.nanogif?.url ?? "",
     gifUrl: media.gif?.url ?? media.mediumgif?.url ?? "",
-    url: media.gif?.url ?? media.mediumgif?.url ?? media.tinygif?.url ?? gif.itemurl ?? gif.url ?? null,
+    url: media.gif?.url ?? media.mediumgif?.url ?? media.tinygif?.url ?? (gif.itemurl as string) ?? (gif.url as string) ?? null,
   }
 }
 
@@ -117,18 +117,19 @@ export async function klipySuggestions(apiKey: string, query: string): Promise<s
 
 // ── Giphy (fallback) ────────────────────────────────────────────────────────
 
-function mapGiphy(gif: Record<string, any>): GifResult {
+function mapGiphy(gif: Record<string, unknown>): GifResult {
+  const images = (gif.images ?? {}) as Record<string, Record<string, string> | undefined>
   return {
-    id: gif.id,
-    title: gif.title || "GIF",
+    id: gif.id as string,
+    title: (gif.title as string) || "GIF",
     previewUrl:
-      gif.images?.fixed_width_small?.url ??
-      gif.images?.preview_gif?.url ??
-      gif.images?.fixed_width_small_still?.url ??
-      gif.images?.original_still?.url ??
+      images.fixed_width_small?.url ??
+      images.preview_gif?.url ??
+      images.fixed_width_small_still?.url ??
+      images.original_still?.url ??
       "",
-    gifUrl: gif.images?.original?.url ?? gif.images?.downsized?.url ?? "",
-    url: gif.url || null,
+    gifUrl: images.original?.url ?? images.downsized?.url ?? "",
+    url: (gif.url as string) || null,
   }
 }
 

@@ -3,6 +3,7 @@ import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supab
 import { verifyRecoveryCode } from "@/lib/auth/recovery-codes"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 /**
  * POST /api/auth/recovery-codes/redeem
@@ -37,7 +38,6 @@ export async function POST(request: Request) {
     }
 
     const admin = await createServiceRoleClient()
-    const adminDb = admin as any
 
     // Verify password by attempting sign-in via a throwaway client
     const { createClient } = await import("@supabase/supabase-js")
@@ -65,8 +65,7 @@ export async function POST(request: Request) {
     const authUser = signInData.user
 
     // Fetch all unused recovery codes for this user
-    const { data: codes, error: codesError } = await adminDb
-      .from("recovery_codes")
+    const { data: codes, error: codesError } = await untypedFrom(admin, "recovery_codes")
       .select("id,code_hash")
       .eq("user_id", authUser.id)
       .is("used_at", null)
@@ -90,8 +89,7 @@ export async function POST(request: Request) {
     }
 
     // Atomically mark the code as consumed (used_at IS NULL guard prevents double-use race)
-    const { data: consumed, error: consumeError } = await adminDb
-      .from("recovery_codes")
+    const { data: consumed, error: consumeError } = await untypedFrom(admin, "recovery_codes")
       .update({ used_at: new Date().toISOString() })
       .eq("id", matchedCodeId)
       .is("used_at", null)
