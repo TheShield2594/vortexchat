@@ -11,14 +11,24 @@ import type { UserStatus } from './index'
 
 // ── Heartbeat ────────────────────────────────────────────────────────────────
 
-/** How often the client sends a heartbeat (ms). */
+/** How often the client sends a heartbeat (ms).
+ *  Legacy HTTP polling: 30s. Gateway (Socket.IO): handled by pingInterval. */
 export const PRESENCE_HEARTBEAT_INTERVAL_MS = 30_000
 
-/** Server considers a user stale after this many ms without a heartbeat. */
+/** Server considers a user stale after this many ms without a heartbeat.
+ *  Legacy HTTP: 90s (30s heartbeat + 60s cron). Gateway: ~10s (Socket.IO pingTimeout). */
 export const PRESENCE_STALE_THRESHOLD_MS = 90_000
 
 /** Minimum interval between DB writes for heartbeat (ms). Prevents stampede. */
 export const PRESENCE_HEARTBEAT_DEBOUNCE_MS = 10_000
+
+// ── Gateway Presence (Socket.IO–based, faster) ─────────────────────────────
+
+/** Socket.IO pingTimeout — offline detected within this window. */
+export const GATEWAY_OFFLINE_DETECTION_MS = 20_000
+
+/** Socket.IO pingInterval — server pings clients at this rate. */
+export const GATEWAY_PING_INTERVAL_MS = 25_000
 
 // ── Idle detection ───────────────────────────────────────────────────────────
 

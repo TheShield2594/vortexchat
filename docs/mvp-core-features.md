@@ -39,6 +39,22 @@
 | Voice channels | Done | Socket.IO signal server + WebRTC |
 | Compact voice view | Done | Recent addition |
 
+## Real-Time Gateway (#592, #595, #597)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Unified Socket.IO gateway — single transport for all events | Done | `RedisEventBus` + gateway handlers in signal server; replaces dual Supabase Realtime + Socket.IO connections (#592) |
+| Redis Streams event bus (IEventBus impl) | Done | `apps/signal/src/event-bus.ts` — persists events per-channel (capped at 1000, 24h TTL), pub/sub fan-out across replicas (#592) |
+| Gateway event types + shared constants | Done | `packages/shared/src/gateway-events.ts` — `GatewayClientEvents`, `GatewayServerEvents`, stream/presence constants (#592) |
+| HTTP `/publish-event` endpoint | Done | API routes POST events to signal server for gateway fan-out; protected by `SIGNAL_REVOKE_SECRET` (#592) |
+| Socket.IO presence manager (Redis-backed) | Done | `apps/signal/src/presence.ts` — offline detection ~10s via Socket.IO `pingTimeout` (was ~90s); per-server online user sets (#595) |
+| Socket.IO typing indicators | Done | `gateway:typing` event; server-side auto-stop (5s); rate limited 30/min (#595) |
+| Gateway presence hook (`useGatewayPresence`) | Done | `apps/web/hooks/use-gateway-presence.ts` — replaces HTTP heartbeat polling; multi-tab via BroadcastChannel (#595) |
+| Gateway typing hook (`useGatewayTyping`) | Done | `apps/web/hooks/use-gateway-typing.ts` — drop-in for `useTyping`; routes through Socket.IO (#595) |
+| Reconnection catch-up (Redis Streams replay) | Done | `gateway:resume` event; client sends `lastEventId` per channel; server replays from Redis Streams (up to 500 events); `gateway:resume-complete` signals success or gap-too-large (#597) |
+| Gateway messages hook (`useGatewayMessages`) | Done | `apps/web/hooks/use-gateway-messages.ts` — drop-in for `useRealtimeMessages`; handles replay on reconnect (#597) |
+| Client gateway context + provider | Done | `GatewayProvider` in `app-provider.tsx`; single Socket.IO connection shared via React context; auto-reconnect with exponential backoff (#592) |
+
 ## Moderation
 
 | Feature | Status | Notes |
