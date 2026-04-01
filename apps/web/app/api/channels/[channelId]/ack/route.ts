@@ -4,12 +4,8 @@ import { requireAuth } from "@/lib/utils/api-helpers"
 /**
  * POST /api/channels/[channelId]/ack
  *
- * Acknowledge (mark as read) a channel up to a given message.
- * Updates the read_states row for the authenticated user, resetting
- * mention_count to zero. If no body is sent, marks as read at the
- * current time.
- *
- * Body (optional): { messageId?: string }
+ * Acknowledge (mark as read) a channel. Uses the existing mark_channel_read
+ * RPC which atomically updates last_read_at and resets mention_count.
  */
 export async function POST(
   req: NextRequest,
@@ -26,53 +22,47 @@ export async function POST(
       return NextResponse.json({ error: "Invalid channel ID" }, { status: 400 })
     }
 
-    // Optional body with messageId for acknowledging up to a specific message
-    let lastReadAt = new Date().toISOString()
-    try {
-      const body = await req.json().catch(() => null)
-      if (body && typeof body === "object" && typeof body.messageId === "string") {
-        // Look up the message's created_at to use as the read position
-        const { data: message, error: msgError } = await supabase
-          .from("messages")
-          .select("created_at")
-          .eq("id", body.messageId)
-          .eq("channel_id", channelId)
-          .maybeSingle()
+    // Permission check: verify user has access to this channel via membership
+    const { data: channel, error: channelError } = await supabase
+      .from("channels")
+      .select("id, server_id")
+      .eq("id", channelId)
+      .maybeSingle()
 
-        if (msgError) {
-          return NextResponse.json({ error: "Failed to look up message" }, { status: 500 })
-        }
-        if (message) {
-          lastReadAt = message.created_at
-        }
-      }
-    } catch {
-      // No body or invalid JSON — use current time
+    if (channelError) {
+      return NextResponse.json({ error: "Failed to verify channel access" }, { status: 500 })
+    }
+    if (!channel) {
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 })
     }
 
-    // Upsert read state
-    const { error: upsertError } = await supabase
-      .from("read_states")
-      .upsert(
-        {
-          user_id: user.id,
-          channel_id: channelId,
-          last_read_at: lastReadAt,
-          mention_count: 0,
-        },
-        { onConflict: "user_id,channel_id" }
-      )
+    // Verify server membership
+    const { data: member } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", channel.server_id)
+      .eq("user_id", user.id)
+      .maybeSingle()
 
-    if (upsertError) {
-      console.error("[ack] Failed to upsert read state:", {
+    if (!member) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Use the existing atomic RPC that updates last_read_at and resets mention_count
+    const { error: rpcError } = await supabase.rpc("mark_channel_read", {
+      p_channel_id: channelId,
+    })
+
+    if (rpcError) {
+      console.error("[ack] mark_channel_read RPC failed:", {
         userId: user.id,
         channelId,
-        error: upsertError.message,
+        error: rpcError.message,
       })
       return NextResponse.json({ error: "Failed to update read state" }, { status: 500 })
     }
 
-    return NextResponse.json({ acknowledged: true, lastReadAt })
+    return NextResponse.json({ acknowledged: true })
   } catch (err) {
     console.error("[ack] Unexpected error:", err instanceof Error ? err.message : "Unknown error")
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

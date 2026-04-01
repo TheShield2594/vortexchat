@@ -141,8 +141,33 @@ export class RedisRoomManager implements IRoomManager {
   }
 
   async getRoomPeers(channelId: string): Promise<PeerInfo[]> {
-    const hash = await this.redis.hgetall(this.roomKey(channelId))
-    return Object.values(hash ?? {}).map((v) => this.deserialize(v))
+    const rKey = this.roomKey(channelId)
+    const hash = await this.redis.hgetall(rKey)
+    if (!hash || Object.keys(hash).length === 0) return []
+
+    const peers: PeerInfo[] = []
+    const staleSocketIds: string[] = []
+
+    // Check each socket's per-socket key to prune crashed peers
+    for (const [socketId, raw] of Object.entries(hash)) {
+      const exists = await this.redis.exists(this.socketKey(socketId))
+      if (exists) {
+        peers.push(this.deserialize(raw))
+      } else {
+        staleSocketIds.push(socketId)
+      }
+    }
+
+    // Clean up stale entries in the background
+    if (staleSocketIds.length > 0) {
+      const pipeline = this.redis.pipeline()
+      for (const socketId of staleSocketIds) {
+        pipeline.hdel(rKey, socketId)
+      }
+      pipeline.exec().catch(() => { /* best-effort cleanup */ })
+    }
+
+    return peers
   }
 
   async getRoomSize(channelId: string): Promise<number> {

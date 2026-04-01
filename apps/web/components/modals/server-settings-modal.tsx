@@ -1594,7 +1594,9 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
         toast({ title: "Failed to reorder rules", description: "Could not update rule priorities. Please try again.", variant: "destructive" })
         return
       }
-      const refreshed = await fetch(`/api/servers/${serverId}/automod`).then((r) => r.json())
+      const refreshRes = await fetch(`/api/servers/${serverId}/automod`)
+      const refreshed = refreshRes.ok ? await refreshRes.json() : null
+      if (!refreshed) return
       setRules(Array.isArray(refreshed) ? refreshed : [])
     } catch {
       toast({ title: "Failed to reorder rules", description: "A network error occurred. Please try again.", variant: "destructive" })

@@ -1187,7 +1187,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // 3. Notify connected clients that the server is going down so they can
   //    reconnect to another replica.  Socket.IO clients handle "disconnect"
   //    events with automatic reconnection by default.
-  const connectedSockets = await io.fetchSockets()
+  const connectedSockets = [...io.of("/").sockets.values()]
   const socketCount = connectedSockets.length
   logger.info({ socketCount }, "notifying connected clients of pending shutdown")
 
@@ -1205,7 +1205,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   const drainStart = Date.now()
   await new Promise<void>((resolve) => {
     const checkInterval = setInterval(async () => {
-      const remaining = await io.fetchSockets()
+      const remaining = [...io.of("/").sockets.values()]
       const elapsed = Date.now() - drainStart
 
       if (remaining.length === 0) {
@@ -1250,5 +1250,15 @@ async function gracefulShutdown(signal: string): Promise<void> {
   process.exit(0)
 }
 
-process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"))
-process.on("SIGINT", () => void gracefulShutdown("SIGINT"))
+process.on("SIGTERM", () => {
+  gracefulShutdown("SIGTERM").catch((err) => {
+    logger.error({ err }, "graceful shutdown failed")
+    process.exit(1)
+  })
+})
+process.on("SIGINT", () => {
+  gracefulShutdown("SIGINT").catch((err) => {
+    logger.error({ err }, "graceful shutdown failed")
+    process.exit(1)
+  })
+})

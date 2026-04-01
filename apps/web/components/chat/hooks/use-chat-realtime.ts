@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react"
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import type { MessageWithAuthor, ReactionRow } from "@/types/database"
 import type { OutboxEntry } from "@/lib/chat-outbox"
 import { removeOutboxEntry } from "@/lib/chat-outbox"
@@ -85,7 +85,9 @@ export function useChatRealtimeCallbacks({
 
   const onInsert = useCallback((newMessage: MessageWithAuthor) => {
     upsertMessage(newMessage)
-    setAndPersistOutbox((current) => removeOutboxEntry(current, newMessage.id))
+    setAndPersistOutbox((current) =>
+      removeOutboxEntry(current, newMessage.client_nonce ?? newMessage.id)
+    )
   }, [upsertMessage, setAndPersistOutbox])
 
   const onUpdate = useCallback((updatedMessage: MessageWithAuthor) => {
@@ -145,6 +147,16 @@ export function useChatRealtimeCallbacks({
       }
     }
   }, [setMessages])
+
+  // Clean up animation timers on unmount to prevent stale state updates
+  useEffect(() => {
+    return () => {
+      for (const timer of animatedMessageTimersRef.current.values()) {
+        clearTimeout(timer)
+      }
+      animatedMessageTimersRef.current.clear()
+    }
+  }, [])
 
   return {
     onInsert,

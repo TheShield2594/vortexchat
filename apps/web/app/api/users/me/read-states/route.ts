@@ -34,10 +34,12 @@ export async function GET(): Promise<NextResponse> {
         .eq("user_id", user.id),
     ])
 
-    if (channelResult.error) {
-      console.error("[read-states] Failed to fetch channel read states:", {
+    if (channelResult.error || dmResult.error || threadResult.error) {
+      console.error("[read-states] Failed to fetch read states:", {
         userId: user.id,
-        error: channelResult.error.message,
+        channelError: channelResult.error?.message,
+        dmError: dmResult.error?.message,
+        threadError: threadResult.error?.message,
       })
       return NextResponse.json({ error: "Failed to fetch read states" }, { status: 500 })
     }

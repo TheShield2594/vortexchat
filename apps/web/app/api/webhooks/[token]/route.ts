@@ -117,7 +117,18 @@ export async function POST(
 
     // The webhook display name and avatar override come from the request (like Discord)
     const displayName = username?.slice(0, 80) ?? webhook.name ?? "Webhook"
-    const webhookAvatarUrl = avatar_url ?? webhook.avatar_url ?? null
+    const candidateAvatarUrl = avatar_url ?? webhook.avatar_url ?? null
+    let webhookAvatarUrl: string | null = null
+    if (candidateAvatarUrl) {
+      try {
+        const parsed = new URL(candidateAvatarUrl)
+        if ((parsed.protocol === "http:" || parsed.protocol === "https:") && candidateAvatarUrl.length <= 2048) {
+          webhookAvatarUrl = parsed.toString()
+        }
+      } catch {
+        // Invalid URL — fall through to null
+      }
+    }
 
     // Insert the message attributed to the system bot with webhook_id set.
     // Display metadata is stored in dedicated columns so content stays clean

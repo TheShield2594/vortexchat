@@ -29,7 +29,7 @@ function buildCsp(): { nonce: string; header: string } {
     "'self' blob: data:",
     supabaseHost ? `https://${supabaseHost}` : "",
     "https://*.supabase.co https://*.supabase.in",
-    "https://cdn.klipy.co https://*.klipy.com",
+    "https://klipy.com https://cdn.klipy.co https://*.klipy.com",
     "https://*.giphy.com https://media.giphy.com",
     "https://cdn.jsdelivr.net",
   ].filter(Boolean).join(" ")
