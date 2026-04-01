@@ -38,9 +38,12 @@ export async function updateSession(
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user }, error: getUserError } = await supabase.auth.getUser()
+
+  if (getUserError) {
+    // Auth token invalid or Supabase unreachable — treat as unauthenticated
+    return { response: supabaseResponse, user: null }
+  }
 
   return { response: supabaseResponse, user }
 }

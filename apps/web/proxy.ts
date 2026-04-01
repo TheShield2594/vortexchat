@@ -13,13 +13,43 @@ function buildCsp(): { nonce: string; header: string } {
   crypto.getRandomValues(array)
   const nonce = Buffer.from(array).toString("base64")
 
+  // Build domain allowlists from env vars so deployments with different
+  // Supabase / LiveKit / Sentry hosts work without code changes.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? ""
+  const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN ?? ""
+
+  // Extract hostnames for CSP directives
+  const supabaseHost = safeHost(supabaseUrl)   // e.g. "xyz.supabase.co"
+  const livekitHost = safeHost(livekitUrl)      // e.g. "my-app.livekit.cloud"
+  const sentryHost = safeHost(sentryDsn)         // e.g. "oXXXXXX.ingest.sentry.io"
+
+  // img-src: Supabase storage, Klipy CDN, Giphy media
+  const imgSrc = [
+    "'self' blob: data:",
+    supabaseHost ? `https://${supabaseHost}` : "",
+    "https://*.supabase.co https://*.supabase.in",
+    "https://cdn.klipy.co https://media.giphy.com",
+  ].filter(Boolean).join(" ")
+
+  // connect-src: Supabase (REST + Realtime WS), LiveKit, Klipy, Giphy, Sentry
+  const connectSrc = [
+    "'self'",
+    supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : "",
+    "https://*.supabase.co wss://*.supabase.co",
+    livekitHost ? `wss://${livekitHost}` : "",
+    "https://api.klipy.co https://api.giphy.com",
+    sentryHost ? `https://${sentryHost}` : "",
+    isDev ? "ws://localhost:* http://localhost:*" : "",
+  ].filter(Boolean).join(" ")
+
   const header = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' blob: data: https:",
+    `img-src ${imgSrc}`,
     "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self' wss: https:",
+    `connect-src ${connectSrc}`,
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
     "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com",
@@ -27,6 +57,15 @@ function buildCsp(): { nonce: string; header: string } {
   ].join("; ")
 
   return { nonce, header }
+}
+
+/** Extract hostname from a URL or DSN, returning empty string on failure. */
+function safeHost(url: string): string {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return ""
+  }
 }
 
 // Routes that use their own auth (bearer tokens, URL tokens) — skip session

@@ -29,6 +29,21 @@ export function useApplyAppearance(): void {
     }))
   )
 
+  // Auto-detect OS prefers-contrast: more after store hydration.
+  // Waits for zustand persist to finish so we read the real persisted value
+  // rather than the pre-hydration default, avoiding overriding an explicit "off".
+  const setHighContrast = useAppearanceStore((s) => s.setHighContrast)
+  useEffect(() => {
+    const unsub = useAppearanceStore.persist.onFinishHydration(() => {
+      const { highContrast: persisted } = useAppearanceStore.getState()
+      const mq = window.matchMedia("(prefers-contrast: more)")
+      if (mq.matches && !persisted) {
+        setHighContrast(true)
+      }
+    })
+    return unsub
+  }, [setHighContrast])
+
   useEffect(() => {
     const root = document.documentElement
     root.dataset.messageDisplay = messageDisplay
