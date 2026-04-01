@@ -195,7 +195,7 @@ export async function DELETE(
         role_color: targetRole.color,
         role_position: targetRole.position,
         role_permissions: targetRole.permissions,
-      },
+      } as unknown as Json,
     })
 
     return new NextResponse(null, { status: 204 })

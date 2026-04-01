@@ -134,7 +134,7 @@ export async function PATCH(
       .eq("server_id", params.serverId)
       .select("id,title,linked_channel_id")
       .single() as { data: { id: string; title: string; linked_channel_id: string | null } | null; error: { message: string } | null }
-    if (error) return NextResponse.json({ error: "Failed to update event" }, { status: 500 })
+    if (error || !data) return NextResponse.json({ error: "Failed to update event" }, { status: 500 })
     updated = data
   } else {
     updated = { id: existing?.id as string, title: existing?.title as string, linked_channel_id: existing?.linked_channel_id as string | null }
