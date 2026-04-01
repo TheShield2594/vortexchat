@@ -308,14 +308,28 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
   }, [muted, deafened, speaking, screenSharing])
 
   useEffect(() => {
+    interface VoiceStateWithUser {
+      user_id: string
+      self_stream: boolean | null
+      users: UserRow | null
+    }
+
     async function fetchParticipants() {
-      const { data } = await supabase.from("voice_states").select("user_id, self_stream, users(*)").eq("channel_id", channelId)
-      const rows = data as unknown as { user_id: string; self_stream: boolean | null; users: UserRow | null }[] | null
-      setVoiceParticipants(
-        rows?.flatMap((d) =>
-          d.users ? [{ user: d.users as UserRow, selfStream: Boolean(d.self_stream) }] : []
-        ) ?? []
-      )
+      try {
+        const { data, error } = await supabase.from("voice_states").select("user_id, self_stream, users(*)").eq("channel_id", channelId)
+        if (error) {
+          console.error("[voice-channel] fetchParticipants failed:", error.message)
+          return
+        }
+        const rows = (data ?? []) as VoiceStateWithUser[]
+        setVoiceParticipants(
+          rows.flatMap((d) =>
+            d.users ? [{ user: d.users, selfStream: Boolean(d.self_stream) }] : []
+          )
+        )
+      } catch (err) {
+        console.error("[voice-channel] fetchParticipants error:", err)
+      }
     }
     fetchParticipants()
 

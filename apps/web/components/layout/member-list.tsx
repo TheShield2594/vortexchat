@@ -314,7 +314,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
         />
       )}
 
-      <div className="w-full md:w-60 flex-shrink-0 flex flex-col bg-[var(--app-bg-secondary)]">
+      <div className="w-full md:w-60 flex-shrink-0 flex flex-col bg-[var(--app-bg-secondary)] member-list-container">
         <ScrollArea className="flex-1 py-4">
         {loadingMembers && (
           <div className="space-y-3 px-3">

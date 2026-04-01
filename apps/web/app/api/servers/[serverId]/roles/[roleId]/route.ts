@@ -125,6 +125,7 @@ export async function PATCH(
   })
   if (auditErr) {
     console.error("[roles] Audit log insert failed for role_updated", { serverId, roleId, error: auditErr.message })
+    return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
   }
 
   return NextResponse.json(updatedRole)
@@ -208,6 +209,7 @@ export async function DELETE(
     })
     if (deleteAuditErr) {
       console.error("[roles] Audit log insert failed for role_deleted", { serverId, roleId, error: deleteAuditErr.message })
+      return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
     }
 
     return new NextResponse(null, { status: 204 })

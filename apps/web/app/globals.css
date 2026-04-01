@@ -179,6 +179,10 @@
     --theme-cat-server: #facc15;
     --theme-cat-automod: #fb923c;
     --theme-cat-other: #a1a1aa;
+    /* Default to dark color-scheme so native browser controls (scrollbars,
+       form elements, autofill backgrounds) match the dark UI. Light presets
+       override this to color-scheme: light. */
+    color-scheme: dark;
   }
 }
 
@@ -497,6 +501,8 @@
 
   .channel-sidebar-surface {
     background: var(--theme-bg-secondary);
+    container-type: inline-size;
+    container-name: channel-sidebar;
   }
 
   .channel-sidebar-header {
@@ -1480,6 +1486,7 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-selection-text: #111111;
   --theme-overlay-bg: color-mix(in srgb, black 40%, transparent);
   --theme-backdrop-blur: 12px;
+  color-scheme: light;
 }
 
 /* ── Velvet Dusk — soft pastel dark theme ── */
@@ -2553,20 +2560,110 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--theme-surface-elevated);
 }
 
+/* ── Container Queries — component-level responsiveness ─────────────────────── */
+
+.member-list-container {
+  container-type: inline-size;
+  container-name: member-list;
+}
+
+.message-input-container {
+  container-type: inline-size;
+  container-name: message-input;
+}
+
+.thread-panel-container {
+  container-type: inline-size;
+  container-name: thread-panel;
+}
+
+/* Channel sidebar: compact mode when container is narrow */
+@container channel-sidebar (max-width: 180px) {
+  .channel-sidebar-header {
+    padding-inline: 0.5rem;
+  }
+  .channel-sidebar-title {
+    font-size: var(--font-size-xs, 0.6875rem);
+  }
+  .channel-sidebar-description {
+    display: none;
+  }
+}
+
+/* Member list: reduce avatar sizes and hide status text when narrow */
+@container member-list (max-width: 180px) {
+  .member-list-avatar {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  .member-list-status-text {
+    display: none;
+  }
+}
+
+/* Message input: stack toolbar vertically in tight spaces */
+@container message-input (max-width: 400px) {
+  .message-input-toolbar {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+}
+
+/* Thread panel: adapt layout when opened alongside main chat */
+@container thread-panel (max-width: 260px) {
+  .thread-panel-header {
+    padding-inline: 0.5rem;
+    gap: 0.25rem;
+  }
+}
+
 /* ── View Transitions ───────────────────────────────────────────────────────── */
 @view-transition {
   navigation: auto;
 }
 
+/* Named view transitions for persistent layout elements */
+.server-sidebar-surface {
+  view-transition-name: server-sidebar;
+}
+
+.channel-sidebar-surface {
+  view-transition-name: channel-sidebar;
+}
+
+.chat-area-surface {
+  view-transition-name: chat-area;
+}
+
+.chat-area-header-surface {
+  view-transition-name: chat-header;
+}
+
 ::view-transition-old(root),
-::view-transition-new(root) {
+::view-transition-new(root),
+::view-transition-old(server-sidebar),
+::view-transition-new(server-sidebar),
+::view-transition-old(channel-sidebar),
+::view-transition-new(channel-sidebar),
+::view-transition-old(chat-area),
+::view-transition-new(chat-area),
+::view-transition-old(chat-header),
+::view-transition-new(chat-header) {
   animation-duration: 150ms;
   animation-timing-function: var(--motion-ease-standard, ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root),
-  ::view-transition-new(root) {
+  ::view-transition-new(root),
+  ::view-transition-old(server-sidebar),
+  ::view-transition-new(server-sidebar),
+  ::view-transition-old(channel-sidebar),
+  ::view-transition-new(channel-sidebar),
+  ::view-transition-old(chat-area),
+  ::view-transition-new(chat-area),
+  ::view-transition-old(chat-header),
+  ::view-transition-new(chat-header) {
     animation: none;
   }
 }

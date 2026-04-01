@@ -153,6 +153,38 @@ export async function POST(request: Request) {
         body: `We noticed a login from a new device or location (${currentIp || "unknown IP"}). If this wasn't you, reset your password immediately.`,
       })
     }
+
+    // Enforce risk-based actions — scores >= 80 lock the session, >= 60 require MFA/email challenge
+    if (risk.action === "lock_and_verify") {
+      await supabase.auth.signOut().catch(() => {})
+      return NextResponse.json({
+        ok: false,
+        riskBlocked: true,
+        reason: "High-risk login detected. Please verify your email to continue.",
+      }, { status: 403 })
+    }
+
+    if (risk.action === "challenge_mfa") {
+      // If the user has MFA enrolled, we'll force the MFA challenge below.
+      // If they don't, sign out and require email verification.
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const verifiedTotp = (factors?.totp ?? []).filter((f: { status: string }) => f.status === "verified")
+      if (verifiedTotp.length > 0) {
+        return NextResponse.json({
+          ok: true,
+          userId: data.user.id,
+          requiresMfa: true,
+          factorId: verifiedTotp[0].id,
+        })
+      }
+      // No MFA enrolled — sign out and require email verification
+      await supabase.auth.signOut().catch(() => {})
+      return NextResponse.json({
+        ok: false,
+        riskBlocked: true,
+        reason: "Unusual login activity detected. Please verify your email to continue.",
+      }, { status: 403 })
+    }
   } catch {
     // Do not block successful login on telemetry or alert failures
   }
