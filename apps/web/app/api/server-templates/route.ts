@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
       // Permission check: verify user is a member of the server before any DB operation
       const { data: member } = await supabase
-        .from("members")
+        .from("server_members")
         .select("id")
         .eq("server_id", serverId)
         .eq("user_id", user.id)
