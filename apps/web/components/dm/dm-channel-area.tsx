@@ -2411,21 +2411,23 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   useEffect(() => {
     let mounted = true
     let pc: RTCPeerConnection | null = null
+    let initReady = false
+    const pendingSignals: Array<Record<string, unknown>> = []
 
     const sigChannel = supabase.channel(`dm-call:${channelId}`)
     sigChannelRef.current = sigChannel
 
-    sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: { payload: Record<string, unknown> }) => {
-      if (payload.from === clientId.current || !pc) return
+    async function processSignal(payload: Record<string, unknown>): Promise<void> {
+      if (!pc) return
       try {
-        if (payload.type === "offer") {
+        if (payload.type === "offer" && (payload.offer ?? payload.payload)) {
           await pc.setRemoteDescription(new RTCSessionDescription((payload.offer ?? payload.payload) as RTCSessionDescriptionInit))
           const answer = await pc.createAnswer()
           await pc.setLocalDescription(answer)
           sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
-        } else if (payload.type === "answer") {
+        } else if (payload.type === "answer" && (payload.answer ?? payload.payload)) {
           await pc.setRemoteDescription(new RTCSessionDescription((payload.answer ?? payload.payload) as RTCSessionDescriptionInit))
-        } else if (payload.type === "ice-candidate") {
+        } else if (payload.type === "ice-candidate" && (payload.candidate ?? payload.payload)) {
           await pc.addIceCandidate(new RTCIceCandidate((payload.candidate ?? payload.payload) as RTCIceCandidateInit))
         } else if (payload.type === "hangup") {
           onHangup()
@@ -2434,6 +2436,15 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
         console.error("WebRTC signal handling failed:", err)
         setStatus("failed")
       }
+    }
+
+    sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: { payload: Record<string, unknown> }) => {
+      if (payload.from === clientId.current) return
+      if (!initReady) {
+        pendingSignals.push(payload)
+        return
+      }
+      await processSignal(payload)
     })
 
     sigChannel.subscribe(async () => {
@@ -2446,7 +2457,13 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
         pcRef.current = pc
 
         pc.ontrack = (e) => {
-          const [remoteStream] = e.streams
+          let remoteStream: MediaStream
+          if (e.streams && e.streams.length > 0) {
+            remoteStream = e.streams[0]
+          } else {
+            remoteStream = new MediaStream()
+            remoteStream.addTrack(e.track)
+          }
           if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
           if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
           setStatus("connected")
@@ -2468,13 +2485,24 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
         if (withVideo && localVideoRef.current) localVideoRef.current.srcObject = stream
         stream.getTracks().forEach((t) => pc!.addTrack(t, stream))
 
+        // Flush buffered signals now that pc + local tracks are ready
+        initReady = true
+        for (const queued of pendingSignals) {
+          await processSignal(queued)
+        }
+        pendingSignals.length = 0
+
         sigChannel.send({ type: "broadcast", event: "call-invite", payload: { callerId: currentUserId, withVideo } })
 
         pc.onnegotiationneeded = async () => {
           if (!pc) return
-          const offer = await pc.createOffer()
-          await pc.setLocalDescription(offer)
-          sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "offer", offer, from: clientId.current } })
+          try {
+            const offer = await pc.createOffer()
+            await pc.setLocalDescription(offer)
+            sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "offer", offer, from: clientId.current } })
+          } catch (err) {
+            console.error("[dm-channel-area] negotiation failed:", err)
+          }
         }
       } catch (err: unknown) {
         setStatus("failed")

@@ -37,7 +37,7 @@ const OPTIONAL: EnvVar[] = [
 
   { name: "NEXT_PUBLIC_KLIPY_API_KEY", required: false, description: "Klipy API key for GIF/sticker picker (primary provider)", alternativeName: "KLIPY_API_KEY" },
   { name: "NEXT_PUBLIC_GIPHY_API_KEY", required: false, description: "Giphy API key for GIF picker (fallback)", alternativeName: "GIPHY_API_KEY" },
-  { name: "STEP_UP_SECRET", required: false, description: "Dedicated HMAC secret for step-up auth tokens (must not reuse NEXTAUTH_SECRET)" },
+  { name: "STEP_UP_SECRET", required: false, description: "Dedicated HMAC secret for step-up auth tokens — required in production (must not reuse NEXTAUTH_SECRET)" },
 ]
 
 export function validateEnv() {

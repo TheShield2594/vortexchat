@@ -6,7 +6,7 @@ import { requireAuth } from "@/lib/utils/api-helpers"
  * GET /api/turn-credentials
  *
  * Returns time-limited TURN credentials generated via HMAC-based auth
- * (RFC 8489 long-term credentials with shared secret).
+ * (TURN REST API, draft-uberti-behave-turn-rest-00).
  *
  * Requires an authenticated user session. Credentials expire after 24 hours.
  */

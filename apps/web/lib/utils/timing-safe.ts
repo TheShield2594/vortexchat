@@ -7,7 +7,11 @@ import crypto from "node:crypto"
 export function timingSafeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
   const bufB = Buffer.from(b)
-  if (bufA.length !== bufB.length) return false
+  if (bufA.length !== bufB.length) {
+    // Perform a dummy comparison to avoid timing leak on length mismatch
+    crypto.timingSafeEqual(bufA, bufA)
+    return false
+  }
   return crypto.timingSafeEqual(bufA, bufB)
 }
 
