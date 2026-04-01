@@ -114,12 +114,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
           .eq("user_id", userId),
       ])
 
-      const requesterMaxPosition = (requesterRoles.data ?? []).reduce(
-        (max: number, mr: any) => Math.max(max, mr.roles?.position ?? 0),
+      interface RoleJoin { roles: { position: number } | null }
+      const requesterMaxPosition = (requesterRoles.data as RoleJoin[] ?? []).reduce(
+        (max: number, mr: RoleJoin) => Math.max(max, mr.roles?.position ?? 0),
         0
       )
-      const targetMaxPosition = (targetRoles.data ?? []).reduce(
-        (max: number, mr: any) => Math.max(max, mr.roles?.position ?? 0),
+      const targetMaxPosition = (targetRoles.data as RoleJoin[] ?? []).reduce(
+        (max: number, mr: RoleJoin) => Math.max(max, mr.roles?.position ?? 0),
         0
       )
 

@@ -19,10 +19,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Missing MANAGE_ROLES permission" }, { status: 403 })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any
+  let body: Record<string, unknown>
   try {
-    body = await req.json()
+    body = await req.json() as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
@@ -59,8 +58,7 @@ export async function PATCH(
   }
 
   // Build update payload from allowed fields with explicit type validation
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updates: Record<string, any> = {}
+  const updates: Record<string, string | number | boolean> = {}
   if (body.name !== undefined) {
     if (typeof body.name !== "string") return NextResponse.json({ error: "name must be a string" }, { status: 400 })
     updates.name = body.name.trim()
@@ -99,10 +97,8 @@ export async function PATCH(
   }
 
   // Build before/after diff for audit log
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const before: Record<string, any> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const after: Record<string, any> = {}
+  const before: Record<string, unknown> = {}
+  const after: Record<string, unknown> = {}
   for (const key of Object.keys(updates)) {
     before[key] = targetRole[key as keyof typeof targetRole]
     after[key] = updatedRole[key as keyof typeof updatedRole]

@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server"
 import { clearTrustedDeviceCookie } from "@/lib/auth/security"
 import { requireAuth } from "@/lib/utils/api-helpers"
-import type { SupabaseClient } from "@supabase/supabase-js"
-
-// auth_sessions and auth_trusted_devices exist in the database but are not in
-// the generated Supabase schema types. We narrow the cast to just the `.from()`
-// method so the rest of the client remains fully typed.
-function untypedFrom(supabase: SupabaseClient, table: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (supabase as SupabaseClient<any>).from(table)
-}
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 export async function GET() {
   try {

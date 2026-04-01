@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/types/database"
 import { PERMISSIONS, hasPermission, getMemberPermissions } from "@/lib/permissions"
 
-export async function requireWorkspaceAccess(supabase: SupabaseClient<any>, serverId: string, userId: string) {
+export async function requireWorkspaceAccess(supabase: SupabaseClient<Database>, serverId: string, userId: string) {
   const member = await getMemberPermissions(supabase, serverId, userId)
   const canView = member.isOwner || member.isAdmin || hasPermission(member.permissions, "VIEW_CHANNELS")
   const canEdit = member.isOwner || member.isAdmin || hasPermission(member.permissions, "SEND_MESSAGES") || hasPermission(member.permissions, "MANAGE_CHANNELS")

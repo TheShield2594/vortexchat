@@ -70,11 +70,11 @@ export function ReportModal({
 
       toast({ title: "Report submitted", description: "A moderator will review your report." })
       handleClose()
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Failed to submit report",
-        description: error?.message ?? "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
       })
     } finally {
       setSubmitting(false)

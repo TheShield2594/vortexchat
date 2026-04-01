@@ -13,7 +13,7 @@ export async function GET() {
 
   try {
     const supabase = await createServerSupabaseClient()
-    const { error } = await (supabase as any).from("users").select("id", { count: "exact", head: true }).limit(0)
+    const { error } = await supabase.from("users").select("id", { count: "exact", head: true }).limit(0)
     dbOk = !error
   } catch {
     dbOk = false

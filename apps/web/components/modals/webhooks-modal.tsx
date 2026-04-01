@@ -59,8 +59,8 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
         const data = await res.json().catch(() => ({ error: "Failed to create webhook" }))
         toast({ variant: "destructive", title: "Failed to create webhook", description: data.error })
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create webhook", description: error?.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to create webhook", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setCreating(false)
     }
@@ -77,8 +77,8 @@ export function WebhooksModal({ open, onClose, serverId, channels }: Props) {
         const data = await res.json().catch(() => ({ error: "Failed to delete webhook" }))
         toast({ variant: "destructive", title: "Failed to delete webhook", description: data.error })
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to delete webhook", description: error?.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to delete webhook", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setDeletingId(null)
     }

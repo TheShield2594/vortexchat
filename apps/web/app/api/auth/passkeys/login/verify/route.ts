@@ -4,6 +4,7 @@ import { verifyWithAdapter } from "@/lib/auth/passkeys"
 import { createAuthSession, issueTrustedDevice } from "@/lib/auth/security"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 export async function POST(request: Request) {
   try {
@@ -38,11 +39,9 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createServiceRoleClient()
-    const db = supabase as any
 
     // Atomically claim the challenge — only the first concurrent request succeeds
-    const { data: claimedChallenge, error: claimError } = await db
-      .from("auth_challenges")
+    const { data: claimedChallenge, error: claimError } = await untypedFrom(supabase, "auth_challenges")
       .update({ used_at: new Date().toISOString() })
       .eq("challenge", body.challenge)
       .eq("flow", "login")
@@ -59,8 +58,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Challenge metadata is incomplete" }, { status: 400 })
     }
 
-    const { data: credential } = await db
-      .from("passkey_credentials")
+    const { data: credential } = await untypedFrom(supabase, "passkey_credentials")
       .select("id,user_id,public_key,counter,revoked_at")
       .eq("credential_id", body.credentialId)
       .maybeSingle()
@@ -93,8 +91,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Potential replay detected" }, { status: 409 })
     }
 
-    await db
-      .from("passkey_credentials")
+    await untypedFrom(supabase, "passkey_credentials")
       .update({ counter: verify.newCounter, last_used_at: new Date().toISOString() })
       .eq("id", credential.id)
 

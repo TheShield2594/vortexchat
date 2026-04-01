@@ -160,8 +160,7 @@ export async function GET(
     )
 
     const enriched = page.map((row) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const changes = (row.changes ?? null) as Record<string, any> | null
+      const changes = (row.changes ?? null) as Record<string, unknown> | null
       const before = changes?.before as Record<string, unknown> | null ?? null
       const after = changes?.after as Record<string, unknown> | null ?? null
 

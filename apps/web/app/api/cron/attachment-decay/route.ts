@@ -73,14 +73,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     // ── Purge expired DM attachments ─────────────────────────────────────────
 
-    // dm_attachments is not in generated Supabase types yet
-    const { data: expiredDmAttachments } = await (serviceClient as any)
+    // dm_attachments is not in generated Supabase types yet — cast through unknown
+    type DmAttachmentRow = { id: string; url: string; filename: string; size: number; dm_id: string }
+    const untypedClient = serviceClient as unknown as { from: (table: string) => ReturnType<typeof serviceClient.from> }
+    const { data: expiredDmAttachments } = await untypedClient
       .from("dm_attachments")
       .select("id, url, filename, size, dm_id")
       .lt("expires_at", now)
       .is("purged_at", null)
       .not("expires_at", "is", null)
-      .limit(BATCH_LIMIT) as { data: Array<{ id: string; url: string; filename: string; size: number; dm_id: string }> | null }
+      .limit(BATCH_LIMIT) as { data: DmAttachmentRow[] | null }
 
     let purgedDm = 0
 
@@ -109,7 +111,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         // Still mark as purged — the file may already be gone
       }
 
-      await (serviceClient as any)
+      await untypedClient
         .from("dm_attachments")
         .update({ purged_at: now })
         .eq("id", att.id)

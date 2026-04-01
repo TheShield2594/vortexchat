@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getRpId, PASSKEY_CHALLENGE_TTL_SECONDS, randomChallenge, resolveRequestOrigin } from "@/lib/auth/passkeys"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 export async function POST(request: Request): Promise<Response> {
   try {
     const supabase = await createServerSupabaseClient()
-    const db = supabase as any
     const { data: auth } = await supabase.auth.getUser()
 
     if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -16,8 +16,7 @@ export async function POST(request: Request): Promise<Response> {
     const rpID = getRpId(origin)
 
     const admin = await createServiceRoleClient()
-    const adminDb = admin as any
-    const { error: insertError } = await adminDb.from("auth_challenges").insert({
+    const { error: insertError } = await untypedFrom(admin, "auth_challenges").insert({
       user_id: auth.user.id,
       flow: "register",
       challenge,
@@ -31,8 +30,7 @@ export async function POST(request: Request): Promise<Response> {
       return NextResponse.json({ error: "Failed to create challenge" }, { status: 500 })
     }
 
-    const { data: existing } = await adminDb
-      .from("passkey_credentials")
+    const { data: existing } = await untypedFrom(admin, "passkey_credentials")
       .select("credential_id")
       .eq("user_id", auth.user.id)
       .is("revoked_at", null)
@@ -49,7 +47,7 @@ export async function POST(request: Request): Promise<Response> {
       timeout: PASSKEY_CHALLENGE_TTL_SECONDS * 1000,
       attestation: "none",
       authenticatorSelection: { residentKey: "preferred", userVerification: "preferred" },
-      excludeCredentials: (existing || []).map((row: any) => ({ id: row.credential_id, type: "public-key" })),
+      excludeCredentials: (existing || []).map((row: { credential_id: string }) => ({ id: row.credential_id, type: "public-key" })),
     })
 
   } catch (err) {

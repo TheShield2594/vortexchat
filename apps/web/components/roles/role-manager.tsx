@@ -168,8 +168,8 @@ export function RoleManager({ serverId, isOwner }: Props) {
       await fetchRoleMembers(selectedRole.id)
       setShowAddMember(false)
       toast({ title: "Member added to role" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to add member", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to add member", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
@@ -185,8 +185,8 @@ export function RoleManager({ serverId, isOwner }: Props) {
       if (error) throw error
       setRoleMembers((prev) => prev.filter((m) => m.id !== userId))
       toast({ title: "Member removed from role" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to remove member", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to remove member", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
@@ -219,8 +219,8 @@ export function RoleManager({ serverId, isOwner }: Props) {
       setRoles(newRoles)
       selectRole(data)
       toast({ title: "Role created!" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create role", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to create role", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
@@ -246,8 +246,8 @@ export function RoleManager({ serverId, isOwner }: Props) {
         : r
       ))
       toast({ title: "Role saved!" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to save role", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to save role", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setSaving(false)
     }
@@ -260,8 +260,8 @@ export function RoleManager({ serverId, isOwner }: Props) {
       setRoles(roles.filter((r) => r.id !== roleId))
       if (selectedRole?.id === roleId) setSelectedRole(null)
       toast({ title: "Role deleted" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to delete role", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to delete role", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 

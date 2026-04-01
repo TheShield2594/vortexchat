@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch suggestions" }, { status: 500 })
     }
 
-    const blockedUserIds = await getBlockedUserIdsForViewer(supabase as any, user.id)
+    const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
 
     const excluded = new Set<string>([user.id, ...blockedUserIds])
     for (const row of relationshipRows ?? []) {

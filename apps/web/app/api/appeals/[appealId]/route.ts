@@ -15,7 +15,7 @@ export async function GET(
   const { supabase, user, error: authError } = await requireAuth()
   if (authError) return authError
 
-  const { data: appeal, error } = await (supabase as any)
+  const { data: appeal, error } = await supabase
     .from("moderation_appeals")
     .select("*")
     .eq("id", appealId)
@@ -31,7 +31,8 @@ export async function GET(
     .eq("user_id", user.id)
     .maybeSingle()
 
-  const permissions = aggregateMemberPermissions((member as any)?.member_roles)
+  const memberWithRoles = member as { member_roles?: Array<{ roles: { permissions: number } | null }> } | null
+  const permissions = aggregateMemberPermissions(memberWithRoles?.member_roles)
   const isModerator = canModerate(permissions)
   const isOwner = appeal.user_id === user.id
 
@@ -39,14 +40,14 @@ export async function GET(
 
   const serviceSupabase = await createServiceRoleClient()
   const notesPromise = isModerator
-    ? (serviceSupabase as any)
+    ? serviceSupabase
         .from("moderation_appeal_internal_notes")
         .select("id, author_id, note, created_at")
         .eq("appeal_id", appealId)
         .order("created_at", { ascending: false })
-    : Promise.resolve({ data: [] as any[] })
+    : Promise.resolve({ data: [] as Record<string, unknown>[] })
 
-  const eventsPromise = (serviceSupabase as any)
+  const eventsPromise = serviceSupabase
     .from("moderation_appeal_status_events")
     .select("id, actor_id, previous_status, new_status, metadata, created_at")
     .eq("appeal_id", appealId)
@@ -74,7 +75,7 @@ export async function PATCH(
   if (authError) return authError
 
   const serviceSupabase = await createServiceRoleClient()
-  const { data: appeal, error } = await (serviceSupabase as any)
+  const { data: appeal, error } = await serviceSupabase
     .from("moderation_appeals")
     .select("id, server_id, user_id, status")
     .eq("id", appealId)
@@ -90,7 +91,8 @@ export async function PATCH(
     .eq("user_id", user.id)
     .maybeSingle()
 
-  const permissions = aggregateMemberPermissions((member as any)?.member_roles)
+  const memberWithRoles = member as { member_roles?: Array<{ roles: { permissions: number } | null }> } | null
+  const permissions = aggregateMemberPermissions(memberWithRoles?.member_roles)
   if (!canModerate(permissions)) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const { data: body, error: parseError } = await parseJsonBody(req)
@@ -131,7 +133,7 @@ export async function PATCH(
     if (decisionReason) updatePayload.decision_reason = decisionReason
   }
 
-  const { error: updateError } = await (serviceSupabase as any)
+  const { error: updateError } = await serviceSupabase
     .from("moderation_appeals")
     .update(updatePayload)
     .eq("id", appealId)
@@ -139,7 +141,7 @@ export async function PATCH(
   if (updateError) return NextResponse.json({ error: "Failed to update appeal" }, { status: 500 })
 
   if (internalNote) {
-    const { error: noteError } = await (serviceSupabase as any).from("moderation_appeal_internal_notes").insert({
+    const { error: noteError } = await serviceSupabase.from("moderation_appeal_internal_notes").insert({
       appeal_id: appealId,
       server_id: appeal.server_id,
       author_id: user.id,
@@ -153,7 +155,7 @@ export async function PATCH(
   }
 
   if (nextStatus) {
-    const { error: statusEventError } = await (serviceSupabase as any).from("moderation_appeal_status_events").insert({
+    const { error: statusEventError } = await serviceSupabase.from("moderation_appeal_status_events").insert({
       appeal_id: appealId,
       server_id: appeal.server_id,
       actor_id: user.id,
@@ -183,7 +185,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Failed to write audit log" }, { status: 500 })
     }
 
-    const { error: notificationError } = await (serviceSupabase as any).from("notifications").insert([
+    const { error: notificationError } = await serviceSupabase.from("notifications").insert([
       {
         user_id: appeal.user_id,
         type: "system",

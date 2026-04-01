@@ -13,7 +13,7 @@ async function canManageEvent(
   serverId: string,
   eventId: string,
   userId: string
-): Promise<{ allowed: boolean; event: any | null; isCreator: boolean }> {
+): Promise<{ allowed: boolean; event: Record<string, unknown> | null; isCreator: boolean }> {
   const perms = await getMemberPermissions(supabase, serverId, userId)
 
   // Admins and users with MANAGE_EVENTS can always manage
@@ -57,29 +57,35 @@ export async function PATCH(
     return NextResponse.json({ error: "You don't have permission to edit this event" }, { status: 403 })
   }
 
-  let body: any
+  let body: unknown
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const updatePayload: Record<string, any> = {}
-  if (body.title !== undefined) updatePayload.title = body.title
-  if (body.description !== undefined) updatePayload.description = body.description
-  if (body.location !== undefined) updatePayload.location = body.location
-  if (body.linkedChannelId !== undefined) updatePayload.linked_channel_id = body.linkedChannelId
-  if (body.startAt !== undefined) updatePayload.start_at = body.startAt
-  if (body.endAt !== undefined) updatePayload.end_at = body.endAt
-  if (body.timezone !== undefined) updatePayload.timezone = body.timezone
-  if (body.recurrence !== undefined) updatePayload.recurrence = body.recurrence
-  if (body.recurrenceUntil !== undefined) updatePayload.recurrence_until = body.recurrenceUntil
-  if (body.capacity !== undefined) updatePayload.capacity = body.capacity
-  if (body.cancelled !== undefined) updatePayload.cancelled_at = body.cancelled ? new Date().toISOString() : null
+  const parsed = body as {
+    title?: unknown; description?: unknown; location?: unknown; linkedChannelId?: unknown;
+    startAt?: unknown; endAt?: unknown; timezone?: unknown; recurrence?: unknown;
+    recurrenceUntil?: unknown; capacity?: unknown; cancelled?: unknown;
+  }
+
+  const updatePayload: Record<string, unknown> = {}
+  if (parsed.title !== undefined) updatePayload.title = parsed.title
+  if (parsed.description !== undefined) updatePayload.description = parsed.description
+  if (parsed.location !== undefined) updatePayload.location = parsed.location
+  if (parsed.linkedChannelId !== undefined) updatePayload.linked_channel_id = parsed.linkedChannelId
+  if (parsed.startAt !== undefined) updatePayload.start_at = parsed.startAt
+  if (parsed.endAt !== undefined) updatePayload.end_at = parsed.endAt
+  if (parsed.timezone !== undefined) updatePayload.timezone = parsed.timezone
+  if (parsed.recurrence !== undefined) updatePayload.recurrence = parsed.recurrence
+  if (parsed.recurrenceUntil !== undefined) updatePayload.recurrence_until = parsed.recurrenceUntil
+  if (parsed.capacity !== undefined) updatePayload.capacity = parsed.capacity
+  if (parsed.cancelled !== undefined) updatePayload.cancelled_at = parsed.cancelled ? new Date().toISOString() : null
 
   // Compute the actual diff — only keep fields that differ from the existing event
-  const before: Record<string, any> = {}
-  const after: Record<string, any> = {}
+  const before: Record<string, unknown> = {}
+  const after: Record<string, unknown> = {}
   for (const key of Object.keys(updatePayload)) {
     const oldVal = existing?.[key] ?? null
     const newVal = updatePayload[key] ?? null
@@ -99,7 +105,7 @@ export async function PATCH(
   }
 
   // Only include changed fields in the DB update
-  const filteredPayload: Record<string, any> = {}
+  const filteredPayload: Record<string, unknown> = {}
   for (const key of Object.keys(after)) {
     filteredPayload[key] = updatePayload[key]
   }
@@ -161,7 +167,7 @@ export async function PATCH(
   const { error: auditError } = await service.from("audit_logs").insert({
     server_id: params.serverId,
     actor_id: user.id,
-    action: body.cancelled ? "event_cancelled" : "event_updated",
+    action: parsed.cancelled ? "event_cancelled" : "event_updated",
     target_id: params.eventId,
     target_type: "event",
     changes: { before, after },
@@ -180,11 +186,11 @@ export async function PATCH(
 
   if (attendees?.length) {
     const { error: notifyError } = await service.from("notifications").insert(
-      attendees.map((attendee: any) => ({
+      attendees.map((attendee: { user_id: string }) => ({
         user_id: attendee.user_id,
         type: "system" as const,
-        title: body.cancelled ? `Event cancelled: ${updated.title}` : `Event updated: ${updated.title}`,
-        body: body.cancelled ? "An event you RSVP'd for has been cancelled." : "An event you RSVP'd for was updated.",
+        title: parsed.cancelled ? `Event cancelled: ${updated.title}` : `Event updated: ${updated.title}`,
+        body: parsed.cancelled ? "An event you RSVP'd for has been cancelled." : "An event you RSVP'd for was updated.",
         server_id: params.serverId,
         channel_id: updated.linked_channel_id,
       }))
@@ -252,7 +258,7 @@ export async function DELETE(
     // Notify attendees
     if (attendees?.length) {
       const { error: notifyError } = await service.from("notifications").insert(
-        attendees.map((attendee: any) => ({
+        attendees.map((attendee: { user_id: string }) => ({
           user_id: attendee.user_id,
           type: "system" as const,
           title: `Event deleted: ${event.title}`,

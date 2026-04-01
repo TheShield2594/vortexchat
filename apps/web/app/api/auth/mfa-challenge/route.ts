@@ -16,7 +16,7 @@ export async function GET() {
     const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
     const { data: factors } = await supabase.auth.mfa.listFactors()
 
-    const verifiedTotp = (factors?.totp ?? []).filter((f: any) => f.status === "verified")
+    const verifiedTotp = (factors?.totp ?? []).filter((f: { status: string }) => f.status === "verified")
     const hasTOTP = verifiedTotp.length > 0
 
     return NextResponse.json({

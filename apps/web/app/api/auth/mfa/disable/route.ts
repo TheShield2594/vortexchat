@@ -16,7 +16,8 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as { factorId?: string }
     if (!body.factorId) return NextResponse.json({ error: "factorId is required" }, { status: 400 })
 
-    const result = await (admin.auth.admin as any).mfa.deleteFactor({
+    const adminAuth = admin.auth.admin as { mfa: { deleteFactor: (params: { userId: string; id: string }) => Promise<{ error: unknown }> } }
+    const result = await adminAuth.mfa.deleteFactor({
       userId: auth.user.id,
       id: body.factorId,
     })

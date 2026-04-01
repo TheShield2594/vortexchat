@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
         .limit(limit),
     ])
 
-    const blockedUserIds = await getBlockedUserIdsForViewer(supabase as any, user.id)
+    const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
     const visibleMessages = filterBlockedUserIds(messages ?? [], (message) => message.author_id, blockedUserIds)
 
     const results = [

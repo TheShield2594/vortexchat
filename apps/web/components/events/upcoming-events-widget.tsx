@@ -6,6 +6,7 @@ import { Calendar, ChevronRight } from "lucide-react"
 import { EventCard } from "./event-card"
 import { expandEventOccurrences } from "@/lib/events"
 import type { EventOccurrence } from "@/lib/events"
+import type { ServerEvent } from "./events-calendar"
 
 interface UpcomingEventsWidgetProps {
   serverId: string
@@ -13,7 +14,7 @@ interface UpcomingEventsWidgetProps {
 }
 
 export function UpcomingEventsWidget({ serverId, timezone = "UTC" }: UpcomingEventsWidgetProps) {
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<ServerEvent[]>([])
   const [occurrences, setOccurrences] = useState<EventOccurrence[]>([])
   const [loading, setLoading] = useState(true)
 

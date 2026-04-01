@@ -11,7 +11,7 @@ interface AuditEntry {
   action: string
   reason: string | null
   created_at: string
-  metadata: any
+  metadata: Record<string, unknown> | null
   actor: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null
   target: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null
 }

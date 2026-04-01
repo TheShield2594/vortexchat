@@ -26,8 +26,8 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL("/settings/profile?linked=0&error=state", request.url))
     }
 
-    const { data: identities } = await (supabase.auth as any).getUserIdentities?.() ?? { data: [] }
-    const matched = (identities?.identities || []).find((entry: any) => entry.provider === provider)
+    const { data: identities } = await (supabase.auth as unknown as { getUserIdentities?: () => Promise<{ data: { identities: Array<{ provider: string; id: string; identity_data?: Record<string, string> }> } }> }).getUserIdentities?.() ?? { data: { identities: [] } }
+    const matched = (identities?.identities || []).find((entry: { provider: string }) => entry.provider === provider)
     if (!matched?.id) {
       return NextResponse.redirect(new URL("/settings/profile?linked=0&error=identity", request.url))
     }

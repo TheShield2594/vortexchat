@@ -42,7 +42,7 @@ export function usePushNotifications() {
           applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
         }))
 
-      const { endpoint, keys } = subscription.toJSON() as any
+      const { endpoint, keys } = subscription.toJSON() as { endpoint?: string; keys?: Record<string, string> }
       const res = await fetch("/api/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -15,6 +15,35 @@ type ViewMode = "month" | "week" | "list"
 type EventType = "general" | "voice" | "external"
 type Recurrence = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "yearly"
 
+export interface EventAttendee {
+  user_id: string
+  status: string
+  display_name: string | null
+  avatar_url: string | null
+  username: string | null
+}
+
+export interface ServerEvent {
+  id: string
+  title: string
+  description: string | null
+  location: string | null
+  start_at: string
+  end_at: string | null
+  capacity: number | null
+  cancelled_at: string | null
+  voice_channel_id: string | null
+  event_type: string | null
+  external_url: string | null
+  banner_url: string | null
+  recurrence: string | null
+  recurrence_until: string | null
+  created_by: string
+  attendees: EventAttendee[]
+  myRsvp: { status: string } | null
+  stats: { going: number; maybe: number; interested: number; waitlist: number } | null
+}
+
 const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
   { value: "none", label: "Does not repeat" },
   { value: "daily", label: "Daily" },
@@ -45,7 +74,7 @@ export function EventsCalendar({
   currentUserId: string
 }) {
   const { toast } = useToast()
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<ServerEvent[]>([])
   const [view, setView] = useState<ViewMode>("month")
   const [popover, setPopover] = useState<{ eventId: string; rect: DOMRect } | null>(null)
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
@@ -212,7 +241,7 @@ export function EventsCalendar({
     }
   }
 
-  async function updateEvent(eventId: string, updates: Record<string, any>) {
+  async function updateEvent(eventId: string, updates: Record<string, unknown>) {
     try {
       const res = await fetch(`/api/servers/${serverId}/events/${eventId}`, {
         method: "PATCH",
@@ -230,7 +259,7 @@ export function EventsCalendar({
     }
   }
 
-  function canEditEvent(event: any): boolean {
+  function canEditEvent(event: ServerEvent): boolean {
     return canManageEvents || event.created_by === currentUserId
   }
 
@@ -474,7 +503,7 @@ type RsvpFn = (eventId: string, status: "interested" | "going" | "maybe" | "not_
 
 type ViewProps = {
   occurrences: EventOccurrence[]
-  events: any[]
+  events: ServerEvent[]
   timezone: string
   rsvp: RsvpFn
   onClickEvent: (eventId: string, rect: DOMRect) => void
@@ -493,7 +522,7 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
   eventId: string
   anchorRect: DOMRect
   occurrences: EventOccurrence[]
-  events: any[]
+  events: ServerEvent[]
   timezone: string
   rsvp: RsvpFn
   onClose: () => void
@@ -563,7 +592,7 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
       {full.attendees?.length > 0 && (
         <div className="mt-2 flex items-center gap-1">
           <div className="flex -space-x-1.5">
-            {full.attendees.slice(0, 5).map((a: any) => (
+            {full.attendees.slice(0, 5).map((a: EventAttendee) => (
               <div key={a.user_id} className="h-6 w-6 rounded-full border-2 border-zinc-900 bg-zinc-700 overflow-hidden" title={a.display_name ?? "User"}>
                 {a.avatar_url ? (
                   <img src={a.avatar_url} alt={a.display_name ? `${a.display_name}'s avatar` : "Event attendee"} className="h-full w-full object-cover" />
@@ -764,7 +793,7 @@ function WeekView({ occurrences, events, range, onClickEvent }: ViewProps & { ra
 
 // ── List view ────────────────────────────────────────────────────────────────
 
-function ListView({ occurrences, events, timezone, rsvp, serverId, canEditEvent, onDelete, onCancel }: Omit<ViewProps, "onClickEvent"> & { serverId: string; canEditEvent: (event: any) => boolean; onDelete: (eventId: string) => Promise<void>; onCancel: (eventId: string) => Promise<void> }) {
+function ListView({ occurrences, events, timezone, rsvp, serverId, canEditEvent, onDelete, onCancel }: Omit<ViewProps, "onClickEvent"> & { serverId: string; canEditEvent: (event: ServerEvent) => boolean; onDelete: (eventId: string) => Promise<void>; onCancel: (eventId: string) => Promise<void> }) {
   const grouped = useMemo(() => {
     const map = new Map<string, EventOccurrence[]>()
     for (const occ of occurrences) {

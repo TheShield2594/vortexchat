@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: any
+  let body: Record<string, unknown>
   try {
     body = await request.json()
   } catch {

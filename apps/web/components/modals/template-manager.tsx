@@ -21,7 +21,7 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
   const [starterKey, setStarterKey] = useState("")
   const [rawTemplate, setRawTemplate] = useState("")
   const [warnings, setWarnings] = useState<string[]>([])
-  const [diff, setDiff] = useState<any>(null)
+  const [diff, setDiff] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
   const [exportValue, setExportValue] = useState("")
 
@@ -74,8 +74,8 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
         setExportValue(JSON.stringify(data.template, null, 2))
         toast({ title: "Blueprint exported" })
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Blueprint request failed", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Blueprint request failed", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setLoading(false)
     }

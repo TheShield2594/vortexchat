@@ -39,7 +39,7 @@ export function useRealtimeMessages(
         async (payload) => {
           // Fetch full message with relations (reply_to hydrated separately to
           // avoid depending on the self-referential FK being in PostgREST cache)
-          const replyToId = (payload.new as any).reply_to_id
+          const replyToId = (payload.new as Record<string, unknown>).reply_to_id
           const [messageResult, replyResult] = await Promise.all([
             supabase
               .from("messages")

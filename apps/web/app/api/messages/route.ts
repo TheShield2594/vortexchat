@@ -234,7 +234,7 @@ async function runServerAutomodChecks({
     }, 60_000),
     cached(`member-roles:${serverId}:${user.id}`, async () => {
       const { data } = await supabase.from("member_roles").select("role_id").eq("server_id", serverId).eq("user_id", user.id)
-      return (data ?? []).map((r: any) => r.role_id) as string[]
+      return (data ?? []).map((r: { role_id: string }) => r.role_id) as string[]
     }, 30_000),
     cached(`automod-rules:${serverId}`, async () => {
       const { data } = await supabase.from("automod_rules")

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { deriveBlockedUserIds, filterBlockedUserIds, getBlockedUserIdsForViewer } from "@/lib/social-block-policy"
 
 function createSupabaseFriendshipMock(rows: Array<{ requester_id: string; addressee_id: string; status: "pending" | "accepted" | "blocked" }>) {
@@ -36,7 +37,7 @@ describe("social block policy transitions", () => {
       { requester_id: "viewer", addressee_id: "friend", status: "accepted" },
     ])
 
-    const blocked = await getBlockedUserIdsForViewer(supabase as any, "viewer", ["blocked-user", "friend"])
+    const blocked = await getBlockedUserIdsForViewer(supabase as unknown as SupabaseClient, "viewer", ["blocked-user", "friend"])
     expect(blocked.has("blocked-user")).toBe(true)
     expect(blocked.has("friend")).toBe(false)
 

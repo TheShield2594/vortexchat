@@ -8,7 +8,7 @@ import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils/cn"
 
-type SearchResult = any
+type SearchResult = Record<string, unknown>
 
 interface ActiveFilters {
   from?: string

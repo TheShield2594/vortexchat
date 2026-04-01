@@ -10,7 +10,7 @@ export function extractWorkspaceReference(content: string): { type: "task" | "do
 }
 
 export function WorkspaceReferenceEmbed({ type, id }: { type: "task" | "doc"; id: string }) {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     fetch(`/api/workspace/reference?type=${type}&id=${id}`)

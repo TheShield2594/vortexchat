@@ -79,7 +79,7 @@ function splitTextByPattern(
         if (match.index > lastIdx) {
           parts.push({ type: "text", value: value.slice(lastIdx, match.index) })
         }
-        parts.push({ type: "html", value: buildHtml(match) } as any)
+        parts.push({ type: "html", value: buildHtml(match) } as unknown as PhrasingContent)
         lastIdx = match.index + match[0].length
       }
 
@@ -157,7 +157,7 @@ const remarkUnicodeEmoji: Plugin<[], Root> = () => (tree) => {
       parts.push({
         type: "html",
         value: `<img src="${url}" alt="${match[0]}" class="inline-block align-middle" draggable="false" loading="lazy" style="width:1.25em;height:1.25em" />`,
-      } as any)
+      } as unknown as PhrasingContent)
       lastIdx = match.index + match[0].length
     }
 
@@ -431,13 +431,13 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
     },
 
     // Custom elements from our remark plugins (passed through rehype-raw)
-    "vortex-emoji": ({ node, ...props }: any) => {
-      const name = props.dataName ?? props["data-name"] ?? node?.properties?.dataName ?? ""
+    "vortex-emoji": ({ node, ...props }: { node?: { properties?: Record<string, string> }; [key: string]: unknown }) => {
+      const name = (props.dataName ?? props["data-name"] ?? node?.properties?.dataName ?? "") as string
       return <ServerEmojiImage name={name} size={emojiSize} />
     },
 
-    "vortex-mention": ({ node, ...props }: any) => {
-      const uid = props.dataUid ?? props["data-uid"] ?? node?.properties?.dataUid ?? ""
+    "vortex-mention": ({ node, ...props }: { node?: { properties?: Record<string, string> }; [key: string]: unknown }) => {
+      const uid = (props.dataUid ?? props["data-uid"] ?? node?.properties?.dataUid ?? "") as string
       const isSelfMention = uid === currentUserId
       const member = members.find((m) => m.user_id === uid)
       const displayLabel = member?.nickname ?? member?.display_name ?? member?.username ?? uid
@@ -456,8 +456,8 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
       )
     },
 
-    "vortex-role-mention": ({ node, ...props }: any) => {
-      const rid = props.dataRid ?? props["data-rid"] ?? node?.properties?.dataRid ?? ""
+    "vortex-role-mention": ({ node, ...props }: { node?: { properties?: Record<string, string> }; [key: string]: unknown }) => {
+      const rid = (props.dataRid ?? props["data-rid"] ?? node?.properties?.dataRid ?? "") as string
       const roles = serverId ? useAppStore.getState().serverRoles[serverId] ?? [] : []
       const role = roles.find((r) => r.id === rid)
       const customColor = role?.color && role.color !== "#000000" ? role.color : null
@@ -477,13 +477,13 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
       )
     },
 
-    "vortex-timestamp": ({ node, ...props }: any) => {
-      const epoch = parseInt(props.dataEpoch ?? props["data-epoch"] ?? node?.properties?.dataEpoch ?? "0", 10)
-      const format = props.dataFormat ?? props["data-format"] ?? node?.properties?.dataFormat ?? "f"
+    "vortex-timestamp": ({ node, ...props }: { node?: { properties?: Record<string, string> }; [key: string]: unknown }) => {
+      const epoch = parseInt((props.dataEpoch ?? props["data-epoch"] ?? node?.properties?.dataEpoch ?? "0") as string, 10)
+      const format = (props.dataFormat ?? props["data-format"] ?? node?.properties?.dataFormat ?? "f") as string
       return <TimestampDisplay epoch={epoch} format={format} />
     },
 
-    "vortex-spoiler": ({ children }: any) => {
+    "vortex-spoiler": ({ children }: { children?: ReactNode }) => {
       return <SpoilerSpan>{children}</SpoilerSpan>
     },
 
@@ -561,7 +561,7 @@ const sanitizeSchema = {
   },
 }
 
-const rehypePlugins: any[] = [rehypeRaw, [rehypeSanitize, sanitizeSchema]]
+const rehypePlugins: Parameters<typeof ReactMarkdown>[0]["rehypePlugins"] = [rehypeRaw, [rehypeSanitize, sanitizeSchema]]
 
 // ─── Exported renderer ──────────────────────────────────────────────────────
 

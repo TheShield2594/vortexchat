@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { evaluateRule } from "@/lib/automod"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
-import type { ServerRow, AutoModRuleRow, AutoModAction, ScreeningConfigRow } from "@/types/database"
+import type { ServerRow, AutoModRuleRow, AutoModAction, AutoModRuleWithParsed, ScreeningConfigRow } from "@/types/database"
 import { copyToClipboard, createWebhook, deleteWebhook, formatChannelName } from "@/lib/webhooks"
 import { RoleManager } from "@/components/roles/role-manager"
 import { TemplateManager } from "@/components/modals/template-manager"
@@ -113,8 +113,8 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
       updateServer(server.id, updated)
       clearIcon()
       toast({ title: "Server settings saved!" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to save", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to save", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setLoading(false)
     }
@@ -874,8 +874,8 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
         const data = await res.json().catch(() => ({ error: "Failed to create webhook" }))
         toast({ variant: "destructive", title: "Failed to create webhook", description: data.error })
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create webhook", description: error?.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to create webhook", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setCreating(false)
     }
@@ -892,8 +892,8 @@ export function WebhooksTab({ serverId, channels, open }: { serverId: string; ch
         const data = await res.json().catch(() => ({ error: "Failed to delete webhook" }))
         toast({ variant: "destructive", title: "Failed to delete webhook", description: data.error })
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to delete webhook", description: error?.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to delete webhook", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setDeletingId(null)
     }
@@ -1443,8 +1443,8 @@ function formToPayload(f: AutoModRuleForm) {
 }
 
 function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
-  const cfg = rule.config as any
-  const conditions = (rule as any).conditions ?? {}
+  const cfg = rule.config as Record<string, unknown>
+  const conditions = (rule as { conditions?: Record<string, unknown> }).conditions ?? {}
   const actions = rule.actions as unknown as AutoModAction[]
   return {
     name: rule.name,
@@ -1459,7 +1459,7 @@ function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
     role_scope: conditions.role_ids?.[0] ?? "",
     min_account_age_minutes: conditions.min_account_age_minutes ?? 0,
     min_trust_level: conditions.min_trust_level ?? 0,
-    priority: (rule as any).priority ?? 100,
+    priority: (rule as { priority?: number }).priority ?? 100,
     block_message: actions.some((a) => a.type === "block_message"),
     quarantine_message: actions.some((a) => a.type === "quarantine_message"),
     timeout_member: actions.some((a) => a.type === "timeout_member"),
@@ -1564,12 +1564,12 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
   }
 
   async function movePriority(rule: AutoModRuleRow, direction: -1 | 1) {
-    const ordered = [...rules].sort((a: any, b: any) => (a.priority ?? 100) - (b.priority ?? 100))
+    const ordered = [...rules].sort((a: AutoModRuleRow, b: AutoModRuleRow) => ((a.priority as number) ?? 100) - ((b.priority as number) ?? 100))
     const index = ordered.findIndex((r) => r.id === rule.id)
     const swapIndex = index + direction
     if (index < 0 || swapIndex < 0 || swapIndex >= ordered.length) return
-    const current = ordered[index] as any
-    const other = ordered[swapIndex] as any
+    const current = ordered[index]
+    const other = ordered[swapIndex]
     await Promise.all([
       fetch(`/api/servers/${serverId}/automod/${current.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: other.priority ?? 100 }) }),
       fetch(`/api/servers/${serverId}/automod/${other.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: current.priority ?? 100 }) }),
@@ -1588,9 +1588,9 @@ export function AutoModTab({ serverId, channels, open }: { serverId: string; cha
           id: "preview",
           server_id: serverId,
           name: form.name || "Preview Rule",
-          trigger_type: form.trigger_type as any,
-          config: formToPayload(form).config as any,
-          conditions: formToPayload(form).conditions as any,
+          trigger_type: form.trigger_type as AutoModRuleWithParsed["trigger_type"],
+          config: formToPayload(form).config as AutoModRuleWithParsed["config"],
+          conditions: formToPayload(form).conditions as AutoModRuleWithParsed["conditions"],
           actions: formToPayload(form).actions,
           priority: form.priority,
           enabled: true,
@@ -2026,8 +2026,8 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
         }
         toast({ variant: "destructive", title: "Copy failed" })
       }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to create invite", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to create invite", description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setCreating(false)
     }
@@ -2046,8 +2046,8 @@ function InvitesManager({ serverId, isOwner }: { serverId: string; isOwner: bool
 
       setInvites((prev) => prev.filter((inv) => inv.code !== code))
       toast({ title: "Invite revoked" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to revoke invite", description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to revoke invite", description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 

@@ -375,8 +375,8 @@ export const MessageItem = memo(function MessageItem({
     try {
       await onDelete()
       setShowDeleteDialog(false)
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to delete message", description: error?.message ?? "Please try again." })
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Failed to delete message", description: error instanceof Error ? error.message : "Please try again." })
     }
   }
 
@@ -414,8 +414,8 @@ export const MessageItem = memo(function MessageItem({
     if (editContent.trim() && editContent !== message.content) {
       try {
         await onEdit(editContent.trim())
-      } catch (error: any) {
-        toast({ variant: "destructive", title: "Failed to edit message", description: error?.message ?? "Please try again." })
+      } catch (error: unknown) {
+        toast({ variant: "destructive", title: "Failed to edit message", description: error instanceof Error ? error.message : "Please try again." })
         return
       }
     }

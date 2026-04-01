@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 const PER_USER_DEVICE_LIMIT = 20
 const MAX_KEY_VERSION = 1_000_000
@@ -31,13 +32,12 @@ export async function GET(
     if (error || !user) return error!
 
     const [channelResult, memberRowsResult, keyRowsResult] = await Promise.all([
-      (supabase as any)
-        .from("dm_channels")
+      untypedFrom(supabase, "dm_channels")
         .select("id, is_encrypted, encryption_key_version, encryption_membership_epoch")
         .eq("id", channelId)
         .maybeSingle(),
       supabase.from("dm_channel_members").select("user_id").eq("dm_channel_id", channelId),
-      (supabase as any).from("dm_channel_keys")
+      untypedFrom(supabase, "dm_channel_keys")
         .select("key_version, target_user_id, target_device_id, wrapped_key, wrapped_by_user_id, wrapped_by_device_id, sender_public_key")
         .eq("dm_channel_id", channelId)
         .eq("target_user_id", user.id),
@@ -50,8 +50,7 @@ export async function GET(
 
     const memberIds = (memberRowsResult.data ?? []).map((m) => m.user_id)
     const deviceRowsResult = memberIds.length
-      ? await (supabase as any)
-        .from("user_device_keys")
+      ? await untypedFrom(supabase, "user_device_keys")
         .select("user_id, device_id, public_key, updated_at")
         .in("user_id", memberIds)
         .order("updated_at", { ascending: false })
@@ -117,8 +116,7 @@ export async function POST(
       return NextResponse.json({ error: "keyVersion and wrappedKeys[] required" }, { status: 400 })
     }
 
-    const { data: channelInfo, error: channelError } = await (supabase as any)
-      .from("dm_channels")
+    const { data: channelInfo, error: channelError } = await untypedFrom(supabase, "dm_channels")
       .select("encryption_key_version")
       .eq("id", channelId)
       .maybeSingle()
@@ -150,7 +148,7 @@ export async function POST(
       if (entryError) return NextResponse.json({ error: entryError }, { status: 400 })
     }
 
-    const rows = wrappedKeys.map((entry: any) => ({
+    const rows = wrappedKeys.map((entry: { targetUserId: string; targetDeviceId: string; wrappedKey: string; wrappedByDeviceId: string; senderPublicKey: string }) => ({
       dm_channel_id: channelId,
       key_version: keyVersion,
       target_user_id: entry.targetUserId,
@@ -161,8 +159,7 @@ export async function POST(
       sender_public_key: entry.senderPublicKey,
     }))
 
-    const { error: upsertError } = await (supabase as any)
-      .from("dm_channel_keys")
+    const { error: upsertError } = await untypedFrom(supabase, "dm_channel_keys")
       .upsert(rows)
 
     if (upsertError) return NextResponse.json({ error: "Failed to store encryption keys" }, { status: 500 })

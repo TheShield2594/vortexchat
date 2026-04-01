@@ -159,7 +159,7 @@ export async function PATCH(
     const targetUserId = searchParams.get("userId")
     if (!targetUserId) return NextResponse.json({ error: "userId required" }, { status: 400 })
 
-    const { data: body, error: parseError } = await parseJsonBody<{ timeoutUntil?: string | null }>(request as any)
+    const { data: body, error: parseError } = await parseJsonBody<{ timeoutUntil?: string | null }>(request as unknown as import("next/server").NextRequest)
     if (parseError) return parseError
 
     const { timeoutUntil } = body

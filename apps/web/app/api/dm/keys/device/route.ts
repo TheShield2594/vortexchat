@@ -1,6 +1,7 @@
 import { webcrypto } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { untypedFrom, untypedRpc } from "@/lib/supabase/untyped-table"
 
 const DEVICE_LIMIT = 20
 
@@ -38,8 +39,7 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data, error, count } = await (supabase as any)
-      .from("user_device_keys")
+    const { data, error, count } = await untypedFrom(supabase, "user_device_keys")
       .select("device_id, public_key, updated_at", { count: "exact" })
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid device public key" }, { status: 400 })
     }
 
-    const { data, error } = await (supabase as any).rpc("upsert_user_device_key", {
+    const { data, error } = await untypedRpc(supabase, "upsert_user_device_key", {
       p_device_id: deviceId,
       p_public_key: publicKey,
       p_device_limit: DEVICE_LIMIT,

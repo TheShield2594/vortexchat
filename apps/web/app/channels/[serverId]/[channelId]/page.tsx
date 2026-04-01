@@ -120,8 +120,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
   const canModerateStage = isAdmin || hasPermission(channelPerms, "MUTE_MEMBERS")
 
   // Filter messages to only text-based channel types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase returns untyped rows; hydration preserves the shape
-  let messages: any[] = []
+  let messages: Array<Record<string, unknown>> = []
   if ((MESSAGE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
     const hydrateTimer = perfTimer("channel-page reply hydration")
     const raw = (messagesData ?? []).reverse()

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { maybeRenewExpiry } from "@vortex/shared"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 export async function GET(
   _request: NextRequest,
@@ -20,8 +21,7 @@ export async function GET(
     if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     // dm_attachments table is not yet in generated Supabase types
-    const { data: attachment, error } = await (supabase as any)
-      .from("dm_attachments")
+    const { data: attachment, error } = await untypedFrom(supabase, "dm_attachments")
       .select("id, url, dm_id, filename, content_type, size, expires_at, purged_at")
       .eq("id", attachmentId)
       .maybeSingle() as { data: { id: string; url: string; dm_id: string; filename: string; content_type: string; size: number; expires_at: string | null; purged_at: string | null } | null; error: unknown }
@@ -78,8 +78,7 @@ export async function GET(
         updatePayload.expires_at = renewed.toISOString()
       }
       // Fire-and-forget update
-      ;(supabase as any)
-        .from("dm_attachments")
+      ;untypedFrom(supabase, "dm_attachments")
         .update(updatePayload)
         .eq("id", attachment.id)
         .then(() => {}, (err: unknown) => {
