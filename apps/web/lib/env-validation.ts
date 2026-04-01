@@ -75,8 +75,9 @@ export function validateEnv() {
   }
 
   // Fail fast in production for secrets that must not be omitted.
-  // Skip in CI where placeholder env vars are used for build/test.
-  if (process.env.NODE_ENV === "production" && !process.env.CI && !process.env.STEP_UP_SECRET) {
+  // Skip when SKIP_STRICT_ENV_VALIDATION is set (CI build/E2E with placeholder secrets).
+  const skipStrict = process.env.SKIP_STRICT_ENV_VALIDATION === "true"
+  if (process.env.NODE_ENV === "production" && !skipStrict && !process.env.STEP_UP_SECRET) {
     throw new Error(
       "STEP_UP_SECRET must be set in production. " +
       "Generate a dedicated 256-bit secret: openssl rand -hex 32"
