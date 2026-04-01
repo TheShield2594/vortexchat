@@ -74,14 +74,15 @@ export async function GET(
 
     if (before) query = query.lt("created_at", before)
 
-    const { data: messages, error } = await query
+    const { data: rawMessages, error } = await query
+    const messages = rawMessages as unknown as Array<{ id: string; dm_channel_id: string; sender_id: string; content: string; edited_at: string | null; deleted_at: string | null; created_at: string; reply_to_id: string | null; sender: unknown }> | null
 
     if (error) return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
 
     // Resolve replied-to messages
     const replyIds: string[] = (messages ?? [])
-      .map((m) => m.reply_to_id as string | null)
-      .filter((id: string | null): id is string => !!id)
+      .map((m) => m.reply_to_id)
+      .filter((id): id is string => !!id)
     const uniqueReplyIds: string[] = [...new Set(replyIds)]
 
     let replyMap: Record<string, Record<string, unknown>> = {}

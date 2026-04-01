@@ -160,7 +160,7 @@ export async function PATCH(
       server_id: appeal.server_id,
       actor_id: user.id,
       previous_status: appeal.status,
-      new_status: nextStatus,
+      new_status: nextStatus as typeof appeal.status,
       metadata: {
         decisionTemplateId,
       },

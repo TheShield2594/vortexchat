@@ -88,7 +88,7 @@ export async function GET() {
       const partner = ch.is_group ? null : (members.find((u) => u.id !== user.id) ?? null)
       const latest = latestMessages[ch.id] ?? null
       const lastRead = readStates[ch.id]
-      const isUnread = !!(latest && (!lastRead || latest.created_at > lastRead) && latest.sender_id !== user.id)
+      const isUnread = !!(latest && (!lastRead || (latest.created_at as string) > lastRead) && latest.sender_id !== user.id)
 
       return {
         id: ch.id,

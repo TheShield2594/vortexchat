@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
+import type { Json } from "@/types/database"
 
 type RouteContext = { params: Promise<{ serverId: string; eventId: string }> }
 
@@ -126,17 +128,16 @@ export async function PATCH(
   // Only run the update if there are non-capacity fields to change
   let updated: { id: string; title: string; linked_channel_id: string | null }
   if (Object.keys(nonCapacityPayload).length > 0) {
-    const { data, error } = await service
-      .from("events")
+    const { data, error } = await untypedFrom(service, "events")
       .update(nonCapacityPayload)
       .eq("id", params.eventId)
       .eq("server_id", params.serverId)
       .select("id,title,linked_channel_id")
-      .single()
+      .single() as { data: { id: string; title: string; linked_channel_id: string | null } | null; error: { message: string } | null }
     if (error) return NextResponse.json({ error: "Failed to update event" }, { status: 500 })
     updated = data
   } else {
-    updated = { id: existing?.id, title: existing?.title, linked_channel_id: existing?.linked_channel_id }
+    updated = { id: existing?.id as string, title: existing?.title as string, linked_channel_id: existing?.linked_channel_id as string | null }
   }
 
   // When capacity increased, atomically set capacity and promote waitlisted users
@@ -155,8 +156,7 @@ export async function PATCH(
     }
   } else if (newCapacity !== undefined && !capacityIncreased) {
     // Capacity decreased or stayed the same — just update the field (no promotions needed)
-    const { error } = await service
-      .from("events")
+    const { error } = await untypedFrom(service, "events")
       .update({ capacity: newCapacity })
       .eq("id", params.eventId)
       .eq("server_id", params.serverId)
@@ -170,7 +170,7 @@ export async function PATCH(
     action: parsed.cancelled ? "event_cancelled" : "event_updated",
     target_id: params.eventId,
     target_type: "event",
-    changes: { before, after },
+    changes: { before, after } as unknown as Json,
   })
   if (auditError) {
     console.warn("Failed to write event audit log", { eventId: params.eventId, error: auditError.message })
@@ -248,7 +248,7 @@ export async function DELETE(
       changes: {
         before: { title: event.title, start_at: event.start_at, created_by: event.created_by },
         after: null,
-      },
+      } as unknown as Json,
     })
     if (auditError) {
       console.warn("Failed to write event delete audit log", { eventId: params.eventId, error: auditError.message })
@@ -261,10 +261,10 @@ export async function DELETE(
         attendees.map((attendee: { user_id: string }) => ({
           user_id: attendee.user_id,
           type: "system" as const,
-          title: `Event deleted: ${event.title}`,
+          title: `Event deleted: ${event.title as string}`,
           body: "An event you RSVP'd for has been deleted.",
           server_id: params.serverId,
-          channel_id: event.linked_channel_id,
+          channel_id: event.linked_channel_id as string | null,
         }))
       )
       if (notifyError) {

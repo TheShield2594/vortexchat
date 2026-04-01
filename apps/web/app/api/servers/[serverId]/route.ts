@@ -3,6 +3,7 @@ import { hasPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
 import { detectMimeFromBytes } from "@/lib/attachment-validation"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
+import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     const updates: Record<string, unknown> = {}
-    const changes: Record<string, { old: unknown; new: unknown }> = {}
+    const changes: Record<string, Json | undefined> = {}
 
     // Validate name
     if (name !== undefined) {
@@ -294,7 +295,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
         action: "server_delete_failed",
         target_id: serverId,
         target_type: "server",
-        changes: { cascade_errors: { old: null, new: cascadeErrors } },
+        changes: { cascade_errors: { old: null, new: cascadeErrors } } as Record<string, Json | undefined>,
       })
       return NextResponse.json({ error: "Failed to delete server: cascade cleanup failed" }, { status: 500 })
     }
@@ -311,7 +312,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
         action: "server_delete_failed",
         target_id: serverId,
         target_type: "server",
-        changes: { error: { old: null, new: deleteError.message } },
+        changes: { error: { old: null, new: deleteError.message } } as Record<string, Json | undefined>,
       })
       return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
     }

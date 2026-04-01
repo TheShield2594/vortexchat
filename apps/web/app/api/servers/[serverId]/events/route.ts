@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { sendPushToUser } from "@/lib/push"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 // New columns (event_type, external_url, banner_url) from migration 00060 are not yet
 // reflected in the generated Supabase types. We use a typed interface and cast via unknown
@@ -47,15 +48,14 @@ export async function GET(
     const from = searchParams.get("from")
     const to = searchParams.get("to")
 
-    // Cast via unknown to select new columns that aren't in generated types yet
-    let query = (supabase
-      .from("events")
+    // Cast via untypedFrom to select new columns that aren't in generated types yet
+    let query = untypedFrom(supabase, "events")
       .select(
         "id, server_id, title, description, location, event_type, external_url, banner_url, " +
         "linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, " +
         "recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, " +
         "created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status,users(id,display_name,avatar_url))"
-      ) as unknown as ReturnType<typeof supabase.from>)
+      )
       .eq("server_id", params.serverId)
       .order("start_at", { ascending: true })
 
@@ -160,11 +160,10 @@ export async function POST(
   }
 
   // Cast needed because insertPayload includes columns not yet in generated types
-  const { data: created, error } = await (supabase
-    .from("events")
+  const { data: created, error } = await untypedFrom(supabase, "events")
     .insert(insertPayload)
     .select("*")
-    .single() as unknown as Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>)
+    .single() as { data: Record<string, unknown> | null; error: { message: string } | null }
 
   if (error || !created) return NextResponse.json({ error: "Database operation failed" }, { status: 500 })
 

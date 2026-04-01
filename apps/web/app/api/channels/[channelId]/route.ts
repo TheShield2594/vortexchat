@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { computePermissions, hasPermission } from "@vortex/shared"
 import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
+import type { Json } from "@/types/database"
 
 // PATCH /api/channels/[channelId] — update channel settings
 export async function PATCH(
@@ -165,7 +166,7 @@ export async function PATCH(
       action: "channel_updated",
       target_id: channelId,
       target_type: "channel",
-      changes,
+      changes: changes as Record<string, Json | undefined>,
     })
 
     return NextResponse.json(updated)

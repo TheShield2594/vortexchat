@@ -67,7 +67,7 @@ export async function GET(
       appCommands = (commands ?? []).map((cmd) => ({
         id: cmd.id,
         appId: cmd.app_id,
-        appName: (cmd.app_catalog as { name: string } | null)?.name ?? cmd.app_id,
+        appName: (cmd.app_catalog as unknown as { name: string } | null)?.name ?? cmd.app_id,
         commandName: cmd.command_name,
         description: cmd.description ?? null,
       }))

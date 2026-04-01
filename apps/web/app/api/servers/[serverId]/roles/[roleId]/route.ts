@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
+import type { Json } from "@/types/database"
 
 // PATCH /api/servers/[serverId]/roles/[roleId] — update a role
 export async function PATCH(
@@ -118,7 +119,7 @@ export async function PATCH(
       role_name: targetRole.name,
       before,
       after,
-    },
+    } as unknown as Json,
   })
 
   return NextResponse.json(updatedRole)
