@@ -99,6 +99,7 @@ export interface DmReactionRow {
 export interface DmAttachmentRow {
   id: string
   dm_id: string
+  url: string
   filename: string
   size: number
   content_type: string
@@ -107,5 +108,6 @@ export interface DmAttachmentRow {
   encrypted_dek: string | null
   iv: string | null
   expires_at: string | null
+  purged_at: string | null
   created_at: string
 }

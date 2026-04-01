@@ -98,7 +98,8 @@ export async function PATCH(
     .single()
 
   if (updateError || !updatedRole) {
-    return NextResponse.json({ error: updateError?.message ?? "Role update returned no data" }, { status: 500 })
+    if (updateError) console.error("[roles PATCH] update failed", { serverId, roleId, userId: user.id, message: updateError.message })
+    return NextResponse.json({ error: "Failed to update role" }, { status: 500 })
   }
 
   // Build before/after diff for audit log

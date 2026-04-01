@@ -20,7 +20,6 @@ export interface EventAttendee {
   status: string
   display_name: string | null
   avatar_url: string | null
-  username: string | null
 }
 
 export interface ServerEvent {
@@ -41,7 +40,7 @@ export interface ServerEvent {
   created_by: string
   attendees: EventAttendee[]
   myRsvp: { status: string } | null
-  stats: { going?: number; maybe?: number; interested?: number; waitlist?: number; not_going?: number; [key: string]: number | undefined } | null
+  stats: { going: number; maybe: number; interested: number; waitlist: number; notGoing: number; [key: string]: number | undefined }
 }
 
 const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [

@@ -1442,23 +1442,32 @@ function formToPayload(f: AutoModRuleForm) {
   return { name: f.name, trigger_type: f.trigger_type, config, conditions, priority: f.priority, actions, enabled: f.enabled }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
+}
+
 function ruleToForm(rule: AutoModRuleRow): AutoModRuleForm {
-  const cfg = rule.config as Record<string, unknown>
-  const conditions = (rule as { conditions?: Record<string, unknown> }).conditions ?? {}
+  const cfg = isRecord(rule.config) ? rule.config : {}
+  const rawConditions = (rule as { conditions?: unknown }).conditions
+  const conditions = isRecord(rawConditions) ? rawConditions : {}
   const actions = rule.actions as unknown as AutoModAction[]
   return {
     name: rule.name,
     trigger_type: rule.trigger_type,
-    keywords: (Array.isArray(cfg.keywords) ? cfg.keywords : []).join(", "),
-    regex_patterns: (Array.isArray(cfg.regex_patterns) ? cfg.regex_patterns : []).join(", "),
-    mention_threshold: (typeof cfg.mention_threshold === "number" ? cfg.mention_threshold : 5) as number,
-    link_threshold: (typeof cfg.link_threshold === "number" ? cfg.link_threshold : 3) as number,
-    message_threshold: (typeof cfg.message_threshold === "number" ? cfg.message_threshold : 6) as number,
-    window_seconds: (typeof cfg.window_seconds === "number" ? cfg.window_seconds : 10) as number,
-    channel_scope: (((conditions as Record<string, unknown>).channel_ids as string[] | undefined)?.[0]) ?? "",
-    role_scope: (((conditions as Record<string, unknown>).role_ids as string[] | undefined)?.[0]) ?? "",
-    min_account_age_minutes: (typeof (conditions as Record<string, unknown>).min_account_age_minutes === "number" ? (conditions as Record<string, unknown>).min_account_age_minutes : 0) as number,
-    min_trust_level: (typeof (conditions as Record<string, unknown>).min_trust_level === "number" ? (conditions as Record<string, unknown>).min_trust_level : 0) as number,
+    keywords: asStringArray(cfg.keywords).join(", "),
+    regex_patterns: asStringArray(cfg.regex_patterns).join(", "),
+    mention_threshold: typeof cfg.mention_threshold === "number" ? cfg.mention_threshold : 5,
+    link_threshold: typeof cfg.link_threshold === "number" ? cfg.link_threshold : 3,
+    message_threshold: typeof cfg.message_threshold === "number" ? cfg.message_threshold : 6,
+    window_seconds: typeof cfg.window_seconds === "number" ? cfg.window_seconds : 10,
+    channel_scope: asStringArray(conditions.channel_ids)[0] ?? "",
+    role_scope: asStringArray(conditions.role_ids)[0] ?? "",
+    min_account_age_minutes: typeof conditions.min_account_age_minutes === "number" ? conditions.min_account_age_minutes : 0,
+    min_trust_level: typeof conditions.min_trust_level === "number" ? conditions.min_trust_level : 0,
     priority: (rule as { priority?: number }).priority ?? 100,
     block_message: actions.some((a) => a.type === "block_message"),
     quarantine_message: actions.some((a) => a.type === "quarantine_message"),
