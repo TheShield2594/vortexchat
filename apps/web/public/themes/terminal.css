@@ -45,6 +45,9 @@
   --term-title-text: "VORTEXCHAT TERMINAL";
   --term-title-size: 13px;
 
+  /* Text brightness — needed by --theme-danger-foreground */
+  --theme-text-bright: var(--term-green);
+
   /* Override border radius — terminals have sharp corners */
   --radius: 0rem;
 }

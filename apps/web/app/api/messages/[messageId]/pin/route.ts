@@ -132,6 +132,19 @@ export async function DELETE(
       .eq("id", messageId)
 
     if (error) return NextResponse.json({ error: "Failed to unpin message" }, { status: 500 })
+
+    // Audit log
+    const { error: auditErr } = await supabase.from("audit_logs").insert({
+      server_id: serverId,
+      actor_id: user.id,
+      action: "message_unpin",
+      target_id: messageId,
+      target_type: "message",
+    })
+    if (auditErr) {
+      console.error("[pin] Audit log insert failed for message_unpin", { serverId, messageId, error: auditErr.message })
+    }
+
     return NextResponse.json({ message: "Unpinned" })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

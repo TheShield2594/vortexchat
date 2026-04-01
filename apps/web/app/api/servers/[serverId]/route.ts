@@ -275,26 +275,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Only the server owner can delete the server" }, { status: 403 })
     }
 
-    // Atomic cascade deletion via stored procedure — either everything
-    // is removed in a single transaction or nothing is.
-    const { error: rpcError } = await supabase.rpc("delete_server_cascade", {
-      p_server_id: serverId,
-    })
-
-    if (rpcError) {
-      await insertAuditLog(supabase, {
-        server_id: serverId,
-        actor_id: user.id,
-        action: "server_delete_failed",
-        target_id: serverId,
-        target_type: "server",
-        changes: { error: { old: null, new: rpcError.message } } as Record<string, Json | undefined>,
-      })
-      return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
-    }
-
-    // Audit log after successful deletion — the server row is gone, so we
-    // log with best-effort (the audit_logs row references the now-deleted server).
+    // Write audit log BEFORE deletion while server_id FK is still valid
     await insertAuditLog(supabase, {
       server_id: serverId,
       actor_id: user.id,
@@ -303,6 +284,17 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       target_type: "server",
       changes: { name: { old: server.name, new: null } },
     })
+
+    // Atomic cascade deletion via stored procedure — either everything
+    // is removed in a single transaction or nothing is.
+    const { error: rpcError } = await supabase.rpc("delete_server_cascade", {
+      p_server_id: serverId,
+    })
+
+    if (rpcError) {
+      console.error("[servers DELETE] RPC failed", { serverId, error: rpcError.message })
+      return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true })
   } catch {

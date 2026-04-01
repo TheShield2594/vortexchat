@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
+import { insertAuditLog } from "@/lib/utils/api-helpers"
 
 // PATCH /api/servers/[serverId]/roles/reorder — reorder roles by position
 export async function PATCH(
@@ -107,8 +108,8 @@ export async function PATCH(
     }
   }
 
-  // Audit log the reorder
-  const { error: auditErr } = await supabase.from("audit_logs").insert({
+  // Audit log the reorder — insertAuditLog logs errors server-side with full context
+  await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "roles_reordered",
@@ -119,9 +120,6 @@ export async function PATCH(
       after: afterPositions,
     },
   })
-  if (auditErr) {
-    console.error("[roles] Audit log insert failed for roles_reordered", { serverId, error: auditErr.message })
-  }
 
   // Fetch and return the updated roles
   const { data: updatedRoles, error: refetchError } = await supabase

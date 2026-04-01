@@ -91,6 +91,7 @@
     --z-modal: 310;
     --z-popover: 400;
     --z-tooltip: 500;
+    --z-toast: 500;
     --z-notification: 600;
     --z-overlay: 700;
     /* ── Interactive state tokens ─────────────────────────────────────────────── */

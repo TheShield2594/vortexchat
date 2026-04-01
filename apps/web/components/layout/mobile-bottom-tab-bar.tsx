@@ -70,7 +70,7 @@ export function MobileBottomTabBar() {
                 className={cn(
                   "relative flex items-center justify-center gap-1.5 rounded-xl px-3 h-[44px] transition-all",
                   "motion-safe:duration-200 motion-safe:ease-out",
-                  active ? "min-w-[72px]" : "w-10",
+                  active ? "min-w-[72px]" : "w-12",
                 )}
                 style={{
                   background: active

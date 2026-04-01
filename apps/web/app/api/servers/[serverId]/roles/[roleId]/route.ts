@@ -9,6 +9,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string; roleId: string }> }
 ) {
+  try {
   const { serverId, roleId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -127,6 +128,10 @@ export async function PATCH(
   }
 
   return NextResponse.json(updatedRole)
+  } catch (err) {
+    console.error("[servers/[serverId]/roles/[roleId] PATCH] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 // DELETE /api/servers/[serverId]/roles/[roleId] — delete a role

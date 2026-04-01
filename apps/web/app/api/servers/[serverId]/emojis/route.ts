@@ -113,7 +113,9 @@ export async function POST(
       server_id: serverId,
       actor_id: user.id,
       action: "emoji_uploaded",
-      details: { emoji_name: name, emoji_id: emoji.id },
+      target_id: emoji.id,
+      target_type: "emoji",
+      changes: { name },
     })
     if (auditErr) {
       console.error("[emojis] Audit log insert failed for emoji_uploaded", { serverId, emojiId: emoji.id, error: auditErr.message })
@@ -187,7 +189,9 @@ export async function DELETE(
       server_id: serverId,
       actor_id: user.id,
       action: "emoji_deleted",
-      details: { emoji_name: emoji.name, emoji_id: emojiId },
+      target_id: emojiId,
+      target_type: "emoji",
+      changes: { name: emoji.name },
     })
     if (deleteAuditErr) {
       console.error("[emojis] Audit log insert failed for emoji_deleted", { serverId, emojiId, error: deleteAuditErr.message })
