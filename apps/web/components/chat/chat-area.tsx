@@ -25,6 +25,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
+import { useChatHistory } from "@/components/chat/hooks/use-chat-history"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
 import { ChannelSummaryCard } from "@/components/chat/channel-summary-card"
 import { PinnedMessagesPanel } from "@/components/chat/pinned-messages-panel"
@@ -321,6 +322,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     pinned_at: null,
     pinned_by: null,
     webhook_id: null,
+    webhook_display_name: null,
+    webhook_avatar_url: null,
     created_at: entry.createdAt,
     author: optimisticAuthor,
     attachments: (entry.attachments ?? []).map((attachment) => ({

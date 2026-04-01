@@ -983,9 +983,21 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
+  // ─── Room TTL refresh ────────────────────────────────────────────────────────
+  // Periodically refresh Redis key TTLs so active sessions don't expire while
+  // stale keys from crashed processes auto-evict after the TTL window.
+  const ttlRefreshInterval = rooms.refreshTtl
+    ? setInterval(() => {
+        rooms.refreshTtl!(socket.id).catch((err) => {
+          logger.warn({ socketId: socket.id, err }, "room TTL refresh failed")
+        })
+      }, 120_000) // every 2 minutes (well within the 5-minute default TTL)
+    : null
+
   // ─── Disconnect ─────────────────────────────────────────────────────────────
   socket.on("disconnect", async (reason: string) => {
     logger.info({ socketId: socket.id, reason }, "client disconnected")
+    if (ttlRefreshInterval) clearInterval(ttlRefreshInterval)
     socketLimiter.remove(socket.id)
     sessionValidationCache.delete(socket.id)
     try {
@@ -1155,12 +1167,88 @@ httpServer.listen(PORT, () => {
   logger.info({ port: PORT }, "Vortex WebRTC signaling server listening")
 })
 
-// Graceful shutdown
-process.on("SIGTERM", () => {
-  logger.info("SIGTERM received, shutting down...")
+// ─── Graceful shutdown with connection draining ────────────────────────────
+// When SIGTERM is received (e.g. during deployment), stop accepting new
+// connections immediately but give existing connections up to 30 seconds
+// to finish in-flight signaling before forcefully closing them.
+
+const DRAIN_TIMEOUT_MS = 30_000
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  logger.info({ signal, drainTimeoutMs: DRAIN_TIMEOUT_MS }, "graceful shutdown initiated — draining connections")
+
+  // 1. Stop accepting new HTTP connections immediately
+  httpServer.close()
+
+  // 2. Disconnect Redis pub/sub for force-disconnect (no new force-disconnect events)
   if (forceDisconnectSub) forceDisconnectSub.disconnect()
   if (forceDisconnectPub) forceDisconnectPub.disconnect()
+
+  // 3. Notify connected clients that the server is going down so they can
+  //    reconnect to another replica.  Socket.IO clients handle "disconnect"
+  //    events with automatic reconnection by default.
+  const connectedSockets = await io.fetchSockets()
+  const socketCount = connectedSockets.length
+  logger.info({ socketCount }, "notifying connected clients of pending shutdown")
+
+  // Emit a custom event so smart clients can start reconnecting to other replicas
+  for (const socket of connectedSockets) {
+    try {
+      socket.emit("server-shutdown", { drainMs: DRAIN_TIMEOUT_MS })
+    } catch {
+      // Best-effort notification — socket may already be closing
+    }
+  }
+
+  // 4. Wait for connections to drain naturally (clients disconnect after
+  //    receiving the shutdown notice) up to the drain timeout.
+  const drainStart = Date.now()
+  await new Promise<void>((resolve) => {
+    const checkInterval = setInterval(async () => {
+      const remaining = await io.fetchSockets()
+      const elapsed = Date.now() - drainStart
+
+      if (remaining.length === 0) {
+        logger.info({ elapsedMs: elapsed }, "all connections drained cleanly")
+        clearInterval(checkInterval)
+        resolve()
+        return
+      }
+
+      if (elapsed >= DRAIN_TIMEOUT_MS) {
+        logger.warn(
+          { remainingConnections: remaining.length, elapsedMs: elapsed },
+          "drain timeout reached — forcefully closing remaining connections"
+        )
+        clearInterval(checkInterval)
+        resolve()
+        return
+      }
+    }, 1_000)
+  })
+
+  // 5. Force-close any remaining sockets and the Socket.IO server
   io.close()
-  httpServer.close()
+
+  // 6. Close Redis room manager connections
+  if (rooms && "redis" in rooms) {
+    try {
+      await (rooms as { redis: Redis }).redis.quit()
+    } catch {
+      // Best-effort cleanup
+    }
+  }
+  if (revocationRedis) {
+    try {
+      await revocationRedis.quit()
+    } catch {
+      // Best-effort cleanup
+    }
+  }
+
+  logger.info("shutdown complete")
   process.exit(0)
-})
+}
+
+process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"))
+process.on("SIGINT", () => void gracefulShutdown("SIGINT"))

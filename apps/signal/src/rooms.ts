@@ -23,6 +23,8 @@ export interface IRoomManager {
   getRoomPeers(channelId: string): Promise<PeerInfo[]>
   getRoomSize(channelId: string): Promise<number>
   getStats(): Promise<Record<string, number>>
+  /** Refresh TTL on all keys for the given socket. No-op for in-memory. */
+  refreshTtl?(socketId: string): Promise<void>
 }
 
 /**

@@ -24,6 +24,14 @@ export {
 } from './presence'
 export type { PresenceBroadcastMessage } from './presence'
 
+export type {
+  VortexEventType,
+  VortexEvent,
+  EventSubscription,
+  SubscribeOptions,
+  IEventBus,
+} from './event-bus'
+
 export const PERMISSIONS = {
   // General
   VIEW_CHANNELS:             1 << 0,   // 1

@@ -21,15 +21,18 @@ import type { PeerInfo, IRoomManager } from "./rooms"
  * on room keys via REDIS_ROOM_TTL_SECONDS if you want automatic eviction.
  */
 export class RedisRoomManager implements IRoomManager {
-  private readonly redis: Redis
+  readonly redis: Redis
   private readonly roomPrefix = "vortex:room"
   private readonly socketPrefix = "vortex:socket"
+  /** TTL in seconds applied to room and socket keys for crash recovery cleanup. */
+  private readonly keyTtlSeconds: number
 
-  constructor(redisUrl: string) {
+  constructor(redisUrl: string, keyTtlSeconds = 300) {
     this.redis = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       lazyConnect: false,
     })
+    this.keyTtlSeconds = keyTtlSeconds
   }
 
   private roomKey(channelId: string): string {
@@ -56,13 +59,34 @@ export class RedisRoomManager implements IRoomManager {
     // Fetch existing peers before adding the new one
     const existing = await this.getRoomPeers(channelId)
 
-    // Persist peer into the room hash and record the socket→channel mapping
+    // Persist peer into the room hash and record the socket→channel mapping.
+    // Apply TTL so stale keys from crashed processes auto-expire.
     await Promise.all([
       this.redis.hset(rKey, info.socketId, this.serialize(info)),
+      this.redis.expire(rKey, this.keyTtlSeconds),
       this.redis.sadd(sKey, channelId),
+      this.redis.expire(sKey, this.keyTtlSeconds),
     ])
 
     return existing
+  }
+
+  /**
+   * Refresh TTL on all keys owned by the given socket.
+   * Call this periodically (e.g. on ping or heartbeat) to keep active
+   * sessions alive while allowing crashed sessions to auto-expire.
+   */
+  async refreshTtl(socketId: string): Promise<void> {
+    const sKey = this.socketKey(socketId)
+    const channelIds = await this.redis.smembers(sKey)
+    if (channelIds.length === 0) return
+
+    const pipeline = this.redis.pipeline()
+    pipeline.expire(sKey, this.keyTtlSeconds)
+    for (const channelId of channelIds) {
+      pipeline.expire(this.roomKey(channelId), this.keyTtlSeconds)
+    }
+    await pipeline.exec()
   }
 
   async leave(channelId: string, socketId: string): Promise<void> {

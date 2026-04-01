@@ -380,8 +380,9 @@ export const MessageItem = memo(function MessageItem({
     }
   }
 
-  const displayName =
-    message.author?.display_name || message.author?.username || "Unknown"
+  const displayName = message.webhook_id && message.webhook_display_name
+    ? message.webhook_display_name
+    : message.author?.display_name || message.author?.username || "Unknown"
   const initials = displayName.slice(0, 2).toUpperCase()
   const timestamp = new Date(message.created_at)
   const messageMetaId = useId()
@@ -564,8 +565,8 @@ export const MessageItem = memo(function MessageItem({
                 >
                   <div className="cursor-pointer">
                     <Avatar className={cn("w-10 h-10", recentlyActive && "recent-activity-halo")}>
-                      {message.author?.avatar_url && (
-                        <AvatarImage src={message.author.avatar_url} />
+                      {(message.webhook_id && message.webhook_avatar_url ? message.webhook_avatar_url : message.author?.avatar_url) && (
+                        <AvatarImage src={(message.webhook_id && message.webhook_avatar_url) ? message.webhook_avatar_url : message.author?.avatar_url ?? ""} />
                       )}
                       <AvatarFallback
                         style={{ background: "var(--theme-accent)", color: "white", fontSize: "14px" }}

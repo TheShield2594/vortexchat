@@ -120,16 +120,17 @@ export async function POST(
     const webhookAvatarUrl = avatar_url ?? webhook.avatar_url ?? null
 
     // Insert the message attributed to the system bot with webhook_id set.
-    // The webhook display name is stored in the content prefix for rendering,
-    // and the webhook_id column enables the frontend to show a BOT badge.
-    const prefix = `**[${displayName}]** `
+    // Display metadata is stored in dedicated columns so content stays clean
+    // for reply previews, search, and clipboard operations.
     const { data: message, error: msgError } = await supabaseAdmin
       .from("messages")
       .insert({
         channel_id: webhook.channel_id,
         author_id: SYSTEM_BOT_ID,
         webhook_id: webhook.id,
-        content: prefix + messageContent,
+        webhook_display_name: displayName,
+        webhook_avatar_url: webhookAvatarUrl,
+        content: messageContent,
       })
       .select("id")
       .single()

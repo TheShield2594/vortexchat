@@ -235,6 +235,12 @@
 | Server deletion cascade non-atomic (#553) | Done | Created `delete_server_cascade` RPC (migration 00084); single-transaction deletion replaces sequential per-table deletes |
 | Webhook messages attributed to owner (#548) | Done | Added `webhook_id` FK column to messages (migration 00085); webhook route uses `SYSTEM_BOT_ID` as author; BOT badge shown in message UI |
 | Role assignment + audit log atomic (#582) | Done | `assign_member_role` / `remove_member_role` RPCs (migration 00086); single-transaction role mutation + audit log replaces separate inserts |
+| Automod rule reorder error handling (#572) | Done | `movePriority` and `toggleEnabled` now validate `Response.ok` and wrap in try/catch with toast notifications on failure |
+| Webhook display metadata separation (#581) | Done | Added `webhook_display_name` / `webhook_avatar_url` columns (migration 00087); webhook route stores clean content; message-item renders identity from metadata |
+| ChatArea decomposition — extracted hooks (#585) | Done | Created `useChatHistory` (pagination, backfill) and `useChatRealtime` (message/reaction callbacks) hooks in `components/chat/hooks/` |
+| Event bus abstraction interface (#586) | Done | Added `IEventBus` interface with publish/subscribe/replay/acknowledge in `@vortex/shared`; typed event system with `VortexEvent` and `VortexEventType` |
+| Signal server graceful shutdown + Redis TTL (#587) | Done | 30s connection-draining shutdown; Redis room key TTL (5min) with periodic refresh; crash recovery via auto-expiry; SIGINT+SIGTERM handling |
+| Read position tracking API endpoints (#588) | Done | `POST /api/channels/:channelId/ack` for mark-as-read; `GET /api/users/me/read-states` for bulk hydration of channels, DMs, and threads |
 
 ---
 
