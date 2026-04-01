@@ -17,10 +17,10 @@ const STEP_UP_TTL_MS = 10 * 60 * 1000
  *   4. After STEP_UP_TTL_MS (10 min), remove STEP_UP_SECRET_PREV
  */
 function stepUpSecrets(): string[] {
-  const current = process.env.STEP_UP_SECRET ?? process.env.NEXTAUTH_SECRET
+  const current = process.env.STEP_UP_SECRET
   if (!current) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("Missing STEP_UP_SECRET (or NEXTAUTH_SECRET) in production")
+      throw new Error("STEP_UP_SECRET must be set in production — do not reuse NEXTAUTH_SECRET")
     }
     return ["local-step-up-secret"]
   }

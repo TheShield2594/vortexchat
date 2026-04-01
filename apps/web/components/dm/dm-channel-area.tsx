@@ -2408,43 +2408,15 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   const [videoOff, setVideoOff] = useState(false)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
-  function buildIceServers(): RTCIceServer[] {
-    const servers: RTCIceServer[] = [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" },
-    ]
-    const turnUrl = process.env.NEXT_PUBLIC_TURN_URL
-    const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL
-    const turnUser = process.env.NEXT_PUBLIC_TURN_USERNAME
-    const turnCred = process.env.NEXT_PUBLIC_TURN_CREDENTIAL
-    if (turnUrl && turnUser && turnCred) {
-      servers.push({ urls: [turnUrl, ...(turnsUrl ? [turnsUrl] : [])], username: turnUser, credential: turnCred })
-    }
-    return servers
-  }
-
   useEffect(() => {
-    const pc = new RTCPeerConnection({ iceServers: buildIceServers() })
-    pcRef.current = pc
-
-    pc.ontrack = (e) => {
-      const [remoteStream] = e.streams
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
-      setStatus("connected")
-    }
+    let mounted = true
+    let pc: RTCPeerConnection | null = null
 
     const sigChannel = supabase.channel(`dm-call:${channelId}`)
     sigChannelRef.current = sigChannel
 
-    pc.onicecandidate = ({ candidate }) => {
-      if (candidate) {
-        sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "ice-candidate", candidate, from: clientId.current } })
-      }
-    }
-
     sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: { payload: Record<string, unknown> }) => {
-      if (payload.from === clientId.current) return
+      if (payload.from === clientId.current || !pc) return
       try {
         if (payload.type === "offer") {
           await pc.setRemoteDescription(new RTCSessionDescription((payload.offer ?? payload.payload) as RTCSessionDescriptionInit))
@@ -2466,18 +2438,40 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
 
     sigChannel.subscribe(async () => {
       try {
+        const { fetchIceServers } = await import("@/lib/webrtc/ice-servers")
+        const iceServers = await fetchIceServers()
+        if (!mounted) return
+
+        pc = new RTCPeerConnection({ iceServers })
+        pcRef.current = pc
+
+        pc.ontrack = (e) => {
+          const [remoteStream] = e.streams
+          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
+          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
+          setStatus("connected")
+        }
+
+        pc.onicecandidate = ({ candidate }) => {
+          if (candidate) {
+            sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "ice-candidate", candidate, from: clientId.current } })
+          }
+        }
+
         // Request audio always; video only for video calls
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true },
           video: withVideo,
         })
+        if (!mounted) { stream.getTracks().forEach((t) => t.stop()); return }
         localStreamRef.current = stream
         if (withVideo && localVideoRef.current) localVideoRef.current.srcObject = stream
-        stream.getTracks().forEach((t) => pc.addTrack(t, stream))
+        stream.getTracks().forEach((t) => pc!.addTrack(t, stream))
 
         sigChannel.send({ type: "broadcast", event: "call-invite", payload: { callerId: currentUserId, withVideo } })
 
         pc.onnegotiationneeded = async () => {
+          if (!pc) return
           const offer = await pc.createOffer()
           await pc.setLocalDescription(offer)
           sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "offer", offer, from: clientId.current } })
@@ -2496,8 +2490,9 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
     })
 
     return () => {
+      mounted = false
       localStreamRef.current?.getTracks().forEach((t) => t.stop())
-      pc.close()
+      pc?.close()
       supabase.removeChannel(sigChannel)
       sigChannelRef.current = null
     }

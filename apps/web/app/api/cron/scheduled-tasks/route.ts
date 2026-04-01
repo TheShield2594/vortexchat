@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
+import { verifyBearerToken } from "@/lib/utils/timing-safe"
 
 /**
  * Unified cron dispatcher — runs all periodic tasks in a single Vercel cron
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     }
 
     const authHeader = request.headers.get("authorization")
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (!verifyBearerToken(authHeader, process.env.CRON_SECRET!)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

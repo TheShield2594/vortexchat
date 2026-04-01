@@ -1,3 +1,4 @@
+import crypto from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { rateLimiter } from "@/lib/rate-limit"
@@ -66,10 +67,34 @@ export async function POST(
       return NextResponse.json({ error: "Unknown webhook" }, { status: 404 })
     }
 
+    // Read raw body for HMAC verification and JSON parsing
+    let rawBody: string
+    try {
+      rawBody = await req.text()
+    } catch {
+      return NextResponse.json({ error: "Failed to read request body" }, { status: 400 })
+    }
+
+    // HMAC signature verification (defense-in-depth).
+    // When X-Webhook-Signature is present, verify it against the request body
+    // using the webhook token as the HMAC-SHA256 key.
+    const signatureHeader = req.headers.get("x-webhook-signature")
+    if (signatureHeader) {
+      const expectedSig = crypto
+        .createHmac("sha256", token)
+        .update(rawBody)
+        .digest("hex")
+      const sigBuffer = Buffer.from(signatureHeader)
+      const expectedBuffer = Buffer.from(expectedSig)
+      if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+      }
+    }
+
     let body: unknown
 
     try {
-      body = await req.json()
+      body = JSON.parse(rawBody)
     } catch {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
     }

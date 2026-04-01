@@ -442,22 +442,10 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     const supabase = supabaseRef.current
     const myClientId = clientIdRef.current
 
-    /** Build ICE server configuration. */
-    function getIceServers(): RTCIceServer[] {
-      const iceServers: RTCIceServer[] = [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-      ]
-      const turnUrl = process.env.NEXT_PUBLIC_TURN_URL
-      const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL
-      const turnUsername = process.env.NEXT_PUBLIC_TURN_USERNAME
-      const turnCredential = process.env.NEXT_PUBLIC_TURN_CREDENTIAL
-      if (turnUrl && turnUsername && turnCredential) {
-        const urls: string[] = [turnUrl]
-        if (turnsUrl) urls.push(turnsUrl)
-        iceServers.push({ urls, username: turnUsername, credential: turnCredential })
-      }
-      return iceServers
+    /** Build ICE server configuration with ephemeral TURN credentials. */
+    async function getIceServers(): Promise<RTCIceServer[]> {
+      const { fetchIceServers } = await import("@/lib/webrtc/ice-servers")
+      return fetchIceServers()
     }
 
     /**
@@ -524,7 +512,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
         const stream = localStream.current ?? rawLocalStreamRef.current
         if (stream) {
           const initiator = myClientId > peerId
-          createPeerConnection(peerId, resolvedUserId, initiator, rtChannel, stream)
+          await createPeerConnection(peerId, resolvedUserId, initiator, rtChannel, stream)
         }
       }
     }
@@ -549,14 +537,14 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       })
     }
 
-    function createPeerConnection(
+    async function createPeerConnection(
       peerId: string,
       peerUserId: string,
       initiator: boolean,
       rtChannel: RealtimeChannel,
       stream: MediaStream
-    ): RTCPeerConnection {
-      const iceServers = getIceServers()
+    ): Promise<RTCPeerConnection> {
+      const iceServers = await getIceServers()
 
       const pc = new RTCPeerConnection({ iceServers })
       peerConnections.current.set(peerId, pc)
@@ -663,12 +651,12 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
       return pc
     }
 
-    function handlePeer(peerClientId: string, peerUserId: string, rtChannel: RealtimeChannel, stream: MediaStream) {
+    async function handlePeer(peerClientId: string, peerUserId: string, rtChannel: RealtimeChannel, stream: MediaStream) {
       if (peerClientId === myClientId) return
       if (peerConnections.current.has(peerClientId)) return
       lastSeenByPeerRef.current.set(peerClientId, Date.now())
       const initiator = myClientId > peerClientId
-      createPeerConnection(peerClientId, peerUserId, initiator, rtChannel, stream)
+      await createPeerConnection(peerClientId, peerUserId, initiator, rtChannel, stream)
     }
 
     /**
@@ -745,7 +733,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
 
         let pc = peerConnections.current.get(from)
         if (!pc) {
-          pc = createPeerConnection(from, payload.userId as string, false, rtChannel, localStream.current ?? stream)
+          pc = await createPeerConnection(from, payload.userId as string, false, rtChannel, localStream.current ?? stream)
         }
 
         await pc.setRemoteDescription(payload.offer as RTCSessionDescriptionInit)

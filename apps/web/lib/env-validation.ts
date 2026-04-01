@@ -27,7 +27,8 @@ const OPTIONAL: EnvVar[] = [
   { name: "NEXT_PUBLIC_SENTRY_DSN", required: false, description: "Sentry DSN for error monitoring (highly recommended in production)" },
   { name: "UPSTASH_REDIS_REST_URL", required: false, description: "Upstash Redis URL for distributed rate limiting (required for multi-instance deployments)" },
   { name: "UPSTASH_REDIS_REST_TOKEN", required: false, description: "Upstash Redis token" },
-  { name: "NEXT_PUBLIC_TURN_URL", required: false, description: "TURN server URL for WebRTC NAT traversal (~20% of users need this)" },
+  { name: "TURN_URL", required: false, description: "TURN server URL for WebRTC NAT traversal (~20% of users need this)" },
+  { name: "TURN_SECRET", required: false, description: "coturn static-auth-secret for ephemeral TURN credentials" },
   { name: "NEXT_PUBLIC_VAPID_PUBLIC_KEY", required: false, description: "VAPID public key for web push notifications" },
   { name: "VAPID_PRIVATE_KEY", required: false, description: "VAPID private key for web push notifications" },
   { name: "LIVEKIT_API_KEY", required: false, description: "LiveKit API key for voice channels" },
@@ -36,7 +37,7 @@ const OPTIONAL: EnvVar[] = [
 
   { name: "NEXT_PUBLIC_KLIPY_API_KEY", required: false, description: "Klipy API key for GIF/sticker picker (primary provider)", alternativeName: "KLIPY_API_KEY" },
   { name: "NEXT_PUBLIC_GIPHY_API_KEY", required: false, description: "Giphy API key for GIF picker (fallback)", alternativeName: "GIPHY_API_KEY" },
-  { name: "STEP_UP_SECRET", required: false, description: "HMAC secret for step-up auth tokens (falls back to NEXTAUTH_SECRET)", alternativeName: "NEXTAUTH_SECRET" },
+  { name: "STEP_UP_SECRET", required: false, description: "Dedicated HMAC secret for step-up auth tokens (must not reuse NEXTAUTH_SECRET)" },
 ]
 
 export function validateEnv() {

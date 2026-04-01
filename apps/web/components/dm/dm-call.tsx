@@ -62,25 +62,32 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
 
   useEffect(() => {
     let mounted = true
+    let pc: RTCPeerConnection | null = null
 
-    // Build ICE servers (same env var pattern as use-voice.ts)
-    const iceServers: RTCIceServer[] = [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" },
-    ]
-    const turnUrl = process.env.NEXT_PUBLIC_TURN_URL
-    const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL
-    const turnUser = process.env.NEXT_PUBLIC_TURN_USERNAME
-    const turnCred = process.env.NEXT_PUBLIC_TURN_CREDENTIAL
-    if (turnUrl && turnUser && turnCred) {
-      const urls = [turnUrl, ...(turnsUrl ? [turnsUrl] : [])]
-      iceServers.push({ urls, username: turnUser, credential: turnCred })
-    }
-
-    const pc = new RTCPeerConnection({ iceServers })
-    pcRef.current = pc
+    const rtChannel = supabase.channel(`dm-call:${channelId}`)
+    rtChannelRef.current = rtChannel
 
     async function init() {
+      const { fetchIceServers } = await import("@/lib/webrtc/ice-servers")
+      const iceServers = await fetchIceServers()
+      if (!mounted) return
+
+      pc = new RTCPeerConnection({ iceServers })
+      pcRef.current = pc
+
+      pc.ontrack = (e) => {
+        const [remoteStream] = e.streams
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
+        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
+        setConnected(true)
+      }
+
+      pc.onicecandidate = ({ candidate }) => {
+        if (candidate) {
+          rtChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "ice-candidate", candidate, from: clientId.current } })
+        }
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true },
         video: withVideo,
@@ -88,28 +95,12 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
       if (!mounted) { stream.getTracks().forEach((t) => t.stop()); return }
       localStreamRef.current = stream
       if (localVideoRef.current) { localVideoRef.current.srcObject = stream }
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream))
-    }
-
-    pc.ontrack = (e) => {
-      const [remoteStream] = e.streams
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
-      setConnected(true)
-    }
-
-    const rtChannel = supabase.channel(`dm-call:${channelId}`)
-    rtChannelRef.current = rtChannel
-
-    pc.onicecandidate = ({ candidate }) => {
-      if (candidate) {
-        rtChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "ice-candidate", candidate, from: clientId.current } })
-      }
+      stream.getTracks().forEach((t) => pc!.addTrack(t, stream))
     }
 
     rtChannel
       .on("broadcast", { event: "call-signal" }, async ({ payload }) => {
-        if (payload.from === clientId.current) return
+        if (payload.from === clientId.current || !pc) return
         if (payload.type === "offer") {
           await pc.setRemoteDescription(new RTCSessionDescription(payload.offer))
           const answer = await pc.createAnswer()
@@ -126,9 +117,11 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
       .subscribe(async (status) => {
         if (status !== "SUBSCRIBED") return
         await init()
+        if (!pc) return
         // Initiator rule: current user ID > partner ID → create offer
         if (currentUserId > partner.id) {
           pc.onnegotiationneeded = async () => {
+            if (!pc) return
             const offer = await pc.createOffer()
             await pc.setLocalDescription(offer)
             rtChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "offer", offer, from: clientId.current } })
@@ -139,7 +132,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
     return () => {
       mounted = false
       localStreamRef.current?.getTracks().forEach((t) => t.stop())
-      pc.close()
+      pc?.close()
       supabase.removeChannel(rtChannel)
     }
   }, [channelId, currentUserId, partner.id, withVideo])
