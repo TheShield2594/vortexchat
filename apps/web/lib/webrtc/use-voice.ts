@@ -627,13 +627,17 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
 
       if (initiator) {
         pc.onnegotiationneeded = async () => {
-          const offer = await pc.createOffer()
-          await pc.setLocalDescription(offer)
-          rtChannel.send({
-            type: "broadcast",
-            event: "offer",
-            payload: { to: peerId, from: myClientId, offer, userId },
-          })
+          try {
+            const offer = await pc.createOffer()
+            await pc.setLocalDescription(offer)
+            rtChannel.send({
+              type: "broadcast",
+              event: "offer",
+              payload: { to: peerId, from: myClientId, offer, userId },
+            })
+          } catch (err) {
+            console.warn("[useVoice] negotiationneeded failed for", peerId, err)
+          }
         }
       }
 

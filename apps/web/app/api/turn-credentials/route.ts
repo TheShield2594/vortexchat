@@ -27,8 +27,10 @@ export async function GET(): Promise<NextResponse> {
     }
 
     const expiry = Math.floor(Date.now() / 1000) + TURN_TTL_SECONDS
-    // coturn ephemeral credential format: "<expiry>:<userId>"
-    const username = `${expiry}:${user.id}`
+    // Opaque pseudonym so the raw user.id doesn't leak into coturn logs / browser diagnostics
+    const opaqueId = crypto.createHash("sha256").update(user.id).digest("hex").slice(0, 16)
+    // coturn ephemeral credential format: "<expiry>:<identifier>"
+    const username = `${expiry}:${opaqueId}`
     const credential = crypto
       .createHmac("sha1", turnSecret)
       .update(username)

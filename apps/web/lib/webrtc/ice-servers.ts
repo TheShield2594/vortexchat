@@ -11,11 +11,12 @@ const STUN_SERVERS: RTCIceServer[] = [
 const FETCH_TIMEOUT_MS = 5_000
 
 let cachedServers: RTCIceServer[] | null = null
-let cacheExpiresAt = 0
+let cacheRefreshAt = 0
+let cacheValidUntil = 0
 
 export async function fetchIceServers(): Promise<RTCIceServer[]> {
-  // Return cached credentials if still valid (refresh 5 min before expiry)
-  if (cachedServers && Date.now() < cacheExpiresAt) {
+  // Return cached credentials if before the refresh threshold
+  if (cachedServers && Date.now() < cacheRefreshAt) {
     return cachedServers
   }
 
@@ -28,16 +29,22 @@ export async function fetchIceServers(): Promise<RTCIceServer[]> {
 
     if (!res.ok) {
       console.warn("[ice-servers] TURN credentials unavailable, using STUN only")
+      if (cachedServers && Date.now() < cacheValidUntil) return cachedServers
       return STUN_SERVERS
     }
 
     const data: { iceServers: RTCIceServer[]; ttl: number } = await res.json()
     cachedServers = data.iceServers
+    cacheValidUntil = Date.now() + data.ttl * 1000
     // Refresh 5 minutes before TTL expires
-    cacheExpiresAt = Date.now() + (data.ttl - 300) * 1000
+    cacheRefreshAt = cacheValidUntil - 300_000
     return cachedServers
   } catch (err) {
     clearTimeout(timer)
+    // Return still-valid cached credentials on refresh failure
+    if (cachedServers && Date.now() < cacheValidUntil) {
+      return cachedServers
+    }
     const reason = err instanceof DOMException && err.name === "AbortError" ? "timeout" : err
     console.warn("[ice-servers] Failed to fetch TURN credentials:", reason)
     return STUN_SERVERS

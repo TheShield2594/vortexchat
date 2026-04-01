@@ -2440,6 +2440,12 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
 
     sigChannel.on("broadcast", { event: "call-signal" }, async ({ payload }: { payload: Record<string, unknown> }) => {
       if (payload.from === clientId.current) return
+      // Hangup is always processed immediately, even before init
+      if (payload.type === "hangup") {
+        pendingSignals.length = 0
+        onHangup()
+        return
+      }
       if (!initReady) {
         pendingSignals.push(payload)
         return
@@ -2457,15 +2463,14 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
         pcRef.current = pc
 
         pc.ontrack = (e) => {
-          let remoteStream: MediaStream
-          if (e.streams && e.streams.length > 0) {
-            remoteStream = e.streams[0]
-          } else {
-            remoteStream = new MediaStream()
-            remoteStream.addTrack(e.track)
+          const remoteStream = (e.streams && e.streams.length > 0)
+            ? e.streams[0]
+            : (() => { const s = new MediaStream(); s.addTrack(e.track); return s })()
+          if (e.track.kind === "video" && remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = remoteStream
+          } else if (e.track.kind === "audio" && remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = remoteStream
           }
-          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
-          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
           setStatus("connected")
         }
 

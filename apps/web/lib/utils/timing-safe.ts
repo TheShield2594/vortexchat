@@ -20,9 +20,10 @@ export function timingSafeEqual(a: string, b: string): boolean {
  * Returns true only if the header is well-formed and the token matches.
  */
 export function verifyBearerToken(authHeader: string | null, expectedSecret: string): boolean {
-  if (!authHeader) return false
+  if (!authHeader || expectedSecret.length === 0) return false
   const prefix = "Bearer "
   if (!authHeader.startsWith(prefix)) return false
   const token = authHeader.slice(prefix.length)
+  if (token.length === 0) return false
   return timingSafeEqual(token, expectedSecret)
 }

@@ -73,4 +73,12 @@ export function validateEnv() {
       missingOptional.join("\n")
     )
   }
+
+  // Fail fast in production for secrets that must not be omitted
+  if (process.env.NODE_ENV === "production" && !process.env.STEP_UP_SECRET) {
+    throw new Error(
+      "STEP_UP_SECRET must be set in production. " +
+      "Generate a dedicated 256-bit secret: openssl rand -hex 32"
+    )
+  }
 }

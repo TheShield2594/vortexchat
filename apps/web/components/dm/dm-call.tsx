@@ -65,27 +65,42 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
     let pc: RTCPeerConnection | null = null
     let initReady = false
     const pendingSignals: Array<Record<string, unknown>> = []
+    const pendingIceCandidates: RTCIceCandidateInit[] = []
 
     const rtChannel = supabase.channel(`dm-call:${channelId}`)
     rtChannelRef.current = rtChannel
+
+    async function flushPendingCandidates(): Promise<void> {
+      if (!pc) return
+      while (pendingIceCandidates.length > 0) {
+        const candidate = pendingIceCandidates.shift()
+        if (candidate) await pc.addIceCandidate(new RTCIceCandidate(candidate))
+      }
+    }
 
     async function processSignal(payload: Record<string, unknown>): Promise<void> {
       if (!pc) return
       try {
         if (payload.type === "offer" && payload.offer) {
           await pc.setRemoteDescription(new RTCSessionDescription(payload.offer as RTCSessionDescriptionInit))
+          await flushPendingCandidates()
           const answer = await pc.createAnswer()
           await pc.setLocalDescription(answer)
           rtChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
         } else if (payload.type === "answer" && payload.answer) {
           await pc.setRemoteDescription(new RTCSessionDescription(payload.answer as RTCSessionDescriptionInit))
+          await flushPendingCandidates()
         } else if (payload.type === "ice-candidate" && payload.candidate) {
+          if (!pc.remoteDescription) {
+            pendingIceCandidates.push(payload.candidate as RTCIceCandidateInit)
+            return
+          }
           await pc.addIceCandidate(new RTCIceCandidate(payload.candidate as RTCIceCandidateInit))
         } else if (payload.type === "hangup") {
           onHangUp()
         }
       } catch (err) {
-        console.error("[dm-call] signal processing failed:", err)
+        console.error("[dm-call] signal processing failed", { channelId, action: payload.type }, err)
       }
     }
 
@@ -98,15 +113,14 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
       pcRef.current = pc
 
       pc.ontrack = (e) => {
-        let remoteStream: MediaStream
-        if (e.streams && e.streams.length > 0) {
-          remoteStream = e.streams[0]
-        } else {
-          remoteStream = new MediaStream()
-          remoteStream.addTrack(e.track)
+        const remoteStream = (e.streams && e.streams.length > 0)
+          ? e.streams[0]
+          : (() => { const s = new MediaStream(); s.addTrack(e.track); return s })()
+        if (e.track.kind === "video" && remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteStream
+        } else if (e.track.kind === "audio" && remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = remoteStream
         }
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
         setConnected(true)
       }
 
@@ -136,6 +150,12 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
     rtChannel
       .on("broadcast", { event: "call-signal" }, async ({ payload }) => {
         if (payload.from === clientId.current) return
+        // Hangup is always processed immediately, even before init
+        if (payload.type === "hangup") {
+          pendingSignals.length = 0
+          onHangUp()
+          return
+        }
         if (!initReady) {
           pendingSignals.push(payload as Record<string, unknown>)
           return
@@ -147,7 +167,11 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
         try {
           await init()
         } catch (err) {
-          console.error("[dm-call] init failed:", err)
+          console.error("[dm-call] init failed", { channelId, currentUserId, action: "init" }, err)
+          localStreamRef.current?.getTracks().forEach((t) => t.stop())
+          pc?.close()
+          void rtChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "hangup", from: clientId.current } })
+          onHangUp()
           return
         }
         if (!pc) return
@@ -160,7 +184,7 @@ export function DMCallScreen({ channelId, currentUserId, partner, withVideo, onH
               await pc.setLocalDescription(offer)
               rtChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "offer", offer, from: clientId.current } })
             } catch (err) {
-              console.error("[dm-call] negotiation failed:", err)
+              console.error("[dm-call] negotiation failed", { channelId, action: "offer" }, err)
             }
           }
         }
