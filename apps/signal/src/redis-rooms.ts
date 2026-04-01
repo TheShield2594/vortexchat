@@ -80,16 +80,21 @@ export class RedisRoomManager implements IRoomManager {
    * sessions alive while allowing crashed sessions to auto-expire.
    */
   async refreshTtl(socketId: string): Promise<void> {
-    const sKey = this.socketKey(socketId)
-    const channelIds = await this.redis.smembers(sKey)
-    if (channelIds.length === 0) return
+    try {
+      const sKey = this.socketKey(socketId)
+      const channelIds = await this.redis.smembers(sKey)
+      if (channelIds.length === 0) return
 
-    const pipeline = this.redis.pipeline()
-    pipeline.expire(sKey, this.keyTtlSeconds)
-    for (const channelId of channelIds) {
-      pipeline.expire(this.roomKey(channelId), this.keyTtlSeconds)
+      const pipeline = this.redis.pipeline()
+      pipeline.expire(sKey, this.keyTtlSeconds)
+      for (const channelId of channelIds) {
+        pipeline.expire(this.roomKey(channelId), this.keyTtlSeconds)
+      }
+      await pipeline.exec()
+    } catch (err) {
+      console.error("[RedisRoomManager] refreshTtl failed", { socketId, err })
+      throw err
     }
-    await pipeline.exec()
   }
 
   async leave(channelId: string, socketId: string): Promise<void> {

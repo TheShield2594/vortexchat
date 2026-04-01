@@ -30,6 +30,11 @@ export async function POST(
       .maybeSingle()
 
     if (channelError) {
+      console.error("[ack] Failed to verify channel access:", {
+        userId: user.id,
+        channelId,
+        error: channelError.message,
+      })
       return NextResponse.json({ error: "Failed to verify channel access" }, { status: 500 })
     }
     if (!channel) {

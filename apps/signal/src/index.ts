@@ -1177,8 +1177,12 @@ const DRAIN_TIMEOUT_MS = 30_000
 async function gracefulShutdown(signal: string): Promise<void> {
   logger.info({ signal, drainTimeoutMs: DRAIN_TIMEOUT_MS }, "graceful shutdown initiated — draining connections")
 
-  // 1. Stop accepting new HTTP connections immediately
-  httpServer.close()
+  // 1. Stop accepting new HTTP connections and wait for in-flight requests
+  //    to complete before disconnecting Redis pub/sub clients. This ensures
+  //    any /force-disconnect handlers during the drain window can still publish.
+  await new Promise<void>((resolve) => {
+    httpServer.close(() => resolve())
+  })
 
   // 2. Disconnect Redis pub/sub for force-disconnect (no new force-disconnect events)
   if (forceDisconnectSub) forceDisconnectSub.disconnect()
@@ -1227,13 +1231,10 @@ async function gracefulShutdown(signal: string): Promise<void> {
     }, 1_000)
   })
 
-  // 5. Force-close any remaining sockets and the Socket.IO server
+  // 5. Force-close remaining sockets — this triggers each socket's
+  //    "disconnect" handler which calls rooms.leaveAll() with full
+  //    side-effects (peer-left emit, voiceStateSync cleanup).
   io.close()
-
-  // 5b. Clean up room membership in Redis before tearing down connections
-  await Promise.allSettled(
-    connectedSockets.map((s) => rooms.leaveAll(s.id))
-  )
 
   // 6. Close Redis room manager connections
   if (rooms && "redis" in rooms) {

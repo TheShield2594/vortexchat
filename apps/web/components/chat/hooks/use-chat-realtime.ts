@@ -128,6 +128,17 @@ export function useChatRealtimeCallbacks({
       if (!res.ok) return
       const latest = (await res.json()) as MessageWithAuthor[]
       if (!Array.isArray(latest) || latest.length === 0) return
+
+      // Clear outbox entries for messages confirmed by resync
+      const confirmedNonces = new Set(
+        latest.filter((m) => m.client_nonce).map((m) => m.client_nonce!)
+      )
+      if (confirmedNonces.size > 0) {
+        setAndPersistOutbox((current) =>
+          current.filter((entry) => !confirmedNonces.has(entry.id))
+        )
+      }
+
       setMessages((prev) => {
         // Nonce-aware dedup: match by both id and client_nonce to replace
         // optimistic entries with server-confirmed messages
