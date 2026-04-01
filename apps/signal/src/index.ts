@@ -1,3 +1,4 @@
+import { createHash } from "crypto"
 import { createServer, type IncomingMessage, type ServerResponse } from "http"
 import { Server, type Socket } from "socket.io"
 import { createAdapter } from "@socket.io/redis-adapter"
@@ -112,12 +113,92 @@ if (!supabase) {
 
 // ─── HTTP server + Socket.IO ──────────────────────────────────────────────────
 
+const REVOKE_TOKEN_SECRET = process.env.SIGNAL_REVOKE_SECRET ?? ""
+
 const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ status: "ok", rooms: await rooms.getStats() }))
     return
   }
+
+  // ─── Token revocation endpoint ───────────────────────────────────────────
+  // Called by the web app when a session is revoked (password change, logout,
+  // admin action). Accepts { token } in the JSON body. Protected by a shared
+  // secret so only the web backend can call it.
+  if (req.url === "/revoke-token" && req.method === "POST") {
+    try {
+      if (!REVOKE_TOKEN_SECRET) {
+        logger.warn("POST /revoke-token called but SIGNAL_REVOKE_SECRET is not configured")
+        res.writeHead(503, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Revocation endpoint not configured" }))
+        return
+      }
+
+      const authHeader = req.headers.authorization ?? ""
+      if (authHeader !== `Bearer ${REVOKE_TOKEN_SECRET}`) {
+        res.writeHead(401, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Unauthorized" }))
+        return
+      }
+
+      const body = await new Promise<string>((resolve, reject) => {
+        let data = ""
+        req.on("data", (chunk: Buffer) => {
+          data += chunk.toString()
+          if (data.length > 4096) {
+            reject(new Error("Body too large"))
+          }
+        })
+        req.on("end", () => resolve(data))
+        req.on("error", reject)
+      })
+
+      const parsed: unknown = JSON.parse(body)
+      if (typeof parsed !== "object" || parsed === null) {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Invalid JSON body" }))
+        return
+      }
+      const { token } = parsed as { token?: unknown }
+      if (typeof token !== "string" || !token) {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Missing or invalid 'token' field" }))
+        return
+      }
+
+      const persisted = await revokeToken(token)
+      if (!persisted) {
+        res.writeHead(503, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Failed to persist revocation" }))
+        return
+      }
+
+      // Force-disconnect any sockets currently using this token.
+      // io.fetchSockets() is cluster-safe — it enumerates sockets across all
+      // replicas when the Redis adapter is attached.
+      let disconnected = 0
+      const sockets = await io.fetchSockets()
+      for (const s of sockets) {
+        if (s.handshake.auth?.token === token) {
+          sessionValidationCache.delete(s.id)
+          s.emit("error", { message: "Session revoked" })
+          s.disconnect(true)
+          disconnected++
+        }
+      }
+
+      logger.info({ disconnected }, "token revoked — active sockets disconnected")
+      res.writeHead(200, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ ok: true, disconnected }))
+    } catch (err) {
+      logger.error({ err }, "POST /revoke-token error")
+      res.writeHead(500, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ error: "Internal server error" }))
+    }
+    return
+  }
+
   res.writeHead(404)
   res.end()
 })
@@ -160,26 +241,103 @@ if (REDIS_URL) {
 const voiceStateSync = supabase ? createVoiceStateSync(supabase) : null
 
 // ─── Session re-validation cache for signaling events ────────────────────────
-// Re-validate the auth token periodically (every 30s) instead of on every event.
-const SESSION_REVALIDATION_TTL_MS = 30_000
+// Re-validate the auth token periodically instead of on every event.
+const SESSION_REVALIDATION_TTL_MS = 10_000
 // Maximum age of a cached entry that can be used as fallback on transient auth
-// service errors. SECURITY TRADE-OFF: a revoked token may remain authorized for
-// up to this window if the auth service is unreachable. Review this TTL against
-// your threat model — lower values are safer but increase the risk of
-// disconnecting users during auth service outages.
-const SESSION_FALLBACK_MAX_AGE_MS = 120_000
+// service errors. Kept short to limit the window in which a revoked token
+// remains usable when the auth service is unreachable.
+const SESSION_FALLBACK_MAX_AGE_MS = 15_000
 const sessionValidationCache = new Map<string, { validatedAt: number; userId: string }>()
+
+// ─── Token revocation list (Redis-backed when available) ─────────────────────
+// When sessions are revoked (password change, admin action, logout) the web app
+// POSTs to /revoke-token so the signal server can immediately reject the token
+// without waiting for the next Supabase revalidation cycle.
+//
+// Tokens are stored as SHA-256 digests — never store raw bearer tokens in Redis
+// or process memory to limit blast radius of a key scan or memory dump.
+const REVOCATION_PREFIX = "vortex:revoked-token"
+const REVOCATION_TTL_SECONDS = 3600 // keep entries for 1 hour then auto-expire
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex")
+}
+
+let revocationRedis: Redis | null = null
+if (REDIS_URL) {
+  revocationRedis = new Redis(REDIS_URL, { maxRetriesPerRequest: 3 })
+  logger.info("token revocation list backed by Redis")
+}
+// In-memory fallback for single-instance deployments without Redis
+const inMemoryRevocations = new Map<string, number>()
+
+async function isTokenRevoked(token: string): Promise<boolean> {
+  const digest = hashToken(token)
+  try {
+    if (revocationRedis) {
+      const exists = await revocationRedis.exists(`${REVOCATION_PREFIX}:${digest}`)
+      return exists === 1
+    }
+    const expiresAt = inMemoryRevocations.get(digest)
+    if (expiresAt === undefined) return false
+    if (Date.now() > expiresAt) {
+      inMemoryRevocations.delete(digest)
+      return false
+    }
+    return true
+  } catch (err) {
+    logger.error({ err }, "revocation check failed — failing closed (denying)")
+    return true // fail closed: if we can't check, assume revoked
+  }
+}
+
+async function revokeToken(token: string): Promise<boolean> {
+  const digest = hashToken(token)
+  try {
+    if (revocationRedis) {
+      await revocationRedis.set(
+        `${REVOCATION_PREFIX}:${digest}`,
+        "1",
+        "EX",
+        REVOCATION_TTL_SECONDS,
+      )
+    } else {
+      inMemoryRevocations.set(digest, Date.now() + REVOCATION_TTL_SECONDS * 1000)
+    }
+    return true
+  } catch (err) {
+    logger.error({ err }, "failed to persist token revocation")
+    return false
+  }
+}
+
+// Periodic cleanup of expired in-memory revocations
+setInterval(() => {
+  const now = Date.now()
+  for (const [digest, expiresAt] of inMemoryRevocations) {
+    if (now > expiresAt) inMemoryRevocations.delete(digest)
+  }
+}, 60_000)
 
 async function validateSession(socket: Socket): Promise<boolean> {
   if (!supabase) return true // skip if no DB configured
+
+  const authToken = socket.handshake.auth?.token
+  if (!authToken) return false
+
+  // Always check revocation list first — an explicitly revoked token must
+  // never be accepted, regardless of cache state.
+  if (await isTokenRevoked(authToken)) {
+    logger.warn({ socketId: socket.id }, "session rejected — token is on revocation list")
+    sessionValidationCache.delete(socket.id)
+    socket.disconnect(true)
+    return false
+  }
 
   const cached = sessionValidationCache.get(socket.id)
   if (cached && Date.now() - cached.validatedAt < SESSION_REVALIDATION_TTL_MS) {
     return true
   }
-
-  const authToken = socket.handshake.auth?.token
-  if (!authToken) return false
 
   try {
     const { data: { user }, error } = await supabase.auth.getUser(authToken)
@@ -198,8 +356,10 @@ async function validateSession(socket: Socket): Promise<boolean> {
       )
       return true
     }
-    logger.error({ socketId: socket.id, err }, "session revalidation failed — no recent cache, denying")
+    // Fallback expired — force disconnect to prevent stale token reuse
+    logger.error({ socketId: socket.id, err }, "session revalidation failed — fallback expired, disconnecting")
     sessionValidationCache.delete(socket.id)
+    socket.disconnect(true)
     return false
   }
 }
@@ -295,6 +455,14 @@ io.on("connection", (socket: Socket) => {
           socket.emit("error", { message: "Authentication required" })
           return
         }
+
+        // Check revocation list before hitting Supabase
+        if (await isTokenRevoked(authToken)) {
+          socket.emit("error", { message: "Session revoked" })
+          socket.disconnect(true)
+          return
+        }
+
         const { data: { user }, error } = await supabase.auth.getUser(authToken)
         if (error || !user) {
           socket.emit("error", { message: "Unauthorized" })
@@ -517,6 +685,7 @@ io.on("connection", (socket: Socket) => {
       const { speaking } = payload as { speaking?: unknown }
       if (typeof speaking !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
+      if (!(await validateSession(socket))) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
       if (!(await verifyChannelMembership(peer))) return
@@ -538,6 +707,7 @@ io.on("connection", (socket: Socket) => {
       const { muted } = payload as { muted?: unknown }
       if (typeof muted !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
+      if (!(await validateSession(socket))) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
       if (!(await verifyChannelMembership(peer))) return
@@ -559,6 +729,7 @@ io.on("connection", (socket: Socket) => {
       const { deafened } = payload as { deafened?: unknown }
       if (typeof deafened !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
+      if (!(await validateSession(socket))) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
       if (!(await verifyChannelMembership(peer))) return
@@ -580,6 +751,7 @@ io.on("connection", (socket: Socket) => {
       const { sharing } = payload as { sharing?: unknown }
       if (typeof sharing !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
+      if (!(await validateSession(socket))) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
       if (!(await verifyChannelMembership(peer))) return
