@@ -129,10 +129,25 @@ export function useChatRealtimeCallbacks({
       const latest = (await res.json()) as MessageWithAuthor[]
       if (!Array.isArray(latest) || latest.length === 0) return
       setMessages((prev) => {
-        const known = new Set(prev.map((m) => m.id))
-        const fresh = latest.filter((m) => !known.has(m.id))
-        if (fresh.length === 0) return prev
-        const merged = sortMessagesChronologically([...prev, ...fresh])
+        // Nonce-aware dedup: match by both id and client_nonce to replace
+        // optimistic entries with server-confirmed messages
+        const byId = new Map(prev.map((m) => [m.id, m]))
+        const byNonce = new Map<string, MessageWithAuthor>()
+        for (const m of prev) {
+          if (m.client_nonce) byNonce.set(m.client_nonce, m)
+        }
+
+        for (const incoming of latest) {
+          byId.set(incoming.id, incoming)
+          if (incoming.client_nonce && byNonce.has(incoming.client_nonce)) {
+            const optimistic = byNonce.get(incoming.client_nonce)!
+            if (optimistic.id !== incoming.id) {
+              byId.delete(optimistic.id)
+            }
+          }
+        }
+
+        const merged = sortMessagesChronologically([...byId.values()])
         return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
       })
     } catch (e) {

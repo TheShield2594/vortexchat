@@ -37,12 +37,22 @@ export async function POST(
     }
 
     // Verify server membership
-    const { data: member } = await supabase
+    const { data: member, error: memberError } = await supabase
       .from("server_members")
       .select("user_id")
       .eq("server_id", channel.server_id)
       .eq("user_id", user.id)
       .maybeSingle()
+
+    if (memberError) {
+      console.error("[ack] Failed to verify membership:", {
+        userId: user.id,
+        channelId,
+        serverId: channel.server_id,
+        error: memberError.message,
+      })
+      return NextResponse.json({ error: "Failed to verify membership" }, { status: 500 })
+    }
 
     if (!member) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })

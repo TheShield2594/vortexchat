@@ -1230,6 +1230,11 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // 5. Force-close any remaining sockets and the Socket.IO server
   io.close()
 
+  // 5b. Clean up room membership in Redis before tearing down connections
+  await Promise.allSettled(
+    connectedSockets.map((s) => rooms.leaveAll(s.id))
+  )
+
   // 6. Close Redis room manager connections
   if (rooms && "redis" in rooms) {
     try {

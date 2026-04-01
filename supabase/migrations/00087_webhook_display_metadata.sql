@@ -25,7 +25,12 @@ SET
     w.name,
     'Webhook'
   ),
-  webhook_avatar_url = w.avatar_url,
+  webhook_avatar_url = CASE
+    WHEN w.avatar_url IS NULL THEN NULL
+    WHEN LENGTH(w.avatar_url) > 2048 THEN NULL
+    WHEN w.avatar_url !~ '^https?://' THEN NULL
+    ELSE w.avatar_url
+  END,
   -- Strip the **[Name]** prefix from content
   content = CASE
     WHEN m.content LIKE '**[%]** %'

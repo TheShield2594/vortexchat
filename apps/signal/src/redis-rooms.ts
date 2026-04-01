@@ -61,12 +61,15 @@ export class RedisRoomManager implements IRoomManager {
 
     // Persist peer into the room hash and record the socket→channel mapping.
     // Apply TTL so stale keys from crashed processes auto-expire.
-    await Promise.all([
-      this.redis.hset(rKey, info.socketId, this.serialize(info)),
-      this.redis.expire(rKey, this.keyTtlSeconds),
-      this.redis.sadd(sKey, channelId),
-      this.redis.expire(sKey, this.keyTtlSeconds),
-    ])
+    // Use MULTI/EXEC to ensure the socket key exists before any concurrent
+    // getRoomPeers() call can check it and classify the peer as stale.
+    await this.redis
+      .multi()
+      .sadd(sKey, channelId)
+      .expire(sKey, this.keyTtlSeconds)
+      .hset(rKey, info.socketId, this.serialize(info))
+      .expire(rKey, this.keyTtlSeconds)
+      .exec()
 
     return existing
   }
@@ -145,12 +148,22 @@ export class RedisRoomManager implements IRoomManager {
     const hash = await this.redis.hgetall(rKey)
     if (!hash || Object.keys(hash).length === 0) return []
 
+    const entries = Object.entries(hash)
+    if (entries.length === 0) return []
+
+    // Batch EXISTS checks in a single pipeline (one RTT for all sockets)
+    const checkPipeline = this.redis.pipeline()
+    for (const [socketId] of entries) {
+      checkPipeline.exists(this.socketKey(socketId))
+    }
+    const existsResults = await checkPipeline.exec()
+
     const peers: PeerInfo[] = []
     const staleSocketIds: string[] = []
 
-    // Check each socket's per-socket key to prune crashed peers
-    for (const [socketId, raw] of Object.entries(hash)) {
-      const exists = await this.redis.exists(this.socketKey(socketId))
+    for (let i = 0; i < entries.length; i++) {
+      const [socketId, raw] = entries[i]
+      const exists = existsResults?.[i]?.[1] === 1
       if (exists) {
         peers.push(this.deserialize(raw))
       } else {
@@ -158,13 +171,17 @@ export class RedisRoomManager implements IRoomManager {
       }
     }
 
-    // Clean up stale entries in the background
+    // Clean up stale entries
     if (staleSocketIds.length > 0) {
-      const pipeline = this.redis.pipeline()
-      for (const socketId of staleSocketIds) {
-        pipeline.hdel(rKey, socketId)
+      try {
+        const cleanupPipeline = this.redis.pipeline()
+        for (const socketId of staleSocketIds) {
+          cleanupPipeline.hdel(rKey, socketId)
+        }
+        await cleanupPipeline.exec()
+      } catch (err) {
+        console.error("[RedisRoomManager] stale peer cleanup failed", { channelId, staleSocketIds, err })
       }
-      pipeline.exec().catch(() => { /* best-effort cleanup */ })
     }
 
     return peers
