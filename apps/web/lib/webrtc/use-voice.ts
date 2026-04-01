@@ -491,7 +491,7 @@ export function useVoice(channelId: string, userId: string, serverId?: string | 
     }
 
     /** Tear down and fully re-create a peer connection (new offer/answer exchange). */
-    function fullReconnectPeer(peerId: string, rtChannel: RealtimeChannel) {
+    async function fullReconnectPeer(peerId: string, rtChannel: RealtimeChannel) {
       const oldPc = peerConnections.current.get(peerId)
       const peerUserId = Array.from(peerConnections.current.entries())
         .find(([id]) => id === peerId)?.[0]
