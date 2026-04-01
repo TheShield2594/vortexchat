@@ -199,6 +199,77 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
     return
   }
 
+  // ─── Force-disconnect endpoint ──────────────────────────────────────────
+  // Called by the web app when a user is kicked/banned from a server.
+  // Accepts { userId, serverId } in the JSON body. Protected by the same
+  // shared secret as /revoke-token.
+  if (req.url === "/force-disconnect" && req.method === "POST") {
+    try {
+      if (!REVOKE_TOKEN_SECRET) {
+        logger.warn("POST /force-disconnect called but SIGNAL_REVOKE_SECRET is not configured")
+        res.writeHead(503, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Force-disconnect endpoint not configured" }))
+        return
+      }
+
+      const authHeader = req.headers.authorization ?? ""
+      if (authHeader !== `Bearer ${REVOKE_TOKEN_SECRET}`) {
+        res.writeHead(401, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Unauthorized" }))
+        return
+      }
+
+      const body = await new Promise<string>((resolve, reject) => {
+        let data = ""
+        req.on("data", (chunk: Buffer) => {
+          data += chunk.toString()
+          if (data.length > 4096) {
+            reject(new Error("Body too large"))
+          }
+        })
+        req.on("end", () => resolve(data))
+        req.on("error", reject)
+      })
+
+      const parsed: unknown = JSON.parse(body)
+      if (typeof parsed !== "object" || parsed === null) {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Invalid JSON body" }))
+        return
+      }
+      const { userId, serverId } = parsed as Record<string, unknown>
+      if (typeof userId !== "string" || !userId || typeof serverId !== "string" || !serverId) {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Missing or invalid 'userId' and/or 'serverId' fields" }))
+        return
+      }
+
+      // Publish to Redis pub/sub so all replicas evict the user
+      if (forceDisconnectPub) {
+        try {
+          await forceDisconnectPub.publish(
+            FORCE_DISCONNECT_CHANNEL,
+            JSON.stringify({ userId, serverId } satisfies ForceDisconnectPayload),
+          )
+        } catch (pubErr) {
+          logger.error({ pubErr }, "failed to publish force-disconnect — falling back to local eviction")
+        }
+      }
+
+      // Also evict locally (handles single-instance and the originating replica)
+      const evicted = await evictUserFromServer(userId, serverId)
+
+      logger.info({ userId, serverId, evicted }, "force-disconnect processed")
+      res.writeHead(200, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ ok: true, evicted }))
+    } catch (err) {
+      logger.error({ err }, "POST /force-disconnect error")
+      res.writeHead(500, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ error: "Internal server error" }))
+    }
+    return
+  }
+
   res.writeHead(404)
   res.end()
 })
@@ -318,6 +389,98 @@ setInterval(() => {
     if (now > expiresAt) inMemoryRevocations.delete(digest)
   }
 }, 60_000)
+
+// ─── Force-disconnect pub/sub (cross-replica eviction) ──────────────────────
+// When a user is kicked/banned from a server, the web app POSTs to
+// /force-disconnect which publishes a message to the Redis pub/sub channel.
+// All replicas subscribe and evict matching sockets immediately.
+const FORCE_DISCONNECT_CHANNEL = "vortex:force-disconnect"
+
+interface ForceDisconnectPayload {
+  userId: string
+  serverId: string
+}
+
+let forceDisconnectSub: Redis | null = null
+let forceDisconnectPub: Redis | null = null
+
+if (REDIS_URL) {
+  forceDisconnectPub = new Redis(REDIS_URL, { maxRetriesPerRequest: 3 })
+  forceDisconnectSub = new Redis(REDIS_URL, { maxRetriesPerRequest: 3 })
+
+  forceDisconnectSub.subscribe(FORCE_DISCONNECT_CHANNEL, (err) => {
+    if (err) {
+      logger.error({ err }, "failed to subscribe to force-disconnect channel")
+    } else {
+      logger.info("subscribed to force-disconnect pub/sub channel")
+    }
+  })
+
+  forceDisconnectSub.on("message", async (channel: string, message: string) => {
+    if (channel !== FORCE_DISCONNECT_CHANNEL) return
+    try {
+      const payload: unknown = JSON.parse(message)
+      if (typeof payload !== "object" || payload === null) return
+      const { userId, serverId } = payload as Record<string, unknown>
+      if (typeof userId !== "string" || typeof serverId !== "string") return
+      await evictUserFromServer(userId, serverId)
+    } catch (err) {
+      logger.error({ err }, "force-disconnect message handler error")
+    }
+  })
+}
+
+/**
+ * Evict a user from all voice channels belonging to a given server.
+ * Called both from the local /force-disconnect endpoint and from Redis pub/sub.
+ */
+async function evictUserFromServer(userId: string, serverId: string): Promise<number> {
+  let evicted = 0
+  try {
+    const stats = await rooms.getStats()
+    for (const channelId of Object.keys(stats)) {
+      const peers = await rooms.getRoomPeers(channelId)
+      for (const peer of peers) {
+        if (peer.userId !== userId) continue
+
+        // Verify this channel belongs to the target server
+        if (supabase) {
+          try {
+            const { data: ch } = await supabase
+              .from("channels")
+              .select("server_id")
+              .eq("id", channelId)
+              .maybeSingle()
+            if (!ch || ch.server_id !== serverId) continue
+          } catch {
+            // If we can't verify, skip this channel to avoid false eviction
+            continue
+          }
+        }
+
+        // Find and disconnect the socket
+        const sockets = await io.fetchSockets()
+        for (const s of sockets) {
+          if (s.id === peer.socketId) {
+            s.emit("error", { message: "You have been removed from this server" })
+            // Clean up room state
+            await rooms.leave(channelId, s.id)
+            s.leave(channelId)
+            io.to(channelId).emit("peer-left", { peerId: s.id, userId })
+            if (voiceStateSync) {
+              voiceStateSync.enqueueDelete({ userId, channelId })
+            }
+            evicted++
+            logger.info({ userId, channelId, serverId, socketId: s.id }, "force-disconnected user from voice channel")
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.error({ userId, serverId, err }, "evictUserFromServer error")
+  }
+  return evicted
+}
 
 async function validateSession(socket: Socket): Promise<boolean> {
   if (!supabase) return true // skip if no DB configured
@@ -834,6 +997,101 @@ io.on("connection", (socket: Socket) => {
   }
 })
 
+// ─── Periodic membership re-validation (60-second sweep) ───────────────────
+// Catches cases where a user was kicked/banned but no voice state event was
+// emitted (e.g. the user went silent). Every 60 seconds, all active voice
+// peers are checked against the database. Peers that are no longer server
+// members are evicted and their sockets notified.
+const MEMBERSHIP_REVALIDATION_INTERVAL_MS = 60_000
+
+if (supabase) {
+  setInterval(async () => {
+    try {
+      const stats = await rooms.getStats()
+      const channelIds = Object.keys(stats)
+      if (channelIds.length === 0) return
+
+      // Batch-resolve server_ids for all active channels
+      const { data: channels, error: chErr } = await supabase
+        .from("channels")
+        .select("id, server_id")
+        .in("id", channelIds)
+
+      if (chErr) {
+        logger.error({ err: chErr }, "periodic revalidation — channel query error")
+        return
+      }
+      if (!channels || channels.length === 0) return
+
+      const channelServerMap = new Map<string, string>()
+      for (const ch of channels) channelServerMap.set(ch.id, ch.server_id)
+
+      // Collect unique userId+serverId pairs to check
+      const toCheck = new Map<string, { userId: string; serverId: string; channelId: string; socketId: string }[]>()
+
+      for (const channelId of channelIds) {
+        const serverId = channelServerMap.get(channelId)
+        if (!serverId) continue
+
+        const peers = await rooms.getRoomPeers(channelId)
+        for (const peer of peers) {
+          const key = `${peer.userId}::${serverId}`
+          if (!toCheck.has(key)) toCheck.set(key, [])
+          toCheck.get(key)!.push({ userId: peer.userId, serverId, channelId, socketId: peer.socketId })
+        }
+      }
+
+      // Check membership for each unique userId+serverId pair
+      for (const [, entries] of toCheck) {
+        const { userId, serverId } = entries[0]
+        try {
+          const { data: member, error: memErr } = await supabase
+            .from("server_members")
+            .select("user_id")
+            .eq("server_id", serverId)
+            .eq("user_id", userId)
+            .maybeSingle()
+
+          if (memErr) {
+            logger.error({ userId, serverId, err: memErr }, "periodic revalidation — member query error, skipping")
+            continue
+          }
+
+          if (member) continue // still a member, nothing to do
+
+          // User is no longer a member — evict from all channels in this server
+          logger.warn({ userId, serverId }, "periodic revalidation — user no longer a member, evicting")
+
+          const sockets = await io.fetchSockets()
+          const socketMap = new Map(sockets.map((s) => [s.id, s]))
+
+          for (const entry of entries) {
+            const sock = socketMap.get(entry.socketId)
+            if (!sock) continue
+
+            sock.emit("error", { message: "You are no longer a member of this server" })
+            await rooms.leave(entry.channelId, entry.socketId)
+            sock.leave(entry.channelId)
+            io.to(entry.channelId).emit("peer-left", { peerId: entry.socketId, userId })
+
+            if (voiceStateSync) {
+              voiceStateSync.enqueueDelete({ userId, channelId: entry.channelId })
+            }
+
+            logger.info({ userId, channelId: entry.channelId, socketId: entry.socketId }, "periodic revalidation — evicted peer")
+          }
+        } catch (err) {
+          logger.error({ userId, serverId, err }, "periodic revalidation — check error")
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, "periodic membership revalidation sweep error")
+    }
+  }, MEMBERSHIP_REVALIDATION_INTERVAL_MS)
+
+  logger.info({ intervalMs: MEMBERSHIP_REVALIDATION_INTERVAL_MS }, "periodic membership re-validation enabled")
+}
+
 httpServer.listen(PORT, () => {
   logger.info({ port: PORT }, "Vortex WebRTC signaling server listening")
 })
@@ -841,6 +1099,8 @@ httpServer.listen(PORT, () => {
 // Graceful shutdown
 process.on("SIGTERM", () => {
   logger.info("SIGTERM received, shutting down...")
+  if (forceDisconnectSub) forceDisconnectSub.disconnect()
+  if (forceDisconnectPub) forceDisconnectPub.disconnect()
   io.close()
   httpServer.close()
   process.exit(0)
