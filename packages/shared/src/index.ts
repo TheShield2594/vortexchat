@@ -21,6 +21,8 @@ export {
   ACTIVITY_THROTTLE_MS,
   aggregateStatus,
   PRESENCE_BROADCAST_CHANNEL,
+  GATEWAY_OFFLINE_DETECTION_MS,
+  GATEWAY_PING_INTERVAL_MS,
 } from './presence'
 export type { PresenceBroadcastMessage } from './presence'
 
@@ -31,6 +33,29 @@ export type {
   SubscribeOptions,
   IEventBus,
 } from './event-bus'
+
+export type {
+  GatewayClientEvents,
+  GatewayServerEvents,
+  PresenceEntry,
+  StreamEvent,
+} from './gateway-events'
+
+export {
+  EVENT_STREAM_PREFIX,
+  PRESENCE_KEY_PREFIX,
+  EVENT_STREAM_MAXLEN,
+  EVENT_STREAM_TTL_SECONDS,
+  PRESENCE_TTL_SECONDS,
+  PRESENCE_CLEANUP_INTERVAL_MS,
+  GATEWAY_PING_TIMEOUT_MS,
+  MAX_REPLAY_EVENTS,
+  GATEWAY_PUBLISH_RATE_LIMIT,
+  TYPING_RATE_LIMIT,
+  PRESENCE_RATE_LIMIT,
+  PERSISTED_EVENT_TYPES,
+  EPHEMERAL_EVENT_TYPES,
+} from './gateway-events'
 
 export const PERMISSIONS = {
   // General

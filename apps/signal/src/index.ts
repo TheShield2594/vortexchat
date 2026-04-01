@@ -9,6 +9,9 @@ import pino from "pino"
 import { InMemoryRoomManager, type IRoomManager } from "./rooms"
 import { RedisRoomManager } from "./redis-rooms"
 import { createVoiceStateSync } from "./voice-state-sync"
+import { RedisEventBus } from "./event-bus"
+import { PresenceManager } from "./presence"
+import { initGateway } from "./gateway"
 
 dotenv.config()
 
@@ -297,6 +300,83 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
     return
   }
 
+  // ─── Event publish endpoint ──────────────────────────────────────────
+  // Called by API routes after a DB write to push events through the gateway.
+  // Accepts a VortexEvent (minus id/timestamp) in the JSON body.
+  if (req.url === "/publish-event" && req.method === "POST") {
+    try {
+      if (!REVOKE_TOKEN_SECRET) {
+        res.writeHead(503, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Endpoint not configured" }))
+        return
+      }
+
+      const authHeader = req.headers.authorization ?? ""
+      if (authHeader !== `Bearer ${REVOKE_TOKEN_SECRET}`) {
+        res.writeHead(401, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Unauthorized" }))
+        return
+      }
+
+      if (!eventBus) {
+        res.writeHead(503, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Event bus not available" }))
+        return
+      }
+
+      const body = await new Promise<string>((resolve, reject) => {
+        const chunks: Buffer[] = []
+        let totalBytes = 0
+        req.on("data", (chunk: Buffer) => {
+          totalBytes += chunk.length
+          if (totalBytes > 4096) {
+            reject(Object.assign(new Error("Body too large"), { statusCode: 413 }))
+          } else {
+            chunks.push(chunk)
+          }
+        })
+        req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")))
+        req.on("error", reject)
+      })
+
+      const parsed: unknown = JSON.parse(body)
+      if (typeof parsed !== "object" || parsed === null) {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Invalid JSON body" }))
+        return
+      }
+
+      const event = parsed as Record<string, unknown>
+      if (typeof event.type !== "string" || typeof event.channelId !== "string" || typeof event.actorId !== "string") {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Missing required fields: type, channelId, actorId" }))
+        return
+      }
+
+      const eventId = await eventBus.publish({
+        type: event.type as string as import("@vortex/shared").VortexEventType,
+        channelId: String(event.channelId),
+        serverId: typeof event.serverId === "string" ? event.serverId : null,
+        actorId: String(event.actorId),
+        data: event.data ?? null,
+      })
+
+      res.writeHead(200, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ ok: true, eventId }))
+    } catch (err) {
+      const statusCode = (err as { statusCode?: number }).statusCode
+      if (statusCode === 413) {
+        res.writeHead(413, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Payload too large" }))
+      } else {
+        logger.error({ err }, "POST /publish-event error")
+        res.writeHead(500, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Internal server error" }))
+      }
+    }
+    return
+  }
+
   res.writeHead(404)
   res.end()
 })
@@ -337,6 +417,22 @@ if (REDIS_URL) {
   logger.info("room state backed by in-memory Map (set REDIS_URL to enable Redis)")
 }
 const voiceStateSync = supabase ? createVoiceStateSync(supabase) : null
+
+// ─── Gateway: Event Bus + Presence Manager ───────────────────────────────────
+// When REDIS_URL is set, initialize the unified real-time gateway that handles
+// message delivery, typing indicators, presence, and reconnection catch-up
+// via Socket.IO instead of Supabase Realtime.
+
+let eventBus: RedisEventBus | null = null
+let presenceManager: PresenceManager | null = null
+
+if (REDIS_URL) {
+  eventBus = new RedisEventBus(REDIS_URL)
+  presenceManager = new PresenceManager(REDIS_URL)
+  logger.info("event bus and presence manager initialized (Redis-backed)")
+} else {
+  logger.info("event bus and presence manager disabled (no REDIS_URL)")
+}
 
 // ─── Session re-validation cache for signaling events ────────────────────────
 // Re-validate the auth token periodically instead of on every event.
@@ -604,6 +700,18 @@ async function checkChannelMembership(userId: string, channelId: string): Promis
     logger.error({ userId, channelId, err }, "checkChannelMembership error — failing open")
     return true
   }
+}
+
+// ─── Initialize Gateway (unified real-time event delivery) ──────────────────
+if (eventBus && presenceManager) {
+  initGateway({
+    io,
+    eventBus,
+    presence: presenceManager,
+    supabase,
+    validateSession: async (socket: Socket) => validateSession(socket),
+    getSessionUserId: (socket: Socket) => sessionValidationCache.get(socket.id)?.userId,
+  })
 }
 
 io.on("connection", (socket: Socket) => {
@@ -1247,6 +1355,22 @@ async function gracefulShutdown(signal: string): Promise<void> {
   if (revocationRedis) {
     try {
       await revocationRedis.quit()
+    } catch {
+      // Best-effort cleanup
+    }
+  }
+
+  // 7. Shut down event bus and presence manager
+  if (eventBus) {
+    try {
+      await eventBus.destroy()
+    } catch {
+      // Best-effort cleanup
+    }
+  }
+  if (presenceManager) {
+    try {
+      await presenceManager.destroy()
     } catch {
       // Best-effort cleanup
     }

@@ -6,6 +6,7 @@ import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useApplyAppearance } from "@/hooks/use-apply-appearance"
 import { usePresenceSync } from "@/hooks/use-presence-sync"
+import { GatewayProvider } from "@/hooks/use-gateway-context"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
 import { useGifAutoplay } from "@/hooks/use-gif-autoplay"
@@ -70,5 +71,5 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     setNotifManagerActiveChannel(activeChannelId)
   }, [activeChannelId])
 
-  return <>{children}</>
+  return <GatewayProvider>{children}</GatewayProvider>
 }
