@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { rateLimiter } from "@/lib/rate-limit"
 import { getClientIp } from "@vortex/shared"
+import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
@@ -118,28 +119,16 @@ export async function POST(
     const displayName = username?.slice(0, 80) ?? webhook.name ?? "Webhook"
     const webhookAvatarUrl = avatar_url ?? webhook.avatar_url ?? null
 
-    // Look up the server owner to satisfy the FK.
-    const { data: serverRow, error: serverError } = await supabaseAdmin
-      .from("servers")
-      .select("owner_id")
-      .eq("id", webhook.server_id)
-      .maybeSingle()
-
-    if (serverError) {
-      console.error("[webhook POST] DB error resolving server:", serverError.message)
-      return NextResponse.json({ error: "internal server error" }, { status: 500 })
-    }
-    if (!serverRow) {
-      return NextResponse.json({ error: "Server not found" }, { status: 404 })
-    }
-
-    // Insert the message as the server owner (webhook attribution stored in content prefix)
+    // Insert the message attributed to the system bot with webhook_id set.
+    // The webhook display name is stored in the content prefix for rendering,
+    // and the webhook_id column enables the frontend to show a BOT badge.
     const prefix = `**[${displayName}]** `
     const { data: message, error: msgError } = await supabaseAdmin
       .from("messages")
       .insert({
         channel_id: webhook.channel_id,
-        author_id: serverRow.owner_id,
+        author_id: SYSTEM_BOT_ID,
+        webhook_id: webhook.id,
         content: prefix + messageContent,
       })
       .select("id")

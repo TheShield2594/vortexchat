@@ -611,6 +611,15 @@ export const MessageItem = memo(function MessageItem({
                       {displayName}
                     </span>
                   </UserProfilePopover>
+                  {message.webhook_id && (
+                    <span
+                      className="inline-flex items-center px-1 py-px rounded text-[10px] font-bold uppercase leading-none"
+                      style={{ background: "var(--theme-accent)", color: "var(--theme-bg-primary)" }}
+                      aria-label="Webhook bot message"
+                    >
+                      BOT
+                    </span>
+                  )}
                   <span id={messageMetaId} className="text-xs tertiary-metadata message-cozy-timestamp">
                     {format(timestamp, timestampFormat === "24h" ? "MM/dd/yyyy HH:mm" : "MM/dd/yyyy h:mm a")}
                   </span>
@@ -766,7 +775,7 @@ export const MessageItem = memo(function MessageItem({
                               return member?.nickname || member?.display_name || member?.username || "Unknown user"
                             })
                             .join(", ")}
-                          className={cn("motion-interactive motion-press flex items-center gap-1 px-2 py-0.5 rounded-full text-sm hover:-translate-y-px", poppingReactions[emoji] && "reaction-chip-pop")}
+                          className={cn("motion-interactive motion-press flex items-center gap-1 px-2.5 py-1.5 rounded-full text-sm hover:-translate-y-px min-h-[44px]", poppingReactions[emoji] && "reaction-chip-pop")}
                           aria-label={`Toggle ${emoji} reaction`}
                           style={{
                             background: hasOwn

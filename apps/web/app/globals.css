@@ -84,12 +84,14 @@
     --letter-spacing-wider: 0.04em;
     /* ── Z-index scale ───────────────────────────────────────────────────────── */
     --z-base: 1;
+    --z-tabbar: 50;
     --z-dropdown: 100;
     --z-sticky: 200;
     --z-modal-backdrop: 300;
     --z-modal: 310;
     --z-popover: 400;
     --z-tooltip: 500;
+    --z-toast: 500;
     --z-notification: 600;
     --z-overlay: 700;
     /* ── Interactive state tokens ─────────────────────────────────────────────── */
@@ -164,6 +166,7 @@
     --theme-positive: #6ee7b7;
     --theme-warning: #ffb84d;
     --theme-danger: #ff5d73;
+    --theme-danger-foreground: var(--theme-text-bright);
     --theme-presence-offline: #6f7898;
     --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 60%, white);
     --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 24%, transparent);

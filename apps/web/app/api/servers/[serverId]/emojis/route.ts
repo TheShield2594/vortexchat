@@ -109,12 +109,17 @@ export async function POST(
     }
 
     // Audit log
-    await supabase.from("audit_logs").insert({
+    const { error: auditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: user.id,
       action: "emoji_uploaded",
-      details: { emoji_name: name, emoji_id: emoji.id },
+      target_id: emoji.id,
+      target_type: "emoji",
+      changes: { name },
     })
+    if (auditErr) {
+      console.error("[emojis] Audit log insert failed for emoji_uploaded", { serverId, emojiId: emoji.id, error: auditErr.message })
+    }
 
     return NextResponse.json(emoji, { status: 201 })
   } catch (err) {
@@ -180,12 +185,17 @@ export async function DELETE(
     if (error) return NextResponse.json({ error: "Failed to delete emoji" }, { status: 500 })
 
     // Audit log
-    await supabase.from("audit_logs").insert({
+    const { error: deleteAuditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: user.id,
       action: "emoji_deleted",
-      details: { emoji_name: emoji.name, emoji_id: emojiId },
+      target_id: emojiId,
+      target_type: "emoji",
+      changes: { name: emoji.name },
     })
+    if (deleteAuditErr) {
+      console.error("[emojis] Audit log insert failed for emoji_deleted", { serverId, emojiId, error: deleteAuditErr.message })
+    }
 
     return NextResponse.json({ ok: true }, {
       headers: {

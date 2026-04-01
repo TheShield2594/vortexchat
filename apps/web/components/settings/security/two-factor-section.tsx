@@ -303,7 +303,7 @@ export function TwoFactorSection(): React.JSX.Element {
               <Button
                 onClick={submitUnenroll}
                 disabled={unenrolling || !unenrollPassword}
-                style={{ background: "var(--theme-danger)", color: "white" }}
+                style={{ background: "var(--theme-danger)", color: "var(--theme-danger-foreground)" }}
               >
                 {unenrolling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                 Disable 2FA

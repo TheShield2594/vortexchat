@@ -204,7 +204,7 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                       type="button"
                       disabled={actionLoading === "friend"}
                       className="px-3 py-2 rounded-lg hover:opacity-90 disabled:opacity-50"
-                      style={{ background: "var(--theme-danger)", color: "white" }}
+                      style={{ background: "var(--theme-danger)", color: "var(--theme-danger-foreground)" }}
                       aria-label="Remove friend"
                     >
                       <UserMinus className="w-4 h-4" />
@@ -222,7 +222,7 @@ export function ProfilePanel({ user, displayName, status, roles = [], currentUse
                       <AlertDialogAction
                         onClick={handleRemoveFriend}
                         className="hover:opacity-90"
-                        style={{ background: "var(--theme-danger)", color: "white" }}
+                        style={{ background: "var(--theme-danger)", color: "var(--theme-danger-foreground)" }}
                       >
                         Remove
                       </AlertDialogAction>

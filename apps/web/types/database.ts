@@ -639,6 +639,7 @@ export type Database = {
           pinned: boolean
           pinned_at: string | null
           pinned_by: string | null
+          webhook_id: string | null
           created_at: string
         }
         Insert: {
@@ -656,6 +657,7 @@ export type Database = {
           pinned?: boolean
           pinned_at?: string | null
           pinned_by?: string | null
+          webhook_id?: string | null
           created_at?: string
         }
         Update: {
@@ -673,6 +675,7 @@ export type Database = {
           pinned?: boolean
           pinned_at?: string | null
           pinned_by?: string | null
+          webhook_id?: string | null
           created_at?: string
         }
         Relationships: [
@@ -3117,6 +3120,10 @@ export type Database = {
       set_event_capacity_and_promote: {
         Args: { p_event_id: string; p_server_id: string; p_new_capacity: number }
         Returns: number
+      }
+      delete_server_cascade: {
+        Args: { p_server_id: string }
+        Returns: undefined
       }
     }
     Enums: {

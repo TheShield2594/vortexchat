@@ -528,7 +528,7 @@ const MemberItem = memo(function MemberItem({
       >
         <ContextMenuTrigger asChild>
           <div
-            className="flex items-center gap-2 px-2 py-1.5 mx-2 rounded cursor-pointer hover:bg-white/5 transition-colors group"
+            className="flex items-center gap-2 px-2 py-1.5 md:py-1.5 mx-2 rounded cursor-pointer hover:bg-white/5 transition-colors group min-h-[44px]"
             onClick={(event) => {
               event.preventDefault()
               onViewProfile()

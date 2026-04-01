@@ -67,13 +67,13 @@ export function CategoryHeader({
             ref={setNodeRef}
             type="button"
             onClick={onToggle}
-            className="flex items-center gap-1 flex-1 min-w-0 text-left focus-ring rounded-sm"
+            className="flex items-center gap-1 flex-1 min-w-0 min-h-[44px] text-left focus-ring rounded-sm"
             aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
           >
             {isCollapsed ? (
-              <ChevronRight className="w-3.5 h-3.5 md:w-3 md:h-3 tertiary-metadata" />
+              <ChevronRight className="w-4 h-4 md:w-3 md:h-3 tertiary-metadata" />
             ) : (
-              <ChevronDown className="w-3.5 h-3.5 md:w-3 md:h-3 tertiary-metadata" />
+              <ChevronDown className="w-4 h-4 md:w-3 md:h-3 tertiary-metadata" />
             )}
             <span className="text-sm md:text-xs font-semibold uppercase tracking-wider tertiary-metadata truncate">
               {category.name}

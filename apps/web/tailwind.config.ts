@@ -79,21 +79,34 @@ const config = {
         },
       },
       /**
-       * Z-index scale — centralised so stacking is intentional.
+       * Z-index scale — unified with CSS custom properties in globals.css.
        *
-       *  dropdown / autocomplete  →  z-dropdown   (50)
-       *  sticky headers           →  z-sticky      (100)
-       *  overlays / modals        →  z-overlay     (200)
-       *  toasts / notifications   →  z-toast       (500)
-       *  PWA install banner       →  z-banner      (9998)
-       *  push-permission prompt   →  z-banner-high (9999)
-       *  splash screen            →  z-splash      (99999)
+       *  base                     →  z-base          (1)
+       *  mobile bottom tab bar    →  z-tabbar        (50)
+       *  dropdown / autocomplete  →  z-dropdown      (100)
+       *  sticky headers           →  z-sticky        (200)
+       *  modal backdrop           →  z-modal-backdrop (300)
+       *  modals                   →  z-modal         (310)
+       *  popovers                 →  z-popover       (400)
+       *  tooltips / toasts        →  z-tooltip / toast (500)
+       *  notifications            →  z-notification  (600)
+       *  overlays                 →  z-overlay       (700)
+       *  PWA install banner       →  z-banner        (9998)
+       *  push-permission prompt   →  z-banner-high   (9999)
+       *  splash screen            →  z-splash        (99999)
        */
       zIndex: {
-        dropdown: "50",
-        sticky: "100",
-        overlay: "200",
+        base: "1",
+        tabbar: "50",
+        dropdown: "100",
+        sticky: "200",
+        "modal-backdrop": "300",
+        modal: "310",
+        popover: "400",
+        tooltip: "500",
         toast: "500",
+        notification: "600",
+        overlay: "700",
         banner: "9998",
         "banner-high": "9999",
         splash: "99999",

@@ -320,6 +320,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     pinned: false,
     pinned_at: null,
     pinned_by: null,
+    webhook_id: null,
     created_at: entry.createdAt,
     author: optimisticAuthor,
     attachments: (entry.attachments ?? []).map((attachment) => ({

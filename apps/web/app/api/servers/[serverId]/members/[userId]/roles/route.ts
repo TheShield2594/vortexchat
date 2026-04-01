@@ -81,7 +81,7 @@ export async function POST(
       return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
     }
 
-    await supabase.from("audit_logs").insert({
+    const { error: auditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: user.id,
       action: "role_assigned",
@@ -94,6 +94,9 @@ export async function POST(
         after: { has_role: true },
       },
     })
+    if (auditErr) {
+      console.error("[roles] Audit log insert failed for role_assigned", { serverId, userId, roleId, error: auditErr.message })
+    }
 
     return NextResponse.json({ ok: true })
 
@@ -143,7 +146,7 @@ export async function DELETE(
       .eq("server_id", serverId)
       .single()
 
-    await supabase.from("audit_logs").insert({
+    const { error: removeAuditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: user.id,
       action: "role_removed",
@@ -156,6 +159,9 @@ export async function DELETE(
         after: { has_role: false },
       },
     })
+    if (removeAuditErr) {
+      console.error("[roles] Audit log insert failed for role_removed", { serverId, userId, roleId, error: removeAuditErr.message })
+    }
 
     return NextResponse.json({ ok: true })
 
