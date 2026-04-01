@@ -3125,6 +3125,26 @@ export type Database = {
         Args: { p_server_id: string }
         Returns: undefined
       }
+      assign_member_role: {
+        Args: {
+          p_server_id: string
+          p_user_id: string
+          p_role_id: string
+          p_actor_id: string
+          p_role_name: string | null
+        }
+        Returns: boolean
+      }
+      remove_member_role: {
+        Args: {
+          p_server_id: string
+          p_user_id: string
+          p_role_id: string
+          p_actor_id: string
+          p_role_name: string | null
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_trust_badge: 'verified' | 'partner' | 'internal'
