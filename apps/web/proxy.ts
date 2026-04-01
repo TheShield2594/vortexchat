@@ -24,12 +24,14 @@ function buildCsp(): { nonce: string; header: string } {
   const livekitHost = safeHost(livekitUrl)      // e.g. "my-app.livekit.cloud"
   const sentryHost = safeHost(sentryDsn)         // e.g. "oXXXXXX.ingest.sentry.io"
 
-  // img-src: Supabase storage, Klipy CDN, Giphy media
+  // img-src: Supabase storage, Klipy CDN, Giphy media, Twemoji
   const imgSrc = [
     "'self' blob: data:",
     supabaseHost ? `https://${supabaseHost}` : "",
     "https://*.supabase.co https://*.supabase.in",
-    "https://cdn.klipy.co https://media.giphy.com",
+    "https://cdn.klipy.co https://*.klipy.com",
+    "https://*.giphy.com https://media.giphy.com",
+    "https://cdn.jsdelivr.net",
   ].filter(Boolean).join(" ")
 
   // connect-src: Supabase (REST + Realtime WS), LiveKit, Klipy, Giphy, Sentry
@@ -38,7 +40,7 @@ function buildCsp(): { nonce: string; header: string } {
     supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : "",
     "https://*.supabase.co wss://*.supabase.co",
     livekitHost ? `wss://${livekitHost}` : "",
-    "https://api.klipy.co https://api.giphy.com",
+    "https://api.klipy.co https://api.klipy.com https://api.giphy.com",
     sentryHost ? `https://${sentryHost}` : "",
     isDev ? "ws://localhost:* http://localhost:*" : "",
   ].filter(Boolean).join(" ")
