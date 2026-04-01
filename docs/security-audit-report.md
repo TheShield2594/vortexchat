@@ -48,26 +48,12 @@ Remove the `NEXT_PUBLIC_TURN_*` env vars and fetch credentials on-demand from th
 
 ---
 
-### 2. MEDIUM — CSP Allows `unsafe-eval` and `unsafe-inline` for Scripts
+### 2. ~~MEDIUM — CSP Allows `unsafe-eval` and `unsafe-inline` for Scripts~~ ✅ REMEDIATED
 
 **Severity:** Medium | **CVSS:** 4.7 | **Category:** XSS Mitigation Weakness
-**Location:** `apps/web/next.config.js:86`
+**Location:** ~~`apps/web/next.config.js:86`~~ → `apps/web/proxy.ts` (dynamic CSP)
 
-**Issue:** The Content Security Policy includes `script-src 'self' 'unsafe-inline' 'unsafe-eval'`. While this is flagged as a Next.js requirement, `unsafe-eval` significantly weakens XSS protection by allowing `eval()`, `Function()`, and similar dynamic code execution. If an attacker achieves any form of HTML/JS injection, these directives allow full script execution.
-
-**Context:** Next.js App Router with React 19 **does not require** `unsafe-eval` in production. The `unsafe-inline` directive can be replaced with nonce-based CSP using Next.js's built-in `nonce` support.
-
-**Remediation:**
-```javascript
-// next.config.js — use nonce-based CSP
-// In proxy.ts, generate a nonce per-request:
-// const nonce = crypto.randomBytes(16).toString('base64')
-// Then pass it to CSP:
-"script-src 'self' 'nonce-${nonce}'",
-"style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com",
-```
-
-At minimum, remove `'unsafe-eval'` from production CSP. Test thoroughly — if Next.js truly requires it, document the specific scenario and consider `'wasm-unsafe-eval'` as a narrower alternative.
+**Status:** Remediated. CSP is now generated per-request in `proxy.ts` with a cryptographic nonce. `script-src` uses `'nonce-{nonce}' 'strict-dynamic'` — both `unsafe-eval` and `unsafe-inline` have been removed from the script directive. `style-src` retains `unsafe-inline` as required by Next.js CSS-in-JS. The nonce is forwarded to server components via the `x-nonce` request header and applied to the root `<html>` element in `layout.tsx`.
 
 ---
 
@@ -265,7 +251,7 @@ The following areas are well-implemented and represent strong security posture:
 | # | Severity | Finding | Effort to Fix |
 |---|---|---|---|
 | 1 | **Medium** | TURN credential in client bundle | Medium |
-| 2 | **Medium** | CSP `unsafe-eval` + `unsafe-inline` | Medium |
+| 2 | ~~**Medium**~~ ✅ | ~~CSP `unsafe-eval` + `unsafe-inline`~~ Remediated | — |
 | 3 | **Medium** | 30–120s auth cache on signal server | Low |
 | 4 | **Medium** | Step-up secret falls back to shared key | Low |
 | 5 | **Medium** | No per-event auth on signal events | Medium |

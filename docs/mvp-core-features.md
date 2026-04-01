@@ -98,6 +98,7 @@
 | Input validation hardening | Done | Search query capped at 500 chars; command args at 4000; login email/password format + length checks; passkey registration field type + length validation |
 | GDPR data export | Done | `GET /api/users/export` — JSON download of profile, messages, DMs, friends, servers, reactions; button in Security settings |
 | Verify all migrations in Supabase | Done | Migration 00070: fixed `search_path` on 5 SECURITY DEFINER functions (00053, 00054, 00065, 00058); fixed NULL-in-IN-list on `user_activity_log.ref_type`; added compat shim for deprecated `auth.users.is_super_admin` in system bot (00015) |
+| CSP nonce-based script policy | Done | Removed `unsafe-eval` and `unsafe-inline` from `script-src`; per-request nonce generated in `proxy.ts` with `strict-dynamic`; nonce propagated to layout via `x-nonce` header |
 
 ## Media Playback
 

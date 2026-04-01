@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import { headers } from "next/headers"
 import { Inter, Space_Grotesk } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
@@ -55,13 +56,15 @@ export const viewport: Viewport = {
 }
 
 /** Top-level HTML shell — applies Inter (body) + Space Grotesk (display/headings), dark theme, and global toast notifications. */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const nonce = (await headers()).get("x-nonce") ?? ""
+
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning nonce={nonce}>
       <head>
         <meta name="color-scheme" content="dark" />
         <meta name="format-detection" content="telephone=no" />
