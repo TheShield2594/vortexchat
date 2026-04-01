@@ -3121,6 +3121,10 @@ export type Database = {
         Args: { p_event_id: string; p_server_id: string; p_new_capacity: number }
         Returns: number
       }
+      delete_server_cascade: {
+        Args: { p_server_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_trust_badge: 'verified' | 'partner' | 'internal'
