@@ -1,3 +1,4 @@
+import { createHash } from "crypto"
 import { createServer, type IncomingMessage, type ServerResponse } from "http"
 import { Server, type Socket } from "socket.io"
 import { createAdapter } from "@socket.io/redis-adapter"
@@ -166,11 +167,19 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
         return
       }
 
-      await revokeToken(token)
+      const persisted = await revokeToken(token)
+      if (!persisted) {
+        res.writeHead(503, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Failed to persist revocation" }))
+        return
+      }
 
-      // Force-disconnect any sockets currently using this token
+      // Force-disconnect any sockets currently using this token.
+      // io.fetchSockets() is cluster-safe — it enumerates sockets across all
+      // replicas when the Redis adapter is attached.
       let disconnected = 0
-      for (const [, s] of io.sockets.sockets) {
+      const sockets = await io.fetchSockets()
+      for (const s of sockets) {
         if (s.handshake.auth?.token === token) {
           sessionValidationCache.delete(s.id)
           s.emit("error", { message: "Session revoked" })
@@ -244,8 +253,15 @@ const sessionValidationCache = new Map<string, { validatedAt: number; userId: st
 // When sessions are revoked (password change, admin action, logout) the web app
 // POSTs to /revoke-token so the signal server can immediately reject the token
 // without waiting for the next Supabase revalidation cycle.
+//
+// Tokens are stored as SHA-256 digests — never store raw bearer tokens in Redis
+// or process memory to limit blast radius of a key scan or memory dump.
 const REVOCATION_PREFIX = "vortex:revoked-token"
 const REVOCATION_TTL_SECONDS = 3600 // keep entries for 1 hour then auto-expire
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex")
+}
 
 let revocationRedis: Redis | null = null
 if (REDIS_URL) {
@@ -256,15 +272,16 @@ if (REDIS_URL) {
 const inMemoryRevocations = new Map<string, number>()
 
 async function isTokenRevoked(token: string): Promise<boolean> {
+  const digest = hashToken(token)
   try {
     if (revocationRedis) {
-      const exists = await revocationRedis.exists(`${REVOCATION_PREFIX}:${token}`)
+      const exists = await revocationRedis.exists(`${REVOCATION_PREFIX}:${digest}`)
       return exists === 1
     }
-    const expiresAt = inMemoryRevocations.get(token)
+    const expiresAt = inMemoryRevocations.get(digest)
     if (expiresAt === undefined) return false
     if (Date.now() > expiresAt) {
-      inMemoryRevocations.delete(token)
+      inMemoryRevocations.delete(digest)
       return false
     }
     return true
@@ -274,28 +291,31 @@ async function isTokenRevoked(token: string): Promise<boolean> {
   }
 }
 
-async function revokeToken(token: string): Promise<void> {
+async function revokeToken(token: string): Promise<boolean> {
+  const digest = hashToken(token)
   try {
     if (revocationRedis) {
       await revocationRedis.set(
-        `${REVOCATION_PREFIX}:${token}`,
+        `${REVOCATION_PREFIX}:${digest}`,
         "1",
         "EX",
         REVOCATION_TTL_SECONDS,
       )
     } else {
-      inMemoryRevocations.set(token, Date.now() + REVOCATION_TTL_SECONDS * 1000)
+      inMemoryRevocations.set(digest, Date.now() + REVOCATION_TTL_SECONDS * 1000)
     }
+    return true
   } catch (err) {
     logger.error({ err }, "failed to persist token revocation")
+    return false
   }
 }
 
 // Periodic cleanup of expired in-memory revocations
 setInterval(() => {
   const now = Date.now()
-  for (const [token, expiresAt] of inMemoryRevocations) {
-    if (now > expiresAt) inMemoryRevocations.delete(token)
+  for (const [digest, expiresAt] of inMemoryRevocations) {
+    if (now > expiresAt) inMemoryRevocations.delete(digest)
   }
 }, 60_000)
 
@@ -435,6 +455,14 @@ io.on("connection", (socket: Socket) => {
           socket.emit("error", { message: "Authentication required" })
           return
         }
+
+        // Check revocation list before hitting Supabase
+        if (await isTokenRevoked(authToken)) {
+          socket.emit("error", { message: "Session revoked" })
+          socket.disconnect(true)
+          return
+        }
+
         const { data: { user }, error } = await supabase.auth.getUser(authToken)
         if (error || !user) {
           socket.emit("error", { message: "Unauthorized" })
@@ -657,6 +685,7 @@ io.on("connection", (socket: Socket) => {
       const { speaking } = payload as { speaking?: unknown }
       if (typeof speaking !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
+      if (!(await validateSession(socket))) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
       if (!(await verifyChannelMembership(peer))) return
@@ -678,6 +707,7 @@ io.on("connection", (socket: Socket) => {
       const { muted } = payload as { muted?: unknown }
       if (typeof muted !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
+      if (!(await validateSession(socket))) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
       if (!(await verifyChannelMembership(peer))) return
@@ -699,6 +729,7 @@ io.on("connection", (socket: Socket) => {
       const { deafened } = payload as { deafened?: unknown }
       if (typeof deafened !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
+      if (!(await validateSession(socket))) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
       if (!(await verifyChannelMembership(peer))) return
@@ -720,6 +751,7 @@ io.on("connection", (socket: Socket) => {
       const { sharing } = payload as { sharing?: unknown }
       if (typeof sharing !== "boolean") return
       if (!checkSocketRate(socket.id, "voiceState")) return
+      if (!(await validateSession(socket))) return
       const peer = await findPeerRoom(socket.id)
       if (!peer) return
       if (!(await verifyChannelMembership(peer))) return
