@@ -29,17 +29,20 @@ export function useApplyAppearance(): void {
     }))
   )
 
-  // Auto-detect OS prefers-contrast: more on initial mount.
-  // If the user hasn't explicitly toggled highContrast, inherit from OS.
+  // Auto-detect OS prefers-contrast: more after store hydration.
+  // Waits for zustand persist to finish so we read the real persisted value
+  // rather than the pre-hydration default, avoiding overriding an explicit "off".
   const setHighContrast = useAppearanceStore((s) => s.setHighContrast)
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-contrast: more)")
-    if (mq.matches && !highContrast) {
-      setHighContrast(true)
-    }
-    // Only run on mount — manual toggle overrides system preference
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    const unsub = useAppearanceStore.persist.onFinishHydration(() => {
+      const { highContrast: persisted } = useAppearanceStore.getState()
+      const mq = window.matchMedia("(prefers-contrast: more)")
+      if (mq.matches && !persisted) {
+        setHighContrast(true)
+      }
+    })
+    return unsub
+  }, [setHighContrast])
 
   useEffect(() => {
     const root = document.documentElement

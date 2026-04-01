@@ -22,7 +22,7 @@ function buildCsp(): { nonce: string; header: string } {
   // Extract hostnames for CSP directives
   const supabaseHost = safeHost(supabaseUrl)   // e.g. "xyz.supabase.co"
   const livekitHost = safeHost(livekitUrl)      // e.g. "my-app.livekit.cloud"
-  const sentryHost = safeSentryHost(sentryDsn)  // e.g. "oXXXXXX.ingest.sentry.io"
+  const sentryHost = safeHost(sentryDsn)         // e.g. "oXXXXXX.ingest.sentry.io"
 
   // img-src: Supabase storage, Klipy CDN, Giphy media
   const imgSrc = [
@@ -59,20 +59,10 @@ function buildCsp(): { nonce: string; header: string } {
   return { nonce, header }
 }
 
-/** Extract hostname from a URL, returning empty string on failure. */
+/** Extract hostname from a URL or DSN, returning empty string on failure. */
 function safeHost(url: string): string {
   try {
     return new URL(url).hostname
-  } catch {
-    return ""
-  }
-}
-
-/** Extract the ingest hostname from a Sentry DSN (https://key@host/id). */
-function safeSentryHost(dsn: string): string {
-  try {
-    const url = new URL(dsn)
-    return url.hostname
   } catch {
     return ""
   }
