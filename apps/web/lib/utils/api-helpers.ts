@@ -212,14 +212,14 @@ export async function insertAuditLog(
   })
 
   if (error) {
-    log.error("Audit log insert failed", {
+    log.error({
       action: entry.action,
       server_id: entry.server_id,
       actor_id: entry.actor_id,
       target_id: entry.target_id ?? null,
       db_error: error.message,
       db_code: error.code,
-    })
+    }, "Audit log insert failed")
   }
 
   return { error: error ? { message: error.message, code: error.code } : null }
