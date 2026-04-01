@@ -53,12 +53,10 @@ export class RedisEventBus implements IEventBus {
     this.pubClient = new Redis(redisUrl, { maxRetriesPerRequest: 3 })
     this.subClient = new Redis(redisUrl, { maxRetriesPerRequest: 3 })
 
-    this.subClient.subscribe(PUBSUB_CHANNEL, (err: Error | null) => {
-      if (err) {
-        log.error({ err }, "failed to subscribe to event bus pub/sub channel")
-      } else {
-        log.info("event bus subscribed to pub/sub channel")
-      }
+    this.subClient.subscribe(PUBSUB_CHANNEL).then(() => {
+      log.info("event bus subscribed to pub/sub channel")
+    }).catch((err: unknown) => {
+      log.error({ err }, "failed to subscribe to event bus pub/sub channel")
     })
 
     this.subClient.on("message", (_channel: string, message: string) => {
