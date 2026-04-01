@@ -53,7 +53,7 @@ function computeLabel(startAt: Date): string {
 export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compact = false, canEdit = false, onDelete, onCancel }: EventCardProps) {
   const router = useRouter()
   const countdown = useCountdown(occurrence.startAt)
-  const myStatus: RsvpStatus = event?.myRsvp?.status ?? null
+  const myStatus: RsvpStatus = (event?.myRsvp?.status as RsvpStatus) ?? null
   const interestedCount = (event?.stats?.going ?? 0) + (event?.stats?.maybe ?? 0) + (event?.stats?.interested ?? 0)
 
   const isLive = countdown === "\uD83D\uDD34 Live now"

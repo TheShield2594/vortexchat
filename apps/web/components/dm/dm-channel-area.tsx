@@ -760,11 +760,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           // Only add if it's from someone else (we already added our own optimistically)
           if (msg.sender_id !== currentUserId) {
             playNotification()
-            supabase
+            ;(supabase
               .from("direct_messages")
               .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status), reply_to_id")
               .eq("id", msg.id as string)
-              .single()
+              .single() as unknown as Promise<{ data: Record<string, unknown> | null }>)
               .then(async ({ data }: { data: Record<string, unknown> | null }) => {
                 if (!data) return
                 // Resolve reply_to if present
@@ -773,7 +773,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                   const { data: replyData } = await supabase
                     .from("direct_messages")
                     .select("id, content, sender_id, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status)")
-                    .eq("id", data.reply_to_id)
+                    .eq("id", data.reply_to_id as string)
                     .eq("dm_channel_id", channelId)
                     .is("deleted_at", null)
                     .single()
@@ -783,7 +783,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 const { data: attRows } = await untypedFrom(supabase, "dm_attachments")
                   .select("id, filename, size, content_type")
                   .eq("dm_id", data.id as string)
-                const newMsg: Message = { ...data, reply_to: replyToMsg, dm_attachments: attRows ?? [], reactions: [] }
+                const newMsg: Message = { ...data as unknown as Message, reply_to: replyToMsg, dm_attachments: attRows ?? [], reactions: [] }
                 setMessages((prev) => [...prev, newMsg])
 
                 // Incrementally index the new message if the channel is encrypted
@@ -2447,14 +2447,14 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
       if (payload.from === clientId.current) return
       try {
         if (payload.type === "offer") {
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.offer ?? payload.payload))
+          await pc.setRemoteDescription(new RTCSessionDescription((payload.offer ?? payload.payload) as RTCSessionDescriptionInit))
           const answer = await pc.createAnswer()
           await pc.setLocalDescription(answer)
           sigChannel.send({ type: "broadcast", event: "call-signal", payload: { type: "answer", answer, from: clientId.current } })
         } else if (payload.type === "answer") {
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.answer ?? payload.payload))
+          await pc.setRemoteDescription(new RTCSessionDescription((payload.answer ?? payload.payload) as RTCSessionDescriptionInit))
         } else if (payload.type === "ice-candidate") {
-          await pc.addIceCandidate(new RTCIceCandidate(payload.candidate ?? payload.payload))
+          await pc.addIceCandidate(new RTCIceCandidate((payload.candidate ?? payload.payload) as RTCIceCandidateInit))
         } else if (payload.type === "hangup") {
           onHangup()
         }

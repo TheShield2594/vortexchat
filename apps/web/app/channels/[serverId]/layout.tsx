@@ -159,7 +159,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
     deafened: boolean
     users: VoiceParticipant["user"] | null
   }
-  const initialVoiceParticipants: VoiceParticipant[] = (voiceStateRows as VoiceStateRow[] ?? []).map((d) => ({
+  const initialVoiceParticipants: VoiceParticipant[] = ((voiceStateRows as unknown as VoiceStateRow[]) ?? []).map((d) => ({
     user_id: d.user_id,
     channel_id: d.channel_id,
     muted: d.muted,

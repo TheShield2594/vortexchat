@@ -6,7 +6,7 @@ import { Calendar, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { expandEventOccurrences, formatInTimeZone } from "@/lib/events"
+import { expandEventOccurrences, formatInTimeZone, type EventModel } from "@/lib/events"
 import type { EventOccurrence } from "@/lib/events"
 import { useToast } from "@/components/ui/use-toast"
 import { EventCard } from "./event-card"
@@ -128,7 +128,7 @@ export function EventsCalendar({
   }, [view, anchor])
 
   const occurrences = useMemo(
-    () => expandEventOccurrences(events, range.start, range.end),
+    () => expandEventOccurrences(events as unknown as EventModel[], range.start, range.end),
     [events, range]
   )
 

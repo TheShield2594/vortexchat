@@ -25,9 +25,9 @@ export function WorkspaceReferenceEmbed({ type, id }: { type: "task" | "doc"; id
     <div className="mt-2 rounded border border-[var(--theme-bg-tertiary)] bg-[var(--theme-bg-secondary)] p-2 text-xs text-zinc-200">
       <div className="mb-1 flex items-center gap-1 font-medium text-white">
         {type === "task" ? <CheckSquare className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
-        {type.toUpperCase()} • {data.title}
+        {type.toUpperCase()} • {data.title as string}
       </div>
-      {type === "task" ? <div>Status: {data.status}</div> : <div>Updated: {new Date(data.updated_at).toLocaleString()}</div>}
+      {type === "task" ? <div>Status: {data.status as string}</div> : <div>Updated: {new Date(data.updated_at as string).toLocaleString()}</div>}
     </div>
   )
 }
