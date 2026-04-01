@@ -639,6 +639,7 @@ export type Database = {
           pinned: boolean
           pinned_at: string | null
           pinned_by: string | null
+          webhook_id: string | null
           created_at: string
         }
         Insert: {
@@ -656,6 +657,7 @@ export type Database = {
           pinned?: boolean
           pinned_at?: string | null
           pinned_by?: string | null
+          webhook_id?: string | null
           created_at?: string
         }
         Update: {
@@ -673,6 +675,7 @@ export type Database = {
           pinned?: boolean
           pinned_at?: string | null
           pinned_by?: string | null
+          webhook_id?: string | null
           created_at?: string
         }
         Relationships: [

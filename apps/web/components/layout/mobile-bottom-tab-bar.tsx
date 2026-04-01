@@ -38,7 +38,7 @@ export function MobileBottomTabBar() {
 
   return (
     <nav
-      className="md:hidden fixed z-40 left-3 right-3"
+      className="md:hidden fixed z-tabbar left-3 right-3"
       style={{
         bottom: "calc(var(--mobile-tabbar-gap) + env(safe-area-inset-bottom))",
       }}
@@ -68,7 +68,7 @@ export function MobileBottomTabBar() {
                 onClick={() => { if (!active) navigator.vibrate?.(10) }}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex items-center justify-center gap-1.5 rounded-xl px-3 h-[40px] transition-all",
+                  "relative flex items-center justify-center gap-1.5 rounded-xl px-3 h-[44px] transition-all",
                   "motion-safe:duration-200 motion-safe:ease-out",
                   active ? "min-w-[72px]" : "w-10",
                 )}
@@ -84,7 +84,7 @@ export function MobileBottomTabBar() {
                   {badgeCount > 0 && (
                     <span
                       className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[10px] font-bold px-0.5"
-                      style={{ background: "var(--theme-danger)", color: "white" }}
+                      style={{ background: "var(--theme-danger)", color: "var(--theme-danger-foreground)" }}
                     >
                       {badgeCount > 99 ? "99+" : badgeCount}
                     </span>

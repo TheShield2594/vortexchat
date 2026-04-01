@@ -220,6 +220,17 @@
 | DB-level status change listener | Done | `member-list.tsx` subscribes to `postgres_changes` on users table for immediate cron-triggered offline updates |
 | sendBeacon as fast-path fallback | Done | Still used on tab close for immediate offline; heartbeat cron is the safety net |
 
+## Hardening — Bug Fixes (2026-04-01)
+
+| Fix | Status | Notes |
+|-----|--------|-------|
+| Hardcoded `color: "white"` in badges (#578) | Done | Added `--theme-danger-foreground` design token; replaced all `color: "white"` on danger backgrounds with theme-aware token |
+| Z-index scale misalignment (#577) | Done | Unified Tailwind config to match CSS variable scale; added `z-tabbar` (50) for mobile nav; replaced all `z-40` with semantic classes |
+| Mobile touch targets below WCAG 44px (#573) | Done | Tab bar links → 44px; member list rows → `min-h-[44px]`; category buttons → `min-h-[44px]`; reaction chips → `min-h-[44px]` with padding |
+| Audit log fire-and-forget (#554) | Done | `insertAuditLog` helper now logs errors; all direct `.from("audit_logs").insert()` calls updated to check and log errors |
+| Server deletion cascade non-atomic (#553) | Done | Created `delete_server_cascade` RPC (migration 00084); single-transaction deletion replaces sequential per-table deletes |
+| Webhook messages attributed to owner (#548) | Done | Added `webhook_id` FK column to messages (migration 00085); webhook route uses `SYSTEM_BOT_ID` as author; BOT badge shown in message UI |
+
 ---
 
-*Last updated: 2026-03-31*
+*Last updated: 2026-04-01*

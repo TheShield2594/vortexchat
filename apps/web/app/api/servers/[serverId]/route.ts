@@ -275,49 +275,26 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Only the server owner can delete the server" }, { status: 403 })
     }
 
-    // Delete associated data in dependency order
-    const cascadeTables = [
-      "messages", "channels", "member_roles", "roles",
-      "server_members", "invites", "automod_rules",
-      "screening_configs", "webhooks", "server_emojis",
-    ] as const
-    const cascadeErrors: Array<{ table: string; message: string }> = []
+    // Atomic cascade deletion via stored procedure — either everything
+    // is removed in a single transaction or nothing is.
+    const { error: rpcError } = await supabase.rpc("delete_server_cascade", {
+      p_server_id: serverId,
+    })
 
-    for (const table of cascadeTables) {
-      const { error } = await supabase.from(table).delete().eq("server_id", serverId)
-      if (error) cascadeErrors.push({ table, message: error.message })
-    }
-
-    if (cascadeErrors.length > 0) {
+    if (rpcError) {
       await insertAuditLog(supabase, {
         server_id: serverId,
         actor_id: user.id,
         action: "server_delete_failed",
         target_id: serverId,
         target_type: "server",
-        changes: { cascade_errors: { old: null, new: cascadeErrors } } as Record<string, Json | undefined>,
-      })
-      return NextResponse.json({ error: "Failed to delete server: cascade cleanup failed" }, { status: 500 })
-    }
-
-    const { error: deleteError } = await supabase
-      .from("servers")
-      .delete()
-      .eq("id", serverId)
-
-    if (deleteError) {
-      await insertAuditLog(supabase, {
-        server_id: serverId,
-        actor_id: user.id,
-        action: "server_delete_failed",
-        target_id: serverId,
-        target_type: "server",
-        changes: { error: { old: null, new: deleteError.message } } as Record<string, Json | undefined>,
+        changes: { error: { old: null, new: rpcError.message } } as Record<string, Json | undefined>,
       })
       return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
     }
 
-    // Audit log after successful deletion
+    // Audit log after successful deletion — the server row is gone, so we
+    // log with best-effort (the audit_logs row references the now-deleted server).
     await insertAuditLog(supabase, {
       server_id: serverId,
       actor_id: user.id,

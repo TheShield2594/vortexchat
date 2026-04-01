@@ -211,7 +211,7 @@ export function InviteModal({ serverId, serverName, onClose }: Props) {
                       <div className="flex items-center gap-2">
                         <code className="text-sm font-mono text-white">{invite.code}</code>
                         {(isExpired || isExhausted) && (
-                          <span className="text-xs px-1 rounded" style={{ background: "var(--theme-danger)", color: "white" }}>
+                          <span className="text-xs px-1 rounded" style={{ background: "var(--theme-danger)", color: "var(--theme-danger-foreground)" }}>
                             {isExpired ? "Expired" : "Exhausted"}
                           </span>
                         )}

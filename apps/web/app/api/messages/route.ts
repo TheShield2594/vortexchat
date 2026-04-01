@@ -309,7 +309,7 @@ async function runServerAutomodChecks({
   const quarantined = shouldQuarantineMessage(violations)
   const dryRun = Boolean(settingsData?.automod_dry_run)
 
-  await supabase.from("audit_logs").insert({
+  const { error: auditErr } = await supabase.from("audit_logs").insert({
     server_id: serverId,
     actor_id: user.id,
     action: dryRun ? "automod_dry_run" : blocked ? "automod_block" : "automod_action",
@@ -323,6 +323,9 @@ async function runServerAutomodChecks({
       violations: violations.map((v) => ({ rule_id: v.rule_id, rule_name: v.rule_name, reason: v.reason })),
     },
   })
+  if (auditErr) {
+    console.error("[automod] Audit log insert failed", { serverId, userId: user.id, action: dryRun ? "automod_dry_run" : blocked ? "automod_block" : "automod_action", error: auditErr.message })
+  }
 
   await Promise.all(
     violations.map((violation) =>
@@ -345,7 +348,7 @@ async function runServerAutomodChecks({
       { onConflict: "server_id,user_id" }
     )
 
-    await supabase.from("audit_logs").insert({
+    const { error: timeoutAuditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: null,
       action: "automod_timeout",
@@ -353,6 +356,9 @@ async function runServerAutomodChecks({
       target_type: "user",
       changes: { duration_seconds: timeoutDuration, reason: violations[0].reason },
     })
+    if (timeoutAuditErr) {
+      console.error("[automod] Timeout audit log insert failed", { serverId, userId: user.id, error: timeoutAuditErr.message })
+    }
   }
 
   const alertChannels = getAlertChannels(violations)
@@ -370,8 +376,8 @@ async function runServerAutomodChecks({
                 mentions: [],
                 mention_everyone: false,
               })
-              .then(() =>
-                supabase.from("audit_logs").insert({
+              .then(async () => {
+                const { error: alertAuditErr } = await supabase.from("audit_logs").insert({
                   server_id: serverId,
                   actor_id: null,
                   action: "automod_alert",
@@ -379,7 +385,10 @@ async function runServerAutomodChecks({
                   target_type: "user",
                   changes: { channel_id: alertChannelId, reason: violations[0].reason },
                 })
-              )
+                if (alertAuditErr) {
+                  console.error("[automod] Alert audit log insert failed", { serverId, channelId: alertChannelId, error: alertAuditErr.message })
+                }
+              })
           )
         ).catch(() => {})
       })

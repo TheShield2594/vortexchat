@@ -125,7 +125,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (dbErr) return NextResponse.json({ error: "Failed to update automod rule" }, { status: 500 })
 
-  await supabase.from("audit_logs").insert({
+  const { error: auditErr } = await supabase.from("audit_logs").insert({
     server_id: serverId,
     actor_id: user!.id,
     action: "automod_rule_updated",
@@ -133,6 +133,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     target_type: "automod_rule",
     changes: updates as unknown as Json,
   })
+  if (auditErr) {
+    console.error("[automod] Audit log insert failed for automod_rule_updated", { serverId, ruleId, error: auditErr.message })
+  }
 
   return NextResponse.json(updated)
   } catch (err) {
@@ -150,7 +153,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     const { error: dbErr } = await supabase.from("automod_rules").delete().eq("id", ruleId).eq("server_id", serverId)
     if (dbErr) return NextResponse.json({ error: "Failed to delete automod rule" }, { status: 500 })
 
-    await supabase.from("audit_logs").insert({
+    const { error: deleteAuditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: user!.id,
       action: "automod_rule_deleted",
@@ -158,6 +161,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       target_type: "automod_rule",
       changes: { name: rule!.name },
     })
+    if (deleteAuditErr) {
+      console.error("[automod] Audit log insert failed for automod_rule_deleted", { serverId, ruleId, error: deleteAuditErr.message })
+    }
 
     return NextResponse.json({ message: "Rule deleted" })
 

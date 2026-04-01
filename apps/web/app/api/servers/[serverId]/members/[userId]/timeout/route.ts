@@ -87,7 +87,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     if (error) return NextResponse.json({ error: "Failed to apply timeout" }, { status: 500 })
 
-    await supabase.from("audit_logs").insert({
+    const { error: auditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: user.id,
       action: "member_timeout",
@@ -95,6 +95,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
       target_type: "user",
       changes: { duration_seconds, reason: reason ?? null, until },
     })
+    if (auditErr) {
+      console.error("[timeout] Audit log insert failed for member_timeout", { serverId, userId, error: auditErr.message })
+    }
 
     // Notify the timed-out user
     const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", serverId).maybeSingle()
@@ -134,7 +137,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
     if (error) return NextResponse.json({ error: "Failed to remove timeout" }, { status: 500 })
 
-    await supabase.from("audit_logs").insert({
+    const { error: removeAuditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: user.id,
       action: "member_timeout_remove",
@@ -142,6 +145,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       target_type: "user",
       changes: null,
     })
+    if (removeAuditErr) {
+      console.error("[timeout] Audit log insert failed for member_timeout_remove", { serverId, userId, error: removeAuditErr.message })
+    }
 
     return NextResponse.json({ message: "Timeout removed" })
   } catch {

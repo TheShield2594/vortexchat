@@ -162,7 +162,7 @@ export default function ComparePage(): React.JSX.Element {
     >
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <nav
-        className="sticky top-0 z-40 border-b backdrop-blur-md"
+        className="sticky top-0 z-sticky border-b backdrop-blur-md"
         style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(27,31,49,0.85)" }}
         aria-label="Main navigation"
       >

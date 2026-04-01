@@ -692,7 +692,7 @@ export function AppearanceSettingsPage(): React.ReactElement {
                 type="button"
                 onClick={handleResetDefaults}
                 className="px-3 py-1.5 rounded text-xs font-semibold transition-colors"
-                style={{ background: "var(--theme-danger)", color: "white" }}
+                style={{ background: "var(--theme-danger)", color: "var(--theme-danger-foreground)" }}
               >
                 Reset
               </button>

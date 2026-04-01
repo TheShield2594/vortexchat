@@ -110,7 +110,7 @@ export async function PATCH(
     after[key] = updatedRole[key as keyof typeof updatedRole]
   }
 
-  await supabase.from("audit_logs").insert({
+  const { error: auditErr } = await supabase.from("audit_logs").insert({
     server_id: serverId,
     actor_id: user.id,
     action: "role_updated",
@@ -122,6 +122,9 @@ export async function PATCH(
       after,
     } as unknown as Json,
   })
+  if (auditErr) {
+    console.error("[roles] Audit log insert failed for role_updated", { serverId, roleId, error: auditErr.message })
+  }
 
   return NextResponse.json(updatedRole)
 }
@@ -185,7 +188,7 @@ export async function DELETE(
     }
 
     // Audit log the deletion
-    await supabase.from("audit_logs").insert({
+    const { error: deleteAuditErr } = await supabase.from("audit_logs").insert({
       server_id: serverId,
       actor_id: user.id,
       action: "role_deleted",
@@ -198,6 +201,9 @@ export async function DELETE(
         role_permissions: targetRole.permissions,
       } as unknown as Json,
     })
+    if (deleteAuditErr) {
+      console.error("[roles] Audit log insert failed for role_deleted", { serverId, roleId, error: deleteAuditErr.message })
+    }
 
     return new NextResponse(null, { status: 204 })
 

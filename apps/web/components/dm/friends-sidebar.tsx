@@ -286,7 +286,7 @@ export function FriendsSidebar({ compact, onStartDM }: { compact?: boolean; onSt
             {t.count && t.count > 0 ? (
               <span
                 className="px-1.5 py-0.5 rounded-full text-xs font-bold"
-                style={{ background: "var(--theme-danger)", color: "white" }}
+                style={{ background: "var(--theme-danger)", color: "var(--theme-danger-foreground)" }}
               >
                 {t.count}
               </span>

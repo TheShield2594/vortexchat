@@ -195,14 +195,14 @@ interface AuditLogEntry {
 /**
  * Insert an audit log row using the provided Supabase client.
  *
- * Replace the 15+ copies of:
- *   await supabase.from("audit_logs").insert({ server_id, actor_id, action, ... })
+ * Logs errors server-side rather than silently swallowing them.
+ * Returns the Supabase result so callers can optionally handle errors.
  */
 export async function insertAuditLog(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   entry: AuditLogEntry
-) {
-  return supabase.from("audit_logs").insert({
+): Promise<{ error: { message: string; code?: string } | null }> {
+  const { error } = await supabase.from("audit_logs").insert({
     server_id: entry.server_id,
     actor_id: entry.actor_id,
     action: entry.action,
@@ -210,4 +210,17 @@ export async function insertAuditLog(
     target_type: entry.target_type ?? null,
     changes: (entry.changes as Json) ?? null,
   })
+
+  if (error) {
+    log.error("Audit log insert failed", {
+      action: entry.action,
+      server_id: entry.server_id,
+      actor_id: entry.actor_id,
+      target_id: entry.target_id ?? null,
+      db_error: error.message,
+      db_code: error.code,
+    })
+  }
+
+  return { error: error ? { message: error.message, code: error.code } : null }
 }

@@ -108,7 +108,7 @@ export async function PATCH(
   }
 
   // Audit log the reorder
-  await supabase.from("audit_logs").insert({
+  const { error: auditErr } = await supabase.from("audit_logs").insert({
     server_id: serverId,
     actor_id: user.id,
     action: "roles_reordered",
@@ -119,6 +119,9 @@ export async function PATCH(
       after: afterPositions,
     },
   })
+  if (auditErr) {
+    console.error("[roles] Audit log insert failed for roles_reordered", { serverId, error: auditErr.message })
+  }
 
   // Fetch and return the updated roles
   const { data: updatedRoles, error: refetchError } = await supabase
