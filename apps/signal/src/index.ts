@@ -1,4 +1,4 @@
-import { createHash } from "crypto"
+import { createHash, randomUUID } from "crypto"
 import { createServer, type IncomingMessage, type ServerResponse } from "http"
 import { Server, type Socket } from "socket.io"
 import { createAdapter } from "@socket.io/redis-adapter"
@@ -245,23 +245,32 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
       }
 
       // Publish to Redis pub/sub so all replicas evict the user
+      let publishFailed = false
       if (forceDisconnectPub) {
         try {
           await forceDisconnectPub.publish(
             FORCE_DISCONNECT_CHANNEL,
-            JSON.stringify({ userId, serverId } satisfies ForceDisconnectPayload),
+            JSON.stringify({ userId, serverId, originNodeId: NODE_ID } satisfies ForceDisconnectPayload),
           )
         } catch (pubErr) {
-          logger.error({ pubErr }, "failed to publish force-disconnect — falling back to local eviction")
+          publishFailed = true
+          logger.error({ pubErr }, "failed to publish force-disconnect — falling back to local-only eviction")
         }
       }
 
-      // Also evict locally (handles single-instance and the originating replica)
+      // Evict locally (handles single-instance and the originating replica)
       const evicted = await evictUserFromServer(userId, serverId)
 
-      logger.info({ userId, serverId, evicted }, "force-disconnect processed")
-      res.writeHead(200, { "Content-Type": "application/json" })
-      res.end(JSON.stringify({ ok: true, evicted }))
+      if (publishFailed) {
+        // Local eviction succeeded but cross-replica fanout failed
+        logger.warn({ userId, serverId, evicted }, "force-disconnect partial — Redis publish failed")
+        res.writeHead(207, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ ok: false, partial: true, evicted, error: "Redis fanout failed — only local replica processed" }))
+      } else {
+        logger.info({ userId, serverId, evicted }, "force-disconnect processed")
+        res.writeHead(200, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ ok: true, evicted }))
+      }
     } catch (err) {
       logger.error({ err }, "POST /force-disconnect error")
       res.writeHead(500, { "Content-Type": "application/json" })
@@ -396,9 +405,14 @@ setInterval(() => {
 // All replicas subscribe and evict matching sockets immediately.
 const FORCE_DISCONNECT_CHANNEL = "vortex:force-disconnect"
 
+// Unique ID for this process — used to deduplicate pub/sub messages so the
+// origin replica doesn't process its own published force-disconnect twice.
+const NODE_ID = randomUUID()
+
 interface ForceDisconnectPayload {
   userId: string
   serverId: string
+  originNodeId: string
 }
 
 let forceDisconnectSub: Redis | null = null
@@ -421,8 +435,10 @@ if (REDIS_URL) {
     try {
       const payload: unknown = JSON.parse(message)
       if (typeof payload !== "object" || payload === null) return
-      const { userId, serverId } = payload as Record<string, unknown>
+      const { userId, serverId, originNodeId } = payload as Record<string, unknown>
       if (typeof userId !== "string" || typeof serverId !== "string") return
+      // Skip if this replica originated the message (it already evicted locally)
+      if (typeof originNodeId === "string" && originNodeId === NODE_ID) return
       await evictUserFromServer(userId, serverId)
     } catch (err) {
       logger.error({ err }, "force-disconnect message handler error")
@@ -462,14 +478,17 @@ async function evictUserFromServer(userId: string, serverId: string): Promise<nu
         const sockets = await io.fetchSockets()
         for (const s of sockets) {
           if (s.id === peer.socketId) {
-            s.emit("error", { message: "You have been removed from this server" })
-            // Clean up room state
+            // Clean up room state before disconnecting
             await rooms.leave(channelId, s.id)
             s.leave(channelId)
             io.to(channelId).emit("peer-left", { peerId: s.id, userId })
             if (voiceStateSync) {
               voiceStateSync.enqueueDelete({ userId, channelId })
             }
+            // Notify and force-disconnect the socket
+            s.emit("force-leave", { message: "You have been removed from this server" })
+            sessionValidationCache.delete(s.id)
+            s.disconnect(true)
             evicted++
             logger.info({ userId, channelId, serverId, socketId: s.id }, "force-disconnected user from voice channel")
           }
@@ -1069,7 +1088,7 @@ if (supabase) {
             const sock = socketMap.get(entry.socketId)
             if (!sock) continue
 
-            sock.emit("error", { message: "You are no longer a member of this server" })
+            // Clean up room state before disconnecting
             await rooms.leave(entry.channelId, entry.socketId)
             sock.leave(entry.channelId)
             io.to(entry.channelId).emit("peer-left", { peerId: entry.socketId, userId })
@@ -1077,6 +1096,11 @@ if (supabase) {
             if (voiceStateSync) {
               voiceStateSync.enqueueDelete({ userId, channelId: entry.channelId })
             }
+
+            // Notify and force-disconnect the socket
+            sock.emit("force-leave", { message: "You are no longer a member of this server" })
+            sessionValidationCache.delete(entry.socketId)
+            sock.disconnect(true)
 
             logger.info({ userId, channelId: entry.channelId, socketId: entry.socketId }, "periodic revalidation — evicted peer")
           }
