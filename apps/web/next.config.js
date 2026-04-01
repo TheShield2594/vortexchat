@@ -78,26 +78,8 @@ const nextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              // Next.js requires unsafe-inline/unsafe-eval for its runtime
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "img-src 'self' blob: data: https:",
-              "font-src 'self' data: https://fonts.gstatic.com",
-              // Allow WebSocket connections (Supabase Realtime, Livekit) and external APIs
-              "connect-src 'self' wss: https:",
-              "media-src 'self' blob: https:",
-              // Allow blob: workers for WebRTC voice processing
-              "worker-src 'self' blob:",
-              // Allow embedded YouTube streams for Stage channels
-              "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com",
-              // Prevent <frame>/<iframe> embedding
-              "frame-ancestors 'none'",
-            ].join("; "),
-          },
+          // CSP is set dynamically per-request in proxy.ts with nonce-based script-src
+          // (see proxy.ts buildCsp() — no unsafe-eval or unsafe-inline for scripts)
         ],
       },
     ]

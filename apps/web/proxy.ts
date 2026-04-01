@@ -2,6 +2,33 @@ import { NextResponse, type NextRequest } from "next/server"
 import type { User } from "@supabase/supabase-js"
 import { updateSession } from "@/lib/supabase/middleware"
 
+/**
+ * Generate a per-request nonce and Content-Security-Policy header.
+ * The nonce replaces 'unsafe-inline' / 'unsafe-eval' in script-src,
+ * and 'strict-dynamic' allows scripts loaded by nonced scripts to run.
+ */
+function buildCsp(): { nonce: string; header: string } {
+  const isDev = process.env.NODE_ENV === "development"
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  const nonce = Buffer.from(array).toString("base64")
+
+  const header = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' blob: data: https:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "connect-src 'self' wss: https:",
+    "media-src 'self' blob: https:",
+    "worker-src 'self' blob:",
+    "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com",
+    "frame-ancestors 'none'",
+  ].join("; ")
+
+  return { nonce, header }
+}
+
 // Routes that use their own auth (bearer tokens, URL tokens) — skip session
 // handling entirely so external callers are never redirected or delayed.
 const PASSTHROUGH_ROUTES = [
@@ -59,8 +86,30 @@ function isSameOrigin(request: NextRequest): boolean {
   return false
 }
 
+/**
+ * Apply CSP header and x-nonce request header to a response.
+ * The x-nonce header lets server components read the nonce via headers().
+ */
+function applyCsp(
+  response: NextResponse,
+  nonce: string,
+  cspHeader: string,
+): NextResponse {
+  response.headers.set("Content-Security-Policy", cspHeader)
+  response.headers.set("x-nonce", nonce)
+  return response
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+  const { nonce, header: cspHeader } = buildCsp()
+
+  // Forward the nonce and CSP to server components via request headers.
+  // Next.js reads Content-Security-Policy from request headers during SSR
+  // to auto-nonce its framework scripts.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set("x-nonce", nonce)
+  requestHeaders.set("Content-Security-Policy", cspHeader)
 
   const isPassthrough = PASSTHROUGH_ROUTES.some((route) => pathname.startsWith(route))
 
@@ -68,9 +117,13 @@ export async function proxy(request: NextRequest) {
   // endpoints that authenticate via bearer/URL token, not cookies)
   if (pathname.startsWith("/api/") && MUTATION_METHODS.has(request.method) && !isPassthrough) {
     if (!isSameOrigin(request)) {
-      return NextResponse.json(
-        { error: "Cross-origin request blocked" },
-        { status: 403 },
+      return applyCsp(
+        NextResponse.json(
+          { error: "Cross-origin request blocked" },
+          { status: 403 },
+        ),
+        nonce,
+        cspHeader,
       )
     }
   }
@@ -85,9 +138,13 @@ export async function proxy(request: NextRequest) {
     const isUploadRoute = UPLOAD_ROUTES.some((route) => pathname.startsWith(route))
     const limit = isUploadRoute ? MAX_UPLOAD_BYTES : MAX_BODY_BYTES
     if (!Number.isFinite(contentLength) || contentLength < 0 || contentLength > limit) {
-      return NextResponse.json(
-        { error: "Request body too large" },
-        { status: 413 },
+      return applyCsp(
+        NextResponse.json(
+          { error: "Request body too large" },
+          { status: 413 },
+        ),
+        nonce,
+        cspHeader,
       )
     }
   }
@@ -95,16 +152,24 @@ export async function proxy(request: NextRequest) {
   // Machine-to-machine endpoints — pass through with zero Supabase overhead
   // (these authenticate via bearer token / URL token, not cookies)
   if (isPassthrough) {
-    return NextResponse.next()
+    return applyCsp(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+      nonce,
+      cspHeader,
+    )
   }
 
   // Allow public routes and marketing homepage
   if (pathname === "/" || PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     try {
-      const { response } = await updateSession(request)
-      return response
+      const { response } = await updateSession(request, requestHeaders)
+      return applyCsp(response, nonce, cspHeader)
     } catch {
-      return NextResponse.next()
+      return applyCsp(
+        NextResponse.next({ request: { headers: requestHeaders } }),
+        nonce,
+        cspHeader,
+      )
     }
   }
 
@@ -113,7 +178,7 @@ export async function proxy(request: NextRequest) {
   let user: User | null = null
 
   try {
-    const result = await updateSession(request)
+    const result = await updateSession(request, requestHeaders)
     response = result.response
     user = result.user
   } catch {
@@ -121,26 +186,30 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL("/login", request.url)
     const dest = request.nextUrl.searchParams.get("redirect") || request.nextUrl.pathname
     loginUrl.searchParams.set("redirect", dest)
-    return NextResponse.redirect(loginUrl)
+    return applyCsp(NextResponse.redirect(loginUrl), nonce, cspHeader)
   }
 
   if (!user) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
-    return NextResponse.redirect(loginUrl)
+    return applyCsp(NextResponse.redirect(loginUrl), nonce, cspHeader)
   }
 
   // Block unverified users from accessing the app
   if (!user.email_confirmed_at) {
     // API clients expect JSON, not a redirect
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "email_unverified" }, { status: 403 })
+      return applyCsp(
+        NextResponse.json({ error: "email_unverified" }, { status: 403 }),
+        nonce,
+        cspHeader,
+      )
     }
     const verifyUrl = new URL("/verify-email", request.url)
-    return NextResponse.redirect(verifyUrl)
+    return applyCsp(NextResponse.redirect(verifyUrl), nonce, cspHeader)
   }
 
-  return response
+  return applyCsp(response, nonce, cspHeader)
 }
 
 export const config = {
