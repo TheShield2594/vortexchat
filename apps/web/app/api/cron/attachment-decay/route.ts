@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 /**
  * GET /api/cron/attachment-decay
@@ -73,11 +74,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     // ── Purge expired DM attachments ─────────────────────────────────────────
 
-    // dm_attachments is not in generated Supabase types yet — cast through unknown
+    // dm_attachments is not in generated Supabase types yet
     type DmAttachmentRow = { id: string; url: string; filename: string; size: number; dm_id: string }
-    const untypedClient = serviceClient as unknown as { from: (table: string) => ReturnType<typeof serviceClient.from> }
-    const { data: expiredDmAttachments } = await untypedClient
-      .from("dm_attachments")
+    const { data: expiredDmAttachments } = await untypedFrom(serviceClient, "dm_attachments")
       .select("id, url, filename, size, dm_id")
       .lt("expires_at", now)
       .is("purged_at", null)
@@ -111,8 +110,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         // Still mark as purged — the file may already be gone
       }
 
-      await untypedClient
-        .from("dm_attachments")
+      await untypedFrom(serviceClient, "dm_attachments")
         .update({ purged_at: now })
         .eq("id", att.id)
 

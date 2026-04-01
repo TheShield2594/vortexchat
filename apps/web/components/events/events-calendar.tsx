@@ -41,7 +41,7 @@ export interface ServerEvent {
   created_by: string
   attendees: EventAttendee[]
   myRsvp: { status: string } | null
-  stats: { going: number; maybe: number; interested: number; waitlist: number } | null
+  stats: { going?: number; maybe?: number; interested?: number; waitlist?: number; not_going?: number; [key: string]: number | undefined } | null
 }
 
 const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
@@ -657,7 +657,7 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
   )
 }
 
-function eventTypeColors(eventType: string | undefined): string {
+function eventTypeColors(eventType: string | null | undefined): string {
   switch (eventType) {
     case "voice":
       return "bg-green-900/40 text-green-200 border-green-800/50 hover:bg-green-800/50"

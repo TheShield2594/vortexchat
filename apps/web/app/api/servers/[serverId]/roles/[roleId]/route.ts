@@ -21,7 +21,11 @@ export async function PATCH(
 
   let body: Record<string, unknown>
   try {
-    body = await req.json() as Record<string, unknown>
+    const parsed: unknown = await req.json()
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
+    body = parsed as Record<string, unknown>
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
@@ -92,8 +96,8 @@ export async function PATCH(
     .select()
     .single()
 
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError || !updatedRole) {
+    return NextResponse.json({ error: updateError?.message ?? "Role update returned no data" }, { status: 500 })
   }
 
   // Build before/after diff for audit log

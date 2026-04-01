@@ -21,7 +21,7 @@ export function TemplateManager({ serverId, createName, createDescription, iconU
   const [starterKey, setStarterKey] = useState("")
   const [rawTemplate, setRawTemplate] = useState("")
   const [warnings, setWarnings] = useState<string[]>([])
-  const [diff, setDiff] = useState<Record<string, unknown> | null>(null)
+  const [diff, setDiff] = useState<{ roles: { current: number; incoming: number }; categories: { current: number; incoming: number }; channels: { current: number; incoming: number } } | null>(null)
   const [loading, setLoading] = useState(false)
   const [exportValue, setExportValue] = useState("")
 

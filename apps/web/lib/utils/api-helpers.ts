@@ -35,7 +35,7 @@ export async function requireAuth() {
   } = await supabase.auth.getUser()
 
   if (authError && !user) {
-    const errRecord = authError as Record<string, unknown>
+    const errRecord = authError as unknown as Record<string, unknown>
     const status = typeof errRecord.status === "number" ? errRecord.status : undefined
     const code = typeof errRecord.code === "string" ? errRecord.code : undefined
     const cause = errRecord.cause

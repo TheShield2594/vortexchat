@@ -310,8 +310,9 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
   useEffect(() => {
     async function fetchParticipants() {
       const { data } = await supabase.from("voice_states").select("user_id, self_stream, users(*)").eq("channel_id", channelId)
+      const rows = data as unknown as { user_id: string; self_stream: boolean | null; users: UserRow | null }[] | null
       setVoiceParticipants(
-        data?.flatMap((d: { user_id: string; self_stream: boolean | null; users: UserRow | null }) =>
+        rows?.flatMap((d) =>
           d.users ? [{ user: d.users as UserRow, selfStream: Boolean(d.self_stream) }] : []
         ) ?? []
       )
