@@ -101,6 +101,9 @@
 | GDPR data export | Done | `GET /api/users/export` — JSON download of profile, messages, DMs, friends, servers, reactions; button in Security settings |
 | Verify all migrations in Supabase | Done | Migration 00070: fixed `search_path` on 5 SECURITY DEFINER functions (00053, 00054, 00065, 00058); fixed NULL-in-IN-list on `user_activity_log.ref_type`; added compat shim for deprecated `auth.users.is_super_admin` in system bot (00015) |
 | CSP nonce-based script policy | Done | Removed `unsafe-eval` and `unsafe-inline` from `script-src`; per-request nonce generated in `proxy.ts` with `strict-dynamic`; nonce propagated to layout via `x-nonce` header |
+| CSP img-src/connect-src tightened (#544) | Done | Replaced `https:` / `wss:` wildcards with specific domain allowlists (Supabase, Klipy, Giphy, LiveKit, Sentry); domains derived from env vars |
+| Username enumeration via friend request (#543) | Done | Normalized POST `/api/friends` responses — always returns generic "Friend request sent (if user exists)" regardless of username validity |
+| Supabase `getUser()` error check in middleware (#550) | Done | `middleware.ts` now checks `error` from `getUser()` and returns `user: null` on failure instead of proceeding with undefined user |
 
 ## Media Playback
 
@@ -135,6 +138,7 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Screen reader live announcements for new messages | Done | `aria-live="polite"` region announces all incoming messages with author + preview; `role="log"` with `aria-relevant="additions"` on message container |
+| Auto-detect `prefers-contrast: more` (#579) | Done | CSS `@media (prefers-contrast: more)` in `globals.css` + JS `matchMedia` detection in `use-apply-appearance.ts`; manual toggle overrides system preference |
 
 ## App Store / Bot Apps
 
@@ -230,7 +234,8 @@
 | Audit log fire-and-forget (#554) | Done | `insertAuditLog` helper now logs errors; all direct `.from("audit_logs").insert()` calls updated to check and log errors |
 | Server deletion cascade non-atomic (#553) | Done | Created `delete_server_cascade` RPC (migration 00084); single-transaction deletion replaces sequential per-table deletes |
 | Webhook messages attributed to owner (#548) | Done | Added `webhook_id` FK column to messages (migration 00085); webhook route uses `SYSTEM_BOT_ID` as author; BOT badge shown in message UI |
+| Role assignment + audit log atomic (#582) | Done | `assign_member_role` / `remove_member_role` RPCs (migration 00086); single-transaction role mutation + audit log replaces separate inserts |
 
 ---
 
-*Last updated: 2026-04-01*
+*Last updated: 2026-04-01 (sprint 2)*

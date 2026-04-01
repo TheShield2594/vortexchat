@@ -73,10 +73,13 @@ export async function POST(req: NextRequest) {
     const { username } = await req.json()
     if (!username?.trim()) return NextResponse.json({ error: "Username required" }, { status: 400 })
 
+    // Normalize response message — always return the same message regardless of
+    // whether the target user exists to prevent username enumeration (issue #543).
+    const GENERIC_SUCCESS = "Friend request sent (if user exists)"
+
     // Find target user — intentionally bypass discoverability RLS to allow friend requests
     // to non-discoverable users by exact username match; this trades privacy for convenience,
-    // mitigated by a strict 20 req/hr rate limit; consider a future opt-in flag like
-    // `allow_friend_requests_from_anyone` for better privacy control
+    // mitigated by a strict 20 req/hr rate limit plus normalized responses below.
     const { data: target, error: targetErr } = await serviceSupabase
       .from("users")
       .select("id, username, display_name, avatar_url, status")
@@ -84,13 +87,16 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (targetErr) {
-      return NextResponse.json({ error: "Database error occurred" }, { status: 500 })
+      // Return generic success to avoid leaking DB errors vs. user-not-found
+      console.error("friends POST: user lookup failed", { actorId: user.id, error: targetErr.message })
+      return NextResponse.json({ message: GENERIC_SUCCESS })
     }
     if (!target) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      return NextResponse.json({ message: GENERIC_SUCCESS })
     }
 
     if (target.id === user.id) {
+      // Self-add is a client input error — safe to reveal
       return NextResponse.json({ error: "Cannot add yourself" }, { status: 400 })
     }
 
@@ -105,7 +111,8 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       if (existing.status === "accepted") {
-        return NextResponse.json({ error: "Already friends" }, { status: 409 })
+        // Already friends — return generic to avoid confirming username exists
+        return NextResponse.json({ message: GENERIC_SUCCESS })
       }
       if (existing.status === "pending") {
         if (existing.requester_id === target.id) {
@@ -148,10 +155,12 @@ export async function POST(req: NextRequest) {
 
           return NextResponse.json({ message: "Friend request accepted" })
         }
-        return NextResponse.json({ error: "Friend request already sent" }, { status: 409 })
+        // Already sent — return generic to avoid confirming username
+        return NextResponse.json({ message: GENERIC_SUCCESS })
       }
       if (existing.status === "blocked") {
-        return NextResponse.json({ error: "Cannot send request" }, { status: 403 })
+        // Blocked — return generic to avoid confirming username
+        return NextResponse.json({ message: GENERIC_SUCCESS })
       }
     }
 
@@ -196,7 +205,7 @@ export async function POST(req: NextRequest) {
       })
     }).catch((err) => { console.error("friends POST: new-request notification failed", { actorId: user.id, targetId: target.id }, err) })
 
-    return NextResponse.json({ message: "Friend request sent" }, { status: 201 })
+    return NextResponse.json({ message: GENERIC_SUCCESS })
   } catch (err) {
     console.error("[friends POST] error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

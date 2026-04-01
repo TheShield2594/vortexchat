@@ -29,6 +29,18 @@ export function useApplyAppearance(): void {
     }))
   )
 
+  // Auto-detect OS prefers-contrast: more on initial mount.
+  // If the user hasn't explicitly toggled highContrast, inherit from OS.
+  const setHighContrast = useAppearanceStore((s) => s.setHighContrast)
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-contrast: more)")
+    if (mq.matches && !highContrast) {
+      setHighContrast(true)
+    }
+    // Only run on mount — manual toggle overrides system preference
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     const root = document.documentElement
     root.dataset.messageDisplay = messageDisplay

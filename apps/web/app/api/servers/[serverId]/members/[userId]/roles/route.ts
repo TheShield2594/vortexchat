@@ -65,6 +65,7 @@ export async function POST(
     )
     if (permissionError) return permissionError
 
+    // Fetch role name for audit log context
     const { data: roleData } = await supabase
       .from("roles")
       .select("id, name")
@@ -72,30 +73,18 @@ export async function POST(
       .eq("server_id", serverId)
       .single()
 
-    const { error } = await supabase
-      .from("member_roles")
-      .insert({ server_id: serverId, user_id: userId, role_id: roleId })
-
-    if (error) {
-      if (error.code === "23505") return NextResponse.json({ ok: true }) // already assigned
-      return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
-    }
-
-    const { error: auditErr } = await supabase.from("audit_logs").insert({
-      server_id: serverId,
-      actor_id: user.id,
-      action: "role_assigned",
-      target_id: userId,
-      target_type: "user",
-      changes: {
-        role_id: roleId,
-        role_name: roleData?.name ?? null,
-        before: { has_role: false },
-        after: { has_role: true },
-      },
+    // Atomic: assign role + audit log in a single transaction via RPC (#582)
+    const { error: rpcError } = await supabase.rpc("assign_member_role", {
+      p_server_id: serverId,
+      p_user_id: userId,
+      p_role_id: roleId,
+      p_actor_id: user.id,
+      p_role_name: roleData?.name ?? null,
     })
-    if (auditErr) {
-      console.error("[roles] Audit log insert failed for role_assigned", { serverId, userId, roleId, error: auditErr.message })
+
+    if (rpcError) {
+      console.error("[roles] assign_member_role RPC failed", { serverId, userId, roleId, error: rpcError.message })
+      return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
@@ -130,15 +119,7 @@ export async function DELETE(
     )
     if (permissionError) return permissionError
 
-    const { error } = await supabase
-      .from("member_roles")
-      .delete()
-      .eq("server_id", serverId)
-      .eq("user_id", userId)
-      .eq("role_id", roleId)
-
-    if (error) return NextResponse.json({ error: "Failed to remove role" }, { status: 500 })
-
+    // Fetch role name for audit log context
     const { data: roleData } = await supabase
       .from("roles")
       .select("id, name")
@@ -146,21 +127,18 @@ export async function DELETE(
       .eq("server_id", serverId)
       .single()
 
-    const { error: removeAuditErr } = await supabase.from("audit_logs").insert({
-      server_id: serverId,
-      actor_id: user.id,
-      action: "role_removed",
-      target_id: userId,
-      target_type: "user",
-      changes: {
-        role_id: roleId,
-        role_name: roleData?.name ?? null,
-        before: { has_role: true },
-        after: { has_role: false },
-      },
+    // Atomic: remove role + audit log in a single transaction via RPC (#582)
+    const { error: rpcError } = await supabase.rpc("remove_member_role", {
+      p_server_id: serverId,
+      p_user_id: userId,
+      p_role_id: roleId,
+      p_actor_id: user.id,
+      p_role_name: roleData?.name ?? null,
     })
-    if (removeAuditErr) {
-      console.error("[roles] Audit log insert failed for role_removed", { serverId, userId, roleId, error: removeAuditErr.message })
+
+    if (rpcError) {
+      console.error("[roles] remove_member_role RPC failed", { serverId, userId, roleId, error: rpcError.message })
+      return NextResponse.json({ error: "Failed to remove role" }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })

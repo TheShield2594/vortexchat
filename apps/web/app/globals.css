@@ -863,6 +863,28 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 [data-gif-autoplay="false"] .gif-container--paused > .gif-static-preview { visibility: visible; }
 
 /* ── High contrast mode ──────────────────────────────────────────────────── */
+/* Auto-detect OS-level high-contrast preference — applies the same overrides
+   as the manual toggle unless the user has explicitly disabled it. */
+@media (prefers-contrast: more) {
+  html:not([data-high-contrast="false"]) {
+    --theme-text-primary: #ffffff;
+    --theme-text-secondary: #e0e0e0;
+    --theme-text-muted: #c0c0c0;
+    --theme-text-faint: #b0b0b0;
+    --theme-text-bright: #ffffff;
+    --theme-text-normal: #f0f0f0;
+    --theme-bg-primary: #000000;
+    --theme-bg-secondary: #0a0a0a;
+    --theme-bg-tertiary: #141414;
+    --theme-surface-elevated: #1a1a1a;
+    --theme-border: #555555;
+  }
+  html:not([data-high-contrast="false"]) *:focus-visible {
+    outline: 3px solid var(--theme-accent) !important;
+    outline-offset: 2px;
+  }
+}
+
 [data-high-contrast="true"] {
   --theme-text-primary: #ffffff;
   --theme-text-secondary: #e0e0e0;
