@@ -402,7 +402,7 @@ export const MessageItem = memo(function MessageItem({
     }
   }
 
-  const displayName = message.webhook_id && message.webhook_display_name
+  const displayName = message.webhook_display_name
     ? message.webhook_display_name
     : message.author?.display_name || message.author?.username || "Unknown"
   const initials = displayName.slice(0, 2).toUpperCase()
@@ -638,13 +638,13 @@ export const MessageItem = memo(function MessageItem({
                       {displayName}
                     </span>
                   </UserProfilePopover>
-                  {message.webhook_id && (
+                  {(message.webhook_id || message.webhook_display_name) && (
                     <span
                       className="inline-flex items-center px-1 py-px rounded text-[10px] font-bold uppercase leading-none"
                       style={{ background: "var(--theme-accent)", color: "var(--theme-bg-primary)" }}
-                      aria-label="Webhook bot message"
+                      aria-label="Bot message"
                     >
-                      BOT
+                      APP
                     </span>
                   )}
                   <span id={messageMetaId} className="text-xs tertiary-metadata message-cozy-timestamp">

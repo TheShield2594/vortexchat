@@ -44,6 +44,7 @@ export interface MemberData {
     bio: string | null
     banner_color: string | null
     custom_tag: string | null
+    game_activity: { game_name: string; source?: string } | null
     created_at: string
     last_online_at: string | null
   } | null
@@ -616,11 +617,15 @@ const MemberItem = memo(function MemberItem({
               >
                 {displayName}
               </div>
-              {member.user?.status_message && !offline && (
+              {member.user?.game_activity?.game_name && !offline ? (
+                <div className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
+                  🎮 Playing {member.user.game_activity.game_name}
+                </div>
+              ) : member.user?.status_message && !offline ? (
                 <div className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
                   {member.user.status_message}
                 </div>
-              )}
+              ) : null}
               {offline && (() => {
                 const lastSeen = formatLastSeen(member.user?.last_online_at)
                 return lastSeen ? (

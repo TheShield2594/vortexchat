@@ -611,7 +611,7 @@ function EventPopover({ eventId, anchorRect, occurrences, events, timezone, rsvp
       {myStatus === "waitlist" && (
         <div className="mt-1.5 text-xs text-yellow-400">You are on the waitlist</div>
       )}
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" variant={myStatus === "interested" ? "default" : "secondary"} onClick={() => rsvp(occ.eventId, "interested")}>
           {myStatus === "interested" ? "\u2713 Interested" : "Interested"}
         </Button>

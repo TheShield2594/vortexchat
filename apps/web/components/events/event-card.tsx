@@ -78,7 +78,7 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-zinc-100">{occurrence.title}</p>
           <p className="text-xs text-zinc-400">
-            {occurrence.startAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })} &middot; {interestedCount} interested
+            {occurrence.startAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })} &middot; {interestedCount} responded
           </p>
         </div>
         <span className={`shrink-0 text-xs font-medium ${isLive ? "text-red-400" : "text-zinc-500"}`}>{countdown}</span>
@@ -155,12 +155,15 @@ export function EventCard({ event, occurrence, timezone, serverId, onRsvp, compa
         <div className="flex items-center gap-3 text-xs text-zinc-400">
           <span className="flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
-            {interestedCount} interested
+            {event.capacity
+              ? `${event.stats?.going ?? 0} / ${event.capacity} going`
+              : `${event.stats?.going ?? 0} going`}
           </span>
-          {event.capacity && (
-            <span className="text-zinc-500">
-              {event.stats?.going ?? 0} / {event.capacity} going
-            </span>
+          {(event.stats?.interested ?? 0) > 0 && (
+            <span>{event.stats?.interested ?? 0} interested</span>
+          )}
+          {(event.stats?.maybe ?? 0) > 0 && (
+            <span>{event.stats?.maybe ?? 0} maybe</span>
           )}
           {myStatus === "waitlist" && (
             <span className="text-yellow-400">You&apos;re on the waitlist</span>

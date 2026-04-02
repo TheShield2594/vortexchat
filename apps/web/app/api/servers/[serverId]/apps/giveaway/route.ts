@@ -147,22 +147,26 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Post announcement message in the giveaway channel
     const serviceClient = await createServiceRoleClient()
     const announceContent = [
-      `**GIVEAWAY**`,
+      `🎉 **GIVEAWAY** 🎉`,
+      ``,
       `**${giveawayTitle}**`,
-      description ? `\n${description}` : "",
-      `\nPrize: **${prize}**`,
-      `Winners: **${giveaway.winners_count}**`,
-      `Ends: <t:${Math.floor(new Date(endsAt).getTime() / 1000)}:R>`,
-      `\nUse \`/genter ${giveaway.id.slice(0, 8)}\` to enter!`,
+      description ? `${description}` : "",
+      ``,
+      `🎁 Prize: **${prize}**`,
+      `👥 Winners: **${giveaway.winners_count}**`,
+      `⏰ Ends: <t:${Math.floor(new Date(endsAt).getTime() / 1000)}:R>`,
+      ``,
+      `React with 🎉 to enter!`,
     ].filter(Boolean).join("\n")
 
-    const { error: announceError } = await serviceClient.from("messages").insert({
+    const { data: announceMsg, error: announceError } = await serviceClient.from("messages").insert({
       channel_id: targetChannelId,
       author_id: SYSTEM_BOT_ID,
       content: announceContent,
-    })
+      webhook_display_name: "Giveaway Bot",
+    }).select("id").single()
 
-    if (announceError) {
+    if (announceError || !announceMsg) {
       // Rollback: delete the giveaway we just created
       const { error: rollbackError } = await supabase.from("giveaways").delete().eq("id", giveaway.id)
       if (rollbackError) {
@@ -174,6 +178,16 @@ export async function POST(req: NextRequest, { params }: Params) {
       }
       return NextResponse.json({ error: "Failed to post giveaway announcement" }, { status: 500 })
     }
+
+    // Store the announcement message ID on the giveaway for reaction-based entry
+    await serviceClient.from("giveaways")
+      .update({ message_id: announceMsg.id })
+      .eq("id", giveaway.id)
+
+    // Seed a 🎉 reaction on the announcement so users know to react
+    await serviceClient.from("reactions")
+      .insert({ message_id: announceMsg.id, user_id: SYSTEM_BOT_ID, emoji: "🎉" })
+      .catch(() => { /* best-effort */ })
 
     return NextResponse.json(giveaway, { status: 201 })
   }

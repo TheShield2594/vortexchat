@@ -50,6 +50,7 @@ export async function GET(
         bio,
         banner_color,
         custom_tag,
+        game_activity,
         created_at,
         last_online_at
       ),

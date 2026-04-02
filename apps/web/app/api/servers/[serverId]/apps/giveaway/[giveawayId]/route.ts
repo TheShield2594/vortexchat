@@ -116,7 +116,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       await serviceClient.from("messages").insert({
         channel_id: giveawayRecord.channel_id,
         author_id: SYSTEM_BOT_ID,
-        content: `**GIVEAWAY CANCELLED**\nThe giveaway for **${giveawayRecord.prize}** has been cancelled.`,
+        content: `❌ **GIVEAWAY CANCELLED**\n\nThe giveaway for **${giveawayRecord.prize}** has been cancelled.`,
+        webhook_display_name: "Giveaway Bot",
       })
 
       return NextResponse.json({ ok: true, message: "Giveaway cancelled" })
@@ -147,7 +148,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       await serviceClient.from("messages").insert({
         channel_id: giveawayRecord.channel_id,
         author_id: SYSTEM_BOT_ID,
-        content: `**GIVEAWAY ENDED**\nNo one entered the giveaway for **${giveawayRecord.prize}**.`,
+        content: `🎉 **GIVEAWAY ENDED**\n\nNo one entered the giveaway for **${giveawayRecord.prize}**.`,
+        webhook_display_name: "Giveaway Bot",
       })
 
       return NextResponse.json({ ok: true, message: "Giveaway ended — no entries", winners: [] })
@@ -175,7 +177,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     await serviceClient.from("messages").insert({
       channel_id: giveawayRecord.channel_id,
       author_id: SYSTEM_BOT_ID,
-      content: `**GIVEAWAY ${verb}**\nPrize: **${giveawayRecord.prize}**\nWinner${winnerIds.length > 1 ? "s" : ""}: ${winnerNames}\n\nCongratulations!`,
+      content: `🎉 **GIVEAWAY ${verb}** 🎉\n\n🎁 Prize: **${giveawayRecord.prize}**\n🏆 Winner${winnerIds.length > 1 ? "s" : ""}: ${winnerNames}\n\nCongratulations! 🎊`,
+      webhook_display_name: "Giveaway Bot",
     })
 
     return NextResponse.json({ ok: true, message: `Giveaway ${verb.toLowerCase()}`, winners: winnerIds })
