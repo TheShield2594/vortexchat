@@ -18,6 +18,7 @@ import { validateAttachments, validateAttachmentContent } from "@/lib/attachment
 import { MESSAGE_PROJECTION, withReplyTo, type ServerSupabaseClient } from "@/lib/messages/hydration"
 import { parsePostMessageRequestBody, type MessageAttachment, type PostMessageRequestBody } from "@/lib/messages/validators"
 import { computeDecay } from "@vortex/shared"
+import { isProcessableImage, processAttachmentImage } from "@/lib/image-processing"
 import { validateChannelTypeMessagePolicy, type SupportedMessageChannelType } from "@/lib/messages/channel-type-policy"
 import { cached } from "@/lib/server-cache"
 async function getChannelForRead(supabase: ServerSupabaseClient, channelId: string, userId: string) {
@@ -458,6 +459,8 @@ async function insertMessageWithAttachments({
           return {
             ...a,
             message_id: message.id,
+            // Mark processable images as pending so the pipeline picks them up
+            ...(isProcessableImage(a.content_type) ? { processing_state: "pending" as const } : {}),
             ...(decay
               ? {
                   expires_at: decay.expiresAt.toISOString(),
@@ -469,7 +472,18 @@ async function insertMessageWithAttachments({
           }
         })
       )
-      .select("id, filename, content_type, message_id")
+      .select("id, filename, content_type, message_id, storage_path")
+
+    // Fire-and-forget: trigger image processing for image attachments
+    if (insertedAttachments?.length) {
+      for (const att of insertedAttachments) {
+        if (att.storage_path && isProcessableImage(att.content_type)) {
+          processAttachmentImage(att.id, att.storage_path, att.content_type).catch((err) => {
+            console.error("Image processing failed for attachment", { attachmentId: att.id, error: err })
+          })
+        }
+      }
+    }
   }
 
   return { message, msgError: null }

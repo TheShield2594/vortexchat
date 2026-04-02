@@ -1323,19 +1323,59 @@ function AttachmentDisplay({ attachment, onOpenImage, canManageMessages, serverI
   const downloadUrl = isOptimistic ? attachment.url : `/api/attachments/${attachment.id}/download`
 
   if (isImage) {
+    // Use optimized variant URL when available, fall back to original
+    const variants = (attachment as Record<string, unknown>).variants as Record<string, { path: string; width: number; height: number }> | null | undefined
+    const blurHash = (attachment as Record<string, unknown>).blur_hash as string | null | undefined
+    const hasStandard = !!variants?.standard?.path
+    const imgSrc = isOptimistic
+      ? downloadUrl
+      : hasStandard
+        ? `/api/attachments/${attachment.id}/download?variant=standard`
+        : downloadUrl
+
+    // Compute aspect ratio for layout stability (prevents CLS)
+    const imgWidth = attachment.width ?? variants?.standard?.width ?? variants?.thumbnail?.width
+    const imgHeight = attachment.height ?? variants?.standard?.height ?? variants?.thumbnail?.height
+    const aspectStyle = imgWidth && imgHeight
+      ? { aspectRatio: `${imgWidth} / ${imgHeight}` }
+      : {}
+
     return (
       <div className="max-w-sm" data-img-wrapper>
-        <button type="button" className="block" onClick={onOpenImage}>
+        <button type="button" className="block relative overflow-hidden rounded" onClick={onOpenImage}>
+          {/* Blur placeholder — shown while the full image loads */}
+          {blurHash && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={blurHash}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover rounded"
+              style={{ filter: "blur(8px)", transform: "scale(1.1)" }}
+            />
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={downloadUrl}
+            src={imgSrc}
             alt={attachment.filename}
             loading="lazy"
-            className="rounded object-contain"
-            style={{ maxWidth: "100%", maxHeight: "20rem", background: "var(--theme-bg-tertiary)" }}
+            className="rounded object-contain relative"
+            style={{ maxWidth: "100%", maxHeight: "20rem", background: blurHash ? "transparent" : "var(--theme-bg-tertiary)", ...aspectStyle }}
+            onLoad={(e) => {
+              // Hide blur placeholder once full image loads
+              const blur = (e.target as HTMLElement).previousElementSibling
+              if (blur && blur.getAttribute("aria-hidden")) {
+                (blur as HTMLElement).style.display = "none"
+              }
+            }}
             onError={(e) => {
               const el = e.target as HTMLImageElement
               el.style.display = "none"
+              // Also hide blur placeholder on error
+              const blur = el.previousElementSibling
+              if (blur && blur.getAttribute("aria-hidden")) {
+                (blur as HTMLElement).style.display = "none"
+              }
               const fallback = el.closest("[data-img-wrapper]")?.querySelector("[data-fallback]")
               if (fallback) (fallback as HTMLElement).style.display = "flex"
             }}

@@ -18,9 +18,11 @@ export async function GET(
   if (authError) return authError
 
   try {
+    const variant = _request.nextUrl.searchParams.get("variant") // "thumbnail" | "standard"
+
     const { data: attachment, error } = await supabase
       .from("attachments")
-      .select("id, url, message_id, filename, size, expires_at, purged_at")
+      .select("id, url, message_id, filename, size, expires_at, purged_at, variants")
       .eq("id", attachmentId)
       .maybeSingle()
 
@@ -80,6 +82,22 @@ export async function GET(
         .then(() => {}, (err: unknown) => {
           console.error("[attachments/download] renewal update failed", { attachmentId: attachment.id, error: err })
         })
+    }
+
+    // Serve a variant if requested (thumbnail or standard)
+    if (variant === "thumbnail" || variant === "standard") {
+      const variants = attachment.variants as Record<string, { path: string }> | null
+      const variantInfo = variants?.[variant]
+      if (variantInfo?.path) {
+        const { data: variantSigned, error: variantSignError } = await supabase.storage
+          .from("attachments")
+          .createSignedUrl(variantInfo.path, 3600)
+        if (!variantSignError && variantSigned?.signedUrl) {
+          return NextResponse.redirect(variantSigned.signedUrl)
+        }
+        // Fall through to original if variant URL fails
+      }
+      // Fall through to original if variant not available yet
     }
 
     // Create a fresh signed URL from the storage path rather than using the
