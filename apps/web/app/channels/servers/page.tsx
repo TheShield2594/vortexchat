@@ -479,8 +479,8 @@ export default function ServersPage(): React.ReactElement {
                           {hasUnread && (
                             <span
                               aria-hidden="true"
-                              className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-                              style={{ background: "var(--theme-accent)", borderColor: "var(--theme-bg-primary)" }}
+                              className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
+                              style={{ background: "var(--theme-danger)", borderColor: "var(--theme-bg-primary)" }}
                             />
                           )}
                         </div>

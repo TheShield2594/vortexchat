@@ -221,18 +221,18 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className={`md:max-w-5xl md:max-h-[90vh] w-[calc(100vw-1rem)] md:w-auto md:overflow-hidden p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none' : ''}`}
+        className={`p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none' : 'h-[100dvh] w-screen max-w-none max-h-none sm:max-w-none sm:rounded-none rounded-none border-0'}`}
         style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">{liveServer.name} — Server Settings</DialogTitle>
-        <Tabs defaultValue="overview" orientation="vertical" className={`flex ${isMobile ? 'flex-col h-full' : 'flex-col md:flex-row h-[85vh]'}`}>
+        <Tabs defaultValue="overview" orientation="vertical" className={`flex ${isMobile ? 'flex-col h-full' : 'flex-row h-full'}`}>
           {/* Settings sidebar */}
-          <div className={`w-full md:w-52 flex-shrink-0 flex flex-col overflow-hidden ${isMobile ? 'hidden' : ''}`} style={{ background: 'var(--theme-bg-secondary)' }}>
+          <div className={`flex-shrink-0 flex flex-col overflow-hidden ${isMobile ? 'hidden' : 'w-60'}`} style={{ background: 'var(--theme-bg-secondary)' }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
               {liveServer.name}
             </h3>
-            <TabsList className="flex flex-row md:flex-col h-auto bg-transparent gap-0.5 w-full md:flex-1 overflow-x-auto md:overflow-x-visible overflow-y-hidden md:overflow-y-auto px-4 pb-2 md:pb-4 justify-start items-start">
+            <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full flex-1 overflow-y-auto px-4 pb-4 justify-start items-start">
               <TabsTrigger value="overview" className="w-full justify-start whitespace-nowrap text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: 'var(--theme-text-secondary)' }}>
                 Overview
               </TabsTrigger>
@@ -299,7 +299,19 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
           </div>
 
           {/* Main content */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 overflow-x-hidden">
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 overflow-x-hidden">
+            {/* Close button — sticky so it stays visible while scrolling */}
+            <div className="sticky top-0 z-10 flex justify-end -mt-2 mb-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-colors focus-ring hover:bg-white/10"
+                style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-secondary)' }}
+                aria-label="Close server settings"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             {isMobile && (
               <div className="flex flex-col" style={{ background: 'var(--theme-bg-secondary)' }}>
                 <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
@@ -371,6 +383,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                 </TabsList>
               </div>
             )}
+            <div className="w-full max-w-6xl">
             <TabsContent value="overview" className="mt-0 space-y-4">
               {/* Server Icon */}
               {isOwner && (
@@ -624,6 +637,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                 <AiSettingsTab serverId={server.id} />
               </TabsContent>
             )}
+            </div>
 
           </div>
         </Tabs>

@@ -18,7 +18,8 @@ import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useShallow } from "zustand/react/shallow"
 import { LinkEmbed, extractFirstUrl, extractGiphyUrl, getEmbeddableGiphyUrl, stripUrlFromContent } from "@/components/chat/link-embed"
 import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
-import { ServerEmojiImage } from "@/components/chat/server-emoji-context"
+import { ServerEmojiImage, useServerEmojis, type ServerEmoji } from "@/components/chat/server-emoji-context"
+import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { getReplyPreviewText } from "@/components/chat/reply-preview"
 import { MessageMarkdown } from "@/components/chat/markdown-renderer"
 const CreateThreadModal = lazy(() => import("@/components/modals/create-thread-modal").then((m) => ({ default: m.CreateThreadModal })))
@@ -94,9 +95,14 @@ function addEmojiRecent(emoji: string) {
   }
 }
 
-function EmojiPickerPopup({ onSelect, onClose, maxHeight }: { onSelect: (emoji: string) => void | Promise<void>; onClose: () => void; maxHeight?: string }) {
+function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis }: { onSelect: (emoji: string) => void | Promise<void>; onClose: () => void; maxHeight?: string; serverEmojis?: ServerEmoji[] }) {
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const hasServerEmojiMatch =
+    normalizedSearch.length > 0 &&
+    (serverEmojis ?? []).some((e) => e.name.toLowerCase().includes(normalizedSearch))
 
   useEffect(() => {
     setRecents(getEmojiRecents())
@@ -129,7 +135,7 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight }: { onSelect: (emoji: 
             color: "var(--theme-text-normal)",
           }}
           placeholder="Search emoji…"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchActive(e.target.value.length > 0)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearchActive(e.target.value.length > 0); setSearchQuery(e.target.value) }}
         />
       </div>
 
@@ -171,7 +177,11 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight }: { onSelect: (emoji: 
                 onMouseEnter={(e) => { e.currentTarget.style.background = "var(--theme-surface-elevated)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
               >
-                {emoji}
+                {/^:.+:$/.test(emoji) ? (
+                  <ServerEmojiImage name={emoji.slice(1, -1)} size={20} />
+                ) : (
+                  emoji
+                )}
               </button>
             ))}
           </div>
@@ -180,9 +190,19 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight }: { onSelect: (emoji: 
       )}
 
       <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
+        {serverEmojis && serverEmojis.length > 0 && (
+          <CustomEmojiGrid
+            emojis={serverEmojis}
+            search={searchQuery}
+            onSelect={(emoji) => {
+              handleSelect(`:${emoji.name}:`)
+            }}
+          />
+        )}
         <EmojiPicker.Loading>
           <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>Loading…</div>
         </EmojiPicker.Loading>
+        {!hasServerEmojiMatch && (
         <EmojiPicker.Empty>
           {({ search }) => (
             <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>
@@ -190,6 +210,7 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight }: { onSelect: (emoji: 
             </div>
           )}
         </EmojiPicker.Empty>
+        )}
         <EmojiPicker.List
           components={{
             CategoryHeader: ({ category, ...props }) => (
@@ -282,6 +303,7 @@ export const MessageItem = memo(function MessageItem({
   const [showReportModal, setShowReportModal] = useState(false)
   const { toast } = useToast()
   const timestampFormat = useAppearanceStore((s) => s.timestampFormat)
+  const { emojis: serverEmojis } = useServerEmojis()
   const containerRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
   const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null)
@@ -793,7 +815,11 @@ export const MessageItem = memo(function MessageItem({
                             color: "var(--theme-text-normal)",
                           }}
                         >
-                          {emoji} {count}
+                          {/^:.+:$/.test(emoji) ? (
+                            <ServerEmojiImage name={emoji.slice(1, -1)} size={20} />
+                          ) : (
+                            <span>{emoji}</span>
+                          )} {count}
                         </button>
                       ))}
                     </div>
@@ -819,6 +845,7 @@ export const MessageItem = memo(function MessageItem({
                 <EmojiPickerPopup
                   onSelect={async (emoji) => { try { await onReaction(emoji) } catch { /* handled upstream */ } }}
                   onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
+                  serverEmojis={serverEmojis}
                 />
               </div>
             </div>,
@@ -864,6 +891,7 @@ export const MessageItem = memo(function MessageItem({
                   onSelect={async (emoji) => { try { await onReaction(emoji) } catch { /* handled upstream */ } }}
                   onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
                   maxHeight="calc(70vh - 100px)"
+                  serverEmojis={serverEmojis}
                 />
               </div>
             </div>,

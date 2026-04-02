@@ -1122,8 +1122,8 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <div
             ref={emojiPickerRef}
             data-state="open"
-            className="panel-surface-motion fixed inset-x-0 bottom-0 z-overlay flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[380px] md:rounded-lg md:border"
-            style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
+            className="panel-surface-motion fixed inset-x-0 bottom-0 z-overlay flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-4 md:w-[420px] md:rounded-lg md:border"
+            style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(75vh, 520px)", overflow: "hidden" }}
             onTouchStart={(e) => {
               const el = e.currentTarget
               const startY = e.touches[0].clientY
@@ -1167,7 +1167,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                     aria-controls={tab.panel}
                     onClick={() => setPickerTab(tab.key)}
                     className="px-3 py-1.5 rounded-md text-xs font-semibold focus-ring transition-colors"
-                    style={{ background: pickerTab === tab.key ? "var(--theme-accent)" : "transparent", color: pickerTab === tab.key ? "#fff" : "var(--theme-text-secondary)" }}
+                    style={{ background: pickerTab === tab.key ? "color-mix(in srgb, var(--theme-accent) 20%, transparent)" : "transparent", color: pickerTab === tab.key ? "var(--theme-accent)" : "var(--theme-text-secondary)", borderBottom: pickerTab === tab.key ? "2px solid var(--theme-accent)" : "2px solid transparent" }}
                   >
                     {tab.label}
                   </button>
@@ -1362,7 +1362,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   ) : (
                     <>
                       <div
-                        className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 min-h-0"
+                        className="grid grid-cols-2 md:grid-cols-3 gap-1.5 overflow-y-auto flex-1 min-h-0 p-0.5"
                         onKeyDown={handleGifGridKeyDown}
                       >
                         {media.gifResults.map((gif) => (
@@ -1388,12 +1388,12 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                                 textareaRef.current?.focus()
                               }
                             }}
-                            className="rounded overflow-hidden hover:opacity-90 focus-ring"
+                            className="rounded-md overflow-hidden hover:scale-[1.03] transition-transform focus-ring relative group"
                             title={gif.title}
                             aria-label={gif.title}
                           >
-                            <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-video object-cover" />
-                            <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
+                            <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-square object-cover" />
+                            <span className="absolute inset-x-0 bottom-0 px-1.5 py-1 text-[10px] truncate text-left opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "#fff", background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}>{gif.title || "GIF"}</span>
                           </button>
                         ))}
                       </div>
@@ -1426,7 +1426,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                   ) : (
                     <>
                       <div
-                        className="grid grid-cols-4 gap-2 overflow-y-auto flex-1 min-h-0"
+                        className="grid grid-cols-3 gap-2 overflow-y-auto flex-1 min-h-0 p-0.5"
                         onKeyDown={handleGifGridKeyDown}
                       >
                         {media.stickerResults.map((sticker) => (
@@ -1453,7 +1453,7 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
                               }
                             }}
                             className="rounded-lg overflow-hidden hover:scale-105 transition-transform focus-ring aspect-square"
-                            style={{ background: "transparent" }}
+                            style={{ background: "var(--theme-bg-tertiary)", padding: "6px" }}
                             title={sticker.title}
                             aria-label={sticker.title}
                           >
