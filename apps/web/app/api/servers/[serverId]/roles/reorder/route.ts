@@ -4,6 +4,7 @@ import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
 import { insertAuditLog } from "@/lib/utils/api-helpers"
 import { invalidatePrefix } from "@/lib/server-cache"
+import { invalidateServerPermissions } from "@/lib/permissions"
 
 // PATCH /api/servers/[serverId]/roles/reorder — reorder roles by position
 export async function PATCH(
@@ -125,8 +126,8 @@ export async function PATCH(
 
   try {
     invalidatePrefix(`roles:${serverId}`)
-    invalidatePrefix(`perms:${serverId}`)
     invalidatePrefix(`member-roles:${serverId}`)
+    invalidateServerPermissions(serverId)
   } catch (cacheErr) {
     console.error("[roles reorder PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
   }

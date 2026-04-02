@@ -199,35 +199,49 @@ export class PresenceManager {
     return result
   }
 
-  /** Start periodic cleanup of stale presence entries. */
+  /** Start periodic cleanup of stale presence entries.
+   *  Uses cursor-based SCAN instead of blocking KEYS to avoid locking Redis. */
   startCleanup(onStaleUser: (userId: string, serverIds: string[]) => void): void {
     if (this.cleanupTimer) return
 
-    this.cleanupTimer = setInterval(async () => {
-      if (this.destroyed) return
-      try {
-        // Scan for presence keys and check their TTL
-        // Redis TTL handles expiry automatically, but we also check for
-        // entries that might have been orphaned
-        const keys = await this.redis.keys(`${PRESENCE_KEY_PREFIX}:*`)
-        for (const key of keys) {
-          // Skip server set keys
-          if (key.includes(":server:")) continue
+    // Use 5-minute interval — TTL expiry is the primary cleanup mechanism;
+    // this sweep is a safety net for orphaned keys (TTL === -1).
+    const CLEANUP_INTERVAL_MS = 5 * 60_000
 
-          const ttl = await this.redis.ttl(key)
-          if (ttl === -2) {
-            // Key doesn't exist anymore (expired between keys() and ttl())
-            continue
+    let cleanupInFlight = false
+    this.cleanupTimer = setInterval(async () => {
+      if (this.destroyed || cleanupInFlight) return
+      cleanupInFlight = true
+      try {
+        let cursor = "0"
+        do {
+          const [nextCursor, keys] = await this.redis.scan(
+            cursor,
+            "MATCH",
+            `${PRESENCE_KEY_PREFIX}:*`,
+            "COUNT",
+            100,
+          )
+          cursor = nextCursor
+
+          for (const key of keys) {
+            if (this.destroyed) return
+            // Skip server set keys
+            if (key.includes(":server:")) continue
+
+            const ttl = await this.redis.ttl(key)
+            if (ttl === -1) {
+              // Key has no TTL — set one as safety net
+              await this.redis.expire(key, PRESENCE_TTL_SECONDS)
+            }
           }
-          if (ttl === -1) {
-            // Key has no TTL — set one as safety net
-            await this.redis.expire(key, PRESENCE_TTL_SECONDS)
-          }
-        }
+        } while (cursor !== "0")
       } catch (err) {
         log.error({ err }, "presence cleanup sweep error")
+      } finally {
+        cleanupInFlight = false
       }
-    }, PRESENCE_CLEANUP_INTERVAL_MS)
+    }, CLEANUP_INTERVAL_MS)
   }
 
   async destroy(): Promise<void> {

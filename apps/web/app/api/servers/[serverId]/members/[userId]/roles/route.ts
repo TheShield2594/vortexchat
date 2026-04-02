@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { getMemberPermissions, hasPermission } from "@/lib/permissions"
+import { getMemberPermissions, hasPermission, invalidateServerPermissions } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
 import { rateLimiter } from "@/lib/rate-limit"
 import { invalidatePrefix } from "@/lib/server-cache"
@@ -97,7 +97,7 @@ export async function POST(
 
     try {
       invalidatePrefix(`member-roles:${serverId}:${userId}`)
-      invalidatePrefix(`perms:${serverId}`)
+      invalidateServerPermissions(serverId)
     } catch (cacheErr) {
       console.error("[member-roles POST] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
     }
@@ -164,7 +164,7 @@ export async function DELETE(
 
     try {
       invalidatePrefix(`member-roles:${serverId}:${userId}`)
-      invalidatePrefix(`perms:${serverId}`)
+      invalidateServerPermissions(serverId)
     } catch (cacheErr) {
       console.error("[member-roles DELETE] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
     }

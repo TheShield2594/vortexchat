@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 import { requireServerPermission } from "@/lib/server-auth"
 import { invalidatePrefix } from "@/lib/server-cache"
+import { invalidateServerPermissions } from "@/lib/permissions"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -114,7 +115,7 @@ export async function POST(
 
     try {
       invalidatePrefix(`roles:${serverId}`)
-      invalidatePrefix(`perms:${serverId}`)
+      invalidateServerPermissions(serverId)
     } catch (cacheErr) {
       console.error("[roles POST] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
     }

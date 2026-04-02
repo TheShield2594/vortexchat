@@ -11,9 +11,14 @@
  * Replaces the previous direct DOM rendering capped at 150 messages.
  */
 
-import { useCallback, useEffect, useRef, type ReactNode } from "react"
+import { useCallback, useEffect, useImperativeHandle, useRef, type ReactNode } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import type { MessageWithAuthor } from "@/types/database"
+
+export interface VirtualizedMessageListHandle {
+  /** Scroll to a specific message index (0-based into the messages array). */
+  scrollToIndex: (index: number, options?: { align?: "start" | "center" | "end"; behavior?: ScrollBehavior }) => void
+}
 
 /** Estimated height per message row — the virtualizer adjusts dynamically. */
 const ESTIMATED_ROW_HEIGHT = 68
@@ -34,6 +39,8 @@ interface VirtualizedMessageListProps {
   headerContent?: ReactNode
   /** Footer content shown after messages (e.g., voice recap cards). */
   footerContent?: ReactNode
+  /** Imperative handle ref for programmatic scroll control. */
+  handle?: React.RefObject<VirtualizedMessageListHandle | null>
 }
 
 export function VirtualizedMessageList({
@@ -45,6 +52,7 @@ export function VirtualizedMessageList({
   onLoadOlder,
   headerContent,
   footerContent,
+  handle,
 }: VirtualizedMessageListProps): React.JSX.Element {
   const paginationGuardRef = useRef(false)
 
@@ -65,9 +73,17 @@ export function VirtualizedMessageList({
       return ESTIMATED_ROW_HEIGHT
     },
     overscan: 10,
-    // The container uses column-reverse, so we don't need to invert manually.
-    // We render in normal top-to-bottom order inside the reversed parent.
   })
+
+  // Expose scrollToIndex via imperative handle
+  useImperativeHandle(handle, () => ({
+    scrollToIndex: (index: number, options?: { align?: "start" | "center" | "end"; behavior?: ScrollBehavior }) => {
+      virtualizer.scrollToIndex(headerOffset + index, {
+        align: options?.align ?? "center",
+        behavior: options?.behavior ?? "auto",
+      })
+    },
+  }), [virtualizer, headerOffset])
 
   const virtualItems = virtualizer.getVirtualItems()
 
