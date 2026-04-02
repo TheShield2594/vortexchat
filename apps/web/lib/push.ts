@@ -347,9 +347,44 @@ export async function sendPushToChannel(opts: {
     (globalTypePrefs ?? []).map((p: TypePref) => [p.user_id, p])
   )
 
+  // ── Build notification title with server/channel context (#602) ───
+  // Server channels: "ServerName — #channel" (or "… — #channel > Thread")
+  // DMs: just the sender name (unchanged)
+  let notificationTitle = senderName
+  let notificationBody = content.length > 100 ? content.slice(0, 97) + "…" : content
+
+  if (serverId && channelId) {
+    // Fetch server + channel names in a single parallel query
+    const [serverResult, channelResult] = await Promise.all([
+      supabase.from("servers").select("name").eq("id", serverId).maybeSingle(),
+      supabase.from("channels").select("name").eq("id", channelId).maybeSingle(),
+    ])
+    const serverName = serverResult.data?.name
+    const channelName = channelResult.data?.name
+
+    if (serverName && channelName) {
+      if (threadId) {
+        // Fetch thread name if available
+        const { data: threadData } = await supabase
+          .from("threads")
+          .select("name")
+          .eq("id", threadId)
+          .maybeSingle()
+        const threadName = threadData?.name
+        notificationTitle = threadName
+          ? `${serverName} — #${channelName} > ${threadName}`.slice(0, 60)
+          : `${serverName} — #${channelName} > Thread`.slice(0, 60)
+      } else {
+        notificationTitle = `${serverName} — #${channelName}`.slice(0, 60)
+      }
+      // Prefix body with sender name since title no longer contains it
+      notificationBody = `${senderName}: ${notificationBody}`
+    }
+  }
+
   const payload: PushPayload = {
-    title: senderName,
-    body: content.length > 100 ? content.slice(0, 97) + "…" : content,
+    title: notificationTitle,
+    body: notificationBody,
     url: channelId && serverId
       ? `/channels/${serverId}/${channelId}${threadId ? `?thread=${threadId}` : ""}`
       : dmChannelId

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { maybeRenewExpiry } from "@vortex/shared"
+import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -18,9 +19,11 @@ export async function GET(
   if (authError) return authError
 
   try {
+    const variant = _request.nextUrl.searchParams.get("variant") // "thumbnail" | "standard"
+
     const { data: attachment, error } = await supabase
       .from("attachments")
-      .select("id, url, message_id, filename, size, expires_at, purged_at")
+      .select("id, url, message_id, filename, size, expires_at, purged_at, variants")
       .eq("id", attachmentId)
       .maybeSingle()
 
@@ -49,14 +52,15 @@ export async function GET(
     if (!channel) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     if (channel.server_id) {
-      const { data: member } = await supabase
-        .from("server_members")
-        .select("user_id")
-        .eq("server_id", channel.server_id)
-        .eq("user_id", user.id)
-        .maybeSingle()
-
-      if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      const { isAdmin, permissions } = await getChannelPermissions(
+        supabase,
+        channel.server_id,
+        message.channel_id,
+        user.id,
+      )
+      if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
 
     // ── Decay renewal: extend expiry if accessed near deadline ──────────────
@@ -80,6 +84,22 @@ export async function GET(
         .then(() => {}, (err: unknown) => {
           console.error("[attachments/download] renewal update failed", { attachmentId: attachment.id, error: err })
         })
+    }
+
+    // Serve a variant if requested (thumbnail or standard)
+    if (variant === "thumbnail" || variant === "standard") {
+      const variants = attachment.variants as Record<string, { path: string }> | null
+      const variantInfo = variants?.[variant]
+      if (variantInfo?.path) {
+        const { data: variantSigned, error: variantSignError } = await supabase.storage
+          .from("attachments")
+          .createSignedUrl(variantInfo.path, 3600)
+        if (!variantSignError && variantSigned?.signedUrl) {
+          return NextResponse.redirect(variantSigned.signedUrl)
+        }
+        // Fall through to original if variant URL fails
+      }
+      // Fall through to original if variant not available yet
     }
 
     // Create a fresh signed URL from the storage path rather than using the

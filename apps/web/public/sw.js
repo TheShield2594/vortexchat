@@ -121,24 +121,41 @@ self.addEventListener("push", (event) => {
     tag,
   } = data
 
+  // Detect iOS PWA — iOS incorrectly reports backgrounded tabs as "focused"
+  // via clients.matchAll(), so we must force renotify:true and silent:false.
+  // Also, iOS Safari does not support notification action buttons, and using
+  // the same tag silently replaces earlier notifications without alerting.
+  const isIOS = /iP(hone|ad|od)/.test(self.navigator?.userAgent ?? "")
+
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: false }).then((clients) => {
       // If any tab is focused, the in-app handler will play the sound — make
       // the push notification silent to prevent double-play.
-      const anyFocused = clients.some((c) => c.focused)
+      // On iOS this check is unreliable, so always treat as not focused.
+      const anyFocused = isIOS ? false : clients.some((c) => c.focused)
+
+      // On iOS, append a timestamp to the tag so each notification is unique
+      // and not silently replaced. Desktop keeps channel-based grouping.
+      const notificationTag = isIOS
+        ? `${tag || "vortexchat-message"}-${Date.now()}`
+        : (tag || "vortexchat-message")
+
+      // iOS Safari ignores notification action buttons — omit them to save
+      // payload bytes and avoid console warnings.
+      const actions = isIOS ? [] : (url !== "/channels/me" ? [
+        { action: "open", title: "Open" },
+        { action: "dismiss", title: "Dismiss" },
+      ] : [])
 
       return self.registration.showNotification(title, {
         body,
         icon,
         badge: "/icon-192.png",
-        tag: tag || "vortexchat-message",
+        tag: notificationTag,
         data: { url },
-        renotify: !anyFocused,
+        renotify: isIOS ? true : !anyFocused,
         requireInteraction: false,
-        actions: url !== "/channels/me" ? [
-          { action: "open", title: "Open" },
-          { action: "dismiss", title: "Dismiss" },
-        ] : [],
+        actions,
         silent: anyFocused,
       })
     })

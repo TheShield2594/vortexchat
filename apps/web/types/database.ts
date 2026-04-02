@@ -727,6 +727,9 @@ export type Database = {
           purged_at: string | null
           lifetime_days: number | null
           decay_cost: number | null
+          blur_hash: string | null
+          variants: Json | null
+          processing_state: "pending" | "processing" | "completed" | "failed" | null
         }
         Insert: {
           id?: string
@@ -753,6 +756,9 @@ export type Database = {
           purged_at?: string | null
           lifetime_days?: number | null
           decay_cost?: number | null
+          blur_hash?: string | null
+          variants?: Json | null
+          processing_state?: "pending" | "processing" | "completed" | "failed" | null
         }
         Update: {
           id?: string
@@ -779,6 +785,9 @@ export type Database = {
           purged_at?: string | null
           lifetime_days?: number | null
           decay_cost?: number | null
+          blur_hash?: string | null
+          variants?: Json | null
+          processing_state?: "pending" | "processing" | "completed" | "failed" | null
         }
         Relationships: [
           {

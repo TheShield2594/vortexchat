@@ -134,11 +134,27 @@
 | Inline video player | Done | `<video controls>` in `AttachmentDisplay` for `video/*` MIME types |
 | Screen share system audio | Done | `getDisplayMedia({ audio: true })` in `use-voice.ts`; audio track forwarded to peers |
 
+## Media Processing Pipeline (#598)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Image variant DB schema | Done | Migration 00089 — `blur_hash TEXT`, `variants JSONB`, `processing_state` enum on attachments |
+| Image processing library (Sharp) | Done | `lib/image-processing.ts` — generates blur placeholder (16px WEBP), thumbnail (200px), standard (1200px) variants |
+| Async processing on message create | Done | `POST /api/messages` — fire-and-forget `processAttachmentImage()` for image attachments |
+| Variant download support | Done | `GET /api/attachments/[id]/download?variant=thumbnail\|standard` — serves optimized variant with signed URL; falls back to original |
+| Blur placeholder in chat UI | Done | `AttachmentDisplay` shows tiny WEBP blur while full image loads; hidden on load via `onLoad` handler |
+| Optimized image serving (standard variant) | Done | Chat images load standard variant (1200px WEBP) instead of full-res original; lightbox still serves original |
+| CLS prevention via aspect ratio | Done | `aspectRatio` CSS property set from image dimensions to prevent layout shift |
+
 ## Notifications
 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Quiet hours (notification schedule) | Done | Migration 00064; `quiet_hours_enabled/start/end/timezone` columns; `isInQuietHours()` utility; push suppressed in `sendPushToUser()`; UI in Notifications settings |
+| iOS PWA: force renotify:true (#599) | Done | `sw.js` — iOS reports backgrounded tabs as focused; UA detection forces `renotify:true` + `silent:false` on iOS |
+| iOS PWA: unique notification tags (#600) | Done | `sw.js` — append timestamp to notification tag on iOS to prevent silent replacement; desktop keeps channel-based grouping |
+| iOS PWA: omit action buttons (#601) | Done | `sw.js` — iOS Safari ignores notification actions; conditionally omit on iOS to save payload bytes |
+| Push notification server/channel context (#602) | Done | `lib/push.ts` — server channel titles now show "ServerName — #channel"; DMs unchanged; threads show "> ThreadTitle" |
 
 ## Direct Messages
 
@@ -271,6 +287,7 @@
 | CSS container queries for component responsiveness (#575) | Done | Added `container-type: inline-size` to channel sidebar, member list, message input, thread panel; responsive `@container` rules |
 | Named view transitions (#576) | Done | Added `view-transition-name` to server sidebar, channel sidebar, chat area, and chat header surfaces; respects `prefers-reduced-motion` |
 | Suspicious login detection enforcement (#545) | Done | `computeLoginRisk` now returns `action` field; score >= 60 requires MFA/email challenge; score >= 80 locks session and requires email verification |
+| TypeScript `any` type cleanup (#546) | Done | All 46 files cleaned; remaining `SupabaseClient<any>` consolidated in `lib/supabase/untyped-table.ts` utility (intentional for ungenerated tables) |
 
 ## Search (#593)
 
@@ -305,4 +322,4 @@
 
 ---
 
-*Last updated: 2026-04-02 (sprint 2)*
+*Last updated: 2026-04-02 (sprint 3)*
