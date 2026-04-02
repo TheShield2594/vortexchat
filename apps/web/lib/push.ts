@@ -120,7 +120,7 @@ export async function sendPushToUser(
 
     // Warn when ALL subscriptions failed — likely iOS SW eviction or stale endpoints
     const allFailed = results.every((r) => r.status === "rejected")
-    if (allFailed && subs.length > 0) {
+    if (allFailed) {
       console.warn(`sendPushToUser: all ${subs.length} push subscriptions failed for user ${userId} — possible iOS service worker eviction`)
     }
   } catch (err) {

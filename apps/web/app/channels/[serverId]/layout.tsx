@@ -73,9 +73,12 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
       .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
     if (!full.error) return full
-    // Retry without last_online_at if column doesn't exist yet.
-    // Cast to match the full query type — last_online_at will simply be
-    // absent on each user object, which downstream code handles via ?. access.
+    // Retry without last_online_at if column doesn't exist yet
+    console.warn("[server-layout] Members query failed, retrying without last_online_at", {
+      serverId: params.serverId,
+      code: full.error.code,
+      message: full.error.message,
+    })
     const compat = await adminSupabase.from("server_members")
       .select(`
         server_id, user_id, nickname,
@@ -88,6 +91,14 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
       .eq("server_id", params.serverId)
       .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
+    // Normalize: add last_online_at: null so downstream MemberData type is satisfied
+    if (compat.data) {
+      for (const member of compat.data) {
+        if (member.user && !("last_online_at" in member.user)) {
+          (member.user as Record<string, unknown>).last_online_at = null
+        }
+      }
+    }
     return compat as unknown as typeof full
   }
 

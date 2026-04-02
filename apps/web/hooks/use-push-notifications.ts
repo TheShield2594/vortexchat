@@ -1,8 +1,12 @@
 "use client"
 
-import { useEffect, useCallback, useRef } from "react"
+import { useEffect, useCallback } from "react"
 
 const PUBLIC_VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+
+/** Module-level flag so the resubscribed toast fires at most once per app lifetime,
+ *  even if multiple components mount usePushNotifications. */
+let wasResubscribedGlobal = false
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
@@ -12,8 +16,6 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export function usePushNotifications() {
-  const wasResubscribedRef = useRef(false)
-
   const subscribe = useCallback(async (): Promise<boolean> => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false
     if (!PUBLIC_VAPID_KEY) return false
@@ -82,8 +84,8 @@ export function usePushNotifications() {
       }
 
       // Show a toast when push was silently re-enabled (e.g. after iOS SW eviction)
-      if ((isIOS || endpointChanged) && !wasResubscribedRef.current) {
-        wasResubscribedRef.current = true
+      if ((isIOS || endpointChanged) && !wasResubscribedGlobal) {
+        wasResubscribedGlobal = true
         window.dispatchEvent(new CustomEvent("vortex:push-resubscribed"))
       }
 

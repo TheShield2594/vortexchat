@@ -76,8 +76,8 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const tabUnreadCounts = useMemo(() => {
     const mentions = notifications.filter((n) => !n.read && (n.type === "mention" || n.type === "reply")).length
     const other = notifications.filter((n) => !n.read && n.type !== "mention" && n.type !== "reply").length
-    return { all: unreadCount, mentions, other }
-  }, [notifications, unreadCount])
+    return { all: mentions + other, mentions, other }
+  }, [notifications])
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -457,7 +457,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           </div>
 
           {/* Filter tabs */}
-          <div className="flex border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+          <div className="flex border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }} role="tablist" aria-label="Notification filters">
             {(["all", "mentions", "other"] as const).map((tab) => {
               const label = tab === "all" ? "All" : tab === "mentions" ? "Mentions" : "Other"
               const count = tabUnreadCounts[tab]
@@ -466,12 +466,15 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
                 <button
                   key={tab}
                   onClick={() => setFilterTab(tab)}
+                  role="tab"
+                  aria-selected={active}
+                  tabIndex={active ? 0 : -1}
+                  id={`notifications-tab-${tab}`}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors"
                   style={{
                     color: active ? "var(--theme-text-primary)" : "var(--theme-text-muted)",
                     borderBottom: active ? "2px solid var(--theme-accent)" : "2px solid transparent",
                   }}
-                  aria-pressed={active}
                 >
                   {label}
                   {count > 0 && (

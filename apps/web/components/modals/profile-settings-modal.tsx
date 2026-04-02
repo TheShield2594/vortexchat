@@ -147,6 +147,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
     const { customMinutes } = inferStatusExpiryKey(user.status_expires_at)
     return customMinutes ? customMinutes % 60 : 30
   })
+  const [statusExpiryDirty, setStatusExpiryDirty] = useState(false)
 
   // Clear expired status on mount
   useEffect(() => {
@@ -388,6 +389,13 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         avatarUrl = uploadPayload.avatar_url
       }
 
+      // Validate custom expiry duration
+      if (statusExpiryDirty && statusExpiryKey === "custom" && customExpiryHours * 60 + customExpiryMinutes <= 0) {
+        toast({ variant: "destructive", title: "Invalid expiry", description: "Custom expiry must be at least 1 minute." })
+        setLoading(false)
+        return
+      }
+
       const updates = {
         display_name: displayName.trim() || null,
         username: username.trim().toLowerCase(),
@@ -395,7 +403,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         custom_tag: customTag.trim() || null,
         status_message: statusMessage.trim() || null,
         status_emoji: statusEmoji.trim() || null,
-        status_expires_at: getStatusExpiryIso(statusExpiryKey, statusExpiryKey === "custom" ? customExpiryHours * 60 + customExpiryMinutes : undefined) || null,
+        status_expires_at: statusExpiryDirty
+          ? (getStatusExpiryIso(statusExpiryKey, statusExpiryKey === "custom" ? customExpiryHours * 60 + customExpiryMinutes : undefined) || null)
+          : user.status_expires_at ?? null,
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
@@ -797,7 +807,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <select
                           value={statusExpiryKey}
-                          onChange={(e) => setStatusExpiryKey(e.target.value as StatusExpiryKey)}
+                          onChange={(e) => { setStatusExpiryKey(e.target.value as StatusExpiryKey); setStatusExpiryDirty(true) }}
                           className="text-xs rounded px-2 py-1"
                           style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
                         >
@@ -812,7 +822,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                               min={0}
                               max={23}
                               value={customExpiryHours}
-                              onChange={(e) => setCustomExpiryHours(Math.max(0, Math.min(23, Number(e.target.value) || 0)))}
+                              onChange={(e) => { setCustomExpiryHours(Math.max(0, Math.min(23, Number(e.target.value) || 0))); setStatusExpiryDirty(true) }}
                               className="w-12 text-xs rounded px-1.5 py-1 text-center"
                               style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
                               aria-label="Hours"
@@ -823,7 +833,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                               min={0}
                               max={59}
                               value={customExpiryMinutes}
-                              onChange={(e) => setCustomExpiryMinutes(Math.max(0, Math.min(59, Number(e.target.value) || 0)))}
+                              onChange={(e) => { setCustomExpiryMinutes(Math.max(0, Math.min(59, Number(e.target.value) || 0))); setStatusExpiryDirty(true) }}
                               className="w-12 text-xs rounded px-1.5 py-1 text-center"
                               style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
                               aria-label="Minutes"
@@ -834,7 +844,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                         {statusExpiryKey !== "never" && (
                           <button
                             type="button"
-                            onClick={() => setStatusExpiryKey("never")}
+                            onClick={() => { setStatusExpiryKey("never"); setStatusExpiryDirty(true) }}
                             className="text-xs px-2 py-1 rounded hover:bg-white/10"
                             style={{ color: "var(--theme-text-muted)" }}
                           >

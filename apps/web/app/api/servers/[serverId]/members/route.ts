@@ -113,8 +113,15 @@ export async function GET(
       .eq("server_id", params.serverId)
       .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
-    // last_online_at will be absent but downstream JSON serialization handles it fine
-    members = fallback.data as typeof members
+    // Normalize: add last_online_at: null to match expected type
+    if (fallback.data) {
+      members = fallback.data.map((m) => ({
+        ...m,
+        user: m.user ? { ...m.user, last_online_at: null as string | null } : m.user,
+      })) as typeof members
+    } else {
+      members = null
+    }
     error = fallback.error
   }
 
@@ -177,6 +184,16 @@ export async function DELETE(
       .eq("user_id", targetUserId)
 
     if (error) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
+
+    // Audit log for successful kick/leave
+    await insertAuditLog(supabase, {
+      server_id: params.serverId,
+      actor_id: user.id,
+      action: targetUserId === user.id ? "member_leave" : "member_kick",
+      target_id: targetUserId,
+      target_type: "user",
+      changes: null,
+    })
 
     return NextResponse.json({ success: true })
 
