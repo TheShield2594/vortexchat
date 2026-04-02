@@ -98,7 +98,7 @@ export async function getChannelPermissions(
   userId: string
 ): Promise<MemberPerms> {
   return cached(
-    `chan-perms:${channelId}:${userId}`,
+    `chan-perms:${serverId}:${channelId}:${userId}`,
     async () => {
       const [memberPerms, memberRolesResult, defaultRoleResult, overwritesResult] = await Promise.all([
         getMemberPermissions(supabase, serverId, userId),
@@ -135,7 +135,7 @@ export async function getChannelPermissions(
 /** Invalidate all cached permissions for a server (after role/member changes). */
 export function invalidateServerPermissions(serverId: string): void {
   invalidatePrefix(`perms:${serverId}`)
-  invalidatePrefix(`chan-perms:`)
+  invalidatePrefix(`chan-perms:${serverId}:`)
 }
 
 /** Invalidate cached channel permissions (after channel permission overwrite changes). */

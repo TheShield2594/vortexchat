@@ -208,8 +208,10 @@ export class PresenceManager {
     // this sweep is a safety net for orphaned keys (TTL === -1).
     const CLEANUP_INTERVAL_MS = 5 * 60_000
 
+    let cleanupInFlight = false
     this.cleanupTimer = setInterval(async () => {
-      if (this.destroyed) return
+      if (this.destroyed || cleanupInFlight) return
+      cleanupInFlight = true
       try {
         let cursor = "0"
         do {
@@ -236,6 +238,8 @@ export class PresenceManager {
         } while (cursor !== "0")
       } catch (err) {
         log.error({ err }, "presence cleanup sweep error")
+      } finally {
+        cleanupInFlight = false
       }
     }, CLEANUP_INTERVAL_MS)
   }

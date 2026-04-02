@@ -877,7 +877,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     // Check for cached scroll position from a previous visit to this channel
     const cachedState = useAppStore.getState().messageCache[channel.id]
-    if (cachedState && cachedState.scrollOffset > 0) {
+    if (cachedState) {
       container.scrollTop = cachedState.scrollOffset
     } else {
       // Scroll to bottom (newest messages)
@@ -1421,36 +1421,46 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   // ── Stable callbacks for MessageItem (fixes #646) ──────────────────────
   const handleMessageEdit = useCallback(async (messageId: string, content: string): Promise<void> => {
-    const res = await fetch(
-      `/api/servers/${serverId}/channels/${channel.id}/messages/${messageId}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+    try {
+      const res = await fetch(
+        `/api/servers/${serverId}/channels/${channel.id}/messages/${messageId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        }
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
+        throw new Error(data.error || "Failed to edit message")
       }
-    )
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
-      throw new Error(data.error || "Failed to edit message")
+      const updated = await res.json().catch(() => null)
+      setMessages((prev) =>
+        prev.map((m) => m.id === messageId
+          ? updated ? { ...m, ...updated } : { ...m, content, edited_at: new Date().toISOString() }
+          : m)
+      )
+    } catch (err) {
+      console.error(`[chat] edit failed channel=${channel.id} message=${messageId}`, err)
+      throw err
     }
-    const updated = await res.json().catch(() => null)
-    setMessages((prev) =>
-      prev.map((m) => m.id === messageId
-        ? updated ? { ...m, ...updated } : { ...m, content, edited_at: new Date().toISOString() }
-        : m)
-    )
   }, [serverId, channel.id])
 
   const handleMessageDelete = useCallback(async (messageId: string): Promise<void> => {
-    const res = await fetch(`/api/servers/${serverId}/channels/${channel.id}/messages/${messageId}`, {
-      method: "DELETE",
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({ error: "Failed to delete message" }))
-      throw new Error(data.error || "Failed to delete message")
+    try {
+      const res = await fetch(`/api/servers/${serverId}/channels/${channel.id}/messages/${messageId}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Failed to delete message" }))
+        throw new Error(data.error || "Failed to delete message")
+      }
+      setMessages((prev) => prev.filter((m) => m.id !== messageId))
+      setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
+    } catch (err) {
+      console.error(`[chat] delete failed channel=${channel.id} message=${messageId}`, err)
+      throw err
     }
-    setMessages((prev) => prev.filter((m) => m.id !== messageId))
-    setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
   }, [serverId, channel.id, setAndPersistOutbox])
 
   const handlePinToggle = useCallback((messageId: string, pinned: boolean): void => {
@@ -1483,9 +1493,19 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     try {
       await sendReactionMutation({ messageId, emoji, remove, nonce: crypto.randomUUID() })
     } catch {
-      if (!previousMessage) return
+      // Revert only the optimistic reaction delta, not the entire message
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, ...previousMessage } : m))
+        prev.map((m) => {
+          if (m.id !== messageId) return m
+          return {
+            ...m,
+            reactions: remove
+              // We optimistically removed — re-add it
+              ? [...m.reactions, { message_id: messageId, user_id: currentUserId, emoji, created_at: new Date().toISOString() }]
+              // We optimistically added — remove it
+              : m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji)),
+          }
+        })
       )
     }
   }, [currentUserId])
