@@ -45,7 +45,8 @@ function buildCsp(): { nonce: string; header: string } {
     "https://api.klipy.co https://api.klipy.com https://api.giphy.com",
     sentryHost ? `https://${sentryHost}` : "",
     signalHost ? `https://${signalHost} wss://${signalHost}` : "",
-    isDev ? "ws://localhost:* http://localhost:*" : "",
+    "ws: wss:", // TODO: tighten once signal server is deployed
+    isDev ? "http://localhost:*" : "",
   ].filter(Boolean).join(" ")
 
   const header = [
