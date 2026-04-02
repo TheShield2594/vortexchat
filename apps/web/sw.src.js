@@ -169,6 +169,12 @@ self.addEventListener("push", (event) => {
   // the same tag silently replaces earlier notifications without alerting.
   const isIOS = /iP(hone|ad|od)/.test(self.navigator?.userAgent ?? "")
 
+  // Show the notification FIRST and resolve waitUntil as soon as it's
+  // displayed.  The badge update is fire-and-forget — on iOS the SW has
+  // strict execution time limits, and chaining a network fetch after
+  // showNotification() risks the OS killing the SW before the promise
+  // chain resolves, which can cause iOS to silently revoke the push
+  // subscription entirely.
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: false }).then((clients) => {
       // If any tab is focused, the in-app handler will play the sound — make
@@ -189,7 +195,10 @@ self.addEventListener("push", (event) => {
         { action: "dismiss", title: "Dismiss" },
       ] : [])
 
-      return self.registration.showNotification(title, {
+      // Fire-and-forget badge update — do NOT chain this in the waitUntil
+      // promise.  On iOS, the SW has ~30s to finish; a slow/hanging fetch
+      // here can cause the OS to terminate the SW and revoke the push sub.
+      const badgeUpdate = self.registration.showNotification(title, {
         body,
         icon,
         badge: "/icon-192.png?v=2",
@@ -199,24 +208,22 @@ self.addEventListener("push", (event) => {
         requireInteraction: false,
         actions,
         silent: anyFocused,
-      }).then(() =>
-        // Update the PWA app badge after showing the notification.
-        // iOS does not support periodicSync, so this is the only
-        // opportunity to update the badge when the app is closed.
+      }).then(() => {
+        // Best-effort badge update after notification is shown.
+        // Intentionally not returned so it doesn't block waitUntil.
         fetch("/api/notifications/unread-count", { credentials: "same-origin" })
           .then((res) => {
-            if (!res.ok) {
-              console.debug("Badge update skipped: unread-count returned", res.status)
-              return null
-            }
+            if (!res.ok) return null
             return res.json()
           })
           .then((json) => {
             const count = json?.count
             if (typeof count === "number" && isFinite(count)) updateAppBadge(count)
           })
-          .catch(() => {}) // best-effort — don't break the notification
-      )
+          .catch(() => {})
+      })
+
+      return badgeUpdate
     })
   )
 })
