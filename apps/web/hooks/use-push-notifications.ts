@@ -17,6 +17,14 @@ export function usePushNotifications() {
     if (!PUBLIC_VAPID_KEY) return false
 
     try {
+      // iOS Safari requires Notification.requestPermission() to be called
+      // synchronously within the user gesture's microtask.  Any preceding
+      // await (SW ready, getRegistration, register) breaks the gesture
+      // chain and causes iOS to silently deny the permission.
+      // Request permission FIRST, then resolve the SW registration.
+      const permission = await Notification.requestPermission()
+      if (permission !== "granted") return false
+
       // Prefer .ready (resolved by useSwRegistration's register call).
       // If no SW is registered yet (e.g. SwUpdateToast not mounted), fall
       // back to getRegistration() then register() so push doesn't hang.
@@ -31,16 +39,28 @@ export function usePushNotifications() {
         registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
       }
 
-      const permission = await Notification.requestPermission()
-      if (permission !== "granted") return false
-
+      // On iOS, stale push endpoints silently fail — pushes are accepted
+      // by the push service but never delivered to the device.  Force a
+      // fresh subscription every time on iOS to avoid this.
+      const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent)
       const existing = await registration.pushManager.getSubscription()
-      const subscription =
-        existing ??
-        (await registration.pushManager.subscribe({
+
+      let subscription: PushSubscription
+      if (existing && isIOS) {
+        // Unsubscribe the stale endpoint, then create a fresh one
+        await existing.unsubscribe()
+        subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
-        }))
+        })
+      } else {
+        subscription =
+          existing ??
+          (await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
+          }))
+      }
 
       const { endpoint, keys } = subscription.toJSON() as { endpoint?: string; keys?: Record<string, string> }
       const res = await fetch("/api/push", {

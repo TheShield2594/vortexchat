@@ -116,7 +116,7 @@ self.addEventListener("push", (event) => {
   const {
     title = "VortexChat",
     body = "New message",
-    icon = "/icon-192.png",
+    icon = "/icon-192.png?v=2",
     url = "/channels/me",
     tag,
   } = data
@@ -150,26 +150,45 @@ self.addEventListener("push", (event) => {
       return self.registration.showNotification(title, {
         body,
         icon,
-        badge: "/icon-192.png",
+        badge: "/icon-192.png?v=2",
         tag: notificationTag,
         data: { url },
         renotify: isIOS ? true : !anyFocused,
         requireInteraction: false,
         actions,
         silent: anyFocused,
-      })
+      }).then(() =>
+        // Update the PWA app badge after showing the notification.
+        // iOS does not support periodicSync, so this is the only
+        // opportunity to update the badge when the app is closed.
+        fetch("/api/notifications/unread-count", { credentials: "same-origin" })
+          .then((res) => {
+            if (!res.ok) {
+              console.debug("Badge update skipped: unread-count returned", res.status)
+              return null
+            }
+            return res.json()
+          })
+          .then((json) => {
+            const count = json?.count
+            if (typeof count === "number" && isFinite(count)) updateAppBadge(count)
+          })
+          .catch(() => {}) // best-effort — don't break the notification
+      )
     })
   )
 })
 
 // ─── App badge helper ────────────────────────────────────────────────────────
 function updateAppBadge(count) {
-  // In service worker scope, badge API is on `self` (ServiceWorkerGlobalScope)
-  if (!self.navigator?.setAppBadge) return
+  // The Badging API is on the ServiceWorkerGlobalScope (self), not on
+  // self.navigator.  iOS follows the spec strictly — using navigator
+  // silently fails.
+  if (typeof self.setAppBadge !== "function") return
   if (count > 0) {
-    self.navigator.setAppBadge(count)
-  } else {
-    self.navigator.clearAppBadge()
+    self.setAppBadge(count)
+  } else if (typeof self.clearAppBadge === "function") {
+    self.clearAppBadge()
   }
 }
 
