@@ -58,6 +58,50 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
   const round2Timer = perfTimer("server-layout round-2 (members/emojis/threads/voice/reads/messages)")
   const adminSupabase = await createServiceRoleClient()
 
+  // Members query with fallback for missing last_online_at column
+  async function fetchMembersWithFallback() {
+    const full = await adminSupabase.from("server_members")
+      .select(`
+        server_id, user_id, nickname,
+        user:users!server_members_user_id_fkey(
+          id, username, display_name, avatar_url, status_message,
+          bio, banner_color, custom_tag, created_at, last_online_at
+        ),
+        roles:member_roles(role_id, roles(id, server_id, name, color, permissions, position, created_at))
+      `)
+      .eq("server_id", params.serverId)
+      .order("nickname", { ascending: true, nullsFirst: false })
+      .order("user_id", { ascending: true })
+    if (!full.error) return full
+    // Retry without last_online_at if column doesn't exist yet
+    console.warn("[server-layout] Members query failed, retrying without last_online_at", {
+      serverId: params.serverId,
+      code: full.error.code,
+      message: full.error.message,
+    })
+    const compat = await adminSupabase.from("server_members")
+      .select(`
+        server_id, user_id, nickname,
+        user:users!server_members_user_id_fkey(
+          id, username, display_name, avatar_url, status_message,
+          bio, banner_color, custom_tag, created_at
+        ),
+        roles:member_roles(role_id, roles(id, server_id, name, color, permissions, position, created_at))
+      `)
+      .eq("server_id", params.serverId)
+      .order("nickname", { ascending: true, nullsFirst: false })
+      .order("user_id", { ascending: true })
+    // Normalize: add last_online_at: null so downstream MemberData type is satisfied
+    if (compat.data) {
+      for (const member of compat.data) {
+        if (member.user && !("last_online_at" in member.user)) {
+          (member.user as Record<string, unknown>).last_online_at = null
+        }
+      }
+    }
+    return compat as unknown as typeof full
+  }
+
   const [
     { data: rawMembers },
     { data: emojis },
@@ -67,40 +111,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
     { data: latestMessages },
   ] = await Promise.all([
     // Members (via service role to bypass RLS)
-    adminSupabase
-      .from("server_members")
-      .select(`
-        server_id,
-        user_id,
-        nickname,
-        user:users!server_members_user_id_fkey(
-          id,
-          username,
-          display_name,
-          avatar_url,
-          status_message,
-          bio,
-          banner_color,
-          custom_tag,
-          created_at,
-          last_online_at
-        ),
-        roles:member_roles(
-          role_id,
-          roles(
-            id,
-            server_id,
-            name,
-            color,
-            permissions,
-            position,
-            created_at
-          )
-        )
-      `)
-      .eq("server_id", params.serverId)
-      .order("nickname", { ascending: true, nullsFirst: false })
-      .order("user_id", { ascending: true }),
+    fetchMembersWithFallback(),
     // Emojis
     supabase
       .from("server_emojis")

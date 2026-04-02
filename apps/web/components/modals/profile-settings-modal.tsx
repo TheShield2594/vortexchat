@@ -62,11 +62,12 @@ const STATUS_EXPIRY_OPTIONS = [
   { key: "1h", label: "In 1 hour", minutes: 60 },
   { key: "4h", label: "In 4 hours", minutes: 240 },
   { key: "1d", label: "In 1 day", minutes: 1440 },
+  { key: "custom", label: "Custom…", minutes: null },
 ] as const
 
 type StatusExpiryKey = (typeof STATUS_EXPIRY_OPTIONS)[number]["key"]
 
-function inferStatusExpiryKey(value: string | null | undefined): { key: StatusExpiryKey; expired: boolean } {
+function inferStatusExpiryKey(value: string | null | undefined): { key: StatusExpiryKey; expired: boolean; customMinutes?: number } {
   if (!value) return { key: "never", expired: false }
   const expiryMs = new Date(value).getTime()
   if (Number.isNaN(expiryMs)) return { key: "never", expired: false }
@@ -76,10 +77,19 @@ function inferStatusExpiryKey(value: string | null | undefined): { key: StatusEx
   const timedOptions = STATUS_EXPIRY_OPTIONS.filter((option) => option.minutes !== null)
   const closest = [...timedOptions].sort((a, b) => Math.abs((a.minutes ?? 0) - diffMinutes) - Math.abs((b.minutes ?? 0) - diffMinutes))[0]
 
+  // If the closest preset is more than 5 minutes off, treat as custom
+  if (closest && Math.abs((closest.minutes ?? 0) - diffMinutes) > 5) {
+    return { key: "custom" as StatusExpiryKey, expired: false, customMinutes: diffMinutes }
+  }
+
   return { key: (closest?.key ?? "never") as StatusExpiryKey, expired: false }
 }
 
-function getStatusExpiryIso(key: StatusExpiryKey): string {
+function getStatusExpiryIso(key: StatusExpiryKey, customMinutes?: number): string {
+  if (key === "custom") {
+    if (!customMinutes || customMinutes <= 0) return ""
+    return new Date(Date.now() + customMinutes * 60 * 1000).toISOString()
+  }
   const option = STATUS_EXPIRY_OPTIONS.find((entry) => entry.key === key)
   if (!option || option.minutes === null) return ""
   return new Date(Date.now() + option.minutes * 60 * 1000).toISOString()
@@ -129,6 +139,15 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
     const { key } = inferStatusExpiryKey(user.status_expires_at)
     return key
   })
+  const [customExpiryHours, setCustomExpiryHours] = useState<number>(() => {
+    const { customMinutes } = inferStatusExpiryKey(user.status_expires_at)
+    return customMinutes ? Math.floor(customMinutes / 60) : 0
+  })
+  const [customExpiryMinutes, setCustomExpiryMinutes] = useState<number>(() => {
+    const { customMinutes } = inferStatusExpiryKey(user.status_expires_at)
+    return customMinutes ? customMinutes % 60 : 30
+  })
+  const [statusExpiryDirty, setStatusExpiryDirty] = useState(false)
 
   // Clear expired status on mount
   useEffect(() => {
@@ -370,6 +389,13 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         avatarUrl = uploadPayload.avatar_url
       }
 
+      // Validate custom expiry duration
+      if (statusExpiryDirty && statusExpiryKey === "custom" && customExpiryHours * 60 + customExpiryMinutes <= 0) {
+        toast({ variant: "destructive", title: "Invalid expiry", description: "Custom expiry must be at least 1 minute." })
+        setLoading(false)
+        return
+      }
+
       const updates = {
         display_name: displayName.trim() || null,
         username: username.trim().toLowerCase(),
@@ -377,7 +403,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
         custom_tag: customTag.trim() || null,
         status_message: statusMessage.trim() || null,
         status_emoji: statusEmoji.trim() || null,
-        status_expires_at: getStatusExpiryIso(statusExpiryKey) || null,
+        status_expires_at: statusExpiryDirty
+          ? (getStatusExpiryIso(statusExpiryKey, statusExpiryKey === "custom" ? customExpiryHours * 60 + customExpiryMinutes : undefined) || null)
+          : user.status_expires_at ?? null,
         status,
         banner_color: bannerColor,
         avatar_url: avatarUrl,
@@ -776,10 +804,10 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           style={{ background: "var(--theme-bg-tertiary)", borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)" }}
                         />
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <select
                           value={statusExpiryKey}
-                          onChange={(e) => setStatusExpiryKey(e.target.value as StatusExpiryKey)}
+                          onChange={(e) => { setStatusExpiryKey(e.target.value as StatusExpiryKey); setStatusExpiryDirty(true) }}
                           className="text-xs rounded px-2 py-1"
                           style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
                         >
@@ -787,10 +815,36 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                             <option key={option.key} value={option.key}>{option.label}</option>
                           ))}
                         </select>
+                        {statusExpiryKey === "custom" && (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              max={23}
+                              value={customExpiryHours}
+                              onChange={(e) => { setCustomExpiryHours(Math.max(0, Math.min(23, Number(e.target.value) || 0))); setStatusExpiryDirty(true) }}
+                              className="w-12 text-xs rounded px-1.5 py-1 text-center"
+                              style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                              aria-label="Hours"
+                            />
+                            <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>h</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={59}
+                              value={customExpiryMinutes}
+                              onChange={(e) => { setCustomExpiryMinutes(Math.max(0, Math.min(59, Number(e.target.value) || 0))); setStatusExpiryDirty(true) }}
+                              className="w-12 text-xs rounded px-1.5 py-1 text-center"
+                              style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-primary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                              aria-label="Minutes"
+                            />
+                            <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>m</span>
+                          </div>
+                        )}
                         {statusExpiryKey !== "never" && (
                           <button
                             type="button"
-                            onClick={() => setStatusExpiryKey("never")}
+                            onClick={() => { setStatusExpiryKey("never"); setStatusExpiryDirty(true) }}
                             className="text-xs px-2 py-1 rounded hover:bg-white/10"
                             style={{ color: "var(--theme-text-muted)" }}
                           >

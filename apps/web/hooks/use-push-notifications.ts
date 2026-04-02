@@ -4,6 +4,10 @@ import { useEffect, useCallback } from "react"
 
 const PUBLIC_VAPID_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
+/** Module-level flag so the resubscribed toast fires at most once per app lifetime,
+ *  even if multiple components mount usePushNotifications. */
+let wasResubscribedGlobal = false
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
@@ -63,6 +67,12 @@ export function usePushNotifications() {
       }
 
       const { endpoint, keys } = subscription.toJSON() as { endpoint?: string; keys?: Record<string, string> }
+
+      // Detect endpoint mismatch: if we had an existing subscription but
+      // the endpoint changed, the browser rotated keys (common after iOS
+      // SW eviction).  Flag it so we can notify the user.
+      const endpointChanged = existing !== null && existing.endpoint !== subscription.endpoint
+
       const res = await fetch("/api/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,6 +82,13 @@ export function usePushNotifications() {
         console.warn("Push subscription server registration failed:", res.status)
         return false
       }
+
+      // Show a toast when push was silently re-enabled (e.g. after iOS SW eviction)
+      if ((isIOS || endpointChanged) && !wasResubscribedGlobal) {
+        wasResubscribedGlobal = true
+        window.dispatchEvent(new CustomEvent("vortex:push-resubscribed"))
+      }
+
       return true
     } catch (e) {
       // AbortError is expected when the push service is unavailable (dev,

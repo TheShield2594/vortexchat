@@ -12,6 +12,7 @@ import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
 import { useGifAutoplay } from "@/hooks/use-gif-autoplay"
 import { prefetchNotificationPreferences, clearPreferencesCache } from "@/hooks/use-notification-preferences"
 import { useDmNotificationSound } from "@/hooks/use-dm-notification-sound"
+import { useToast } from "@/components/ui/use-toast"
 import { setActiveChannel as setNotifManagerActiveChannel } from "@/lib/notification-manager"
 import type { UserRow, ServerRow } from "@/types/database"
 
@@ -60,6 +61,16 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
   // Register service worker + push notifications if previously granted
   usePushNotifications()
   useTabUnreadTitle(user?.id ?? null)
+
+  // Show toast when push notifications were re-enabled after iOS SW eviction
+  const { toast } = useToast()
+  useEffect(() => {
+    const handler = () => {
+      toast({ title: "Push notifications were re-enabled", description: "Your notification subscription was refreshed." })
+    }
+    window.addEventListener("vortex:push-resubscribed", handler)
+    return () => window.removeEventListener("vortex:push-resubscribed", handler)
+  }, [toast])
 
   // Global DM notification sound — always mounted so DM sounds fire even on server pages
   useDmNotificationSound(user?.id ?? null)

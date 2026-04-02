@@ -37,9 +37,7 @@ export async function GET(
     return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
   }
 
-  const { data: members, error } = await adminSupabase
-    .from("server_members")
-    .select(`
+  const MEMBER_SELECT_FULL = `
       server_id,
       user_id,
       nickname,
@@ -67,10 +65,65 @@ export async function GET(
           created_at
         )
       )
-    `)
+    ` as const
+
+  // Fallback select without last_online_at for environments where migration 00092 hasn't been applied yet
+  const MEMBER_SELECT_COMPAT = `
+      server_id,
+      user_id,
+      nickname,
+      user:users!server_members_user_id_fkey(
+        id,
+        username,
+        display_name,
+        avatar_url,
+        status_message,
+        bio,
+        banner_color,
+        custom_tag,
+        created_at
+      ),
+      roles:member_roles(
+        role_id,
+        roles(
+          id,
+          server_id,
+          name,
+          color,
+          permissions,
+          position,
+          created_at
+        )
+      )
+    ` as const
+
+  let { data: members, error } = await adminSupabase
+    .from("server_members")
+    .select(MEMBER_SELECT_FULL)
     .eq("server_id", params.serverId)
     .order("nickname", { ascending: true, nullsFirst: false })
     .order("user_id", { ascending: true })
+
+  // If the query fails (e.g. last_online_at column missing), retry without it
+  if (error) {
+    console.warn("[members] GET query failed, retrying without last_online_at", { code: error.code, message: error.message })
+    const fallback = await adminSupabase
+      .from("server_members")
+      .select(MEMBER_SELECT_COMPAT)
+      .eq("server_id", params.serverId)
+      .order("nickname", { ascending: true, nullsFirst: false })
+      .order("user_id", { ascending: true })
+    // Normalize: add last_online_at: null to match expected type
+    if (fallback.data) {
+      members = fallback.data.map((m) => ({
+        ...m,
+        user: m.user ? { ...m.user, last_online_at: null as string | null } : m.user,
+      })) as typeof members
+    } else {
+      members = null
+    }
+    error = fallback.error
+  }
 
   if (error) {
     console.error("[members] GET query failed", { serverId: params.serverId, code: error.code, message: error.message, details: error.details })
@@ -131,6 +184,16 @@ export async function DELETE(
       .eq("user_id", targetUserId)
 
     if (error) return NextResponse.json({ error: "Failed to remove member" }, { status: 500 })
+
+    // Audit log for successful kick/leave
+    await insertAuditLog(supabase, {
+      server_id: params.serverId,
+      actor_id: user.id,
+      action: targetUserId === user.id ? "member_leave" : "member_kick",
+      target_id: targetUserId,
+      target_type: "user",
+      changes: null,
+    })
 
     return NextResponse.json({ success: true })
 

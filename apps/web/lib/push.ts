@@ -93,7 +93,7 @@ export async function sendPushToUser(
 
     if (!subs?.length) return
 
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       subs.map((sub: { id: string; endpoint: string; p256dh: string; auth: string }) =>
         webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -113,9 +113,16 @@ export async function sendPushToUser(
           } else {
             console.error(`sendPushToUser: push to ${sub.endpoint.slice(0, 50)}… failed`, statusCode ?? err)
           }
+          throw err // re-throw so allSettled marks as rejected
         })
       )
     )
+
+    // Warn when ALL subscriptions failed — likely iOS SW eviction or stale endpoints
+    const allFailed = results.every((r) => r.status === "rejected")
+    if (allFailed) {
+      console.warn(`sendPushToUser: all ${subs.length} push subscriptions failed for user ${userId} — possible iOS service worker eviction`)
+    }
   } catch (err) {
     console.error("sendPushToUser: unexpected error", err)
   }
