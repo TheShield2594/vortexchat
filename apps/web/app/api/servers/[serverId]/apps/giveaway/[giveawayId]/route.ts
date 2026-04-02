@@ -10,6 +10,7 @@ type Params = { params: Promise<{ serverId: string; giveawayId: string }> }
  * Actions: enter, leave, end, cancel, reroll
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const { serverId, giveawayId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -194,4 +195,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/giveaway/[giveawayId] POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

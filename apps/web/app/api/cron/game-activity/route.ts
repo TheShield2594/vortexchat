@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { verifyBearerToken } from "@/lib/utils/timing-safe"
+import { isGameActivity } from "@vortex/shared"
 
 /**
  * GET /api/cron/game-activity
@@ -54,11 +55,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     // Only poll for users who are currently online/idle/dnd
     const userIds = connections.map((c) => c.user_id)
-    const { data: onlineUsers } = await supabase
+    const { data: onlineUsers, error: onlineUsersError } = await supabase
       .from("users")
       .select("id")
       .in("id", userIds)
       .in("status", ["online", "idle", "dnd"])
+
+    if (onlineUsersError) {
+      console.error("game-activity: failed to fetch online users", {
+        route: "cron/game-activity",
+        action: "fetch_online_users",
+        error: onlineUsersError.message,
+      })
+      return NextResponse.json({ error: "Failed to fetch online users" }, { status: 500 })
+    }
 
     if (!onlineUsers || onlineUsers.length === 0) {
       // Clear game_activity for all offline users with stale activity
@@ -91,10 +101,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .select("id, game_activity")
       .in("id", Array.from(onlineUserIds))
 
-    const currentGameMap = new Map<string, { game_name?: string; started_at?: string } | null>()
+    const currentGameMap = new Map<string, { game_name: string; started_at?: string } | null>()
     for (const u of currentActivities ?? []) {
-      const activity = u.game_activity as { game_name?: string; started_at?: string } | null
-      currentGameMap.set(u.id, activity)
+      currentGameMap.set(u.id, isGameActivity(u.game_activity) ? u.game_activity : null)
     }
 
     const userGameMap = new Map<string, { game_name: string; game_id: string | null; started_at: string; source: string } | null>()
@@ -103,7 +112,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       try {
         const res = await fetch(
           `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${apiKey}&steamids=${batch.join(",")}`,
-          { cache: "no-store" }
+          { cache: "no-store", signal: AbortSignal.timeout(8000) }
         )
         if (!res.ok) continue
 
@@ -143,7 +152,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           .from("users")
           .update({ game_activity: activity })
           .eq("id", userId)
-        return updateError ? 0 : 1
+        if (updateError) {
+          console.error("game-activity: failed user update", {
+            route: "cron/game-activity",
+            action: "update_game_activity",
+            userId,
+            error: updateError.message,
+          })
+          return 0
+        }
+        return 1
       })
     )
     const updated = updateResults.reduce<number>((sum, r) => sum + r, 0)
@@ -151,11 +169,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // Clear game_activity for offline users who still have it set
     const offlineUserIds = userIds.filter((id) => !onlineUserIds.has(id))
     if (offlineUserIds.length > 0) {
-      await supabase
+      const { error: clearError } = await supabase
         .from("users")
         .update({ game_activity: null })
         .in("id", offlineUserIds)
         .not("game_activity", "is", null)
+
+      if (clearError) {
+        console.error("game-activity: failed offline clear", {
+          route: "cron/game-activity",
+          action: "clear_offline_activity",
+          error: clearError.message,
+        })
+      }
     }
 
     return NextResponse.json({ ok: true, updated, polled: steamIds.length })
