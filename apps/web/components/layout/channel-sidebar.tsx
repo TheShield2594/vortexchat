@@ -14,6 +14,7 @@ import {
   useSensor,
   useSensors,
   closestCenter,
+  type CollisionDetection,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
@@ -255,6 +256,22 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
+
+  // When dragging a category, only consider other category sortables as drop
+  // targets. Without this, closestCenter picks up channel items (which are
+  // physically closer) and the SortableContext for categories never sees a
+  // valid "over" peer — so visual reordering and the handleDragEnd category
+  // branch both fail.
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const draggedId = args.active.id as string
+    if (getCategoryIdFromDragId(draggedId)) {
+      const categoryOnly = args.droppableContainers.filter(
+        (container) => getCategoryIdFromDragId(container.id as string) !== null
+      )
+      return closestCenter({ ...args, droppableContainers: categoryOnly })
+    }
+    return closestCenter(args)
+  }, [])
 
   // Perf: log mount time relative to navigation start
   useEffect(() => {
@@ -605,6 +622,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
     const draggedId = active.id as string
     if (getCategoryIdFromDragId(draggedId)) {
+      // Category drag — track the over container for visual highlight but
+      // don't do cross-container moves (categories live in a flat list).
+      const overCatId = getCategoryIdFromDragId(over.id as string)
+      setOverContainerId(overCatId)
       return
     }
     const overId = over.id as string
@@ -651,12 +672,24 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     const draggedId = active.id as string
     const overId = over.id as string
 
-    // Category-to-category reorder
+    // Category reorder — resolve the drop target to a category ID even if the
+    // pointer ended up over a channel or the category's inner droppable (raw UUID).
     const draggedCategoryId = getCategoryIdFromDragId(draggedId)
-    const overCategoryId = getCategoryIdFromDragId(overId)
-
-    if (draggedCategoryId && overCategoryId && draggedCategoryId !== overCategoryId) {
-      persistCategoryOrder(draggedCategoryId, overCategoryId)
+    if (draggedCategoryId) {
+      let targetCategoryId = getCategoryIdFromDragId(overId)
+      if (!targetCategoryId) {
+        // Fell on a channel or raw category droppable — resolve to its container
+        const container = findContainer(overId)
+        if (container && container !== NO_CATEGORY) {
+          targetCategoryId = container
+        } else if (itemsRef.current[overId] !== undefined && overId !== NO_CATEGORY) {
+          // overId is itself a container key (raw category UUID from the droppable)
+          targetCategoryId = overId
+        }
+      }
+      if (targetCategoryId && draggedCategoryId !== targetCategoryId) {
+        persistCategoryOrder(draggedCategoryId, targetCategoryId)
+      }
       return
     }
 
@@ -842,7 +875,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         <div className="flex-1 overflow-y-auto py-2">
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={collisionDetection}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
