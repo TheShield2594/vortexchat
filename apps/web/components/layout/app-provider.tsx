@@ -12,6 +12,8 @@ import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
 import { useGifAutoplay } from "@/hooks/use-gif-autoplay"
 import { prefetchNotificationPreferences, clearPreferencesCache } from "@/hooks/use-notification-preferences"
 import { useDmNotificationSound } from "@/hooks/use-dm-notification-sound"
+import { useChannelNotificationSound } from "@/hooks/use-channel-notification-sound"
+import { useNotificationCountSync } from "@/hooks/use-notification-count-sync"
 import { useToast } from "@/components/ui/use-toast"
 import { setActiveChannel as setNotifManagerActiveChannel } from "@/lib/notification-manager"
 import type { UserRow, ServerRow } from "@/types/database"
@@ -74,6 +76,12 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
 
   // Global DM notification sound — always mounted so DM sounds fire even on server pages
   useDmNotificationSound(user?.id ?? null)
+
+  // Global channel message notification sound — fires for servers with "all" notification mode
+  useChannelNotificationSound(user?.id ?? null)
+
+  // Global notification count sync — ensures mobile tab bar badge is accurate
+  useNotificationCountSync(user?.id ?? null)
 
   // Sync Zustand activeChannelId to the notification manager so it can
   // suppress sounds/notifications when the user is viewing a channel

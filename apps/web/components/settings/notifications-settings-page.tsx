@@ -1,8 +1,80 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Bell, BellOff, Volume2, VolumeX, Moon, Loader2, Send } from "lucide-react"
+import { Bell, BellOff, Volume2, VolumeX, Moon, Loader2, Send, Monitor } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+
+function DesktopNotificationSection(): React.ReactNode {
+  const [permission, setPermission] = useState<NotificationPermission>("default")
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPermission(Notification.permission)
+    }
+  }, [])
+
+  async function requestPermission(): Promise<void> {
+    try {
+      const result = await Notification.requestPermission()
+      setPermission(result)
+    } catch {
+      // Browser doesn't support notification permission request
+    }
+  }
+
+  const isSupported = typeof window !== "undefined" && "Notification" in window
+
+  return (
+    <section className="space-y-2">
+      <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+        Desktop Notifications
+      </h2>
+      <p className="text-xs mb-2" style={{ color: "var(--theme-text-muted)" }}>
+        Show desktop notifications for messages, mentions, and DMs when VortexChat is not focused.
+      </p>
+      <div
+        className="flex items-center justify-between px-4 py-3 rounded-lg"
+        style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+      >
+        <div className="flex items-center gap-3">
+          <Monitor className="w-4 h-4" style={{ color: permission === "granted" ? "var(--theme-accent)" : "var(--theme-text-muted)" }} />
+          <div>
+            <p className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+              {permission === "granted" ? "Desktop notifications enabled" : permission === "denied" ? "Desktop notifications blocked" : "Enable desktop notifications"}
+            </p>
+            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+              {permission === "granted"
+                ? "You'll receive browser notifications for messages and mentions."
+                : permission === "denied"
+                  ? "Notifications are blocked by your browser. Allow them in your browser's site settings."
+                  : "Allow VortexChat to send you desktop notifications."}
+            </p>
+          </div>
+        </div>
+        {isSupported && permission === "default" && (
+          <button
+            type="button"
+            onClick={requestPermission}
+            className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            style={{ background: "var(--theme-accent)", color: "#fff" }}
+          >
+            Enable
+          </button>
+        )}
+        {permission === "granted" && (
+          <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: "rgba(67,181,129,0.15)", color: "var(--theme-success, #43b581)" }}>
+            Active
+          </span>
+        )}
+        {permission === "denied" && (
+          <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: "rgba(242,63,67,0.15)", color: "var(--theme-danger)" }}>
+            Blocked
+          </span>
+        )}
+      </div>
+    </section>
+  )
+}
 
 interface Props {
   userId: string
@@ -191,6 +263,9 @@ export function NotificationsSettingsPage({ userId }: Props) {
           Mute all
         </button>
       </div>
+
+      {/* ── Desktop Notifications ────────── */}
+      <DesktopNotificationSection />
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
