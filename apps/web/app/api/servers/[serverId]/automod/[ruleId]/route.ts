@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { requireServerOwner } from "@/lib/server-auth"
 import { validateConfigAndActions } from "@/lib/automod"
+import { invalidatePrefix } from "@/lib/server-cache"
 import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string; ruleId: string }> }
@@ -137,6 +138,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     console.error("[automod] Audit log insert failed for automod_rule_updated", { serverId, ruleId, error: auditErr.message })
   }
 
+  try {
+    invalidatePrefix(`automod-rules:${serverId}`)
+    invalidatePrefix(`automod-settings:${serverId}`)
+  } catch (cacheErr) {
+    console.error("[automod PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+  }
+
   return NextResponse.json(updated)
   } catch (err) {
     console.error("[servers/[serverId]/automod/[ruleId] PATCH] error:", err)
@@ -163,6 +171,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     })
     if (deleteAuditErr) {
       console.error("[automod] Audit log insert failed for automod_rule_deleted", { serverId, ruleId, error: deleteAuditErr.message })
+    }
+
+    try {
+      invalidatePrefix(`automod-rules:${serverId}`)
+      invalidatePrefix(`automod-settings:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[automod DELETE] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
     }
 
     return NextResponse.json({ message: "Rule deleted" })

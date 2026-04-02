@@ -3,12 +3,14 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
 import { insertAuditLog } from "@/lib/utils/api-helpers"
+import { invalidatePrefix } from "@/lib/server-cache"
 
 // PATCH /api/servers/[serverId]/roles/reorder — reorder roles by position
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -121,6 +123,14 @@ export async function PATCH(
     },
   })
 
+  try {
+    invalidatePrefix(`roles:${serverId}`)
+    invalidatePrefix(`perms:${serverId}`)
+    invalidatePrefix(`member-roles:${serverId}`)
+  } catch (cacheErr) {
+    console.error("[roles reorder PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+  }
+
   // Fetch and return the updated roles
   const { data: updatedRoles, error: refetchError } = await supabase
     .from("roles")
@@ -133,4 +143,8 @@ export async function PATCH(
   }
 
   return NextResponse.json(updatedRoles)
+  } catch (err) {
+    console.error("[roles reorder PATCH] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

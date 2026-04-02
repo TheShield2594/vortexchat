@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
+import { invalidate, invalidatePrefix } from "@/lib/server-cache"
 import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string; channelId: string }> }
@@ -140,6 +141,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (auditError) {
     console.error(`Audit log failed for channel_update server=${serverId} channel=${channelId} actor=${user!.id}:`, auditError.message)
+  }
+
+  try {
+    invalidate(`channel:${channelId}`)
+    invalidatePrefix(`perms:${serverId}:${channelId}`)
+  } catch (cacheErr) {
+    console.error("[channels PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
   }
 
   return NextResponse.json(updated)
