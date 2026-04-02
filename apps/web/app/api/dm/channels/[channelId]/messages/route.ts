@@ -140,11 +140,12 @@ export async function POST(
   if (error) return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
 
   // Send push notifications (fire-and-forget)
-  const sender = (message as unknown as { sender?: { display_name?: string; username?: string } }).sender
+  const sender = (message as unknown as { sender?: { display_name?: string; username?: string; avatar_url?: string | null } }).sender
   const senderName = sender?.display_name || sender?.username || "Someone"
   sendPushToChannel({
     dmChannelId: channelId,
     senderName,
+    senderAvatarUrl: sender?.avatar_url ?? null,
     content: channelInfo?.is_encrypted ? "Encrypted message" : content,
     excludeUserId: user.id,
   }).catch(() => {})

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Bell, BellOff, Volume2, VolumeX, Moon, Loader2 } from "lucide-react"
+import { Bell, BellOff, Volume2, VolumeX, Moon, Loader2, Send } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Props {
@@ -15,13 +15,15 @@ type NotificationSettingsRow = {
   server_invite_notifications: boolean
   system_notifications: boolean
   sound_enabled: boolean
+  suppress_everyone: boolean
+  suppress_role_mentions: boolean
   quiet_hours_enabled: boolean
   quiet_hours_start: string
   quiet_hours_end: string
   quiet_hours_timezone: string
 }
 
-type BooleanSettingKey = "mention_notifications" | "reply_notifications" | "friend_request_notifications" | "server_invite_notifications" | "system_notifications" | "sound_enabled" | "quiet_hours_enabled"
+type BooleanSettingKey = "mention_notifications" | "reply_notifications" | "friend_request_notifications" | "server_invite_notifications" | "system_notifications" | "sound_enabled" | "suppress_everyone" | "suppress_role_mentions" | "quiet_hours_enabled"
 
 const SETTING_LABELS: { key: BooleanSettingKey; label: string; description: string }[] = [
   { key: "mention_notifications", label: "Mentions", description: "When someone @mentions you in a channel" },
@@ -39,6 +41,8 @@ const DEFAULT_SETTINGS: NotificationSettingsRow = {
   server_invite_notifications: true,
   system_notifications: true,
   sound_enabled: true,
+  suppress_everyone: false,
+  suppress_role_mentions: false,
   quiet_hours_enabled: false,
   quiet_hours_start: "22:00",
   quiet_hours_end: "08:00",
@@ -55,6 +59,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
   const [settings, setSettings] = useState<NotificationSettingsRow>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [testingSend, setTestingSend] = useState(false)
 
   useEffect(() => {
     fetch("/api/user/notification-preferences")
@@ -229,6 +234,53 @@ export function NotificationsSettingsPage({ userId }: Props) {
         })}
       </section>
 
+      {/* ── Mention suppression (#607) ────────── */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+          Mention Suppression
+        </h2>
+        <p className="text-xs mb-2" style={{ color: "var(--theme-text-muted)" }}>
+          Block mass mentions without fully muting channels.
+        </p>
+
+        {([
+          { key: "suppress_everyone" as BooleanSettingKey, label: "Suppress @everyone", description: "Block notifications from @everyone mentions" },
+          { key: "suppress_role_mentions" as BooleanSettingKey, label: "Suppress @role mentions", description: "Block notifications from @role mentions" },
+        ]).map(({ key, label, description }) => {
+          const enabled = settings[key] as boolean
+          return (
+            <div
+              key={key}
+              className="flex items-center justify-between px-4 py-3 rounded-lg"
+              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+            >
+              <div className="flex items-center gap-3">
+                <BellOff className="w-4 h-4" style={{ color: enabled ? "var(--theme-accent)" : "var(--theme-text-muted)" }} />
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>{label}</p>
+                  <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{description}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleToggle(key)}
+                disabled={saving}
+                className="relative w-10 h-6 rounded-full transition-all focus-ring disabled:opacity-50"
+                style={{ background: enabled ? "var(--theme-accent)" : "var(--theme-bg-tertiary)" }}
+                role="switch"
+                aria-checked={enabled}
+                aria-label={label}
+              >
+                <span
+                  className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                  style={{ transform: enabled ? "translateX(16px)" : "translateX(0)" }}
+                />
+              </button>
+            </div>
+          )
+        })}
+      </section>
+
       {/* ── Quiet hours ────────────────────────── */}
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
@@ -324,6 +376,50 @@ export function NotificationsSettingsPage({ userId }: Props) {
             </div>
           </div>
         )}
+      </section>
+
+      {/* ── Test notification (#609) ────────── */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+          Test Notifications
+        </h2>
+        <div
+          className="flex items-center justify-between px-4 py-3 rounded-lg"
+          style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+        >
+          <div className="flex items-center gap-3">
+            <Send className="w-4 h-4" style={{ color: "var(--theme-text-muted)" }} />
+            <div>
+              <p className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>Send test notification</p>
+              <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Verify push notifications are working on this device</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={testingSend}
+            onClick={async () => {
+              setTestingSend(true)
+              try {
+                const res = await fetch("/api/notifications/test", { method: "POST" })
+                const data = await res.json() as { ok?: boolean; error?: string }
+                if (!res.ok) {
+                  toast({ title: data.error ?? "Failed to send test notification", variant: "destructive" })
+                } else {
+                  toast({ title: "Test notification sent! Check your device." })
+                }
+              } catch {
+                toast({ title: "Network error sending test notification", variant: "destructive" })
+              } finally {
+                setTestingSend(false)
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all disabled:opacity-50"
+            style={{ background: "var(--theme-accent)", color: "white" }}
+          >
+            {testingSend && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {testingSend ? "Sending…" : "Test"}
+          </button>
+        </div>
       </section>
 
       {/* ── Save ── */}

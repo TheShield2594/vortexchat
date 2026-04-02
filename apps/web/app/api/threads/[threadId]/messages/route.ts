@@ -191,12 +191,14 @@ export async function POST(request: Request, { params: paramsPromise }: Params) 
     author?: Database["public"]["Tables"]["users"]["Row"] | null
   }
   const senderName = sentMessage.author?.display_name || sentMessage.author?.username || "Someone"
+  const senderAvatarUrl = sentMessage.author?.avatar_url ?? null
   const trimmedContent = content?.trim()
   sendPushToChannel({
     serverId: serverId ?? undefined,
     channelId: thread.parent_channel_id,
     threadId,
     senderName,
+    senderAvatarUrl,
     content: trimmedContent ? trimmedContent : "Sent an attachment",
     excludeUserId: user.id,
   }).catch((error) => {

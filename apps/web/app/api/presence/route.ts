@@ -35,6 +35,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const supabase = await createServerSupabaseClient()
     const now = new Date().toISOString()
+
+    // For offline transitions, check if user was previously invisible (#608)
+    // Invisible → offline must NOT update last_online_at to preserve privacy
+    let setLastOnlineAt = false
+    if (status === "offline") {
+      const { data: currentProfile } = await supabase
+        .from("users")
+        .select("status")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (currentProfile?.status && currentProfile.status !== "invisible") {
+        setLastOnlineAt = true
+      }
+    }
+
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
       .update({
@@ -43,6 +58,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Preserve the last heartbeat on explicit offline writes so a late
         // sendBeacon from one tab can't clobber another tab's fresh heartbeat.
         ...(status === "offline" ? {} : { last_heartbeat_at: now }),
+        // Record last_online_at when transitioning to offline (#608)
+        ...(setLastOnlineAt ? { last_online_at: now } : {}),
       })
       .eq("id", user.id)
       .select("id")

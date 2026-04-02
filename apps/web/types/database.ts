@@ -24,6 +24,7 @@ export type Database = {
           status_emoji: string | null
           status_expires_at: string | null
           last_heartbeat_at: string | null
+          last_online_at: string | null
           discoverable: boolean
           appearance_settings: Json
           interests: string[]
@@ -46,6 +47,7 @@ export type Database = {
           status_emoji?: string | null
           status_expires_at?: string | null
           last_heartbeat_at?: string | null
+          last_online_at?: string | null
           discoverable?: boolean
           appearance_settings?: Json | null
           interests?: string[]
@@ -68,6 +70,7 @@ export type Database = {
           status_emoji?: string | null
           status_expires_at?: string | null
           last_heartbeat_at?: string | null
+          last_online_at?: string | null
           discoverable?: boolean
           appearance_settings?: Json | null
           interests?: string[]
@@ -222,6 +225,8 @@ export type Database = {
           server_invite_notifications: boolean
           system_notifications: boolean
           sound_enabled: boolean
+          suppress_everyone: boolean
+          suppress_role_mentions: boolean
           quiet_hours_enabled: boolean
           quiet_hours_start: string
           quiet_hours_end: string
@@ -236,6 +241,8 @@ export type Database = {
           server_invite_notifications?: boolean
           system_notifications?: boolean
           sound_enabled?: boolean
+          suppress_everyone?: boolean
+          suppress_role_mentions?: boolean
           quiet_hours_enabled?: boolean
           quiet_hours_start?: string
           quiet_hours_end?: string
@@ -250,6 +257,8 @@ export type Database = {
           server_invite_notifications?: boolean
           system_notifications?: boolean
           sound_enabled?: boolean
+          suppress_everyone?: boolean
+          suppress_role_mentions?: boolean
           quiet_hours_enabled?: boolean
           quiet_hours_start?: string
           quiet_hours_end?: string

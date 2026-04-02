@@ -8,6 +8,8 @@ export type UserNotificationPreferences = {
   server_invite_notifications: boolean
   system_notifications: boolean
   sound_enabled: boolean
+  suppress_everyone: boolean
+  suppress_role_mentions: boolean
   quiet_hours_enabled: boolean
   quiet_hours_start: string
   quiet_hours_end: string
@@ -21,6 +23,8 @@ const DEFAULTS: UserNotificationPreferences = {
   server_invite_notifications: true,
   system_notifications: true,
   sound_enabled: true,
+  suppress_everyone: false,
+  suppress_role_mentions: false,
   quiet_hours_enabled: false,
   quiet_hours_start: "22:00",
   quiet_hours_end: "08:00",
@@ -36,7 +40,7 @@ export async function GET() {
 
     const { data } = await supabase
       .from("user_notification_preferences")
-      .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+      .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, suppress_everyone, suppress_role_mentions, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
       .eq("user_id", user.id)
       .maybeSingle()
 
@@ -63,6 +67,8 @@ export async function PUT(req: NextRequest) {
       "server_invite_notifications",
       "system_notifications",
       "sound_enabled",
+      "suppress_everyone",
+      "suppress_role_mentions",
       "quiet_hours_enabled",
     ] as const
 

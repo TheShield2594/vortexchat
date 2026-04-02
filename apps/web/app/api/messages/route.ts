@@ -710,8 +710,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
   }
   // --- Send push notifications (fire-and-forget) ---
-  const messageWithAuthor = message as { author?: { display_name?: string; username?: string } }
+  const messageWithAuthor = message as { author?: { display_name?: string; username?: string; avatar_url?: string | null } }
   const senderName = messageWithAuthor?.author?.display_name || messageWithAuthor?.author?.username || "Someone"
+  const senderAvatarUrl = messageWithAuthor?.author?.avatar_url ?? null
 
   // --- Insert in-app inbox notifications for mentions/replies (fire-and-forget) ---
   Promise.resolve()
@@ -832,6 +833,7 @@ export async function POST(request: Request) {
     serverId: channel.server_id,
     channelId,
     senderName,
+    senderAvatarUrl,
     content: content?.trim() ?? "Sent an attachment",
     mentionedIds: pushMentionedIds,
     mentionEveryone,

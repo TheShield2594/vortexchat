@@ -82,7 +82,8 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
           bio,
           banner_color,
           custom_tag,
-          created_at
+          created_at,
+          last_online_at
         ),
         roles:member_roles(
           role_id,
