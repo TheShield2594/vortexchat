@@ -27,7 +27,7 @@ export function useNotificationCountSync(userId: string | null): void {
           const current = useAppStore.getState().notificationUnreadCount
           // Only seed if this is the first load or the store hasn't been
           // updated by a realtime event with a higher value
-          if (!seededRef.current || current === 0) {
+          if (!seededRef.current) {
             useAppStore.setState({ notificationUnreadCount: data.count })
             seededRef.current = true
           }
@@ -44,7 +44,9 @@ export function useNotificationCountSync(userId: string | null): void {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        () => {
+        (payload) => {
+          const newRow = payload.new as { read?: boolean }
+          if (newRow.read === true) return
           seededRef.current = true
           useAppStore.setState((state) => ({
             notificationUnreadCount: (state.notificationUnreadCount ?? 0) + 1,

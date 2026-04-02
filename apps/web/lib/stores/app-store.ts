@@ -86,6 +86,7 @@ interface AppState {
   // Notification mute state (synced from notification_settings table)
   // Maps entity ID -> mode for quick lookup
   notificationModes: Record<string, "all" | "mentions" | "muted">
+  notificationModesLoaded: boolean
   setNotificationMode: (entityId: string, mode: "all" | "mentions" | "muted") => void
   removeNotificationMode: (entityId: string) => void
   loadNotificationSettings: () => Promise<void>
@@ -229,6 +230,7 @@ export const useAppStore = create<AppState>((set) => ({
   setDmUnreadCount: (count) => set({ dmUnreadCount: count }),
 
   notificationModes: {},
+  notificationModesLoaded: false,
   setNotificationMode: (entityId, mode) =>
     set((state) => ({
       notificationModes: { ...state.notificationModes, [entityId]: mode },
@@ -242,17 +244,17 @@ export const useAppStore = create<AppState>((set) => ({
   loadNotificationSettings: async () => {
     try {
       const res = await fetch("/api/notification-settings")
-      if (!res.ok) return
+      if (!res.ok) { set({ notificationModesLoaded: true }); return }
       const rows = await res.json()
-      if (!Array.isArray(rows)) return
+      if (!Array.isArray(rows)) { set({ notificationModesLoaded: true }); return }
       const modes: Record<string, "all" | "mentions" | "muted"> = {}
       for (const row of rows) {
         const id = row.server_id || row.channel_id || row.thread_id
         if (id && row.mode) modes[id] = row.mode
       }
-      set({ notificationModes: modes })
+      set({ notificationModes: modes, notificationModesLoaded: true })
     } catch {
-      // Non-critical — mute indicators just won't show
+      set({ notificationModesLoaded: true })
     }
   },
 

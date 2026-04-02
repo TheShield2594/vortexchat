@@ -35,6 +35,7 @@ export function useChannelNotificationSound(userId: string | null): void {
           table: "messages",
         },
         (payload) => {
+          try {
           const raw = payload.new
           if (!raw || typeof raw !== "object") return
 
@@ -52,7 +53,7 @@ export function useChannelNotificationSound(userId: string | null): void {
 
           // Don't default to "all" until notification modes have been hydrated —
           // an empty map means loadNotificationSettings hasn't resolved yet.
-          const modesHydrated = Object.keys(state.notificationModes).length > 0
+          const modesHydrated = state.notificationModesLoaded === true
 
           // Find which server this channel belongs to
           let serverId: string | null = null
@@ -101,6 +102,9 @@ export function useChannelNotificationSound(userId: string | null): void {
               channelId,
               url: serverId && channelId ? `/channels/${serverId}/${channelId}` : undefined,
             })
+          }
+          } catch (err) {
+            console.error("[useChannelNotificationSound] handler error:", err)
           }
         }
       )

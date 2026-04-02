@@ -99,6 +99,10 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis }: { onSe
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const hasServerEmojiMatch =
+    normalizedSearch.length > 0 &&
+    (serverEmojis ?? []).some((e) => e.name.toLowerCase().includes(normalizedSearch))
 
   useEffect(() => {
     setRecents(getEmojiRecents())
@@ -173,7 +177,11 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis }: { onSe
                 onMouseEnter={(e) => { e.currentTarget.style.background = "var(--theme-surface-elevated)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
               >
-                {emoji}
+                {/^:.+:$/.test(emoji) ? (
+                  <ServerEmojiImage name={emoji.slice(1, -1)} size={20} />
+                ) : (
+                  emoji
+                )}
               </button>
             ))}
           </div>
@@ -194,6 +202,7 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis }: { onSe
         <EmojiPicker.Loading>
           <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>Loading…</div>
         </EmojiPicker.Loading>
+        {!hasServerEmojiMatch && (
         <EmojiPicker.Empty>
           {({ search }) => (
             <div style={{ padding: "16px", color: "var(--theme-text-muted)", fontSize: "13px" }}>
@@ -201,6 +210,7 @@ function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis }: { onSe
             </div>
           )}
         </EmojiPicker.Empty>
+        )}
         <EmojiPicker.List
           components={{
             CategoryHeader: ({ category, ...props }) => (

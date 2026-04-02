@@ -9,12 +9,15 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import type { NotificationMode } from "@/lib/notification-resolver"
 
 function DesktopNotificationSection(): React.ReactNode {
-  const [permission, setPermission] = useState<NotificationPermission>("default")
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default")
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setPermission(Notification.permission)
+    if (typeof window === "undefined") return
+    if (!("Notification" in window)) {
+      setPermission("unsupported")
+      return
     }
+    setPermission(Notification.permission)
   }, [])
 
   async function requestPermission(): Promise<void> {
@@ -26,7 +29,7 @@ function DesktopNotificationSection(): React.ReactNode {
     }
   }
 
-  const isSupported = typeof window !== "undefined" && "Notification" in window
+  const isSupported = permission !== "unsupported"
 
   return (
     <section className="space-y-2">
@@ -44,14 +47,16 @@ function DesktopNotificationSection(): React.ReactNode {
           <Monitor className="w-4 h-4" style={{ color: permission === "granted" ? "var(--theme-accent)" : "var(--theme-text-muted)" }} />
           <div>
             <p className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
-              {permission === "granted" ? "Desktop notifications enabled" : permission === "denied" ? "Desktop notifications blocked" : "Enable desktop notifications"}
+              {permission === "unsupported" ? "Desktop notifications unavailable" : permission === "granted" ? "Desktop notifications enabled" : permission === "denied" ? "Desktop notifications blocked" : "Enable desktop notifications"}
             </p>
             <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-              {permission === "granted"
-                ? "You'll receive browser notifications for messages and mentions."
-                : permission === "denied"
-                  ? "Notifications are blocked by your browser. Allow them in your browser's site settings."
-                  : "Allow VortexChat to send you desktop notifications."}
+              {permission === "unsupported"
+                ? "Your browser does not support desktop notifications."
+                : permission === "granted"
+                  ? "You'll receive browser notifications for messages and mentions."
+                  : permission === "denied"
+                    ? "Notifications are blocked by your browser. Allow them in your browser's site settings."
+                    : "Allow VortexChat to send you desktop notifications."}
             </p>
           </div>
         </div>
@@ -73,6 +78,11 @@ function DesktopNotificationSection(): React.ReactNode {
         {permission === "denied" && (
           <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: "rgba(242,63,67,0.15)", color: "var(--theme-danger)" }}>
             Blocked
+          </span>
+        )}
+        {permission === "unsupported" && (
+          <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.06)", color: "var(--theme-text-muted)" }}>
+            Unsupported
           </span>
         )}
       </div>
@@ -150,6 +160,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testingSend, setTestingSend] = useState(false)
+  const [savingServerIds, setSavingServerIds] = useState<Record<string, boolean>>({})
   const { servers, notificationModes, setNotificationMode, removeNotificationMode } = useAppStore(
     useShallow((s) => ({
       servers: s.servers,
@@ -372,9 +383,11 @@ export function NotificationsSettingsPage({ userId }: Props) {
                   <div className="relative flex-shrink-0">
                     <select
                       value={currentMode}
+                      disabled={Boolean(savingServerIds[server.id])}
                       onChange={async (e) => {
                         const newMode = e.target.value as NotificationMode
                         const previousMode = currentMode
+                        setSavingServerIds((prev) => ({ ...prev, [server.id]: true }))
                         if (newMode === "all") {
                           removeNotificationMode(server.id)
                         } else {
@@ -395,6 +408,8 @@ export function NotificationsSettingsPage({ userId }: Props) {
                             setNotificationMode(server.id, previousMode)
                           }
                           toast({ title: "Failed to update server notification", variant: "destructive" })
+                        } finally {
+                          setSavingServerIds((prev) => { const next = { ...prev }; delete next[server.id]; return next })
                         }
                       }}
                       className="appearance-none pl-3 pr-8 py-1.5 rounded-md text-xs font-medium cursor-pointer focus-ring"

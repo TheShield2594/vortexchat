@@ -221,7 +221,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className={`p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none' : 'h-[100dvh] w-screen max-w-none max-h-none rounded-none border-0'}`}
+        className={`p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none' : 'h-[100dvh] w-screen max-w-none max-h-none sm:max-w-none sm:rounded-none rounded-none border-0'}`}
         style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
         aria-describedby={undefined}
       >
