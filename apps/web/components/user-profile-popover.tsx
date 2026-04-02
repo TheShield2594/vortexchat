@@ -1,5 +1,6 @@
 "use client"
 
+import { isGameActivity } from "@vortex/shared"
 import { MessageSquare, UserMinus, UserPlus } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
@@ -142,26 +143,22 @@ export function UserProfilePopover({
           )}
 
           {/* Game Activity */}
-          {(() => {
-            const activity = user?.game_activity as { game_name?: string } | null | undefined
-            if (!activity?.game_name) return null
-            return (
-              <div
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 mb-2"
-                style={{ background: "var(--theme-bg-tertiary)" }}
-              >
-                <span className="text-sm">🎮</span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
-                    Playing
-                  </div>
-                  <div className="text-xs font-medium truncate" style={{ color: "var(--theme-text-normal)" }}>
-                    {activity.game_name}
-                  </div>
+          {isGameActivity(user?.game_activity) && (
+            <div
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 mb-2"
+              style={{ background: "var(--theme-bg-tertiary)" }}
+            >
+              <span className="text-sm">🎮</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
+                  Playing
+                </div>
+                <div className="text-xs font-medium truncate" style={{ color: "var(--theme-text-normal)" }}>
+                  {user.game_activity.game_name}
                 </div>
               </div>
-            )
-          })()}
+            </div>
+          )}
 
           {/* Bio */}
           {user?.bio && (

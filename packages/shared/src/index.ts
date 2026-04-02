@@ -114,6 +114,15 @@ export interface GameActivity {
   source?: string
 }
 
+/** Type guard for GameActivity JSONB values from the database. */
+export function isGameActivity(value: unknown): value is GameActivity {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Record<string, unknown>).game_name === "string"
+  )
+}
+
 // ── Discover API contract ──────────────────────────────────────────────────
 
 /** A public server returned by the discover endpoint. */

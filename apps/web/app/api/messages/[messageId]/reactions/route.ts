@@ -142,12 +142,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
       ;(async () => {
         const { data: giveaway } = await supabase
           .from("giveaways")
-          .select("id, status")
+          .select("id, status, ends_at")
           .eq("message_id", messageId)
           .eq("status", "active")
           .maybeSingle()
 
-        if (giveaway) {
+        if (giveaway && new Date(giveaway.ends_at) > new Date()) {
           await supabase
             .from("giveaway_entries")
             .delete()

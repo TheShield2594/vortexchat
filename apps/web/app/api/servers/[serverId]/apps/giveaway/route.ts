@@ -194,8 +194,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     // Seed a 🎉 reaction on the announcement so users know to react
-    await serviceClient.from("reactions")
+    const { error: seedError } = await serviceClient.from("reactions")
       .insert({ message_id: announceMsg.id, user_id: SYSTEM_BOT_ID, emoji: "🎉" })
+
+    if (seedError) {
+      console.error("[giveaway POST] Failed to seed reaction", {
+        serverId,
+        giveawayId: giveaway.id,
+        messageId: announceMsg.id,
+        error: seedError.message,
+      })
+    }
 
     return NextResponse.json(giveaway, { status: 201 })
   }
