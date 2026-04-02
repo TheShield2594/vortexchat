@@ -3,7 +3,7 @@ import type { MessageWithAuthor, ReactionRow } from "@/types/database"
 import type { OutboxEntry } from "@/lib/chat-outbox"
 import { removeOutboxEntry } from "@/lib/chat-outbox"
 
-const DISPLAY_LIMIT = 500
+import { DISPLAY_LIMIT } from "@/components/chat/constants"
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()
@@ -124,7 +124,7 @@ export function useChatRealtimeCallbacks({
   const handleVisibilityResync = useCallback(async (channelId: string, serverId: string, userId: string | undefined): Promise<void> => {
     window.dispatchEvent(new CustomEvent("vortex:realtime-retry"))
     try {
-      const res = await fetch(`/api/messages?channelId=${channelId}&limit=50`)
+      const res = await fetch(`/api/messages?channelId=${channelId}&limit=100`)
       if (!res.ok) return
       const latest = (await res.json()) as MessageWithAuthor[]
       if (!Array.isArray(latest) || latest.length === 0) return

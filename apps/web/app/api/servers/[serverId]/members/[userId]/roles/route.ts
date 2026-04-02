@@ -95,8 +95,12 @@ export async function POST(
       return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
     }
 
-    invalidatePrefix(`member-roles:${serverId}:${userId}`)
-    invalidatePrefix(`perms:${serverId}`)
+    try {
+      invalidatePrefix(`member-roles:${serverId}:${userId}`)
+      invalidatePrefix(`perms:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[member-roles POST] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+    }
 
     return NextResponse.json({ ok: true })
 
@@ -158,8 +162,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Failed to remove role" }, { status: 500 })
     }
 
-    invalidatePrefix(`member-roles:${serverId}:${userId}`)
-    invalidatePrefix(`perms:${serverId}`)
+    try {
+      invalidatePrefix(`member-roles:${serverId}:${userId}`)
+      invalidatePrefix(`perms:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[member-roles DELETE] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+    }
 
     return NextResponse.json({ ok: true })
 

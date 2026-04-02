@@ -122,8 +122,12 @@ export async function PATCH(
     },
   })
 
-  invalidatePrefix(`roles:${serverId}`)
-  invalidatePrefix(`perms:${serverId}`)
+  try {
+    invalidatePrefix(`roles:${serverId}`)
+    invalidatePrefix(`perms:${serverId}`)
+  } catch (cacheErr) {
+    console.error("[roles reorder PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+  }
 
   // Fetch and return the updated roles
   const { data: updatedRoles, error: refetchError } = await supabase

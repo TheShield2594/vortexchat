@@ -107,7 +107,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       changes: { name: rule.name, trigger_type: rule.trigger_type },
     })
 
-    invalidatePrefix(`automod:${serverId}`)
+    try {
+      invalidatePrefix(`automod-rules:${serverId}`)
+      invalidatePrefix(`automod-settings:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[automod POST] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+    }
 
     return NextResponse.json(rule, { status: 201 })
 

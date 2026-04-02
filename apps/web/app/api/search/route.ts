@@ -77,13 +77,17 @@ export async function GET(req: NextRequest) {
     // ─── DM search path ──────────────────────────────────────────────────
     if (dmChannelId) {
       // Verify the user is a member of this DM channel
-      const { data: membership } = await supabase
+      const { data: membership, error: membershipError } = await supabase
         .from("dm_channel_members")
         .select("user_id")
         .eq("dm_channel_id", dmChannelId)
         .eq("user_id", user.id)
         .maybeSingle()
 
+      if (membershipError) {
+        console.error("[search GET] DM membership check failed", { dmChannelId, userId: user.id, error: membershipError.message })
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+      }
       if (!membership) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
@@ -116,8 +120,18 @@ export async function GET(req: NextRequest) {
           "content.ilike.%http%.png%,content.ilike.%http%.jpg%,content.ilike.%http%.jpeg%,content.ilike.%http%.gif%,content.ilike.%http%.webp%"
         )
       }
+      if (filters.has === "file") {
+        dmQuery = dmQuery.or(
+          "content.ilike.%.pdf%,content.ilike.%.docx%,content.ilike.%.xlsx%,content.ilike.%.zip%,content.ilike.%.mp3%,content.ilike.%.mp4%"
+        )
+      }
 
-      const { data: dmMessages } = await dmQuery
+      const { data: dmMessages, error: dmError } = await dmQuery
+
+      if (dmError) {
+        console.error("[search GET] DM search query failed", { dmChannelId, userId: user.id, error: dmError.message })
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+      }
 
       const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
       const visibleDMs = filterBlockedUserIds(

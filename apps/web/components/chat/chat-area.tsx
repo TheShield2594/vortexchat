@@ -68,8 +68,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 const RECENTLY_ACTIVE_DECAY_MS = 12_000
-/** Cap messages in state — virtualizer only renders visible rows so this can be larger. */
-const DISPLAY_LIMIT = 500
+import { DISPLAY_LIMIT } from "@/components/chat/constants"
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()

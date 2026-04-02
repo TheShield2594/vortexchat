@@ -1301,7 +1301,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       setShowLocalSearch(true)
       return
     }
-    toast({ title: "Search is coming soon", description: "Conversation search isn’t wired up yet." })
+    setShowLocalSearch(true)
   }
 
   function handlePinClick() {

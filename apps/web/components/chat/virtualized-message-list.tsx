@@ -45,7 +45,7 @@ export function VirtualizedMessageList({
   onLoadOlder,
   headerContent,
   footerContent,
-}: VirtualizedMessageListProps) {
+}: VirtualizedMessageListProps): React.JSX.Element {
   const paginationGuardRef = useRef(false)
 
   // Total count: header (optional) + messages + footer (optional)
@@ -79,12 +79,18 @@ export function VirtualizedMessageList({
     const firstItem = virtualItems[0]
     if (!firstItem) return
 
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
     // If the first visible item is within 3 rows of the header, load more
     if (firstItem.index <= headerOffset + 3) {
       paginationGuardRef.current = true
       onLoadOlder()
       // Reset guard after a short delay to allow debouncing
-      setTimeout(() => { paginationGuardRef.current = false }, 500)
+      timeoutId = setTimeout(() => { paginationGuardRef.current = false }, 500)
+    }
+
+    return () => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
     }
   }, [virtualItems, hasMoreHistory, isPaginating, onLoadOlder, headerOffset])
 

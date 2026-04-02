@@ -51,16 +51,15 @@ interface ActiveFilters {
   after?: string
 }
 
-interface Props {
-  /** Server ID for channel search. Omit when searching DMs. */
-  serverId?: string
-  /** DM channel ID for DM search. Omit when searching server channels. */
-  dmChannelId?: string
-  /** Label for DM channel (e.g., partner name). */
-  dmChannelLabel?: string
+type CommonProps = {
   onClose: () => void
   onJumpToMessage?: (channelId: string, messageId: string) => void
 }
+
+type Props = CommonProps & (
+  | { serverId: string; dmChannelId?: never; dmChannelLabel?: never }
+  | { serverId?: never; dmChannelId: string; dmChannelLabel?: string }
+)
 
 function buildQueryString(text: string, filters: ActiveFilters): string {
   const parts: string[] = []

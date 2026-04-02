@@ -129,9 +129,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
   }
 
-  invalidatePrefix(`roles:${serverId}`)
-  invalidatePrefix(`perms:${serverId}`)
-  invalidatePrefix(`member-roles:${serverId}`)
+  try {
+    invalidatePrefix(`roles:${serverId}`)
+    invalidatePrefix(`perms:${serverId}`)
+    invalidatePrefix(`member-roles:${serverId}`)
+  } catch (cacheErr) {
+    console.error("[roles PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+  }
 
   return NextResponse.json(updatedRole)
   } catch (err) {
@@ -217,9 +221,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
     }
 
-    invalidatePrefix(`roles:${serverId}`)
-    invalidatePrefix(`perms:${serverId}`)
-    invalidatePrefix(`member-roles:${serverId}`)
+    try {
+      invalidatePrefix(`roles:${serverId}`)
+      invalidatePrefix(`perms:${serverId}`)
+      invalidatePrefix(`member-roles:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[roles DELETE] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+    }
 
     return new NextResponse(null, { status: 204 })
 

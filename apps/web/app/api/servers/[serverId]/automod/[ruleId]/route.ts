@@ -138,7 +138,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     console.error("[automod] Audit log insert failed for automod_rule_updated", { serverId, ruleId, error: auditErr.message })
   }
 
-  invalidatePrefix(`automod:${serverId}`)
+  try {
+    invalidatePrefix(`automod-rules:${serverId}`)
+    invalidatePrefix(`automod-settings:${serverId}`)
+  } catch (cacheErr) {
+    console.error("[automod PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+  }
 
   return NextResponse.json(updated)
   } catch (err) {
@@ -168,7 +173,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       console.error("[automod] Audit log insert failed for automod_rule_deleted", { serverId, ruleId, error: deleteAuditErr.message })
     }
 
-    invalidatePrefix(`automod:${serverId}`)
+    try {
+      invalidatePrefix(`automod-rules:${serverId}`)
+      invalidatePrefix(`automod-settings:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[automod DELETE] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+    }
 
     return NextResponse.json({ message: "Rule deleted" })
 

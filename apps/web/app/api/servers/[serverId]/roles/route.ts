@@ -112,7 +112,11 @@ export async function POST(
       changes: { name, color, permissions, position, is_hoisted, mentionable },
     })
 
-    invalidatePrefix(`roles:${serverId}`)
+    try {
+      invalidatePrefix(`roles:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[roles POST] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+    }
 
     return NextResponse.json(role, { status: 201 })
 

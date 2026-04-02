@@ -143,8 +143,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     console.error(`Audit log failed for channel_update server=${serverId} channel=${channelId} actor=${user!.id}:`, auditError.message)
   }
 
-  invalidate(`channel:${channelId}`)
-  invalidatePrefix(`perms:${serverId}:${channelId}`)
+  try {
+    invalidate(`channel:${channelId}`)
+    invalidatePrefix(`perms:${serverId}:${channelId}`)
+  } catch (cacheErr) {
+    console.error("[channels PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+  }
 
   return NextResponse.json(updated)
 }
