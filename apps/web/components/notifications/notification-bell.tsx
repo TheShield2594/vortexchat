@@ -105,7 +105,8 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
           })
 
           if (shouldPlaySound && soundEnabledRef.current) {
-            playNotification()
+            const soundType = n.type === "mention" ? "mention" as const : "message" as const
+            playNotification(soundType)
           }
 
           if (shouldShowBrowserNotification && n.title) {

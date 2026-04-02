@@ -15,6 +15,7 @@ type NotificationSettingsRow = {
   server_invite_notifications: boolean
   system_notifications: boolean
   sound_enabled: boolean
+  notification_volume: number
   suppress_everyone: boolean
   suppress_role_mentions: boolean
   quiet_hours_enabled: boolean
@@ -41,6 +42,7 @@ const DEFAULT_SETTINGS: NotificationSettingsRow = {
   server_invite_notifications: true,
   system_notifications: true,
   sound_enabled: true,
+  notification_volume: 0.5,
   suppress_everyone: false,
   suppress_role_mentions: false,
   quiet_hours_enabled: false,
@@ -69,8 +71,9 @@ export function NotificationsSettingsPage({ userId }: Props) {
           const validated = { ...DEFAULT_SETTINGS }
           for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof NotificationSettingsRow)[]) {
             const val = data[key]
-            if (typeof val === "boolean") (validated as Record<string, boolean | string>)[key] = val
-            else if (typeof val === "string") (validated as Record<string, boolean | string>)[key] = val
+            if (typeof val === "boolean") (validated as Record<string, boolean | string | number>)[key] = val
+            else if (typeof val === "string") (validated as Record<string, boolean | string | number>)[key] = val
+            else if (typeof val === "number") (validated as Record<string, boolean | string | number>)[key] = val
           }
           setSettings(validated)
           // Keep sound pref in localStorage for use-notification-sound hook
@@ -93,8 +96,9 @@ export function NotificationsSettingsPage({ userId }: Props) {
               const validated = { ...DEFAULT_SETTINGS }
               for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof NotificationSettingsRow)[]) {
                 const val = parsed[key]
-                if (typeof val === "boolean") (validated as Record<string, boolean | string>)[key] = val
-                else if (typeof val === "string") (validated as Record<string, boolean | string>)[key] = val
+                if (typeof val === "boolean") (validated as Record<string, boolean | string | number>)[key] = val
+                else if (typeof val === "string") (validated as Record<string, boolean | string | number>)[key] = val
+                else if (typeof val === "number") (validated as Record<string, boolean | string | number>)[key] = val
               }
               setSettings(validated)
             }
@@ -233,6 +237,48 @@ export function NotificationsSettingsPage({ userId }: Props) {
           )
         })}
       </section>
+
+      {/* ── Volume slider (#612) ────────── */}
+      {settings.sound_enabled && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+            Notification Volume
+          </h2>
+          <div
+            className="flex items-center gap-4 px-4 py-3 rounded-lg"
+            style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+          >
+            <VolumeX className="w-4 h-4 shrink-0" style={{ color: "var(--theme-text-muted)" }} />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(settings.notification_volume * 100)}
+              onChange={(e) => {
+                const vol = Number(e.target.value) / 100
+                setSettings((prev) => ({ ...prev, notification_volume: vol }))
+              }}
+              onPointerUp={(e) => {
+                const vol = Number((e.target as HTMLInputElement).value) / 100
+                void persistSetting({ ...settings, notification_volume: vol })
+              }}
+              className="flex-1 h-2 rounded-full appearance-none cursor-pointer"
+              style={{ accentColor: "var(--theme-accent)" }}
+              aria-label="Notification volume"
+            />
+            <Volume2 className="w-4 h-4 shrink-0" style={{ color: "var(--theme-accent)" }} />
+            <span className="text-xs font-medium tabular-nums w-8 text-right" style={{ color: "var(--theme-text-primary)" }}>
+              {Math.round(settings.notification_volume * 100)}%
+            </span>
+          </div>
+          {settings.notification_volume === 0 && (
+            <p className="text-xs px-1" style={{ color: "var(--theme-text-muted)" }}>
+              Volume is at 0% — notifications will be silent but still visible.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* ── Mention suppression (#607) ────────── */}
       <section className="space-y-2">

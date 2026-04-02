@@ -52,7 +52,7 @@ export function useDmNotificationSound(userId: string | null): void {
           })
 
           if (shouldPlaySound && isSoundEnabled()) {
-            playRef.current()
+            playRef.current("dm")
           }
 
           if (shouldShowBrowserNotification) {

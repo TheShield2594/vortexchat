@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useId, useRef, useState, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip, Clock, Loader2, AlertTriangle } from "lucide-react"
 import { EmojiPicker } from "frimousse"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfilePopover } from "@/components/user-profile-popover"
@@ -394,7 +394,8 @@ export const MessageItem = memo(function MessageItem({
   const parsedPoll = extractPoll(renderedContent)
   const messageBodyContent = parsedPoll ? parsedPoll.sanitizedContent : renderedContent
 
-  const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "failed" ? "Failed" : null
+  const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "sending" ? "Sending" : sendState === "failed" ? "Failed" : null
+  const SendStateIcon = sendState === "queued" ? Clock : sendState === "sending" ? Loader2 : sendState === "failed" ? AlertTriangle : null
 
 
   // Group reactions by emoji
@@ -585,8 +586,11 @@ export const MessageItem = memo(function MessageItem({
                   >
                     {format(timestamp, timestampFormat === "24h" ? "HH:mm" : "h:mm a")}
                   </span>
-                  {sendStateLabel && (
-                    <span className={cn("message-state-morph text-[10px]", sendState && `is-${sendState}`)}>{sendStateLabel}</span>
+                  {sendStateLabel && SendStateIcon && (
+                    <span className={cn("message-state-morph text-[10px] inline-flex items-center gap-0.5", sendState && `is-${sendState}`)}>
+                      <SendStateIcon className={cn("w-3 h-3", sendState === "sending" && "animate-spin")} />
+                      {sendStateLabel}
+                    </span>
                   )}
                 </div>
               )}
@@ -624,8 +628,11 @@ export const MessageItem = memo(function MessageItem({
                   <span id={messageMetaId} className="text-xs tertiary-metadata message-cozy-timestamp">
                     {format(timestamp, timestampFormat === "24h" ? "MM/dd/yyyy HH:mm" : "MM/dd/yyyy h:mm a")}
                   </span>
-                  {sendStateLabel && (
-                    <span className={cn("message-state-morph", sendState && `is-${sendState}`)}>{sendStateLabel}</span>
+                  {sendStateLabel && SendStateIcon && (
+                    <span className={cn("message-state-morph inline-flex items-center gap-1", sendState && `is-${sendState}`)}>
+                      <SendStateIcon className={cn("w-3 h-3", sendState === "sending" && "animate-spin")} />
+                      {sendStateLabel}
+                    </span>
                   )}
                   {message.edited_at && (
                     <span className="text-xs tertiary-metadata">

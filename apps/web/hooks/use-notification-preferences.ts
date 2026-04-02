@@ -9,6 +9,7 @@ export interface NotificationPreferences {
   server_invite_notifications: boolean
   system_notifications: boolean
   sound_enabled: boolean
+  notification_volume: number
   quiet_hours_enabled: boolean
   quiet_hours_start: string
   quiet_hours_end: string
@@ -22,6 +23,7 @@ const DEFAULTS: NotificationPreferences = {
   server_invite_notifications: true,
   system_notifications: true,
   sound_enabled: true,
+  notification_volume: 0.5,
   quiet_hours_enabled: false,
   quiet_hours_start: "22:00",
   quiet_hours_end: "08:00",
@@ -117,6 +119,13 @@ export function useNotificationPreferences(userId: string | null): {
  */
 export function isSoundEnabled(): boolean {
   return cachedPrefs.sound_enabled
+}
+
+/**
+ * Quick read of cached notification volume (0–1). No hook needed.
+ */
+export function getNotificationVolume(): number {
+  return cachedPrefs.notification_volume
 }
 
 /**

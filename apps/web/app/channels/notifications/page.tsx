@@ -112,7 +112,8 @@ export default function NotificationsPage() {
             messageId: n.message_id,
           })
           if (shouldPlaySound && prefs.sound_enabled) {
-            playNotification()
+            const soundType = n.type === "mention" ? "mention" as const : "message" as const
+            playNotification(soundType)
           }
           if (shouldShowBrowserNotification && n.title) {
             const url = n.server_id && n.channel_id
