@@ -18,11 +18,13 @@ function buildCsp(): { nonce: string; header: string } {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? ""
   const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN ?? ""
+  const signalUrl = process.env.NEXT_PUBLIC_SIGNAL_URL ?? ""
 
   // Extract hostnames for CSP directives
   const supabaseHost = safeHost(supabaseUrl)   // e.g. "xyz.supabase.co"
   const livekitHost = safeHost(livekitUrl)      // e.g. "my-app.livekit.cloud"
   const sentryHost = safeHost(sentryDsn)         // e.g. "oXXXXXX.ingest.sentry.io"
+  const signalHost = safeHost(signalUrl)         // e.g. "vortex-signal.up.railway.app"
 
   // img-src: Supabase storage, Klipy CDN, Giphy media, Twemoji
   const imgSrc = [
@@ -42,6 +44,7 @@ function buildCsp(): { nonce: string; header: string } {
     livekitHost ? `wss://${livekitHost}` : "",
     "https://api.klipy.co https://api.klipy.com https://api.giphy.com",
     sentryHost ? `https://${sentryHost}` : "",
+    signalHost ? `https://${signalHost} wss://${signalHost}` : "",
     isDev ? "ws://localhost:* http://localhost:*" : "",
   ].filter(Boolean).join(" ")
 
