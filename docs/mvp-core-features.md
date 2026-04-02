@@ -54,6 +54,7 @@
 | Reconnection catch-up (Redis Streams replay) | Done | `gateway:resume` event; client sends `lastEventId` per channel; server replays from Redis Streams (up to 500 events); `gateway:resume-complete` signals success or gap-too-large (#597) |
 | Gateway messages hook (`useGatewayMessages`) | Done | `apps/web/hooks/use-gateway-messages.ts` — drop-in for `useRealtimeMessages`; handles replay on reconnect (#597) |
 | Client gateway context + provider | Done | `GatewayProvider` in `app-provider.tsx`; single Socket.IO connection shared via React context; auto-reconnect with exponential backoff (#592) |
+| Message gap indicator after reconnection (#611) | Done | `chat-area.tsx` detects when refetch doesn't overlap with local messages; shows "You may have missed messages" banner; dismiss button; no false alerts for quick reconnections |
 
 ## Moderation
 
@@ -157,6 +158,9 @@
 | Push notification server/channel context (#602) | Done | `lib/push.ts` — server channel titles now show "ServerName — #channel"; DMs unchanged; threads show "> ThreadTitle" |
 | Quiet hours timezone auto-detect (#603) | Done | `notifications-settings-page.tsx` — first-time activation uses `Intl.DateTimeFormat().resolvedOptions().timeZone`; DB default remains UTC for server-side safety |
 | Typing indicator timeout 5s (#604) | Done | `use-typing.ts` — `TYPING_TIMEOUT_MS` increased from 3s to 5s; display timeout is 5.5s (includes 500ms network buffer) |
+| Push notification sender avatar (#606) | Done | `lib/push.ts` — notification icon uses sender's `avatar_url`; system notifications (pins, invites) fall back to app icon |
+| Suppress @everyone / @role mention toggles (#607) | Done | `suppress_everyone` + `suppress_role_mentions` columns on `user_notification_preferences`; checked in `sendPushToChannel()`; UI toggles in Notification settings |
+| Test notification button (#609) | Done | `POST /api/notifications/test` — sends real push bypassing quiet hours; rate limited 1/30s; validates subscription exists; button in Notification settings |
 
 ## Direct Messages
 
@@ -262,6 +266,8 @@
 | Presence constants in shared package | Done | `@vortex/shared` — heartbeat interval, stale threshold, idle timeout, activity throttle |
 | DB-level status change listener | Done | `member-list.tsx` subscribes to `postgres_changes` on users table for immediate cron-triggered offline updates |
 | sendBeacon as fast-path fallback | Done | Still used on tab close for immediate offline; heartbeat cron is the safety net |
+| Last seen time for offline users (#608) | Done | `last_online_at` column on users; set on offline transition (cron + sendBeacon); relative time ("Active Xm/h/d ago") in member list; invisible→offline doesn't update timestamp |
+| Role-grouped member list (#610) | Done | Online members grouped by highest-priority role (Discord-style); sections ordered by role position; role color in headers; no-role users under "Members"; offline section unchanged |
 
 ## Hardening — Bug Fixes (2026-04-01)
 
@@ -325,4 +331,4 @@
 
 ---
 
-*Last updated: 2026-04-02 (sprint 3)*
+*Last updated: 2026-04-02 (sprint 4)*

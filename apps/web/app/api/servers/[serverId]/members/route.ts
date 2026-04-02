@@ -52,7 +52,8 @@ export async function GET(
         bio,
         banner_color,
         custom_tag,
-        created_at
+        created_at,
+        last_online_at
       ),
       roles:member_roles(
         role_id,

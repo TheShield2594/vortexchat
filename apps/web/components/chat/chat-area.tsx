@@ -108,6 +108,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
+  const [reconnectGap, setReconnectGap] = useState(false)
   const [voiceRecaps, setVoiceRecaps] = useState<Array<{ sessionId: string; channelName: string; durationSeconds: number }>>([])
   const [viewportWidth, setViewportWidth] = useState(1280)
   const [overflowOpen, setOverflowOpen] = useState(false)
@@ -823,6 +824,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           const known = new Set(prev.map((m) => m.id))
           const fresh = latest.filter((m) => !known.has(m.id))
           if (fresh.length === 0) return prev
+
+          // Gap detection (#611): if the oldest refetched message doesn't
+          // overlap with locally rendered messages, there's a gap.
+          const sortedLatest = sortMessagesChronologically(latest)
+          const oldestRefetched = sortedLatest[0]
+          if (oldestRefetched && !known.has(oldestRefetched.id) && fresh.length >= 50) {
+            setReconnectGap(true)
+          }
+
           const merged = sortMessagesChronologically([...prev, ...fresh])
           return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
         })
@@ -856,6 +866,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (prevChannelIdRef.current !== channel.id) {
       shouldAutoScrollToLatestRef.current = true
       prevChannelIdRef.current = channel.id
+      setReconnectGap(false)
     }
 
     if (!shouldAutoScrollToLatestRef.current) return
@@ -1058,6 +1069,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       if (!res.ok) return
       const missed = (await res.json()) as MessageWithAuthor[]
       if (!Array.isArray(missed) || missed.length === 0) return
+
+      // Gap detection (#611): if we hit the fetch limit, there may be more
+      // messages we couldn't retrieve — the gap between last seen and oldest
+      // fetched could contain additional unread messages.
+      if (missed.length >= 100) {
+        setReconnectGap(true)
+      }
+
       setMessages((prev) => {
         const known = new Set(prev.map((m) => m.id))
         const newItems = missed.filter((m) => !known.has(m.id))
@@ -1778,6 +1797,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 ))}
               </div>
             ) : null}
+
+            {/* Reconnection gap indicator (#611) */}
+            {reconnectGap && (
+              <div className="mx-4 my-2 flex items-center gap-3 rounded-lg px-4 py-2.5" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.25)" }}>
+                <span className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+                  You may have missed messages while disconnected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReconnectGap(false)
+                    // Scroll to the unread divider if available
+                    if (unreadDividerMessageId) {
+                      const el = document.getElementById(`message-${unreadDividerMessageId}`)
+                      el?.scrollIntoView({ behavior: "smooth", block: "center" })
+                    }
+                  }}
+                  className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-md shrink-0"
+                  style={{ background: "rgba(250,166,26,0.15)", color: "rgb(250,166,26)" }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
             {/* Message list — direct rendering (virtualization disabled due to column-reverse incompatibility) */}
             {messages.map((message, index) => {

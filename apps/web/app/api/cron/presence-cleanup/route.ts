@@ -71,6 +71,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .update({
         status: "offline" as const,
         updated_at: now.toISOString(),
+        last_online_at: now.toISOString(),
       })
       .in("id", staleIds)
       .or(`last_heartbeat_at.is.null,last_heartbeat_at.lt.${staleThreshold}`)

@@ -125,9 +125,11 @@ export async function sendPushToChannel(opts: {
   threadId?: string
   dmChannelId?: string
   senderName: string
+  senderAvatarUrl?: string | null
   content: string
   mentionedIds?: string[]
   mentionEveryone?: boolean
+  mentionedRoleIds?: string[]
   excludeUserId: string
 }): Promise<void> {
   try {
@@ -137,7 +139,7 @@ export async function sendPushToChannel(opts: {
   }
   ensureVapid()
 
-  const { serverId, channelId, threadId, dmChannelId, senderName, content, mentionedIds = [], mentionEveryone = false, excludeUserId } = opts
+  const { serverId, channelId, threadId, dmChannelId, senderName, senderAvatarUrl, content, mentionedIds = [], mentionEveryone = false, mentionedRoleIds = [], excludeUserId } = opts
   const mentionedSet = new Set(mentionedIds)
   const supabase = await createServerSupabaseClient()
 
@@ -337,12 +339,13 @@ export async function sendPushToChannel(opts: {
 
   const settings = settingsBatches.flat()
 
-  // Fetch global notification type preferences so mention opt-outs are respected
+  // Fetch global notification type preferences so mention opt-outs and
+  // @everyone/@role suppression are respected (#607)
   const { data: globalTypePrefs } = await supabase
     .from("user_notification_preferences")
-    .select("user_id, mention_notifications")
+    .select("user_id, mention_notifications, suppress_everyone, suppress_role_mentions")
     .in("user_id", memberIds)
-  interface TypePref { user_id: string; mention_notifications: boolean | null }
+  interface TypePref { user_id: string; mention_notifications: boolean | null; suppress_everyone: boolean | null; suppress_role_mentions: boolean | null }
   const globalTypePrefMap = new Map<string, TypePref>(
     (globalTypePrefs ?? []).map((p: TypePref) => [p.user_id, p])
   )
@@ -382,6 +385,10 @@ export async function sendPushToChannel(opts: {
     }
   }
 
+  // Use sender's avatar for the notification icon; fall back to the app icon
+  // for system notifications or when no avatar is available (#606)
+  const notificationIcon = senderAvatarUrl || "/icon-192.png"
+
   const payload: PushPayload = {
     title: notificationTitle,
     body: notificationBody,
@@ -391,11 +398,18 @@ export async function sendPushToChannel(opts: {
       ? `/channels/me/${dmChannelId}`
       : "/channels/me",
     tag: threadId ?? channelId ?? dmChannelId ?? "message",
+    icon: notificationIcon,
   }
+
+  // Build a set of role IDs mentioned in this message for @role suppression (#607)
+  const mentionedRoleIdSet = new Set(mentionedRoleIds)
 
   await Promise.allSettled(
     memberIds.map((uid) => {
-      const eventType = (mentionEveryone || mentionedSet.has(uid)) ? "mention" : "message"
+      // Determine if this user was mentioned via @everyone or @role
+      const isMentionedByEveryone = mentionEveryone
+      const isMentionedByRole = mentionedRoleIdSet.size > 0 && !mentionedSet.has(uid) && isMentionedByEveryone === false
+      const eventType = (isMentionedByEveryone || mentionedSet.has(uid) || isMentionedByRole) ? "mention" : "message"
       const resolved = resolveNotification(
         uid,
         serverId ?? null,
@@ -408,9 +422,19 @@ export async function sendPushToChannel(opts: {
       if (!resolved.shouldPush) return
 
       // Respect global mention opt-out even when channel mode allows it
+      const typePrefs = globalTypePrefMap.get(uid)
       if (eventType === "mention") {
-        const typePrefs = globalTypePrefMap.get(uid)
         if (typePrefs && typePrefs.mention_notifications === false) return
+      }
+
+      // Suppress @everyone mentions if user has opted out (#607)
+      if (isMentionedByEveryone && !mentionedSet.has(uid)) {
+        if (typePrefs?.suppress_everyone === true) return
+      }
+
+      // Suppress @role mentions if user has opted out (#607)
+      if (isMentionedByRole) {
+        if (typePrefs?.suppress_role_mentions === true) return
       }
 
       return sendPushToUser(uid, payload, { skipQuietHours: true })

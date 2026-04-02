@@ -45,10 +45,26 @@ export interface MemberData {
     banner_color: string | null
     custom_tag: string | null
     created_at: string
+    last_online_at: string | null
   } | null
   roles: RoleRow[]
 }
 
+
+/** Format a last_online_at timestamp into a relative "Active Xm/h/d ago" string. */
+function formatLastSeen(lastOnlineAt: string | null | undefined): string | null {
+  if (!lastOnlineAt) return null
+  const diff = Date.now() - new Date(lastOnlineAt).getTime()
+  if (diff < 0 || !isFinite(diff)) return null
+  const minutes = Math.floor(diff / 60_000)
+  if (minutes < 1) return "Active just now"
+  if (minutes < 60) return `Active ${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `Active ${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `Active ${days}d ago`
+  return null // Too old to be useful
+}
 
 /** Collapsible member list panel showing server members grouped by role with real-time presence indicators. */
 export function MemberList({ serverId, initialMembers }: Props) {
@@ -278,6 +294,40 @@ export function MemberList({ serverId, initialMembers }: Props) {
     [members, presence]
   )
 
+  // Group online members by their highest-priority role (#610)
+  const roleGroupedOnline = useMemo(() => {
+    // Collect all unique non-default roles from all members, sorted by position (highest first)
+    const allRoles = members.flatMap((m) => m.roles ?? [])
+      .filter((r) => !r.is_default)
+    const uniqueRoles = new Map<string, RoleRow>()
+    for (const r of allRoles) {
+      if (!uniqueRoles.has(r.id)) uniqueRoles.set(r.id, r)
+    }
+    const sortedRoles = [...uniqueRoles.values()].sort((a, b) => b.position - a.position)
+
+    const grouped: { role: RoleRow | null; label: string; color: string | null; members: MemberData[] }[] = []
+    const assigned = new Set<string>()
+
+    for (const role of sortedRoles) {
+      const roleMembers = onlineMembers.filter((m) => {
+        if (assigned.has(m.user_id)) return false
+        return m.roles?.some((r) => r.id === role.id)
+      })
+      if (roleMembers.length > 0) {
+        roleMembers.forEach((m) => assigned.add(m.user_id))
+        grouped.push({ role, label: role.name, color: role.color, members: roleMembers })
+      }
+    }
+
+    // Remaining online members without a custom role
+    const unassigned = onlineMembers.filter((m) => !assigned.has(m.user_id))
+    if (unassigned.length > 0) {
+      grouped.push({ role: null, label: "Members", color: null, members: unassigned })
+    }
+
+    return grouped
+  }, [onlineMembers, members])
+
   const canManageRoles = useMemo(() => {
     if (!currentUser) return false
     const currentMember = members.find((m) => m.user_id === currentUser.id)
@@ -345,16 +395,16 @@ export function MemberList({ serverId, initialMembers }: Props) {
           </div>
         )}
 
-        {/* Online */}
-        {!loadingMembers && onlineMembers.length > 0 && (
-          <div className="mb-2">
+        {/* Online — grouped by role (#610) */}
+        {!loadingMembers && roleGroupedOnline.map((group) => (
+          <div key={group.role?.id ?? "members"} className="mb-2">
             <div
               className="px-4 py-1 text-xs font-semibold uppercase tracking-wider mb-1"
-              style={{ color: "var(--theme-text-muted)" }}
+              style={{ color: group.color || "var(--theme-text-muted)" }}
             >
-              Online — {onlineMembers.length}
+              {group.label} — {group.members.length}
             </div>
-            {onlineMembers.map((member) => (
+            {group.members.map((member) => (
               <MemberItem
                 key={member.user_id}
                 member={member}
@@ -369,7 +419,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
               />
             ))}
           </div>
-        )}
+        ))}
 
         {/* Offline */}
         {!loadingMembers && offlineMembers.length > 0 && (
@@ -571,6 +621,14 @@ const MemberItem = memo(function MemberItem({
                   {member.user.status_message}
                 </div>
               )}
+              {offline && (() => {
+                const lastSeen = formatLastSeen(member.user?.last_online_at)
+                return lastSeen ? (
+                  <div className="text-xs truncate" style={{ color: "var(--theme-text-faint)" }}>
+                    {lastSeen}
+                  </div>
+                ) : null
+              })()}
               {presence?.voice_channel_id && (
                 <div
                   className={cn(
