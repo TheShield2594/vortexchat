@@ -174,7 +174,7 @@ export async function processAttachmentImage(
       .from("attachments")
       .update({
         blur_hash: result.blurHash,
-        variants: result.variants as unknown as Record<string, unknown>,
+        variants: JSON.parse(JSON.stringify(result.variants)),
         width: result.originalWidth,
         height: result.originalHeight,
         processing_state: "completed",
