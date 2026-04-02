@@ -364,15 +364,15 @@ export async function sendPushToChannel(opts: {
 
     if (serverName && channelName) {
       if (threadId) {
-        // Fetch thread title if available
+        // Fetch thread name if available
         const { data: threadData } = await supabase
           .from("threads")
-          .select("title")
+          .select("name")
           .eq("id", threadId)
           .maybeSingle()
-        const threadTitle = threadData?.title
-        notificationTitle = threadTitle
-          ? `${serverName} — #${channelName} > ${threadTitle}`.slice(0, 60)
+        const threadName = threadData?.name
+        notificationTitle = threadName
+          ? `${serverName} — #${channelName} > ${threadName}`.slice(0, 60)
           : `${serverName} — #${channelName} > Thread`.slice(0, 60)
       } else {
         notificationTitle = `${serverName} — #${channelName}`.slice(0, 60)
