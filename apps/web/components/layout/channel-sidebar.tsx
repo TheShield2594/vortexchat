@@ -28,7 +28,7 @@ import type { ChannelRow, RoleRow, ServerRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
-import { markChannelRead } from "@/lib/mark-channel-read"
+import { markChannelRead, markChannelReadRpc } from "@/lib/mark-channel-read"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
@@ -516,9 +516,17 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       const channelIdsToMark = navigableChannelIds.filter(
         (id) => unreadChannelIds.has(id) || (mentionCounts[id] ?? 0) > 0
       )
-      for (const channelId of channelIdsToMark) {
-        markChannelRead(channelId)
-      }
+      if (channelIdsToMark.length === 0) return
+      const supabase = createClientSupabaseClient()
+      void (async () => {
+        const BATCH_SIZE = 10
+        for (let i = 0; i < channelIdsToMark.length; i += BATCH_SIZE) {
+          const batch = channelIdsToMark.slice(i, i + BATCH_SIZE)
+          await Promise.allSettled(
+            batch.map((id) => markChannelReadRpc(supabase, id, "shortcut:markAllServerRead"))
+          )
+        }
+      })()
     },
     onJumpChannelPrev: () => jumpRelative(navigableChannelIds, "prev"),
     onJumpChannelNext: () => jumpRelative(navigableChannelIds, "next"),
