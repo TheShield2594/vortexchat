@@ -37,9 +37,7 @@ export async function GET(
     return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
   }
 
-  const { data: members, error } = await adminSupabase
-    .from("server_members")
-    .select(`
+  const MEMBER_SELECT_FULL = `
       server_id,
       user_id,
       nickname,
@@ -67,10 +65,57 @@ export async function GET(
           created_at
         )
       )
-    `)
+    ` as const
+
+  // Fallback select without last_online_at for environments where migration 00092 hasn't been applied yet
+  const MEMBER_SELECT_COMPAT = `
+      server_id,
+      user_id,
+      nickname,
+      user:users!server_members_user_id_fkey(
+        id,
+        username,
+        display_name,
+        avatar_url,
+        status_message,
+        bio,
+        banner_color,
+        custom_tag,
+        created_at
+      ),
+      roles:member_roles(
+        role_id,
+        roles(
+          id,
+          server_id,
+          name,
+          color,
+          permissions,
+          position,
+          created_at
+        )
+      )
+    ` as const
+
+  let { data: members, error } = await adminSupabase
+    .from("server_members")
+    .select(MEMBER_SELECT_FULL)
     .eq("server_id", params.serverId)
     .order("nickname", { ascending: true, nullsFirst: false })
     .order("user_id", { ascending: true })
+
+  // If the query fails (e.g. last_online_at column missing), retry without it
+  if (error) {
+    console.warn("[members] GET query failed, retrying without last_online_at", { code: error.code, message: error.message })
+    const fallback = await adminSupabase
+      .from("server_members")
+      .select(MEMBER_SELECT_COMPAT)
+      .eq("server_id", params.serverId)
+      .order("nickname", { ascending: true, nullsFirst: false })
+      .order("user_id", { ascending: true })
+    members = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     console.error("[members] GET query failed", { serverId: params.serverId, code: error.code, message: error.message, details: error.details })

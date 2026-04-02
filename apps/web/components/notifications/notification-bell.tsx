@@ -57,6 +57,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [filterTab, setFilterTab] = useState<"all" | "mentions" | "other">("all")
   const wrapperRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -65,6 +66,18 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const computeMentionCount = useCallback((items: Notification[]): number => {
     return items.filter((n) => !n.read && n.type === "mention").length
   }, [])
+
+  const filteredNotifications = useMemo(() => {
+    if (filterTab === "all") return notifications
+    if (filterTab === "mentions") return notifications.filter((n) => n.type === "mention" || n.type === "reply")
+    return notifications.filter((n) => n.type !== "mention" && n.type !== "reply")
+  }, [notifications, filterTab])
+
+  const tabUnreadCounts = useMemo(() => {
+    const mentions = notifications.filter((n) => !n.read && (n.type === "mention" || n.type === "reply")).length
+    const other = notifications.filter((n) => !n.read && n.type !== "mention" && n.type !== "reply").length
+    return { all: unreadCount, mentions, other }
+  }, [notifications, unreadCount])
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -443,15 +456,46 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
             </div>
           </div>
 
+          {/* Filter tabs */}
+          <div className="flex border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
+            {(["all", "mentions", "other"] as const).map((tab) => {
+              const label = tab === "all" ? "All" : tab === "mentions" ? "Mentions" : "Other"
+              const count = tabUnreadCounts[tab]
+              const active = filterTab === tab
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setFilterTab(tab)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors"
+                  style={{
+                    color: active ? "var(--theme-text-primary)" : "var(--theme-text-muted)",
+                    borderBottom: active ? "2px solid var(--theme-accent)" : "2px solid transparent",
+                  }}
+                  aria-pressed={active}
+                >
+                  {label}
+                  {count > 0 && (
+                    <span
+                      className="min-w-[16px] h-4 rounded-full flex items-center justify-center text-[10px] font-bold px-1"
+                      style={{ background: active ? "var(--theme-accent)" : "var(--theme-bg-tertiary)", color: active ? "white" : "var(--theme-text-muted)" }}
+                    >
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
           {/* List */}
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {filteredNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <Bell className="w-8 h-8 tertiary-metadata" />
                 <p className="text-sm tertiary-metadata">All caught up!</p>
               </div>
             ) : (
-              notifications.map((n) => (
+              filteredNotifications.map((n) => (
                 <div
                   key={n.id}
                   className="flex items-start justify-between gap-2 px-4 py-3 border-b transition-colors hover:bg-white/5"
