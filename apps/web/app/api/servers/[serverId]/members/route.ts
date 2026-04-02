@@ -113,7 +113,8 @@ export async function GET(
       .eq("server_id", params.serverId)
       .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
-    members = fallback.data
+    // last_online_at will be absent but downstream JSON serialization handles it fine
+    members = fallback.data as typeof members
     error = fallback.error
   }
 

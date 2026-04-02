@@ -60,8 +60,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
 
   // Members query with fallback for missing last_online_at column
   async function fetchMembersWithFallback() {
-    const base = adminSupabase.from("server_members")
-    const full = await base
+    const full = await adminSupabase.from("server_members")
       .select(`
         server_id, user_id, nickname,
         user:users!server_members_user_id_fkey(
@@ -74,8 +73,10 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
       .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
     if (!full.error) return full
-    // Retry without last_online_at if column doesn't exist yet
-    return adminSupabase.from("server_members")
+    // Retry without last_online_at if column doesn't exist yet.
+    // Cast to match the full query type — last_online_at will simply be
+    // absent on each user object, which downstream code handles via ?. access.
+    const compat = await adminSupabase.from("server_members")
       .select(`
         server_id, user_id, nickname,
         user:users!server_members_user_id_fkey(
@@ -87,6 +88,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
       .eq("server_id", params.serverId)
       .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
+    return compat as unknown as typeof full
   }
 
   const [
