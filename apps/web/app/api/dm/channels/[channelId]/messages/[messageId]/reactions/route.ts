@@ -75,7 +75,10 @@ export async function POST(
         { onConflict: "dm_id,user_id,emoji", ignoreDuplicates: true }
       )
 
-    if (error) return NextResponse.json({ error: "Failed to add reaction" }, { status: 500 })
+    if (error) {
+      console.error("[dm reactions POST] upsert error:", { messageId, userId: user.id, emoji, code: error.code, message: error.message })
+      return NextResponse.json({ error: "Failed to add reaction" }, { status: 500 })
+    }
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
   } catch (err) {
@@ -108,7 +111,10 @@ export async function DELETE(
       .eq("user_id", user.id)
       .eq("emoji", emoji)
 
-    if (error) return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 })
+    if (error) {
+      console.error("[dm reactions DELETE] delete error:", { messageId, userId: user.id, emoji, code: error.code, message: error.message })
+      return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 })
+    }
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
   } catch (err) {

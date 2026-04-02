@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 
-const TYPING_TIMEOUT_MS = 3000
+const TYPING_TIMEOUT_MS = 5000
 
 interface TypingUser {
   userId: string

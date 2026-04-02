@@ -155,12 +155,14 @@
 | iOS PWA: unique notification tags (#600) | Done | `sw.js` — append timestamp to notification tag on iOS to prevent silent replacement; desktop keeps channel-based grouping |
 | iOS PWA: omit action buttons (#601) | Done | `sw.js` — iOS Safari ignores notification actions; conditionally omit on iOS to save payload bytes |
 | Push notification server/channel context (#602) | Done | `lib/push.ts` — server channel titles now show "ServerName — #channel"; DMs unchanged; threads show "> ThreadTitle" |
+| Quiet hours timezone auto-detect (#603) | Done | `notifications-settings-page.tsx` — first-time activation uses `Intl.DateTimeFormat().resolvedOptions().timeZone`; DB default remains UTC for server-side safety |
+| Typing indicator timeout 5s (#604) | Done | `use-typing.ts` — `TYPING_TIMEOUT_MS` increased from 3s to 5s; display timeout is 5.5s (includes 500ms network buffer) |
 
 ## Direct Messages
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Reactions in DMs | Done | `dm_reactions` table (migration 00082); `POST/DELETE /api/dm/channels/[channelId]/messages/[messageId]/reactions`; full emoji picker + quick reactions in `dm-channel-area`; realtime sync via Supabase |
+| Reactions in DMs | Done | `dm_reactions` table (migration 00082); `POST/DELETE /api/dm/channels/[channelId]/messages/[messageId]/reactions`; full emoji picker + quick reactions in `dm-channel-area`; realtime sync via Supabase; RLS fix via `is_dm_message_participant` SECURITY DEFINER (migration 00091, #591) |
 | Date separators in DMs | Done | Day-boundary dividers ("Today", "Yesterday", "March 28, 2026") between messages in `dm-channel-area`; timestamps shown on non-grouped messages |
 | Date separators in channels | Done | Day-boundary dividers ("Today", "Yesterday", "March 28, 2026") in `chat-area` and `thread-panel`; messages do not group across day boundaries |
 
@@ -278,6 +280,7 @@
 | Event bus abstraction interface (#586) | Done | Added `IEventBus` interface with publish/subscribe/replay/acknowledge in `@vortex/shared`; typed event system with `VortexEvent` and `VortexEventType` |
 | Signal server graceful shutdown + Redis TTL (#587) | Done | 30s connection-draining shutdown; Redis room key TTL (5min) with periodic refresh; crash recovery via auto-expiry; SIGINT+SIGTERM handling |
 | Read position tracking API endpoints (#588) | Done | `POST /api/channels/:channelId/ack` for mark-as-read; `GET /api/users/me/read-states` for bulk hydration of channels, DMs, and threads |
+| Mark as Read context menu + keyboard shortcut (#605) | Done | Right-click "Mark as Read" on unread channels in sidebar; `Ctrl/Cmd+Shift+M` marks all channels in current server as read |
 | PATCH roles handler try/catch (#567) | Done | Already had top-level try/catch wrapping entire handler body |
 | Server-templates POST try/catch + permission check (#568) | Done | Wrapped entire POST handler in try/catch; added membership verification before preview/apply/export modes |
 | Voice-channel fetchParticipants double-cast (#569) | Done | Replaced `as unknown as` with local `VoiceStateWithUser` interface; added error handling for Supabase query |

@@ -12,6 +12,7 @@ type ShortcutActionId =
   | "searchSlash"
   | "searchInChannel"
   | "markRead"
+  | "markAllServerRead"
   | "jumpChannelPrev"
   | "jumpChannelNext"
   | "jumpUnreadPrev"
@@ -28,6 +29,7 @@ export interface ShortcutHandlers {
   onSearch?: () => void
   onSearchInChannel?: () => void
   onMarkRead?: () => void
+  onMarkAllServerRead?: () => void
   onJumpChannelPrev?: () => void
   onJumpChannelNext?: () => void
   onJumpUnreadPrev?: () => void
@@ -109,6 +111,7 @@ export function getShortcutRegistry(handlers: ShortcutHandlers): ShortcutDefinit
     { id: "searchSlash", label: "Search", group: "Search", scope: "nonInput", combos: ["/"], enabled: !!handlers.onSearch, run: handlers.onSearch },
     { id: "searchInChannel", label: "Search in Current Channel", group: "Search", scope: "global", combos: ["meta+shift+f", "ctrl+shift+f"], enabled: !!handlers.onSearchInChannel, run: handlers.onSearchInChannel },
     { id: "markRead", label: "Mark Current Channel Read", group: "Navigation", scope: "nonInput", combos: ["escape"], enabled: !!handlers.onMarkRead, run: handlers.onMarkRead },
+    { id: "markAllServerRead", label: "Mark All Channels Read", group: "Navigation", scope: "nonInput", combos: ["alt+shift+m", "meta+shift+m", "ctrl+shift+m"], enabled: !!handlers.onMarkAllServerRead, run: handlers.onMarkAllServerRead },
     { id: "jumpChannelPrev", label: "Jump to Previous Channel", group: "Navigation", scope: "nonInput", combos: ["alt+arrowup"], enabled: !!handlers.onJumpChannelPrev, run: handlers.onJumpChannelPrev },
     { id: "jumpChannelNext", label: "Jump to Next Channel", group: "Navigation", scope: "nonInput", combos: ["alt+arrowdown"], enabled: !!handlers.onJumpChannelNext, run: handlers.onJumpChannelNext },
     { id: "jumpUnreadPrev", label: "Jump to Previous Unread", group: "Navigation", scope: "nonInput", combos: ["alt+shift+arrowup"], enabled: !!handlers.onJumpUnreadPrev, run: handlers.onJumpUnreadPrev },
