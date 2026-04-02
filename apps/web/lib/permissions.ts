@@ -7,6 +7,7 @@
 import { PERMISSIONS, hasPermission, computePermissions } from "@vortex/shared"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
+import { cached, invalidatePrefix, CACHE_TTLS } from "@/lib/server-cache"
 
 export { PERMISSIONS, hasPermission, computePermissions }
 export type { Permission } from "@vortex/shared"
@@ -41,43 +42,49 @@ export async function getMemberPermissions(
   serverId: string,
   userId: string
 ): Promise<MemberPerms> {
-  const [{ data: server, error: serverError }, { data: member, error: memberError }, { data: defaultRole, error: defaultRoleError }] = await Promise.all([
-    supabase.from("servers").select("owner_id, screening_enabled").eq("id", serverId).single(),
-    supabase
-      .from("server_members")
-      .select("member_roles(roles(permissions))")
-      .eq("server_id", serverId)
-      .eq("user_id", userId)
-      .maybeSingle(),
-    supabase.from("roles").select("permissions").eq("server_id", serverId).eq("is_default", true).maybeSingle(),
-  ])
+  return cached(
+    `perms:${serverId}:${userId}`,
+    async () => {
+      const [{ data: server, error: serverError }, { data: member, error: memberError }, { data: defaultRole, error: defaultRoleError }] = await Promise.all([
+        supabase.from("servers").select("owner_id, screening_enabled").eq("id", serverId).single(),
+        supabase
+          .from("server_members")
+          .select("member_roles(roles(permissions))")
+          .eq("server_id", serverId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase.from("roles").select("permissions").eq("server_id", serverId).eq("is_default", true).maybeSingle(),
+      ])
 
-  if (serverError) throw new Error(`Failed to fetch server: ${serverError.message}`)
-  if (memberError) throw new Error(`Failed to fetch member: ${memberError.message}`)
-  if (defaultRoleError) throw new Error(`Failed to fetch default role: ${defaultRoleError.message}`)
+      if (serverError) throw new Error(`Failed to fetch server: ${serverError.message}`)
+      if (memberError) throw new Error(`Failed to fetch member: ${memberError.message}`)
+      if (defaultRoleError) throw new Error(`Failed to fetch default role: ${defaultRoleError.message}`)
 
-  const ownerId: string | null = server?.owner_id ?? null
-  const isOwner = ownerId === userId
-  const isMember = member !== null || isOwner
+      const ownerId: string | null = server?.owner_id ?? null
+      const isOwner = ownerId === userId
+      const isMember = member !== null || isOwner
 
-  interface MemberRoleJoin {
-    roles: { permissions: number } | null
-  }
-  const memberWithRoles = member as { member_roles?: MemberRoleJoin[] } | null
-  const rawPerms: number[] =
-    memberWithRoles?.member_roles?.flatMap((mr) =>
-      mr.roles?.permissions != null ? [mr.roles.permissions] : []
-    ) ?? []
+      interface MemberRoleJoin {
+        roles: { permissions: number } | null
+      }
+      const memberWithRoles = member as { member_roles?: MemberRoleJoin[] } | null
+      const rawPerms: number[] =
+        memberWithRoles?.member_roles?.flatMap((mr) =>
+          mr.roles?.permissions != null ? [mr.roles.permissions] : []
+        ) ?? []
 
-  // Only include default role permissions for actual members — non-members
-  // must not inherit any server permissions from the @everyone role.
-  if (isMember && defaultRole?.permissions != null) rawPerms.push(defaultRole.permissions)
+      // Only include default role permissions for actual members — non-members
+      // must not inherit any server permissions from the @everyone role.
+      if (isMember && defaultRole?.permissions != null) rawPerms.push(defaultRole.permissions)
 
-  const permissions = computePermissions(rawPerms)
-  const isAdmin = isOwner || !!(permissions & PERMISSIONS.ADMINISTRATOR)
-  const screeningEnabled: boolean = !!server?.screening_enabled
+      const permissions = computePermissions(rawPerms)
+      const isAdmin = isOwner || !!(permissions & PERMISSIONS.ADMINISTRATOR)
+      const screeningEnabled: boolean = !!server?.screening_enabled
 
-  return { isOwner, isMember, permissions, isAdmin, ownerId, screeningEnabled }
+      return { isOwner, isMember, permissions, isAdmin, ownerId, screeningEnabled }
+    },
+    CACHE_TTLS.MEMBER_PERMISSIONS,
+  )
 }
 
 /**
@@ -90,31 +97,48 @@ export async function getChannelPermissions(
   channelId: string,
   userId: string
 ): Promise<MemberPerms> {
-  const [memberPerms, memberRolesResult, defaultRoleResult, overwritesResult] = await Promise.all([
-    getMemberPermissions(supabase, serverId, userId),
-    supabase.from("member_roles").select("role_id").eq("server_id", serverId).eq("user_id", userId),
-    supabase.from("roles").select("id").eq("server_id", serverId).eq("is_default", true).maybeSingle(),
-    supabase.from("channel_permissions").select("role_id, allow_permissions, deny_permissions").eq("channel_id", channelId),
-  ])
+  return cached(
+    `chan-perms:${channelId}:${userId}`,
+    async () => {
+      const [memberPerms, memberRolesResult, defaultRoleResult, overwritesResult] = await Promise.all([
+        getMemberPermissions(supabase, serverId, userId),
+        supabase.from("member_roles").select("role_id").eq("server_id", serverId).eq("user_id", userId),
+        supabase.from("roles").select("id").eq("server_id", serverId).eq("is_default", true).maybeSingle(),
+        supabase.from("channel_permissions").select("role_id, allow_permissions, deny_permissions").eq("channel_id", channelId),
+      ])
 
-  if (memberRolesResult.error) throw new Error(`Failed to fetch member roles: ${memberRolesResult.error.message}`)
-  if (defaultRoleResult.error) throw new Error(`Failed to fetch default role: ${defaultRoleResult.error.message}`)
-  if (overwritesResult.error) throw new Error(`Failed to fetch channel overrides: ${overwritesResult.error.message}`)
+      if (memberRolesResult.error) throw new Error(`Failed to fetch member roles: ${memberRolesResult.error.message}`)
+      if (defaultRoleResult.error) throw new Error(`Failed to fetch default role: ${defaultRoleResult.error.message}`)
+      if (overwritesResult.error) throw new Error(`Failed to fetch channel overrides: ${overwritesResult.error.message}`)
 
-  if (memberPerms.isOwner || memberPerms.isAdmin) {
-    return memberPerms
-  }
+      if (memberPerms.isOwner || memberPerms.isAdmin) {
+        return memberPerms
+      }
 
-  const roleIds = new Set((memberRolesResult.data ?? []).map((r) => r.role_id))
-  const defaultRoleId = defaultRoleResult.data?.id ?? null
-  if (defaultRoleId) roleIds.add(defaultRoleId)
-  if (roleIds.size === 0) return memberPerms
+      const roleIds = new Set((memberRolesResult.data ?? []).map((r) => r.role_id))
+      const defaultRoleId = defaultRoleResult.data?.id ?? null
+      if (defaultRoleId) roleIds.add(defaultRoleId)
+      if (roleIds.size === 0) return memberPerms
 
-  const relevantOverwrites = (overwritesResult.data ?? []).filter((row) => roleIds.has(row.role_id))
+      const relevantOverwrites = (overwritesResult.data ?? []).filter((row) => roleIds.has(row.role_id))
 
-  const denyMask = relevantOverwrites.reduce((acc, row) => acc | (row.deny_permissions ?? 0), 0)
-  const allowMask = relevantOverwrites.reduce((acc, row) => acc | (row.allow_permissions ?? 0), 0)
-  const permissions = (memberPerms.permissions & ~denyMask) | allowMask
+      const denyMask = relevantOverwrites.reduce((acc, row) => acc | (row.deny_permissions ?? 0), 0)
+      const allowMask = relevantOverwrites.reduce((acc, row) => acc | (row.allow_permissions ?? 0), 0)
+      const permissions = (memberPerms.permissions & ~denyMask) | allowMask
 
-  return { ...memberPerms, permissions }
+      return { ...memberPerms, permissions }
+    },
+    CACHE_TTLS.MEMBER_PERMISSIONS,
+  )
+}
+
+/** Invalidate all cached permissions for a server (after role/member changes). */
+export function invalidateServerPermissions(serverId: string): void {
+  invalidatePrefix(`perms:${serverId}`)
+  invalidatePrefix(`chan-perms:`)
+}
+
+/** Invalidate cached channel permissions (after channel permission overwrite changes). */
+export function invalidateChannelPermissions(channelId: string): void {
+  invalidatePrefix(`chan-perms:${channelId}`)
 }

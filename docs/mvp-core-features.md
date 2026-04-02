@@ -317,7 +317,7 @@
 |---------|--------|-------|
 | `@tanstack/react-virtual` installed | Done | Dynamic row heights via `measureElement`; overscan=10 |
 | `VirtualizedMessageList` component | Done | Generic virtualizer with header/footer slots, bidirectional infinite scroll trigger, dynamic measurement |
-| ChatArea integration | Done | Replaced direct DOM rendering; `DISPLAY_LIMIT` raised from 150 → 500; header/footer/voice recaps rendered as virtual rows |
+| ChatArea integration | Done | Replaced direct DOM rendering with `VirtualizedMessageList`; removed `column-reverse` CSS; `DISPLAY_LIMIT` raised from 150 → 500; header/footer/voice recaps rendered as virtual rows; `useChatScroll` updated for standard scroll direction (#647) |
 | Hooks updated (`use-chat-history`, `use-chat-realtime`) | Done | `DISPLAY_LIMIT` raised to 500 in all three locations |
 
 ## Redis Application Cache (#596)
@@ -331,6 +331,19 @@
 | Cache invalidation on channel updates | Done | PATCH channel — invalidates `channel:` key + `perms:` prefix |
 | Cache invalidation on role assignment/removal | Done | POST/DELETE member roles — invalidates `member-roles:` + `perms:` prefixes |
 | `invalidatePrefix` via Redis SCAN | Done | Non-blocking scan+delete for pattern-based invalidation; entries expire via TTL as safety net |
+| Permission functions cached | Done | `getMemberPermissions` cached at `perms:{serverId}:{userId}`, `getChannelPermissions` at `chan-perms:{channelId}:{userId}` with 30s TTL (#648) |
+| Channel permissions cache invalidation | Done | PUT/DELETE on `/api/channels/[channelId]/permissions` now calls `invalidateChannelPermissions()` (#648) |
+
+## Performance Hardening (P0)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Fix inline callbacks breaking React.memo | Done | Extracted 8 callbacks from `messages.map()` into `useCallback` hooks; `renderMessage` callback for virtualizer (#646) |
+| Enable message list virtualization | Done | `VirtualizedMessageList` activated in ChatArea; removed `column-reverse` layout; `useChatScroll` updated for standard scroll direction (#647) |
+| Cache permission checks with 30s TTL | Done | `getMemberPermissions` + `getChannelPermissions` wrapped with `cached()` from `server-cache.ts`; channel permission invalidation added (#648) |
+| Replace Redis KEYS scan in presence cleanup | Done | Replaced blocking `redis.keys()` with cursor-based `redis.scan()`; cleanup interval changed from 10s → 5min (#649) |
+| Add missing index on `direct_messages.dm_channel_id` | Done | Migration `00095_perf_dm_channel_index.sql` — composite index on `(dm_channel_id, created_at DESC)` (#650) |
+| Fix reactions Realtime subscription filter | Done | Added `messagesRef`-based early-return filter in `use-realtime-messages.ts` for INSERT and DELETE events (#651) |
 
 ---
 

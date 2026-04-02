@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { invalidateChannelPermissions } from "@/lib/permissions"
 
 // GET /api/channels/[channelId]/permissions — fetch all role overrides for a channel
 export async function GET(
@@ -54,6 +55,7 @@ export async function PUT(
       )
 
     if (error) return NextResponse.json({ error: "Failed to update permissions" }, { status: 500 })
+    invalidateChannelPermissions(channelId)
     return NextResponse.json({ ok: true })
 
   } catch (err) {
@@ -84,6 +86,7 @@ export async function DELETE(
       .eq("role_id", roleId)
 
     if (error) return NextResponse.json({ error: "Failed to delete permissions" }, { status: 500 })
+    invalidateChannelPermissions(channelId)
     return NextResponse.json({ ok: true })
 
   } catch (err) {

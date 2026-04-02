@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, type RefObject } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import type { MessageWithAuthor, MessageRow, ReactionRow } from "@/types/database"
 
@@ -16,6 +16,7 @@ export function useRealtimeMessages(
   onReactionDelete?: (reaction: ReactionRow) => void,
   onStatusChange?: (status: RealtimeStatus) => void,
   onReconnect?: () => void,
+  messagesRef?: React.RefObject<MessageWithAuthor[]>,
 ) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const wasConnectedRef = useRef(false)
@@ -77,14 +78,22 @@ export function useRealtimeMessages(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "reactions" },
         (payload) => {
-          if (onReactionInsert) onReactionInsert(payload.new as ReactionRow)
+          if (!onReactionInsert) return
+          const reaction = payload.new as ReactionRow
+          // Early-return: skip reactions for messages not loaded in this channel
+          if (messagesRef?.current && !messagesRef.current.some((m) => m.id === reaction.message_id)) return
+          onReactionInsert(reaction)
         }
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "reactions" },
         (payload) => {
-          if (onReactionDelete) onReactionDelete(payload.old as ReactionRow)
+          if (!onReactionDelete) return
+          const reaction = payload.old as ReactionRow
+          // Early-return: skip reactions for messages not loaded in this channel
+          if (messagesRef?.current && !messagesRef.current.some((m) => m.id === reaction.message_id)) return
+          onReactionDelete(reaction)
         }
       )
       .subscribe((status) => {

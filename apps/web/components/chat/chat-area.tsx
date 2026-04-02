@@ -518,8 +518,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const scrollToLatest = useCallback((behavior: ScrollBehavior = "auto") => {
     const container = messageScrollerRef.current
     if (!container) return
-    // In column-reverse, scrollTop 0 = bottom (newest messages visible).
-    container.scrollTo({ top: 0, behavior })
+    container.scrollTo({ top: container.scrollHeight, behavior })
   }, [])
 
   useEffect(() => {
@@ -760,7 +759,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   const { handlers: pullToRefreshHandlers, pullDistance, refreshing: pullRefreshing, threshold: pullThreshold } = usePullToRefresh({
     onRefresh: handlePullRefresh,
-    isAtTop: isAtBottom, // column-reverse: scrollTop=0 is visual top (newest messages)
+    isAtTop: (messageScrollerRef.current?.scrollTop ?? 0) < 120,
   })
 
   useEffect(() => {
@@ -859,12 +858,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     flushOutbox()
   }, [isOnline, channel.id, flushOutbox, flushTrigger])
 
-  // On channel switch, column-reverse naturally shows the bottom.
+  // On channel switch, scroll to the bottom (newest messages).
   // If there's a cached scroll position (user was scrolled up), restore it.
-  // Otherwise, ensure we're at the bottom (scrollTop = 0 in column-reverse).
   useLayoutEffect(() => {
-    // Detect channel switch synchronously so the ref reset and scroll
-    // restoration are colocated and deterministic.
     if (prevChannelIdRef.current !== channel.id) {
       shouldAutoScrollToLatestRef.current = true
       prevChannelIdRef.current = channel.id
@@ -880,13 +876,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!container) return
 
     // Check for cached scroll position from a previous visit to this channel
-    const cached = useAppStore.getState().messageCache[channel.id]
-    if (cached && cached.scrollOffset > 0) {
-      // Restore where the user was (scrollOffset is scrollTop from column-reverse)
-      container.scrollTop = cached.scrollOffset
+    const cachedState = useAppStore.getState().messageCache[channel.id]
+    if (cachedState && cachedState.scrollOffset > 0) {
+      container.scrollTop = cachedState.scrollOffset
     } else {
-      // Ensure we're at the newest messages (scrollTop = 0 in column-reverse)
-      container.scrollTop = 0
+      // Scroll to bottom (newest messages)
+      container.scrollTop = container.scrollHeight
     }
   }, [channel.id, jumpToMessageId, messages.length, openThreadId])
 
@@ -897,9 +892,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     previousLastMessageIdRef.current = newestMessageId
     if (!hasNewMessages || !newestMessage) return
 
-    // In column-reverse, if the user is at the bottom (scrollTop ~0), new
-    // messages appear naturally without any scrolling needed.  We only need
-    // to explicitly scroll when the user sent a message while scrolled up.
+    // If the user sent a message while scrolled up, auto-scroll to bottom.
     if (newestMessage.author_id === currentUserId && !isAtBottom) {
       scrollToLatest("smooth")
       return
@@ -916,8 +909,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       })
     }
 
-    // Already at bottom — no scroll needed, column-reverse handles it
-    if (isAtBottom) return
+    // Already at bottom — auto-scroll to keep newest visible
+    if (isAtBottom) {
+      scrollToLatest()
+      return
+    }
 
     setPendingNewMessageCount((count) => count + 1)
     setUnreadAnchorMessageId((current) => {
@@ -1128,6 +1124,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     },
     setRealtimeStatus,
     backfillMissedMessages,
+    messagesRef,
   )
 
   // ── Voice Recap — listen for ended voice sessions in this channel ──
@@ -1422,6 +1419,99 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }, {})
   }, [outbox])
 
+  // ── Stable callbacks for MessageItem (fixes #646) ──────────────────────
+  const handleMessageEdit = useCallback(async (messageId: string, content: string): Promise<void> => {
+    const res = await fetch(
+      `/api/servers/${serverId}/channels/${channel.id}/messages/${messageId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      }
+    )
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
+      throw new Error(data.error || "Failed to edit message")
+    }
+    const updated = await res.json().catch(() => null)
+    setMessages((prev) =>
+      prev.map((m) => m.id === messageId
+        ? updated ? { ...m, ...updated } : { ...m, content, edited_at: new Date().toISOString() }
+        : m)
+    )
+  }, [serverId, channel.id])
+
+  const handleMessageDelete = useCallback(async (messageId: string): Promise<void> => {
+    const res = await fetch(`/api/servers/${serverId}/channels/${channel.id}/messages/${messageId}`, {
+      method: "DELETE",
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Failed to delete message" }))
+      throw new Error(data.error || "Failed to delete message")
+    }
+    setMessages((prev) => prev.filter((m) => m.id !== messageId))
+    setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
+  }, [serverId, channel.id, setAndPersistOutbox])
+
+  const handlePinToggle = useCallback((messageId: string, pinned: boolean): void => {
+    setMessages((prev) =>
+      prev.map((m) => m.id === messageId ? { ...m, pinned } : m)
+    )
+  }, [])
+
+  const handleReaction = useCallback(async (messageId: string, emoji: string): Promise<void> => {
+    const previousMessage = messagesRef.current.find((m) => m.id === messageId)
+    const touched = Boolean(previousMessage)
+    const remove = previousMessage
+      ? previousMessage.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+      : false
+
+    if (!touched) return
+
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m
+        return {
+          ...m,
+          reactions: remove
+            ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+            : [...m.reactions, { message_id: messageId, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
+        }
+      })
+    )
+
+    try {
+      await sendReactionMutation({ messageId, emoji, remove, nonce: crypto.randomUUID() })
+    } catch {
+      if (!previousMessage) return
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, ...previousMessage } : m))
+      )
+    }
+  }, [currentUserId])
+
+  const handleReply = useCallback((message: MessageWithAuthor): void => {
+    setReplyTo(message)
+  }, [])
+
+  const handleThreadCreated = useCallback((thread: ThreadRow): void => {
+    setActiveThread(thread)
+  }, [])
+
+  const handleMountAnimationComplete = useCallback((messageId: string): void => {
+    const timer = animatedMessageTimersRef.current.get(messageId)
+    if (timer) {
+      clearTimeout(timer)
+      animatedMessageTimersRef.current.delete(messageId)
+    }
+    setAnimatedMessageIds((current) => {
+      if (!current.has(messageId)) return current
+      const next = new Set(current)
+      next.delete(messageId)
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     if (typingUsers.length === 0) return
 
@@ -1465,6 +1555,69 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
     return active
   }, [recentlyActiveTimestamps])
+
+  // ── Render callback for VirtualizedMessageList (#647) ──────────────────
+  const renderMessage = useCallback((message: MessageWithAuthor, index: number): ReactNode => {
+    const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
+    const prevMessage = messagesRef.current[index - 1]
+    const msgDate = new Date(message.created_at)
+    const prevDate = prevMessage ? new Date(prevMessage.created_at) : null
+    const showDaySeparator = !prevDate || msgDate.toDateString() !== prevDate.toDateString()
+    const isGrouped =
+      messageGrouping !== "never" &&
+      !showDaySeparator &&
+      prevMessage &&
+      prevMessage.author_id === message.author_id &&
+      msgDate.getTime() -
+        new Date(prevMessage.created_at).getTime() < groupingThresholdMs
+
+    return (
+      <>
+        {showDaySeparator && (
+          <div className="flex items-center gap-3 my-3 px-4">
+            <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
+            <span className="text-xs font-medium flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>
+              {formatDaySeparator(msgDate)}
+            </span>
+            <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
+          </div>
+        )}
+        {unreadDividerMessageId === message.id && (
+          <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
+            <div className="h-px flex-1 chat-area-danger-bg opacity-50" />
+            <span
+              className="text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-0.5 rounded-full flex-shrink-0 chat-area-new-messages-pill"
+            >
+              NEW MESSAGES
+            </span>
+            <div className="h-px flex-1 chat-area-danger-bg opacity-50" />
+          </div>
+        )}
+        <MessageItem
+          containerId={`message-${message.id}`}
+          highlighted={highlightedMessageId === message.id}
+          message={message}
+          isGrouped={!!isGrouped}
+          currentUserId={currentUserId}
+          canManageMessages={canManageMessages}
+          sendState={outboxStateByMessageId[message.id]}
+          onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
+          recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
+          animateOnMount={animatedMessageIds.has(message.id)}
+          onMountAnimationComplete={animatedMessageIds.has(message.id)
+            ? () => handleMountAnimationComplete(message.id)
+            : undefined}
+          onReply={() => handleReply(message)}
+          onReplyJump={jumpToMessage}
+          onThreadCreated={handleThreadCreated}
+          onEdit={(content) => handleMessageEdit(message.id, content)}
+          onDelete={() => handleMessageDelete(message.id)}
+          onPinToggle={(pinned) => handlePinToggle(message.id, pinned)}
+          onReaction={(emoji) => handleReaction(message.id, emoji)}
+        />
+      </>
+    )
+  }, [messageGrouping, unreadDividerMessageId, highlightedMessageId, currentUserId, canManageMessages, outboxStateByMessageId, recentlyActiveUserIds, animatedMessageIds, handleMountAnimationComplete, handleReply, jumpToMessage, handleThreadCreated, handleMessageEdit, handleMessageDelete, handlePinToggle, handleReaction])
 
   type CommandAction = { id: string; label: string; group: "search" | "pins" | "threads" | "voice" | "help"; groupLabel: string; priority: number; ariaLabel: string; icon: ReactNode; onSelect: () => void }
   const commandActions = useMemo<CommandAction[]>(() => {
@@ -1734,17 +1887,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           />
         )}
 
-        {/* ── column-reverse scroll container ─────────────────────────
-             scrollTop 0 = bottom (newest messages).  The browser natively
-             anchors scroll when content grows at the start (visual bottom),
-             so new messages never cause a jarring jump.                    */}
+        {/* ── Virtualized scroll container (#647) ──────────────────────
+             Replaced column-reverse layout with VirtualizedMessageList for
+             60-80% DOM node reduction. Scroll anchoring handled by virtualizer. */}
         <div
           ref={messageScrollerRef}
           className="flex-1 overflow-y-auto relative"
           role="log"
           aria-label="Message history"
           aria-relevant="additions"
-          style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none", overscrollBehaviorY: "contain" }}
+          style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}
           {...(isMobile ? pullToRefreshHandlers : {})}
         >
           {/* Pull-to-refresh indicator (mobile only) — require meaningful pull before showing */}
@@ -1766,214 +1918,81 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               </span>
             </div>
           )}
-          {/* Inner wrapper — rendered in normal (top-to-bottom) order inside
-              the column-reverse parent.  Because the parent is reversed, the
-              *end* of this div (newest messages) sits at the visual bottom. */}
-          <div>
-            {/* Header: channel intro or pagination skeleton */}
-            {!hasMoreHistory ? (
-              <div className="px-4 py-4">
-                <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
-                  Welcome to #{channel.name}!
-                </h2>
-                <p className="text-sm text-[var(--theme-text-secondary)]">
-                  This is the start of the #{channel.name} channel.
-                  {channel.topic && ` ${channel.topic}`}
-                </p>
-              </div>
-            ) : isPaginating ? (
-              <div className="px-4 py-3 space-y-3">
-                <output className="sr-only" aria-live="polite">Loading older messages…</output>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
-                    <div className="flex-1 space-y-1.5 pt-0.5">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-3 w-20" />
-                        <Skeleton className="h-2.5 w-12 opacity-50" />
+
+          {/* Reconnection gap indicator (#611) */}
+          {reconnectGap && (
+            <div className="mx-4 my-2 flex items-center gap-3 rounded-lg px-4 py-2.5" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.25)" }}>
+              <span className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+                You may have missed messages while disconnected
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setReconnectGap(false)
+                  if (unreadDividerMessageId) {
+                    const el = document.getElementById(`message-${unreadDividerMessageId}`)
+                    el?.scrollIntoView({ behavior: "smooth", block: "center" })
+                  }
+                }}
+                className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-md shrink-0"
+                style={{ background: "rgba(250,166,26,0.15)", color: "rgb(250,166,26)" }}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          <VirtualizedMessageList
+            messages={messages}
+            scrollContainerRef={messageScrollerRef}
+            renderMessage={renderMessage}
+            hasMoreHistory={hasMoreHistory}
+            isPaginating={isPaginating}
+            onLoadOlder={loadOlderMessages}
+            headerContent={
+              !hasMoreHistory ? (
+                <div className="px-4 py-4">
+                  <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
+                    Welcome to #{channel.name}!
+                  </h2>
+                  <p className="text-sm text-[var(--theme-text-secondary)]">
+                    This is the start of the #{channel.name} channel.
+                    {channel.topic && ` ${channel.topic}`}
+                  </p>
+                </div>
+              ) : isPaginating ? (
+                <div className="px-4 py-3 space-y-3">
+                  <output className="sr-only" aria-live="polite">Loading older messages…</output>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
+                      <div className="flex-1 space-y-1.5 pt-0.5">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-3 w-20" />
+                          <Skeleton className="h-2.5 w-12 opacity-50" />
+                        </div>
+                        <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
+                        {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
                       </div>
-                      <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
-                      {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {/* Reconnection gap indicator (#611) */}
-            {reconnectGap && (
-              <div className="mx-4 my-2 flex items-center gap-3 rounded-lg px-4 py-2.5" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.25)" }}>
-                <span className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
-                  You may have missed messages while disconnected
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReconnectGap(false)
-                    // Scroll to the unread divider if available
-                    if (unreadDividerMessageId) {
-                      const el = document.getElementById(`message-${unreadDividerMessageId}`)
-                      el?.scrollIntoView({ behavior: "smooth", block: "center" })
-                    }
-                  }}
-                  className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-md shrink-0"
-                  style={{ background: "rgba(250,166,26,0.15)", color: "rgb(250,166,26)" }}
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
-
-            {/* Message list — direct rendering (virtualization disabled due to column-reverse incompatibility) */}
-            {messages.map((message, index) => {
-                const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
-                const prevMessage = messages[index - 1]
-                const msgDate = new Date(message.created_at)
-                const prevDate = prevMessage ? new Date(prevMessage.created_at) : null
-                const showDaySeparator = !prevDate || msgDate.toDateString() !== prevDate.toDateString()
-                const isGrouped =
-                  messageGrouping !== "never" &&
-                  !showDaySeparator &&
-                  prevMessage &&
-                  prevMessage.author_id === message.author_id &&
-                  msgDate.getTime() -
-                    new Date(prevMessage.created_at).getTime() < groupingThresholdMs
-
-                return (
-                  <div key={message.id} id={`message-${message.id}`}>
-                    {showDaySeparator && (
-                      <div className="flex items-center gap-3 my-3 px-4">
-                        <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
-                        <span className="text-xs font-medium flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>
-                          {formatDaySeparator(msgDate)}
-                        </span>
-                        <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
-                      </div>
-                    )}
-                    {unreadDividerMessageId === message.id && (
-                      <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
-                        <div className="h-px flex-1 chat-area-danger-bg opacity-50" />
-                        <span
-                          className="text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-0.5 rounded-full flex-shrink-0 chat-area-new-messages-pill"
-                        >
-                          NEW MESSAGES
-                        </span>
-                        <div className="h-px flex-1 chat-area-danger-bg opacity-50" />
-                      </div>
-                    )}
-                    <MessageItem
-                      containerId={`message-${message.id}`}
-                      highlighted={highlightedMessageId === message.id}
-                      message={message}
-                      isGrouped={!!isGrouped}
-                      currentUserId={currentUserId}
-                      canManageMessages={canManageMessages}
-                      sendState={outboxStateByMessageId[message.id]}
-                      onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
-                      recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
-                      animateOnMount={animatedMessageIds.has(message.id)}
-                      onMountAnimationComplete={animatedMessageIds.has(message.id)
-                        ? () => {
-                          const timer = animatedMessageTimersRef.current.get(message.id)
-                          if (timer) {
-                            clearTimeout(timer)
-                            animatedMessageTimersRef.current.delete(message.id)
-                          }
-                          setAnimatedMessageIds((current) => {
-                            if (!current.has(message.id)) return current
-                            const next = new Set(current)
-                            next.delete(message.id)
-                            return next
-                          })
-                        }
-                        : undefined}
-                      onReply={() => setReplyTo(message)}
-                      onReplyJump={jumpToMessage}
-                      onThreadCreated={(thread) => setActiveThread(thread)}
-                      onEdit={async (content) => {
-                        const res = await fetch(
-                          `/api/servers/${serverId}/channels/${channel.id}/messages/${message.id}`,
-                          {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ content }),
-                          }
-                        )
-                        if (!res.ok) {
-                          const data = await res.json().catch(() => ({ error: "Failed to edit message" }))
-                          throw new Error(data.error || "Failed to edit message")
-                        }
-                        const updated = await res.json().catch(() => null)
-                        setMessages((prev) =>
-                          prev.map((m) => m.id === message.id
-                            ? updated ? { ...m, ...updated } : { ...m, content, edited_at: new Date().toISOString() }
-                            : m)
-                        )
-                      }}
-                      onDelete={async () => {
-                        const res = await fetch(`/api/servers/${serverId}/channels/${channel.id}/messages/${message.id}`, {
-                          method: "DELETE",
-                        })
-                        if (!res.ok) {
-                          const data = await res.json().catch(() => ({ error: "Failed to delete message" }))
-                          throw new Error(data.error || "Failed to delete message")
-                        }
-                        setMessages((prev) => prev.filter((m) => m.id !== message.id))
-                        setAndPersistOutbox((current) => removeOutboxEntry(current, message.id))
-                      }}
-                      onPinToggle={(pinned) => {
-                        setMessages((prev) =>
-                          prev.map((m) => m.id === message.id ? { ...m, pinned } : m)
-                        )
-                      }}
-                      onReaction={async (emoji) => {
-                        const previousMessage = messagesRef.current.find((m) => m.id === message.id)
-                        const touched = Boolean(previousMessage)
-                        const remove = previousMessage
-                          ? previousMessage.reactions.some((r) => r.user_id === currentUserId && r.emoji === emoji)
-                          : false
-
-                        if (!touched) return
-
-                        setMessages((prev) =>
-                          prev.map((m) => {
-                            if (m.id !== message.id) return m
-                            return {
-                              ...m,
-                              reactions: remove
-                                ? m.reactions.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
-                                : [...m.reactions, { message_id: message.id, user_id: currentUserId, emoji, created_at: new Date().toISOString() }],
-                            }
-                          })
-                        )
-
-                        try {
-                          await sendReactionMutation({ messageId: message.id, emoji, remove, nonce: crypto.randomUUID() })
-                        } catch {
-                          if (!previousMessage) return
-                          setMessages((prev) =>
-                            prev.map((m) => (m.id === message.id ? { ...m, ...previousMessage } : m))
-                          )
-                        }
-                      }}
-                    />
-                  </div>
-                )
-              })
+                  ))}
+                </div>
+              ) : undefined
             }
-
-            {/* Voice recaps */}
-            {voiceRecaps.length > 0 && voiceRecaps.map((recap) => (
-              <VoiceRecapCard
-                key={recap.sessionId}
-                sessionId={recap.sessionId}
-                channelName={recap.channelName}
-                durationSeconds={recap.durationSeconds}
-              />
-            ))}
-
-            <div ref={bottomRef} style={{ height: 1 }} />
-          </div>
+            footerContent={
+              <>
+                {voiceRecaps.length > 0 && voiceRecaps.map((recap) => (
+                  <VoiceRecapCard
+                    key={recap.sessionId}
+                    sessionId={recap.sessionId}
+                    channelName={recap.channelName}
+                    durationSeconds={recap.durationSeconds}
+                  />
+                ))}
+                <div ref={bottomRef} style={{ height: 1 }} />
+              </>
+            }
+          />
 
           {/* Floating overlays — positioned absolutely within the scroll container */}
           {!isAtBottom && (
