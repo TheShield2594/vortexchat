@@ -26,7 +26,7 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
-import { VirtualizedMessageList } from "@/components/chat/virtualized-message-list"
+import { VirtualizedMessageList, type VirtualizedMessageListHandle } from "@/components/chat/virtualized-message-list"
 import { DISPLAY_LIMIT } from "@/components/chat/constants"
 import { ChannelSummaryCard } from "@/components/chat/channel-summary-card"
 import { PinnedMessagesPanel } from "@/components/chat/pinned-messages-panel"
@@ -117,6 +117,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const overflowRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
+  const virtualizerRef = useRef<VirtualizedMessageListHandle>(null)
   useKeyboardAvoidance(messageScrollerRef, isMobile)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
   const jumpedRef = useRef(false)
@@ -1000,9 +1001,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       rafId = window.requestAnimationFrame(() => {
         if (cancelled) return
-        // Scroll to the target message element in the DOM
-        const target = document.getElementById(`message-${jumpToMessageId}`)
-        if (target) target.scrollIntoView({ block: "center", behavior: "auto" })
+        // Scroll to the target message via virtualizer (works for offscreen messages)
+        const targetIdx = messageIndexMap.get(jumpToMessageId!)
+        if (targetIdx != null) {
+          virtualizerRef.current?.scrollToIndex(targetIdx, { align: "center" })
+        } else {
+          // Fallback: try DOM element (may be mounted via overscan)
+          const target = document.getElementById(`message-${jumpToMessageId}`)
+          if (target) target.scrollIntoView({ block: "center", behavior: "auto" })
+        }
         if (cancelled) return
         setHighlightedMessageId(jumpToMessageId)
         jumpedRef.current = true
@@ -1950,8 +1957,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                 onClick={() => {
                   setReconnectGap(false)
                   if (unreadDividerMessageId) {
-                    const el = document.getElementById(`message-${unreadDividerMessageId}`)
-                    el?.scrollIntoView({ behavior: "smooth", block: "center" })
+                    const idx = messageIndexMap.get(unreadDividerMessageId)
+                    if (idx != null) {
+                      virtualizerRef.current?.scrollToIndex(idx, { align: "center", behavior: "smooth" })
+                    }
                   }
                 }}
                 className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-md shrink-0"
@@ -1969,6 +1978,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             hasMoreHistory={hasMoreHistory}
             isPaginating={isPaginating}
             onLoadOlder={loadOlderMessages}
+            handle={virtualizerRef}
             headerContent={
               !hasMoreHistory ? (
                 <div className="px-4 py-4">

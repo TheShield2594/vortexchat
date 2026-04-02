@@ -139,6 +139,6 @@ export function invalidateServerPermissions(serverId: string): void {
 }
 
 /** Invalidate cached channel permissions (after channel permission overwrite changes). */
-export function invalidateChannelPermissions(channelId: string): void {
-  invalidatePrefix(`chan-perms:${channelId}`)
+export function invalidateChannelPermissions(serverId: string, channelId: string): void {
+  invalidatePrefix(`chan-perms:${serverId}:${channelId}:`)
 }

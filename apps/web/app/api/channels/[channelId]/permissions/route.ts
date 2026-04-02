@@ -42,6 +42,9 @@ export async function PUT(
     const { roleId, allowPermissions = 0, denyPermissions = 0 } = await req.json()
     if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
 
+    // Resolve serverId for cache invalidation
+    const { data: ch } = await supabase.from("channels").select("server_id").eq("id", channelId).single()
+
     const { error } = await supabase
       .from("channel_permissions")
       .upsert(
@@ -55,7 +58,7 @@ export async function PUT(
       )
 
     if (error) return NextResponse.json({ error: "Failed to update permissions" }, { status: 500 })
-    invalidateChannelPermissions(channelId)
+    if (ch?.server_id) invalidateChannelPermissions(ch.server_id, channelId)
     return NextResponse.json({ ok: true })
 
   } catch (err) {
@@ -79,6 +82,9 @@ export async function DELETE(
     const roleId = searchParams.get("roleId")
     if (!roleId) return NextResponse.json({ error: "roleId required" }, { status: 400 })
 
+    // Resolve serverId for cache invalidation
+    const { data: ch } = await supabase.from("channels").select("server_id").eq("id", channelId).single()
+
     const { error } = await supabase
       .from("channel_permissions")
       .delete()
@@ -86,7 +92,7 @@ export async function DELETE(
       .eq("role_id", roleId)
 
     if (error) return NextResponse.json({ error: "Failed to delete permissions" }, { status: 500 })
-    invalidateChannelPermissions(channelId)
+    if (ch?.server_id) invalidateChannelPermissions(ch.server_id, channelId)
     return NextResponse.json({ ok: true })
 
   } catch (err) {
