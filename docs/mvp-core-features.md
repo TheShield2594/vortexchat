@@ -163,6 +163,7 @@
 | Test notification button (#609) | Done | `POST /api/notifications/test` — sends real push bypassing quiet hours; rate limited 1/30s; validates subscription exists; button in Notification settings |
 | Notification volume slider (#612) | Done | `notification_volume` REAL column (migration 00093); slider in Notification settings (0–100%); `getNotificationVolume()` utility; persisted per-user; 0% = silent but visible |
 | Distinct notification sounds (#615) | Done | `NotificationSoundType` enum (`message` \| `dm` \| `mention`); per-type audio files + Web Audio API fallback tones; DM notifications use warm arpeggio; mentions use attention double-tap |
+| Fix notification preferences save 500 (#672) | Done | Added `notification_volume` to database types; added `push_notifications`, `show_message_preview`, `show_unread_badge` columns (migration 00096) + route handler BOOL_KEYS |
 
 ## Direct Messages
 
@@ -216,6 +217,8 @@
 | Reminder Bot — personal reminders (up to 24h) | Done | `reminders` table, `reminder_app_configs`, per-user max limit |
 | Reminder Bot — slash commands | Done | `/reminder`, `/reminders`, `/rcancel` |
 | Giveaway Bot + Reminder Bot marketplace visibility | Done | Fixed via migration 00071 — upsert ensures `is_published = TRUE` (00066/00068 used `ON CONFLICT DO NOTHING` which silently skipped rows) |
+| Premium marketplace card design (#673) | Done | Redesigned app cards with icon, trust badge pill, star rating, hover effects; improved visual hierarchy and spacing |
+| Curated discovery sections (#674) | Done | `app_curated_sections` + `app_curated_entries` tables, `/api/apps/curated` endpoint; Featured / Trending / Staff Picks above catalog grid; graceful fallback when empty |
 
 ## Vanity Invite URLs
 

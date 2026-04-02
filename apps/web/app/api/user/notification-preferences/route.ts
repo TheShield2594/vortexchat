@@ -15,6 +15,9 @@ export type UserNotificationPreferences = {
   quiet_hours_start: string
   quiet_hours_end: string
   quiet_hours_timezone: string
+  push_notifications: boolean
+  show_message_preview: boolean
+  show_unread_badge: boolean
 }
 
 const DEFAULTS: UserNotificationPreferences = {
@@ -31,6 +34,9 @@ const DEFAULTS: UserNotificationPreferences = {
   quiet_hours_start: "22:00",
   quiet_hours_end: "08:00",
   quiet_hours_timezone: "UTC",
+  push_notifications: true,
+  show_message_preview: true,
+  show_unread_badge: true,
 }
 
 // GET /api/user/notification-preferences
@@ -42,7 +48,7 @@ export async function GET() {
 
     const { data } = await supabase
       .from("user_notification_preferences")
-      .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, notification_volume, suppress_everyone, suppress_role_mentions, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+      .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, notification_volume, suppress_everyone, suppress_role_mentions, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone, push_notifications, show_message_preview, show_unread_badge")
       .eq("user_id", user.id)
       .maybeSingle()
 
@@ -72,6 +78,9 @@ export async function PUT(req: NextRequest) {
       "suppress_everyone",
       "suppress_role_mentions",
       "quiet_hours_enabled",
+      "push_notifications",
+      "show_message_preview",
+      "show_unread_badge",
     ] as const
 
     const patch: Record<string, boolean | string | number> = {}

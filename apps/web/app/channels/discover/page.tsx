@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Users, Compass, BadgeCheck, Star, Plus, ArrowUpDown, ChevronDown, Check } from "lucide-react"
+import { Search, Users, Compass, BadgeCheck, Star, Plus, ArrowUpDown, ChevronDown, TrendingUp, Award, Sparkles } from "lucide-react"
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -12,6 +12,7 @@ import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
+import type { CuratedSection } from "@/app/api/apps/curated/route"
 
 interface PublicServer {
   id: string
@@ -42,17 +43,60 @@ const SORT_OPTIONS = [
 
 type SortOption = (typeof SORT_OPTIONS)[number]["value"]
 
-function trustBadgeClass(trustBadge: DiscoverApp["trust_badge"]) {
+function trustBadgeColor(trustBadge: DiscoverApp["trust_badge"]): string {
   switch (trustBadge) {
     case "verified":
-      return "text-primary"
+      return "text-emerald-400"
     case "partner":
-      return "text-accent"
+      return "text-blue-400"
     case "internal":
-      return "text-muted-foreground"
+      return "text-purple-400"
     default:
       return "text-muted-foreground"
   }
+}
+
+function trustBadgeLabel(trustBadge: DiscoverApp["trust_badge"]): string {
+  switch (trustBadge) {
+    case "verified":
+      return "Verified"
+    case "partner":
+      return "Partner"
+    case "internal":
+      return "Official"
+    default:
+      return ""
+  }
+}
+
+function curatedSectionIcon(slug: string): React.ReactNode {
+  switch (slug) {
+    case "featured":
+      return <Sparkles className="h-5 w-5 text-amber-400" />
+    case "trending":
+      return <TrendingUp className="h-5 w-5 text-emerald-400" />
+    case "staff-picks":
+      return <Award className="h-5 w-5 text-blue-400" />
+    default:
+      return <Star className="h-5 w-5 text-muted-foreground" />
+  }
+}
+
+function AppIcon({ name }: { name: string }): React.ReactElement {
+  const colors = [
+    "from-violet-500 to-purple-600",
+    "from-blue-500 to-cyan-500",
+    "from-emerald-500 to-teal-600",
+    "from-amber-500 to-orange-500",
+    "from-rose-500 to-pink-600",
+    "from-indigo-500 to-blue-600",
+  ]
+  const idx = name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length
+  return (
+    <div className={cn("flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg font-bold text-white shadow-sm", colors[idx])}>
+      {name.slice(0, 1).toUpperCase()}
+    </div>
+  )
 }
 
 function ServerIcon({ iconUrl, serverName }: { iconUrl: string | null; serverName: string }) {
@@ -96,6 +140,9 @@ export default function DiscoverPage() {
   const loadingMoreRef = useRef(loadingMore)
   nextCursorRef.current = nextCursor
   loadingMoreRef.current = loadingMore
+
+  // Curated sections for the Apps tab
+  const [curatedSections, setCuratedSections] = useState<CuratedSection[]>([])
 
   // Server picker state for app installs
   const myServers = useAppStore(useShallow((s) => s.servers))
@@ -165,6 +212,18 @@ export default function DiscoverPage() {
     setApps(await res.json())
   }, [])
 
+  const fetchCurated = useCallback(async () => {
+    try {
+      const res = await fetch("/api/apps/curated")
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data)) setCuratedSections(data)
+      }
+    } catch {
+      // Graceful fallback — curated sections are optional
+    }
+  }, [])
+
   const previousCategoryRef = useRef(category)
   const previousSortRef = useRef(sort)
 
@@ -181,6 +240,7 @@ export default function DiscoverPage() {
         const [serverResult] = await Promise.all([
           fetchServers(query || undefined, sort),
           fetchApps(query || undefined, category),
+          fetchCurated(),
         ])
         if (!cancelled) {
           setServers(serverResult.servers)
@@ -213,7 +273,7 @@ export default function DiscoverPage() {
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [query, fetchServers, fetchApps, category, sort])
+  }, [query, fetchServers, fetchApps, fetchCurated, category, sort])
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
@@ -416,65 +476,159 @@ export default function DiscoverPage() {
             </>
           )
         ) : (
-          apps.length === 0 ? (
-            <BrandedEmptyState
-              icon={BadgeCheck}
-              title="No apps in this lane"
-              description="No marketplace apps match your current search and category filters."
-              hint="Reset filters to all categories to discover more tools."
-            />
-          ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {apps.map((app) => (
-              <div key={app.id} className="rounded-lg bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">{app.name}</h3>
-                  {app.trust_badge && <BadgeCheck className={cn("h-4 w-4", trustBadgeClass(app.trust_badge))} />}
+          <div className="space-y-8">
+            {/* Curated discovery sections — only shown when not searching */}
+            {!query && curatedSections.length > 0 && curatedSections.map((section) => (
+              <section key={section.id}>
+                <div className="mb-3 flex items-center gap-2">
+                  {curatedSectionIcon(section.slug)}
+                  <div>
+                    <h2 className="text-base font-semibold">{section.title}</h2>
+                    {section.description && (
+                      <p className="text-xs text-muted-foreground">{section.description}</p>
+                    )}
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{app.description ?? "No description"}</p>
-                <p className="mt-2 text-xs text-muted-foreground">Category: {app.category}</p>
-                <p className="text-xs text-muted-foreground"><Star className="mr-1 inline h-3 w-3" />{app.average_rating.toFixed(1)} ({app.review_count} reviews)</p>
-                <p className="mt-2 text-xs text-muted-foreground">Permissions: {app.permissions.join(", ") || "None"}</p>
-                <div className="relative mt-3">
-                  <Button
-                    size="sm"
-                    className="h-7 w-full text-xs"
-                    onClick={() => setPickerAppId(pickerAppId === app.id ? null : app.id)}
-                    disabled={myServers.length === 0}
-                  >
-                    <Plus className="mr-1 h-3 w-3" />
-                    Add to Server
-                    <ChevronDown className="ml-1 h-3 w-3" />
-                  </Button>
-                  {pickerAppId === app.id && myServers.length > 0 && (
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+                  {section.apps.map((app) => (
                     <div
-                      ref={pickerRef}
-                      className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
+                      key={app.id}
+                      className="flex w-56 flex-shrink-0 flex-col rounded-xl border border-border/50 bg-card p-4 transition-all hover:border-border hover:shadow-md"
                     >
-                      {myServers.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          disabled={installingTo === s.id}
-                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent disabled:opacity-50"
-                          onClick={() => installAppToServer(app.id, s.id)}
-                        >
-                          <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-primary text-[10px] font-bold text-primary-foreground">
-                            {s.name.slice(0, 1).toUpperCase()}
-                          </span>
-                          <span className="truncate">{s.name}</span>
-                          {installingTo === s.id && (
-                            <div className="ml-auto h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+                      <div className="mb-3 flex items-center gap-3">
+                        <AppIcon name={app.name} />
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-sm font-semibold">{app.name}</h3>
+                          {app.trust_badge && (
+                            <span className={cn("flex items-center gap-1 text-[10px] font-medium", trustBadgeColor(app.trust_badge))}>
+                              <BadgeCheck className="h-3 w-3" />
+                              {trustBadgeLabel(app.trust_badge)}
+                            </span>
                           )}
-                        </button>
-                      ))}
+                        </div>
+                      </div>
+                      <p className="mb-3 flex-1 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+                        {app.description ?? "No description"}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                        <span className="font-medium text-foreground">{app.average_rating.toFixed(1)}</span>
+                        <span>({app.review_count})</span>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              </div>
+              </section>
             ))}
+
+            {/* Divider between curated and catalog when both are shown */}
+            {!query && curatedSections.length > 0 && apps.length > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-medium text-muted-foreground">All Apps</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+            )}
+
+            {/* Main app catalog grid — redesigned premium cards */}
+            {apps.length === 0 ? (
+              <BrandedEmptyState
+                icon={BadgeCheck}
+                title="No apps in this lane"
+                description="No marketplace apps match your current search and category filters."
+                hint="Reset filters to all categories to discover more tools."
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {apps.map((app) => (
+                  <div
+                    key={app.id}
+                    className="group flex flex-col rounded-xl border border-border/50 bg-card transition-all hover:border-border hover:shadow-md"
+                  >
+                    {/* Card header with icon and title */}
+                    <div className="flex items-start gap-4 p-5 pb-0">
+                      <AppIcon name={app.name} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-base font-semibold">{app.name}</h3>
+                          {app.trust_badge && (
+                            <span className={cn("flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] font-medium", trustBadgeColor(app.trust_badge), app.trust_badge === "verified" ? "border-emerald-500/20 bg-emerald-500/10" : app.trust_badge === "partner" ? "border-blue-500/20 bg-blue-500/10" : "border-purple-500/20 bg-purple-500/10")}>
+                              <BadgeCheck className="h-3 w-3" />
+                              {trustBadgeLabel(app.trust_badge)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs capitalize text-muted-foreground">{app.category}</span>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <p className="flex-1 px-5 pt-3 text-sm leading-relaxed text-muted-foreground line-clamp-2">
+                      {app.description ?? "No description"}
+                    </p>
+
+                    {/* Rating and install */}
+                    <div className="flex items-center justify-between px-5 pb-4 pt-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={cn(
+                                "h-3.5 w-3.5",
+                                star <= Math.round(app.average_rating)
+                                  ? "fill-amber-400 text-amber-400"
+                                  : "text-muted-foreground/30"
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs font-medium">{app.average_rating.toFixed(1)}</span>
+                        <span className="text-xs text-muted-foreground">({app.review_count})</span>
+                      </div>
+                      <div className="relative">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-8 gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
+                          onClick={() => setPickerAppId(pickerAppId === app.id ? null : app.id)}
+                          disabled={myServers.length === 0}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Install
+                          <ChevronDown className="h-3 w-3 opacity-60" />
+                        </Button>
+                        {pickerAppId === app.id && myServers.length > 0 && (
+                          <div
+                            ref={pickerRef}
+                            className="absolute right-0 top-full z-50 mt-1 w-56 max-h-48 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl"
+                          >
+                            {myServers.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                disabled={installingTo === s.id}
+                                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
+                                onClick={() => installAppToServer(app.id, s.id)}
+                              >
+                                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
+                                  {s.name.slice(0, 1).toUpperCase()}
+                                </span>
+                                <span className="truncate">{s.name}</span>
+                                {installingTo === s.id && (
+                                  <div className="ml-auto h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          )
         )}
       </div>
     </div>
