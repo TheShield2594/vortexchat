@@ -634,16 +634,21 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   // Without this, messages received while backgrounded disappear until
   // navigating away and back (#627).
   useEffect(() => {
+    const controller = new AbortController()
+    let active = true
+
     const onVisibility = async (): Promise<void> => {
       if (document.hidden) return
       // Kick realtime so it reconnects immediately
       window.dispatchEvent(new CustomEvent("vortex:realtime-retry"))
       try {
-        const res = await fetch(`/api/dm/channels/${channelId}`)
+        const res = await fetch(`/api/dm/channels/${channelId}`, {
+          signal: controller.signal,
+        })
         if (!res.ok) return
         const data = await res.json()
         const latest = (data.messages ?? []) as Message[]
-        if (latest.length === 0) return
+        if (latest.length === 0 || !active) return
         setMessages((prev) => {
           const known = new Set(prev.map((m) => m.id))
           const fresh = latest.filter((m: Message) => !known.has(m.id))
@@ -655,6 +660,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           return merged
         })
       } catch (e) {
+        if (!active || (e instanceof DOMException && e.name === "AbortError")) return
         if (process.env.NODE_ENV !== "production") {
           console.error("DM visibilitychange resync failed", {
             channelId,
@@ -664,7 +670,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       }
     }
     document.addEventListener("visibilitychange", onVisibility)
-    return () => document.removeEventListener("visibilitychange", onVisibility)
+    return () => {
+      active = false
+      controller.abort()
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
   }, [channelId])
 
   // Track isAtBottom via scroll listener (column-reverse: scrollTop near 0 = at bottom)

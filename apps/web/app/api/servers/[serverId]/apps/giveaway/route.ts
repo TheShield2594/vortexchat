@@ -150,7 +150,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       `🎉 **GIVEAWAY** 🎉`,
       ``,
       `**${giveawayTitle}**`,
-      description ? `${description}` : "",
+      description || "",
       ``,
       `🎁 Prize: **${prize}**`,
       `👥 Winners: **${giveaway.winners_count}**`,
@@ -180,9 +180,18 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     // Store the announcement message ID on the giveaway for reaction-based entry
-    await serviceClient.from("giveaways")
+    const { error: linkError } = await serviceClient.from("giveaways")
       .update({ message_id: announceMsg.id })
       .eq("id", giveaway.id)
+
+    if (linkError) {
+      console.error("[giveaway POST] Failed to link message_id", {
+        serverId,
+        giveawayId: giveaway.id,
+        messageId: announceMsg.id,
+        error: linkError.message,
+      })
+    }
 
     // Seed a 🎉 reaction on the announcement so users know to react
     await serviceClient.from("reactions")

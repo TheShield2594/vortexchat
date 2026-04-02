@@ -85,6 +85,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       batches.push(steamIds.slice(i, i + 100))
     }
 
+    // Fetch current game_activity to preserve started_at for same game
+    const { data: currentActivities } = await supabase
+      .from("users")
+      .select("id, game_activity")
+      .in("id", Array.from(onlineUserIds))
+
+    const currentGameMap = new Map<string, { game_name?: string; started_at?: string } | null>()
+    for (const u of currentActivities ?? []) {
+      const activity = u.game_activity as { game_name?: string; started_at?: string } | null
+      currentGameMap.set(u.id, activity)
+    }
+
     const userGameMap = new Map<string, { game_name: string; game_id: string | null; started_at: string; source: string } | null>()
 
     for (const batch of batches) {
@@ -103,10 +115,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           if (!userId) continue
 
           if (player.gameextrainfo) {
+            const existing = currentGameMap.get(userId)
+            const isSameGame = existing?.game_name === player.gameextrainfo
             userGameMap.set(userId, {
               game_name: player.gameextrainfo,
               game_id: player.gameid ?? null,
-              started_at: new Date().toISOString(),
+              started_at: isSameGame && existing?.started_at ? existing.started_at : new Date().toISOString(),
               source: "steam",
             })
           } else {
@@ -122,16 +136,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Update game_activity for users
-    let updated = 0
-    for (const [userId, activity] of userGameMap) {
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({ game_activity: activity })
-        .eq("id", userId)
-
-      if (!updateError) updated++
-    }
+    // Update game_activity for users (concurrent)
+    const updateResults = await Promise.all(
+      Array.from(userGameMap.entries()).map(async ([userId, activity]) => {
+        const { error: updateError } = await supabase
+          .from("users")
+          .update({ game_activity: activity })
+          .eq("id", userId)
+        return updateError ? 0 : 1
+      })
+    )
+    const updated = updateResults.reduce<number>((sum, r) => sum + r, 0)
 
     // Clear game_activity for offline users who still have it set
     const offlineUserIds = userIds.filter((id) => !onlineUserIds.has(id))

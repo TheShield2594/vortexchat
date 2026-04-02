@@ -106,6 +106,14 @@ export function removePermission(permissions: number, permission: Permission): n
 
 export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline'
 
+/** Game activity data stored in users.game_activity JSONB column. */
+export interface GameActivity {
+  game_name: string
+  game_id?: string | null
+  started_at?: string
+  source?: string
+}
+
 // ── Discover API contract ──────────────────────────────────────────────────
 
 /** A public server returned by the discover endpoint. */
