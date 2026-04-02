@@ -30,6 +30,12 @@ export interface PushPayload {
 // not be reachable immediately, so we use 24 hours to avoid silent drops.
 const PUSH_TTL_SECONDS = 86_400 // 24 hours
 
+// Urgency — Apple's APNs maps the Web Push Urgency header to apns-priority.
+// Without "high", iOS treats notifications as low/normal priority and may
+// delay, batch, or silently drop them — especially when the device is locked
+// or in low-power mode.  "high" maps to apns-priority 10 (immediate delivery).
+const PUSH_URGENCY = "high" as const
+
 /**
  * Send a push notification to all subscriptions for a given user.
  * Silently removes stale subscriptions (410 Gone).
@@ -92,7 +98,7 @@ export async function sendPushToUser(
         webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify(payload),
-          { TTL: PUSH_TTL_SECONDS }
+          { TTL: PUSH_TTL_SECONDS, urgency: PUSH_URGENCY }
         ).catch(async (err: unknown) => {
           const statusCode = (err as { statusCode?: number }).statusCode
           // 410 = subscription expired; clean it up
