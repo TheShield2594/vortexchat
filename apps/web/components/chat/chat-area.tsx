@@ -1749,58 +1749,38 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               the column-reverse parent.  Because the parent is reversed, the
               *end* of this div (newest messages) sits at the visual bottom. */}
           <div>
-            {/* Message list — virtualized rendering via @tanstack/react-virtual */}
-            <VirtualizedMessageList
-              messages={messages}
-              scrollContainerRef={messageScrollerRef}
-              hasMoreHistory={hasMoreHistory}
-              isPaginating={isPaginating}
-              onLoadOlder={loadOlderMessages}
-              headerContent={
-                !hasMoreHistory ? (
-                  <div className="px-4 py-4">
-                    <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
-                      Welcome to #{channel.name}!
-                    </h2>
-                    <p className="text-sm text-[var(--theme-text-secondary)]">
-                      This is the start of the #{channel.name} channel.
-                      {channel.topic && ` ${channel.topic}`}
-                    </p>
-                  </div>
-                ) : isPaginating ? (
-                  <div className="px-4 py-3 space-y-3">
-                    <output className="sr-only" aria-live="polite">Loading older messages…</output>
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
-                        <div className="flex-1 space-y-1.5 pt-0.5">
-                          <div className="flex items-center gap-2">
-                            <Skeleton className="h-3 w-20" />
-                            <Skeleton className="h-2.5 w-12 opacity-50" />
-                          </div>
-                          <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
-                          {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
-                        </div>
+            {/* Header: channel intro or pagination skeleton */}
+            {!hasMoreHistory ? (
+              <div className="px-4 py-4">
+                <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
+                  Welcome to #{channel.name}!
+                </h2>
+                <p className="text-sm text-[var(--theme-text-secondary)]">
+                  This is the start of the #{channel.name} channel.
+                  {channel.topic && ` ${channel.topic}`}
+                </p>
+              </div>
+            ) : isPaginating ? (
+              <div className="px-4 py-3 space-y-3">
+                <output className="sr-only" aria-live="polite">Loading older messages…</output>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
+                    <div className="flex-1 space-y-1.5 pt-0.5">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-2.5 w-12 opacity-50" />
                       </div>
-                    ))}
+                      <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
+                      {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
+                    </div>
                   </div>
-                ) : undefined
-              }
-              footerContent={
-                voiceRecaps.length > 0 ? (
-                  <>
-                    {voiceRecaps.map((recap) => (
-                      <VoiceRecapCard
-                        key={recap.sessionId}
-                        sessionId={recap.sessionId}
-                        channelName={recap.channelName}
-                        durationSeconds={recap.durationSeconds}
-                      />
-                    ))}
-                  </>
-                ) : undefined
-              }
-              renderMessage={(message, index) => {
+                ))}
+              </div>
+            ) : null}
+
+            {/* Message list — direct rendering (virtualization disabled due to column-reverse incompatibility) */}
+            {messages.map((message, index) => {
                 const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
                 const prevMessage = messages[index - 1]
                 const msgDate = new Date(message.created_at)
@@ -1815,7 +1795,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     new Date(prevMessage.created_at).getTime() < groupingThresholdMs
 
                 return (
-                  <>
+                  <div key={message.id} id={`message-${message.id}`}>
                     {showDaySeparator && (
                       <div className="flex items-center gap-3 my-3 px-4">
                         <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
@@ -1932,10 +1912,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                         }
                       }}
                     />
-                  </>
+                  </div>
                 )
-              }}
-            />
+              })
+            }
+
+            {/* Voice recaps */}
+            {voiceRecaps.length > 0 && voiceRecaps.map((recap) => (
+              <VoiceRecapCard
+                key={recap.sessionId}
+                sessionId={recap.sessionId}
+                channelName={recap.channelName}
+                durationSeconds={recap.durationSeconds}
+              />
+            ))}
+
             <div ref={bottomRef} style={{ height: 1 }} />
           </div>
 
