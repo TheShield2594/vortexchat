@@ -616,7 +616,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   // Scroll to bottom on channel switch, reset new-message counter
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "auto" })
+    const container = scrollerRef.current
+    if (container) container.scrollTop = 0 // column-reverse: 0 = bottom
     setPendingNewMessageCount(0)
     setIsAtBottom(true)
     prevLastMsgIdRef.current = null
@@ -628,13 +629,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     return () => { setActiveDmChannel(null) }
   }, [channelId])
 
-  // Track isAtBottom via scroll listener
+  // Track isAtBottom via scroll listener (column-reverse: scrollTop near 0 = at bottom)
   useEffect(() => {
     const container = scrollerRef.current
     if (!container) return
     const onScroll = () => {
-      const dist = container.scrollHeight - container.scrollTop - container.clientHeight
-      const atBottom = dist < 120
+      const atBottom = container.scrollTop < 120
       setIsAtBottom(atBottom)
       if (atBottom) setPendingNewMessageCount(0)
     }
@@ -655,7 +655,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     if (newestMsg.id === prevLastMsgIdRef.current) return
     prevLastMsgIdRef.current = newestMsg.id
     if (isAtBottom || newestMsg.sender_id === currentUserId) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+      scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" }) // column-reverse: 0 = bottom
       setPendingNewMessageCount(0)
     } else {
       setPendingNewMessageCount((c) => c + 1)
@@ -1483,7 +1483,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       )}
 
       {/* Messages */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-1" style={{ overscrollBehaviorY: "contain" }}>
+      {/* column-reverse scroll container: scrollTop 0 = bottom (newest messages visible) */}
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none", overscrollBehaviorY: "contain" }}>
+        <div className="space-y-1">
         {/* Load more */}
         {hasMore && (
           <div className="flex justify-center pb-2">
@@ -1976,10 +1978,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           )
         })}
         <div ref={bottomRef} />
+        </div>{/* end inner wrapper */}
         {!isAtBottom && (
           <div className="sticky bottom-0 flex justify-center pointer-events-none pb-3">
             <button
-              onClick={() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); setPendingNewMessageCount(0) }}
+              onClick={() => { scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" }); setPendingNewMessageCount(0) }}
               className="motion-interactive motion-press px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 pointer-events-auto"
               style={{ background: "var(--theme-accent)", color: "white" }}
               aria-label={pendingNewMessageCount > 0 ? `Jump to latest — ${pendingNewMessageCount} new message${pendingNewMessageCount !== 1 ? "s" : ""}` : "Jump to latest message"}
