@@ -158,37 +158,73 @@ self.addEventListener("push", (event) => {
   const {
     title = "VortexChat",
     body = "New message",
-    icon = "/icon-192.png",
+    icon = "/icon-192.png?v=2",
     url = "/channels/me",
     tag,
   } = data
 
+  // Detect iOS PWA — iOS incorrectly reports backgrounded tabs as "focused"
+  // via clients.matchAll(), so we must force renotify:true and silent:false.
+  // Also, iOS Safari does not support notification action buttons, and using
+  // the same tag silently replaces earlier notifications without alerting.
+  const isIOS = /iP(hone|ad|od)/.test(self.navigator?.userAgent ?? "")
+
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon,
-      badge: "/icon-192.png",
-      tag: tag || "vortexchat-message",
-      data: { url },
-      renotify: true,
-      requireInteraction: false,
-      actions: url !== "/channels/me" ? [
+    self.clients.matchAll({ type: "window", includeUncontrolled: false }).then((clients) => {
+      // If any tab is focused, the in-app handler will play the sound — make
+      // the push notification silent to prevent double-play.
+      // On iOS this check is unreliable, so always treat as not focused.
+      const anyFocused = isIOS ? false : clients.some((c) => c.focused)
+
+      // On iOS, append a timestamp to the tag so each notification is unique
+      // and not silently replaced. Desktop keeps channel-based grouping.
+      const notificationTag = isIOS
+        ? `${tag || "vortexchat-message"}-${Date.now()}`
+        : (tag || "vortexchat-message")
+
+      // iOS Safari ignores notification action buttons — omit them to save
+      // payload bytes and avoid console warnings.
+      const actions = isIOS ? [] : (url !== "/channels/me" ? [
         { action: "open", title: "Open" },
         { action: "dismiss", title: "Dismiss" },
-      ] : [],
-      silent: false,
+      ] : [])
+
+      return self.registration.showNotification(title, {
+        body,
+        icon,
+        badge: "/icon-192.png?v=2",
+        tag: notificationTag,
+        data: { url },
+        renotify: isIOS ? true : !anyFocused,
+        requireInteraction: false,
+        actions,
+        silent: anyFocused,
+      }).then(() =>
+        // Update the PWA app badge after showing the notification.
+        // iOS does not support periodicSync, so this is the only
+        // opportunity to update the badge when the app is closed.
+        fetch("/api/notifications/unread-count", { credentials: "same-origin" })
+          .then((res) => res.ok ? res.json() : null)
+          .then((json) => {
+            const count = json?.count
+            if (typeof count === "number" && isFinite(count)) updateAppBadge(count)
+          })
+          .catch(() => {}) // best-effort — don't break the notification
+      )
     })
   )
 })
 
 // ─── App badge helper ────────────────────────────────────────────────────────
 function updateAppBadge(count) {
-  // In service worker scope, badge API is on `self` (ServiceWorkerGlobalScope)
-  if (!self.navigator?.setAppBadge) return
+  // The Badging API is on the ServiceWorkerGlobalScope (self), not on
+  // self.navigator.  iOS follows the spec strictly — using navigator
+  // silently fails.
+  if (typeof self.setAppBadge !== "function") return
   if (count > 0) {
-    self.navigator.setAppBadge(count)
+    self.setAppBadge(count)
   } else {
-    self.navigator.clearAppBadge()
+    self.clearAppBadge()
   }
 }
 

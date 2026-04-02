@@ -157,7 +157,18 @@ self.addEventListener("push", (event) => {
         requireInteraction: false,
         actions,
         silent: anyFocused,
-      })
+      }).then(() =>
+        // Update the PWA app badge after showing the notification.
+        // iOS does not support periodicSync, so this is the only
+        // opportunity to update the badge when the app is closed.
+        fetch("/api/notifications/unread-count", { credentials: "same-origin" })
+          .then((res) => res.ok ? res.json() : null)
+          .then((json) => {
+            const count = json?.count
+            if (typeof count === "number" && isFinite(count)) updateAppBadge(count)
+          })
+          .catch(() => {}) // best-effort — don't break the notification
+      )
     })
   )
 })
