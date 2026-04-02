@@ -27,6 +27,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
 import { VirtualizedMessageList } from "@/components/chat/virtualized-message-list"
+import { DISPLAY_LIMIT } from "@/components/chat/constants"
 import { ChannelSummaryCard } from "@/components/chat/channel-summary-card"
 import { PinnedMessagesPanel } from "@/components/chat/pinned-messages-panel"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -68,7 +69,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 const RECENTLY_ACTIVE_DECAY_MS = 12_000
-import { DISPLAY_LIMIT } from "@/components/chat/constants"
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()

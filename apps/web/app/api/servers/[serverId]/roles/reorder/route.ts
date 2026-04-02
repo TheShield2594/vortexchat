@@ -10,6 +10,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  try {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -125,6 +126,7 @@ export async function PATCH(
   try {
     invalidatePrefix(`roles:${serverId}`)
     invalidatePrefix(`perms:${serverId}`)
+    invalidatePrefix(`member-roles:${serverId}`)
   } catch (cacheErr) {
     console.error("[roles reorder PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
   }
@@ -141,4 +143,8 @@ export async function PATCH(
   }
 
   return NextResponse.json(updatedRoles)
+  } catch (err) {
+    console.error("[roles reorder PATCH] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

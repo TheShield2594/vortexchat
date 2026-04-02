@@ -1304,6 +1304,33 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     setShowLocalSearch(true)
   }
 
+  const handleSearchJumpToMessage = useCallback((_cid: string, mid: string) => {
+    setShowLocalSearch(false)
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-message-id="${mid}"]`)
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" })
+        return
+      }
+      if (hasMore) {
+        toast({ title: "Loading history…", description: "Fetching older messages to find this one." })
+        loadMore().then(() => {
+          requestAnimationFrame(() => {
+            const elRetry = document.querySelector(`[data-message-id="${mid}"]`)
+            if (elRetry) {
+              elRetry.scrollIntoView({ behavior: "smooth", block: "center" })
+            } else {
+              toast({ title: "Message not in current view", description: "Keep loading older messages to find it." })
+              topRef.current?.scrollIntoView({ behavior: "smooth" })
+            }
+          })
+        })
+      } else {
+        toast({ title: "Message not found", description: `Message ${mid} is not in the current view.` })
+      }
+    })
+  }, [hasMore, loadMore, toast])
+
   function handlePinClick() {
     toast({ title: "Pinned messages coming soon", description: "Pin browsing will be available in a future update." })
   }
@@ -2330,35 +2357,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           channelId={channel.id}
           channelLabel={displayName}
           onClose={() => setShowLocalSearch(false)}
-          onJumpToMessage={(_cid, mid) => {
-            setShowLocalSearch(false)
-            // Give React a tick to close the modal, then scroll to the message.
-            requestAnimationFrame(() => {
-              const el = document.querySelector(`[data-message-id="${mid}"]`)
-              if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" })
-                return
-              }
-              // Message not in the DOM yet — try fetching older history and
-              // retry the scroll once loading completes.
-              if (hasMore) {
-                toast({ title: "Loading history…", description: "Fetching older messages to find this one." })
-                loadMore().then(() => {
-                  requestAnimationFrame(() => {
-                    const elRetry = document.querySelector(`[data-message-id="${mid}"]`)
-                    if (elRetry) {
-                      elRetry.scrollIntoView({ behavior: "smooth", block: "center" })
-                    } else {
-                      toast({ title: "Message not in current view", description: "Keep loading older messages to find it." })
-                      topRef.current?.scrollIntoView({ behavior: "smooth" })
-                    }
-                  })
-                })
-              } else {
-                toast({ title: "Message not found", description: `Message ${mid} is not in the current view.` })
-              }
-            })
-          }}
+          onJumpToMessage={handleSearchJumpToMessage}
           searchFn={searchLocal}
           indexedCount={Object.values(decryptedContent).filter((d) => !d.failed).length}
         />
@@ -2372,32 +2371,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
             dmChannelId={channel.id}
             dmChannelLabel={displayName}
             onClose={() => setShowLocalSearch(false)}
-            onJumpToMessage={(_cid, mid) => {
-              setShowLocalSearch(false)
-              requestAnimationFrame(() => {
-                const el = document.querySelector(`[data-message-id="${mid}"]`)
-                if (el) {
-                  el.scrollIntoView({ behavior: "smooth", block: "center" })
-                  return
-                }
-                if (hasMore) {
-                  toast({ title: "Loading history…", description: "Fetching older messages to find this one." })
-                  loadMore().then(() => {
-                    requestAnimationFrame(() => {
-                      const elRetry = document.querySelector(`[data-message-id="${mid}"]`)
-                      if (elRetry) {
-                        elRetry.scrollIntoView({ behavior: "smooth", block: "center" })
-                      } else {
-                        toast({ title: "Message not in current view", description: "Keep loading older messages to find it." })
-                        topRef.current?.scrollIntoView({ behavior: "smooth" })
-                      }
-                    })
-                  })
-                } else {
-                  toast({ title: "Message not found", description: `Message ${mid} is not in the current view.` })
-                }
-              })
-            }}
+            onJumpToMessage={handleSearchJumpToMessage}
           />
         </Suspense>
       )}

@@ -114,6 +114,7 @@ export async function POST(
 
     try {
       invalidatePrefix(`roles:${serverId}`)
+      invalidatePrefix(`perms:${serverId}`)
     } catch (cacheErr) {
       console.error("[roles POST] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
     }
