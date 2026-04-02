@@ -161,6 +161,8 @@
 | Push notification sender avatar (#606) | Done | `lib/push.ts` — notification icon uses sender's `avatar_url`; system notifications (pins, invites) fall back to app icon |
 | Suppress @everyone / @role mention toggles (#607) | Done | `suppress_everyone` + `suppress_role_mentions` columns on `user_notification_preferences`; checked in `sendPushToChannel()`; UI toggles in Notification settings |
 | Test notification button (#609) | Done | `POST /api/notifications/test` — sends real push bypassing quiet hours; rate limited 1/30s; validates subscription exists; button in Notification settings |
+| Notification volume slider (#612) | Done | `notification_volume` REAL column (migration 00093); slider in Notification settings (0–100%); `getNotificationVolume()` utility; persisted per-user; 0% = silent but visible |
+| Distinct notification sounds (#615) | Done | `NotificationSoundType` enum (`message` \| `dm` \| `mention`); per-type audio files + Web Audio API fallback tones; DM notifications use warm arpeggio; mentions use attention double-tap |
 
 ## Direct Messages
 
@@ -296,7 +298,8 @@
 | CSS container queries for component responsiveness (#575) | Done | Added `container-type: inline-size` to channel sidebar, member list, message input, thread panel; responsive `@container` rules |
 | Named view transitions (#576) | Done | Added `view-transition-name` to server sidebar, channel sidebar, chat area, and chat header surfaces; respects `prefers-reduced-motion` |
 | Suspicious login detection enforcement (#545) | Done | `computeLoginRisk` now returns `action` field; score >= 60 requires MFA/email challenge; score >= 80 locks session and requires email verification |
-| TypeScript `any` type cleanup (#546) | Done | All 46 files cleaned; remaining `SupabaseClient<any>` consolidated in `lib/supabase/untyped-table.ts` utility (intentional for ungenerated tables) |
+| TypeScript `any` type cleanup (#546) | Done | All 46 files cleaned; remaining `SupabaseClient<any>` consolidated in `lib/supabase/untyped-table.ts` utility (intentional for ungenerated tables); ESLint `@typescript-eslint/no-explicit-any: error` rule added |
+| Message send state icons (#616) | Done | Clock (queued), animated spinner (sending), alert triangle (failed) Lucide icons in `message-item.tsx`; text labels preserved for screen reader accessibility |
 
 ## Search (#593)
 

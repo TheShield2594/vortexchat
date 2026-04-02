@@ -2,6 +2,7 @@ import nextPlugin from "@next/eslint-plugin-next"
 import reactPlugin from "eslint-plugin-react"
 import hooksPlugin from "eslint-plugin-react-hooks"
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y"
+import tsPlugin from "@typescript-eslint/eslint-plugin"
 
 export default [
   {
@@ -13,6 +14,7 @@ export default [
       "react": reactPlugin,
       "react-hooks": hooksPlugin,
       "jsx-a11y": jsxA11yPlugin,
+      "@typescript-eslint": tsPlugin,
     },
     rules: {
       ...nextPlugin.configs.recommended.rules,
@@ -25,6 +27,7 @@ export default [
       "jsx-a11y/click-events-have-key-events": "warn",
       "jsx-a11y/no-static-element-interactions": "warn",
       "jsx-a11y/role-has-required-aria-props": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
     },
     settings: {
       react: {

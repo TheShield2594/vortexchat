@@ -760,7 +760,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const msg = payload.new as Record<string, unknown>
           // Only add if it's from someone else (we already added our own optimistically)
           if (msg.sender_id !== currentUserId) {
-            playNotification()
+            playNotification("dm")
             ;(supabase
               .from("direct_messages")
               .select("*, sender:users!direct_messages_sender_id_fkey(id, username, display_name, avatar_url, status), reply_to_id")

@@ -8,6 +8,7 @@ export type UserNotificationPreferences = {
   server_invite_notifications: boolean
   system_notifications: boolean
   sound_enabled: boolean
+  notification_volume: number
   suppress_everyone: boolean
   suppress_role_mentions: boolean
   quiet_hours_enabled: boolean
@@ -23,6 +24,7 @@ const DEFAULTS: UserNotificationPreferences = {
   server_invite_notifications: true,
   system_notifications: true,
   sound_enabled: true,
+  notification_volume: 0.5,
   suppress_everyone: false,
   suppress_role_mentions: false,
   quiet_hours_enabled: false,
@@ -40,7 +42,7 @@ export async function GET() {
 
     const { data } = await supabase
       .from("user_notification_preferences")
-      .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, suppress_everyone, suppress_role_mentions, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+      .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, notification_volume, suppress_everyone, suppress_role_mentions, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
       .eq("user_id", user.id)
       .maybeSingle()
 
@@ -72,7 +74,7 @@ export async function PUT(req: NextRequest) {
       "quiet_hours_enabled",
     ] as const
 
-    const patch: Record<string, boolean | string> = {}
+    const patch: Record<string, boolean | string | number> = {}
     for (const key of BOOL_KEYS) {
       if (key in body) {
         if (typeof body[key] !== "boolean") {
@@ -80,6 +82,15 @@ export async function PUT(req: NextRequest) {
         }
         patch[key] = body[key] as boolean
       }
+    }
+
+    // Validate notification_volume (float 0–1)
+    if ("notification_volume" in body) {
+      const vol = body.notification_volume
+      if (typeof vol !== "number" || !Number.isFinite(vol) || vol < 0 || vol > 1) {
+        return NextResponse.json({ error: "notification_volume must be a number between 0 and 1" }, { status: 400 })
+      }
+      patch.notification_volume = vol
     }
 
     // Validate quiet hours time fields (HH:MM format)
