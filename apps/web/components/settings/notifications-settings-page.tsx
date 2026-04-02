@@ -1,8 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Bell, BellOff, Volume2, VolumeX, Moon, Loader2, Send, Monitor } from "lucide-react"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { Bell, BellOff, Volume2, VolumeX, Moon, Loader2, Send, Monitor, Smartphone, Eye, EyeOff, Hash, AtSign, ChevronDown } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { useAppStore } from "@/lib/stores/app-store"
+import { useShallow } from "zustand/react/shallow"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 function DesktopNotificationSection(): React.ReactNode {
   const [permission, setPermission] = useState<NotificationPermission>("default")
@@ -94,9 +97,12 @@ type NotificationSettingsRow = {
   quiet_hours_start: string
   quiet_hours_end: string
   quiet_hours_timezone: string
+  push_notifications: boolean
+  show_message_preview: boolean
+  show_unread_badge: boolean
 }
 
-type BooleanSettingKey = "mention_notifications" | "reply_notifications" | "friend_request_notifications" | "server_invite_notifications" | "system_notifications" | "sound_enabled" | "suppress_everyone" | "suppress_role_mentions" | "quiet_hours_enabled"
+type BooleanSettingKey = "mention_notifications" | "reply_notifications" | "friend_request_notifications" | "server_invite_notifications" | "system_notifications" | "sound_enabled" | "suppress_everyone" | "suppress_role_mentions" | "quiet_hours_enabled" | "push_notifications" | "show_message_preview" | "show_unread_badge"
 
 const SETTING_LABELS: { key: BooleanSettingKey; label: string; description: string }[] = [
   { key: "mention_notifications", label: "Mentions", description: "When someone @mentions you in a channel" },
@@ -121,7 +127,18 @@ const DEFAULT_SETTINGS: NotificationSettingsRow = {
   quiet_hours_start: "22:00",
   quiet_hours_end: "08:00",
   quiet_hours_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+  push_notifications: true,
+  show_message_preview: true,
+  show_unread_badge: true,
 }
+
+type NotificationMode = "all" | "mentions" | "muted"
+
+const MODE_OPTIONS: { mode: NotificationMode; label: string; icon: React.ReactNode }[] = [
+  { mode: "all", label: "All Messages", icon: <Hash className="w-3.5 h-3.5" /> },
+  { mode: "mentions", label: "Only @Mentions", icon: <AtSign className="w-3.5 h-3.5" /> },
+  { mode: "muted", label: "Nothing", icon: <BellOff className="w-3.5 h-3.5" /> },
+]
 
 // localStorage key kept for sound_enabled cross-component sync
 const soundStorageKey = (userId: string) => `vortexchat:notif-sound:${userId}`
@@ -134,6 +151,14 @@ export function NotificationsSettingsPage({ userId }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testingSend, setTestingSend] = useState(false)
+  const { servers, notificationModes, setNotificationMode, removeNotificationMode } = useAppStore(
+    useShallow((s) => ({
+      servers: s.servers,
+      notificationModes: s.notificationModes,
+      setNotificationMode: s.setNotificationMode,
+      removeNotificationMode: s.removeNotificationMode,
+    }))
+  )
 
   useEffect(() => {
     fetch("/api/user/notification-preferences")
@@ -266,6 +291,125 @@ export function NotificationsSettingsPage({ userId }: Props) {
 
       {/* ── Desktop Notifications ────────── */}
       <DesktopNotificationSection />
+
+      {/* ── Delivery & Display ────────── */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+          Delivery & Display
+        </h2>
+        <p className="text-xs mb-2" style={{ color: "var(--theme-text-muted)" }}>
+          Control how notifications are delivered and what they show.
+        </p>
+        {([
+          { key: "push_notifications" as BooleanSettingKey, label: "Push Notifications", description: "Receive push notifications on your mobile device", icon: Smartphone },
+          { key: "show_message_preview" as BooleanSettingKey, label: "Show Message Previews", description: "Display message content in desktop and push notifications", icon: Eye },
+          { key: "show_unread_badge" as BooleanSettingKey, label: "Unread Badge", description: "Show unread count badge on the browser tab and app icon", icon: Bell },
+        ]).map(({ key, label, description, icon: Icon }) => {
+          const enabled = settings[key] as boolean
+          return (
+            <div
+              key={key}
+              className="flex items-center justify-between px-4 py-3 rounded-lg"
+              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+            >
+              <div className="flex items-center gap-3">
+                {enabled
+                  ? <Icon className="w-4 h-4" style={{ color: "var(--theme-accent)" }} />
+                  : (key === "show_message_preview" ? <EyeOff className="w-4 h-4" style={{ color: "var(--theme-text-muted)" }} /> : <Icon className="w-4 h-4" style={{ color: "var(--theme-text-muted)" }} />)
+                }
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>{label}</p>
+                  <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{description}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleToggle(key)}
+                disabled={saving}
+                className="relative w-10 h-6 rounded-full transition-all focus-ring disabled:opacity-50"
+                style={{ background: enabled ? "var(--theme-accent)" : "var(--theme-bg-tertiary)" }}
+                role="switch"
+                aria-checked={enabled}
+                aria-label={label}
+              >
+                <span
+                  className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                  style={{ transform: enabled ? "translateX(16px)" : "translateX(0)" }}
+                />
+              </button>
+            </div>
+          )
+        })}
+      </section>
+
+      {/* ── Server Notification Overrides ────────── */}
+      {servers.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
+            Server Notification Overrides
+          </h2>
+          <p className="text-xs mb-2" style={{ color: "var(--theme-text-muted)" }}>
+            Customize notification behavior for each server. Servers not listed use your default settings.
+          </p>
+          <div className="space-y-1">
+            {servers.map((server) => {
+              const currentMode: NotificationMode = (notificationModes[server.id] as NotificationMode) ?? "all"
+              const initials = server.name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+              return (
+                <div
+                  key={server.id}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-lg"
+                  style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                >
+                  <Avatar className="w-8 h-8 rounded-xl flex-shrink-0">
+                    {server.icon_url && <AvatarImage src={server.icon_url} />}
+                    <AvatarFallback className="rounded-xl text-[10px] font-bold" style={{ background: "var(--theme-accent)", color: "white" }}>
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium flex-1 truncate" style={{ color: "var(--theme-text-primary)" }}>
+                    {server.name}
+                  </span>
+                  <div className="relative flex-shrink-0">
+                    <select
+                      value={currentMode}
+                      onChange={async (e) => {
+                        const newMode = e.target.value as NotificationMode
+                        if (newMode === "all") {
+                          removeNotificationMode(server.id)
+                        } else {
+                          setNotificationMode(server.id, newMode)
+                        }
+                        try {
+                          await fetch("/api/notification-settings", {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ serverId: server.id, mode: newMode }),
+                          })
+                        } catch {
+                          toast({ title: "Failed to update server notification", variant: "destructive" })
+                        }
+                      }}
+                      className="appearance-none pl-3 pr-8 py-1.5 rounded-md text-xs font-medium cursor-pointer focus-ring"
+                      style={{
+                        background: currentMode === "muted" ? "rgba(242,63,67,0.1)" : currentMode === "mentions" ? "rgba(88,101,242,0.1)" : "var(--theme-bg-tertiary)",
+                        color: currentMode === "muted" ? "var(--theme-danger)" : currentMode === "mentions" ? "var(--theme-accent)" : "var(--theme-text-secondary)",
+                        border: "1px solid var(--theme-bg-tertiary)",
+                      }}
+                      aria-label={`Notification mode for ${server.name}`}
+                    >
+                      {MODE_OPTIONS.map((opt) => (
+                        <option key={opt.mode} value={opt.mode}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: "var(--theme-text-muted)" }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
