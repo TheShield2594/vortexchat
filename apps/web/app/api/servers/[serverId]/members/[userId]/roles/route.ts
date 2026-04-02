@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
 import { rateLimiter } from "@/lib/rate-limit"
+import { invalidatePrefix } from "@/lib/server-cache"
 
 async function assertRoleMutationAllowed(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
@@ -94,6 +95,9 @@ export async function POST(
       return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
     }
 
+    invalidatePrefix(`member-roles:${serverId}:${userId}`)
+    invalidatePrefix(`perms:${serverId}`)
+
     return NextResponse.json({ ok: true })
 
   } catch (err) {
@@ -153,6 +157,9 @@ export async function DELETE(
       console.error("[roles] remove_member_role RPC failed", { serverId, userId, roleId, error: rpcError.message })
       return NextResponse.json({ error: "Failed to remove role" }, { status: 500 })
     }
+
+    invalidatePrefix(`member-roles:${serverId}:${userId}`)
+    invalidatePrefix(`perms:${serverId}`)
 
     return NextResponse.json({ ok: true })
 

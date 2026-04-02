@@ -22,6 +22,7 @@ import { decryptDmContent, encryptDmContent, exportPublicKey, fingerprintFromPub
 import { useNotificationSound } from "@/hooks/use-notification-sound"
 import { useLocalSearch } from "@/hooks/use-local-search"
 const DmLocalSearchModal = lazy(() => import("@/components/modals/dm-local-search-modal").then((m) => ({ default: m.DmLocalSearchModal })))
+const SearchModal = lazy(() => import("@/components/modals/search-modal").then((m) => ({ default: m.SearchModal })))
 import type { IndexedDocument } from "@/lib/local-search-index"
 import { ChannelRowSkeleton, MessageListSkeleton } from "@/components/ui/skeleton"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
@@ -2361,6 +2362,43 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           searchFn={searchLocal}
           indexedCount={Object.values(decryptedContent).filter((d) => !d.failed).length}
         />
+        </Suspense>
+      )}
+
+      {/* Server-side search modal for non-encrypted DM channels */}
+      {showLocalSearch && channel && !channel.is_encrypted && (
+        <Suspense fallback={null}>
+          <SearchModal
+            dmChannelId={channel.id}
+            dmChannelLabel={displayName}
+            onClose={() => setShowLocalSearch(false)}
+            onJumpToMessage={(_cid, mid) => {
+              setShowLocalSearch(false)
+              requestAnimationFrame(() => {
+                const el = document.querySelector(`[data-message-id="${mid}"]`)
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "center" })
+                  return
+                }
+                if (hasMore) {
+                  toast({ title: "Loading history…", description: "Fetching older messages to find this one." })
+                  loadMore().then(() => {
+                    requestAnimationFrame(() => {
+                      const elRetry = document.querySelector(`[data-message-id="${mid}"]`)
+                      if (elRetry) {
+                        elRetry.scrollIntoView({ behavior: "smooth", block: "center" })
+                      } else {
+                        toast({ title: "Message not in current view", description: "Keep loading older messages to find it." })
+                        topRef.current?.scrollIntoView({ behavior: "smooth" })
+                      }
+                    })
+                  })
+                } else {
+                  toast({ title: "Message not found", description: `Message ${mid} is not in the current view.` })
+                }
+              })
+            }}
+          />
         </Suspense>
       )}
     </div>

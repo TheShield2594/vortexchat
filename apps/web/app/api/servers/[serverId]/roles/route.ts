@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
 import { requireServerPermission } from "@/lib/server-auth"
+import { invalidatePrefix } from "@/lib/server-cache"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -110,6 +111,8 @@ export async function POST(
       target_type: "role",
       changes: { name, color, permissions, position, is_hoisted, mentionable },
     })
+
+    invalidatePrefix(`roles:${serverId}`)
 
     return NextResponse.json(role, { status: 201 })
 

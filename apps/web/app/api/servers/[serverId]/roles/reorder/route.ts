@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
 import { insertAuditLog } from "@/lib/utils/api-helpers"
+import { invalidatePrefix } from "@/lib/server-cache"
 
 // PATCH /api/servers/[serverId]/roles/reorder — reorder roles by position
 export async function PATCH(
@@ -120,6 +121,9 @@ export async function PATCH(
       after: afterPositions,
     },
   })
+
+  invalidatePrefix(`roles:${serverId}`)
+  invalidatePrefix(`perms:${serverId}`)
 
   // Fetch and return the updated roles
   const { data: updatedRoles, error: refetchError } = await supabase

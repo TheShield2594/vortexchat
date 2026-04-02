@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { VALID_TRIGGER_TYPES, validateConfigAndActions } from "@/lib/automod"
 import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
+import { invalidatePrefix } from "@/lib/server-cache"
 import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string }> }
@@ -105,6 +106,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       target_type: "automod_rule",
       changes: { name: rule.name, trigger_type: rule.trigger_type },
     })
+
+    invalidatePrefix(`automod:${serverId}`)
 
     return NextResponse.json(rule, { status: 201 })
 

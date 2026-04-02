@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Search, X, Loader2, Calendar, CheckSquare, FileText, Link, Image, Paperclip, User, ChevronDown } from "lucide-react"
+import { Search, X, Loader2, Calendar, CheckSquare, FileText, Link, Image, Paperclip, User, ChevronDown, ShieldCheck } from "lucide-react"
 import { format } from "date-fns"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
@@ -15,11 +15,12 @@ interface SearchResultAuthor {
 }
 
 interface MessageSearchResult {
-  type: "message"
+  type: "message" | "dm"
   id: string
   content: string
   channel_id: string
   created_at: string
+  author_id?: string
   author?: SearchResultAuthor
 }
 
@@ -51,7 +52,12 @@ interface ActiveFilters {
 }
 
 interface Props {
-  serverId: string
+  /** Server ID for channel search. Omit when searching DMs. */
+  serverId?: string
+  /** DM channel ID for DM search. Omit when searching server channels. */
+  dmChannelId?: string
+  /** Label for DM channel (e.g., partner name). */
+  dmChannelLabel?: string
   onClose: () => void
   onJumpToMessage?: (channelId: string, messageId: string) => void
 }
@@ -72,7 +78,8 @@ const HAS_OPTIONS: { value: NonNullable<ActiveFilters["has"]>; label: string; ic
   { value: "file", label: "File", icon: Paperclip },
 ]
 
-export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
+export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, onJumpToMessage }: Props) {
+  const isDmSearch = Boolean(dmChannelId)
   const [text, setText] = useState("")
   const [filters, setFilters] = useState<ActiveFilters>({})
   const [showFilterBar, setShowFilterBar] = useState(false)
@@ -100,7 +107,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
         setSelectedIndex((i) => (i > 0 ? i - 1 : results.length - 1))
       } else if (e.key === "Enter" && selectedIndex >= 0) {
         const r = results[selectedIndex]
-        if (r?.type === "message" && onJumpToMessage) {
+        if ((r?.type === "message" || r?.type === "dm") && onJumpToMessage) {
           onJumpToMessage(r.channel_id, r.id)
           onClose()
         }
@@ -128,7 +135,13 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
     abortRef.current = controller
     setLoading(true)
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&serverId=${serverId}&limit=40`, { signal: controller.signal })
+      const params = new URLSearchParams({ q, limit: "40" })
+      if (dmChannelId) {
+        params.set("dmChannelId", dmChannelId)
+      } else if (serverId) {
+        params.set("serverId", serverId)
+      }
+      const res = await fetch(`/api/search?${params.toString()}`, { signal: controller.signal })
       if (res.ok) {
         const data = await res.json()
         setResults(data.results ?? [])
@@ -142,7 +155,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
     } finally {
       if (!controller.signal.aborted) setLoading(false)
     }
-  }, [serverId])
+  }, [serverId, dmChannelId])
 
   const scheduleSearch = useCallback((t: string, f: ActiveFilters) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -171,6 +184,10 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
   const hasActiveFilters = Object.keys(filters).length > 0
   const hasQuery = text.trim() || hasActiveFilters
 
+  const placeholderText = isDmSearch
+    ? `Search${dmChannelLabel ? ` in ${dmChannelLabel}` : " messages"}…`
+    : "Search messages, tasks, docs…"
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-24"
@@ -185,8 +202,12 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
         className="w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl flex flex-col"
         style={{ background: "var(--theme-bg-secondary)", maxHeight: "70vh" }}
       >
-        <h2 id="search-modal-title" className="sr-only">Search Messages</h2>
-        <p id="search-modal-desc" className="sr-only">Search messages across this server</p>
+        <h2 id="search-modal-title" className="sr-only">
+          {isDmSearch ? "Search Direct Messages" : "Search Messages"}
+        </h2>
+        <p id="search-modal-desc" className="sr-only">
+          {isDmSearch ? "Search messages in this conversation" : "Search messages across this server"}
+        </p>
         {/* Search input row */}
         <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--theme-bg-tertiary)" }}>
           <Search className="w-5 h-5 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
@@ -196,7 +217,7 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
             inputMode="search"
             value={text}
             onChange={handleTextInput}
-            placeholder="Search messages, tasks, docs…"
+            placeholder={placeholderText}
             className="flex-1 bg-transparent text-sm focus:outline-none"
             style={{ color: "var(--theme-text-normal)" }}
           />
@@ -242,25 +263,27 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
             style={{ borderColor: "var(--theme-bg-tertiary)", background: "color-mix(in srgb, var(--theme-bg-tertiary) 40%, var(--theme-bg-secondary))" }}
           >
             {/* has: filter */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-medium" style={{ color: "var(--theme-text-muted)" }}>Has:</span>
-              {HAS_OPTIONS.map(({ value, label, icon: Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => filters.has === value ? removeFilter("has") : applyFilter("has", value)}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors"
-                  style={
-                    filters.has === value
-                      ? { background: "var(--theme-accent)", color: "var(--theme-bg-primary)" }
-                      : { background: "var(--theme-surface-elevated)", color: "var(--theme-text-secondary)" }
-                  }
-                >
-                  <Icon className="w-3 h-3" />
-                  {label}
-                </button>
-              ))}
-            </div>
+            {!isDmSearch && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium" style={{ color: "var(--theme-text-muted)" }}>Has:</span>
+                {HAS_OPTIONS.map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => filters.has === value ? removeFilter("has") : applyFilter("has", value)}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors"
+                    style={
+                      filters.has === value
+                        ? { background: "var(--theme-accent)", color: "var(--theme-bg-primary)" }
+                        : { background: "var(--theme-surface-elevated)", color: "var(--theme-text-secondary)" }
+                    }
+                  >
+                    <Icon className="w-3 h-3" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* from: filter */}
             <div className="flex items-center gap-1.5">
@@ -356,7 +379,16 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
         {/* Results */}
         <div ref={resultsRef} className="flex-1 overflow-y-auto">
           {!hasQuery
-            ? <div className="px-4 py-10"><BrandedEmptyState icon={Search} title="Search workspace" description="Find messages, tasks, and docs. Click Filters to narrow by user, content type, or date range." /></div>
+            ? <div className="px-4 py-10">
+                <BrandedEmptyState
+                  icon={Search}
+                  title={isDmSearch ? "Search this conversation" : "Search workspace"}
+                  description={isDmSearch
+                    ? "Find messages in this conversation using server-side full-text search."
+                    : "Find messages, tasks, and docs. Click Filters to narrow by user, content type, or date range."
+                  }
+                />
+              </div>
             : results.length === 0 && !loading
               ? <div className="px-4 py-10"><BrandedEmptyState icon={Calendar} title="No results" description="Nothing matched — try different keywords or adjust your filters." /></div>
               : <>
@@ -367,12 +399,12 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
                 )}
                 {total > 0 && <div className="px-4 py-2 text-xs" style={{ color: "var(--theme-text-muted)" }}>{total} result{total !== 1 ? "s" : ""}</div>}
                 {results.map((result, idx) => {
-                  if (result.type === "message") {
+                  if (result.type === "message" || result.type === "dm") {
                     const displayName = result.author?.display_name || result.author?.username || "Unknown"
                     const initials = displayName.slice(0, 2).toUpperCase()
                     return (
                       <button
-                        key={`message-${result.id}`}
+                        key={`${result.type}-${result.id}`}
                         data-result-index={idx}
                         onClick={() => { onJumpToMessage?.(result.channel_id, result.id); onClose() }}
                         className="w-full flex items-start gap-3 px-4 py-3 text-left transition-colors"
@@ -409,22 +441,32 @@ export function SearchModal({ serverId, onClose, onJumpToMessage }: Props) {
                       </div>
                     )
                   }
-                  return (
-                    <div key={`doc-${result.id}`} data-result-index={idx} className="px-4 py-3" style={{ borderBottom: "1px solid var(--theme-bg-tertiary)", background: idx === selectedIndex ? "var(--theme-surface-elevated)" : undefined }}>
-                      <div className="text-sm flex items-center gap-2" style={{ color: "var(--theme-text-bright)" }}>
-                        <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
-                        {result.title}
+                  if (result.type === "doc") {
+                    return (
+                      <div key={`doc-${result.id}`} data-result-index={idx} className="px-4 py-3" style={{ borderBottom: "1px solid var(--theme-bg-tertiary)", background: idx === selectedIndex ? "var(--theme-surface-elevated)" : undefined }}>
+                        <div className="text-sm flex items-center gap-2" style={{ color: "var(--theme-text-bright)" }}>
+                          <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
+                          {result.title}
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>Doc / note</p>
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--theme-text-muted)" }}>Doc / note</p>
-                    </div>
-                  )
+                    )
+                  }
+                  return null
                 })}
               </>
           }
         </div>
 
-        <div className="px-4 py-2 border-t text-[11px]" style={{ borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-faint)" }}>
-          Encrypted DMs excluded — use in-conversation search for E2E channels.
+        <div className="px-4 py-2 border-t text-[11px] flex items-center gap-2" style={{ borderColor: "var(--theme-bg-tertiary)", color: "var(--theme-text-faint)" }}>
+          {isDmSearch ? (
+            <>
+              <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
+              <span>Server-side search — non-E2E DMs are searched via Postgres full-text search.</span>
+            </>
+          ) : (
+            <span>Encrypted DMs excluded — use DM search for those conversations.</span>
+          )}
         </div>
       </div>
     </div>

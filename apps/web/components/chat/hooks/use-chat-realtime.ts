@@ -3,7 +3,7 @@ import type { MessageWithAuthor, ReactionRow } from "@/types/database"
 import type { OutboxEntry } from "@/lib/chat-outbox"
 import { removeOutboxEntry } from "@/lib/chat-outbox"
 
-const DISPLAY_LIMIT = 150
+const DISPLAY_LIMIT = 500
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()
