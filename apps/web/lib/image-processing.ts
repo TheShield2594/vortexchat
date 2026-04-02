@@ -101,7 +101,7 @@ export async function processImage(
       })
 
     if (thumbUploadError) {
-      console.error("Failed to upload thumbnail variant:", thumbUploadError.message)
+      console.error(`Failed to upload thumbnail variant for ${storagePath} (${contentType}):`, thumbUploadError.message)
     } else {
       variants.thumbnail = {
         path: thumbPath,
@@ -130,7 +130,7 @@ export async function processImage(
       })
 
     if (stdUploadError) {
-      console.error("Failed to upload standard variant:", stdUploadError.message)
+      console.error(`Failed to upload standard variant for ${storagePath} (${contentType}):`, stdUploadError.message)
     } else {
       variants.standard = {
         path: stdPath,
@@ -161,11 +161,16 @@ export async function processAttachmentImage(
   const supabase = await createServiceRoleClient()
 
   try {
-    // Mark as processing
-    await supabase
+    // Mark as processing — abort if the attachment was deleted or update fails
+    const { error: markProcessingError } = await supabase
       .from("attachments")
       .update({ processing_state: "processing" })
       .eq("id", attachmentId)
+
+    if (markProcessingError) {
+      console.error(`processAttachmentImage: failed to mark as processing ${attachmentId}`, markProcessingError.message)
+      return
+    }
 
     const result = await processImage(storagePath, contentType)
 

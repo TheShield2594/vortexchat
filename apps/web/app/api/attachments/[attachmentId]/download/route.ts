@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { maybeRenewExpiry } from "@vortex/shared"
+import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -51,14 +52,15 @@ export async function GET(
     if (!channel) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     if (channel.server_id) {
-      const { data: member } = await supabase
-        .from("server_members")
-        .select("user_id")
-        .eq("server_id", channel.server_id)
-        .eq("user_id", user.id)
-        .maybeSingle()
-
-      if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      const { isAdmin, permissions } = await getChannelPermissions(
+        supabase,
+        channel.server_id,
+        message.channel_id,
+        user.id,
+      )
+      if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
 
     // ── Decay renewal: extend expiry if accessed near deadline ──────────────

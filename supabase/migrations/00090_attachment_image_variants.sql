@@ -5,7 +5,12 @@
 --          "standard":  { "path": "...", "width": 1200, "height": 900 } }
 -- processing_state: tracks async image processing status
 
-CREATE TYPE attachment_processing_state AS ENUM ('pending', 'processing', 'completed', 'failed');
+DO $$
+BEGIN
+  CREATE TYPE attachment_processing_state AS ENUM ('pending', 'processing', 'completed', 'failed');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 ALTER TABLE public.attachments
   ADD COLUMN IF NOT EXISTS blur_hash TEXT,
