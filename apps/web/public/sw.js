@@ -116,7 +116,7 @@ self.addEventListener("push", (event) => {
   const {
     title = "VortexChat",
     body = "New message",
-    icon = "/icon-192.png",
+    icon = "/icon-192.png?v=2",
     url = "/channels/me",
     tag,
   } = data
@@ -150,7 +150,7 @@ self.addEventListener("push", (event) => {
       return self.registration.showNotification(title, {
         body,
         icon,
-        badge: "/icon-192.png",
+        badge: "/icon-192.png?v=2",
         tag: notificationTag,
         data: { url },
         renotify: isIOS ? true : !anyFocused,
@@ -164,12 +164,14 @@ self.addEventListener("push", (event) => {
 
 // ─── App badge helper ────────────────────────────────────────────────────────
 function updateAppBadge(count) {
-  // In service worker scope, badge API is on `self` (ServiceWorkerGlobalScope)
-  if (!self.navigator?.setAppBadge) return
+  // The Badging API is on the ServiceWorkerGlobalScope (self), not on
+  // self.navigator.  iOS follows the spec strictly — using navigator
+  // silently fails.
+  if (typeof self.setAppBadge !== "function") return
   if (count > 0) {
-    self.navigator.setAppBadge(count)
+    self.setAppBadge(count)
   } else {
-    self.navigator.clearAppBadge()
+    self.clearAppBadge()
   }
 }
 
