@@ -249,6 +249,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       status_emoji: null,
       status_expires_at: null,
       last_heartbeat_at: null,
+      last_online_at: null,
       discoverable: false,
       appearance_settings: null,
       interests: [],
