@@ -512,6 +512,11 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     onMarkRead: () => {
       if (activeChannelId) markChannelRead(activeChannelId)
     },
+    onMarkAllServerRead: () => {
+      for (const channelId of unreadNavigableChannelIds) {
+        markChannelRead(channelId)
+      }
+    },
     onJumpChannelPrev: () => jumpRelative(navigableChannelIds, "prev"),
     onJumpChannelNext: () => jumpRelative(navigableChannelIds, "next"),
     onJumpUnreadPrev: () => jumpRelative(unreadNavigableChannelIds, "prev"),
@@ -890,6 +895,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                             isActive={activeChannelId === channel.id}
                             isVoiceActive={voiceChannelId === channel.id}
                             onOpenNotificationSettings={setNotifSettingsChannelId}
+                            onMarkRead={() => markChannelRead(channel.id)}
                             canManageChannels={canManageChannels}
                             isDragging={activeId === channel.id}
                             isUnread={unreadChannelIds.has(channel.id)}

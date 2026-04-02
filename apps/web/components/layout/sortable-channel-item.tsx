@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import {
   Hash, Volume2, Plus, Clipboard, Pencil, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, MessageCircle,
-  MicOff, Headphones, Bell, BellOff, Eye
+  MicOff, Headphones, Bell, BellOff, Eye, CheckCheck
 } from "lucide-react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -58,6 +58,7 @@ interface SortableChannelItemProps {
   onEdit: () => void
   onDelete: () => void
   onCreateThread?: () => void
+  onMarkRead?: () => void
   onOpenNotificationSettings: (channelId: string) => void
 }
 
@@ -75,6 +76,7 @@ export function SortableChannelItem({
   onEdit,
   onDelete,
   onCreateThread,
+  onMarkRead,
   onOpenNotificationSettings,
 }: SortableChannelItemProps): React.ReactElement {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: channel.id })
@@ -203,6 +205,14 @@ export function SortableChannelItem({
             <>
               <ContextMenuItem onClick={onCreateThread}>
                 <MessageSquare className="w-4 h-4 mr-2" /> Create Thread
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
+          {onMarkRead && (isUnread || (mentionCount ?? 0) > 0) && (
+            <>
+              <ContextMenuItem onClick={onMarkRead}>
+                <CheckCheck className="w-4 h-4 mr-2" /> Mark as Read
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
