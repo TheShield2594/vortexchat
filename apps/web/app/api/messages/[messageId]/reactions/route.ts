@@ -61,23 +61,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
 
     // Auto-enter giveaway when reacting with 🎉 on a giveaway announcement (fire-and-forget)
     if (emoji === "🎉") {
-      supabase
-        .from("giveaways")
-        .select("id, status, ends_at")
-        .eq("message_id", messageId)
-        .eq("status", "active")
-        .maybeSingle()
-        .then(({ data: giveaway }) => {
-          if (giveaway && new Date(giveaway.ends_at) > new Date()) {
-            return supabase
-              .from("giveaway_entries")
-              .upsert(
-                { giveaway_id: giveaway.id, user_id: user.id },
-                { onConflict: "giveaway_id,user_id", ignoreDuplicates: true }
-              )
-          }
-        })
-        .catch((err) => { console.error("Giveaway auto-enter failed", err) })
+      Promise.resolve(
+        supabase
+          .from("giveaways")
+          .select("id, status, ends_at")
+          .eq("message_id", messageId)
+          .eq("status", "active")
+          .maybeSingle()
+          .then(({ data: giveaway }) => {
+            if (giveaway && new Date(giveaway.ends_at) > new Date()) {
+              return supabase
+                .from("giveaway_entries")
+                .upsert(
+                  { giveaway_id: giveaway.id, user_id: user.id },
+                  { onConflict: "giveaway_id,user_id", ignoreDuplicates: true }
+                )
+            }
+          })
+      ).catch((err: unknown) => { console.error("Giveaway auto-enter failed", err) })
     }
 
     // Notify the message author about the reaction (fire-and-forget)
@@ -139,22 +140,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
 
     // Auto-leave giveaway when removing 🎉 reaction (fire-and-forget)
     if (emoji === "🎉") {
-      supabase
-        .from("giveaways")
-        .select("id, status")
-        .eq("message_id", messageId)
-        .eq("status", "active")
-        .maybeSingle()
-        .then(({ data: giveaway }) => {
-          if (giveaway) {
-            return supabase
-              .from("giveaway_entries")
-              .delete()
-              .eq("giveaway_id", giveaway.id)
-              .eq("user_id", user.id)
-          }
-        })
-        .catch((err) => { console.error("Giveaway auto-leave failed", err) })
+      Promise.resolve(
+        supabase
+          .from("giveaways")
+          .select("id, status")
+          .eq("message_id", messageId)
+          .eq("status", "active")
+          .maybeSingle()
+          .then(({ data: giveaway }) => {
+            if (giveaway) {
+              return supabase
+                .from("giveaway_entries")
+                .delete()
+                .eq("giveaway_id", giveaway.id)
+                .eq("user_id", user.id)
+            }
+          })
+      ).catch((err: unknown) => { console.error("Giveaway auto-leave failed", err) })
     }
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })

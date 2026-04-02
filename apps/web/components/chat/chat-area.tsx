@@ -254,6 +254,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       appearance_settings: null,
       interests: [],
       activity_visibility: "public" as const,
+      game_activity: null,
       onboarding_completed_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

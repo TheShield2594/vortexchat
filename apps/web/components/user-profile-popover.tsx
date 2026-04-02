@@ -18,12 +18,6 @@ import type { RoleRow } from "@/types/database"
 import { getStatusColor, getStatusLabel } from "@/lib/presence-status"
 import { useFriendshipActions } from "@/hooks/use-friendship-actions"
 
-interface GameActivity {
-  game_name: string
-  game_id?: string | null
-  source?: string
-}
-
 interface UserProfileData {
   username: string
   display_name: string | null
@@ -32,7 +26,7 @@ interface UserProfileData {
   bio: string | null
   banner_color: string | null
   custom_tag: string | null
-  game_activity?: GameActivity | null
+  game_activity?: unknown
 }
 
 interface UserProfilePopoverProps {
@@ -148,22 +142,26 @@ export function UserProfilePopover({
           )}
 
           {/* Game Activity */}
-          {user?.game_activity?.game_name && (
-            <div
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 mb-2"
-              style={{ background: "var(--theme-bg-tertiary)" }}
-            >
-              <span className="text-sm">🎮</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
-                  Playing
-                </div>
-                <div className="text-xs font-medium truncate" style={{ color: "var(--theme-text-normal)" }}>
-                  {user.game_activity.game_name}
+          {(() => {
+            const activity = user?.game_activity as { game_name?: string } | null | undefined
+            if (!activity?.game_name) return null
+            return (
+              <div
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 mb-2"
+                style={{ background: "var(--theme-bg-tertiary)" }}
+              >
+                <span className="text-sm">🎮</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
+                    Playing
+                  </div>
+                  <div className="text-xs font-medium truncate" style={{ color: "var(--theme-text-normal)" }}>
+                    {activity.game_name}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Bio */}
           {user?.bio && (

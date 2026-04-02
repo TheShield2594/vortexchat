@@ -187,7 +187,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Seed a 🎉 reaction on the announcement so users know to react
     await serviceClient.from("reactions")
       .insert({ message_id: announceMsg.id, user_id: SYSTEM_BOT_ID, emoji: "🎉" })
-      .catch(() => { /* best-effort */ })
 
     return NextResponse.json(giveaway, { status: 201 })
   }
