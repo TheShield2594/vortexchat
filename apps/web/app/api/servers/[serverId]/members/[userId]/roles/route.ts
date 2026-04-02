@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
 import { rateLimiter } from "@/lib/rate-limit"
+import { invalidatePrefix } from "@/lib/server-cache"
 
 async function assertRoleMutationAllowed(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
@@ -94,6 +95,13 @@ export async function POST(
       return NextResponse.json({ error: "Failed to assign role" }, { status: 500 })
     }
 
+    try {
+      invalidatePrefix(`member-roles:${serverId}:${userId}`)
+      invalidatePrefix(`perms:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[member-roles POST] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+    }
+
     return NextResponse.json({ ok: true })
 
   } catch (err) {
@@ -152,6 +160,13 @@ export async function DELETE(
     if (rpcError) {
       console.error("[roles] remove_member_role RPC failed", { serverId, userId, roleId, error: rpcError.message })
       return NextResponse.json({ error: "Failed to remove role" }, { status: 500 })
+    }
+
+    try {
+      invalidatePrefix(`member-roles:${serverId}:${userId}`)
+      invalidatePrefix(`perms:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[member-roles DELETE] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
     }
 
     return NextResponse.json({ ok: true })

@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type Dispatch, type MutableRefObject, ty
 import { flushSync } from "react-dom"
 import type { MessageWithAuthor } from "@/types/database"
 
-const DISPLAY_LIMIT = 150
+import { DISPLAY_LIMIT } from "@/components/chat/constants"
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()

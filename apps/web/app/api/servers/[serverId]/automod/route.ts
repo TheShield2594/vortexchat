@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { VALID_TRIGGER_TYPES, validateConfigAndActions } from "@/lib/automod"
 import { requireAuth, parseJsonBody, insertAuditLog } from "@/lib/utils/api-helpers"
+import { invalidatePrefix } from "@/lib/server-cache"
 import type { Json } from "@/types/database"
 
 type Params = { params: Promise<{ serverId: string }> }
@@ -105,6 +106,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       target_type: "automod_rule",
       changes: { name: rule.name, trigger_type: rule.trigger_type },
     })
+
+    try {
+      invalidatePrefix(`automod-rules:${serverId}`)
+      invalidatePrefix(`automod-settings:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[automod POST] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+    }
 
     return NextResponse.json(rule, { status: 201 })
 

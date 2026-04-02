@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getMemberPermissions, hasPermission } from "@/lib/permissions"
 import { getActorMaxRolePosition } from "@/lib/role-utils"
+import { invalidatePrefix } from "@/lib/server-cache"
 import type { Json } from "@/types/database"
 
 // PATCH /api/servers/[serverId]/roles/[roleId] — update a role
@@ -128,6 +129,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
   }
 
+  try {
+    invalidatePrefix(`roles:${serverId}`)
+    invalidatePrefix(`perms:${serverId}`)
+    invalidatePrefix(`member-roles:${serverId}`)
+  } catch (cacheErr) {
+    console.error("[roles PATCH] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
+  }
+
   return NextResponse.json(updatedRole)
   } catch (err) {
     console.error("[servers/[serverId]/roles/[roleId] PATCH] error:", err)
@@ -210,6 +219,14 @@ export async function DELETE(
     if (deleteAuditErr) {
       console.error("[roles] Audit log insert failed for role_deleted", { serverId, roleId, error: deleteAuditErr.message })
       return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
+    }
+
+    try {
+      invalidatePrefix(`roles:${serverId}`)
+      invalidatePrefix(`perms:${serverId}`)
+      invalidatePrefix(`member-roles:${serverId}`)
+    } catch (cacheErr) {
+      console.error("[roles DELETE] cache invalidation failed", { serverId, error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr) })
     }
 
     return new NextResponse(null, { status: 204 })

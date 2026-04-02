@@ -26,6 +26,8 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
+import { VirtualizedMessageList } from "@/components/chat/virtualized-message-list"
+import { DISPLAY_LIMIT } from "@/components/chat/constants"
 import { ChannelSummaryCard } from "@/components/chat/channel-summary-card"
 import { PinnedMessagesPanel } from "@/components/chat/pinned-messages-panel"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -67,8 +69,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 const RECENTLY_ACTIVE_DECAY_MS = 12_000
-/** Cap displayed messages to keep the DOM manageable — older/newer trimmed on fetch. */
-const DISPLAY_LIMIT = 150
 
 function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAuthor[] {
   const timestamps = new Map<string, number>()
@@ -1749,24 +1749,26 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               the column-reverse parent.  Because the parent is reversed, the
               *end* of this div (newest messages) sits at the visual bottom. */}
           <div>
-            {/* Channel beginning header */}
-            {!hasMoreHistory && (
-              <div className="px-4 py-4">
-                <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
-                  Welcome to #{channel.name}!
-                </h2>
-                <p className="text-sm text-[var(--theme-text-secondary)]">
-                  This is the start of the #{channel.name} channel.
-                  {channel.topic && ` ${channel.topic}`}
-                </p>
-              </div>
-            )}
-
-            {/* Sentinel + skeleton for loading older messages */}
-            {hasMoreHistory && (
-              <div className="px-4 py-3 space-y-3">
-                {isPaginating && (
-                  <>
+            {/* Message list — virtualized rendering via @tanstack/react-virtual */}
+            <VirtualizedMessageList
+              messages={messages}
+              scrollContainerRef={messageScrollerRef}
+              hasMoreHistory={hasMoreHistory}
+              isPaginating={isPaginating}
+              onLoadOlder={loadOlderMessages}
+              headerContent={
+                !hasMoreHistory ? (
+                  <div className="px-4 py-4">
+                    <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
+                      Welcome to #{channel.name}!
+                    </h2>
+                    <p className="text-sm text-[var(--theme-text-secondary)]">
+                      This is the start of the #{channel.name} channel.
+                      {channel.topic && ` ${channel.topic}`}
+                    </p>
+                  </div>
+                ) : isPaginating ? (
+                  <div className="px-4 py-3 space-y-3">
                     <output className="sr-only" aria-live="polite">Loading older messages…</output>
                     {Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="flex items-start gap-3">
@@ -1781,16 +1783,25 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                         </div>
                       </div>
                     ))}
+                  </div>
+                ) : undefined
+              }
+              footerContent={
+                voiceRecaps.length > 0 ? (
+                  <>
+                    {voiceRecaps.map((recap) => (
+                      <VoiceRecapCard
+                        key={recap.sessionId}
+                        sessionId={recap.sessionId}
+                        channelName={recap.channelName}
+                        durationSeconds={recap.durationSeconds}
+                      />
+                    ))}
                   </>
-                )}
-              </div>
-            )}
-
-            {/* Message list — direct DOM rendering (no virtualizer) */}
-            <div className="pb-4">
-              {(() => {
+                ) : undefined
+              }
+              renderMessage={(message, index) => {
                 const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
-                return messages.map((message, index) => {
                 const prevMessage = messages[index - 1]
                 const msgDate = new Date(message.created_at)
                 const prevDate = prevMessage ? new Date(prevMessage.created_at) : null
@@ -1804,7 +1815,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                     new Date(prevMessage.created_at).getTime() < groupingThresholdMs
 
                 return (
-                  <div key={message.id} id={`message-${message.id}`}>
+                  <>
                     {showDaySeparator && (
                       <div className="flex items-center gap-3 my-3 px-4">
                         <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
@@ -1921,20 +1932,10 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                         }
                       }}
                     />
-                  </div>
+                  </>
                 )
-              })
-              })()}
-            </div>
-            {/* Voice Recap cards — shown after voice sessions end in this channel */}
-            {voiceRecaps.map((recap) => (
-              <VoiceRecapCard
-                key={recap.sessionId}
-                sessionId={recap.sessionId}
-                channelName={recap.channelName}
-                durationSeconds={recap.durationSeconds}
-              />
-            ))}
+              }}
+            />
             <div ref={bottomRef} style={{ height: 1 }} />
           </div>
 

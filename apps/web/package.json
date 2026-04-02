@@ -39,6 +39,7 @@
     "@sentry/nextjs": "^10.44.0",
     "@supabase/ssr": "0.8.0",
     "@supabase/supabase-js": "2.97.0",
+    "@tanstack/react-virtual": "^3.13.23",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.3",
     "@vortex/shared": "*",

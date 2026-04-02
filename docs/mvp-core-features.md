@@ -289,6 +289,37 @@
 | Suspicious login detection enforcement (#545) | Done | `computeLoginRisk` now returns `action` field; score >= 60 requires MFA/email challenge; score >= 80 locks session and requires email verification |
 | TypeScript `any` type cleanup (#546) | Done | All 46 files cleaned; remaining `SupabaseClient<any>` consolidated in `lib/supabase/untyped-table.ts` utility (intentional for ungenerated tables) |
 
+## Search (#593)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Postgres tsvector on `direct_messages` table | Done | Migration 00089 — `search_vector` column with GIN index, auto-update trigger, backfill of existing rows |
+| Server-side DM search via `/api/search` | Done | `dmChannelId` param; membership check; `textSearch` on `search_vector`; blocked-user filtering |
+| Unified SearchModal for channels + DMs | Done | Single `SearchModal` component accepts `serverId` or `dmChannelId`; DM search for non-E2E channels, local search preserved for E2E |
+| Rate limit tightened (10/min) | Done | Reduced from 20 to 10 searches/minute per user per issue spec |
+| Filter syntax: `from:`, `has:`, `before:`, `after:` | Done | Supported across both server and DM search paths |
+
+## Virtual Scrolling (#594)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| `@tanstack/react-virtual` installed | Done | Dynamic row heights via `measureElement`; overscan=10 |
+| `VirtualizedMessageList` component | Done | Generic virtualizer with header/footer slots, bidirectional infinite scroll trigger, dynamic measurement |
+| ChatArea integration | Done | Replaced direct DOM rendering; `DISPLAY_LIMIT` raised from 150 → 500; header/footer/voice recaps rendered as virtual rows |
+| Hooks updated (`use-chat-history`, `use-chat-realtime`) | Done | `DISPLAY_LIMIT` raised to 500 in all three locations |
+
+## Redis Application Cache (#596)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Upstash Redis as L2 cache backend | Done | `server-cache.ts` upgraded — L1 in-memory + L2 Redis; lazy Redis init; graceful fallback if Redis unavailable |
+| `CACHE_TTLS` constants exported | Done | Server settings 60s, channel metadata 60s, member permissions 30s, role list 60s, automod rules 60s, user profile 120s, member count 300s |
+| Cache invalidation on role mutations | Done | PATCH/DELETE/POST on roles, role reorder — invalidates `roles:`, `perms:`, `member-roles:` prefixes |
+| Cache invalidation on automod mutations | Done | POST/PATCH/DELETE on automod rules — invalidates `automod:` prefix |
+| Cache invalidation on channel updates | Done | PATCH channel — invalidates `channel:` key + `perms:` prefix |
+| Cache invalidation on role assignment/removal | Done | POST/DELETE member roles — invalidates `member-roles:` + `perms:` prefixes |
+| `invalidatePrefix` via Redis SCAN | Done | Non-blocking scan+delete for pattern-based invalidation; entries expire via TTL as safety net |
+
 ---
 
 *Last updated: 2026-04-02 (sprint 3)*
