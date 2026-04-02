@@ -280,7 +280,7 @@
 | Event bus abstraction interface (#586) | Done | Added `IEventBus` interface with publish/subscribe/replay/acknowledge in `@vortex/shared`; typed event system with `VortexEvent` and `VortexEventType` |
 | Signal server graceful shutdown + Redis TTL (#587) | Done | 30s connection-draining shutdown; Redis room key TTL (5min) with periodic refresh; crash recovery via auto-expiry; SIGINT+SIGTERM handling |
 | Read position tracking API endpoints (#588) | Done | `POST /api/channels/:channelId/ack` for mark-as-read; `GET /api/users/me/read-states` for bulk hydration of channels, DMs, and threads |
-| Mark as Read context menu + Shift+Esc (#605) | Done | Right-click "Mark as Read" on unread channels in sidebar; `Shift+Esc` marks all channels in current server as read |
+| Mark as Read context menu + keyboard shortcut (#605) | Done | Right-click "Mark as Read" on unread channels in sidebar; `Ctrl/Cmd+Shift+M` marks all channels in current server as read |
 | PATCH roles handler try/catch (#567) | Done | Already had top-level try/catch wrapping entire handler body |
 | Server-templates POST try/catch + permission check (#568) | Done | Wrapped entire POST handler in try/catch; added membership verification before preview/apply/export modes |
 | Voice-channel fetchParticipants double-cast (#569) | Done | Replaced `as unknown as` with local `VoiceStateWithUser` interface; added error handling for Supabase query |

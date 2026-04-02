@@ -513,7 +513,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       if (activeChannelId) markChannelRead(activeChannelId)
     },
     onMarkAllServerRead: () => {
-      for (const channelId of unreadNavigableChannelIds) {
+      const channelIdsToMark = navigableChannelIds.filter(
+        (id) => unreadChannelIds.has(id) || (mentionCounts[id] ?? 0) > 0
+      )
+      for (const channelId of channelIdsToMark) {
         markChannelRead(channelId)
       }
     },
@@ -534,7 +537,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
         console.debug("[shortcuts] analytics", event)
       }
     },
-  }), [activeChannelId, canManageChannels, jumpRelative, navigableChannelIds, unreadNavigableChannelIds, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel])
+  }), [activeChannelId, canManageChannels, jumpRelative, navigableChannelIds, unreadNavigableChannelIds, unreadChannelIds, mentionCounts, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel])
 
   useKeyboardShortcuts(shortcutHandlers)
 
