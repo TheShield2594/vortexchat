@@ -169,61 +169,77 @@ self.addEventListener("push", (event) => {
   // the same tag silently replaces earlier notifications without alerting.
   const isIOS = /iP(hone|ad|od)/.test(self.navigator?.userAgent ?? "")
 
-  // Show the notification FIRST and resolve waitUntil as soon as it's
-  // displayed.  The badge update is fire-and-forget — on iOS the SW has
-  // strict execution time limits, and chaining a network fetch after
-  // showNotification() risks the OS killing the SW before the promise
-  // chain resolves, which can cause iOS to silently revoke the push
-  // subscription entirely.
+  // On iOS, append a timestamp to the tag so each notification is unique
+  // and not silently replaced. Desktop keeps channel-based grouping.
+  const notificationTag = isIOS
+    ? `${tag || "vortexchat-message"}-${Date.now()}`
+    : (tag || "vortexchat-message")
+
+  // iOS Safari ignores notification action buttons — omit them to save
+  // payload bytes and avoid console warnings.
+  const actions = isIOS ? [] : (url !== "/channels/me" ? [
+    { action: "open", title: "Open" },
+    { action: "dismiss", title: "Dismiss" },
+  ] : [])
+
+  // CRITICAL: Call showNotification() IMMEDIATELY — do NOT nest it inside
+  // clients.matchAll().then() or any other async chain.  On iOS, the SW
+  // has strict execution time limits (~30s).  If matchAll() is slow or
+  // hangs (common when the app is backgrounded), iOS kills the SW before
+  // showNotification fires, treats it as a "silent push", and eventually
+  // revokes the push subscription entirely.
+  //
+  // On iOS, always show with sound (silent:false) because the focused-tab
+  // check via matchAll is unreliable.  On desktop, we run matchAll in
+  // parallel and silently update the notification if a tab is focused.
+  const notificationPromise = self.registration.showNotification(title, {
+    body,
+    icon,
+    badge: "/icon-192.png?v=2",
+    tag: notificationTag,
+    data: { url },
+    renotify: true,
+    requireInteraction: false,
+    actions,
+    silent: false,
+  })
+
+  // waitUntil MUST resolve from showNotification — everything else is
+  // best-effort and must not block or delay the notification.
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: false }).then((clients) => {
-      // If any tab is focused, the in-app handler will play the sound — make
-      // the push notification silent to prevent double-play.
-      // On iOS this check is unreliable, so always treat as not focused.
-      const anyFocused = isIOS ? false : clients.some((c) => c.focused)
+    notificationPromise.then(() => {
+      // Best-effort badge update — fire and forget.
+      fetch("/api/notifications/unread-count", { credentials: "same-origin" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          const count = json?.count
+          if (typeof count === "number" && isFinite(count)) updateAppBadge(count)
+        })
+        .catch(() => {})
 
-      // On iOS, append a timestamp to the tag so each notification is unique
-      // and not silently replaced. Desktop keeps channel-based grouping.
-      const notificationTag = isIOS
-        ? `${tag || "vortexchat-message"}-${Date.now()}`
-        : (tag || "vortexchat-message")
-
-      // iOS Safari ignores notification action buttons — omit them to save
-      // payload bytes and avoid console warnings.
-      const actions = isIOS ? [] : (url !== "/channels/me" ? [
-        { action: "open", title: "Open" },
-        { action: "dismiss", title: "Dismiss" },
-      ] : [])
-
-      // Fire-and-forget badge update — do NOT chain this in the waitUntil
-      // promise.  On iOS, the SW has ~30s to finish; a slow/hanging fetch
-      // here can cause the OS to terminate the SW and revoke the push sub.
-      const badgeUpdate = self.registration.showNotification(title, {
-        body,
-        icon,
-        badge: "/icon-192.png?v=2",
-        tag: notificationTag,
-        data: { url },
-        renotify: isIOS ? true : !anyFocused,
-        requireInteraction: false,
-        actions,
-        silent: anyFocused,
-      }).then(() => {
-        // Best-effort badge update after notification is shown.
-        // Intentionally not returned so it doesn't block waitUntil.
-        fetch("/api/notifications/unread-count", { credentials: "same-origin" })
-          .then((res) => {
-            if (!res.ok) return null
-            return res.json()
-          })
-          .then((json) => {
-            const count = json?.count
-            if (typeof count === "number" && isFinite(count)) updateAppBadge(count)
+      // On non-iOS, check if a tab is focused and replace with a silent
+      // notification to prevent double-play with in-app sounds.
+      if (!isIOS) {
+        self.clients.matchAll({ type: "window", includeUncontrolled: false })
+          .then((clients) => {
+            const anyFocused = clients.some((c) => c.focused)
+            if (anyFocused) {
+              // Re-show as silent — same tag replaces the audible one
+              self.registration.showNotification(title, {
+                body,
+                icon,
+                badge: "/icon-192.png?v=2",
+                tag: notificationTag,
+                data: { url },
+                renotify: false,
+                requireInteraction: false,
+                actions,
+                silent: true,
+              })
+            }
           })
           .catch(() => {})
-      })
-
-      return badgeUpdate
+      }
     })
   )
 })
