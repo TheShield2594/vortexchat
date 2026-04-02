@@ -162,7 +162,13 @@ self.addEventListener("push", (event) => {
         // iOS does not support periodicSync, so this is the only
         // opportunity to update the badge when the app is closed.
         fetch("/api/notifications/unread-count", { credentials: "same-origin" })
-          .then((res) => res.ok ? res.json() : null)
+          .then((res) => {
+            if (!res.ok) {
+              console.debug("Badge update skipped: unread-count returned", res.status)
+              return null
+            }
+            return res.json()
+          })
           .then((json) => {
             const count = json?.count
             if (typeof count === "number" && isFinite(count)) updateAppBadge(count)
@@ -181,7 +187,7 @@ function updateAppBadge(count) {
   if (typeof self.setAppBadge !== "function") return
   if (count > 0) {
     self.setAppBadge(count)
-  } else {
+  } else if (typeof self.clearAppBadge === "function") {
     self.clearAppBadge()
   }
 }
