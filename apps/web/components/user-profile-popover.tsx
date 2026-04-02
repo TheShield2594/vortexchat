@@ -1,5 +1,6 @@
 "use client"
 
+import { isGameActivity } from "@vortex/shared"
 import { MessageSquare, UserMinus, UserPlus } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
@@ -26,6 +27,7 @@ interface UserProfileData {
   bio: string | null
   banner_color: string | null
   custom_tag: string | null
+  game_activity?: unknown
 }
 
 interface UserProfilePopoverProps {
@@ -137,6 +139,24 @@ export function UserProfilePopover({
           {user?.status_message && (
             <div className="text-xs mb-2" style={{ color: "var(--theme-text-normal)" }}>
               {user.status_message}
+            </div>
+          )}
+
+          {/* Game Activity */}
+          {isGameActivity(user?.game_activity) && (
+            <div
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 mb-2"
+              style={{ background: "var(--theme-bg-tertiary)" }}
+            >
+              <span className="text-sm">🎮</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-secondary)" }}>
+                  Playing
+                </div>
+                <div className="text-xs font-medium truncate" style={{ color: "var(--theme-text-normal)" }}>
+                  {user.game_activity.game_name}
+                </div>
+              </div>
             </div>
           )}
 

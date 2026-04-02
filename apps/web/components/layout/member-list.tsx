@@ -1,6 +1,7 @@
 "use client"
 
 import { memo, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react"
+import { isGameActivity } from "@vortex/shared"
 import { perfLogSinceNav } from "@/lib/perf"
 import { useRouter } from "next/navigation"
 import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle, Flag, Shield, Check } from "lucide-react"
@@ -44,6 +45,7 @@ export interface MemberData {
     bio: string | null
     banner_color: string | null
     custom_tag: string | null
+    game_activity: unknown
     created_at: string
     last_online_at: string | null
   } | null
@@ -616,11 +618,15 @@ const MemberItem = memo(function MemberItem({
               >
                 {displayName}
               </div>
-              {member.user?.status_message && !offline && (
+              {isGameActivity(member.user?.game_activity) && !offline ? (
+                <div className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
+                  🎮 Playing {member.user.game_activity.game_name}
+                </div>
+              ) : (member.user?.status_message && !offline ? (
                 <div className="text-xs truncate" style={{ color: "var(--theme-text-muted)" }}>
                   {member.user.status_message}
                 </div>
-              )}
+              ) : null)}
               {offline && (() => {
                 const lastSeen = formatLastSeen(member.user?.last_online_at)
                 return lastSeen ? (

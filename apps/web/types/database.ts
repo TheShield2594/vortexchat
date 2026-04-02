@@ -29,6 +29,7 @@ export type Database = {
           appearance_settings: Json
           interests: string[]
           activity_visibility: 'public' | 'friends' | 'private'
+          game_activity: Json | null
           onboarding_completed_at: string | null
           created_at: string
           updated_at: string
@@ -52,6 +53,7 @@ export type Database = {
           appearance_settings?: Json | null
           interests?: string[]
           activity_visibility?: 'public' | 'friends' | 'private'
+          game_activity?: Json | null
           onboarding_completed_at?: string | null
           created_at?: string
           updated_at?: string
@@ -75,6 +77,7 @@ export type Database = {
           appearance_settings?: Json | null
           interests?: string[]
           activity_visibility?: 'public' | 'friends' | 'private'
+          game_activity?: Json | null
           onboarding_completed_at?: string | null
           created_at?: string
           updated_at?: string
@@ -2661,6 +2664,7 @@ export type Database = {
           created_by: string
           status: string
           winner_ids: string[]
+          message_id: string | null
           created_at: string
           updated_at: string
         }
@@ -2676,6 +2680,7 @@ export type Database = {
           created_by: string
           status?: string
           winner_ids?: string[]
+          message_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -2691,6 +2696,7 @@ export type Database = {
           created_by?: string
           status?: string
           winner_ids?: string[]
+          message_id?: string | null
           created_at?: string
           updated_at?: string
         }

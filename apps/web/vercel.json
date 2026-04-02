@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/presence-cleanup",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/game-activity",
+      "schedule": "*/2 * * * *"
     }
   ]
 }

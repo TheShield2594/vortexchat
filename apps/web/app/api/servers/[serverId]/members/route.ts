@@ -50,6 +50,7 @@ export async function GET(
         bio,
         banner_color,
         custom_tag,
+        game_activity,
         created_at,
         last_online_at
       ),
@@ -81,6 +82,7 @@ export async function GET(
         bio,
         banner_color,
         custom_tag,
+        game_activity,
         created_at
       ),
       roles:member_roles(
@@ -117,7 +119,7 @@ export async function GET(
     if (fallback.data) {
       members = fallback.data.map((m) => ({
         ...m,
-        user: m.user ? { ...m.user, last_online_at: null as string | null } : m.user,
+        user: m.user ? { ...m.user, game_activity: null, last_online_at: null as string | null } : m.user,
       })) as typeof members
     } else {
       members = null

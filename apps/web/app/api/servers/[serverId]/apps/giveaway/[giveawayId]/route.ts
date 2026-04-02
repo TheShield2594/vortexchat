@@ -10,6 +10,7 @@ type Params = { params: Promise<{ serverId: string; giveawayId: string }> }
  * Actions: enter, leave, end, cancel, reroll
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  try {
   const { serverId, giveawayId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -113,11 +114,15 @@ export async function POST(req: NextRequest, { params }: Params) {
 
       // Announce cancellation
       const serviceClient = await createServiceRoleClient()
-      await serviceClient.from("messages").insert({
+      const { error: msgError } = await serviceClient.from("messages").insert({
         channel_id: giveawayRecord.channel_id,
         author_id: SYSTEM_BOT_ID,
-        content: `**GIVEAWAY CANCELLED**\nThe giveaway for **${giveawayRecord.prize}** has been cancelled.`,
+        content: `❌ **GIVEAWAY CANCELLED**\n\nThe giveaway for **${giveawayRecord.prize}** has been cancelled.`,
+        webhook_display_name: "Giveaway Bot",
       })
+      if (msgError) {
+        console.error("[giveaway] Failed to post cancellation message", { serverId, giveawayId: giveawayRecord.id, error: msgError.message })
+      }
 
       return NextResponse.json({ ok: true, message: "Giveaway cancelled" })
     }
@@ -144,11 +149,15 @@ export async function POST(req: NextRequest, { params }: Params) {
         .eq("id", giveawayRecord.id)
 
       const serviceClient = await createServiceRoleClient()
-      await serviceClient.from("messages").insert({
+      const { error: msgError2 } = await serviceClient.from("messages").insert({
         channel_id: giveawayRecord.channel_id,
         author_id: SYSTEM_BOT_ID,
-        content: `**GIVEAWAY ENDED**\nNo one entered the giveaway for **${giveawayRecord.prize}**.`,
+        content: `🎉 **GIVEAWAY ENDED**\n\nNo one entered the giveaway for **${giveawayRecord.prize}**.`,
+        webhook_display_name: "Giveaway Bot",
       })
+      if (msgError2) {
+        console.error("[giveaway] Failed to post end message", { serverId, giveawayId: giveawayRecord.id, error: msgError2.message })
+      }
 
       return NextResponse.json({ ok: true, message: "Giveaway ended — no entries", winners: [] })
     }
@@ -172,14 +181,22 @@ export async function POST(req: NextRequest, { params }: Params) {
     const winnerNames = (winners ?? []).map((w: { display_name: string | null; username: string | null }) => w.display_name || w.username || "Unknown").join(", ")
     const verb = action === "reroll" ? "REROLLED" : "ENDED"
 
-    await serviceClient.from("messages").insert({
+    const { error: msgError3 } = await serviceClient.from("messages").insert({
       channel_id: giveawayRecord.channel_id,
       author_id: SYSTEM_BOT_ID,
-      content: `**GIVEAWAY ${verb}**\nPrize: **${giveawayRecord.prize}**\nWinner${winnerIds.length > 1 ? "s" : ""}: ${winnerNames}\n\nCongratulations!`,
+      content: `🎉 **GIVEAWAY ${verb}** 🎉\n\n🎁 Prize: **${giveawayRecord.prize}**\n🏆 Winner${winnerIds.length > 1 ? "s" : ""}: ${winnerNames}\n\nCongratulations! 🎊`,
+      webhook_display_name: "Giveaway Bot",
     })
+    if (msgError3) {
+      console.error("[giveaway] Failed to post winner message", { serverId, giveawayId: giveawayRecord.id, error: msgError3.message })
+    }
 
     return NextResponse.json({ ok: true, message: `Giveaway ${verb.toLowerCase()}`, winners: winnerIds })
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/giveaway/[giveawayId] POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
