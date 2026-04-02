@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import type { NotificationMode } from "@/lib/notification-resolver"
 
 function DesktopNotificationSection(): React.ReactNode {
   const [permission, setPermission] = useState<NotificationPermission>("default")
@@ -131,8 +132,6 @@ const DEFAULT_SETTINGS: NotificationSettingsRow = {
   show_message_preview: true,
   show_unread_badge: true,
 }
-
-type NotificationMode = "all" | "mentions" | "muted"
 
 const MODE_OPTIONS: { mode: NotificationMode; label: string; icon: React.ReactNode }[] = [
   { mode: "all", label: "All Messages", icon: <Hash className="w-3.5 h-3.5" /> },
@@ -375,18 +374,26 @@ export function NotificationsSettingsPage({ userId }: Props) {
                       value={currentMode}
                       onChange={async (e) => {
                         const newMode = e.target.value as NotificationMode
+                        const previousMode = currentMode
                         if (newMode === "all") {
                           removeNotificationMode(server.id)
                         } else {
                           setNotificationMode(server.id, newMode)
                         }
                         try {
-                          await fetch("/api/notification-settings", {
+                          const res = await fetch("/api/notification-settings", {
                             method: "PUT",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ serverId: server.id, mode: newMode }),
                           })
+                          if (!res.ok) throw new Error("Failed to save notification setting")
                         } catch {
+                          // Rollback optimistic update
+                          if (previousMode === "all") {
+                            removeNotificationMode(server.id)
+                          } else {
+                            setNotificationMode(server.id, previousMode)
+                          }
                           toast({ title: "Failed to update server notification", variant: "destructive" })
                         }
                       }}

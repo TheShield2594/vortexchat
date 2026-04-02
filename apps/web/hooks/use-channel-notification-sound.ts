@@ -49,6 +49,11 @@ export function useChannelNotificationSound(userId: string | null): void {
 
           // Check per-server notification mode from Zustand store
           const state = useAppStore.getState()
+
+          // Don't default to "all" until notification modes have been hydrated —
+          // an empty map means loadNotificationSettings hasn't resolved yet.
+          const modesHydrated = Object.keys(state.notificationModes).length > 0
+
           // Find which server this channel belongs to
           let serverId: string | null = null
           for (const [sid, channels] of Object.entries(state.channels)) {
@@ -62,7 +67,12 @@ export function useChannelNotificationSound(userId: string | null): void {
 
           // Check notification mode — only notify for "all" mode
           // (mentions are handled via the notifications table separately)
-          const mode = state.notificationModes[channelId ?? ""] ?? state.notificationModes[serverId] ?? "all"
+          const channelMode = channelId ? state.notificationModes[channelId] : undefined
+          const serverMode = state.notificationModes[serverId]
+          const mode = channelMode ?? serverMode ?? (modesHydrated ? "all" : undefined)
+
+          // If modes aren't hydrated yet, skip to avoid false positives
+          if (!mode) return
           if (mode === "muted" || mode === "mentions") return
 
           const { shouldPlaySound, shouldShowBrowserNotification } = shouldNotify({
@@ -75,9 +85,19 @@ export function useChannelNotificationSound(userId: string | null): void {
           }
 
           if (shouldShowBrowserNotification) {
+            // Respect user's show_message_preview preference from localStorage
+            let showPreview = true
+            try {
+              const stored = localStorage.getItem(`vortexchat:notif-prefs:${userId}`)
+              if (stored) {
+                const parsed = JSON.parse(stored) as Record<string, unknown>
+                if (parsed.show_message_preview === false) showPreview = false
+              }
+            } catch { /* ignore */ }
+
             showBrowserNotification({
               title: "New Message",
-              body: content?.slice(0, 100) || "Sent a message",
+              body: showPreview ? (content?.slice(0, 100) || "Sent a message") : "Sent a message",
               channelId,
               url: serverId && channelId ? `/channels/${serverId}/${channelId}` : undefined,
             })

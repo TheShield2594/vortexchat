@@ -299,19 +299,19 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
           </div>
 
           {/* Main content */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-8 overflow-x-hidden relative">
-            {/* Close button — always visible */}
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute top-4 right-4 md:top-6 md:right-6 z-10 w-9 h-9 rounded-full flex items-center justify-center transition-colors focus-ring"
-              style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-secondary)' }}
-              aria-label="Close server settings"
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--theme-bg-secondary)'; e.currentTarget.style.color = 'var(--theme-text-bright)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--theme-bg-tertiary)'; e.currentTarget.style.color = 'var(--theme-text-secondary)' }}
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 overflow-x-hidden">
+            {/* Close button — sticky so it stays visible while scrolling */}
+            <div className="sticky top-0 z-10 flex justify-end -mt-2 mb-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-colors focus-ring hover:bg-white/10"
+                style={{ background: 'var(--theme-bg-tertiary)', color: 'var(--theme-text-secondary)' }}
+                aria-label="Close server settings"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             {isMobile && (
               <div className="flex flex-col" style={{ background: 'var(--theme-bg-secondary)' }}>
                 <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
@@ -383,7 +383,7 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
                 </TabsList>
               </div>
             )}
-            <div className="max-w-3xl">
+            <div className="w-full max-w-6xl">
             <TabsContent value="overview" className="mt-0 space-y-4">
               {/* Server Icon */}
               {isOwner && (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 
@@ -11,18 +11,26 @@ import { useAppStore } from "@/lib/stores/app-store"
  */
 export function useNotificationCountSync(userId: string | null): void {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const seededRef = useRef(false)
 
   useEffect(() => {
     if (!userId) return
+    seededRef.current = false
 
-    // Fetch initial count
+    // Fetch initial count — only apply if realtime hasn't already updated
     async function fetchCount(): Promise<void> {
       try {
         const res = await fetch("/api/notifications/unread-count")
         if (!res.ok) return
         const data = await res.json() as { count?: number }
         if (typeof data.count === "number") {
-          useAppStore.setState({ notificationUnreadCount: data.count })
+          const current = useAppStore.getState().notificationUnreadCount
+          // Only seed if this is the first load or the store hasn't been
+          // updated by a realtime event with a higher value
+          if (!seededRef.current || current === 0) {
+            useAppStore.setState({ notificationUnreadCount: data.count })
+            seededRef.current = true
+          }
         }
       } catch {
         // silently ignore — NotificationBell will also sync when mounted
@@ -37,9 +45,24 @@ export function useNotificationCountSync(userId: string | null): void {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         () => {
+          seededRef.current = true
           useAppStore.setState((state) => ({
             notificationUnreadCount: (state.notificationUnreadCount ?? 0) + 1,
           }))
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const oldRow = payload.old as { read?: boolean }
+          const newRow = payload.new as { read?: boolean }
+          // Decrement when a notification transitions from unread to read
+          if (oldRow.read === false && newRow.read === true) {
+            useAppStore.setState((state) => ({
+              notificationUnreadCount: Math.max(0, (state.notificationUnreadCount ?? 0) - 1),
+            }))
+          }
         }
       )
       .on(

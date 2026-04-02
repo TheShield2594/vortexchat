@@ -18,7 +18,7 @@ import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useShallow } from "zustand/react/shallow"
 import { LinkEmbed, extractFirstUrl, extractGiphyUrl, getEmbeddableGiphyUrl, stripUrlFromContent } from "@/components/chat/link-embed"
 import { WorkspaceReferenceEmbed, extractWorkspaceReference } from "@/components/chat/workspace-reference-embed"
-import { ServerEmojiImage, useServerEmojis } from "@/components/chat/server-emoji-context"
+import { ServerEmojiImage, useServerEmojis, type ServerEmoji } from "@/components/chat/server-emoji-context"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { getReplyPreviewText } from "@/components/chat/reply-preview"
 import { MessageMarkdown } from "@/components/chat/markdown-renderer"
@@ -95,7 +95,7 @@ function addEmojiRecent(emoji: string) {
   }
 }
 
-function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis }: { onSelect: (emoji: string) => void | Promise<void>; onClose: () => void; maxHeight?: string; serverEmojis?: { id: string; name: string; image_url: string }[] }) {
+function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis }: { onSelect: (emoji: string) => void | Promise<void>; onClose: () => void; maxHeight?: string; serverEmojis?: ServerEmoji[] }) {
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
