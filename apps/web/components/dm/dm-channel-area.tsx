@@ -9,7 +9,9 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
 import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
-import { format, isToday, isYesterday } from "date-fns"
+import { format } from "date-fns"
+import { formatDaySeparator, extractGifUrl, groupReactionsByEmoji } from "@/lib/utils/message-helpers"
+import { DaySeparator } from "@/components/chat/day-separator"
 import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
 import { useDMCall, IncomingCallToast, CallerRingingOverlay } from "@/components/dm/dm-call"
@@ -277,40 +279,8 @@ function DmReactionPickerContent({ onReaction, onClose, maxHeight, EmojiPicker }
   )
 }
 
-/** Format a date for the day separator. */
-function formatDaySeparator(date: Date): string {
-  if (isToday(date)) return "Today"
-  if (isYesterday(date)) return "Yesterday"
-  return format(date, "MMMM d, yyyy")
-}
-
-/** Detect if a message is a standalone GIF URL (Klipy or Giphy media link). */
-function extractGifUrl(content: string | null): string | null {
-  if (!content) return null
-  const trimmed = content.trim()
-  // Only treat messages that are a single URL (no surrounding text)
-  if (!/^https?:\/\/\S+$/.test(trimmed)) return null
-  try {
-    const parsed = new URL(trimmed)
-    const host = parsed.hostname
-    // Klipy media URLs
-    if ((host === "klipy.com" || host.endsWith(".klipy.com")) && /\.(gif|webp)(\?|$)/i.test(parsed.pathname)) {
-      return trimmed
-    }
-    // Giphy media URLs
-    if ((host === "media.giphy.com" || host.endsWith(".giphy.com") || host === "giphy.com" || host === "i.giphy.com") && /\.(gif|webp)(\?|$)/i.test(parsed.pathname)) {
-      return trimmed
-    }
-    // Giphy page URLs — extract and build embeddable URL
-    if (host === "giphy.com" || host === "www.giphy.com") {
-      const idMatch = parsed.pathname.match(/-([a-zA-Z0-9]+)$/) ?? parsed.pathname.match(/\/media\/([a-zA-Z0-9]+)\//)
-      if (idMatch?.[1]) return `https://media.giphy.com/media/${idMatch[1]}/giphy.gif`
-    }
-  } catch {
-    // invalid URL
-  }
-  return null
-}
+// formatDaySeparator, extractGifUrl, and groupReactionsByEmoji are imported
+// from @/lib/utils/message-helpers to share logic with chat-area.tsx
 
 const DEVICE_STORAGE_KEY = "dm-device-key-v1"
 const DEVICE_KEY_DB = "vortexchat-e2ee"
@@ -1421,18 +1391,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           const senderInitials = senderName.slice(0, 2).toUpperCase()
           const isEditing = editingId === msg.id
 
-          // Group reactions by emoji
-          const reactionGroups = (msg.reactions ?? []).reduce(
-            (acc, r) => {
-              if (!acc[r.emoji]) acc[r.emoji] = { count: 0, users: [] as string[], hasOwn: false }
-              acc[r.emoji].count++
-              acc[r.emoji].users.push(r.user_id)
-              if (r.user_id === currentUserId) acc[r.emoji].hasOwn = true
-              return acc
-            },
-            {} as Record<string, { count: number; users: string[]; hasOwn: boolean }>
-          )
-          const reactionEntries = Object.entries(reactionGroups)
+          // Group reactions by emoji (shared utility)
+          const reactionEntries = groupReactionsByEmoji(msg.reactions ?? [], currentUserId)
 
           const renderedContent = channel.is_encrypted ? (decryptedContent[msg.id]?.text ?? "Decrypting…") : msg.content
           const decryptFailed = channel.is_encrypted ? Boolean(decryptedContent[msg.id]?.failed) : false
@@ -1459,15 +1419,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           return (
             <div key={msg.id}>
               {/* Date separator */}
-              {showDaySeparator && (
-                <div className="flex items-center gap-3 my-3 px-1">
-                  <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
-                  <span className="text-xs font-medium flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>
-                    {formatDaySeparator(msgDate)}
-                  </span>
-                  <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
-                </div>
-              )}
+              {showDaySeparator && <DaySeparator date={msgDate} />}
             <div data-message-id={msg.id} className={cn("group hover:bg-white/[0.02] rounded px-1 -mx-1", isGrouped ? "pl-11" : "")}>
               {/* Reply reference */}
               {msg.reply_to_id && msg.reply_to && (

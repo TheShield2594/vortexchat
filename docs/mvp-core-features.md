@@ -124,7 +124,7 @@
 | Supabase `getUser()` error check in middleware (#550) | Done | `middleware.ts` now checks `error` from `getUser()` and returns `user: null` on failure instead of proceeding with undefined user |
 | TURN credentials moved server-side (#538) | Done | Replaced `NEXT_PUBLIC_TURN_*` env vars with server-side `TURN_URL`/`TURN_SECRET`; new `GET /api/turn-credentials` generates ephemeral HMAC-based credentials (TURN REST API); clients fetch via `fetchIceServers()` helper |
 | Step-up secret isolation (#541) | Done | Removed `STEP_UP_SECRET` fallback to `NEXTAUTH_SECRET`; production requires dedicated `STEP_UP_SECRET` env var |
-| Webhook HMAC request signing (#547) | Done | `POST /api/webhooks/[token]` validates optional `X-Webhook-Signature` header (HMAC-SHA256 with token as key); timing-safe comparison |
+| Webhook HMAC request signing (#547, #717) | Done | `POST /api/webhooks/[token]` **requires** `X-Webhook-Signature` header (HMAC-SHA256 with token as key); rejects unsigned requests with 401; timing-safe comparison |
 | Rate limits on role assignment/removal (#551) | Done | `POST/DELETE /api/servers/[serverId]/members/[userId]/roles` — 10 actions per 5 min per moderator via `rateLimiter` |
 | Timing-safe cron/webhook token comparison (#555) | Done | All 6 cron endpoints use `verifyBearerToken()` with `crypto.timingSafeEqual` instead of `===` |
 | Gateway/signal server fail-closed auth (#687) | Done | `checkChannelAccess` (gateway.ts) and `checkChannelMembership` (index.ts) now return `false` on DB errors instead of `true` |
@@ -378,6 +378,10 @@
 | Slim down members route response payload | Done | `?fields=full` param; default slim projection omits bio, status_message, banner_color, custom_tag (#666) |
 | Cap and stream audit log CSV export; slim events RSVP | Done | CSV export capped at 1000 rows with streaming; events RSVP returns only user_id+status (#667) |
 | Offline message history caching in service worker | Done | Network-first API cache with 5min TTL for `/api/messages` and channel message endpoints (#670) |
+| Signal server health endpoint hardened (#717) | Done | `/health` returns only `{ status: "ok" }` — removed `rooms.getStats()` that exposed channel IDs and user counts |
+| Shared package tests in CI (#716) | Done | Added `npm test --workspace=packages/shared` to CI test job; removed `continue-on-error` from E2E job |
+| Signal server Dockerfile multi-stage build (#715) | Done | Replaced manual `COPY packages/shared → node_modules` with proper npm workspace resolution; added `build` script + `tsconfig.build.json` to `@vortex/shared`; multi-stage Docker build |
+| DMChannelArea shared utilities (#719) | Done | Extracted `formatDaySeparator`, `extractGifUrl`, `groupReactionsByEmoji` to `lib/utils/message-helpers.ts`; shared `DaySeparator` component used by both `ChatArea` and `DMChannelArea` |
 
 ---
 

@@ -69,20 +69,21 @@ export async function POST(
       return NextResponse.json({ error: "Failed to read request body" }, { status: 400 })
     }
 
-    // HMAC signature verification (defense-in-depth).
-    // When X-Webhook-Signature is present, verify it against the request body
-    // using the webhook token as the HMAC-SHA256 key.
+    // HMAC signature verification — mandatory on all webhook requests.
+    // Verify X-Webhook-Signature against the request body using the webhook
+    // token as the HMAC-SHA256 key.
     const signatureHeader = req.headers.get("x-webhook-signature")
-    if (signatureHeader) {
-      const expectedSig = crypto
-        .createHmac("sha256", token)
-        .update(rawBody)
-        .digest("hex")
-      const sigBuffer = Buffer.from(signatureHeader)
-      const expectedBuffer = Buffer.from(expectedSig)
-      if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
-      }
+    if (!signatureHeader) {
+      return NextResponse.json({ error: "Missing X-Webhook-Signature header" }, { status: 401 })
+    }
+    const expectedSig = crypto
+      .createHmac("sha256", token)
+      .update(rawBody)
+      .digest("hex")
+    const sigBuffer = Buffer.from(signatureHeader)
+    const expectedBuffer = Buffer.from(expectedSig)
+    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
     }
 
     let body: unknown
