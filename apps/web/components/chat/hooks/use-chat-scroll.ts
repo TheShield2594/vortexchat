@@ -22,16 +22,15 @@ interface UseChatScrollArgs {
  *    never sees a frame where content shifted but scroll didn't follow.
  *
  * 2. MutationObserver — catches DOM changes that don't trigger React renders
- *    (image loads via naturalWidth, lazy embeds, virtualizer re-measurement).
- *    Fires in the same microtask as the mutation, so it's still pre-paint.
+ *    (lazy embeds, virtualizer re-measurement via rAF).
  *
- * 3. Sticky pin tolerance — 10px to initially pin, 100px to stay pinned.
- *    Small layout shifts (reactions, edited messages, embed heights) don't
- *    accidentally unpin the user.
+ * 3. Sticky pin tolerance — 10px to initially pin, 200px to stay pinned.
+ *    The large sticky range absorbs mobile address-bar resize (~56-100px)
+ *    and iOS momentum scroll overshoot.
  */
 
 const PIN_TOLERANCE = 10
-const STICKY_TOLERANCE = 100
+const STICKY_TOLERANCE = 200
 const SCROLL_TRIGGER_THRESHOLD = 120
 
 export function useChatScroll({
@@ -46,6 +45,10 @@ export function useChatScroll({
   const [isAtBottom, setIsAtBottom] = useState(true)
   const isPinnedRef = useRef(true)
   const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Track previous scrollHeight so we can distinguish "content grew" from
+  // "viewport resized" — viewport resizes (address bar, keyboard) should
+  // keep the pin but not actively scroll.
+  const prevScrollHeightRef = useRef(0)
 
   // ── Core: snap to bottom on every render when pinned ────────────────
   // Runs in useLayoutEffect (before paint) so new messages, channel
@@ -64,6 +67,8 @@ export function useChatScroll({
   useEffect(() => {
     const container = messageScrollerRef.current
     if (!container) return
+
+    prevScrollHeightRef.current = container.scrollHeight
 
     const persistScroll = () => {
       if (scrollStorageKey && typeof window !== "undefined") {
@@ -89,7 +94,26 @@ export function useChatScroll({
         void loadOlderMessages()
       }
 
+      // Detect whether scrollHeight changed (content grew/shrank) vs
+      // clientHeight changed (viewport resize from address bar / keyboard).
+      // Both fire scroll events, but viewport resizes should preserve pin
+      // without actively re-scrolling — the browser already adjusts.
+      const scrollHeightChanged = container.scrollHeight !== prevScrollHeightRef.current
+      prevScrollHeightRef.current = container.scrollHeight
+
       const nextPinned = evaluatePin()
+
+      // On viewport resize (clientHeight change, scrollHeight unchanged),
+      // keep the current pin state — don't let address-bar show/hide unpin.
+      if (!scrollHeightChanged && isPinnedRef.current && !nextPinned) {
+        // Viewport shrank or grew but content didn't — stay pinned and re-snap
+        const maxScroll = container.scrollHeight - container.clientHeight
+        if (maxScroll - scrollTop > 1) {
+          container.scrollTop = maxScroll
+        }
+        return
+      }
+
       isPinnedRef.current = nextPinned
       setIsAtBottom(nextPinned)
 
@@ -112,21 +136,17 @@ export function useChatScroll({
     }
 
     // ── MutationObserver: catch DOM changes outside React renders ──────
-    // Virtualizer re-measures, image loads, embed heights — anything that
-    // changes children/styles in the scroll container without a React
-    // state update.  Fires synchronously in the mutation microtask, so we
-    // can adjust scrollTop before the next paint.
+    // Lazy embeds, virtualizer rAF re-measurements, etc.
     let mutationRaf = 0
     const mutationObserver = new MutationObserver(() => {
       if (!isPinnedRef.current) return
-      // Batch via rAF — multiple mutations (virtualizer re-measuring many
-      // items) collapse into a single scroll adjustment.
       cancelAnimationFrame(mutationRaf)
       mutationRaf = requestAnimationFrame(() => {
         if (!isPinnedRef.current) return
         const maxScroll = container.scrollHeight - container.clientHeight
         if (maxScroll - container.scrollTop > 1) {
           container.scrollTop = maxScroll
+          prevScrollHeightRef.current = container.scrollHeight
         }
       })
     })
@@ -135,8 +155,24 @@ export function useChatScroll({
       subtree: true,
     })
 
+    // Initial evaluation
     onScroll()
     container.addEventListener("scroll", onScroll, { passive: true })
+
+    // On mobile, visualViewport resize (keyboard, address bar) can shift
+    // clientHeight without a scroll event.  Re-snap if pinned.
+    const onViewportResize = () => {
+      if (!isPinnedRef.current) return
+      requestAnimationFrame(() => {
+        if (!isPinnedRef.current) return
+        const maxScroll = container.scrollHeight - container.clientHeight
+        if (maxScroll - container.scrollTop > 1) {
+          container.scrollTop = maxScroll
+        }
+      })
+    }
+    const vv = typeof window !== "undefined" ? window.visualViewport : null
+    vv?.addEventListener("resize", onViewportResize)
 
     return () => {
       if (scrollSaveTimerRef.current) {
@@ -147,6 +183,7 @@ export function useChatScroll({
       container.removeEventListener("scroll", onScroll)
       cancelAnimationFrame(mutationRaf)
       mutationObserver.disconnect()
+      vv?.removeEventListener("resize", onViewportResize)
     }
   }, [hasMoreHistory, loadOlderMessages, messageScrollerRef, onReachedBottom, paginationRequestRef, scrollStorageKey, unreadAnchorStorageKey])
 
