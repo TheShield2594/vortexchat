@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         .maybeSingle()
 
       if (membershipError) {
-        log.error({ dmChannelId, userId: user.id, error: membershipError.message }, "DM membership check failed")
+        log.error({ route: "/api/search", action: "dmMembershipCheck", dmChannelId, userId: user.id, error: membershipError.message }, "DM membership check failed")
         return NextResponse.json({ error: "Internal server error" }, { status: 500 })
       }
       if (!membership) {
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
       const { data: dmMessages, error: dmError } = await dmQuery
 
       if (dmError) {
-        log.error({ dmChannelId, userId: user.id, error: dmError.message }, "DM search query failed")
+        log.error({ route: "/api/search", action: "dmSearch", dmChannelId, userId: user.id, error: dmError.message }, "DM search query failed")
         return NextResponse.json({ error: "Internal server error" }, { status: 500 })
       }
 
@@ -306,7 +306,7 @@ export async function GET(req: NextRequest) {
     })
 
   } catch (err) {
-    log.error({ error: err }, "GET error");
+    log.error({ route: "/api/search", action: "GET", error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

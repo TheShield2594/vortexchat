@@ -79,7 +79,7 @@ async function getMessagesAroundTarget(supabase: ServerSupabaseClient, channelId
   ])
 
   if (beforeError || afterError) {
-    log.error({ error: beforeError?.message ?? afterError?.message }, "around query error")
+    log.error({ route: "/api/messages", action: "getMessagesAround", channelId, error: beforeError?.message ?? afterError?.message }, "around query error")
     return { error: NextResponse.json({ error: "Failed to load message context" }, { status: 500 }) }
   }
 
@@ -106,7 +106,7 @@ async function resolveSafeMentions(supabase: ServerSupabaseClient, userId: strin
     const filteredMentions = await filterMentionsByBlockState(supabase, userId, mentions)
     return { safeMentions: filteredMentions.allowed }
   } catch (error) {
-    log.error({ error: error instanceof Error ? error.message : error }, "mention validation error")
+    log.error({ route: "/api/messages", action: "resolveMentions", userId, error: error instanceof Error ? error.message : error }, "mention validation error")
     return {
       error: NextResponse.json(
         { error: "Failed to validate mentions" },
@@ -482,7 +482,7 @@ async function insertMessageWithAttachments({
       for (const att of insertedAttachments) {
         if (att.storage_path && isProcessableImage(att.content_type)) {
           processAttachmentImage(att.id, att.storage_path, att.content_type).catch((err) => {
-            log.error({ attachmentId: att.id, error: err }, "image processing failed for attachment")
+            log.error({ route: "/api/messages", action: "processImage", attachmentId: att.id, error: err }, "image processing failed for attachment")
           })
         }
       }
@@ -535,7 +535,7 @@ export async function GET(request: Request) {
     return NextResponse.json(await withReplyTo(supabase, (messages ?? []).reverse()))
 
   } catch (err) {
-    log.error({ error: err }, "GET error");
+    log.error({ route: "/api/messages", action: "GET", error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -709,7 +709,7 @@ export async function POST(request: Request) {
       }
     }
 
-    log.error({ error: msgError.message }, "insert failed")
+    log.error({ route: "/api/messages", action: "POST", userId: user.id, channelId, error: msgError.message }, "insert failed")
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
   }
   // --- Send push notifications (fire-and-forget) ---
@@ -786,7 +786,7 @@ export async function POST(request: Request) {
         await serviceSupabase.from("notifications").insert(rows)
       }
     })
-    .catch((err) => { log.error({ error: err }, "in-app notification insert failed") })
+    .catch((err) => { log.error({ route: "/api/messages", action: "notificationInsert", userId: user.id, channelId, error: err }, "in-app notification insert failed") })
 
   // When @everyone/@here is used, treat all channel members as mentioned
   // so they receive push notifications even if their mode is "mentions only"
@@ -828,7 +828,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (err) {
-      log.error({ error: err }, "failed to resolve role mentions")
+      log.error({ route: "/api/messages", action: "resolveRoleMentions", userId: user.id, serverId, error: err }, "failed to resolve role mentions")
     }
   }
 
@@ -841,7 +841,7 @@ export async function POST(request: Request) {
     mentionedIds: pushMentionedIds,
     mentionEveryone,
     excludeUserId: user.id,
-  }).catch((err) => { log.error({ error: err }, "sendPushToChannel failed") })
+  }).catch((err) => { log.error({ route: "/api/messages", action: "sendPush", userId: user.id, channelId, error: err }, "sendPushToChannel failed") })
 
   // Skip the extra DB query when there's no reply to hydrate
   const hydratedMessage = replyToId
@@ -850,7 +850,7 @@ export async function POST(request: Request) {
   lap("total")
   return NextResponse.json(hydratedMessage, { status: 201 })
   } catch (err) {
-    log.error({ error: err }, "POST error")
+    log.error({ route: "/api/messages", action: "POST", error: err }, "POST error")
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

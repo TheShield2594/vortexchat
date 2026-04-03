@@ -28,8 +28,10 @@ import { SocketRateLimiter } from "./rate-limiter"
 const log = pino({ name: "gateway" })
 
 // ── Per-socket rate limiter (shared with index.ts) ──────────────────────────
+// Instantiated at module scope but cleanup timer is only started inside
+// initGateway() so disabled/test processes don't leak intervals.
 
-const gatewayLimiter = new SocketRateLimiter().startCleanup()
+let gatewayLimiter: SocketRateLimiter | null = null
 
 // ── Gateway socket state ────────────────────────────────────────────────────
 
@@ -71,10 +73,12 @@ export interface GatewayOptions {
 
 /** Stop the gateway rate-limiter cleanup timer (call during graceful shutdown). */
 export function stopGatewayCleanup(): void {
-  gatewayLimiter.stopCleanup()
+  gatewayLimiter?.stopCleanup()
+  gatewayLimiter = null
 }
 
 export function initGateway(options: GatewayOptions): void {
+  gatewayLimiter ??= new SocketRateLimiter().startCleanup()
   const { io, eventBus, presence, supabase, validateSession, getSessionUserId } = options
 
   // Subscribe to event bus to fan out events to connected sockets
@@ -202,7 +206,7 @@ export function initGateway(options: GatewayOptions): void {
         if (typeof channelId !== "string" || !channelId) return
         if (typeof isTyping !== "boolean") return
 
-        if (!gatewayLimiter.check(socket.id, "typing", TYPING_RATE_LIMIT, 60_000)) return
+        if (!gatewayLimiter!.check(socket.id, "typing", TYPING_RATE_LIMIT, 60_000)) return
         if (!(await validateSession(socket))) return
 
         const state = socketStates.get(socket.id)
@@ -276,7 +280,7 @@ export function initGateway(options: GatewayOptions): void {
         const validStatuses: UserStatus[] = ["online", "idle", "dnd", "invisible", "offline"]
         if (!validStatuses.includes(status as UserStatus)) return
 
-        if (!gatewayLimiter.check(socket.id, "presence", PRESENCE_RATE_LIMIT, 60_000)) return
+        if (!gatewayLimiter!.check(socket.id, "presence", PRESENCE_RATE_LIMIT, 60_000)) return
         if (!(await validateSession(socket))) return
 
         const state = socketStates.get(socket.id)
@@ -475,7 +479,7 @@ export function initGateway(options: GatewayOptions): void {
           })
         }
 
-        gatewayLimiter.remove(socket.id)
+        gatewayLimiter!.remove(socket.id)
         socketStates.delete(socket.id)
       } catch (err) {
         log.error({ socketId: socket.id, err }, "gateway disconnect cleanup error")

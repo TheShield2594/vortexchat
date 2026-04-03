@@ -15,6 +15,9 @@ export class SocketRateLimiter {
    * The returned instance can be used for chaining.
    */
   startCleanup(intervalMs = 60_000, maxAgeMs = 120_000): this {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer)
+    }
     this.cleanupTimer = setInterval(() => this.cleanup(maxAgeMs), intervalMs)
     return this
   }

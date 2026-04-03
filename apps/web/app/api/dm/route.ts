@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     return NextResponse.json(messages ?? [])
 
   } catch (err) {
-    log.error({ error: err }, "GET error");
+    log.error({ route: "/api/dm", action: "GET", error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -82,9 +82,25 @@ export async function POST(request: Request) {
     const limited = await checkRateLimit(user.id, "dm:send", { limit: 15, windowMs: 10_000 })
     if (limited) return limited
 
-    const { receiverId, content } = await request.json()
+    let payload: unknown
+    try {
+      payload = await request.json()
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
 
-    if (!receiverId || !content?.trim()) {
+    if (!payload || typeof payload !== "object") {
+      return NextResponse.json({ error: "receiverId and content required" }, { status: 400 })
+    }
+
+    const receiverId = (payload as Record<string, unknown>).receiverId
+    const content = (payload as Record<string, unknown>).content
+    if (typeof receiverId !== "string" || typeof content !== "string") {
+      return NextResponse.json({ error: "receiverId and content required" }, { status: 400 })
+    }
+
+    const trimmed = content.trim()
+    if (!receiverId || !trimmed) {
       return NextResponse.json({ error: "receiverId and content required" }, { status: 400 })
     }
 
@@ -95,7 +111,6 @@ export async function POST(request: Request) {
     }
 
     // Content length validation
-    const trimmed = content.trim()
     if (trimmed.length > MAX_DM_CONTENT_LENGTH) {
       return NextResponse.json(
         { error: `Content exceeds maximum length of ${MAX_DM_CONTENT_LENGTH} characters` },
@@ -120,7 +135,7 @@ export async function POST(request: Request) {
     return NextResponse.json(data, { status: 201 })
 
   } catch (err) {
-    log.error({ error: err }, "POST error");
+    log.error({ route: "/api/dm", action: "POST", error: err }, "POST error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
