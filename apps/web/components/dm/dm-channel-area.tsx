@@ -412,7 +412,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null) as MutableRefObject<Promise<unknown> | null>
   const isMobileDm = useMobileLayout()
-  useKeyboardAvoidance(scrollerRef, isMobileDm, false)
+  useKeyboardAvoidance(scrollerRef, isMobileDm, true)
 
   const prevLastMsgIdRef = useRef<string | null>(null)
   const topRef = useRef<HTMLDivElement>(null)
@@ -612,11 +612,10 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   })
 
   // Scroll to bottom on channel switch.
-  // Re-scroll after two animation frames so images, embeds, or lazy
-  // content that change scrollHeight are accounted for.
+  // column-reverse: scrollTop=0 is naturally the bottom, so we just
+  // ensure scrollTop is 0 when switching channels.
   const shouldScrollToBottomRef = useRef(true)
   const prevChannelIdScrollRef = useRef(channelId)
-  const dmRafRef = useRef(0)
   useLayoutEffect(() => {
     if (prevChannelIdScrollRef.current !== channelId) {
       shouldScrollToBottomRef.current = true
@@ -631,16 +630,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     shouldScrollToBottomRef.current = false
 
     scrollToBottom()
-    // Re-scroll after layout settles — images, embeds, or lazy content may
-    // change scrollHeight between useLayoutEffect and the first paint.
-    cancelAnimationFrame(dmRafRef.current)
-    const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => {
-        scrollToBottom()
-      })
-      dmRafRef.current = raf2
-    })
-    dmRafRef.current = raf1
     prevLastMsgIdRef.current = messages[messages.length - 1]?.id ?? null
   }, [channelId, messages.length, scrollToBottom])
 
@@ -704,8 +693,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     if (!newestMsg) return
     if (prevLastMsgIdRef.current === null || newestMsg.id === prevLastMsgIdRef.current) return
     prevLastMsgIdRef.current = newestMsg.id
-    if (isAtBottom || newestMsg.sender_id === currentUserId) {
+    // column-reverse: if at bottom, new messages appear naturally — no scroll needed.
+    // Only scroll when the current user sent a message while scrolled up.
+    if (newestMsg.sender_id === currentUserId && !isAtBottom) {
       scrollToBottom("smooth")
+      setPendingNewMessageCount(0)
+    } else if (isAtBottom) {
       setPendingNewMessageCount(0)
     } else {
       setPendingNewMessageCount((c) => c + 1)
@@ -1360,8 +1353,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       )}
 
       {/* Messages */}
-      {/* Scroll container: standard direction (scrollTop = scrollHeight = newest messages) */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}>
+      {/* Scroll container: column-reverse (scrollTop=0 = newest messages) */}
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none", overscrollBehaviorY: "contain" }}>
         <div className="space-y-1">
         {/* Load more */}
         {hasMore && (

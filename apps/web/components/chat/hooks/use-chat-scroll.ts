@@ -13,13 +13,11 @@ interface UseChatScrollArgs {
 }
 
 /**
- * Scroll management hook for chat message containers.
+ * Scroll management hook for the column-reverse message container.
  *
- * Standard (top-to-bottom) scroll direction:
- *   scrollTop === 0 → user is at the top (oldest messages)
- *   scrollTop + clientHeight === scrollHeight → user is at the bottom (newest)
- *
- * Used by both channel chat and DM chat for consistent scroll behavior.
+ * In a column-reverse layout, scrollTop === 0 means the user is at
+ * the very bottom (most recent messages visible).  Scrolling "up"
+ * (toward older messages) increases scrollTop.
  */
 export function useChatScroll({
   hasMoreHistory,
@@ -44,16 +42,21 @@ export function useChatScroll({
     }
 
     const onScroll = () => {
+      // In column-reverse, scrollTop is 0 at bottom and increases as
+      // you scroll toward older messages.  Large scrollTop = near old
+      // messages = trigger pagination.
       const scrollTop = container.scrollTop
 
-      // Load older messages when near the top (oldest messages).
-      if (scrollTop < 120 && hasMoreHistory && !paginationRequestRef.current) {
+      // Load older messages when scrolled far enough toward history.
+      // scrollHeight - clientHeight - scrollTop gives the distance from
+      // the visual "top" (oldest messages).
+      const distanceFromOldest = container.scrollHeight - container.clientHeight - scrollTop
+      if (distanceFromOldest < 120 && hasMoreHistory && !paginationRequestRef.current) {
         void loadOlderMessages()
       }
 
-      // At bottom when scrolled within 120px of the end
-      const distanceFromBottom = container.scrollHeight - container.clientHeight - scrollTop
-      const nextIsAtBottom = distanceFromBottom < 120
+      // In column-reverse, scrollTop near 0 = at bottom (newest messages)
+      const nextIsAtBottom = scrollTop < 120
       setIsAtBottom(nextIsAtBottom)
 
       if (scrollStorageKey) {
@@ -90,7 +93,7 @@ export function useChatScroll({
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     const container = messageScrollerRef.current
     if (!container) return
-    container.scrollTo({ top: container.scrollHeight, behavior })
+    container.scrollTo({ top: 0, behavior })
   }, [messageScrollerRef])
 
   return { isAtBottom, setIsAtBottom, scrollToBottom }

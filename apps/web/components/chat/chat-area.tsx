@@ -26,8 +26,8 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useChatOutbox } from "@/components/chat/hooks/use-chat-outbox"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
-import { VirtualizedMessageList, type VirtualizedMessageListHandle } from "@/components/chat/virtualized-message-list"
-import { DISPLAY_LIMIT } from "@/components/chat/constants"
+/** Cap displayed messages to keep the DOM manageable — older trimmed on fetch. */
+const DISPLAY_LIMIT = 150
 import { ChannelSummaryCard } from "@/components/chat/channel-summary-card"
 import { PinnedMessagesPanel } from "@/components/chat/pinned-messages-panel"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -117,7 +117,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const overflowRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
-  const virtualizerRef = useRef<VirtualizedMessageListHandle>(null)
   useKeyboardAvoidance(messageScrollerRef, isMobile)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
   const jumpedRef = useRef(false)
@@ -125,7 +124,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const jumpSignatureRef = useRef<string | null>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const shouldAutoScrollToLatestRef = useRef(true)
-  const rafCleanupRef = useRef(0)
   const prevChannelIdRef = useRef(channel.id)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
@@ -520,12 +518,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const scrollToLatest = useCallback((behavior: ScrollBehavior = "auto") => {
     const container = messageScrollerRef.current
     if (!container) return
-    container.scrollTo({ top: container.scrollHeight, behavior })
+    // column-reverse: scrollTop=0 is the bottom (newest messages)
+    container.scrollTo({ top: 0, behavior })
   }, [])
 
   useEffect(() => {
     return () => {
-      cancelAnimationFrame(rafCleanupRef.current)
       for (const timer of animatedMessageTimersRef.current.values()) {
         clearTimeout(timer)
       }
@@ -762,7 +760,12 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   const { handlers: pullToRefreshHandlers, pullDistance, refreshing: pullRefreshing, threshold: pullThreshold } = usePullToRefresh({
     onRefresh: handlePullRefresh,
-    isAtTop: (messageScrollerRef.current?.scrollTop ?? 0) < 120,
+    // column-reverse: "top" (oldest) is when scrollTop is near maxScroll
+    isAtTop: (() => {
+      const el = messageScrollerRef.current
+      if (!el) return false
+      return el.scrollHeight - el.clientHeight - el.scrollTop < 120
+    })(),
   })
 
   useEffect(() => {
@@ -861,7 +864,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     flushOutbox()
   }, [isOnline, channel.id, flushOutbox, flushTrigger])
 
-  // On channel switch, scroll to the bottom (newest messages).
+  // On channel switch, column-reverse naturally shows the bottom.
+  // If there's a cached scroll position (user was scrolled up), restore it.
   useLayoutEffect(() => {
     if (prevChannelIdRef.current !== channel.id) {
       shouldAutoScrollToLatestRef.current = true
@@ -877,19 +881,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const container = messageScrollerRef.current
     if (!container) return
 
-    // Scroll to bottom (newest messages).
-    // With virtualized lists, estimated row heights mean scrollHeight may
-    // change after the browser paints and the virtualizer measures real
-    // elements.  Re-scroll after two animation frames to settle.
-    container.scrollTop = container.scrollHeight
-    const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => {
-        const el = messageScrollerRef.current
-        if (el) el.scrollTop = el.scrollHeight
-      })
-      rafCleanupRef.current = raf2
-    })
-    rafCleanupRef.current = raf1
+    // Check for cached scroll position from a previous visit to this channel
+    const cached = useAppStore.getState().messageCache[channel.id]
+    if (cached && cached.scrollOffset > 0) {
+      container.scrollTop = cached.scrollOffset
+    } else {
+      // column-reverse: scrollTop=0 is already the bottom (newest messages)
+      container.scrollTop = 0
+    }
   }, [channel.id, jumpToMessageId, messages.length, openThreadId])
 
   useEffect(() => {
@@ -899,13 +898,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     previousLastMessageIdRef.current = newestMessageId
     if (!hasNewMessages || !newestMessage) return
 
-    // If the user sent a message while scrolled up, auto-scroll to bottom.
+    // In column-reverse, if the user is at the bottom (scrollTop ~0), new
+    // messages appear naturally without any scrolling needed.  We only need
+    // to explicitly scroll when the user sent a message while scrolled up.
     if (newestMessage.author_id === currentUserId && !isAtBottom) {
       scrollToLatest("smooth")
       return
     }
 
-    // Announce new messages from other users for screen readers regardless of scroll position
+    // Already at bottom — no scroll needed, column-reverse handles it.
+    // Announce new messages from other users for screen readers.
     if (newestMessage.author_id !== currentUserId) {
       const authorName = newestMessage.author?.display_name || newestMessage.author?.username || "Unknown"
       const preview = newestMessage.content ? `: ${newestMessage.content.slice(0, 120)}` : ""
@@ -916,11 +918,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       })
     }
 
-    // Already at bottom — auto-scroll to keep newest visible
-    if (isAtBottom) {
-      scrollToLatest()
-      return
-    }
+    if (isAtBottom) return
 
     setPendingNewMessageCount((count) => count + 1)
     setUnreadAnchorMessageId((current) => {
@@ -1007,15 +1005,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
       rafId = window.requestAnimationFrame(() => {
         if (cancelled) return
-        // Scroll to the target message via virtualizer (works for offscreen messages)
-        const targetIdx = messageIndexMap.get(jumpToMessageId!)
-        if (targetIdx != null) {
-          virtualizerRef.current?.scrollToIndex(targetIdx, { align: "center" })
-        } else {
-          // Fallback: try DOM element (may be mounted via overscan)
-          const target = document.getElementById(`message-${jumpToMessageId}`)
-          if (target) target.scrollIntoView({ block: "center", behavior: "auto" })
-        }
+        // Scroll to the target message element in the DOM
+        const target = document.getElementById(`message-${jumpToMessageId}`)
+        if (target) target.scrollIntoView({ block: "center", behavior: "auto" })
         if (cancelled) return
         setHighlightedMessageId(jumpToMessageId)
         jumpedRef.current = true
@@ -1589,7 +1581,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     return active
   }, [recentlyActiveTimestamps])
 
-  // ── Render callback for VirtualizedMessageList (#647) ──────────────────
+  // ── Render callback for message list ──────────────────────────────────
   const renderMessage = useCallback((message: MessageWithAuthor, index: number): ReactNode => {
     const groupingThresholdMs = messageGrouping === "never" ? 0 : messageGrouping === "10min" ? 10 * 60 * 1000 : 5 * 60 * 1000
     const prevMessage = messagesRef.current[index - 1]
@@ -1920,113 +1912,98 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           />
         )}
 
-        {/* ── Virtualized scroll container ──────────────────────────── */}
+        {/* ── column-reverse scroll container ─────────────────────────
+             scrollTop 0 = bottom (newest messages).  The browser natively
+             anchors scroll when content grows at the start (visual bottom),
+             so new messages never cause a jarring jump.                    */}
         <div
           ref={messageScrollerRef}
           className="flex-1 overflow-y-auto relative"
           role="log"
           aria-label="Message history"
           aria-relevant="additions"
-          style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}
+          style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none", overscrollBehaviorY: "contain" }}
           {...(isMobile ? pullToRefreshHandlers : {})}
         >
-          {/* Pull-to-refresh indicator (mobile only) — require meaningful pull before showing */}
-          {isMobile && (pullDistance > 20 || pullRefreshing) && (
-            <div
-              className="flex items-center justify-center py-2 select-none"
-              style={{ minHeight: `${Math.max(pullDistance, pullRefreshing ? 40 : 0)}px` }}
-              aria-live="polite"
-            >
-              <span
-                className="text-xs"
-                style={{
-                  color: "var(--theme-text-muted)",
-                  transform: pullRefreshing ? "none" : `rotate(${Math.min(pullDistance * 3, 360)}deg)`,
-                  transition: pullRefreshing ? "transform 0s" : "none",
-                }}
-              >
-                {pullRefreshing ? "Refreshing…" : pullDistance >= pullThreshold ? "Release to refresh" : "↓"}
-              </span>
-            </div>
-          )}
+          {/* Inner wrapper — rendered in normal (top-to-bottom) order inside
+              the column-reverse parent.  Because the parent is reversed, the
+              *end* of this div (newest messages) sits at the visual bottom. */}
+          <div>
+            {/* Channel beginning header */}
+            {!hasMoreHistory && (
+              <div className="px-4 py-4">
+                <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
+                  Welcome to #{channel.name}!
+                </h2>
+                <p className="text-sm text-[var(--theme-text-secondary)]">
+                  This is the start of the #{channel.name} channel.
+                  {channel.topic && ` ${channel.topic}`}
+                </p>
+              </div>
+            )}
 
-          {/* Reconnection gap indicator (#611) */}
-          {reconnectGap && (
-            <div className="mx-4 my-2 flex items-center gap-3 rounded-lg px-4 py-2.5" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.25)" }}>
-              <span className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
-                You may have missed messages while disconnected
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setReconnectGap(false)
-                  if (unreadDividerMessageId) {
-                    const idx = messageIndexMap.get(unreadDividerMessageId)
-                    if (idx != null) {
-                      virtualizerRef.current?.scrollToIndex(idx, { align: "center", behavior: "smooth" })
+            {/* Reconnection gap indicator (#611) */}
+            {reconnectGap && (
+              <div className="mx-4 my-2 flex items-center gap-3 rounded-lg px-4 py-2.5" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.25)" }}>
+                <span className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+                  You may have missed messages while disconnected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReconnectGap(false)
+                    if (unreadDividerMessageId) {
+                      const el = document.getElementById(`message-${unreadDividerMessageId}`)
+                      if (el) el.scrollIntoView({ block: "center", behavior: "smooth" })
                     }
-                  }
-                }}
-                className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-md shrink-0"
-                style={{ background: "rgba(250,166,26,0.15)", color: "rgb(250,166,26)" }}
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
+                  }}
+                  className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-md shrink-0"
+                  style={{ background: "rgba(250,166,26,0.15)", color: "rgb(250,166,26)" }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
-          <VirtualizedMessageList
-            messages={messages}
-            scrollContainerRef={messageScrollerRef}
-            renderMessage={renderMessage}
-            hasMoreHistory={hasMoreHistory}
-            isPaginating={isPaginating}
-            onLoadOlder={loadOlderMessages}
-            handle={virtualizerRef}
-            headerContent={
-              !hasMoreHistory ? (
-                <div className="px-4 py-4">
-                  <h2 className="text-lg font-bold font-display mb-0.5 chat-area-text-bright">
-                    Welcome to #{channel.name}!
-                  </h2>
-                  <p className="text-sm text-[var(--theme-text-secondary)]">
-                    This is the start of the #{channel.name} channel.
-                    {channel.topic && ` ${channel.topic}`}
-                  </p>
-                </div>
-              ) : isPaginating ? (
-                <div className="px-4 py-3 space-y-3">
-                  <output className="sr-only" aria-live="polite">Loading older messages…</output>
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
-                      <div className="flex-1 space-y-1.5 pt-0.5">
-                        <div className="flex items-center gap-2">
-                          <Skeleton className="h-3 w-20" />
-                          <Skeleton className="h-2.5 w-12 opacity-50" />
-                        </div>
-                        <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
-                        {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
+            {/* Sentinel + skeleton for loading older messages */}
+            {hasMoreHistory && isPaginating && (
+              <div className="px-4 py-3 space-y-3">
+                <output className="sr-only" aria-live="polite">Loading older messages…</output>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
+                    <div className="flex-1 space-y-1.5 pt-0.5">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-2.5 w-12 opacity-50" />
                       </div>
+                      <Skeleton className={`h-3 ${["w-3/4", "w-full", "w-2/3", "w-5/6"][i % 4]}`} />
+                      {i % 2 === 0 && <Skeleton className="h-3 w-1/2" />}
                     </div>
-                  ))}
-                </div>
-              ) : undefined
-            }
-            footerContent={
-              <>
-                {voiceRecaps.length > 0 && voiceRecaps.map((recap) => (
-                  <VoiceRecapCard
-                    key={recap.sessionId}
-                    sessionId={recap.sessionId}
-                    channelName={recap.channelName}
-                    durationSeconds={recap.durationSeconds}
-                  />
+                  </div>
                 ))}
-                <div ref={bottomRef} style={{ height: 1 }} />
-              </>
-            }
-          />
+              </div>
+            )}
+
+            {/* Message list — direct DOM rendering (no virtualizer) */}
+            <div className="pb-4">
+              {messages.map((message, index) => (
+                <div key={message.id} id={`message-${message.id}`}>
+                  {renderMessage(message, index)}
+                </div>
+              ))}
+            </div>
+
+            {voiceRecaps.length > 0 && voiceRecaps.map((recap) => (
+              <VoiceRecapCard
+                key={recap.sessionId}
+                sessionId={recap.sessionId}
+                channelName={recap.channelName}
+                durationSeconds={recap.durationSeconds}
+              />
+            ))}
+            <div ref={bottomRef} style={{ height: 1 }} />
+          </div>
 
           {/* Floating overlays — positioned absolutely within the scroll container */}
           {!isAtBottom && (
