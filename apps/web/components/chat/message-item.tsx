@@ -5,7 +5,8 @@ import { createPortal } from "react-dom"
 import { format } from "date-fns"
 import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip, Clock, Loader2, AlertTriangle } from "lucide-react"
 import { EmojiPicker } from "frimousse"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { OptimizedAvatarImage } from "@/components/ui/optimized-avatar-image"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut } from "@/components/ui/context-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -589,7 +590,7 @@ export const MessageItem = memo(function MessageItem({
                   <div className="cursor-pointer">
                     <Avatar className={cn("w-10 h-10", recentlyActive && "recent-activity-halo")}>
                       {(message.webhook_id && message.webhook_avatar_url ? message.webhook_avatar_url : message.author?.avatar_url) && (
-                        <AvatarImage src={(message.webhook_id && message.webhook_avatar_url) ? message.webhook_avatar_url : message.author?.avatar_url ?? ""} />
+                        <OptimizedAvatarImage src={(message.webhook_id && message.webhook_avatar_url) ? message.webhook_avatar_url : message.author?.avatar_url ?? ""} size={40} />
                       )}
                       <AvatarFallback
                         style={{ background: "var(--theme-accent)", color: "white", fontSize: "14px" }}

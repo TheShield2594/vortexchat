@@ -318,14 +318,18 @@ export function initGateway(options: GatewayOptions): void {
         const userStatus = status as UserStatus
         await presence.updateStatus(state.userId, userStatus)
 
-        // Broadcast to all servers the user belongs to
+        // Broadcast to all servers the user belongs to.
+        // Uses socket.to() which is cluster-aware via the Redis adapter,
+        // ensuring recipients on other replicas also receive the update.
+        // Socket.IO deduplicates when a socket is in multiple targeted rooms.
         const broadcastStatus = userStatus === "invisible" ? "offline" : userStatus
+        const presencePayload = {
+          userId: state.userId,
+          status: broadcastStatus,
+          updatedAt: new Date().toISOString(),
+        }
         for (const serverId of state.serverIds) {
-          socket.to(`presence:${serverId}`).emit("gateway:presence", {
-            userId: state.userId,
-            status: broadcastStatus,
-            updatedAt: new Date().toISOString(),
-          })
+          socket.to(`presence:${serverId}`).emit("gateway:presence", presencePayload)
         }
       } catch (err) {
         log.error({ socketId: socket.id, err }, "gateway:presence error")

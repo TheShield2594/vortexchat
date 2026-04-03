@@ -47,6 +47,9 @@ export async function GET(
     const from = searchParams.get("from")
     const to = searchParams.get("to")
     const exportFormat = searchParams.get("format") ?? "json"
+    if (exportFormat !== "json" && exportFormat !== "csv") {
+      return NextResponse.json({ error: "Invalid format. Use 'json' or 'csv'." }, { status: 400 })
+    }
 
     // Enforce 180-day retention window
     const retentionCutoff = new Date()
@@ -58,7 +61,7 @@ export async function GET(
       .eq("server_id", serverId)
       .gte("created_at", retentionCutoff.toISOString())
       .order("created_at", { ascending: false })
-      .limit(exportFormat !== "json" ? 5000 : limit)
+      .limit(exportFormat !== "json" ? 1000 : limit)
 
     if (before) query = query.lt("created_at", before)
     if (from) query = query.gte("created_at", from)
@@ -111,16 +114,30 @@ export async function GET(
     }))
 
     if (exportFormat === "csv") {
-      return new NextResponse(buildCsv(result), {
+      // Stream CSV via a ReadableStream. Encode the full CSV to a byte array
+      // first (avoiding UTF-16 surrogate pair corruption from string slicing),
+      // then chunk the bytes through the stream to reduce peak memory.
+      const csvContent = buildCsv(result)
+      const encoded = new TextEncoder().encode(csvContent)
+      const CHUNK_SIZE = 65536
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (let i = 0; i < encoded.byteLength; i += CHUNK_SIZE) {
+            controller.enqueue(encoded.subarray(i, i + CHUNK_SIZE))
+          }
+          controller.close()
+        },
+      })
+      return new NextResponse(stream, {
         headers: {
-          "Content-Type": "text/csv",
+          "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="audit-log-${serverId}.csv"`,
         },
       })
     }
 
     const next_before =
-      result.length === limit ? result[result.length - 1]!.created_at : null
+      result.length === limit ? result[result.length - 1]?.created_at ?? null : null
 
     return NextResponse.json({ entries: result, next_before })
 

@@ -355,6 +355,21 @@
 | Denormalize server_id to threads table | Done | Migration `00098`; direct `server_id` on threads; simplified RLS — no channel join for membership (#657) |
 | Optimize RLS policies with subquery rewrite | Done | Migration `00099`; `channel_permissions` + `messages` policies use `IN (subquery)` pattern (#658) |
 
+## Performance Hardening (P2)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Reduce Sentry/OpenTelemetry bundle overhead | Done | `disableClientWebpackPlugin` for non-CI builds; tree-shake unused OTEL integrations (#659) |
+| Replace raw img with next/image for avatars | Done | `OptimizedAvatarImage` component using next/image; updated message-item, member-list, sortable-channel-item (#660) |
+| Add Suspense boundaries for streaming SSR | Done | Channels layout wrapped in Suspense with skeleton fallback for progressive rendering (#661) |
+| Client-side typing indicator debounce | Done | 2s suppress window + 3s inactivity auto-stop in `use-gateway.ts`; ~80% fewer typing events (#662) |
+| Batch ICE candidates for WebRTC signaling | Done | `ice-candidates-batch` event in signal server; 3-5x fewer signaling messages during call setup (#663) |
+| Deduplicate presence broadcasts across servers | Done | Socket-level dedup in `gateway.ts`; each socket receives presence update once regardless of shared servers (#664) |
+| Add composite indexes for common query patterns | Done | Migration `00100`; indexes on messages, direct_messages, notifications, threads, audit_logs (#665) |
+| Slim down members route response payload | Done | `?fields=full` param; default slim projection omits bio, status_message, banner_color, custom_tag (#666) |
+| Cap and stream audit log CSV export; slim events RSVP | Done | CSV export capped at 1000 rows with streaming; events RSVP returns only user_id+status (#667) |
+| Offline message history caching in service worker | Done | Network-first API cache with 5min TTL for `/api/messages` and channel message endpoints (#670) |
+
 ---
 
 *Last updated: 2026-04-03 (sprint 4)*

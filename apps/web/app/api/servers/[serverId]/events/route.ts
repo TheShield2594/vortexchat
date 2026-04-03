@@ -44,11 +44,23 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+    // Verify the requester is a member of this server before any DB read
+    const { data: membership } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", params.serverId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    if (!membership) {
+      return NextResponse.json({ error: "Not a member of this server" }, { status: 403 })
+    }
+
     const { searchParams } = new URL(request.url)
     const from = searchParams.get("from")
     const to = searchParams.get("to")
 
-    // Cast via untypedFrom to select new columns that aren't in generated types yet
+    // Cap RSVP nesting to 50 entries with user profiles for the attendee list.
     let query = untypedFrom(supabase, "events")
       .select(
         "id, server_id, title, description, location, event_type, external_url, banner_url, " +
@@ -66,9 +78,10 @@ export async function GET(
     if (error) return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
 
     const events = (data ?? []).map((event) => {
-      const rsvps = event.event_rsvps ?? []
+      const { event_rsvps, event_hosts, ...rest } = event
+      const rsvps = event_rsvps ?? []
       return {
-        ...event,
+        ...rest,
         stats: {
           going: rsvps.filter((r) => r.status === "going").length,
           maybe: rsvps.filter((r) => r.status === "maybe").length,
@@ -77,9 +90,11 @@ export async function GET(
           interested: rsvps.filter((r) => r.status === "interested").length,
         },
         myRsvp: rsvps.find((r) => r.user_id === user.id) ?? null,
-        hosts: (event.event_hosts ?? []).map((h) => h.user_id),
+        hosts: (event_hosts ?? []).map((h) => h.user_id),
+        // Cap attendees to 50 entries to limit payload size.
         attendees: rsvps
           .filter((r) => r.status === "going" || r.status === "maybe" || r.status === "interested")
+          .slice(0, 50)
           .map((r) => ({
             user_id: r.user_id,
             status: r.status,
