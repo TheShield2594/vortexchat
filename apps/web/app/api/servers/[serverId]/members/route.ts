@@ -84,6 +84,7 @@ export async function GET(
         username,
         display_name,
         avatar_url,
+        status_message,
         game_activity,
         last_online_at
       ),

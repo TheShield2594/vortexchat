@@ -148,16 +148,25 @@ self.addEventListener("fetch", (event) => {
   // API message history — network-first with short TTL cache for offline access.
   // Caches GET /api/messages and /api/channels/*/messages responses so users
   // can view recent messages when offline.
+  // Cache entries are scoped per-user via cookie hash to prevent cross-account leaks.
   if (url.pathname.match(/\/api\/(messages|channels\/[^/]+\/messages)/)) {
+    // Derive a stable user scope from the cookie header so cache entries
+    // are isolated per account. Falls back to a generic key if no cookie.
+    const cookieHeader = request.headers.get("cookie") || ""
+    const userScope = cookieHeader ? btoa(cookieHeader).slice(0, 16) : "__anonymous__"
+
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
+          // Skip caching if the server explicitly opts out
+          const cc = response.headers.get("cache-control") || ""
+          if (response.ok && !cc.includes("no-store")) {
             const copy = response.clone()
             caches.open(API_CACHE).then((c) => {
-              // Store with a timestamp header for TTL enforcement
+              // Store with timestamp + user scope headers for TTL and isolation
               const headers = new Headers(copy.headers)
               headers.set("sw-cache-time", Date.now().toString())
+              headers.set("sw-cache-user", userScope)
               c.put(request, new Response(copy.body, { status: copy.status, statusText: copy.statusText, headers }))
             })
           }
@@ -167,6 +176,15 @@ self.addEventListener("fetch", (event) => {
           const cache = await caches.open(API_CACHE)
           const cached = await cache.match(request)
           if (cached) {
+            // Only serve cached entries belonging to the same user
+            const cachedUser = cached.headers.get("sw-cache-user") || ""
+            if (cachedUser !== userScope) {
+              cache.delete(request)
+              return new Response(JSON.stringify({ error: "Offline" }), {
+                status: 503,
+                headers: { "Content-Type": "application/json" },
+              })
+            }
             // Enforce TTL — evict stale entries
             const cacheTime = parseInt(cached.headers.get("sw-cache-time") || "0", 10)
             if (Date.now() - cacheTime < API_CACHE_TTL) {

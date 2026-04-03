@@ -111,29 +111,23 @@ export async function GET(
     }))
 
     if (exportFormat === "csv") {
-      // Stream CSV rows via TransformStream to avoid building the entire
-      // response in memory for large exports (previously 5000 rows at once).
-      const { readable, writable } = new TransformStream<string, string>()
-      const writer = writable.getWriter()
-      const encoder = new TextEncoder()
-      // Write header + rows asynchronously
-      ;(async () => {
-        try {
-          const csvContent = buildCsv(result)
-          // Stream in 64KB chunks to reduce memory pressure
-          const CHUNK_SIZE = 65536
-          for (let i = 0; i < csvContent.length; i += CHUNK_SIZE) {
-            await writer.write(csvContent.slice(i, i + CHUNK_SIZE))
+      // Stream CSV via a ReadableStream. Encode the full CSV to a byte array
+      // first (avoiding UTF-16 surrogate pair corruption from string slicing),
+      // then chunk the bytes through the stream to reduce peak memory.
+      const csvContent = buildCsv(result)
+      const encoded = new TextEncoder().encode(csvContent)
+      const CHUNK_SIZE = 65536
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (let i = 0; i < encoded.byteLength; i += CHUNK_SIZE) {
+            controller.enqueue(encoded.subarray(i, i + CHUNK_SIZE))
           }
-        } catch {
-          // Stream error — close gracefully
-        } finally {
-          await writer.close()
-        }
-      })()
-      return new NextResponse(readable.pipeThrough(new TextEncoderStream()), {
+          controller.close()
+        },
+      })
+      return new NextResponse(stream, {
         headers: {
-          "Content-Type": "text/csv",
+          "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="audit-log-${serverId}.csv"`,
         },
       })

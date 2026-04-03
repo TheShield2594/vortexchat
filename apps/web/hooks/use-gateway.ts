@@ -112,6 +112,7 @@ export function useGateway(handlers?: GatewayEventHandlers) {
 
         socket.on("disconnect", () => {
           if (destroyed) return
+          clearTypingTimers()
           setStatus("disconnected")
           stateRef.current.status = "disconnected"
           window.dispatchEvent(new CustomEvent("vortex:realtime-disconnect"))
@@ -161,6 +162,7 @@ export function useGateway(handlers?: GatewayEventHandlers) {
 
     return () => {
       destroyed = true
+      clearTypingTimers()
       if (socketRef.current) {
         socketRef.current.disconnect()
         socketRef.current = null
@@ -203,9 +205,17 @@ export function useGateway(handlers?: GatewayEventHandlers) {
   // isTyping:false after 3s of inactivity. (~80% reduction in typing traffic)
   const typingTimersRef = useRef<Map<string, { suppressUntil: number; stopTimer: ReturnType<typeof setTimeout> | null }>>(new Map())
 
+  /** Clear all pending typing timers (used on disconnect and unmount). */
+  const clearTypingTimers = useCallback((): void => {
+    for (const [, entry] of typingTimersRef.current) {
+      if (entry.stopTimer) clearTimeout(entry.stopTimer)
+    }
+    typingTimersRef.current.clear()
+  }, [])
+
   const sendTyping = useCallback((channelId: string, isTyping: boolean) => {
     const socket = socketRef.current
-    if (!socket) return
+    if (!socket?.connected) return
 
     const timers = typingTimersRef.current
     const existing = timers.get(channelId)
@@ -214,7 +224,7 @@ export function useGateway(handlers?: GatewayEventHandlers) {
       // Explicit stop — clear timers and send immediately
       if (existing?.stopTimer) clearTimeout(existing.stopTimer)
       timers.delete(channelId)
-      socket.emit("gateway:typing", { channelId, isTyping: false })
+      socket.volatile.emit("gateway:typing", { channelId, isTyping: false })
       return
     }
 
@@ -225,19 +235,23 @@ export function useGateway(handlers?: GatewayEventHandlers) {
       if (existing.stopTimer) clearTimeout(existing.stopTimer)
       existing.stopTimer = setTimeout(() => {
         timers.delete(channelId)
-        socket.emit("gateway:typing", { channelId, isTyping: false })
+        if (socketRef.current?.connected) {
+          socketRef.current.volatile.emit("gateway:typing", { channelId, isTyping: false })
+        }
       }, 3000)
       return
     }
 
     // First keystroke (or suppress window expired) — emit immediately
     if (existing?.stopTimer) clearTimeout(existing.stopTimer)
-    socket.emit("gateway:typing", { channelId, isTyping: true })
+    socket.volatile.emit("gateway:typing", { channelId, isTyping: true })
     timers.set(channelId, {
       suppressUntil: now + 2000,
       stopTimer: setTimeout(() => {
         timers.delete(channelId)
-        socket.emit("gateway:typing", { channelId, isTyping: false })
+        if (socketRef.current?.connected) {
+          socketRef.current.volatile.emit("gateway:typing", { channelId, isTyping: false })
+        }
       }, 3000),
     })
   }, [])

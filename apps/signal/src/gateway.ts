@@ -318,26 +318,18 @@ export function initGateway(options: GatewayOptions): void {
         const userStatus = status as UserStatus
         await presence.updateStatus(state.userId, userStatus)
 
-        // Broadcast to all servers the user belongs to, deduplicating across
-        // servers so each connected socket only receives the update once.
-        // A user in 50 servers would otherwise generate 50 identical broadcasts
-        // to every socket that shares multiple servers with them.
+        // Broadcast to all servers the user belongs to.
+        // Uses socket.to() which is cluster-aware via the Redis adapter,
+        // ensuring recipients on other replicas also receive the update.
+        // Socket.IO deduplicates when a socket is in multiple targeted rooms.
         const broadcastStatus = userStatus === "invisible" ? "offline" : userStatus
         const presencePayload = {
           userId: state.userId,
           status: broadcastStatus,
           updatedAt: new Date().toISOString(),
         }
-        const notifiedSockets = new Set<string>()
         for (const serverId of state.serverIds) {
-          const room = io.sockets.adapter.rooms.get(`presence:${serverId}`)
-          if (!room) continue
-          for (const socketId of room) {
-            if (socketId === socket.id) continue // skip self
-            if (notifiedSockets.has(socketId)) continue
-            notifiedSockets.add(socketId)
-            io.to(socketId).emit("gateway:presence", presencePayload)
-          }
+          socket.to(`presence:${serverId}`).emit("gateway:presence", presencePayload)
         }
       } catch (err) {
         log.error({ socketId: socket.id, err }, "gateway:presence error")

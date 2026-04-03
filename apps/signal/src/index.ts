@@ -925,6 +925,7 @@ io.on("connection", (socket: Socket) => {
 
   // Accept a batch of ICE candidates (3-5x fewer signaling messages during call setup).
   // Clients collect candidates over a 100ms window and send them as a single array.
+  const MAX_ICE_CANDIDATES = 50
   socket.on("ice-candidates-batch", async (payload: unknown) => {
     try {
       if (typeof payload !== "object" || payload === null) return
@@ -933,7 +934,15 @@ io.on("connection", (socket: Socket) => {
       if (!Array.isArray(candidates) || candidates.length === 0) return
       if (!checkSocketRate(socket.id, "signaling")) return
       if (!(await validateSignalingPeer(to))) return
-      io.to(to).emit("ice-candidates-batch", { from: socket.id, candidates })
+      // Validate and cap batch size to prevent abuse
+      const validated = candidates
+        .slice(0, MAX_ICE_CANDIDATES)
+        .filter((c): c is Record<string, unknown> =>
+          typeof c === "object" && c !== null &&
+          (typeof (c as Record<string, unknown>).candidate === "string" || (c as Record<string, unknown>).candidate === null)
+        )
+      if (validated.length === 0) return
+      io.to(to).emit("ice-candidates-batch", { from: socket.id, candidates: validated })
     } catch (err) {
       logger.error({ socketId: socket.id, event: "ice-candidates-batch", err }, "signaling handler error")
     }
