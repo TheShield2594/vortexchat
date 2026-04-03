@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import {
   Hash, Volume2, Plus, Clipboard, Pencil, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, MessageCircle,
   MicOff, Headphones, Bell, BellOff, Eye, CheckCheck
@@ -55,6 +56,7 @@ interface SortableChannelItemProps {
   mentionCount?: number
   activeThreadCount?: number
   voiceParticipants?: VoiceParticipant[]
+  href?: string
   onClick: () => void
   onEdit: () => void
   onDelete: () => void
@@ -73,6 +75,7 @@ export function SortableChannelItem({
   mentionCount,
   activeThreadCount,
   voiceParticipants,
+  href,
   onClick,
   onEdit,
   onDelete,
@@ -112,6 +115,8 @@ export function SortableChannelItem({
 
   return (
     <div ref={setNodeRef} style={style}>
+      {/* Hidden prefetch link — enables Next.js to prefetch channel data on hover/viewport */}
+      {href && <Link href={href} prefetch tabIndex={-1} aria-hidden className="hidden" />}
       <ContextMenu>
         <ContextMenuTrigger asChild>
           {/*

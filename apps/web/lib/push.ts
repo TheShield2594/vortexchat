@@ -311,44 +311,52 @@ export async function sendPushToChannel(opts: {
 
   if (!memberIds.length) return
 
-    // Fetch only relevant notification settings for potential recipients
-  const settingsBatches: Array<Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>> = []
+    // Fetch all relevant notification settings in parallel instead of sequentially
+  type SettingsRow = { user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }
+  const settingsQueries: Array<Promise<{ data: SettingsRow[] | null }>> = []
 
   if (threadId) {
-    const { data: threadSettings } = await supabase
-      .from("notification_settings")
-      .select("user_id, mode, server_id, channel_id, thread_id")
-      .in("user_id", memberIds)
-      .eq("thread_id", threadId)
-    settingsBatches.push((threadSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+    settingsQueries.push(
+      supabase
+        .from("notification_settings")
+        .select("user_id, mode, server_id, channel_id, thread_id")
+        .in("user_id", memberIds)
+        .eq("thread_id", threadId) as Promise<{ data: SettingsRow[] | null }>
+    )
   }
 
   if (channelId) {
-    const { data: channelSettings } = await supabase
-      .from("notification_settings")
-      .select("user_id, mode, server_id, channel_id, thread_id")
-      .in("user_id", memberIds)
-      .eq("channel_id", channelId)
-    settingsBatches.push((channelSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+    settingsQueries.push(
+      supabase
+        .from("notification_settings")
+        .select("user_id, mode, server_id, channel_id, thread_id")
+        .in("user_id", memberIds)
+        .eq("channel_id", channelId) as Promise<{ data: SettingsRow[] | null }>
+    )
   }
 
   if (serverId) {
-    const { data: serverSettings } = await supabase
+    settingsQueries.push(
+      supabase
+        .from("notification_settings")
+        .select("user_id, mode, server_id, channel_id, thread_id")
+        .in("user_id", memberIds)
+        .eq("server_id", serverId) as Promise<{ data: SettingsRow[] | null }>
+    )
+  }
+
+  settingsQueries.push(
+    supabase
       .from("notification_settings")
       .select("user_id, mode, server_id, channel_id, thread_id")
       .in("user_id", memberIds)
-      .eq("server_id", serverId)
-    settingsBatches.push((serverSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
-  }
+      .is("server_id", null)
+      .is("channel_id", null)
+      .is("thread_id", null) as Promise<{ data: SettingsRow[] | null }>
+  )
 
-  const { data: globalSettings } = await supabase
-    .from("notification_settings")
-    .select("user_id, mode, server_id, channel_id, thread_id")
-    .in("user_id", memberIds)
-    .is("server_id", null)
-    .is("channel_id", null)
-    .is("thread_id", null)
-  settingsBatches.push((globalSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+  const settingsResults = await Promise.all(settingsQueries)
+  const settingsBatches = settingsResults.map((r) => (r.data ?? []) as SettingsRow[])
 
   const settings = settingsBatches.flat()
 

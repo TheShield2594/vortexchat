@@ -176,14 +176,16 @@ export function ServerSidebar() {
         {/* Explore — secondary action: muted color */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
-              onClick={() => { setActiveServer(null); router.push("/channels/discover") }}
+            <Link
+              href="/channels/discover"
+              prefetch
+              onClick={() => setActiveServer(null)}
               aria-label="Explore Public Servers"
               className="w-[52px] h-[52px] md:w-12 md:h-12 rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer transition-all duration-200 focus-ring"
               style={{ background: 'var(--theme-bg-primary)' }}
             >
               <Compass className="w-6 h-6" style={{ color: 'var(--theme-text-muted)' }} />
-            </button>
+            </Link>
           </TooltipTrigger>
           <TooltipContent side="right">Explore Public Servers</TooltipContent>
         </Tooltip>
@@ -237,7 +239,7 @@ function ServerIcon({
       <Tooltip>
         <TooltipTrigger asChild>
           <ContextMenuTrigger asChild>
-            <div className="relative group cursor-pointer focus-ring rounded-full" role="button" tabIndex={0} aria-label={server.name} onClick={onClick} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick() }}>
+            <Link href={`/channels/${server.id}`} prefetch className="relative group cursor-pointer focus-ring rounded-full block" aria-label={server.name} onClick={(e) => { e.preventDefault(); onClick() }}>
               {/* Active indicator */}
               <div
                 className={cn(
@@ -288,7 +290,7 @@ function ServerIcon({
                   className="absolute -bottom-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full border-2 pointer-events-none server-sidebar-unread-pip"
                 />
               )}
-            </div>
+            </Link>
           </ContextMenuTrigger>
         </TooltipTrigger>
         <TooltipContent side="right">{server.name}</TooltipContent>

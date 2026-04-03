@@ -33,7 +33,8 @@ export async function GET() {
         .select("dm_channel_id, content, created_at, sender_id")
         .in("dm_channel_id", channelIds)
         .is("deleted_at", null)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })
+        .limit(channelIds.length),
       supabase
         .from("dm_read_states")
         .select("dm_channel_id, last_read_at")

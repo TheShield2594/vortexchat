@@ -217,6 +217,7 @@ export async function GET(req: NextRequest) {
         .select("id")
         .in("channel_id", channelIds)
         .is("deleted_at", null)
+        .limit(10000)
 
       const candidateMessageIds = (candidateMessages ?? []).map((row) => row.id)
 
