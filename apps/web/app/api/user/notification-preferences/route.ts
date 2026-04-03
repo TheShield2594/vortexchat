@@ -56,7 +56,11 @@ export async function PUT(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const body = await req.json() as Record<string, unknown>
+    const rawBody = await req.json().catch(() => null)
+    if (rawBody == null || typeof rawBody !== "object" || Array.isArray(rawBody)) {
+      return NextResponse.json({ error: "Request body must be a JSON object" }, { status: 400 })
+    }
+    const body = rawBody as Record<string, unknown>
 
     // Validate: only accept boolean values for known boolean keys
     const BOOL_KEYS = [

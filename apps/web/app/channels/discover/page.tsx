@@ -86,6 +86,10 @@ function curatedSectionIcon(slug: string): React.ReactNode {
 function AppIcon({ name, iconUrl }: { name: string; iconUrl?: string | null }): React.ReactElement {
   const [imgFailed, setImgFailed] = useState(false)
 
+  useEffect(() => {
+    setImgFailed(false)
+  }, [iconUrl])
+
   if (iconUrl && !imgFailed) {
     return (
       <img
@@ -214,7 +218,7 @@ export default function DiscoverPage() {
     return (await res.json()) as { servers: PublicServer[]; nextCursor: string | null }
   }, [])
 
-  const fetchApps = useCallback(async (q?: string, selectedCategory = "all") => {
+  const fetchApps = useCallback(async (q?: string, selectedCategory = "all"): Promise<DiscoverApp[]> => {
     const params = new URLSearchParams()
     if (q) params.set("q", q)
     if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory)
@@ -223,7 +227,7 @@ export default function DiscoverPage() {
       const body = await res.text().catch(() => "")
       throw new Error(`Apps API error ${res.status}: ${body}`)
     }
-    setApps(await res.json())
+    return await res.json()
   }, [])
 
   const fetchCurated = useCallback(async (): Promise<void> => {
@@ -258,7 +262,7 @@ export default function DiscoverPage() {
     const execute = async () => {
       setLoading(true)
       try {
-        const [serverResult] = await Promise.all([
+        const [serverResult, appResult] = await Promise.all([
           fetchServers(query || undefined, sort),
           fetchApps(query || undefined, category),
           fetchCurated(),
@@ -266,6 +270,7 @@ export default function DiscoverPage() {
         if (!cancelled) {
           setServers(serverResult.servers)
           setNextCursor(serverResult.nextCursor)
+          setApps(appResult)
         }
       } catch (err) {
         if (!cancelled) {

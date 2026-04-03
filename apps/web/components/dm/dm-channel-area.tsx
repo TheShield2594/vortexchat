@@ -586,11 +586,17 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   // Load older messages — used by both the manual button and the useChatScroll hook
   const loadMore = useCallback(async (): Promise<void> => {
-    if (!messages.length || loadingMore) return
+    if (!messages.length || paginationRequestRef.current) return
     setLoadingMore(true)
-    await loadMessages(messages[0].created_at)
-    setLoadingMore(false)
-  }, [messages, loadingMore, loadMessages])
+    const request = loadMessages(messages[0].created_at)
+    paginationRequestRef.current = request
+    try {
+      await request
+    } finally {
+      paginationRequestRef.current = null
+      setLoadingMore(false)
+    }
+  }, [messages, loadMessages])
 
   // ── Shared scroll hook (same as channel chat-area.tsx) ───────────────
   const onReachedBottom = useCallback(() => {
@@ -615,6 +621,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       prevChannelIdScrollRef.current = channelId
       setPendingNewMessageCount(0)
       prevLastMsgIdRef.current = null
+      setReplyTo(null)
     }
 
     if (!shouldScrollToBottomRef.current) return
@@ -969,20 +976,39 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     }
   }, [reactionPickerMsgId])
 
-  // Unified send handler matching MessageInput's onSend signature.
+  // Unified send handler matching MessageInput's full onSend signature.
   // Handles text, GIF URLs, and file attachments with optional encryption.
-  const handleDmSend = useCallback(async (text: string, files?: File[]): Promise<void> => {
+  const handleDmSend = useCallback(async (
+    text: string,
+    files?: File[],
+    onUploadProgress?: (percent: number) => void,
+    abortSignal?: AbortSignal,
+  ): Promise<void> => {
     if (!text.trim() && (!files || files.length === 0)) return
 
-    // Handle file attachments first (sends each as a separate message)
+    const encryptText = async (plaintext: string): Promise<string> => {
+      if (!channel?.is_encrypted) return plaintext
+      const key = conversationKey ?? await ensureConversationKey(channel)
+      if (!key) throw new Error("Missing encryption key")
+      return JSON.stringify(await encryptDmContent(plaintext, key, channel.encryption_key_version ?? 1))
+    }
+
+    // Handle file attachments (each sent as a separate message)
     if (files && files.length > 0) {
-      for (const file of files) {
+      const totalFiles = files.length
+      for (let i = 0; i < totalFiles; i++) {
+        if (abortSignal?.aborted) throw new Error("Upload cancelled")
+        const file = files[i]
+
         const ext = file.name.split(".").pop()
         const path = `dm-attachments/${channelId}/${Date.now()}.${ext}`
         const { error: uploadError } = await supabase.storage
           .from("attachments")
           .upload(path, file, { upsert: true })
         if (uploadError) throw new Error("File upload failed")
+        if (abortSignal?.aborted) throw new Error("Upload cancelled")
+
+        onUploadProgress?.(Math.round(((i + 0.5) / totalFiles) * 100))
 
         const { data: signedData, error: signError } = await supabase.storage
           .from("attachments")
@@ -990,14 +1016,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         if (signError || !signedData?.signedUrl) throw new Error("Failed to create signed URL")
 
         const signedUrl = signedData.signedUrl
-        const fileContent = `[${file.name}](${signedUrl})`
-        let outbound = fileContent
-        if (channel?.is_encrypted) {
-          const key = conversationKey ?? await ensureConversationKey(channel)
-          if (!key) throw new Error("Missing encryption key")
-          outbound = JSON.stringify(await encryptDmContent(fileContent, key, channel.encryption_key_version ?? 1))
-        }
-        const msg = await sendDmPayload({ content: outbound })
+        const outbound = await encryptText(`[${file.name}](${signedUrl})`)
+        const filePayload: { content: string; reply_to_id?: string } = { content: outbound }
+        // Attach reply context to the first file message
+        if (i === 0 && replyTo) filePayload.reply_to_id = replyTo.id
+        const msg = await sendDmPayload(filePayload)
         if (!msg) throw new Error("Failed to send file")
 
         const now = new Date()
@@ -1017,25 +1040,22 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           ...msg,
           dm_attachments: insertedAtt ? [{ id: insertedAtt.id, filename: insertedAtt.filename, size: insertedAtt.size, content_type: insertedAtt.content_type }] : [],
         }])
+        onUploadProgress?.(Math.round(((i + 1) / totalFiles) * 100))
       }
-      return
     }
 
-    // Text or GIF URL message
-    let outbound = text
-    if (channel?.is_encrypted) {
-      const key = conversationKey ?? await ensureConversationKey(channel)
-      if (!key) throw new Error("Missing encryption key")
-      const envelope = await encryptDmContent(text, key, channel.encryption_key_version ?? 1)
-      outbound = JSON.stringify(envelope)
+    // Send composed text if present (runs even when files were uploaded)
+    if (text.trim()) {
+      if (abortSignal?.aborted) throw new Error("Cancelled")
+      const outbound = await encryptText(text)
+      const payload: { content: string; reply_to_id?: string } = { content: outbound }
+      // Attach reply context to text (unless already attached to first file above)
+      if (replyTo && (!files || files.length === 0)) payload.reply_to_id = replyTo.id
+      const msg = await sendDmPayload(payload)
+      if (!msg) throw new Error("Failed to send message")
+      setMessages((prev) => [...prev, msg])
     }
-    const payload: { content: string; reply_to_id?: string } = { content: outbound }
-    if (replyTo) {
-      payload.reply_to_id = replyTo.id
-    }
-    const msg = await sendDmPayload(payload)
-    if (!msg) throw new Error("Failed to send message")
-    setMessages((prev) => [...prev, msg])
+
     setReplyTo(null)
   }, [channelId, channel, conversationKey, ensureConversationKey, replyTo, sendDmPayload, supabase])
 
@@ -1845,6 +1865,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       {/* Input — hidden during active/ringing calls */}
       {!activeCall && !ringing && (
         <MessageInput
+          key={channelId}
           variant="dm"
           channelName={displayName}
           draft=""
