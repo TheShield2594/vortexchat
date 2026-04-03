@@ -126,6 +126,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const shouldAutoScrollToLatestRef = useRef(true)
   const prevChannelIdRef = useRef(channel.id)
+  const rafOuterRef = useRef(0)
+  const rafInnerRef = useRef(0)
   const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
   const liveAnnouncementCounterRef = useRef(0)
@@ -469,8 +471,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     return () => {
       const msgs = messagesRef.current
       if (msgs.length > 0) {
-        const scrollTop = messageScrollerRef.current?.scrollTop ?? 0
-        cacheMessages(channel.id, msgs, scrollTop)
+        cacheMessages(channel.id, msgs)
       }
     }
   }, [channel.id, cacheMessages])
@@ -876,18 +877,23 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     const container = messageScrollerRef.current
     if (!container) return
 
-    // Check for cached scroll position from a previous visit to this channel
     // Scroll to bottom (newest messages).
     // With virtualized lists, estimated row heights mean scrollHeight may
     // change after the browser paints and the virtualizer measures real
     // elements.  Re-scroll after two animation frames to settle.
     container.scrollTop = container.scrollHeight
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    const outerRaf = requestAnimationFrame(() => {
+      const innerRaf = requestAnimationFrame(() => {
         const el = messageScrollerRef.current
         if (el) el.scrollTop = el.scrollHeight
       })
+      rafInnerRef.current = innerRaf
     })
+    rafOuterRef.current = outerRaf
+    return () => {
+      cancelAnimationFrame(rafOuterRef.current)
+      cancelAnimationFrame(rafInnerRef.current)
+    }
   }, [channel.id, jumpToMessageId, messages.length, openThreadId])
 
   useEffect(() => {

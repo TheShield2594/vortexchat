@@ -631,12 +631,17 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     scrollToBottom()
     // Re-scroll after layout settles — images, embeds, or lazy content may
     // change scrollHeight between useLayoutEffect and the first paint.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    let rafInner = 0
+    const rafOuter = requestAnimationFrame(() => {
+      rafInner = requestAnimationFrame(() => {
         scrollToBottom()
       })
     })
     prevLastMsgIdRef.current = messages[messages.length - 1]?.id ?? null
+    return () => {
+      cancelAnimationFrame(rafOuter)
+      cancelAnimationFrame(rafInner)
+    }
   }, [channelId, messages.length, scrollToBottom])
 
   // Track active DM channel for notification suppression

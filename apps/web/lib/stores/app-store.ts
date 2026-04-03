@@ -92,8 +92,8 @@ interface AppState {
   loadNotificationSettings: () => Promise<void>
 
   // Message cache (per-channel, most recent messages for instant channel switching)
-  messageCache: Record<string, { messages: MessageWithAuthor[]; scrollOffset: number; timestamp: number }>
-  cacheMessages: (channelId: string, messages: MessageWithAuthor[], scrollOffset?: number) => void
+  messageCache: Record<string, { messages: MessageWithAuthor[]; timestamp: number }>
+  cacheMessages: (channelId: string, messages: MessageWithAuthor[]) => void
   invalidateMessageCache: (channelId: string) => void
 
   // Mobile action dispatch (replaces fragile DOM CustomEvents between ServerMobileLayout → ChatArea)
@@ -259,13 +259,12 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   messageCache: {},
-  cacheMessages: (channelId, messages, scrollOffset = 0) =>
+  cacheMessages: (channelId, messages) =>
     set((state) => {
       const cache = { ...state.messageCache }
       // Keep only last 100 messages per channel and cap at 10 cached channels
       cache[channelId] = {
         messages: messages.slice(-100),
-        scrollOffset,
         timestamp: Date.now(),
       }
       // Evict oldest if over 10 channels cached
