@@ -90,10 +90,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages, mobilePendingAction: s.mobilePendingAction, setMobilePendingAction: s.setMobilePendingAction, servers: s.servers }))
   )
   const serverName = useMemo(() => servers.find((s) => s.id === serverId)?.name ?? "", [servers, serverId])
-  // Start empty — messages are loaded in a useEffect (like DMs) so the
-  // scroll-to-bottom fires after the container is fully laid out and the
-  // virtualizer has settled, not on the very first render.
-  const [messages, setMessages] = useState<MessageWithAuthor[]>([])
+  const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [activeThread, setActiveThread] = useState<ThreadRow | null>(null)
   const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0)
@@ -105,7 +102,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
   const [showCreateChannelThread, setShowCreateChannelThread] = useState(false)
   const [isPaginating, setIsPaginating] = useState(false)
-  const [hasMoreHistory, setHasMoreHistory] = useState(false)
+  const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
   const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
@@ -122,14 +119,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const virtualizerRef = useRef<VirtualizedMessageListHandle>(null)
   useKeyboardAvoidance(messageScrollerRef, isMobile, false)
-  const previousLastMessageIdRef = useRef<string | null>(null)
+  const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
   const jumpedRef = useRef(false)
   const lastJumpMessageIdRef = useRef<string | null>(null)
   const jumpSignatureRef = useRef<string | null>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const shouldAutoScrollToLatestRef = useRef(true)
   const prevChannelIdRef = useRef(channel.id)
-  const messagesRef = useRef<MessageWithAuthor[]>([])
+  const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
   const liveAnnouncementCounterRef = useRef(0)
   const unreadAnchorCycleRef = useRef<number | null>(null)
@@ -709,7 +706,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setUnreadAnchorMessageId(null)
   }, [])
 
-  const { isAtBottom, scrollToBottom } = useChatScroll({
+  const { isAtBottom, scrollToBottom, isPinnedRef } = useChatScroll({
     hasMoreHistory,
     loadOlderMessages,
     messageScrollerRef,
@@ -863,8 +860,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [isOnline, channel.id, flushOutbox, flushTrigger])
 
   // On channel switch, scroll to the bottom (newest messages).
-  // The ResizeObserver in useChatScroll handles re-pinning when content
-  // height changes, so we only need a single synchronous scroll here.
+  // If there's a cached scroll position (user was scrolled up), restore it.
   useLayoutEffect(() => {
     if (prevChannelIdRef.current !== channel.id) {
       shouldAutoScrollToLatestRef.current = true
@@ -877,9 +873,25 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (messages.length === 0) return
     shouldAutoScrollToLatestRef.current = false
 
-    scrollToBottom()
+    const container = messageScrollerRef.current
+    if (!container) return
+
+    // Check for cached scroll position from a previous visit to this channel
+    const cachedState = useAppStore.getState().messageCache[channel.id]
+    if (cachedState && cachedState.scrollOffset > 0) {
+      container.scrollTop = cachedState.scrollOffset
+      // Not at bottom — unpin
+      const maxScroll = container.scrollHeight - container.clientHeight
+      if (maxScroll - cachedState.scrollOffset > 10) {
+        isPinnedRef.current = false
+      }
+    } else {
+      // Scroll to bottom (newest messages)
+      container.scrollTop = container.scrollHeight
+    }
+
     previousLastMessageIdRef.current = messages[messages.length - 1]?.id ?? null
-  }, [channel.id, jumpToMessageId, messages.length, openThreadId, scrollToBottom])
+  }, [channel.id, jumpToMessageId, messages.length, openThreadId])
 
   useEffect(() => {
     const newestMessage = messages[messages.length - 1]

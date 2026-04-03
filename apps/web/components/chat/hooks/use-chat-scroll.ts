@@ -15,22 +15,15 @@ interface UseChatScrollArgs {
 /**
  * Scroll management hook for chat message containers.
  *
- * Pin-to-bottom strategy (adapted from Fluxer's ScrollManager):
+ * Standard (top-to-bottom) scroll direction:
+ *   scrollTop === 0 → user is at the top (oldest messages)
+ *   scrollTop + clientHeight === scrollHeight → user is at the bottom (newest)
  *
- * 1. useLayoutEffect — runs synchronously after every React render but BEFORE
- *    paint.  If pinned to bottom, we set scrollTop = scrollHeight so the user
- *    never sees a frame where content shifted but scroll didn't follow.
- *
- * 2. MutationObserver — catches DOM changes that don't trigger React renders
- *    (lazy embeds, virtualizer re-measurement via rAF).
- *
- * 3. Sticky pin tolerance — 10px to initially pin, 200px to stay pinned.
- *    The large sticky range absorbs mobile address-bar resize (~56-100px)
- *    and iOS momentum scroll overshoot.
+ * Uses a useLayoutEffect (before paint) to keep scroll pinned to bottom
+ * on every React render, and a MutationObserver for non-React DOM changes.
  */
 
-const PIN_TOLERANCE = 10
-const STICKY_TOLERANCE = 200
+const AT_BOTTOM_THRESHOLD = 120
 const SCROLL_TRIGGER_THRESHOLD = 120
 
 export function useChatScroll({
@@ -45,20 +38,16 @@ export function useChatScroll({
   const [isAtBottom, setIsAtBottom] = useState(true)
   const isPinnedRef = useRef(true)
   const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Track previous scrollHeight so we can distinguish "content grew" from
-  // "viewport resized" — viewport resizes (address bar, keyboard) should
-  // keep the pin but not actively scroll.
-  const prevScrollHeightRef = useRef(0)
 
-  // ── Core: snap to bottom on every render when pinned ────────────────
-  // Runs in useLayoutEffect (before paint) so new messages, channel
-  // switches, and virtualizer re-measurements all settle before the user
-  // sees the frame.
+  // ── Pin to bottom on every render (before paint) ────────────────────
+  // This is the primary mechanism: whenever React commits DOM changes
+  // (new messages, virtualizer re-measurement, etc.), we synchronously
+  // snap scrollTop to the bottom before the browser paints.  The user
+  // never sees a frame where content grew but scroll didn't follow.
   useLayoutEffect(() => {
     const container = messageScrollerRef.current
     if (!container || !isPinnedRef.current) return
     const maxScroll = container.scrollHeight - container.clientHeight
-    // Only touch scrollTop when there's actually a gap to close
     if (maxScroll - container.scrollTop > 1) {
       container.scrollTop = maxScroll
     }
@@ -68,22 +57,10 @@ export function useChatScroll({
     const container = messageScrollerRef.current
     if (!container) return
 
-    prevScrollHeightRef.current = container.scrollHeight
-
     const persistScroll = () => {
       if (scrollStorageKey && typeof window !== "undefined") {
         window.sessionStorage.setItem(scrollStorageKey, String(container.scrollTop))
       }
-    }
-
-    const evaluatePin = (): boolean => {
-      const distanceFromBottom = Math.max(
-        container.scrollHeight - container.clientHeight - container.scrollTop,
-        0,
-      )
-      const isWithinTolerance = distanceFromBottom <= PIN_TOLERANCE
-      const isWithinStickyRange = distanceFromBottom <= STICKY_TOLERANCE
-      return isWithinTolerance || (isPinnedRef.current && isWithinStickyRange)
     }
 
     const onScroll = () => {
@@ -94,28 +71,11 @@ export function useChatScroll({
         void loadOlderMessages()
       }
 
-      // Detect whether scrollHeight changed (content grew/shrank) vs
-      // clientHeight changed (viewport resize from address bar / keyboard).
-      // Both fire scroll events, but viewport resizes should preserve pin
-      // without actively re-scrolling — the browser already adjusts.
-      const scrollHeightChanged = container.scrollHeight !== prevScrollHeightRef.current
-      prevScrollHeightRef.current = container.scrollHeight
-
-      const nextPinned = evaluatePin()
-
-      // On viewport resize (clientHeight change, scrollHeight unchanged),
-      // keep the current pin state — don't let address-bar show/hide unpin.
-      if (!scrollHeightChanged && isPinnedRef.current && !nextPinned) {
-        // Viewport shrank or grew but content didn't — stay pinned and re-snap
-        const maxScroll = container.scrollHeight - container.clientHeight
-        if (maxScroll - scrollTop > 1) {
-          container.scrollTop = maxScroll
-        }
-        return
-      }
-
-      isPinnedRef.current = nextPinned
-      setIsAtBottom(nextPinned)
+      // At bottom when scrolled within threshold of the end
+      const distanceFromBottom = container.scrollHeight - container.clientHeight - scrollTop
+      const nextIsAtBottom = distanceFromBottom < AT_BOTTOM_THRESHOLD
+      isPinnedRef.current = nextIsAtBottom
+      setIsAtBottom(nextIsAtBottom)
 
       if (scrollStorageKey) {
         if (scrollSaveTimerRef.current) {
@@ -127,7 +87,7 @@ export function useChatScroll({
         }, 250)
       }
 
-      if (nextPinned) {
+      if (nextIsAtBottom) {
         onReachedBottom()
         if (unreadAnchorStorageKey && typeof window !== "undefined") {
           window.sessionStorage.removeItem(unreadAnchorStorageKey)
@@ -136,7 +96,9 @@ export function useChatScroll({
     }
 
     // ── MutationObserver: catch DOM changes outside React renders ──────
-    // Lazy embeds, virtualizer rAF re-measurements, etc.
+    // Virtualizer rAF-based re-measurement, lazy embeds, image loads that
+    // change element sizes — any mutation that grows scrollHeight without
+    // a React state update.
     let mutationRaf = 0
     const mutationObserver = new MutationObserver(() => {
       if (!isPinnedRef.current) return
@@ -146,7 +108,6 @@ export function useChatScroll({
         const maxScroll = container.scrollHeight - container.clientHeight
         if (maxScroll - container.scrollTop > 1) {
           container.scrollTop = maxScroll
-          prevScrollHeightRef.current = container.scrollHeight
         }
       })
     })
@@ -155,24 +116,8 @@ export function useChatScroll({
       subtree: true,
     })
 
-    // Initial evaluation
     onScroll()
     container.addEventListener("scroll", onScroll, { passive: true })
-
-    // On mobile, visualViewport resize (keyboard, address bar) can shift
-    // clientHeight without a scroll event.  Re-snap if pinned.
-    const onViewportResize = () => {
-      if (!isPinnedRef.current) return
-      requestAnimationFrame(() => {
-        if (!isPinnedRef.current) return
-        const maxScroll = container.scrollHeight - container.clientHeight
-        if (maxScroll - container.scrollTop > 1) {
-          container.scrollTop = maxScroll
-        }
-      })
-    }
-    const vv = typeof window !== "undefined" ? window.visualViewport : null
-    vv?.addEventListener("resize", onViewportResize)
 
     return () => {
       if (scrollSaveTimerRef.current) {
@@ -183,7 +128,6 @@ export function useChatScroll({
       container.removeEventListener("scroll", onScroll)
       cancelAnimationFrame(mutationRaf)
       mutationObserver.disconnect()
-      vv?.removeEventListener("resize", onViewportResize)
     }
   }, [hasMoreHistory, loadOlderMessages, messageScrollerRef, onReachedBottom, paginationRequestRef, scrollStorageKey, unreadAnchorStorageKey])
 

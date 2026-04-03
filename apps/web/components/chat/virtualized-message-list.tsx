@@ -134,14 +134,6 @@ export function VirtualizedMessageList({
   return (
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "flex-end",
-        minHeight: "100%",
-      }}
-    >
-    <div
-      style={{
         height: virtualizer.getTotalSize(),
         width: "100%",
         position: "relative",
@@ -213,7 +205,6 @@ export function VirtualizedMessageList({
           </div>
         )
       })}
-    </div>
     </div>
   )
 }
