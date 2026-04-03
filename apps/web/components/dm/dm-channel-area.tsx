@@ -412,7 +412,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null) as MutableRefObject<Promise<unknown> | null>
   const isMobileDm = useMobileLayout()
-  useKeyboardAvoidance(scrollerRef, isMobileDm, true)
+  useKeyboardAvoidance(scrollerRef, isMobileDm, false)
 
   const prevLastMsgIdRef = useRef<string | null>(null)
   const topRef = useRef<HTMLDivElement>(null)
@@ -1349,8 +1349,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       )}
 
       {/* Messages */}
-      {/* Scroll container: column-reverse (scrollTop = 0 = newest messages) */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 flex flex-col-reverse" style={{ overscrollBehaviorY: "contain" }}>
+      {/* Scroll container: standard direction (scrollTop = scrollHeight = newest messages) */}
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}>
         <div className="space-y-1">
         {/* Load more */}
         {hasMore && (

@@ -118,7 +118,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const virtualizerRef = useRef<VirtualizedMessageListHandle>(null)
-  useKeyboardAvoidance(messageScrollerRef, isMobile, true)
+  useKeyboardAvoidance(messageScrollerRef, isMobile)
   const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
   const jumpedRef = useRef(false)
   const lastJumpMessageIdRef = useRef<string | null>(null)
@@ -519,8 +519,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const scrollToLatest = useCallback((behavior: ScrollBehavior = "auto") => {
     const container = messageScrollerRef.current
     if (!container) return
-    // column-reverse: scrollTop=0 is the bottom (newest messages)
-    container.scrollTo({ top: 0, behavior })
+    container.scrollTo({ top: container.scrollHeight, behavior })
   }, [])
 
   useEffect(() => {
@@ -761,13 +760,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
   const { handlers: pullToRefreshHandlers, pullDistance, refreshing: pullRefreshing, threshold: pullThreshold } = usePullToRefresh({
     onRefresh: handlePullRefresh,
-    // column-reverse: scrollTop increases toward older messages (visual top)
-    isAtTop: (() => {
-      const el = messageScrollerRef.current
-      if (!el) return false
-      const maxScroll = el.scrollHeight - el.clientHeight
-      return maxScroll - el.scrollTop < 120
-    })(),
+    isAtTop: (messageScrollerRef.current?.scrollTop ?? 0) < 120,
   })
 
   useEffect(() => {
@@ -867,7 +860,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [isOnline, channel.id, flushOutbox, flushTrigger])
 
   // On channel switch, scroll to the bottom (newest messages).
-  // column-reverse: scrollTo({ top: 0 }) = newest messages visible.
+  // If there's a cached scroll position (user was scrolled up), restore it.
   useLayoutEffect(() => {
     if (prevChannelIdRef.current !== channel.id) {
       shouldAutoScrollToLatestRef.current = true
@@ -880,9 +873,18 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (messages.length === 0) return
     shouldAutoScrollToLatestRef.current = false
 
-    scrollToBottom()
-    previousLastMessageIdRef.current = messages[messages.length - 1]?.id ?? null
-  }, [channel.id, jumpToMessageId, messages.length, openThreadId, scrollToBottom])
+    const container = messageScrollerRef.current
+    if (!container) return
+
+    // Check for cached scroll position from a previous visit to this channel
+    const cachedState = useAppStore.getState().messageCache[channel.id]
+    if (cachedState) {
+      container.scrollTop = cachedState.scrollOffset
+    } else {
+      // Scroll to bottom (newest messages)
+      container.scrollTop = container.scrollHeight
+    }
+  }, [channel.id, jumpToMessageId, messages.length, openThreadId])
 
   useEffect(() => {
     const newestMessage = messages[messages.length - 1]
@@ -1912,21 +1914,61 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           />
         )}
 
-        {/* ── Virtualized scroll container (#647) ──────────────────────
-             Replaced column-reverse layout with VirtualizedMessageList for
-             60-80% DOM node reduction. Scroll anchoring handled by virtualizer. */}
+        {/* ── Virtualized scroll container ──────────────────────────── */}
         <div
           ref={messageScrollerRef}
-          className="flex-1 overflow-y-auto relative flex flex-col-reverse"
+          className="flex-1 overflow-y-auto relative"
           role="log"
           aria-label="Message history"
           aria-relevant="additions"
-          style={{ overscrollBehaviorY: "contain" }}
+          style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}
           {...(isMobile ? pullToRefreshHandlers : {})}
         >
-          {/* In column-reverse, DOM order is visually reversed.
-               VirtualizedMessageList comes first in DOM → appears at bottom (newest).
-               Reconnect gap and pull-to-refresh come after → appear above. */}
+          {/* Pull-to-refresh indicator (mobile only) — require meaningful pull before showing */}
+          {isMobile && (pullDistance > 20 || pullRefreshing) && (
+            <div
+              className="flex items-center justify-center py-2 select-none"
+              style={{ minHeight: `${Math.max(pullDistance, pullRefreshing ? 40 : 0)}px` }}
+              aria-live="polite"
+            >
+              <span
+                className="text-xs"
+                style={{
+                  color: "var(--theme-text-muted)",
+                  transform: pullRefreshing ? "none" : `rotate(${Math.min(pullDistance * 3, 360)}deg)`,
+                  transition: pullRefreshing ? "transform 0s" : "none",
+                }}
+              >
+                {pullRefreshing ? "Refreshing…" : pullDistance >= pullThreshold ? "Release to refresh" : "↓"}
+              </span>
+            </div>
+          )}
+
+          {/* Reconnection gap indicator (#611) */}
+          {reconnectGap && (
+            <div className="mx-4 my-2 flex items-center gap-3 rounded-lg px-4 py-2.5" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.25)" }}>
+              <span className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+                You may have missed messages while disconnected
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setReconnectGap(false)
+                  if (unreadDividerMessageId) {
+                    const idx = messageIndexMap.get(unreadDividerMessageId)
+                    if (idx != null) {
+                      virtualizerRef.current?.scrollToIndex(idx, { align: "center", behavior: "smooth" })
+                    }
+                  }
+                }}
+                className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-md shrink-0"
+                style={{ background: "rgba(250,166,26,0.15)", color: "rgb(250,166,26)" }}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           <VirtualizedMessageList
             messages={messages}
             scrollContainerRef={messageScrollerRef}
@@ -1979,52 +2021,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
               </>
             }
           />
-
-          {/* Reconnection gap indicator (#611) — after virtualizer in DOM
-               so column-reverse places it visually above the messages */}
-          {reconnectGap && (
-            <div className="mx-4 my-2 flex items-center gap-3 rounded-lg px-4 py-2.5" style={{ background: "rgba(250,166,26,0.1)", border: "1px solid rgba(250,166,26,0.25)" }}>
-              <span className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
-                You may have missed messages while disconnected
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setReconnectGap(false)
-                  if (unreadDividerMessageId) {
-                    const idx = messageIndexMap.get(unreadDividerMessageId)
-                    if (idx != null) {
-                      virtualizerRef.current?.scrollToIndex(idx, { align: "center", behavior: "smooth" })
-                    }
-                  }
-                }}
-                className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-md shrink-0"
-                style={{ background: "rgba(250,166,26,0.15)", color: "rgb(250,166,26)" }}
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-
-          {/* Pull-to-refresh indicator (mobile only) */}
-          {isMobile && (pullDistance > 20 || pullRefreshing) && (
-            <div
-              className="flex items-center justify-center py-2 select-none"
-              style={{ minHeight: `${Math.max(pullDistance, pullRefreshing ? 40 : 0)}px` }}
-              aria-live="polite"
-            >
-              <span
-                className="text-xs"
-                style={{
-                  color: "var(--theme-text-muted)",
-                  transform: pullRefreshing ? "none" : `rotate(${Math.min(pullDistance * 3, 360)}deg)`,
-                  transition: pullRefreshing ? "transform 0s" : "none",
-                }}
-              >
-                {pullRefreshing ? "Refreshing…" : pullDistance >= pullThreshold ? "Release to refresh" : "↓"}
-              </span>
-            </div>
-          )}
 
           {/* Floating overlays — positioned absolutely within the scroll container */}
           {!isAtBottom && (

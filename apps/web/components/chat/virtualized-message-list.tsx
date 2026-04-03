@@ -6,12 +6,9 @@
  * Renders a scrollable message list using @tanstack/react-virtual to only
  * mount visible messages in the DOM.  Supports dynamic row heights (messages
  * vary due to embeds, attachments, reactions), bidirectional infinite scroll,
- * and column-reverse scroll anchoring for new messages.
+ * and scroll-to-bottom anchoring for new messages.
  *
- * The scroll container uses flex-direction: column-reverse so that
- * scrollTop=0 = newest messages (bottom).  The virtualizer is configured
- * with inverted observeElementOffset / scrollToFn so its internal model
- * (index 0 = top = oldest) maps correctly to the reversed scroll.
+ * Replaces the previous direct DOM rendering capped at 150 messages.
  */
 
 import { useCallback, useEffect, useImperativeHandle, useRef, type ReactNode } from "react"
@@ -28,7 +25,7 @@ const ESTIMATED_ROW_HEIGHT = 68
 
 interface VirtualizedMessageListProps {
   messages: MessageWithAuthor[]
-  /** Ref to the outer scroll container (column-reverse flex). */
+  /** Ref to the outer scroll container. */
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
   /** Render a single message row.  Must return a single element with ref forwarding. */
   renderMessage: (message: MessageWithAuthor, index: number) => ReactNode
@@ -44,12 +41,6 @@ interface VirtualizedMessageListProps {
   footerContent?: ReactNode
   /** Imperative handle ref for programmatic scroll control. */
   handle?: React.RefObject<VirtualizedMessageListHandle | null>
-}
-
-/** Invert scrollTop for column-reverse: the virtualizer sees standard
- *  top-to-bottom offsets even though the DOM scroll is reversed. */
-function getMaxScroll(el: Element): number {
-  return Math.max(0, el.scrollHeight - el.clientHeight)
 }
 
 export function VirtualizedMessageList({
@@ -82,35 +73,6 @@ export function VirtualizedMessageList({
       return ESTIMATED_ROW_HEIGHT
     },
     overscan: 10,
-
-    // ── Column-reverse adapter ────────────────────────────────────────
-    // The scroll container uses flex-direction: column-reverse so that
-    // scrollTop=0 = newest (bottom).  The virtualizer expects offset=0
-    // = oldest (top).  We invert the scroll offset in both directions.
-
-    observeElementOffset: (instance, cb) => {
-      const el = instance.scrollElement
-      if (!el) return
-      const handler = () => {
-        // Invert: real scrollTop=0 → virtualizer sees maxScroll (bottom)
-        cb(getMaxScroll(el) - el.scrollTop, true)
-      }
-      handler()
-      el.addEventListener("scroll", handler, { passive: true })
-      return () => el.removeEventListener("scroll", handler)
-    },
-
-    scrollToFn: (offset, options, instance) => {
-      const el = instance.scrollElement
-      if (!el) return
-      const adjustments = options.adjustments ?? 0
-      // Invert: virtualizer's offset=0 = top → real scrollTop=maxScroll
-      const invertedOffset = getMaxScroll(el) - offset - adjustments
-      el.scrollTo({
-        top: Math.max(0, invertedOffset),
-        behavior: options.behavior,
-      })
-    },
   })
 
   // Expose scrollToIndex via imperative handle

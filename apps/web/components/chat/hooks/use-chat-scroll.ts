@@ -13,20 +13,14 @@ interface UseChatScrollArgs {
 }
 
 /**
- * Scroll management hook for chat message containers using column-reverse.
+ * Scroll management hook for chat message containers.
  *
- * In column-reverse:
- *   scrollTop === 0 → user is at the bottom (newest messages)
- *   scrollTop increases → user scrolls toward older messages
+ * Standard (top-to-bottom) scroll direction:
+ *   scrollTop === 0 → user is at the top (oldest messages)
+ *   scrollTop + clientHeight === scrollHeight → user is at the bottom (newest)
  *
- * The browser natively keeps the user at scrollTop=0 when new content is
- * added, so no programmatic scroll pinning, useLayoutEffect hacks, or
- * MutationObservers are needed.
+ * Used by both channel chat and DM chat for consistent scroll behavior.
  */
-
-const AT_BOTTOM_THRESHOLD = 120
-const LOAD_MORE_THRESHOLD = 120
-
 export function useChatScroll({
   hasMoreHistory,
   loadOlderMessages,
@@ -52,18 +46,15 @@ export function useChatScroll({
     const onScroll = () => {
       const scrollTop = container.scrollTop
 
-      // In column-reverse, scrollTop=0 is the bottom (newest).
-      // User scrolls UP to see older messages → scrollTop increases.
-      const nextIsAtBottom = scrollTop < AT_BOTTOM_THRESHOLD
-      setIsAtBottom(nextIsAtBottom)
-
-      // Load older messages when scrolled far enough toward history.
-      // distanceFromOldest = how far from the oldest content (max scrollTop)
-      const maxScroll = container.scrollHeight - container.clientHeight
-      const distanceFromOldest = maxScroll - scrollTop
-      if (distanceFromOldest < LOAD_MORE_THRESHOLD && hasMoreHistory && !paginationRequestRef.current) {
+      // Load older messages when near the top (oldest messages).
+      if (scrollTop < 120 && hasMoreHistory && !paginationRequestRef.current) {
         void loadOlderMessages()
       }
+
+      // At bottom when scrolled within 120px of the end
+      const distanceFromBottom = container.scrollHeight - container.clientHeight - scrollTop
+      const nextIsAtBottom = distanceFromBottom < 120
+      setIsAtBottom(nextIsAtBottom)
 
       if (scrollStorageKey) {
         if (scrollSaveTimerRef.current) {
@@ -84,7 +75,7 @@ export function useChatScroll({
     }
 
     onScroll()
-    container.addEventListener("scroll", onScroll, { passive: true })
+    container.addEventListener("scroll", onScroll)
 
     return () => {
       if (scrollSaveTimerRef.current) {
@@ -99,8 +90,7 @@ export function useChatScroll({
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     const container = messageScrollerRef.current
     if (!container) return
-    // In column-reverse, scrollTop=0 is the bottom (newest messages)
-    container.scrollTo({ top: 0, behavior })
+    container.scrollTo({ top: container.scrollHeight, behavior })
   }, [messageScrollerRef])
 
   return { isAtBottom, setIsAtBottom, scrollToBottom }
