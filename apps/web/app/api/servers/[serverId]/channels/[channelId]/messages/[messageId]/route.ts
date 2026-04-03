@@ -7,6 +7,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ serverId: string; channelId: string; messageId: string }> }
 ) {
+  try {
   const { serverId, channelId, messageId } = await params
   const supabase = await createServerSupabaseClient()
   const {
@@ -97,6 +98,10 @@ export async function PATCH(
     )
 
   return NextResponse.json(data)
+  } catch (err) {
+    console.error("[messages PATCH] unhandled error:", err instanceof Error ? err.message : String(err))
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 // DELETE /api/servers/[serverId]/channels/[channelId]/messages/[messageId] — soft-delete a message

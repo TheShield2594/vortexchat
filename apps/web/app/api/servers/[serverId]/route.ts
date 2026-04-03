@@ -249,11 +249,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
  * Permission: server owner only
  */
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { serverId } = await params
-  const { supabase, user, error: authError } = await requireAuth()
-  if (authError) return authError
-
   try {
+    const { serverId } = await params
+    const { supabase, user, error: authError } = await requireAuth()
+    if (authError) return authError
+
     const { data: server } = await supabase
       .from("servers")
       .select("owner_id, name")
@@ -298,6 +298,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
     return NextResponse.json({ success: true })
   } catch {
-    return NextResponse.json({ error: "Failed to delete server" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

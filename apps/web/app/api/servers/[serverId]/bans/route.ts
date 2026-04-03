@@ -102,6 +102,38 @@ export async function POST(
     if (!checkPermission(permissions, "BAN_MEMBERS")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
+
+    // Role hierarchy check: requester must outrank the target.
+    // Fetch both members' role positions and compare.
+    const [requesterRoles, targetRoles] = await Promise.all([
+      supabase
+        .from("member_roles")
+        .select("roles(position)")
+        .eq("server_id", serverId)
+        .eq("user_id", user.id),
+      supabase
+        .from("member_roles")
+        .select("roles(position)")
+        .eq("server_id", serverId)
+        .eq("user_id", userId),
+    ])
+
+    interface RoleJoin { roles: { position: number } | null }
+    const requesterMaxPosition = (requesterRoles.data as RoleJoin[] ?? []).reduce(
+      (max: number, mr: RoleJoin) => Math.max(max, mr.roles?.position ?? 0),
+      0
+    )
+    const targetMaxPosition = (targetRoles.data as RoleJoin[] ?? []).reduce(
+      (max: number, mr: RoleJoin) => Math.max(max, mr.roles?.position ?? 0),
+      0
+    )
+
+    if (targetMaxPosition >= requesterMaxPosition) {
+      return NextResponse.json(
+        { error: "Cannot ban a member with equal or higher role" },
+        { status: 403 }
+      )
+    }
   }
 
   const { data: existingBan, error: existingBanError } = await supabase

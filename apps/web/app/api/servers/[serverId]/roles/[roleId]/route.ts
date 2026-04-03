@@ -199,7 +199,8 @@ export async function DELETE(
       .eq("server_id", serverId)
 
     if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      console.error("[roles DELETE] DB error:", deleteError.message)
+      return NextResponse.json({ error: "Failed to delete role" }, { status: 500 })
     }
 
     // Audit log the deletion

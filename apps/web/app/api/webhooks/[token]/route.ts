@@ -30,24 +30,18 @@ export async function POST(
     const { token } = await params
 
     // Coarse IP-level rate limit — 60 webhook calls per minute per IP
+    // failClosed: webhook endpoints must not allow unlimited traffic when Redis is down
     const ip = getClientIp(req.headers) ?? "unknown"
-    try {
-      const ipRl = await rateLimiter.check(`webhook_ip:${ip}`, { limit: 60, windowMs: 60_000 })
-      if (!ipRl.allowed) {
-        return NextResponse.json({ error: "Rate limited" }, { status: 429 })
-      }
-    } catch {
-      // Fail open — don't block webhooks if rate limiter is down
+    const ipRl = await rateLimiter.check(`webhook_ip:${ip}`, { limit: 60, windowMs: 60_000, failClosed: true })
+    if (!ipRl.allowed) {
+      return NextResponse.json({ error: "Rate limited" }, { status: 429 })
     }
 
     // Rate limit per webhook token — 30 messages per minute
-    try {
-      const rl = await rateLimiter.check(`webhook:${token}`, { limit: 30, windowMs: 60_000 })
-      if (!rl.allowed) {
-        return NextResponse.json({ error: "Rate limited" }, { status: 429 })
-      }
-    } catch {
-      // Fail open — don't block webhook delivery if rate limiter is down
+    // failClosed: prevent unlimited message flooding when Redis is down
+    const rl = await rateLimiter.check(`webhook:${token}`, { limit: 30, windowMs: 60_000, failClosed: true })
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limited" }, { status: 429 })
     }
 
     const supabaseAdmin = getSupabaseAdmin()
