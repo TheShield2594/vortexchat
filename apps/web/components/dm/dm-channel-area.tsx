@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, lazy, Suspense, type MutableRefObject } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { useTyping } from "@/hooks/use-typing"
 import { useAppStore } from "@/lib/stores/app-store"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
+import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
 import { useShallow } from "zustand/react/shallow"
 import { decryptDmContent, encryptDmContent, exportPublicKey, fingerprintFromPublicKey, generateConversationKey, generateDeviceKeyPair, importPublicKey, parseEncryptedEnvelope, unwrapConversationKey, wrapConversationKey } from "@/lib/dm-encryption"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
@@ -403,7 +404,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
-  const [isAtBottom, setIsAtBottom] = useState(true)
   const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -433,6 +433,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const paginationRequestRef = useRef<Promise<unknown> | null>(null) as MutableRefObject<Promise<unknown> | null>
   const isMobileDm = useMobileLayout()
   useKeyboardAvoidance(scrollerRef, isMobileDm, false)
 
@@ -614,9 +615,29 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     loadMessages()
   }, [loadMessages])
 
-  // Scroll to bottom on channel switch, reset new-message counter.
-  // Uses useLayoutEffect + messages.length dependency (same pattern as chat-area.tsx)
-  // so we wait until messages are rendered before scrolling.
+  // Load older messages — used by both the manual button and the useChatScroll hook
+  const loadMore = useCallback(async (): Promise<void> => {
+    if (!messages.length || loadingMore) return
+    setLoadingMore(true)
+    await loadMessages(messages[0].created_at)
+    setLoadingMore(false)
+  }, [messages, loadingMore, loadMessages])
+
+  // ── Shared scroll hook (same as channel chat-area.tsx) ───────────────
+  const onReachedBottom = useCallback(() => {
+    setPendingNewMessageCount(0)
+  }, [])
+
+  const { isAtBottom, scrollToBottom } = useChatScroll({
+    hasMoreHistory: hasMore,
+    loadOlderMessages: loadMore,
+    messageScrollerRef: scrollerRef,
+    paginationRequestRef,
+    onReachedBottom,
+  })
+
+  // Scroll to bottom on channel switch (same pattern as chat-area.tsx).
+  // Uses useLayoutEffect + messages.length so we wait until messages render.
   const shouldScrollToBottomRef = useRef(true)
   const prevChannelIdScrollRef = useRef(channelId)
   useLayoutEffect(() => {
@@ -624,7 +645,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       shouldScrollToBottomRef.current = true
       prevChannelIdScrollRef.current = channelId
       setPendingNewMessageCount(0)
-      setIsAtBottom(true)
       prevLastMsgIdRef.current = null
     }
 
@@ -632,10 +652,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     if (messages.length === 0) return
     shouldScrollToBottomRef.current = false
 
-    const container = scrollerRef.current
-    if (container) container.scrollTop = 0 // column-reverse: 0 = bottom
+    scrollToBottom()
     prevLastMsgIdRef.current = messages[messages.length - 1]?.id ?? null
-  }, [channelId, messages.length])
+  }, [channelId, messages.length, scrollToBottom])
 
   // Track active DM channel for notification suppression
   useEffect(() => {
@@ -691,33 +710,19 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     }
   }, [channelId])
 
-  // Track isAtBottom via scroll listener (column-reverse: scrollTop near 0 = at bottom)
-  useEffect(() => {
-    const container = scrollerRef.current
-    if (!container) return
-    const onScroll = () => {
-      const atBottom = container.scrollTop < 120
-      setIsAtBottom(atBottom)
-      if (atBottom) setPendingNewMessageCount(0)
-    }
-    onScroll()
-    container.addEventListener("scroll", onScroll)
-    return () => container.removeEventListener("scroll", onScroll)
-  }, [channelId])
-
-  // Auto-scroll or count new messages from others
+  // Auto-scroll or count new messages from others (same pattern as chat-area.tsx)
   useEffect(() => {
     const newestMsg = messages[messages.length - 1]
     if (!newestMsg) return
     if (prevLastMsgIdRef.current === null || newestMsg.id === prevLastMsgIdRef.current) return
     prevLastMsgIdRef.current = newestMsg.id
     if (isAtBottom || newestMsg.sender_id === currentUserId) {
-      scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" }) // column-reverse: 0 = bottom
+      scrollToBottom("smooth")
       setPendingNewMessageCount(0)
     } else {
       setPendingNewMessageCount((c) => c + 1)
     }
-  }, [messages, isAtBottom, currentUserId])
+  }, [messages, isAtBottom, currentUserId, scrollToBottom])
 
   // Realtime subscription
   useEffect(() => {
@@ -1176,13 +1181,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     }
   }
 
-  async function loadMore() {
-    if (!messages.length || loadingMore) return
-    setLoadingMore(true)
-    await loadMessages(messages[0].created_at)
-    setLoadingMore(false)
-  }
-
   async function handleEditSave(messageId: string) {
     if (!editContent.trim()) return
     if (channel?.is_encrypted) {
@@ -1540,8 +1538,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       )}
 
       {/* Messages */}
-      {/* column-reverse scroll container: scrollTop 0 = bottom (newest messages visible) */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ display: "flex", flexDirection: "column-reverse", overflowAnchor: "none", overscrollBehaviorY: "contain" }}>
+      {/* Scroll container: standard direction (scrollTop = scrollHeight = newest messages) */}
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}>
         <div className="space-y-1">
         {/* Load more */}
         {hasMore && (
@@ -2039,7 +2037,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
         {!isAtBottom && (
           <div className="sticky bottom-0 flex justify-center pointer-events-none pb-3">
             <button
-              onClick={() => { scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" }); setPendingNewMessageCount(0) }}
+              onClick={() => { scrollToBottom("smooth"); setPendingNewMessageCount(0) }}
               className="motion-interactive motion-press px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1.5 pointer-events-auto"
               style={{ background: "var(--theme-accent)", color: "white" }}
               aria-label={pendingNewMessageCount > 0 ? `Jump to latest — ${pendingNewMessageCount} new message${pendingNewMessageCount !== 1 ? "s" : ""}` : "Jump to latest message"}

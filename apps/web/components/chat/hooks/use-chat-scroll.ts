@@ -5,20 +5,21 @@ interface UseChatScrollArgs {
   loadOlderMessages: () => Promise<void>
   messageScrollerRef: MutableRefObject<HTMLDivElement | null>
   paginationRequestRef: MutableRefObject<Promise<unknown> | null>
-  scrollStorageKey: string
-  unreadAnchorStorageKey: string
+  /** Session-storage key for persisting scroll offset. Omit to skip persistence. */
+  scrollStorageKey?: string
+  /** Session-storage key for unread anchor. Omit to skip anchor cleanup. */
+  unreadAnchorStorageKey?: string
   onReachedBottom: () => void
 }
 
 /**
- * Scroll management hook for the virtualized message container.
+ * Scroll management hook for chat message containers.
  *
- * With standard (top-to-bottom) scroll direction:
+ * Standard (top-to-bottom) scroll direction:
  *   scrollTop === 0 → user is at the top (oldest messages)
  *   scrollTop + clientHeight === scrollHeight → user is at the bottom (newest)
  *
- * Pagination is handled by VirtualizedMessageList — this hook only
- * tracks scroll position for "at bottom" detection and persistence.
+ * Used by both channel chat and DM chat for consistent scroll behavior.
  */
 export function useChatScroll({
   hasMoreHistory,
@@ -37,7 +38,7 @@ export function useChatScroll({
     if (!container) return
 
     const persistScroll = () => {
-      if (typeof window !== "undefined") {
+      if (scrollStorageKey && typeof window !== "undefined") {
         window.sessionStorage.setItem(scrollStorageKey, String(container.scrollTop))
       }
     }
@@ -55,17 +56,19 @@ export function useChatScroll({
       const nextIsAtBottom = distanceFromBottom < 120
       setIsAtBottom(nextIsAtBottom)
 
-      if (scrollSaveTimerRef.current) {
-        clearTimeout(scrollSaveTimerRef.current)
+      if (scrollStorageKey) {
+        if (scrollSaveTimerRef.current) {
+          clearTimeout(scrollSaveTimerRef.current)
+        }
+        scrollSaveTimerRef.current = setTimeout(() => {
+          persistScroll()
+          scrollSaveTimerRef.current = null
+        }, 250)
       }
-      scrollSaveTimerRef.current = setTimeout(() => {
-        persistScroll()
-        scrollSaveTimerRef.current = null
-      }, 250)
 
       if (nextIsAtBottom) {
         onReachedBottom()
-        if (typeof window !== "undefined") {
+        if (unreadAnchorStorageKey && typeof window !== "undefined") {
           window.sessionStorage.removeItem(unreadAnchorStorageKey)
         }
       }
@@ -79,7 +82,7 @@ export function useChatScroll({
         clearTimeout(scrollSaveTimerRef.current)
         scrollSaveTimerRef.current = null
       }
-      persistScroll()
+      if (scrollStorageKey) persistScroll()
       container.removeEventListener("scroll", onScroll)
     }
   }, [hasMoreHistory, loadOlderMessages, messageScrollerRef, onReachedBottom, paginationRequestRef, scrollStorageKey, unreadAnchorStorageKey])
