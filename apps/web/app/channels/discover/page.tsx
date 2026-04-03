@@ -2,17 +2,27 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Users, Compass, BadgeCheck, Star, Plus, ArrowUpDown, ChevronDown, TrendingUp, Award, Sparkles } from "lucide-react"
+import { Search, Users, Compass, BadgeCheck, Star, Plus, ArrowUpDown, ChevronDown, TrendingUp, Award, Sparkles, ShieldAlert, ShieldCheck } from "lucide-react"
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
-import type { CuratedSection } from "@vortex/shared"
+import {
+  TRUST_BADGE_INFO,
+  APP_PERMISSION_META,
+  requiresInstallConfirmation,
+} from "@vortex/shared"
+import type { CuratedSection, PermissionImpactLevel } from "@vortex/shared"
 
 interface PublicServer {
   id: string
@@ -81,6 +91,96 @@ function curatedSectionIcon(slug: string): React.ReactNode {
     default:
       return <Star className="h-5 w-5 text-muted-foreground" />
   }
+}
+
+const IMPACT_STYLES: Record<PermissionImpactLevel, { bg: string; text: string; label: string }> = {
+  low: { bg: "bg-emerald-500/10", text: "text-emerald-400", label: "Low" },
+  medium: { bg: "bg-amber-500/10", text: "text-amber-400", label: "Medium" },
+  high: { bg: "bg-orange-500/10", text: "text-orange-400", label: "High" },
+  critical: { bg: "bg-red-500/10", text: "text-red-400", label: "Critical" },
+}
+
+function TrustBadgeTooltip({ badge, className }: { badge: "verified" | "partner" | "internal"; className?: string }): React.ReactElement {
+  const [open, setOpen] = useState(false)
+  const info = TRUST_BADGE_INFO[badge]
+  const colorMap: Record<string, string> = {
+    emerald: "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+    blue: "border-blue-500/20 bg-blue-500/10 text-blue-400",
+    purple: "border-purple-500/20 bg-purple-500/10 text-purple-400",
+  }
+
+  return (
+    <div className={cn("relative inline-flex", className)}>
+      <button
+        type="button"
+        className={cn("flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors", colorMap[info.color])}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        aria-label={`${info.label} trust badge: ${info.description}`}
+      >
+        <BadgeCheck className="h-3 w-3" />
+        {info.label}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-popover p-3 shadow-xl" role="tooltip">
+          <div className="mb-1 flex items-center gap-1.5">
+            <BadgeCheck className={cn("h-4 w-4", `text-${info.color}-400`)} />
+            <span className="text-sm font-semibold">{info.label}</span>
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">{info.description}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PermissionList({ permissions }: { permissions: string[] }): React.ReactElement {
+  const grouped = { critical: [] as string[], high: [] as string[], medium: [] as string[], low: [] as string[] }
+  for (const perm of permissions) {
+    const meta = APP_PERMISSION_META[perm]
+    const level = meta?.impact ?? "low"
+    grouped[level].push(perm)
+  }
+  const order: PermissionImpactLevel[] = ["critical", "high", "medium", "low"]
+
+  return (
+    <div className="space-y-2">
+      {order.map((level) => {
+        const perms = grouped[level]
+        if (perms.length === 0) return null
+        const style = IMPACT_STYLES[level]
+        return (
+          <div key={level}>
+            <div className="mb-1 flex items-center gap-1.5">
+              {(level === "critical" || level === "high") ? (
+                <ShieldAlert className={cn("h-3.5 w-3.5", style.text)} />
+              ) : (
+                <ShieldCheck className={cn("h-3.5 w-3.5", style.text)} />
+              )}
+              <span className={cn("text-[10px] font-semibold uppercase tracking-wider", style.text)}>{style.label} impact</span>
+            </div>
+            <div className="space-y-1">
+              {perms.map((perm) => {
+                const meta = APP_PERMISSION_META[perm]
+                return (
+                  <div key={perm} className={cn("flex items-start gap-2 rounded-md px-2 py-1.5 text-xs", style.bg)}>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium text-foreground">{meta?.label ?? perm}</span>
+                      {meta?.description && (
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">{meta.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 function AppIcon({ name, iconUrl }: { name: string; iconUrl?: string | null }): React.ReactElement {
@@ -168,6 +268,9 @@ export default function DiscoverPage() {
   const [installingTo, setInstallingTo] = useState<string | null>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
 
+  // Pre-install confirmation for elevated permissions
+  const [confirmInstall, setConfirmInstall] = useState<{ appId: string; serverId: string; appName: string; permissions: string[] } | null>(null)
+
   // Close picker on outside click
   useEffect(() => {
     if (!pickerAppId) return
@@ -179,6 +282,15 @@ export default function DiscoverPage() {
     document.addEventListener("pointerdown", handleClick)
     return () => document.removeEventListener("pointerdown", handleClick)
   }, [pickerAppId])
+
+  function handleInstallClick(app: DiscoverApp, serverId: string): void {
+    if (requiresInstallConfirmation(app.permissions)) {
+      setPickerAppId(null)
+      setConfirmInstall({ appId: app.id, serverId, appName: app.name, permissions: app.permissions })
+    } else {
+      installAppToServer(app.id, serverId)
+    }
+  }
 
   async function installAppToServer(appId: string, serverId: string) {
     setInstallingTo(serverId)
@@ -578,10 +690,7 @@ export default function DiscoverPage() {
                         <div className="flex items-center gap-2">
                           <h3 className="truncate text-base font-semibold">{app.name}</h3>
                           {app.trust_badge && (
-                            <span className={cn("flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] font-medium", trustBadgeColor(app.trust_badge), app.trust_badge === "verified" ? "border-emerald-500/20 bg-emerald-500/10" : app.trust_badge === "partner" ? "border-blue-500/20 bg-blue-500/10" : "border-purple-500/20 bg-purple-500/10")}>
-                              <BadgeCheck className="h-3 w-3" />
-                              {trustBadgeLabel(app.trust_badge)}
-                            </span>
+                            <TrustBadgeTooltip badge={app.trust_badge} />
                           )}
                         </div>
                         <span className="text-xs capitalize text-muted-foreground">{app.category}</span>
@@ -635,7 +744,7 @@ export default function DiscoverPage() {
                                 type="button"
                                 disabled={installingTo === s.id}
                                 className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
-                                onClick={() => installAppToServer(app.id, s.id)}
+                                onClick={() => handleInstallClick(app, s.id)}
                               >
                                 <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
                                   {s.name.slice(0, 1).toUpperCase()}
@@ -657,6 +766,39 @@ export default function DiscoverPage() {
           </div>
         )}
       </div>
+
+      {/* Pre-install confirmation for elevated permissions */}
+      <AlertDialog open={!!confirmInstall} onOpenChange={(open) => { if (!open) setConfirmInstall(null) }}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-orange-400" />
+              Review permissions for {confirmInstall?.appName}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  This app requests elevated permissions. Please review carefully before installing.
+                </p>
+                {confirmInstall && <PermissionList permissions={confirmInstall.permissions} />}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmInstall) {
+                  installAppToServer(confirmInstall.appId, confirmInstall.serverId)
+                  setConfirmInstall(null)
+                }
+              }}
+            >
+              Install anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
