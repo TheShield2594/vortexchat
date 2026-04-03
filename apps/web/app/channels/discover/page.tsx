@@ -108,6 +108,11 @@ function TrustBadgeTooltip({ badge, className }: { badge: "verified" | "partner"
     blue: "border-blue-500/20 bg-blue-500/10 text-blue-400",
     purple: "border-purple-500/20 bg-purple-500/10 text-purple-400",
   }
+  const iconColorMap: Record<string, string> = {
+    emerald: "text-emerald-400",
+    blue: "text-blue-400",
+    purple: "text-purple-400",
+  }
 
   return (
     <div className={cn("relative inline-flex", className)}>
@@ -126,7 +131,7 @@ function TrustBadgeTooltip({ badge, className }: { badge: "verified" | "partner"
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-popover p-3 shadow-xl" role="tooltip">
           <div className="mb-1 flex items-center gap-1.5">
-            <BadgeCheck className={cn("h-4 w-4", `text-${info.color}-400`)} />
+            <BadgeCheck className={cn("h-4 w-4", iconColorMap[info.color])} />
             <span className="text-sm font-semibold">{info.label}</span>
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">{info.description}</p>

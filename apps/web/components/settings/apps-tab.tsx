@@ -94,6 +94,7 @@ function TrustBadgePill({ badge }: { badge: TrustBadgeType }): React.ReactElemen
 function formatRelativeDate(dateStr: string): string {
   const now = Date.now()
   const then = new Date(dateStr).getTime()
+  if (Number.isNaN(then)) return "Unknown"
   const diffMs = now - then
   const days = Math.floor(diffMs / 86_400_000)
   if (days < 1) return "Today"
