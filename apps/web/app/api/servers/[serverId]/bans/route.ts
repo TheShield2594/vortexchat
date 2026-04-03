@@ -118,6 +118,25 @@ export async function POST(
         .eq("user_id", userId),
     ])
 
+    if (requesterRoles.error || targetRoles.error) {
+      log.error({
+        serverId,
+        actorId: user.id,
+        targetId: userId,
+        requesterErr: requesterRoles.error?.message,
+        targetErr: targetRoles.error?.message,
+      }, "Failed to evaluate ban hierarchy")
+      await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "member_ban_denied",
+        target_id: userId,
+        target_type: "user",
+        changes: { reason: "hierarchy_lookup_failed" },
+      })
+      return NextResponse.json({ error: "Unable to verify role hierarchy" }, { status: 500 })
+    }
+
     interface RoleJoin { roles: { position: number } | null }
     const requesterMaxPosition = (requesterRoles.data as RoleJoin[] ?? []).reduce(
       (max: number, mr: RoleJoin) => Math.max(max, mr.roles?.position ?? 0),

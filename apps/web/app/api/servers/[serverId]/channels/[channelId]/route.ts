@@ -16,10 +16,12 @@ const MAX_SLOWMODE_SECONDS = 21600
 export async function PATCH(req: NextRequest, { params }: Params) {
   let serverId: string | undefined
   let channelId: string | undefined
+  let userId: string | undefined
   try {
   ({ serverId, channelId } = await params)
   const { supabase, user, error } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
   if (error) return error
+  userId = user?.id
 
   let body: Record<string, unknown>
   try {
@@ -167,6 +169,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       action: "channel_update",
       serverId,
       channelId,
+      userId,
       err,
     })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
