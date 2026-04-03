@@ -85,6 +85,9 @@ export async function GET(
         display_name,
         avatar_url,
         status_message,
+        bio,
+        banner_color,
+        custom_tag,
         game_activity,
         last_online_at
       ),

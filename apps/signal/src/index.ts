@@ -934,13 +934,18 @@ io.on("connection", (socket: Socket) => {
       if (!Array.isArray(candidates) || candidates.length === 0) return
       if (!checkSocketRate(socket.id, "signaling")) return
       if (!(await validateSignalingPeer(to))) return
-      // Validate and cap batch size to prevent abuse
+      // Validate and cap batch size to prevent abuse.
+      // Each ICE candidate must have candidate, sdpMid, and sdpMLineIndex.
       const validated = candidates
         .slice(0, MAX_ICE_CANDIDATES)
-        .filter((c): c is Record<string, unknown> =>
-          typeof c === "object" && c !== null &&
-          (typeof (c as Record<string, unknown>).candidate === "string" || (c as Record<string, unknown>).candidate === null)
-        )
+        .filter((c): c is Record<string, unknown> => {
+          if (typeof c !== "object" || c === null) return false
+          const entry = c as Record<string, unknown>
+          if (typeof entry.candidate !== "string" && entry.candidate !== null) return false
+          if (typeof entry.sdpMid !== "string" && entry.sdpMid !== null) return false
+          if (typeof entry.sdpMLineIndex !== "number") return false
+          return true
+        })
       if (validated.length === 0) return
       io.to(to).emit("ice-candidates-batch", { from: socket.id, candidates: validated })
     } catch (err) {

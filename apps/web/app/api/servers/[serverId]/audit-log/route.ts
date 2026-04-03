@@ -47,6 +47,9 @@ export async function GET(
     const from = searchParams.get("from")
     const to = searchParams.get("to")
     const exportFormat = searchParams.get("format") ?? "json"
+    if (exportFormat !== "json" && exportFormat !== "csv") {
+      return NextResponse.json({ error: "Invalid format. Use 'json' or 'csv'." }, { status: 400 })
+    }
 
     // Enforce 180-day retention window
     const retentionCutoff = new Date()
@@ -134,7 +137,7 @@ export async function GET(
     }
 
     const next_before =
-      result.length === limit ? result[result.length - 1]!.created_at : null
+      result.length === limit ? result[result.length - 1]?.created_at ?? null : null
 
     return NextResponse.json({ entries: result, next_before })
 
