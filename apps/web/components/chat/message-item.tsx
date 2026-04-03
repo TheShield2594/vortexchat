@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useId, useRef, useState, lazy, Suspense }
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
 import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip, Clock, Loader2, AlertTriangle } from "lucide-react"
-import { EmojiPicker } from "frimousse"
+import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { OptimizedAvatarImage } from "@/components/ui/optimized-avatar-image"
 import { UserProfilePopover } from "@/components/user-profile-popover"
@@ -96,7 +96,7 @@ function addEmojiRecent(emoji: string) {
   }
 }
 
-function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis }: { onSelect: (emoji: string) => void | Promise<void>; onClose: () => void; maxHeight?: string; serverEmojis?: ServerEmoji[] }) {
+function EmojiPickerPopup({ onSelect, onClose, maxHeight, serverEmojis, EmojiPicker }: { onSelect: (emoji: string) => void | Promise<void>; onClose: () => void; maxHeight?: string; serverEmojis?: ServerEmoji[]; EmojiPicker: NonNullable<ReturnType<typeof import("@/hooks/use-lazy-emoji-picker").useLazyEmojiPicker>["EmojiPicker"]> }) {
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -298,7 +298,16 @@ export const MessageItem = memo(function MessageItem({
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content ?? "")
   const [showActions, setShowActions] = useState(false)
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showEmojiPicker, setShowEmojiPickerRaw] = useState(false)
+  const { EmojiPicker, loadEmojiPicker } = useLazyEmojiPicker()
+  const setShowEmojiPicker = useCallback((v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v : () => v
+    setShowEmojiPickerRaw((prev) => {
+      const val = next(prev)
+      if (val) loadEmojiPicker()
+      return val
+    })
+  }, [loadEmojiPicker])
   const [showCreateThread, setShowCreateThread] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
@@ -832,7 +841,7 @@ export const MessageItem = memo(function MessageItem({
 
           {/* Emoji picker — portaled to body so it escapes scroll overflow clipping */}
           {/* Desktop: positioned emoji picker */}
-          {showEmojiPicker && emojiPickerPos && createPortal(
+          {showEmojiPicker && EmojiPicker && emojiPickerPos && createPortal(
             <div
               data-emoji-picker-portal
               onClick={(e) => { if (e.target === e.currentTarget) { setShowEmojiPicker(false); setEmojiPickerPos(null) } }}
@@ -847,13 +856,14 @@ export const MessageItem = memo(function MessageItem({
                   onSelect={async (emoji) => { try { await onReaction(emoji) } catch { /* handled upstream */ } }}
                   onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
                   serverEmojis={serverEmojis}
+                  EmojiPicker={EmojiPicker}
                 />
               </div>
             </div>,
             document.body,
           )}
-          {/* Mobile: emoji picker as a bottom sheet */}
-          {showEmojiPicker && createPortal(
+          {/* Mobile: emoji picker as a bottom sheet (only when desktop positioned picker is not active) */}
+          {showEmojiPicker && EmojiPicker && !emojiPickerPos && createPortal(
             <div
               data-emoji-picker-portal
               className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end"
@@ -893,6 +903,7 @@ export const MessageItem = memo(function MessageItem({
                   onClose={() => { setShowEmojiPicker(false); setEmojiPickerPos(null) }}
                   maxHeight="calc(70vh - 100px)"
                   serverEmojis={serverEmojis}
+                  EmojiPicker={EmojiPicker}
                 />
               </div>
             </div>,

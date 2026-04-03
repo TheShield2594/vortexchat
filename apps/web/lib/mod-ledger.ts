@@ -77,6 +77,18 @@ export function mapActionType(action: string): TimelineActionType {
   return ACTION_TYPE_MAP[action] ?? "other"
 }
 
+/** Reverse-maps timeline action types to raw audit_log `action` values for DB filtering. */
+export function getRawActionsForTypes(types: TimelineActionType[]): string[] | null {
+  const typeSet = new Set(types)
+  // "other" maps to everything NOT in ACTION_TYPE_MAP — can't be filtered at DB level
+  if (typeSet.has("other")) return null
+  const actions: string[] = []
+  for (const [rawAction, mappedType] of Object.entries(ACTION_TYPE_MAP)) {
+    if (typeSet.has(mappedType)) actions.push(rawAction)
+  }
+  return actions.length > 0 ? actions : null
+}
+
 export function deriveIncidentKey(event: Pick<TimelineEvent, "action_type" | "target_id" | "metadata" | "created_at">): string {
   const metadata = getStringRecord(event.metadata)
   const metadataIncident = metadata?.incident_id

@@ -37,10 +37,33 @@ export async function GET(
     return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
   }
 
+  // Pagination: cursor-based using user_id for stable ordering.
+  // When neither `limit` nor `after` is specified, return all members for
+  // backward compatibility with existing callers (member-list, role-manager).
+  const { searchParams } = new URL(request.url)
+  const rawLimit = searchParams.get("limit")
+  const afterCursor = searchParams.get("after")
+  const isPaginated = rawLimit !== null || afterCursor !== null
+
+  let limit: number
+  if (rawLimit !== null) {
+    const parsed = Number(rawLimit)
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 500) {
+      return NextResponse.json({ error: "Invalid limit (must be 1-500)" }, { status: 400 })
+    }
+    limit = parsed
+  } else {
+    limit = isPaginated ? 100 : 10_000 // no practical limit for full-list callers
+  }
+
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (afterCursor && !uuidRegex.test(afterCursor)) {
+    return NextResponse.json({ error: "Invalid after cursor" }, { status: 400 })
+  }
+
   // Slim projection for member lists — omits status_message, bio, banner_color,
   // custom_tag which are only needed for profile modals (~60-70% payload reduction).
   // Use ?fields=full to get the complete profile data.
-  const { searchParams } = new URL(request.url)
   const fieldsParam = searchParams.get("fields")
   const wantFull = fieldsParam === "full"
 
@@ -136,22 +159,30 @@ export async function GET(
       )
     ` as const
 
-  let { data: members, error } = await adminSupabase
+  let query = adminSupabase
     .from("server_members")
     .select(wantFull ? MEMBER_SELECT_FULL : MEMBER_SELECT_SLIM)
     .eq("server_id", params.serverId)
-    .order("nickname", { ascending: true, nullsFirst: false })
     .order("user_id", { ascending: true })
+    .limit(limit + 1) // fetch one extra to detect next page
+
+  if (afterCursor) {
+    query = query.gt("user_id", afterCursor)
+  }
+
+  let { data: members, error } = await query
 
   // If the query fails (e.g. last_online_at column missing), retry without it
   if (error) {
     console.warn("[members] GET query failed, retrying without last_online_at", { code: error.code, message: error.message })
-    const fallback = await adminSupabase
+    let fallbackQuery = adminSupabase
       .from("server_members")
       .select(MEMBER_SELECT_COMPAT)
       .eq("server_id", params.serverId)
-      .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
+      .limit(limit + 1)
+    if (afterCursor) fallbackQuery = fallbackQuery.gt("user_id", afterCursor)
+    const fallback = await fallbackQuery
     // Normalize: add last_online_at: null to match expected type
     if (fallback.data) {
       members = fallback.data.map((m) => ({
@@ -169,11 +200,22 @@ export async function GET(
     return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 })
   }
 
-  const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
-  const visibleMembers = filterBlockedUserIds(members ?? [], (member) => member.user_id, blockedUserIds)
+  const allMembers = members ?? []
+  const hasMore = allMembers.length > limit
+  const pageMembers = hasMore ? allMembers.slice(0, limit) : allMembers
 
+  const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
+  const visibleMembers = filterBlockedUserIds(pageMembers, (member) => member.user_id, blockedUserIds)
+
+  const lastMember = pageMembers[pageMembers.length - 1]
+  const nextCursor = hasMore && lastMember ? lastMember.user_id : null
+
+  // Return array directly for backward compatibility; cursor in header.
   return NextResponse.json(visibleMembers, {
-    headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
+    headers: {
+      "Cache-Control": "private, max-age=10, stale-while-revalidate=30",
+      ...(nextCursor ? { "X-Next-Cursor": nextCursor } : {}),
+    },
   })
   } catch (err) {
     console.error("[servers/[serverId]/members GET] error:", err)

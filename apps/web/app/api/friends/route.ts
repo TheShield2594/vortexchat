@@ -5,13 +5,17 @@ import { requireAuth, checkRateLimit } from "@/lib/utils/api-helpers"
 
 // GET /api/friends
 // Returns { accepted: FriendWithUser[], pending_received: FriendWithUser[], pending_sent: FriendWithUser[], blocked: FriendWithUser[] }
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const { supabase, user, error: authError } = await requireAuth()
     if (authError) return authError
 
-    // Fetch all friendships where the current user is involved
-    const { data, error } = await supabase
+    // Pagination: cursor-based on friendship id
+    const { searchParams } = new URL(req.url)
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "100", 10), 1), 500)
+    const afterCursor = searchParams.get("after") // friendship id cursor
+
+    let query = supabase
       .from("friendships")
       .select(`
         id,
@@ -24,6 +28,12 @@ export async function GET() {
         addressee:users!friendships_addressee_id_fkey(*)
       `)
       .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+      .order("id", { ascending: true })
+      .limit(limit + 1)
+
+    if (afterCursor) query = query.gt("id", afterCursor)
+
+    const { data, error } = await query
 
     if (error) return NextResponse.json({ error: "Failed to fetch friends" }, { status: 500 })
 
@@ -35,7 +45,11 @@ export async function GET() {
     const pending_sent: FriendEntry[] = []
     const blocked: FriendEntry[] = []
 
-    for (const row of data ?? []) {
+    const allRows = data ?? []
+    const hasMore = allRows.length > limit
+    const pageRows = hasMore ? allRows.slice(0, limit) : allRows
+
+    for (const row of pageRows) {
       const isRequester = row.requester_id === user.id
       const friend = isRequester ? row.addressee : row.requester
       const entry: FriendEntry = { ...row, friend }
@@ -51,7 +65,10 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ accepted, pending_received, pending_sent, blocked })
+    const lastRow = pageRows[pageRows.length - 1]
+    const nextCursor = hasMore && lastRow ? lastRow.id : null
+
+    return NextResponse.json({ accepted, pending_received, pending_sent, blocked, next_cursor: nextCursor })
   } catch (err) {
     console.error("[friends GET] error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

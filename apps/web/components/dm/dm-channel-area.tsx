@@ -7,7 +7,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { setActiveDmChannel } from "@/lib/notification-manager"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
-import { EmojiPicker } from "frimousse"
+import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { format, isToday, isYesterday } from "date-fns"
 import { cn } from "@/lib/utils/cn"
@@ -119,7 +119,7 @@ function addEmojiRecent(emoji: string): void {
 }
 
 /** Reusable reaction picker content with recent emojis, search, categories, and skin tone selector. */
-function DmReactionPickerContent({ msgId, onReaction, onClose, maxHeight }: { msgId: string; onReaction: (emoji: string) => void; onClose: () => void; maxHeight?: string }) {
+function DmReactionPickerContent({ onReaction, onClose, maxHeight, EmojiPicker }: { onReaction: (emoji: string) => void; onClose: () => void; maxHeight?: string; EmojiPicker: NonNullable<ReturnType<typeof import("@/hooks/use-lazy-emoji-picker").useLazyEmojiPicker>["EmojiPicker"]> }) {
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
 
@@ -403,7 +403,18 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
-  const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null)
+  const [reactionPickerMsgId, setReactionPickerMsgIdRaw] = useState<string | null>(null)
+  const [reactionPickerLoading, setReactionPickerLoading] = useState(false)
+  const { EmojiPicker, loadEmojiPicker } = useLazyEmojiPicker()
+  const setReactionPickerMsgId = useCallback((v: string | null): void => {
+    if (v) {
+      setReactionPickerLoading(true)
+      void loadEmojiPicker().finally(() => setReactionPickerLoading(false))
+    } else {
+      setReactionPickerLoading(false)
+    }
+    setReactionPickerMsgIdRaw(v)
+  }, [loadEmojiPicker])
   const [reactionPickerPos, setReactionPickerPos] = useState<{ top: number; left: number } | null>(null)
   const [poppingReactions, setPoppingReactions] = useState<Record<string, Record<string, number>>>({})
   const popTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -1788,17 +1799,23 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     className="rounded-lg shadow-xl overflow-hidden"
                     style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
                   >
-                    <DmReactionPickerContent
-                      msgId={msg.id}
-                      onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
-                      onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
-                    />
+                    {EmojiPicker ? (
+                      <DmReactionPickerContent
+                        onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                        onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                        EmojiPicker={EmojiPicker}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center p-6 text-sm" style={{ color: "var(--theme-text-muted)", minWidth: 200, minHeight: 100 }}>
+                        {reactionPickerLoading ? "Loading reactions\u2026" : "Couldn\u2019t load reactions."}
+                      </div>
+                    )}
                   </div>
                 </div>,
                 document.body,
               )}
-              {/* Mobile: reaction emoji picker as bottom sheet */}
-              {reactionPickerMsgId === msg.id && createPortal(
+              {/* Mobile: reaction emoji picker as bottom sheet (only when desktop positioned picker is not active) */}
+              {reactionPickerMsgId === msg.id && !reactionPickerPos && createPortal(
                 <div
                   data-dm-reaction-picker-portal
                   className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end"
@@ -1833,12 +1850,18 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                         </button>
                       ))}
                     </div>
-                    <DmReactionPickerContent
-                      msgId={msg.id}
-                      onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
-                      onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
-                      maxHeight="calc(70vh - 100px)"
-                    />
+                    {EmojiPicker ? (
+                      <DmReactionPickerContent
+                        onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                        onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                        maxHeight="calc(70vh - 100px)"
+                        EmojiPicker={EmojiPicker}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center p-6 text-sm" style={{ color: "var(--theme-text-muted)" }}>
+                        {reactionPickerLoading ? "Loading reactions\u2026" : "Couldn\u2019t load reactions."}
+                      </div>
+                    )}
                   </div>
                 </div>,
                 document.body,

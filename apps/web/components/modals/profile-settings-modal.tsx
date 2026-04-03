@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { EmojiPicker } from "frimousse"
+import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
 import { Loader2, Upload, LogOut, Lock, Hash, Plus, GripVertical, Globe, Users, Trash2 } from "lucide-react"
 import {
   DndContext,
@@ -168,7 +168,16 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "connections" | "appearance">("profile")
-  const [showStatusEmojiPicker, setShowStatusEmojiPicker] = useState(false)
+  const [showStatusEmojiPicker, setShowStatusEmojiPickerRaw] = useState(false)
+  const { EmojiPicker, loadEmojiPicker } = useLazyEmojiPicker()
+  const setShowStatusEmojiPicker = useCallback((v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v : () => v
+    setShowStatusEmojiPickerRaw((prev) => {
+      const val = next(prev)
+      if (val) loadEmojiPicker()
+      return val
+    })
+  }, [loadEmojiPicker])
   const statusEmojiPickerRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLInputElement>(null)
 
@@ -681,7 +690,7 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
                           >
                             {statusEmoji || <span style={{ opacity: 0.4, fontSize: "18px" }}>😀</span>}
                           </button>
-                          {showStatusEmojiPicker && (
+                          {showStatusEmojiPicker && EmojiPicker && (
                             <div
                               role="dialog"
                               aria-label="Emoji picker"

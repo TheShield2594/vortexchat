@@ -38,6 +38,7 @@ import { UserPanel } from "@/components/layout/user-panel"
 import { CompactVoiceBar } from "@/components/voice/compact-voice-bar"
 import { SortableChannelItem, ChannelIcon } from "@/components/layout/sortable-channel-item"
 import { CategoryHeader, DropContainer, getCategoryDragId, getCategoryIdFromDragId } from "@/components/layout/category-header"
+import { StaticCategoryHeader, StaticChannelItem } from "@/components/layout/static-channel-list"
 
 import type { VoiceParticipant } from "@vortex/shared"
 export type { VoiceParticipant }
@@ -873,6 +874,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
         {/* Channel list */}
         <div className="flex-1 overflow-y-auto py-2">
+          {canManageChannels ? (
           <DndContext
             sensors={sensors}
             collisionDetection={collisionDetection}
@@ -905,8 +907,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                       onEdit={() => setEditCategoryTarget(category)}
                       onDelete={() => setDeleteCategoryTarget({ id: category.id, name: category.name })}
                       onCopyId={() => {
-                        navigator.clipboard.writeText(category.id).catch(() => {})
-                        toast({ title: "Category ID copied!" })
+                        void navigator.clipboard.writeText(category.id)
+                          .then(() => { toast({ title: "Category ID copied!" }) })
+                          .catch(() => { toast({ variant: "destructive", title: "Failed to copy category ID" }) })
                       }}
                     />
                   )}
@@ -1002,6 +1005,78 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
               ) : null}
             </DragOverlay>
           </DndContext>
+          ) : (
+            /* Non-admin: static components without dnd-kit hooks */
+            <>
+            {liveGrouped.map(({ category, channels: categoryChannels }) => {
+              const containerId = category?.id ?? NO_CATEGORY
+              const isCollapsed = category ? !expandedCategoryIds.has(category.id) : false
+              return (
+                <div key={containerId} className="mb-2">
+                  {category && (
+                    <StaticCategoryHeader
+                      category={category}
+                      isCollapsed={isCollapsed}
+                      onToggle={() => toggleCategory(category.id)}
+                      onCopyId={() => {
+                        void navigator.clipboard.writeText(category.id)
+                          .then(() => { toast({ title: "Category ID copied!" }) })
+                          .catch(() => { toast({ variant: "destructive", title: "Failed to copy category ID" }) })
+                      }}
+                    />
+                  )}
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                      isCollapsed ? "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none" : "grid-rows-[1fr] opacity-100 translate-y-0"
+                    )}
+                    aria-hidden={isCollapsed || undefined}
+                    ref={(node) => {
+                      if (node) {
+                        if (isCollapsed) node.setAttribute("inert", "")
+                        else node.removeAttribute("inert")
+                      }
+                    }}
+                  >
+                  <div className="space-y-0.5 px-2 min-h-[4px] overflow-hidden">
+                    {categoryChannels.map((channel) => (
+                      <StaticChannelItem
+                        key={channel.id}
+                        channel={channel}
+                        isActive={activeChannelId === channel.id}
+                        isVoiceActive={voiceChannelId === channel.id}
+                        onOpenNotificationSettings={setNotifSettingsChannelId}
+                        onMarkRead={() => markChannelRead(channel.id)}
+                        isUnread={unreadChannelIds.has(channel.id)}
+                        mentionCount={mentionCounts[channel.id] ?? 0}
+                        activeThreadCount={activeThreadCounts[channel.id] ?? 0}
+                        voiceParticipants={
+                          (VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)
+                            ? voiceParticipantsByChannel.get(channel.id)
+                            : undefined
+                        }
+                        href={`/channels/${server.id}/${channel.id}`}
+                        onClick={() => {
+                          if (channel.parent_id) {
+                            setCategoryExpansionOverrides((prev) => ({ ...prev, [channel.parent_id!]: true }))
+                          }
+                          if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
+                            setVoiceChannel(channel.id, server.id, channel.name)
+                          }
+                          router.push(`/channels/${server.id}/${channel.id}`)
+                        }}
+                        onCreateThread={() => {
+                          router.push(`/channels/${server.id}/${channel.id}?createThread=1`)
+                        }}
+                      />
+                    ))}
+                  </div>
+                  </div>
+                </div>
+              )
+            })}
+            </>
+          )}
 
           {/* Add channel button */}
           {canManageChannels && (

@@ -80,7 +80,7 @@ export function useRealtimeMessages(
         (payload) => {
           if (!onReactionInsert) return
           const reaction = payload.new as ReactionRow
-          // Early-return: skip reactions for messages not loaded in this channel
+          // Skip reactions for messages not loaded in this channel
           if (messagesRef?.current && !messagesRef.current.some((m) => m.id === reaction.message_id)) return
           onReactionInsert(reaction)
         }
@@ -91,7 +91,7 @@ export function useRealtimeMessages(
         (payload) => {
           if (!onReactionDelete) return
           const reaction = payload.old as ReactionRow
-          // Early-return: skip reactions for messages not loaded in this channel
+          // Skip reactions for messages not loaded in this channel
           if (messagesRef?.current && !messagesRef.current.some((m) => m.id === reaction.message_id)) return
           onReactionDelete(reaction)
         }

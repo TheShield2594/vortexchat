@@ -16,7 +16,7 @@ import { SlashCommandSuggestions } from "@/components/chat/slash-command-suggest
 import { resolveComposerKeybinding } from "@/lib/composer-keybindings"
 import { useServerEmojis } from "@/components/chat/server-emoji-context"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
-import { EmojiPicker } from "frimousse"
+import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
 import { MAX_ATTACHMENT_BYTES, validateFileClient } from "@/lib/attachment-validation"
 import { toast } from "@/components/ui/use-toast"
 import { useGifMemeSticker } from "@/hooks/use-gif-meme-sticker"
@@ -77,7 +77,16 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
   const [inputFocused, setInputFocused] = useState(false)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
   const dragCounterRef = useRef(0)
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showEmojiPicker, setShowEmojiPickerRaw] = useState(false)
+  const { EmojiPicker, loadEmojiPicker } = useLazyEmojiPicker()
+  const setShowEmojiPicker = useCallback((v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v : () => v
+    setShowEmojiPickerRaw((prev) => {
+      const val = next(prev)
+      if (val) loadEmojiPicker()
+      return val
+    })
+  }, [loadEmojiPicker])
   const [emojiSearch, setEmojiSearch] = useState("")
   const emojiGridRef = useRef<HTMLDivElement>(null)
   const [showPlusMenu, setShowPlusMenu] = useState(false)
@@ -1146,7 +1155,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
           />
         </div>
 
-        {showEmojiPicker && (
+        {showEmojiPicker && EmojiPicker && (
           <div
             ref={emojiPickerRef}
             data-state="open"

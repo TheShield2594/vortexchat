@@ -20,26 +20,79 @@ type RateLimitResult = {
 
 // ─── Upstash Redis rate limiter ──────────────────────────────────────────────
 
+// Lazily initialized singletons — the Upstash REST client is stateless,
+// so a single instance is safe to share across all rate-limit checks.
+let _redis: InstanceType<typeof import("@upstash/redis").Redis> | null = null
+let _pendingRedis: Promise<InstanceType<typeof import("@upstash/redis").Redis>> | null = null
+const _limiterCache = new Map<string, InstanceType<typeof import("@upstash/ratelimit").Ratelimit>>()
+const _pendingLimiters = new Map<string, Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>>>()
+
+async function getRedis(): Promise<InstanceType<typeof import("@upstash/redis").Redis>> {
+  if (_redis) return _redis
+  if (_pendingRedis) return _pendingRedis
+
+  _pendingRedis = (async () => {
+    try {
+      const { Redis } = await import("@upstash/redis")
+      _redis = new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL!,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+      })
+      return _redis
+    } catch (err) {
+      throw new Error(`Failed to initialize Upstash Redis client: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      _pendingRedis = null
+    }
+  })()
+
+  return _pendingRedis
+}
+
+async function getLimiter(opts: { limit: number; windowMs: number }): Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>> {
+  try {
+    const cacheKey = `${opts.limit}:${opts.windowMs}`
+    const cached = _limiterCache.get(cacheKey)
+    if (cached) return cached
+
+    // Deduplicate concurrent initialization for the same key
+    const pending = _pendingLimiters.get(cacheKey)
+    if (pending) return pending
+
+    const initPromise = (async () => {
+      try {
+        const { Ratelimit } = await import("@upstash/ratelimit")
+        const redis = await getRedis()
+        const limiter = new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(opts.limit, `${opts.windowMs}ms`),
+          prefix: "vortex:rl",
+        })
+        _limiterCache.set(cacheKey, limiter)
+        return limiter
+      } finally {
+        _pendingLimiters.delete(cacheKey)
+      }
+    })()
+
+    _pendingLimiters.set(cacheKey, initPromise)
+    return initPromise
+  } catch (err) {
+    throw new Error(`Failed to get limiter (${opts.limit}/${opts.windowMs}ms): ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
 async function checkUpstash(
   key: string,
   opts: { limit: number; windowMs: number }
 ): Promise<RateLimitResult> {
-  const { Ratelimit } = await import("@upstash/ratelimit")
-  const { Redis } = await import("@upstash/redis")
-
-  const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  })
-
-  const limiter = new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(opts.limit, `${opts.windowMs}ms`),
-    prefix: "vortex:rl",
-  })
-
-  const { success, remaining, reset } = await limiter.limit(key)
-  return { allowed: success, remaining, resetAt: reset }
+  try {
+    const limiter = await getLimiter(opts)
+    const { success, remaining, reset } = await limiter.limit(key)
+    return { allowed: success, remaining, resetAt: reset }
+  } catch (err) {
+    throw new Error(`Upstash rate-limit check failed: ${err instanceof Error ? err.message : String(err)}`)
+  }
 }
 
 // ─── In-memory fallback ──────────────────────────────────────────────────────
@@ -117,7 +170,13 @@ export const rateLimiter = {
       if (opts.failClosed) {
         // Structured log import avoided here to prevent circular deps;
         // Sentry will also capture this via global error handling.
-        console.error("[rate-limit] Infrastructure failure (fail-closed):", (err as Error).message)
+        const action = key.split(":")[0] ?? "unknown"
+        console.error("[rate-limit] Infrastructure failure (fail-closed)", {
+          action,
+          limit: opts.limit,
+          windowMs: opts.windowMs,
+          error: err instanceof Error ? err.message : String(err),
+        })
         return { allowed: false, remaining: 0, resetAt: Date.now() + 60_000 }
       }
       throw err

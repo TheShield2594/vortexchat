@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import {
-  applyTimelineFilters,
   deriveIncidentKey,
+  getRawActionsForTypes,
   mapActionType,
-  paginateTimeline,
   timelineToCsv,
   type TimelineActionType,
   type TimelineCursor,
@@ -27,6 +26,10 @@ function parseCursor(raw: string | null): TimelineCursor | null {
   try {
     const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as TimelineCursor
     if (!parsed?.created_at || !parsed?.id) return null
+    // Validate timestamp and UUID to prevent malformed cursor interpolation
+    if (isNaN(Date.parse(parsed.created_at))) return null
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(parsed.id)) return null
     return parsed
   } catch {
     return null
@@ -57,6 +60,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
     const limit = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "50", 10), 1), 200)
     const cursor = parseCursor(searchParams.get("cursor"))
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
     const filters = {
       actorId: searchParams.get("actor_id"),
       targetId: searchParams.get("target_id"),
@@ -65,14 +70,52 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
       to: searchParams.get("to"),
     }
 
-    // Reuse existing audit_logs as the primary data source.
-    const { data: logs, error } = await supabase
+    // Validate filter inputs before passing to DB
+    if (filters.actorId && !uuidRegex.test(filters.actorId)) {
+      return NextResponse.json({ error: "Invalid actor_id format" }, { status: 400 })
+    }
+    if (filters.targetId && !uuidRegex.test(filters.targetId)) {
+      return NextResponse.json({ error: "Invalid target_id format" }, { status: 400 })
+    }
+    if (filters.from && isNaN(Date.parse(filters.from))) {
+      return NextResponse.json({ error: "Invalid from timestamp" }, { status: 400 })
+    }
+    if (filters.to && isNaN(Date.parse(filters.to))) {
+      return NextResponse.json({ error: "Invalid to timestamp" }, { status: 400 })
+    }
+
+    // Build the query with DB-level filtering instead of fetching all rows.
+    let query = supabase
       .from("audit_logs")
       .select("id, action, actor_id, target_id, target_type, changes, created_at")
       .eq("server_id", serverId)
+
+    if (filters.actorId) query = query.eq("actor_id", filters.actorId)
+    if (filters.targetId) query = query.eq("target_id", filters.targetId)
+    if (filters.from) query = query.gte("created_at", filters.from)
+    if (filters.to) query = query.lte("created_at", filters.to)
+
+    // Reverse-map action_types to raw action column values for DB-level filtering.
+    // If "other" is requested, rawActions is null and we fall back to JS filtering.
+    const rawActions = filters.actionTypes.length > 0 ? getRawActionsForTypes(filters.actionTypes) : null
+    const needsJsActionFilter = filters.actionTypes.length > 0 && rawActions === null
+    if (rawActions) query = query.in("action", rawActions)
+
+    // Apply cursor-based pagination at the DB level
+    if (cursor) {
+      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`)
+    }
+
+    query = query
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
-      .limit(5000)
+
+    // When "other" action_type is requested we can't filter at DB level,
+    // so over-fetch to compensate for JS filtering.
+    const fetchLimit = needsJsActionFilter ? limit * 10 : limit + 1
+    query = query.limit(fetchLimit)
+
+    const { data: logs, error } = await query
 
     if (error) return NextResponse.json({ error: "Failed to fetch moderation timeline" }, { status: 500 })
 
@@ -104,8 +147,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
       }
     })
 
-    const filtered = applyTimelineFilters(entries, filters)
-    const { data: page, nextCursor } = paginateTimeline(filtered, limit, cursor)
+    // JS filtering only needed for "other" action_type (can't be reverse-mapped)
+    const filtered = needsJsActionFilter
+      ? entries.filter((e) => new Set(filters.actionTypes).has(e.action_type))
+      : entries
+    const page = filtered.slice(0, limit)
+    const lastPageItem = page.at(-1)
+    const nextCursor: TimelineCursor | null = page.length === limit && filtered.length > limit && lastPageItem
+      ? { created_at: lastPageItem.created_at, id: lastPageItem.id }
+      : null
 
     const userIds = new Set<string>()
     for (const event of page) {
