@@ -504,12 +504,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     // Sync refs and derived state with the current messages.  The cache merge
     // already happened synchronously in the useState initializer, so on initial
     // mount this just aligns refs.  When initialMessages changes later (e.g.
-    // server re-render while the component is still mounted), re-merge and
-    // re-trigger scroll-to-bottom so the user sees the latest messages.
+    // server re-render while the component is still mounted), re-merge with
+    // the current messages and let the existing new-message effect handle
+    // scroll/unread decisions — don't force scroll-to-bottom here as the user
+    // may be reading older history.
     const currentMsgs = messagesRef.current
 
     // If initialMessages changed after mount (same channel, fresh server data),
-    // re-merge with the current messages and scroll to bottom.
+    // re-merge with the current messages.  The new-message useEffect will detect
+    // the changed newest ID and handle auto-scroll / pending-badge as normal.
     const initialNewest = initialMessages[initialMessages.length - 1]?.id ?? null
     const currentNewest = currentMsgs[currentMsgs.length - 1]?.id ?? null
     if (initialNewest && initialNewest !== currentNewest) {
@@ -519,14 +522,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       const trimmed = merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
       messagesRef.current = trimmed
       setMessages(trimmed)
-      previousLastMessageIdRef.current = trimmed[trimmed.length - 1]?.id ?? null
-      shouldAutoScrollToLatestRef.current = true
     } else {
       messagesRef.current = currentMsgs
       previousLastMessageIdRef.current = currentMsgs[currentMsgs.length - 1]?.id ?? null
     }
 
-    setPendingNewMessageCount(0)
     setHasMoreHistory(messagesRef.current.length >= 50)
     for (const timer of animatedMessageTimersRef.current.values()) {
       clearTimeout(timer)
