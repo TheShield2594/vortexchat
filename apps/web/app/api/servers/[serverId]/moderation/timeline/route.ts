@@ -152,8 +152,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
       ? entries.filter((e) => new Set(filters.actionTypes).has(e.action_type))
       : entries
     const page = filtered.slice(0, limit)
-    const nextCursor: TimelineCursor | null = page.length === limit && filtered.length > limit
-      ? { created_at: page[page.length - 1].created_at, id: page[page.length - 1].id }
+    const lastPageItem = page.at(-1)
+    const nextCursor: TimelineCursor | null = page.length === limit && filtered.length > limit && lastPageItem
+      ? { created_at: lastPageItem.created_at, id: lastPageItem.id }
       : null
 
     const userIds = new Set<string>()

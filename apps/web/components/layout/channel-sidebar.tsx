@@ -907,8 +907,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                       onEdit={() => setEditCategoryTarget(category)}
                       onDelete={() => setDeleteCategoryTarget({ id: category.id, name: category.name })}
                       onCopyId={() => {
-                        navigator.clipboard.writeText(category.id).catch(() => {})
-                        toast({ title: "Category ID copied!" })
+                        void navigator.clipboard.writeText(category.id)
+                          .then(() => { toast({ title: "Category ID copied!" }) })
+                          .catch(() => { toast({ variant: "destructive", title: "Failed to copy category ID" }) })
                       }}
                     />
                   )}
@@ -1018,8 +1019,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                       isCollapsed={isCollapsed}
                       onToggle={() => toggleCategory(category.id)}
                       onCopyId={() => {
-                        navigator.clipboard.writeText(category.id).catch(() => {})
-                        toast({ title: "Category ID copied!" })
+                        void navigator.clipboard.writeText(category.id)
+                          .then(() => { toast({ title: "Category ID copied!" }) })
+                          .catch(() => { toast({ variant: "destructive", title: "Failed to copy category ID" }) })
                       }}
                     />
                   )}

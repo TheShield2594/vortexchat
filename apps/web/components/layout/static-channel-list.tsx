@@ -53,6 +53,7 @@ export function StaticCategoryHeader({
             onClick={onToggle}
             className="flex items-center gap-1 flex-1 min-w-0 min-h-[44px] text-left focus-ring rounded-sm"
             aria-label={`${isCollapsed ? "Expand" : "Collapse"} category ${category.name}`}
+            aria-expanded={!isCollapsed}
           >
             {isCollapsed ? (
               <ChevronRight className="w-4 h-4 md:w-3 md:h-3 tertiary-metadata" />
@@ -122,12 +123,20 @@ export function StaticChannelItem({
       return
     }
     setTimeRemaining(formatTimeRemaining(channel.expires_at))
-    const msRemaining = new Date(channel.expires_at).getTime() - Date.now()
-    const delay = msRemaining <= 60_000 ? 1_000 : 30_000
-    const interval = setInterval(() => {
+    let timerId: ReturnType<typeof setTimeout> | null = null
+    function tick(): void {
+      const ms = new Date(channel.expires_at!).getTime() - Date.now()
       setTimeRemaining(formatTimeRemaining(channel.expires_at!))
-    }, delay)
-    return () => clearInterval(interval)
+      if (ms <= 0) return // expired — stop scheduling
+      const delay = ms <= 60_000 ? 1_000 : 30_000
+      timerId = setTimeout(tick, delay)
+    }
+    const initialMs = new Date(channel.expires_at).getTime() - Date.now()
+    if (initialMs > 0) {
+      const initialDelay = initialMs <= 60_000 ? 1_000 : 30_000
+      timerId = setTimeout(tick, initialDelay)
+    }
+    return () => { if (timerId !== null) clearTimeout(timerId) }
   }, [channel.expires_at])
 
   return (
