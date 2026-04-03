@@ -10,7 +10,8 @@ import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils/cn"
 import type { ChannelRow } from "@/types/database"
 import { useAppStore } from "@/lib/stores/app-store"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { OptimizedAvatarImage } from "@/components/ui/optimized-avatar-image"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useToast } from "@/components/ui/use-toast"
@@ -264,7 +265,7 @@ export function SortableChannelItem({
               >
                 <Avatar className="w-5 h-5 flex-shrink-0">
                   {participant.user?.avatar_url && (
-                    <AvatarImage src={participant.user.avatar_url} />
+                    <OptimizedAvatarImage src={participant.user.avatar_url} size={20} />
                   )}
                   <AvatarFallback className="channel-sidebar-avatar-fallback" style={{ fontSize: "8px" }}>
                     {initials}

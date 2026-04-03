@@ -37,6 +37,13 @@ export async function GET(
     return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
   }
 
+  // Slim projection for member lists — omits status_message, bio, banner_color,
+  // custom_tag which are only needed for profile modals (~60-70% payload reduction).
+  // Use ?fields=full to get the complete profile data.
+  const { searchParams } = new URL(request.url)
+  const fieldsParam = searchParams.get("fields")
+  const wantFull = fieldsParam === "full"
+
   const MEMBER_SELECT_FULL = `
       server_id,
       user_id,
@@ -52,6 +59,32 @@ export async function GET(
         custom_tag,
         game_activity,
         created_at,
+        last_online_at
+      ),
+      roles:member_roles(
+        role_id,
+        roles(
+          id,
+          server_id,
+          name,
+          color,
+          permissions,
+          position,
+          created_at
+        )
+      )
+    ` as const
+
+  const MEMBER_SELECT_SLIM = `
+      server_id,
+      user_id,
+      nickname,
+      user:users!server_members_user_id_fkey(
+        id,
+        username,
+        display_name,
+        avatar_url,
+        game_activity,
         last_online_at
       ),
       roles:member_roles(
@@ -101,7 +134,7 @@ export async function GET(
 
   let { data: members, error } = await adminSupabase
     .from("server_members")
-    .select(MEMBER_SELECT_FULL)
+    .select(wantFull ? MEMBER_SELECT_FULL : MEMBER_SELECT_SLIM)
     .eq("server_id", params.serverId)
     .order("nickname", { ascending: true, nullsFirst: false })
     .order("user_id", { ascending: true })

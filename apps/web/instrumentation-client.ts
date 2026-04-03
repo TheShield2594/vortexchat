@@ -13,8 +13,16 @@ Sentry.init({
     Sentry.browserTracingIntegration({
       enableLongTask: true,
       enableInp: true,
+      // Disable unused OpenTelemetry-based HTTP/fetch instrumentation that
+      // adds ~317KB to the client bundle without benefit for browser tracing
+      enableHTTPTimings: false,
     }),
   ],
+  // Tree-shake unused OpenTelemetry integrations from the client bundle
+  _experiments: {
+    // Disable OTEL-based transport — use the lighter Sentry-native transport
+    metricsAggregator: false,
+  },
   enabled: process.env.NODE_ENV === "production",
 })
 

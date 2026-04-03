@@ -318,14 +318,26 @@ export function initGateway(options: GatewayOptions): void {
         const userStatus = status as UserStatus
         await presence.updateStatus(state.userId, userStatus)
 
-        // Broadcast to all servers the user belongs to
+        // Broadcast to all servers the user belongs to, deduplicating across
+        // servers so each connected socket only receives the update once.
+        // A user in 50 servers would otherwise generate 50 identical broadcasts
+        // to every socket that shares multiple servers with them.
         const broadcastStatus = userStatus === "invisible" ? "offline" : userStatus
+        const presencePayload = {
+          userId: state.userId,
+          status: broadcastStatus,
+          updatedAt: new Date().toISOString(),
+        }
+        const notifiedSockets = new Set<string>()
         for (const serverId of state.serverIds) {
-          socket.to(`presence:${serverId}`).emit("gateway:presence", {
-            userId: state.userId,
-            status: broadcastStatus,
-            updatedAt: new Date().toISOString(),
-          })
+          const room = io.sockets.adapter.rooms.get(`presence:${serverId}`)
+          if (!room) continue
+          for (const socketId of room) {
+            if (socketId === socket.id) continue // skip self
+            if (notifiedSockets.has(socketId)) continue
+            notifiedSockets.add(socketId)
+            io.to(socketId).emit("gateway:presence", presencePayload)
+          }
         }
       } catch (err) {
         log.error({ socketId: socket.id, err }, "gateway:presence error")

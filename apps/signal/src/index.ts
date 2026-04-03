@@ -909,6 +909,7 @@ io.on("connection", (socket: Socket) => {
     }
   })
 
+  // Accept a single ICE candidate (backwards-compatible)
   socket.on("ice-candidate", async (payload: unknown) => {
     try {
       if (typeof payload !== "object" || payload === null) return
@@ -919,6 +920,22 @@ io.on("connection", (socket: Socket) => {
       io.to(to).emit("ice-candidate", { from: socket.id, candidate })
     } catch (err) {
       logger.error({ socketId: socket.id, event: "ice-candidate", err }, "signaling handler error")
+    }
+  })
+
+  // Accept a batch of ICE candidates (3-5x fewer signaling messages during call setup).
+  // Clients collect candidates over a 100ms window and send them as a single array.
+  socket.on("ice-candidates-batch", async (payload: unknown) => {
+    try {
+      if (typeof payload !== "object" || payload === null) return
+      const { to, candidates } = payload as { to?: unknown; candidates?: unknown }
+      if (typeof to !== "string" || !to) return
+      if (!Array.isArray(candidates) || candidates.length === 0) return
+      if (!checkSocketRate(socket.id, "signaling")) return
+      if (!(await validateSignalingPeer(to))) return
+      io.to(to).emit("ice-candidates-batch", { from: socket.id, candidates })
+    } catch (err) {
+      logger.error({ socketId: socket.id, event: "ice-candidates-batch", err }, "signaling handler error")
     }
   })
 

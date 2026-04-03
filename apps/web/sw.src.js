@@ -23,7 +23,9 @@ function urlBase64ToUint8Array(base64String) {
 const PRECACHE = "vortexchat-precache-v7"
 const RUNTIME = "vortexchat-runtime-v7"
 const APP_SHELL = "vortexchat-shell-v7"
-const ALL_CACHES = [PRECACHE, RUNTIME, APP_SHELL]
+const API_CACHE = "vortexchat-api-v1"
+const API_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const ALL_CACHES = [PRECACHE, RUNTIME, APP_SHELL, API_CACHE]
 
 // ─── Precache manifest ───────────────────────────────────────────────────────
 // Injected by workbox-build: list of { url, revision } objects for every
@@ -139,6 +141,44 @@ self.addEventListener("fetch", (event) => {
           .catch(() => cached)
         return cached || fetchPromise
       })
+    )
+    return
+  }
+
+  // API message history — network-first with short TTL cache for offline access.
+  // Caches GET /api/messages and /api/channels/*/messages responses so users
+  // can view recent messages when offline.
+  if (url.pathname.match(/\/api\/(messages|channels\/[^/]+\/messages)/)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone()
+            caches.open(API_CACHE).then((c) => {
+              // Store with a timestamp header for TTL enforcement
+              const headers = new Headers(copy.headers)
+              headers.set("sw-cache-time", Date.now().toString())
+              c.put(request, new Response(copy.body, { status: copy.status, statusText: copy.statusText, headers }))
+            })
+          }
+          return response
+        })
+        .catch(async () => {
+          const cache = await caches.open(API_CACHE)
+          const cached = await cache.match(request)
+          if (cached) {
+            // Enforce TTL — evict stale entries
+            const cacheTime = parseInt(cached.headers.get("sw-cache-time") || "0", 10)
+            if (Date.now() - cacheTime < API_CACHE_TTL) {
+              return cached
+            }
+            cache.delete(request)
+          }
+          return new Response(JSON.stringify({ error: "Offline" }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          })
+        })
     )
   }
 })

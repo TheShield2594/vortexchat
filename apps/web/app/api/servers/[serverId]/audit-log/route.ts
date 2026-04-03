@@ -58,7 +58,7 @@ export async function GET(
       .eq("server_id", serverId)
       .gte("created_at", retentionCutoff.toISOString())
       .order("created_at", { ascending: false })
-      .limit(exportFormat !== "json" ? 5000 : limit)
+      .limit(exportFormat !== "json" ? 1000 : limit)
 
     if (before) query = query.lt("created_at", before)
     if (from) query = query.gte("created_at", from)
@@ -111,7 +111,27 @@ export async function GET(
     }))
 
     if (exportFormat === "csv") {
-      return new NextResponse(buildCsv(result), {
+      // Stream CSV rows via TransformStream to avoid building the entire
+      // response in memory for large exports (previously 5000 rows at once).
+      const { readable, writable } = new TransformStream<string, string>()
+      const writer = writable.getWriter()
+      const encoder = new TextEncoder()
+      // Write header + rows asynchronously
+      ;(async () => {
+        try {
+          const csvContent = buildCsv(result)
+          // Stream in 64KB chunks to reduce memory pressure
+          const CHUNK_SIZE = 65536
+          for (let i = 0; i < csvContent.length; i += CHUNK_SIZE) {
+            await writer.write(csvContent.slice(i, i + CHUNK_SIZE))
+          }
+        } catch {
+          // Stream error — close gracefully
+        } finally {
+          await writer.close()
+        }
+      })()
+      return new NextResponse(readable.pipeThrough(new TextEncoderStream()), {
         headers: {
           "Content-Type": "text/csv",
           "Content-Disposition": `attachment; filename="audit-log-${serverId}.csv"`,

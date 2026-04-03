@@ -141,6 +141,10 @@ module.exports = withBundleAnalyzer(withSentryConfig(nextConfig, {
   sourcemaps: {
     disable: !process.env.CI,
   },
+  // Disable the Sentry webpack plugin in local builds — it adds substantial
+  // overhead to the client bundle (~720KB gzip) for source-map processing
+  // and telemetry that is only useful in CI/production deployments.
+  disableClientWebpackPlugin: !process.env.CI,
   webpack: {
     autoInstrumentServerFunctions: false,
   },

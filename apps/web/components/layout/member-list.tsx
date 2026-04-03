@@ -8,7 +8,8 @@ import { Clipboard, AtSign, MessageSquare, UserPlus, UserCircle, Flag, Shield, C
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { OptimizedAvatarImage } from "@/components/ui/optimized-avatar-image"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserProfilePopover } from "@/components/user-profile-popover"
 const ProfilePanel = lazy(() => import("@/components/profile/profile-panel").then((m) => ({ default: m.ProfilePanel })))
@@ -588,7 +589,7 @@ const MemberItem = memo(function MemberItem({
           >
             <div className={`relative flex-shrink-0 rounded-full ${recentlyActive ? "recent-activity-halo" : ""}`}>
               <Avatar className={`w-8 h-8 ${presence?.speaking ? "speaking-ring" : ""}`}>
-                {member.user?.avatar_url && <AvatarImage src={member.user.avatar_url} />}
+                {member.user?.avatar_url && <OptimizedAvatarImage src={member.user.avatar_url} size={32} />}
                 <AvatarFallback
                   style={{
                     background: "var(--theme-accent)",

@@ -48,13 +48,14 @@ export async function GET(
     const from = searchParams.get("from")
     const to = searchParams.get("to")
 
-    // Cast via untypedFrom to select new columns that aren't in generated types yet
+    // Limit RSVP nesting: only fetch user_id + status (no full user profiles).
+    // Attendee profiles are paginated separately via the event detail / RSVP endpoint.
     let query = untypedFrom(supabase, "events")
       .select(
         "id, server_id, title, description, location, event_type, external_url, banner_url, " +
         "linked_channel_id, voice_channel_id, thread_id, start_at, end_at, timezone, " +
         "recurrence, recurrence_until, capacity, create_voice_channel, post_event_thread, " +
-        "created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status,users(id,display_name,avatar_url))"
+        "created_by, created_at, updated_at, event_hosts(user_id), event_rsvps(user_id,status)"
       )
       .eq("server_id", params.serverId)
       .order("start_at", { ascending: true })
@@ -78,14 +79,12 @@ export async function GET(
         },
         myRsvp: rsvps.find((r) => r.user_id === user.id) ?? null,
         hosts: (event.event_hosts ?? []).map((h) => h.user_id),
-        attendees: rsvps
+        // Return only user IDs for the attendee list — full profiles are
+        // fetched on demand via the event detail / RSVP endpoint with pagination.
+        attendee_ids: rsvps
           .filter((r) => r.status === "going" || r.status === "maybe" || r.status === "interested")
-          .map((r) => ({
-            user_id: r.user_id,
-            status: r.status,
-            display_name: r.users?.display_name ?? null,
-            avatar_url: r.users?.avatar_url ?? null,
-          })),
+          .slice(0, 50)
+          .map((r) => r.user_id),
       }
     })
 

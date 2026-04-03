@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import { createServerSupabaseClient, getAuthUser } from "@/lib/supabase/server"
 import { AppProvider } from "@/components/layout/app-provider"
@@ -7,12 +8,31 @@ import { OnboardingGate } from "@/components/onboarding/onboarding-gate"
 import type { ServerRow } from "@/types/database"
 import { perfTimer } from "@/lib/perf"
 
-/** Root layout for all /channels routes — authenticates the user, loads profile and server list, wraps children in AppProvider. */
-export default async function ChannelsLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+/** Skeleton shown while the channels layout streams server data. */
+function ChannelsLayoutSkeleton(): React.ReactElement {
+  return (
+    <div className="flex h-dvh w-full">
+      {/* Server sidebar skeleton */}
+      <div className="w-[72px] flex-shrink-0 flex flex-col items-center gap-2 py-3" style={{ background: "var(--theme-bg-tertiary)" }}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="w-12 h-12 rounded-full animate-pulse" style={{ background: "var(--theme-bg-secondary)" }} />
+        ))}
+      </div>
+      {/* Channel sidebar skeleton */}
+      <div className="w-60 flex-shrink-0 flex flex-col gap-2 p-3" style={{ background: "var(--theme-bg-secondary)" }}>
+        <div className="h-8 w-3/4 rounded animate-pulse" style={{ background: "var(--theme-bg-tertiary)" }} />
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="h-6 rounded animate-pulse" style={{ background: "var(--theme-bg-tertiary)", width: `${60 + Math.random() * 30}%` }} />
+        ))}
+      </div>
+      {/* Main content skeleton */}
+      <div className="flex-1" style={{ background: "var(--theme-bg-primary)" }} />
+    </div>
+  )
+}
+
+/** Async inner component that fetches auth + profile + servers then renders the shell. */
+async function ChannelsLayoutContent({ children }: { children: React.ReactNode }): Promise<React.ReactElement> {
   const rootTimer = perfTimer("channels-layout total")
   const authTimer = perfTimer("channels-layout auth")
   const [supabase, { data: { user }, error }] = await Promise.all([
@@ -73,5 +93,18 @@ export default async function ChannelsLayout({
         </>
       )}
     </AppProvider>
+  )
+}
+
+/** Root layout for all /channels routes — wraps the async content in a Suspense boundary for progressive SSR streaming. */
+export default function ChannelsLayout({
+  children,
+}: {
+  children: React.ReactNode
+}): React.ReactElement {
+  return (
+    <Suspense fallback={<ChannelsLayoutSkeleton />}>
+      <ChannelsLayoutContent>{children}</ChannelsLayoutContent>
+    </Suspense>
   )
 }
