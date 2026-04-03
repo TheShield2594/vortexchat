@@ -82,24 +82,6 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
   })
 }
 
-/** Merge cached messages with server-provided initialMessages, preferring
- *  whichever set is fresher / more complete. */
-function mergeWithCache(channelId: string, initialMessages: MessageWithAuthor[]): MessageWithAuthor[] {
-  const cached = useAppStore.getState().messageCache[channelId]
-  if (!cached || cached.messages.length === 0) return initialMessages
-  const cachedNewest = cached.messages[cached.messages.length - 1]?.created_at ?? ""
-  const initialNewest = initialMessages[initialMessages.length - 1]?.created_at ?? ""
-  if (initialNewest > cachedNewest) {
-    const byId = new Map<string, MessageWithAuthor>(cached.messages.map((m: MessageWithAuthor) => [m.id, m]))
-    for (const m of initialMessages) byId.set(m.id, m)
-    const merged = sortMessagesChronologically([...byId.values()])
-    return merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
-  } else if (cached.messages.length >= initialMessages.length) {
-    return cached.messages as MessageWithAuthor[]
-  }
-  return initialMessages
-}
-
 /** Primary text channel view with message list, outbox queue, real-time updates, thread panel, unread markers, and infinite scroll. */
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
   const messageGrouping = useAppearanceStore((s) => s.messageGrouping)
@@ -108,13 +90,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages, mobilePendingAction: s.mobilePendingAction, setMobilePendingAction: s.setMobilePendingAction, servers: s.servers }))
   )
   const serverName = useMemo(() => servers.find((s) => s.id === serverId)?.name ?? "", [servers, serverId])
-  // Merge cached messages with server-provided initialMessages synchronously
-  // so the first render has the full message set.  This avoids a race where
-  // the scroll-to-bottom useLayoutEffect fires with initialMessages, sets its
-  // "already scrolled" flag, and then a post-paint useEffect replaces messages
-  // with the cache — leaving the user stranded mid-scroll.
-  const [mergedInitial] = useState(() => mergeWithCache(channel.id, initialMessages))
-  const [messages, setMessages] = useState<MessageWithAuthor[]>(mergedInitial)
+  const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
   const [replyTo, setReplyTo] = useState<MessageWithAuthor | null>(null)
   const [activeThread, setActiveThread] = useState<ThreadRow | null>(null)
   const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0)
@@ -126,7 +102,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
   const [showCreateChannelThread, setShowCreateChannelThread] = useState(false)
   const [isPaginating, setIsPaginating] = useState(false)
-  const [hasMoreHistory, setHasMoreHistory] = useState(() => mergedInitial.length >= 50)
+  const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
   const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
@@ -143,14 +119,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const virtualizerRef = useRef<VirtualizedMessageListHandle>(null)
   useKeyboardAvoidance(messageScrollerRef, isMobile)
-  const previousLastMessageIdRef = useRef<string | null>(mergedInitial[mergedInitial.length - 1]?.id ?? null)
+  const previousLastMessageIdRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null)
   const jumpedRef = useRef(false)
   const lastJumpMessageIdRef = useRef<string | null>(null)
   const jumpSignatureRef = useRef<string | null>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null)
   const shouldAutoScrollToLatestRef = useRef(true)
   const prevChannelIdRef = useRef(channel.id)
-  const messagesRef = useRef<MessageWithAuthor[]>(mergedInitial)
+  const messagesRef = useRef<MessageWithAuthor[]>(initialMessages)
   const reconnectCycleRef = useRef(0)
   const liveAnnouncementCounterRef = useRef(0)
   const unreadAnchorCycleRef = useRef<number | null>(null)
@@ -500,33 +476,37 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [channel.id, cacheMessages])
 
   useEffect(() => {
-    // Sync refs and derived state with the current messages.  The cache merge
-    // already happened synchronously in the useState initializer, so on initial
-    // mount this just aligns refs.  When initialMessages changes later (e.g.
-    // server re-render while the component is still mounted), re-merge with
-    // the current messages and let the existing new-message effect handle
-    // scroll/unread decisions — don't force scroll-to-bottom here as the user
-    // may be reading older history.
-    const currentMsgs = messagesRef.current
+    // On channel switch, merge cached messages with server-provided
+    // initialMessages to avoid surfacing stale history while preserving
+    // any extra paginated messages the cache may hold.
+    const cached = useAppStore.getState().messageCache[channel.id]
 
-    // If initialMessages changed after mount (same channel, fresh server data),
-    // re-merge with the current messages.  The new-message useEffect will detect
-    // the changed newest ID and handle auto-scroll / pending-badge as normal.
-    const initialNewest = initialMessages[initialMessages.length - 1]?.id ?? null
-    const currentNewest = currentMsgs[currentMsgs.length - 1]?.id ?? null
-    if (initialNewest && initialNewest !== currentNewest) {
-      const byId = new Map(currentMsgs.map((m) => [m.id, m]))
-      for (const m of initialMessages) byId.set(m.id, m)
-      const merged = sortMessagesChronologically([...byId.values()])
-      const trimmed = merged.length > DISPLAY_LIMIT ? merged.slice(merged.length - DISPLAY_LIMIT) : merged
-      messagesRef.current = trimmed
-      setMessages(trimmed)
+    let msgs: typeof initialMessages
+    if (!cached || cached.messages.length === 0) {
+      msgs = initialMessages
     } else {
-      messagesRef.current = currentMsgs
-      previousLastMessageIdRef.current = currentMsgs[currentMsgs.length - 1]?.id ?? null
+      const cachedNewest = cached.messages[cached.messages.length - 1]?.created_at ?? ""
+      const initialNewest = initialMessages[initialMessages.length - 1]?.created_at ?? ""
+      if (initialNewest > cachedNewest) {
+        // Server data is fresher — merge: deduplicate on id, sort by time
+        const byId = new Map(cached.messages.map((m) => [m.id, m]))
+        for (const m of initialMessages) byId.set(m.id, m)
+        msgs = sortMessagesChronologically([...byId.values()])
+        // Trim to display limit, keeping newest
+        if (msgs.length > DISPLAY_LIMIT) msgs = msgs.slice(msgs.length - DISPLAY_LIMIT)
+      } else if (cached.messages.length >= initialMessages.length) {
+        // Cache has at least as much coverage and is equally fresh
+        msgs = cached.messages
+      } else {
+        msgs = initialMessages
+      }
     }
 
-    setHasMoreHistory(messagesRef.current.length >= 50)
+    messagesRef.current = msgs
+    setMessages(msgs)
+    previousLastMessageIdRef.current = msgs[msgs.length - 1]?.id ?? null
+    setPendingNewMessageCount(0)
+    setHasMoreHistory(msgs.length >= 50)
     for (const timer of animatedMessageTimersRef.current.values()) {
       clearTimeout(timer)
     }
