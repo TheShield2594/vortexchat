@@ -93,11 +93,24 @@ export async function POST(request: Request) {
     }
 
     if (channelId) {
+      // Resolve server_id from the parent channel for denormalized column (#657)
+      const { data: parentChannel } = await supabase
+        .from("channels")
+        .select("server_id")
+        .eq("id", channelId)
+        .maybeSingle()
+
       // Create standalone thread in a channel (no starter message)
       const { data: thread, error } = await supabase
         .from("threads")
-        .insert({ parent_channel_id: channelId, owner_id: user.id, name: name.trim(), auto_archive_duration: duration })
-        .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, auto_archive_duration, message_count, created_at, updated_at")
+        .insert({
+          parent_channel_id: channelId,
+          owner_id: user.id,
+          name: name.trim(),
+          auto_archive_duration: duration,
+          ...(parentChannel?.server_id ? { server_id: parentChannel.server_id } : {}),
+        })
+        .select("id, parent_channel_id, starter_message_id, owner_id, name, archived, auto_archive_duration, message_count, server_id, created_at, updated_at")
         .single()
       if (error) return NextResponse.json({ error: "Failed to create thread" }, { status: 500 })
       return NextResponse.json(thread, { status: 201 })

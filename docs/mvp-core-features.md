@@ -348,7 +348,13 @@
 | Replace Redis KEYS scan in presence cleanup | Done | Replaced blocking `redis.keys()` with cursor-based `redis.scan()`; cleanup interval changed from 10s → 5min (#649) |
 | Add missing index on `direct_messages.dm_channel_id` | Done | Migration `00095_perf_dm_channel_index.sql` — composite index on `(dm_channel_id, created_at DESC)` (#650) |
 | Fix reactions Realtime subscription filter | Done | Added `messagesRef`-based early-return filter in `use-realtime-messages.ts` for INSERT and DELETE events (#651) |
+| Batch search permission checks — eliminate N+1 | Done | `getBatchChannelPermissions()` in `permissions.ts`; search route reduced from 350 → 3 DB queries (#653) |
+| Optimize event replay from O(N) to O(log N) | Done | Redis XRANGE exclusive start `(entryId` + XREVRANGE lookup in `event-bus.ts` (#654) |
+| Redis leader election for periodic membership checks | Done | `SET NX PX` leader lock in signal server; only one replica runs 60s sweep (#655) |
+| Client-side offline message queue | Done | `vortex:flush-outbox` dispatched on socket reconnect; sending→pending reset on disconnect (#656) |
+| Denormalize server_id to threads table | Done | Migration `00098`; direct `server_id` on threads; simplified RLS — no channel join for membership (#657) |
+| Optimize RLS policies with subquery rewrite | Done | Migration `00099`; `channel_permissions` + `messages` policies use `IN (subquery)` pattern (#658) |
 
 ---
 
-*Last updated: 2026-04-02 (sprint 4)*
+*Last updated: 2026-04-03 (sprint 4)*

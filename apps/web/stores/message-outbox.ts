@@ -137,11 +137,26 @@ export const useMessageOutbox = create<OutboxState>((set, get) => ({
   },
 }))
 
-// --- Auto-flush on reconnect ---
+// --- Auto-flush on reconnect (#656) ---
 
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
     // Dispatch a custom event that the chat view can listen for to retry pending messages
     window.dispatchEvent(new CustomEvent("vortex:flush-outbox"))
+  })
+
+  // Reset "sending" entries to "pending" when the socket disconnects, so they
+  // will be retried on reconnect instead of being stuck in limbo.
+  window.addEventListener("vortex:outbox-reset-sending", () => {
+    const state = useMessageOutbox.getState()
+    const inFlight = state.messages.filter((m) => m.status === "sending")
+    if (inFlight.length === 0) return
+    useMessageOutbox.setState((s) => {
+      const messages = s.messages.map((m) =>
+        m.status === "sending" ? { ...m, status: "pending" as const } : m,
+      )
+      persistMessages(messages)
+      return { messages }
+    })
   })
 }
