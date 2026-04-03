@@ -538,9 +538,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [initialMessages, channel.id])
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = "auto") => {
-    const container = messageScrollerRef.current
-    if (!container) return
-    container.scrollTo({ top: container.scrollHeight, behavior })
+    // Prefer the virtualizer's scrollToIndex which correctly handles
+    // estimated row heights.  Fall back to raw scrollTop for edge cases
+    // where the virtualizer ref isn't ready.
+    const msgCount = messagesRef.current.length
+    if (msgCount > 0 && virtualizerRef.current) {
+      virtualizerRef.current.scrollToIndex(msgCount - 1, { align: "end", behavior })
+    } else {
+      const container = messageScrollerRef.current
+      if (container) container.scrollTo({ top: container.scrollHeight, behavior })
+    }
   }, [])
 
   useEffect(() => {
@@ -894,18 +901,28 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (messages.length === 0) return
     shouldAutoScrollToLatestRef.current = false
 
-    const container = messageScrollerRef.current
-    if (!container) return
+    // Scroll to bottom (newest messages) using the virtualizer's
+    // scrollToIndex which correctly handles estimated row heights.
+    // Raw scrollTop = scrollHeight is unreliable with virtualized lists
+    // because estimated sizes ≠ actual measured sizes.
+    if (virtualizerRef.current && messages.length > 0) {
+      virtualizerRef.current.scrollToIndex(messages.length - 1, { align: "end" })
+    } else {
+      const container = messageScrollerRef.current
+      if (container) container.scrollTop = container.scrollHeight
+    }
 
-    // Scroll to bottom (newest messages).
-    // With virtualized lists, estimated row heights mean scrollHeight may
-    // change after the browser paints and the virtualizer measures real
-    // elements.  Re-scroll after two animation frames to settle.
-    container.scrollTop = container.scrollHeight
+    // Re-scroll after the virtualizer measures real element heights.
+    // The first pass uses estimates; after paint the virtualizer measures
+    // actual DOM nodes which shifts positions.
     const outerRaf = requestAnimationFrame(() => {
       const innerRaf = requestAnimationFrame(() => {
-        const el = messageScrollerRef.current
-        if (el) el.scrollTop = el.scrollHeight
+        if (virtualizerRef.current && messages.length > 0) {
+          virtualizerRef.current.scrollToIndex(messages.length - 1, { align: "end" })
+        } else {
+          const el = messageScrollerRef.current
+          if (el) el.scrollTop = el.scrollHeight
+        }
       })
       rafInnerRef.current = innerRaf
     })
