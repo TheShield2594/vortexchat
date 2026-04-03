@@ -306,7 +306,7 @@ export async function GET(req: NextRequest) {
     })
 
   } catch (err) {
-    log.error({ route: "/api/search", action: "GET", userId: user?.id, error: err }, "GET error");
+    log.error({ route: "/api/search", action: "GET", error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -156,7 +156,7 @@ export async function POST(
   return NextResponse.json({ ...message, reply_to_id: replyToId, reply_to: replyToMessage }, { status: 201 })
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : "Unknown error"
-    log.error({ route: "/api/dm/channels/[channelId]/messages", action: "POST", userId: user?.id, channelId, error: errMsg }, "POST error")
+    log.error({ route: "/api/dm/channels/[channelId]/messages", action: "POST", error: errMsg }, "POST error")
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

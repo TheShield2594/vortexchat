@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     return NextResponse.json(messages ?? [])
 
   } catch (err) {
-    log.error({ route: "/api/dm", action: "GET", userId: user?.id, error: err }, "GET error");
+    log.error({ route: "/api/dm", action: "GET", error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
     return NextResponse.json(data, { status: 201 })
 
   } catch (err) {
-    log.error({ route: "/api/dm", action: "POST", userId: user?.id, error: err }, "POST error");
+    log.error({ route: "/api/dm", action: "POST", error: err }, "POST error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
