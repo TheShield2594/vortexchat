@@ -127,6 +127,12 @@
 | Webhook HMAC request signing (#547) | Done | `POST /api/webhooks/[token]` validates optional `X-Webhook-Signature` header (HMAC-SHA256 with token as key); timing-safe comparison |
 | Rate limits on role assignment/removal (#551) | Done | `POST/DELETE /api/servers/[serverId]/members/[userId]/roles` — 10 actions per 5 min per moderator via `rateLimiter` |
 | Timing-safe cron/webhook token comparison (#555) | Done | All 6 cron endpoints use `verifyBearerToken()` with `crypto.timingSafeEqual` instead of `===` |
+| Gateway/signal server fail-closed auth (#687) | Done | `checkChannelAccess` (gateway.ts) and `checkChannelMembership` (index.ts) now return `false` on DB errors instead of `true` |
+| Rate limiter fail-closed on webhook/oembed (#688) | Done | Webhook IP + token limiters and oembed limiter use `failClosed: true`; returns 429 when the limiter denies, including fail-closed backend-unavailable cases |
+| Sanitize DB error messages in API responses (#689) | Done | Channel PATCH, voice-token GET, and role DELETE no longer expose raw `error.message`; generic messages with server-side logging |
+| Top-level try/catch on channel PATCH, server DELETE, message PATCH (#690) | Done | All three handlers now wrapped in try/catch returning `{ error: "Internal server error" }` with 500 status |
+| Ban route role hierarchy check (#691) | Done | `POST /api/servers/[serverId]/bans` now compares requester vs target max role position before allowing ban (mirrors kick handler) |
+| Vulnerable dependency remediation (#692) | Done | `npm audit fix` + `serialize-javascript` override (>=7.0.5) resolves all 8 high/moderate CVEs including socket.io-parser DoS |
 
 ## Media Playback
 
