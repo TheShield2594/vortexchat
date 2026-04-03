@@ -33,12 +33,10 @@ const slashCommandCache = new Map<string, {
   fetchedAt: number
 }>()
 
-/** Minimal reply shape that works for both channel (author) and DM (sender) messages. */
+/** Reply context — accepts channel MessageWithAuthor or DM Message. */
 export interface ReplyToContext {
   id: string
-  content: string
-  author?: { display_name?: string | null; username?: string } | null
-  sender?: { display_name?: string | null; username?: string } | null
+  content: string | null
 }
 
 interface Props {
@@ -813,7 +811,12 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
           <Reply className="w-3 h-3 -scale-x-100" style={{ color: "var(--theme-text-muted)" }} />
           <span style={{ color: "var(--theme-text-muted)" }}>Replying to</span>
           <span className="font-semibold" style={{ color: "var(--theme-text-bright)" }}>
-            {replyTo.author?.display_name || replyTo.author?.username || replyTo.sender?.display_name || replyTo.sender?.username || "Unknown"}
+            {(() => {
+              const r = replyTo as unknown as Record<string, unknown>
+              const a = r.author as { display_name?: string | null; username?: string } | undefined
+              const s = r.sender as { display_name?: string | null; username?: string } | undefined
+              return a?.display_name || a?.username || s?.display_name || s?.username || "Unknown"
+            })()}
           </span>
           <span className="truncate flex-1" style={{ color: "var(--theme-text-muted)" }}>
             {replyTo.content}

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { setActiveDmChannel } from "@/lib/notification-manager"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Phone, Video, Users, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
+import { Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
 import { EmojiPicker } from "frimousse"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { format, isToday, isYesterday } from "date-fns"
@@ -1695,7 +1695,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     {/* Reply button — available for all messages */}
                     <button
                       type="button"
-                      onClick={() => { setReplyTo(msg); inputRef.current?.focus() }}
+                      onClick={() => { setReplyTo(msg) }}
                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10"
                       style={{ color: "var(--theme-text-muted)" }}
                       title="Reply"
