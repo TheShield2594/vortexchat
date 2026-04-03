@@ -239,4 +239,15 @@ export type {
   UserNotificationPreferences,
   CuratedApp,
   CuratedSection,
+  TrustBadgeType,
+  TrustBadgeInfo,
+  PermissionImpactLevel,
+  PermissionMeta,
+} from './marketplace'
+
+export {
+  TRUST_BADGE_INFO,
+  APP_PERMISSION_META,
+  getHighestImpact,
+  requiresInstallConfirmation,
 } from './marketplace'

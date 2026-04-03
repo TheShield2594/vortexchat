@@ -220,6 +220,9 @@
 | Giveaway Bot + Reminder Bot marketplace visibility | Done | Fixed via migration 00071 — upsert ensures `is_published = TRUE` (00066/00068 used `ON CONFLICT DO NOTHING` which silently skipped rows) |
 | Premium marketplace card design (#673) | Done | Redesigned app cards with icon, trust badge pill, star rating, hover effects; improved visual hierarchy and spacing |
 | Curated discovery sections (#674) | Done | `app_curated_sections` + `app_curated_entries` tables, `/api/apps/curated` endpoint; Featured / Trending / Staff Picks above catalog grid; graceful fallback when empty |
+| Trust & permission transparency UX (#675) | Done | `TrustBadgeTooltip` with hover descriptions; `PermissionList` grouped by impact level (low/medium/high/critical); `AlertDialog` pre-install confirmation for elevated scopes; `TRUST_BADGE_INFO` + `APP_PERMISSION_META` in `@vortex/shared` |
+| Server Settings Apps premium panel (#676) | Done | Redesigned `AppsTab` with `AppAvatar`, `TrustBadgePill`, relative install dates, skeleton loading, 2-col marketplace grid, hover-to-primary install buttons, dashed empty states |
+| Discover Apps visual QA tests (#677) | Done | 41-test vitest suite covering card hierarchy, trust/rating placement, picker z-index/overflow, skeleton/empty-state consistency, permission grouping, confirmation flow, Settings panel layout |
 
 ## Vanity Invite URLs
 
