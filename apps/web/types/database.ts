@@ -228,12 +228,16 @@ export type Database = {
           server_invite_notifications: boolean
           system_notifications: boolean
           sound_enabled: boolean
+          notification_volume: number
           suppress_everyone: boolean
           suppress_role_mentions: boolean
           quiet_hours_enabled: boolean
           quiet_hours_start: string
           quiet_hours_end: string
           quiet_hours_timezone: string
+          push_notifications: boolean
+          show_message_preview: boolean
+          show_unread_badge: boolean
           updated_at: string
         }
         Insert: {
@@ -244,12 +248,16 @@ export type Database = {
           server_invite_notifications?: boolean
           system_notifications?: boolean
           sound_enabled?: boolean
+          notification_volume?: number
           suppress_everyone?: boolean
           suppress_role_mentions?: boolean
           quiet_hours_enabled?: boolean
           quiet_hours_start?: string
           quiet_hours_end?: string
           quiet_hours_timezone?: string
+          push_notifications?: boolean
+          show_message_preview?: boolean
+          show_unread_badge?: boolean
           updated_at?: string
         }
         Update: {
@@ -260,12 +268,16 @@ export type Database = {
           server_invite_notifications?: boolean
           system_notifications?: boolean
           sound_enabled?: boolean
+          notification_volume?: number
           suppress_everyone?: boolean
           suppress_role_mentions?: boolean
           quiet_hours_enabled?: boolean
           quiet_hours_start?: string
           quiet_hours_end?: string
           quiet_hours_timezone?: string
+          push_notifications?: boolean
+          show_message_preview?: boolean
+          show_unread_badge?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -274,6 +286,78 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: true
             referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      app_curated_sections: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          description: string | null
+          sort_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          description?: string | null
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          title?: string
+          description?: string | null
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      app_curated_entries: {
+        Row: {
+          id: string
+          section_id: string
+          app_id: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          section_id: string
+          app_id: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          section_id?: string
+          app_id?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'app_curated_entries_section_id_fkey'
+            columns: ['section_id']
+            isOneToOne: false
+            referencedRelation: 'app_curated_sections'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'app_curated_entries_app_id_fkey'
+            columns: ['app_id']
+            isOneToOne: false
+            referencedRelation: 'app_catalog'
             referencedColumns: ['id']
           },
         ]

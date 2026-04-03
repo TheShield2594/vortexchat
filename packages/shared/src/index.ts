@@ -234,3 +234,9 @@ export interface SignalingServerEvents {
   'peer-deafened': { peerId: string; deafened: boolean }
   'peer-speaking': { peerId: string; speaking: boolean }
 }
+
+export type {
+  UserNotificationPreferences,
+  CuratedApp,
+  CuratedSection,
+} from './marketplace'

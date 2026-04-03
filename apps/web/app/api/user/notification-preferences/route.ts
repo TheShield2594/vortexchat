@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-
-export type UserNotificationPreferences = {
-  mention_notifications: boolean
-  reply_notifications: boolean
-  friend_request_notifications: boolean
-  server_invite_notifications: boolean
-  system_notifications: boolean
-  sound_enabled: boolean
-  notification_volume: number
-  suppress_everyone: boolean
-  suppress_role_mentions: boolean
-  quiet_hours_enabled: boolean
-  quiet_hours_start: string
-  quiet_hours_end: string
-  quiet_hours_timezone: string
-}
+import type { UserNotificationPreferences } from "@vortex/shared"
 
 const DEFAULTS: UserNotificationPreferences = {
   mention_notifications: true,
@@ -31,6 +16,9 @@ const DEFAULTS: UserNotificationPreferences = {
   quiet_hours_start: "22:00",
   quiet_hours_end: "08:00",
   quiet_hours_timezone: "UTC",
+  push_notifications: true,
+  show_message_preview: true,
+  show_unread_badge: true,
 }
 
 // GET /api/user/notification-preferences
@@ -40,11 +28,20 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("user_notification_preferences")
-      .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, notification_volume, suppress_everyone, suppress_role_mentions, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone")
+      .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, notification_volume, suppress_everyone, suppress_role_mentions, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone, push_notifications, show_message_preview, show_unread_badge")
       .eq("user_id", user.id)
       .maybeSingle()
+
+    if (error) {
+      console.error("[api/user/notification-preferences][GET] failed to load preferences", {
+        userId: user.id,
+        action: "load_preferences",
+        error: error.message,
+      })
+      return NextResponse.json({ error: "Failed to load notification preferences" }, { status: 500 })
+    }
 
     return NextResponse.json(data ?? DEFAULTS)
   } catch {
@@ -59,7 +56,11 @@ export async function PUT(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const body = await req.json() as Record<string, unknown>
+    const rawBody = await req.json().catch(() => null)
+    if (rawBody == null || typeof rawBody !== "object" || Array.isArray(rawBody)) {
+      return NextResponse.json({ error: "Request body must be a JSON object" }, { status: 400 })
+    }
+    const body = rawBody as Record<string, unknown>
 
     // Validate: only accept boolean values for known boolean keys
     const BOOL_KEYS = [
@@ -72,6 +73,9 @@ export async function PUT(req: NextRequest) {
       "suppress_everyone",
       "suppress_role_mentions",
       "quiet_hours_enabled",
+      "push_notifications",
+      "show_message_preview",
+      "show_unread_badge",
     ] as const
 
     const patch: Record<string, boolean | string | number> = {}

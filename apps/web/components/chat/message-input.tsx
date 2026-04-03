@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
-import { Send, X, Smile, Reply, FileUp, BarChart3, Plus, MessageSquare } from "lucide-react"
+import { Send, X, Smile, Reply, FileUp, BarChart3, Plus, MessageSquare, Paperclip } from "lucide-react"
 import type { MessageWithAuthor } from "@/types/database"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
@@ -33,10 +33,18 @@ const slashCommandCache = new Map<string, {
   fetchedAt: number
 }>()
 
+/** Reply context — accepts channel MessageWithAuthor or DM Message. */
+export interface ReplyToContext {
+  id: string
+  content: string | null
+}
+
 interface Props {
+  /** "channel" shows +menu (upload/poll/thread), "dm" shows paperclip directly. */
+  variant?: "channel" | "dm"
   channelName: string
   draft: string
-  replyTo: MessageWithAuthor | null
+  replyTo: ReplyToContext | null
   onCancelReply: () => void
   onSend: (content: string, files?: File[], onUploadProgress?: (percent: number) => void, abortSignal?: AbortSignal) => Promise<void>
   onDraftChange: (value: string) => void
@@ -48,7 +56,7 @@ interface Props {
 }
 
 /** Composable message input with file attachments, emoji picker, @mention autocomplete, and reply-to indicator. */
-export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread, serverId }: Props) {
+export function MessageInput({ variant = "channel", channelName, draft, replyTo, onCancelReply, onSend, onDraftChange, onTyping, onSent, onCreateThread, serverId }: Props) {
   const isMobile = useMobileLayout()
   const [content, setContent] = useState(draft)
   const [cursorPosition, setCursorPosition] = useState(0)
@@ -803,7 +811,12 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           <Reply className="w-3 h-3 -scale-x-100" style={{ color: "var(--theme-text-muted)" }} />
           <span style={{ color: "var(--theme-text-muted)" }}>Replying to</span>
           <span className="font-semibold" style={{ color: "var(--theme-text-bright)" }}>
-            {replyTo.author?.display_name || replyTo.author?.username}
+            {(() => {
+              const r = replyTo as unknown as Record<string, unknown>
+              const a = r.author as { display_name?: string | null; username?: string } | undefined
+              const s = r.sender as { display_name?: string | null; username?: string } | undefined
+              return a?.display_name || a?.username || s?.display_name || s?.username || "Unknown"
+            })()}
           </span>
           <span className="truncate flex-1" style={{ color: "var(--theme-text-muted)" }}>
             {replyTo.content}
@@ -976,65 +989,80 @@ export function MessageInput({ channelName, draft, replyTo, onCancelReply, onSen
           transition: 'box-shadow var(--motion-duration-fast) var(--motion-ease-standard)',
         }}
       >
-        {/* + button with dropdown menu (left side) */}
-        <div className="relative flex-shrink-0">
+        {/* Left-side action button(s) */}
+        {variant === "dm" ? (
+          /* DM mode: simple paperclip button for file attachment */
           <button
             type="button"
-            ref={plusButtonRef}
-            onClick={() => setShowPlusMenu((v) => !v)}
+            onClick={() => fileRef.current?.click()}
             className="motion-interactive motion-press flex-shrink-0 w-7 h-7 flex items-center justify-center focus-ring rounded-full"
-            style={{
-              background: showPlusMenu ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
-              color: showPlusMenu ? "white" : "var(--theme-text-secondary)",
-            }}
-            title="More options"
-            aria-label="More options"
-            aria-expanded={showPlusMenu}
+            style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
+            title="Attach file"
+            aria-label="Attach file"
           >
-            <Plus className="w-4 h-4" />
+            <Paperclip className="w-4 h-4" />
           </button>
-
-          {showPlusMenu && (
-            <div
-              ref={plusMenuRef}
-              className="absolute bottom-full mb-2 left-0 z-50 rounded-lg shadow-xl overflow-hidden"
-              style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", minWidth: "200px" }}
+        ) : (
+          /* Channel mode: + dropdown with Upload, Poll, Thread */
+          <div className="relative flex-shrink-0">
+            <button
+              type="button"
+              ref={plusButtonRef}
+              onClick={() => setShowPlusMenu((v) => !v)}
+              className="motion-interactive motion-press flex-shrink-0 w-7 h-7 flex items-center justify-center focus-ring rounded-full"
+              style={{
+                background: showPlusMenu ? "var(--theme-accent)" : "var(--theme-bg-tertiary)",
+                color: showPlusMenu ? "white" : "var(--theme-text-secondary)",
+              }}
+              title="More options"
+              aria-label="More options"
+              aria-expanded={showPlusMenu}
             >
-              <button
-                type="button"
-                onClick={() => { setShowPlusMenu(false); fileRef.current?.click() }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
-                style={{ color: "var(--theme-text-primary)" }}
+              <Plus className="w-4 h-4" />
+            </button>
+
+            {showPlusMenu && (
+              <div
+                ref={plusMenuRef}
+                className="absolute bottom-full mb-2 left-0 z-50 rounded-lg shadow-xl overflow-hidden"
+                style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", minWidth: "200px" }}
               >
-                <FileUp className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
-                Upload a File
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPlusMenu(false)
-                  poll.openPollCreator()
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
-                style={{ color: "var(--theme-text-primary)" }}
-              >
-                <BarChart3 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
-                Create Poll
-              </button>
-              {onCreateThread && (
                 <button
                   type="button"
-                  onClick={() => { setShowPlusMenu(false); onCreateThread() }}
+                  onClick={() => { setShowPlusMenu(false); fileRef.current?.click() }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
                   style={{ color: "var(--theme-text-primary)" }}
                 >
-                  <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
-                  Create Thread
+                  <FileUp className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
+                  Upload a File
                 </button>
-              )}
-            </div>
-          )}
-        </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPlusMenu(false)
+                    poll.openPollCreator()
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
+                  style={{ color: "var(--theme-text-primary)" }}
+                >
+                  <BarChart3 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
+                  Create Poll
+                </button>
+                {onCreateThread && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowPlusMenu(false); onCreateThread() }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
+                    style={{ color: "var(--theme-text-primary)" }}
+                  >
+                    <MessageSquare className="w-4 h-4 flex-shrink-0" style={{ color: "var(--theme-accent)" }} />
+                    Create Thread
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <input
           ref={fileRef}
           type="file"
