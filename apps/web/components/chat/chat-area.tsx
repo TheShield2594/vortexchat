@@ -899,7 +899,6 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!shouldAutoScrollToLatestRef.current) return
     if (jumpToMessageId || openThreadId) return
     if (messages.length === 0) return
-    shouldAutoScrollToLatestRef.current = false
 
     // Scroll to bottom (newest messages) using the virtualizer's
     // scrollToIndex which correctly handles estimated row heights.
@@ -914,11 +913,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     // Re-scroll after the virtualizer measures real element heights.
     // The first pass uses estimates; after paint the virtualizer measures
-    // actual DOM nodes which shifts positions.
+    // actual DOM nodes which shifts positions.  Clear the flag only after
+    // the correction pass so intervening message arrivals don't cancel
+    // the RAFs and leave the viewport above the newest message.
     const outerRaf = requestAnimationFrame(() => {
       const innerRaf = requestAnimationFrame(() => {
-        if (virtualizerRef.current && messages.length > 0) {
-          virtualizerRef.current.scrollToIndex(messages.length - 1, { align: "end" })
+        const latestCount = messagesRef.current.length
+        shouldAutoScrollToLatestRef.current = false
+        if (virtualizerRef.current && latestCount > 0) {
+          virtualizerRef.current.scrollToIndex(latestCount - 1, { align: "end" })
         } else {
           const el = messageScrollerRef.current
           if (el) el.scrollTop = el.scrollHeight
