@@ -1,9 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-
-// Landing page checks auth to redirect logged-in users — requires dynamic rendering
-export const dynamic = "force-dynamic"
 import {
   ArrowRight,
   ShieldCheck,

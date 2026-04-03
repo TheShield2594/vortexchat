@@ -105,6 +105,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
   const animatedMessageIdsRef = useRef<Set<string>>(new Set())
+  const [animatedVersion, setAnimatedVersion] = useState(0)
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
@@ -294,6 +295,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         const timer = setTimeout(() => {
           animatedMessageIdsRef.current.delete(incoming.id)
           animatedMessageTimersRef.current.delete(incoming.id)
+          setAnimatedVersion((v) => v + 1)
         }, 220)
         animatedMessageTimersRef.current.set(incoming.id, timer)
       }
@@ -1528,6 +1530,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       animatedMessageTimersRef.current.delete(messageId)
     }
     animatedMessageIdsRef.current.delete(messageId)
+    setAnimatedVersion((v) => v + 1)
   }, [])
 
   useEffect(() => {
@@ -1638,7 +1641,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         />
       </>
     )
-  }, [messageGrouping, unreadDividerMessageId, highlightedMessageId, currentUserId, canManageMessages, outboxStateByMessageId, recentlyActiveUserIds, handleMountAnimationComplete, handleReply, jumpToMessage, handleThreadCreated, handleMessageEdit, handleMessageDelete, handlePinToggle, handleReaction])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animatedVersion triggers re-eval when animation refs change
+  }, [messageGrouping, unreadDividerMessageId, highlightedMessageId, currentUserId, canManageMessages, outboxStateByMessageId, recentlyActiveUserIds, animatedVersion, handleMountAnimationComplete, handleReply, jumpToMessage, handleThreadCreated, handleMessageEdit, handleMessageDelete, handlePinToggle, handleReaction])
 
   type CommandAction = { id: string; label: string; group: "search" | "pins" | "threads" | "voice" | "help"; groupLabel: string; priority: number; ariaLabel: string; icon: ReactNode; onSelect: () => void }
   const commandActions = useMemo<CommandAction[]>(() => {

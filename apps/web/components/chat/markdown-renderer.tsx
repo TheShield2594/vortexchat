@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useMemo, lazy, Suspense, useState, useEffect, type ReactNode } from "react"
+import { memo, lazy, Suspense, useState, useEffect, type ReactNode } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkBreaks from "remark-breaks"
@@ -582,7 +582,7 @@ interface MessageMarkdownProps {
 export const MessageMarkdown = memo(function MessageMarkdown({ content, currentUserId, serverId }: MessageMarkdownProps) {
   const processed = preProcessContent(content)
   const bigEmoji = isOnlyEmoji(processed)
-  const components = useMemo(() => buildComponents(currentUserId, serverId ?? null, bigEmoji), [currentUserId, serverId, bigEmoji])
+  const components = buildComponents(currentUserId, serverId ?? null, bigEmoji)
 
   return (
     <div className={bigEmoji ? "big-emoji" : undefined}>

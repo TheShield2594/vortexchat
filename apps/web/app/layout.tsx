@@ -55,8 +55,10 @@ export const viewport: Viewport = {
 }
 
 /** Top-level HTML shell — applies Inter (body) + Space Grotesk (display/headings), dark theme, and global toast notifications.
- *  Static pages (landing, /terms, /privacy, /roadmap, /showcase, /self-host)
- *  benefit from CDN caching — force-dynamic is applied per-layout in (auth)/ and channels/ instead. */
+ *  force-dynamic is required because proxy.ts generates a per-request nonce for CSP;
+ *  static caching would serve stale nonces and cause CSP violations. */
+export const dynamic = "force-dynamic"
+
 export default function RootLayout({
   children,
 }: {
