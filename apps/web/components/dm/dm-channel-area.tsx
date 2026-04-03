@@ -612,10 +612,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   })
 
   // Scroll to bottom on channel switch.
-  // The ResizeObserver in useChatScroll handles re-pinning when content
-  // height changes, so we only need a single synchronous scroll here.
+  // Re-scroll after two animation frames so images, embeds, or lazy
+  // content that change scrollHeight are accounted for.
   const shouldScrollToBottomRef = useRef(true)
   const prevChannelIdScrollRef = useRef(channelId)
+  const dmRafRef = useRef(0)
   useLayoutEffect(() => {
     if (prevChannelIdScrollRef.current !== channelId) {
       shouldScrollToBottomRef.current = true
@@ -630,6 +631,16 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     shouldScrollToBottomRef.current = false
 
     scrollToBottom()
+    // Re-scroll after layout settles — images, embeds, or lazy content may
+    // change scrollHeight between useLayoutEffect and the first paint.
+    cancelAnimationFrame(dmRafRef.current)
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        scrollToBottom()
+      })
+      dmRafRef.current = raf2
+    })
+    dmRafRef.current = raf1
     prevLastMsgIdRef.current = messages[messages.length - 1]?.id ?? null
   }, [channelId, messages.length, scrollToBottom])
 
