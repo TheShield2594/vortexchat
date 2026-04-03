@@ -150,34 +150,25 @@ export class RedisEventBus implements IEventBus {
     const limit = options.limit ?? 500
 
     try {
-      // Find the stream entry ID corresponding to afterEventId.
-      // We search for the event by scanning the stream. Since events are
-      // stored chronologically and we cap at EVENT_STREAM_MAXLEN, this is bounded.
-      const allEntries = await this.redis.xrange(key, "-", "+")
-      if (!allEntries || allEntries.length === 0) return []
+      // First, find the Redis stream entry ID for afterEventId so we can use
+      // XRANGE with an exclusive start — O(log N) seek instead of O(N) scan.
+      const streamEntryId = await this.findStreamEntryId(key, options.afterEventId)
 
-      let foundAfterIndex = -1
-      for (let i = 0; i < allEntries.length; i++) {
-        const [, fields] = allEntries[i]
-        if (!fields || fields.length < 2) continue
-        try {
-          const event = JSON.parse(fields[1]) as VortexEvent
-          if (event.id === options.afterEventId) {
-            foundAfterIndex = i
-            break
-          }
-        } catch {
-          continue
-        }
+      let entries: [string, string[]][]
+      if (streamEntryId) {
+        // Use exclusive range syntax: `(entryId` means "after this entry"
+        // Redis XRANGE with `(` prefix is O(log N) for seeking.
+        entries = await this.redis.xrange(key, `(${streamEntryId}`, "+", "COUNT", limit)
+      } else {
+        // afterEventId not found — gap too large. Return the latest events
+        // so the caller can decide how to handle it.
+        entries = await this.redis.xrange(key, "-", "+", "COUNT", limit)
       }
 
-      // If we couldn't find the afterEventId, the gap is too large — return
-      // everything (the caller can decide what to do with this).
-      const startIndex = foundAfterIndex >= 0 ? foundAfterIndex + 1 : 0
-      const events: VortexEvent[] = []
+      if (!entries || entries.length === 0) return []
 
-      for (let i = startIndex; i < allEntries.length && events.length < limit; i++) {
-        const [, fields] = allEntries[i]
+      const events: VortexEvent[] = []
+      for (const [, fields] of entries) {
         if (!fields || fields.length < 2) continue
         try {
           events.push(JSON.parse(fields[1]) as VortexEvent)
@@ -191,6 +182,45 @@ export class RedisEventBus implements IEventBus {
       log.error({ err, channelId: options.channelId }, "event replay failed")
       return []
     }
+  }
+
+  /**
+   * Find the Redis stream entry ID for a given VortexEvent ID.
+   *
+   * Uses a reverse scan (XREVRANGE) limited to a reasonable window to avoid
+   * scanning the entire stream. Returns null if the event is not found.
+   */
+  private async findStreamEntryId(key: string, eventId: string): Promise<string | null> {
+    // Scan in reverse (newest first) since reconnection typically happens
+    // shortly after the last event. Check in batches to bound memory usage.
+    const BATCH_SIZE = 200
+    let endId = "+"
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const entries: [string, string[]][] = await this.redis.xrevrange(
+        key, endId, "-", "COUNT", BATCH_SIZE,
+      )
+      if (!entries || entries.length === 0) return null
+
+      for (const [streamId, fields] of entries) {
+        if (!fields || fields.length < 2) continue
+        try {
+          const event = JSON.parse(fields[1]) as VortexEvent
+          if (event.id === eventId) return streamId
+        } catch {
+          continue
+        }
+      }
+
+      // Move cursor to just before the oldest entry in this batch
+      const lastStreamId = entries[entries.length - 1][0]
+      // Decrement the sequence to exclude this entry on the next iteration
+      const [ms, seq] = lastStreamId.split("-")
+      const prevSeq = parseInt(seq, 10) - 1
+      endId = prevSeq >= 0 ? `${ms}-${prevSeq}` : `${parseInt(ms, 10) - 1}-99999`
+    }
+
+    return null
   }
 
   async destroy(): Promise<void> {

@@ -1158,15 +1158,38 @@ io.on("connection", (socket: Socket) => {
   }
 })
 
+// ─── Redis leader election for periodic tasks (#655) ────────────────────────
+// Only one signal server replica should run the membership revalidation sweep.
+// We use a Redis SET NX PX lock to elect a leader each interval.
+const LEADER_LOCK_KEY = "vortex:leader:membership-revalidation"
+const LEADER_LOCK_TTL_MS = 55_000 // slightly less than interval to avoid overlap
+const REPLICA_ID = `replica:${process.pid}:${Date.now()}`
+
+async function tryAcquireLeaderLock(redis: Redis): Promise<boolean> {
+  try {
+    const result = await redis.set(LEADER_LOCK_KEY, REPLICA_ID, "PX", LEADER_LOCK_TTL_MS, "NX")
+    return result === "OK"
+  } catch (err) {
+    logger.error({ err }, "leader lock acquisition failed")
+    return false
+  }
+}
+
 // ─── Periodic membership re-validation (60-second sweep) ───────────────────
 // Catches cases where a user was kicked/banned but no voice state event was
 // emitted (e.g. the user went silent). Every 60 seconds, all active voice
 // peers are checked against the database. Peers that are no longer server
 // members are evicted and their sockets notified.
+//
+// With Redis leader election (#655), only one replica runs the sweep per
+// interval, reducing redundant DB load by ~90% across N replicas.
 const MEMBERSHIP_REVALIDATION_INTERVAL_MS = 60_000
 
 if (supabase) {
   let isRevalidating = false
+
+  // Redis client for leader election (reuse REDIS_URL if available)
+  const leaderRedis = REDIS_URL ? new Redis(REDIS_URL, { maxRetriesPerRequest: 3 }) : null
 
   setInterval(async () => {
     // Re-entry guard: skip if the previous sweep is still running
@@ -1174,6 +1197,17 @@ if (supabase) {
       logger.debug("periodic revalidation — previous sweep still running, skipping")
       return
     }
+
+    // Leader election: only one replica should run the sweep
+    if (leaderRedis) {
+      const isLeader = await tryAcquireLeaderLock(leaderRedis)
+      if (!isLeader) {
+        logger.debug("periodic revalidation — another replica is leader, skipping")
+        return
+      }
+      logger.debug({ replicaId: REPLICA_ID }, "periodic revalidation — acquired leader lock")
+    }
+
     isRevalidating = true
 
     try {

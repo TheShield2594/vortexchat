@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getChannelPermissions, hasPermission } from "@/lib/permissions"
+import { getBatchChannelPermissions, hasPermission } from "@/lib/permissions"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { filterBlockedUserIds, getBlockedUserIdsForViewer } from "@/lib/social-block-policy"
 import { rateLimiter } from "@/lib/rate-limit"
@@ -184,16 +184,27 @@ export async function GET(req: NextRequest) {
       scopedChannels = channels ?? []
     }
 
-    const permissionCheckedChannels = await Promise.all(
-      scopedChannels.map(async (channel) => {
-        if (!channel.server_id) return null
-        const { isAdmin, permissions } = await getChannelPermissions(supabase, channel.server_id, channel.id, user.id)
-        if (!isAdmin && !hasPermission(permissions, "VIEW_CHANNELS")) return null
-        return channel.id
-      })
-    )
+    // Batch permission check: 3 queries total instead of N × 7 per channel (#653)
+    const channelsByServer = new Map<string, string[]>()
+    for (const channel of scopedChannels) {
+      if (!channel.server_id) continue
+      let list = channelsByServer.get(channel.server_id)
+      if (!list) {
+        list = []
+        channelsByServer.set(channel.server_id, list)
+      }
+      list.push(channel.id)
+    }
 
-    const channelIds = permissionCheckedChannels.filter((id): id is string => Boolean(id))
+    const channelIds: string[] = []
+    for (const [sid, cids] of channelsByServer) {
+      const permsMap = await getBatchChannelPermissions(supabase, sid, cids, user.id)
+      for (const [channelId, perms] of permsMap) {
+        if (perms.isAdmin || hasPermission(perms.permissions, "VIEW_CHANNELS")) {
+          channelIds.push(channelId)
+        }
+      }
+    }
 
     if (channelIds.length === 0) return NextResponse.json({ results: [], total: 0 })
 

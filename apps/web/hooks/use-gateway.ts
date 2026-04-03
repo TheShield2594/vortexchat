@@ -104,6 +104,10 @@ export function useGateway(handlers?: GatewayEventHandlers) {
 
           // Notify connection-status FSM
           window.dispatchEvent(new CustomEvent("vortex:realtime-connect"))
+
+          // Drain offline message queue on reconnect (#656)
+          // Dispatch flush-outbox so chat-outbox hooks resend pending/failed messages
+          window.dispatchEvent(new CustomEvent("vortex:flush-outbox"))
         })
 
         socket.on("disconnect", () => {
@@ -111,6 +115,9 @@ export function useGateway(handlers?: GatewayEventHandlers) {
           setStatus("disconnected")
           stateRef.current.status = "disconnected"
           window.dispatchEvent(new CustomEvent("vortex:realtime-disconnect"))
+
+          // Reset in-flight outbox messages to pending so they retry on reconnect (#656)
+          window.dispatchEvent(new CustomEvent("vortex:outbox-reset-sending"))
         })
 
         socket.io.on("reconnect_attempt", () => {
