@@ -877,13 +877,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!container) return
 
     // Check for cached scroll position from a previous visit to this channel
-    const cachedState = useAppStore.getState().messageCache[channel.id]
-    if (cachedState) {
-      container.scrollTop = cachedState.scrollOffset
-    } else {
-      // Scroll to bottom (newest messages)
-      container.scrollTop = container.scrollHeight
-    }
+    // Scroll to bottom (newest messages).
+    // With virtualized lists, estimated row heights mean scrollHeight may
+    // change after the browser paints and the virtualizer measures real
+    // elements.  Re-scroll after two animation frames to settle.
+    container.scrollTop = container.scrollHeight
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = messageScrollerRef.current
+        if (el) el.scrollTop = el.scrollHeight
+      })
+    })
   }, [channel.id, jumpToMessageId, messages.length, openThreadId])
 
   useEffect(() => {

@@ -629,6 +629,13 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     shouldScrollToBottomRef.current = false
 
     scrollToBottom()
+    // Re-scroll after layout settles — images, embeds, or lazy content may
+    // change scrollHeight between useLayoutEffect and the first paint.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToBottom()
+      })
+    })
     prevLastMsgIdRef.current = messages[messages.length - 1]?.id ?? null
   }, [channelId, messages.length, scrollToBottom])
 
