@@ -862,8 +862,8 @@ export const MessageItem = memo(function MessageItem({
             </div>,
             document.body,
           )}
-          {/* Mobile: emoji picker as a bottom sheet */}
-          {showEmojiPicker && EmojiPicker && createPortal(
+          {/* Mobile: emoji picker as a bottom sheet (only when desktop positioned picker is not active) */}
+          {showEmojiPicker && EmojiPicker && !emojiPickerPos && createPortal(
             <div
               data-emoji-picker-portal
               className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end"

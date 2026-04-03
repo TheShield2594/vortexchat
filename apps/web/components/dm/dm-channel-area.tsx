@@ -1803,8 +1803,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 </div>,
                 document.body,
               )}
-              {/* Mobile: reaction emoji picker as bottom sheet */}
-              {reactionPickerMsgId === msg.id && EmojiPicker && createPortal(
+              {/* Mobile: reaction emoji picker as bottom sheet (only when desktop positioned picker is not active) */}
+              {reactionPickerMsgId === msg.id && EmojiPicker && !reactionPickerPos && createPortal(
                 <div
                   data-dm-reaction-picker-portal
                   className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end"

@@ -25,6 +25,10 @@ function parseCursor(raw: string | null): TimelineCursor | null {
   try {
     const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as TimelineCursor
     if (!parsed?.created_at || !parsed?.id) return null
+    // Validate timestamp and UUID to prevent malformed cursor interpolation
+    if (isNaN(Date.parse(parsed.created_at))) return null
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(parsed.id)) return null
     return parsed
   } catch {
     return null
@@ -83,8 +87,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
 
-    // Fetch more than `limit` to allow for action_type filtering in JS
-    // (action_type is derived, not a DB column), but cap at a reasonable number.
+    // Trade-off: action_type is derived from the `action` column via mapActionType(),
+    // so it can't be filtered at the DB level. When action_type filters are active,
+    // we over-fetch by 10x to increase the chance of filling `limit` results after
+    // JS filtering. If the target action types are very sparse (<10% of logs),
+    // the page may be smaller than `limit` — clients should follow `next_cursor`.
+    // Max fetchLimit is 2000 (limit=200 * 10), which is acceptable for indexed queries.
     const fetchLimit = filters.actionTypes.length > 0 ? limit * 10 : limit + 1
     query = query.limit(fetchLimit)
 

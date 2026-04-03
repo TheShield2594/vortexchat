@@ -23,16 +23,21 @@ type RateLimitResult = {
 // Lazily initialized singletons — the Upstash REST client is stateless,
 // so a single instance is safe to share across all rate-limit checks.
 let _redis: InstanceType<typeof import("@upstash/redis").Redis> | null = null
-let _limiterCache: Map<string, InstanceType<typeof import("@upstash/ratelimit").Ratelimit>> = new Map()
+const _limiterCache = new Map<string, InstanceType<typeof import("@upstash/ratelimit").Ratelimit>>()
+const _pendingLimiters = new Map<string, Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>>>()
 
 async function getRedis(): Promise<InstanceType<typeof import("@upstash/redis").Redis>> {
-  if (_redis) return _redis
-  const { Redis } = await import("@upstash/redis")
-  _redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  })
-  return _redis
+  try {
+    if (_redis) return _redis
+    const { Redis } = await import("@upstash/redis")
+    _redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
+    return _redis
+  } catch (err) {
+    throw new Error(`Failed to initialize Upstash Redis client: ${err instanceof Error ? err.message : String(err)}`)
+  }
 }
 
 async function getLimiter(opts: { limit: number; windowMs: number }): Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>> {
@@ -40,15 +45,28 @@ async function getLimiter(opts: { limit: number; windowMs: number }): Promise<In
   const cached = _limiterCache.get(cacheKey)
   if (cached) return cached
 
-  const { Ratelimit } = await import("@upstash/ratelimit")
-  const redis = await getRedis()
-  const limiter = new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(opts.limit, `${opts.windowMs}ms`),
-    prefix: "vortex:rl",
-  })
-  _limiterCache.set(cacheKey, limiter)
-  return limiter
+  // Deduplicate concurrent initialization for the same key
+  const pending = _pendingLimiters.get(cacheKey)
+  if (pending) return pending
+
+  const initPromise = (async () => {
+    try {
+      const { Ratelimit } = await import("@upstash/ratelimit")
+      const redis = await getRedis()
+      const limiter = new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(opts.limit, `${opts.windowMs}ms`),
+        prefix: "vortex:rl",
+      })
+      _limiterCache.set(cacheKey, limiter)
+      return limiter
+    } finally {
+      _pendingLimiters.delete(cacheKey)
+    }
+  })()
+
+  _pendingLimiters.set(cacheKey, initPromise)
+  return initPromise
 }
 
 async function checkUpstash(
@@ -135,7 +153,7 @@ export const rateLimiter = {
       if (opts.failClosed) {
         // Structured log import avoided here to prevent circular deps;
         // Sentry will also capture this via global error handling.
-        console.error("[rate-limit] Infrastructure failure (fail-closed):", (err as Error).message)
+        console.error("[rate-limit] Infrastructure failure (fail-closed):", err instanceof Error ? err.message : String(err))
         return { allowed: false, remaining: 0, resetAt: Date.now() + 60_000 }
       }
       throw err

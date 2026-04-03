@@ -76,19 +76,23 @@ export function useRealtimeMessages(
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "reactions", filter: `channel_id=eq.${channelId}` },
+        { event: "INSERT", schema: "public", table: "reactions" },
         (payload) => {
           if (!onReactionInsert) return
           const reaction = payload.new as ReactionRow
+          // Skip reactions for messages not loaded in this channel
+          if (messagesRef?.current && !messagesRef.current.some((m) => m.id === reaction.message_id)) return
           onReactionInsert(reaction)
         }
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "reactions", filter: `channel_id=eq.${channelId}` },
+        { event: "DELETE", schema: "public", table: "reactions" },
         (payload) => {
           if (!onReactionDelete) return
           const reaction = payload.old as ReactionRow
+          // Skip reactions for messages not loaded in this channel
+          if (messagesRef?.current && !messagesRef.current.some((m) => m.id === reaction.message_id)) return
           onReactionDelete(reaction)
         }
       )

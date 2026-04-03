@@ -1004,8 +1004,9 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             </DragOverlay>
           </DndContext>
           ) : (
-            /* Non-admin: render channel list without drag-and-drop overhead */
-            <div>
+            /* Non-admin: bare DndContext (no sensors) so useSortable/useDroppable
+               hooks in child components have a context — drag is never initiated. */
+            <DndContext>
             {liveGrouped.map(({ category, channels: categoryChannels }) => {
               const containerId = category?.id ?? NO_CATEGORY
               const isCollapsed = category ? !expandedCategoryIds.has(category.id) : false
@@ -1080,7 +1081,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                 </div>
               )
             })}
-            </div>
+            </DndContext>
           )}
 
           {/* Add channel button */}

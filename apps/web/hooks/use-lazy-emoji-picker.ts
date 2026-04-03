@@ -9,10 +9,16 @@ let _promise: Promise<EmojiPickerType> | null = null
 
 function load(): Promise<EmojiPickerType> {
   if (!_promise) {
-    _promise = import("frimousse").then((m) => {
-      _cached = m.EmojiPicker
-      return m.EmojiPicker
-    })
+    _promise = import("frimousse")
+      .then((m) => {
+        _cached = m.EmojiPicker
+        return m.EmojiPicker
+      })
+      .catch((error) => {
+        // Reset so future attempts can retry
+        _promise = null
+        throw error
+      })
   }
   return _promise
 }
@@ -26,13 +32,14 @@ export function useLazyEmojiPicker(): {
 } {
   const [picker, setPicker] = useState<EmojiPickerType | null>(_cached)
 
-  const loadEmojiPicker = useCallback(async () => {
-    if (_cached) {
-      setPicker(() => _cached)
-      return
+  const loadEmojiPicker = useCallback(async (): Promise<void> => {
+    try {
+      const mod = _cached ?? await load()
+      setPicker(() => mod)
+    } catch {
+      // Import failed — picker stays null, user can retry
+      setPicker(null)
     }
-    const mod = await load()
-    setPicker(() => mod)
   }, [])
 
   return { EmojiPicker: picker, loadEmojiPicker, isLoaded: picker !== null }

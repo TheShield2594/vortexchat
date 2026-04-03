@@ -1,6 +1,7 @@
+import React from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export default function ServersLoading() {
+export default function ServersLoading(): React.ReactElement {
   return (
     <div className="flex flex-1 flex-col overflow-hidden" style={{ background: "var(--theme-bg-primary)" }}>
       {/* Header */}

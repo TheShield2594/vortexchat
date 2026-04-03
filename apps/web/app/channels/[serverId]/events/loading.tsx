@@ -1,6 +1,7 @@
+import React from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export default function EventsLoading() {
+export default function EventsLoading(): React.ReactElement {
   return (
     <div className="flex flex-1 flex-col overflow-hidden" style={{ background: "var(--theme-bg-primary)" }}>
       {/* Header */}

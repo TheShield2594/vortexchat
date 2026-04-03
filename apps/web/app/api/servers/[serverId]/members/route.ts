@@ -191,11 +191,12 @@ export async function GET(
   const lastMember = pageMembers[pageMembers.length - 1]
   const nextCursor = hasMore && lastMember ? lastMember.user_id : null
 
-  return NextResponse.json({
-    data: visibleMembers,
-    next_cursor: nextCursor,
-  }, {
-    headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
+  // Return array directly for backward compatibility; cursor in header.
+  return NextResponse.json(visibleMembers, {
+    headers: {
+      "Cache-Control": "private, max-age=10, stale-while-revalidate=30",
+      ...(nextCursor ? { "X-Next-Cursor": nextCursor } : {}),
+    },
   })
   } catch (err) {
     console.error("[servers/[serverId]/members GET] error:", err)
