@@ -57,11 +57,11 @@ export const viewport: Viewport = {
 /** Top-level HTML shell — applies Inter (body) + Space Grotesk (display/headings), dark theme, and global toast notifications.
  *  Static pages (landing, /terms, /privacy, /roadmap, /showcase, /self-host)
  *  benefit from CDN caching — force-dynamic is applied per-layout in (auth)/ and channels/ instead. */
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
-}): Promise<React.ReactElement> {
+}): React.ReactElement {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
