@@ -46,9 +46,9 @@ export async function GET() {
     // Server messages (last 10k for practical limits)
     supabase
       .from("messages")
-      .select("id, channel_id, content, created_at, edited_at, deleted")
+      .select("id, channel_id, content, created_at, edited_at, deleted_at")
       .eq("author_id", userId)
-      .eq("deleted", false)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(10000),
     // DM messages (last 10k)

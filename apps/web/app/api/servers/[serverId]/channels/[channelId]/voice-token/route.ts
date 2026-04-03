@@ -41,7 +41,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       .single()
 
     if (channelError) {
-      return NextResponse.json({ error: channelError.message }, { status: 500 })
+      console.error("[voice-token GET] DB error:", channelError.message)
+      return NextResponse.json({ error: "Failed to retrieve channel" }, { status: 500 })
     }
 
     if (!channel) {

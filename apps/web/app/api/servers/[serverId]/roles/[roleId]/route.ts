@@ -199,7 +199,22 @@ export async function DELETE(
       .eq("server_id", serverId)
 
     if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      console.error("[roles DELETE] DB error:", { serverId, roleId, userId: user.id, err: deleteError.message })
+      const { error: failAuditErr } = await supabase.from("audit_logs").insert({
+        server_id: serverId,
+        actor_id: user.id,
+        action: "role_delete_failed",
+        target_id: roleId,
+        target_type: "role",
+        changes: {
+          role_name: targetRole.name,
+          error: deleteError.message,
+        } as unknown as Json,
+      })
+      if (failAuditErr) {
+        console.error("[roles DELETE] Audit log insert failed for role_delete_failed", { serverId, roleId, error: failAuditErr.message })
+      }
+      return NextResponse.json({ error: "Failed to delete role" }, { status: 500 })
     }
 
     // Audit log the deletion

@@ -666,10 +666,10 @@ async function validateSession(socket: Socket): Promise<boolean> {
 
 /**
  * Verify a user is a member of the server that owns the given channel.
- * Returns false if the user is not a member. Fails open on DB errors.
+ * Returns false if the user is not a member. Fails closed on DB errors.
  */
 async function checkChannelMembership(userId: string, channelId: string): Promise<boolean> {
-  if (!supabase) return true
+  if (!supabase) return false
 
   try {
     const { data: channel, error: chErr } = await supabase
@@ -679,8 +679,8 @@ async function checkChannelMembership(userId: string, channelId: string): Promis
       .maybeSingle()
 
     if (chErr) {
-      logger.error({ userId, channelId, err: chErr }, "checkChannelMembership channel query error — failing open")
-      return true
+      logger.error({ userId, channelId, err: chErr }, "checkChannelMembership channel query error — failing closed")
+      return false
     }
     if (!channel) return false
 
@@ -692,13 +692,13 @@ async function checkChannelMembership(userId: string, channelId: string): Promis
       .maybeSingle()
 
     if (memErr) {
-      logger.error({ userId, channelId, err: memErr }, "checkChannelMembership member query error — failing open")
-      return true
+      logger.error({ userId, channelId, err: memErr }, "checkChannelMembership member query error — failing closed")
+      return false
     }
     return !!member
   } catch (err) {
-    logger.error({ userId, channelId, err }, "checkChannelMembership error — failing open")
-    return true
+    logger.error({ userId, channelId, err }, "checkChannelMembership error — failing closed")
+    return false
   }
 }
 

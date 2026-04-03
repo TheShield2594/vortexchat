@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 import { hasPermission as checkPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
+import { getActorMaxRolePosition } from "@/lib/role-utils"
 import { rateLimiter } from "@/lib/rate-limit"
 import { createLogger } from "@/lib/logger"
 import { sendPushToUser } from "@/lib/push"
@@ -74,7 +75,7 @@ export async function POST(
   }
 
   const { userId, reason } = await req.json()
-  if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 })
+  if (typeof userId !== "string" || !userId.trim()) return NextResponse.json({ error: "userId required" }, { status: 400 })
 
   const { data: server } = await supabase
     .from("servers")
@@ -101,6 +102,53 @@ export async function POST(
 
     if (!checkPermission(permissions, "BAN_MEMBERS")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Role hierarchy check: requester must outrank the target.
+    let requesterMaxPosition: number
+    let targetMaxPosition: number
+    try {
+      [requesterMaxPosition, targetMaxPosition] = await Promise.all([
+        getActorMaxRolePosition(supabase, serverId, user.id),
+        getActorMaxRolePosition(supabase, serverId, userId),
+      ])
+    } catch (err) {
+      log.error({
+        serverId,
+        actorId: user.id,
+        targetId: userId,
+        err,
+      }, "Failed to evaluate ban hierarchy")
+      const { error: auditError } = await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "member_ban_denied",
+        target_id: userId,
+        target_type: "user",
+        changes: { reason: "hierarchy_lookup_failed" },
+      })
+      if (auditError) {
+        log.error({ serverId, actorId: user.id, targetId: userId, err: auditError.message }, "Failed to write denied-ban audit log")
+      }
+      return NextResponse.json({ error: "Unable to verify role hierarchy" }, { status: 500 })
+    }
+
+    if (targetMaxPosition >= requesterMaxPosition) {
+      const { error: auditError } = await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "member_ban_denied",
+        target_id: userId,
+        target_type: "user",
+        changes: { reason: "target_outranks_actor" },
+      })
+      if (auditError) {
+        log.error({ serverId, actorId: user.id, targetId: userId, err: auditError.message }, "Failed to write denied-ban audit log")
+      }
+      return NextResponse.json(
+        { error: "Cannot ban a member with equal or higher role" },
+        { status: 403 }
+      )
     }
   }
 
@@ -167,7 +215,7 @@ export async function POST(
   }
 
   // Audit log
-  await insertAuditLog(supabase, {
+  const { error: banAuditError } = await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "member_ban",
@@ -175,6 +223,9 @@ export async function POST(
     target_type: "user",
     changes: { reason },
   })
+  if (banAuditError) {
+    log.warn({ serverId, actorId: user.id, targetId: userId, err: banAuditError.message }, "Failed to write ban audit log")
+  }
 
   // Notify the banned user
   const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", serverId).maybeSingle()
@@ -203,7 +254,7 @@ export async function DELETE(
   if (authError) return authError
 
   const { searchParams } = new URL(req.url)
-  const userId = searchParams.get("userId")
+  const userId = searchParams.get("userId")?.trim()
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 })
 
   const { data: server } = await supabase

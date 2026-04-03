@@ -563,8 +563,8 @@ async function checkChannelAccess(
 
     return !!member
   } catch (err) {
-    log.error({ err, userId, channelId }, "checkChannelAccess error — failing open")
-    return true
+    log.error({ err, userId, channelId }, "checkChannelAccess error — failing closed")
+    return false
   }
 }
 
