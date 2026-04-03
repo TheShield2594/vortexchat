@@ -37,10 +37,29 @@ export async function GET(
     return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
   }
 
-  // Pagination: cursor-based using user_id for stable ordering
+  // Pagination: cursor-based using user_id for stable ordering.
+  // When neither `limit` nor `after` is specified, return all members for
+  // backward compatibility with existing callers (member-list, role-manager).
   const { searchParams } = new URL(request.url)
-  const limit = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "100", 10), 1), 500)
-  const afterCursor = searchParams.get("after") // user_id cursor
+  const rawLimit = searchParams.get("limit")
+  const afterCursor = searchParams.get("after")
+  const isPaginated = rawLimit !== null || afterCursor !== null
+
+  let limit: number
+  if (rawLimit !== null) {
+    const parsed = Number(rawLimit)
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 500) {
+      return NextResponse.json({ error: "Invalid limit (must be 1-500)" }, { status: 400 })
+    }
+    limit = parsed
+  } else {
+    limit = isPaginated ? 100 : 10_000 // no practical limit for full-list callers
+  }
+
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (afterCursor && !uuidRegex.test(afterCursor)) {
+    return NextResponse.json({ error: "Invalid after cursor" }, { status: 400 })
+  }
 
   // Slim projection for member lists — omits status_message, bio, banner_color,
   // custom_tag which are only needed for profile modals (~60-70% payload reduction).

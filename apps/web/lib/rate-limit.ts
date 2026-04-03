@@ -23,21 +23,30 @@ type RateLimitResult = {
 // Lazily initialized singletons — the Upstash REST client is stateless,
 // so a single instance is safe to share across all rate-limit checks.
 let _redis: InstanceType<typeof import("@upstash/redis").Redis> | null = null
+let _pendingRedis: Promise<InstanceType<typeof import("@upstash/redis").Redis>> | null = null
 const _limiterCache = new Map<string, InstanceType<typeof import("@upstash/ratelimit").Ratelimit>>()
 const _pendingLimiters = new Map<string, Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>>>()
 
 async function getRedis(): Promise<InstanceType<typeof import("@upstash/redis").Redis>> {
-  try {
-    if (_redis) return _redis
-    const { Redis } = await import("@upstash/redis")
-    _redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    })
-    return _redis
-  } catch (err) {
-    throw new Error(`Failed to initialize Upstash Redis client: ${err instanceof Error ? err.message : String(err)}`)
-  }
+  if (_redis) return _redis
+  if (_pendingRedis) return _pendingRedis
+
+  _pendingRedis = (async () => {
+    try {
+      const { Redis } = await import("@upstash/redis")
+      _redis = new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL!,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+      })
+      return _redis
+    } catch (err) {
+      throw new Error(`Failed to initialize Upstash Redis client: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      _pendingRedis = null
+    }
+  })()
+
+  return _pendingRedis
 }
 
 async function getLimiter(opts: { limit: number; windowMs: number }): Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>> {

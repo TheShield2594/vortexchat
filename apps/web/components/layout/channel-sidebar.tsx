@@ -38,6 +38,7 @@ import { UserPanel } from "@/components/layout/user-panel"
 import { CompactVoiceBar } from "@/components/voice/compact-voice-bar"
 import { SortableChannelItem, ChannelIcon } from "@/components/layout/sortable-channel-item"
 import { CategoryHeader, DropContainer, getCategoryDragId, getCategoryIdFromDragId } from "@/components/layout/category-header"
+import { StaticCategoryHeader, StaticChannelItem } from "@/components/layout/static-channel-list"
 
 import type { VoiceParticipant } from "@vortex/shared"
 export type { VoiceParticipant }
@@ -1004,23 +1005,18 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
             </DragOverlay>
           </DndContext>
           ) : (
-            /* Non-admin: bare DndContext (no sensors) so useSortable/useDroppable
-               hooks in child components have a context — drag is never initiated. */
-            <DndContext>
+            /* Non-admin: static components without dnd-kit hooks */
+            <>
             {liveGrouped.map(({ category, channels: categoryChannels }) => {
               const containerId = category?.id ?? NO_CATEGORY
               const isCollapsed = category ? !expandedCategoryIds.has(category.id) : false
               return (
                 <div key={containerId} className="mb-2">
                   {category && (
-                    <CategoryHeader
+                    <StaticCategoryHeader
                       category={category}
-                      containerId={containerId}
                       isCollapsed={isCollapsed}
-                      canManageChannels={false}
-                      isDragOver={false}
                       onToggle={() => toggleCategory(category.id)}
-                      onAddChannel={() => {}}
                       onCopyId={() => {
                         navigator.clipboard.writeText(category.id).catch(() => {})
                         toast({ title: "Category ID copied!" })
@@ -1042,15 +1038,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                   >
                   <div className="space-y-0.5 px-2 min-h-[4px] overflow-hidden">
                     {categoryChannels.map((channel) => (
-                      <SortableChannelItem
+                      <StaticChannelItem
                         key={channel.id}
                         channel={channel}
                         isActive={activeChannelId === channel.id}
                         isVoiceActive={voiceChannelId === channel.id}
                         onOpenNotificationSettings={setNotifSettingsChannelId}
                         onMarkRead={() => markChannelRead(channel.id)}
-                        canManageChannels={false}
-                        isDragging={false}
                         isUnread={unreadChannelIds.has(channel.id)}
                         mentionCount={mentionCounts[channel.id] ?? 0}
                         activeThreadCount={activeThreadCounts[channel.id] ?? 0}
@@ -1069,8 +1063,6 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                           }
                           router.push(`/channels/${server.id}/${channel.id}`)
                         }}
-                        onEdit={() => {}}
-                        onDelete={() => {}}
                         onCreateThread={() => {
                           router.push(`/channels/${server.id}/${channel.id}?createThread=1`)
                         }}
@@ -1081,7 +1073,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                 </div>
               )
             })}
-            </DndContext>
+            </>
           )}
 
           {/* Add channel button */}

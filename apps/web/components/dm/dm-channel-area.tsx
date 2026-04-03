@@ -119,7 +119,7 @@ function addEmojiRecent(emoji: string): void {
 }
 
 /** Reusable reaction picker content with recent emojis, search, categories, and skin tone selector. */
-function DmReactionPickerContent({ msgId, onReaction, onClose, maxHeight, EmojiPicker }: { msgId: string; onReaction: (emoji: string) => void; onClose: () => void; maxHeight?: string; EmojiPicker: NonNullable<ReturnType<typeof import("@/hooks/use-lazy-emoji-picker").useLazyEmojiPicker>["EmojiPicker"]> }) {
+function DmReactionPickerContent({ onReaction, onClose, maxHeight, EmojiPicker }: { onReaction: (emoji: string) => void; onClose: () => void; maxHeight?: string; EmojiPicker: NonNullable<ReturnType<typeof import("@/hooks/use-lazy-emoji-picker").useLazyEmojiPicker>["EmojiPicker"]> }) {
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
 
@@ -1794,7 +1794,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                     style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
                   >
                     <DmReactionPickerContent
-                      msgId={msg.id}
                       onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
                       onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
                       EmojiPicker={EmojiPicker}
@@ -1840,7 +1839,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                       ))}
                     </div>
                     <DmReactionPickerContent
-                      msgId={msg.id}
                       onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
                       onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
                       maxHeight="calc(70vh - 100px)"
