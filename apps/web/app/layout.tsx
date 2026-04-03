@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { headers } from "next/headers"
-import { Inter, Space_Grotesk } from "next/font/google"
+import localFont from "next/font/local"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { PwaInstallBanner } from "@/components/pwa-install-banner"
@@ -8,8 +8,16 @@ import { SwUpdateToast } from "@/components/sw-update-toast"
 import { SplashScreen } from "@/components/splash-screen"
 import { PushPermissionPrompt } from "@/components/push-permission-prompt"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-body" })
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" })
+const inter = localFont({
+  src: "../public/fonts/inter-latin-var.woff2",
+  variable: "--font-body",
+  display: "swap",
+})
+const spaceGrotesk = localFont({
+  src: "../public/fonts/space-grotesk-latin-var.woff2",
+  variable: "--font-display",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: "VortexChat — Chat, Hang Out, Belong",
