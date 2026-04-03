@@ -611,8 +611,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     onReachedBottom,
   })
 
-  // Scroll to bottom on channel switch (same pattern as chat-area.tsx).
-  // Uses useLayoutEffect + messages.length so we wait until messages render.
+  // Scroll to bottom on channel switch.
+  // The ResizeObserver in useChatScroll handles re-pinning when content
+  // height changes, so we only need a single synchronous scroll here.
   const shouldScrollToBottomRef = useRef(true)
   const prevChannelIdScrollRef = useRef(channelId)
   useLayoutEffect(() => {
@@ -629,19 +630,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     shouldScrollToBottomRef.current = false
 
     scrollToBottom()
-    // Re-scroll after layout settles — images, embeds, or lazy content may
-    // change scrollHeight between useLayoutEffect and the first paint.
-    let rafInner = 0
-    const rafOuter = requestAnimationFrame(() => {
-      rafInner = requestAnimationFrame(() => {
-        scrollToBottom()
-      })
-    })
     prevLastMsgIdRef.current = messages[messages.length - 1]?.id ?? null
-    return () => {
-      cancelAnimationFrame(rafOuter)
-      cancelAnimationFrame(rafInner)
-    }
   }, [channelId, messages.length, scrollToBottom])
 
   // Track active DM channel for notification suppression
@@ -1361,8 +1350,8 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
       {/* Messages */}
       {/* Scroll container: standard direction (scrollTop = scrollHeight = newest messages) */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}>
-        <div className="space-y-1">
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ overflowAnchor: isAtBottom ? "auto" : "none", overscrollBehaviorY: "contain" }}>
+        <div className="space-y-1" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", minHeight: "100%" }}>
         {/* Load more */}
         {hasMore && (
           <div className="flex justify-center pb-2">

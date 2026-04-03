@@ -15,12 +15,18 @@ interface UseChatScrollArgs {
 /**
  * Scroll management hook for chat message containers.
  *
- * Standard (top-to-bottom) scroll direction:
- *   scrollTop === 0 → user is at the top (oldest messages)
- *   scrollTop + clientHeight === scrollHeight → user is at the bottom (newest)
+ * Implements Fluxer-style sticky pin tolerance:
+ *   - 10px tolerance to initially detect "at bottom"
+ *   - 80px sticky tolerance to stay pinned while small layout shifts occur
  *
- * Used by both channel chat and DM chat for consistent scroll behavior.
+ * Uses a ResizeObserver on the scroll container's content to detect height
+ * changes and immediately scroll to bottom when pinned — no racy double-RAF.
  */
+
+const PIN_TOLERANCE = 10
+const STICKY_TOLERANCE = 80
+const SCROLL_TRIGGER_THRESHOLD = 120
+
 export function useChatScroll({
   hasMoreHistory,
   loadOlderMessages,
@@ -31,7 +37,10 @@ export function useChatScroll({
   onReachedBottom,
 }: UseChatScrollArgs) {
   const [isAtBottom, setIsAtBottom] = useState(true)
+  const isPinnedRef = useRef(true)
   const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cachedScrollHeightRef = useRef(0)
+  const isProgrammaticScrollRef = useRef(false)
 
   useEffect(() => {
     const container = messageScrollerRef.current
@@ -43,18 +52,29 @@ export function useChatScroll({
       }
     }
 
+    const evaluatePin = (): { distanceFromBottom: number; isWithinTolerance: boolean; isPinned: boolean } => {
+      const distanceFromBottom = Math.max(
+        container.scrollHeight - container.clientHeight - container.scrollTop,
+        0,
+      )
+      const isWithinTolerance = distanceFromBottom <= PIN_TOLERANCE
+      const isWithinStickyRange = distanceFromBottom <= STICKY_TOLERANCE
+      const shouldPin = isWithinTolerance || (isPinnedRef.current && isWithinStickyRange)
+
+      return { distanceFromBottom, isWithinTolerance, isPinned: shouldPin }
+    }
+
     const onScroll = () => {
       const scrollTop = container.scrollTop
 
       // Load older messages when near the top (oldest messages).
-      if (scrollTop < 120 && hasMoreHistory && !paginationRequestRef.current) {
+      if (scrollTop < SCROLL_TRIGGER_THRESHOLD && hasMoreHistory && !paginationRequestRef.current) {
         void loadOlderMessages()
       }
 
-      // At bottom when scrolled within 120px of the end
-      const distanceFromBottom = container.scrollHeight - container.clientHeight - scrollTop
-      const nextIsAtBottom = distanceFromBottom < 120
-      setIsAtBottom(nextIsAtBottom)
+      const { isPinned: nextPinned } = evaluatePin()
+      isPinnedRef.current = nextPinned
+      setIsAtBottom(nextPinned)
 
       if (scrollStorageKey) {
         if (scrollSaveTimerRef.current) {
@@ -66,7 +86,7 @@ export function useChatScroll({
         }, 250)
       }
 
-      if (nextIsAtBottom) {
+      if (nextPinned) {
         onReachedBottom()
         if (unreadAnchorStorageKey && typeof window !== "undefined") {
           window.sessionStorage.removeItem(unreadAnchorStorageKey)
@@ -74,8 +94,33 @@ export function useChatScroll({
       }
     }
 
+    // ResizeObserver: when the scroll container's scrollHeight grows while
+    // pinned to bottom, immediately scroll to keep the newest messages visible.
+    // This replaces the racy double-RAF pattern.
+    cachedScrollHeightRef.current = container.scrollHeight
+
+    const resizeObserver = new ResizeObserver(() => {
+      const newScrollHeight = container.scrollHeight
+      const heightGrew = newScrollHeight > cachedScrollHeightRef.current
+      cachedScrollHeightRef.current = newScrollHeight
+
+      if (heightGrew && isPinnedRef.current) {
+        isProgrammaticScrollRef.current = true
+        container.scrollTop = newScrollHeight
+        isProgrammaticScrollRef.current = false
+      }
+    })
+
+    // Observe the first child (the content wrapper) so we catch height changes
+    // from new messages, images loading, embeds expanding, etc.
+    if (container.firstElementChild) {
+      resizeObserver.observe(container.firstElementChild)
+    }
+    // Also observe the container itself for viewport size changes
+    resizeObserver.observe(container)
+
     onScroll()
-    container.addEventListener("scroll", onScroll)
+    container.addEventListener("scroll", onScroll, { passive: true })
 
     return () => {
       if (scrollSaveTimerRef.current) {
@@ -84,14 +129,17 @@ export function useChatScroll({
       }
       if (scrollStorageKey) persistScroll()
       container.removeEventListener("scroll", onScroll)
+      resizeObserver.disconnect()
     }
   }, [hasMoreHistory, loadOlderMessages, messageScrollerRef, onReachedBottom, paginationRequestRef, scrollStorageKey, unreadAnchorStorageKey])
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     const container = messageScrollerRef.current
     if (!container) return
+    isPinnedRef.current = true
+    setIsAtBottom(true)
     container.scrollTo({ top: container.scrollHeight, behavior })
   }, [messageScrollerRef])
 
-  return { isAtBottom, setIsAtBottom, scrollToBottom }
+  return { isAtBottom, setIsAtBottom, scrollToBottom, isPinnedRef }
 }

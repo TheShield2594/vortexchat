@@ -863,8 +863,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [isOnline, channel.id, flushOutbox, flushTrigger])
 
   // On channel switch, scroll to the bottom (newest messages).
-  // Same pattern as DM: immediate scroll + double RAF re-scroll so the
-  // virtualizer can measure real DOM heights and correct any drift.
+  // The ResizeObserver in useChatScroll handles re-pinning when content
+  // height changes, so we only need a single synchronous scroll here.
   useLayoutEffect(() => {
     if (prevChannelIdRef.current !== channel.id) {
       shouldAutoScrollToLatestRef.current = true
@@ -878,19 +878,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     shouldAutoScrollToLatestRef.current = false
 
     scrollToBottom()
-    // Re-scroll after layout settles — the virtualizer's estimated row
-    // heights change once real DOM nodes are measured, shifting scrollHeight.
-    let rafInner = 0
-    const rafOuter = requestAnimationFrame(() => {
-      rafInner = requestAnimationFrame(() => {
-        scrollToBottom()
-      })
-    })
     previousLastMessageIdRef.current = messages[messages.length - 1]?.id ?? null
-    return () => {
-      cancelAnimationFrame(rafOuter)
-      cancelAnimationFrame(rafInner)
-    }
   }, [channel.id, jumpToMessageId, messages.length, openThreadId, scrollToBottom])
 
   useEffect(() => {
@@ -1930,7 +1918,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           role="log"
           aria-label="Message history"
           aria-relevant="additions"
-          style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}
+          style={{ overflowAnchor: isAtBottom ? "auto" : "none", overscrollBehaviorY: "contain" }}
           {...(isMobile ? pullToRefreshHandlers : {})}
         >
           {/* Pull-to-refresh indicator (mobile only) — require meaningful pull before showing */}
