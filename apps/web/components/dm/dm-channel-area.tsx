@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { setActiveDmChannel } from "@/lib/notification-manager"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
+import { Phone, Video, Users, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
 import { EmojiPicker } from "frimousse"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { format, isToday, isYesterday } from "date-fns"
@@ -18,6 +18,7 @@ import { useTyping } from "@/hooks/use-typing"
 import { useAppStore } from "@/lib/stores/app-store"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
+import { MessageInput } from "@/components/chat/message-input"
 import { useShallow } from "zustand/react/shallow"
 import { decryptDmContent, encryptDmContent, exportPublicKey, fingerprintFromPublicKey, generateConversationKey, generateDeviceKeyPair, importPublicKey, parseEncryptedEnvelope, unwrapConversationKey, wrapConversationKey } from "@/lib/dm-encryption"
 import { useNotificationSound } from "@/hooks/use-notification-sound"
@@ -92,10 +93,6 @@ interface Props {
 
 
 // GIF/sticker requests go through the server-side proxy (caching + no client-side API key exposure)
-const GIF_TRENDING_URL = "/api/gif/trending"
-const GIF_SEARCH_URL = "/api/gif/search"
-const STICKER_TRENDING_URL = "/api/sticker/trending"
-const STICKER_SEARCH_URL = "/api/sticker/search"
 
 const DM_QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"]
 
@@ -397,53 +394,25 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState(false)
-  const [content, setContent] = useState("")
   const [decryptedContent, setDecryptedContent] = useState<Record<string, { text: string; failed: boolean }>>({})
   const decryptedRef = useRef<Record<string, { text: string; failed: boolean }>>({})
   const [conversationKey, setConversationKey] = useState<Uint8Array | null>(null)
   const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
-  const [sending, setSending] = useState(false)
   const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
-  const [uploadingFile, setUploadingFile] = useState(false)
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [emojiSearch, setEmojiSearch] = useState("")
-  const [pickerTab, setPickerTab] = useState<"emoji" | "gif" | "sticker">("emoji")
-  const [gifQuery, setGifQuery] = useState("")
-  const [gifResults, setGifResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
-  const [gifLoading, setGifLoading] = useState(false)
-  const [gifSuggestions, setGifSuggestions] = useState<string[]>([])
-  const [stickerQuery, setStickerQuery] = useState("")
-  const [stickerResults, setStickerResults] = useState<Array<{ id: string; title: string; previewUrl: string; gifUrl: string; url: string | null }>>([])
-  const [stickerLoading, setStickerLoading] = useState(false)
-  const [allServerEmojis, setAllServerEmojis] = useState<Array<{ server: { id: string; name: string; icon_url: string | null }; emojis: Array<{ id: string; name: string; image_url: string }> }>>([])
-  const emojiFetchedRef = useRef(false)
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null)
   const [reactionPickerPos, setReactionPickerPos] = useState<{ top: number; left: number } | null>(null)
   const [poppingReactions, setPoppingReactions] = useState<Record<string, Record<string, number>>>({})
   const popTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const reactionCountsRef = useRef<Record<string, Record<string, number>>>({})
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const emojiPickerRef = useRef<HTMLDivElement>(null)
-  const emojiButtonRef = useRef<HTMLButtonElement>(null)
-
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const paginationRequestRef = useRef<Promise<unknown> | null>(null) as MutableRefObject<Promise<unknown> | null>
   const isMobileDm = useMobileLayout()
   useKeyboardAvoidance(scrollerRef, isMobileDm, false)
-
-  // Sync textarea height when content changes programmatically (e.g. failed send restore, emoji insertion)
-  useEffect(() => {
-    const el = inputRef.current
-    if (!el) return
-    el.style.height = "auto"
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
-  }, [content])
 
   const prevLastMsgIdRef = useRef<string | null>(null)
   const topRef = useRef<HTMLDivElement>(null)
@@ -980,22 +949,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     reactionCountsRef.current = nextAll
   }, [messages])
 
-  // Close emoji/GIF picker on outside click
-  useEffect(() => {
-    if (!showEmojiPicker) {
-      setEmojiSearch("")
-      return
-    }
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node
-      if (!emojiPickerRef.current?.contains(target) && !emojiButtonRef.current?.contains(target)) {
-        setShowEmojiPicker(false)
-      }
-    }
-    document.addEventListener("pointerdown", handlePointerDown)
-    return () => document.removeEventListener("pointerdown", handlePointerDown)
-  }, [showEmojiPicker])
-
   // Close reaction picker on outside click or Escape
   useEffect(() => {
     if (!reactionPickerMsgId) return
@@ -1016,170 +969,75 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     }
   }, [reactionPickerMsgId])
 
-  // Fetch GIF results (trending or search)
-  useEffect(() => {
-    if (!showEmojiPicker || pickerTab !== "gif") return
-    const controller = new AbortController()
-    const timeout = setTimeout(async () => {
-      setGifLoading(true)
-      try {
-        const endpoint = gifQuery.trim()
-          ? `${GIF_SEARCH_URL}?q=${encodeURIComponent(gifQuery.trim())}`
-          : GIF_TRENDING_URL
-        const res = await fetch(endpoint, { signal: controller.signal })
-        const json = await res.json()
-        setGifResults(Array.isArray(json) ? json : [])
-      } catch {
-        setGifResults([])
-      } finally {
-        setGifLoading(false)
-      }
-    }, 400)
-    return () => { clearTimeout(timeout); controller.abort() }
-  }, [showEmojiPicker, pickerTab, gifQuery])
+  // Unified send handler matching MessageInput's onSend signature.
+  // Handles text, GIF URLs, and file attachments with optional encryption.
+  const handleDmSend = useCallback(async (text: string, files?: File[]): Promise<void> => {
+    if (!text.trim() && (!files || files.length === 0)) return
 
-  // Fetch GIF search autocomplete suggestions
-  useEffect(() => {
-    if (!showEmojiPicker || pickerTab !== "gif" || gifQuery.trim().length < 2) {
-      setGifSuggestions([])
+    // Handle file attachments first (sends each as a separate message)
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const ext = file.name.split(".").pop()
+        const path = `dm-attachments/${channelId}/${Date.now()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from("attachments")
+          .upload(path, file, { upsert: true })
+        if (uploadError) throw new Error("File upload failed")
+
+        const { data: signedData, error: signError } = await supabase.storage
+          .from("attachments")
+          .createSignedUrl(path, 60 * 60 * 24 * 7)
+        if (signError || !signedData?.signedUrl) throw new Error("Failed to create signed URL")
+
+        const signedUrl = signedData.signedUrl
+        const fileContent = `[${file.name}](${signedUrl})`
+        let outbound = fileContent
+        if (channel?.is_encrypted) {
+          const key = conversationKey ?? await ensureConversationKey(channel)
+          if (!key) throw new Error("Missing encryption key")
+          outbound = JSON.stringify(await encryptDmContent(fileContent, key, channel.encryption_key_version ?? 1))
+        }
+        const msg = await sendDmPayload({ content: outbound })
+        if (!msg) throw new Error("Failed to send file")
+
+        const now = new Date()
+        const decay = computeDecay({ sizeBytes: file.size, uploadedAt: now })
+        const { data: insertedAtt, error: attInsertError } = await untypedFrom(supabase, "dm_attachments").insert({
+          dm_id: msg.id,
+          url: signedUrl,
+          filename: file.name,
+          size: file.size,
+          content_type: file.type || "application/octet-stream",
+          ...(decay ? { expires_at: decay.expiresAt.toISOString(), last_accessed_at: now.toISOString(), lifetime_days: decay.days, decay_cost: decay.cost } : {}),
+        }).select("id, filename, size, content_type").single()
+        if (attInsertError) {
+          console.error("[dm file upload] failed to insert attachment metadata:", attInsertError)
+        }
+        setMessages((prev) => [...prev, {
+          ...msg,
+          dm_attachments: insertedAtt ? [{ id: insertedAtt.id, filename: insertedAtt.filename, size: insertedAtt.size, content_type: insertedAtt.content_type }] : [],
+        }])
+      }
       return
     }
-    const controller = new AbortController()
-    const timeout = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/gif/suggestions?q=${encodeURIComponent(gifQuery.trim())}`, { signal: controller.signal })
-        const json = await res.json()
-        setGifSuggestions(Array.isArray(json) ? json : [])
-      } catch {
-        // ignore abort / network errors
-      }
-    }, 300)
-    return () => { clearTimeout(timeout); controller.abort() }
-  }, [showEmojiPicker, pickerTab, gifQuery])
 
-  // Fetch sticker results (trending or search)
-  useEffect(() => {
-    if (!showEmojiPicker || pickerTab !== "sticker") return
-
-    const controller = new AbortController()
-    const timeout = setTimeout(async () => {
-      setStickerLoading(true)
-      try {
-        const endpoint = stickerQuery.trim()
-          ? `${STICKER_SEARCH_URL}?q=${encodeURIComponent(stickerQuery.trim())}`
-          : STICKER_TRENDING_URL
-        const res = await fetch(endpoint, { signal: controller.signal })
-        const json = await res.json()
-        setStickerResults(Array.isArray(json) ? json : [])
-      } catch {
-        setStickerResults([])
-      } finally {
-        setStickerLoading(false)
-      }
-    }, 400)
-
-    return () => {
-      clearTimeout(timeout)
-      controller.abort()
+    // Text or GIF URL message
+    let outbound = text
+    if (channel?.is_encrypted) {
+      const key = conversationKey ?? await ensureConversationKey(channel)
+      if (!key) throw new Error("Missing encryption key")
+      const envelope = await encryptDmContent(text, key, channel.encryption_key_version ?? 1)
+      outbound = JSON.stringify(envelope)
     }
-  }, [showEmojiPicker, pickerTab, stickerQuery])
-
-  // Invalidate the emoji cache when server membership changes
-  useEffect(() => {
-    emojiFetchedRef.current = false
-  }, [serverCount])
-
-  // Fetch custom emojis from all servers the user belongs to when picker opens
-  useEffect(() => {
-    if (!showEmojiPicker || pickerTab !== "emoji") return
-    if (emojiFetchedRef.current) return
-    const controller = new AbortController()
-    fetch("/api/emojis/all", { signal: controller.signal })
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setAllServerEmojis(data)
-          emojiFetchedRef.current = true
-        }
-      })
-      .catch(() => {/* ignore abort/network */})
-    return () => controller.abort()
-  }, [showEmojiPicker, pickerTab, serverCount])
-
-  async function handleSendGif(gifUrl: string) {
-    if (!gifUrl.trim() || sending) return
-    setShowEmojiPicker(false)
-    setSending(true)
-    try {
-      let outbound = gifUrl
-      if (channel?.is_encrypted) {
-        const key = conversationKey ?? await ensureConversationKey(channel)
-        if (!key) throw new Error("Missing encryption key")
-        const envelope = await encryptDmContent(gifUrl, key, channel.encryption_key_version ?? 1)
-        outbound = JSON.stringify(envelope)
-      }
-      const msg = await sendDmPayload({ content: outbound })
-      if (msg) {
-        setMessages((prev) => [...prev, msg])
-      } else {
-        toast({ variant: "destructive", title: "Failed to send GIF" })
-      }
-    } catch {
-      toast({ variant: "destructive", title: "Connection error", description: "Check your internet connection and try again." })
-    } finally {
-      setSending(false)
-      inputRef.current?.focus()
+    const payload: { content: string; reply_to_id?: string } = { content: outbound }
+    if (replyTo) {
+      payload.reply_to_id = replyTo.id
     }
-  }
-
-  async function handleSend() {
-    if (!content.trim() || sending) return
-    setSending(true)
-    const text = content.trim()
-    const currentReplyTo = replyTo
-    setContent("")
+    const msg = await sendDmPayload(payload)
+    if (!msg) throw new Error("Failed to send message")
+    setMessages((prev) => [...prev, msg])
     setReplyTo(null)
-    // Reset textarea height after clearing content
-    if (inputRef.current) inputRef.current.style.height = "auto"
-    onSent()
-
-    try {
-      let outbound = text
-      if (channel?.is_encrypted) {
-        const key = conversationKey ?? await ensureConversationKey(channel)
-        if (!key) throw new Error("Missing encryption key")
-        const envelope = await encryptDmContent(text, key, channel.encryption_key_version ?? 1)
-        outbound = JSON.stringify(envelope)
-      }
-      const payload: { content: string; reply_to_id?: string } = { content: outbound }
-      if (currentReplyTo) {
-        payload.reply_to_id = currentReplyTo.id
-      }
-      const msg = await sendDmPayload(payload)
-      if (msg) {
-        setMessages((prev) => [...prev, msg])
-      } else {
-        // Restore so user can retry
-        setContent(text)
-        setReplyTo(currentReplyTo)
-        toast({
-          variant: "destructive",
-          title: "Failed to send message",
-          description: "Your message could not be delivered. Please try again.",
-        })
-      }
-    } catch {
-      setContent(text)
-      setReplyTo(currentReplyTo)
-      toast({
-        variant: "destructive",
-        title: "Connection error",
-        description: "Check your internet connection and try again.",
-      })
-    } finally {
-      setSending(false)
-    }
-  }
+  }, [channelId, channel, conversationKey, ensureConversationKey, replyTo, sendDmPayload, supabase])
 
   async function handleEditSave(messageId: string) {
     if (!editContent.trim()) return
@@ -1272,74 +1130,6 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
           }
         })
       )
-    }
-  }
-
-  async function handleFileUpload(file: File) {
-    if (!file) return
-    setUploadingFile(true)
-    try {
-      const ext = file.name.split(".").pop()
-      const path = `dm-attachments/${channelId}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from("attachments")
-        .upload(path, file, { upsert: true })
-
-      if (uploadError) throw uploadError
-
-      // Use signed URL since the attachments bucket is private
-      const { data: signedData, error: signError } = await supabase.storage
-        .from("attachments")
-        .createSignedUrl(path, 60 * 60 * 24 * 7) // 7 day expiry
-
-      if (signError || !signedData?.signedUrl) throw new Error("Failed to create signed URL")
-
-      const signedUrl = signedData.signedUrl
-      const fileContent = `[${file.name}](${signedUrl})`
-      let outbound = fileContent
-      if (channel?.is_encrypted) {
-        const key = conversationKey ?? await ensureConversationKey(channel)
-        if (!key) throw new Error("Missing encryption key")
-        outbound = JSON.stringify(await encryptDmContent(fileContent, key, channel.encryption_key_version ?? 1))
-      }
-      const msg = await sendDmPayload({ content: outbound })
-      if (msg) {
-        // Store attachment metadata in dm_attachments table for proxy access
-        // dm_attachments table not yet in generated Supabase types
-        const now = new Date()
-        const decay = computeDecay({ sizeBytes: file.size, uploadedAt: now })
-        const { data: insertedAtt, error: attInsertError } = await untypedFrom(supabase, "dm_attachments").insert({
-          dm_id: msg.id,
-          url: signedUrl,
-          filename: file.name,
-          size: file.size,
-          content_type: file.type || "application/octet-stream",
-          ...(decay
-            ? {
-                expires_at: decay.expiresAt.toISOString(),
-                last_accessed_at: now.toISOString(),
-                lifetime_days: decay.days,
-                decay_cost: decay.cost,
-              }
-            : {}),
-        }).select("id, filename, size, content_type").single()
-        if (attInsertError) {
-          console.error("[dm file upload] failed to insert attachment metadata:", attInsertError)
-        }
-        const msgWithAttachments: Message = {
-          ...msg,
-          dm_attachments: insertedAtt
-            ? [{ id: insertedAtt.id, filename: insertedAtt.filename, size: insertedAtt.size, content_type: insertedAtt.content_type }]
-            : [],
-        }
-        setMessages((prev) => [...prev, msgWithAttachments])
-      } else {
-        toast({ variant: "destructive", title: "Failed to send file" })
-      }
-    } catch {
-      toast({ variant: "destructive", title: "File upload failed", description: "The file could not be uploaded." })
-    } finally {
-      setUploadingFile(false)
     }
   }
 
@@ -2052,361 +1842,20 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       <TypingIndicator users={typingUsers.map((user) => user.displayName)} />
 
       {/* Input — hidden during active/ringing calls */}
-      {!activeCall && !ringing && <div className="px-4 pb-2 md:pb-4 flex-shrink-0">
-        {/* Reply indicator */}
-        {replyTo && (
-          <div
-            className="flex items-center gap-2 px-3 py-2 rounded-t text-xs"
-            style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}
-          >
-            <Reply className="w-3 h-3 -scale-x-100 flex-shrink-0" style={{ color: "var(--theme-text-muted)" }} />
-            <span style={{ color: "var(--theme-text-muted)" }}>Replying to</span>
-            <span className="font-semibold text-white">
-              {replyTo.sender?.display_name || replyTo.sender?.username || "Unknown"}
-            </span>
-            <span className="truncate flex-1" style={{ color: "var(--theme-text-muted)" }}>
-              {channel.is_encrypted
-                ? (decryptedContent[replyTo.id]?.text ?? "Encrypted message")
-                : replyTo.content}
-            </span>
-            <button type="button" onClick={() => setReplyTo(null)} style={{ color: "var(--theme-text-muted)" }} aria-label="Cancel reply">
-              <X className="w-3 h-3 hover:text-white" />
-            </button>
-          </div>
-        )}
-        <div className={cn("relative flex items-end gap-2 px-3 py-2", replyTo ? "rounded-b-lg" : "rounded-lg")} style={{ background: "var(--theme-surface-input)" }}>
-          {/* File upload */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingFile}
-            className="flex-shrink-0 transition-colors hover:text-white"
-            style={{ color: "var(--theme-text-muted)" }}
-            title="Attach file"
-            aria-label="Attach file"
-          >
-            {uploadingFile
-              ? <div className="w-5 h-5 rounded-full motion-spinner" aria-label="Uploading…" />
-              : <Paperclip className="w-5 h-5" />}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept="image/*,.pdf,.txt,.zip,.mp4,.webm"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = "" }}
-          />
-
-          <textarea
-            ref={inputRef}
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value)
-              if (e.target.value) onKeystroke()
-              // Auto-resize: reset height then set to scrollHeight
-              e.target.style.height = "auto"
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend() }
-              if (e.key === "Escape" && replyTo) { e.preventDefault(); setReplyTo(null) }
-            }}
-            rows={1}
-            placeholder={replyTo ? `Reply to ${replyTo.sender?.display_name || replyTo.sender?.username || "Unknown"}` : `Message ${channel.is_group ? displayName : `@${displayName}`}`}
-            className="flex-1 bg-transparent text-sm focus:outline-none resize-none overflow-y-auto"
-            style={{ color: "var(--theme-text-normal)", maxHeight: "120px" }}
-          />
-
-          {/* Emoji/GIF picker popup */}
-          {showEmojiPicker && (
-            <div
-              ref={emojiPickerRef}
-              data-state="open"
-              className="panel-surface-motion fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border-t p-2 shadow-xl md:absolute md:inset-x-auto md:bottom-14 md:right-2 md:w-[380px] md:rounded-lg md:border"
-              style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)", maxHeight: "min(70vh, 520px)", overflow: "hidden" }}
-            >
-              <div className="mb-2 flex items-center gap-1 shrink-0" role="tablist" aria-label="Picker type">
-                <button
-                  id="dm-picker-emoji-tab"
-                  role="tab"
-                  aria-selected={pickerTab === "emoji"}
-                  aria-controls="dm-picker-emoji-panel"
-                  onClick={() => setPickerTab("emoji")}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
-                  style={{ background: pickerTab === "emoji" ? "var(--theme-accent)" : "transparent", color: pickerTab === "emoji" ? "#fff" : "var(--theme-text-secondary)" }}
-                >
-                  Emoji
-                </button>
-                <button
-                  id="dm-picker-gif-tab"
-                  role="tab"
-                  aria-selected={pickerTab === "gif"}
-                  aria-controls="dm-picker-gif-panel"
-                  onClick={() => setPickerTab("gif")}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
-                  style={{ background: pickerTab === "gif" ? "var(--theme-accent)" : "transparent", color: pickerTab === "gif" ? "#fff" : "var(--theme-text-secondary)" }}
-                >
-                  GIFs
-                </button>
-                <button
-                  id="dm-picker-sticker-tab"
-                  role="tab"
-                  aria-selected={pickerTab === "sticker"}
-                  aria-controls="dm-picker-sticker-panel"
-                  onClick={() => setPickerTab("sticker")}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
-                  style={{ background: pickerTab === "sticker" ? "var(--theme-accent)" : "transparent", color: pickerTab === "sticker" ? "#fff" : "var(--theme-text-secondary)" }}
-                >
-                  Stickers
-                </button>
-              </div>
-
-              {pickerTab === "emoji" && (
-                <div id="dm-picker-emoji-panel" role="tabpanel" aria-labelledby="dm-picker-emoji-tab" style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", minHeight: 0 }}>
-                  <EmojiPicker.Root
-                    onEmojiSelect={({ emoji }) => {
-                      const el = inputRef.current
-                      const start = el ? el.selectionStart ?? content.length : content.length
-                      const end = el ? el.selectionEnd ?? start : start
-                      const next = content.slice(0, start) + emoji + content.slice(end)
-                      setContent(next)
-                      setShowEmojiPicker(false)
-                      requestAnimationFrame(() => {
-                        if (el) {
-                          el.focus()
-                          el.setSelectionRange(start + emoji.length, start + emoji.length)
-                        }
-                      })
-                    }}
-                    style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}
-                  >
-                    <div style={{ padding: "6px 6px 4px" }}>
-                      <EmojiPicker.Search
-                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          padding: "5px 10px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          boxSizing: "border-box",
-                          background: "var(--theme-bg-tertiary)",
-                          color: "var(--theme-text-normal)",
-                          border: "none",
-                          outline: "none",
-                        }}
-                        placeholder="Search emoji…"
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmojiSearch(e.target.value)}
-                      />
-                    </div>
-                    <EmojiPicker.Viewport style={{ flex: 1, overflow: "hidden auto" }}>
-                      {allServerEmojis.length > 0 && (
-                        <CustomEmojiGrid
-                          groups={allServerEmojis}
-                          search={emojiSearch}
-                          onSelect={(emoji) => {
-                            const el = inputRef.current
-                            const start = el ? el.selectionStart ?? content.length : content.length
-                            const end = el ? el.selectionEnd ?? start : start
-                            const insertion = `:${emoji.name}: `
-                            const next = content.slice(0, start) + insertion + content.slice(end)
-                            setContent(next)
-                            setShowEmojiPicker(false)
-                            requestAnimationFrame(() => {
-                              if (el) {
-                                el.focus()
-                                el.setSelectionRange(start + insertion.length, start + insertion.length)
-                              }
-                            })
-                          }}
-                        />
-                      )}
-                      <EmojiPicker.Loading>
-                        <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>Loading…</div>
-                      </EmojiPicker.Loading>
-                      <EmojiPicker.Empty>
-                        {({ search }) => (
-                          <div style={{ padding: "12px", color: "var(--theme-text-muted)", fontSize: "12px" }}>
-                            No emoji found for &ldquo;{search}&rdquo;
-                          </div>
-                        )}
-                      </EmojiPicker.Empty>
-                      <EmojiPicker.List
-                        components={{
-                          CategoryHeader: ({ category, ...props }) => (
-                            <div
-                              {...props}
-                              style={{
-                                padding: "3px 8px",
-                                fontSize: "10px",
-                                fontWeight: 600,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.06em",
-                                color: "var(--theme-text-muted)",
-                                background: "var(--theme-bg-secondary)",
-                                position: "sticky",
-                                top: 0,
-                              }}
-                            >
-                              {category.label}
-                            </div>
-                          ),
-                          Emoji: ({ emoji, ...props }) => (
-                            <button
-                              type="button"
-                              {...props}
-                              data-emoji-btn=""
-                              tabIndex={-1}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "18px",
-                                width: "100%",
-                                aspectRatio: "1",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                                border: "none",
-                                background: emoji.isActive ? "var(--theme-surface-elevated)" : "transparent",
-                                fontFamily: "var(--frimousse-emoji-font)",
-                              }}
-                            >
-                              {emoji.emoji}
-                            </button>
-                          ),
-                        }}
-                      />
-                    </EmojiPicker.Viewport>
-                    <div style={{ padding: "4px 8px 6px", display: "flex", alignItems: "center", justifyContent: "flex-end", borderTop: "1px solid var(--theme-bg-tertiary)" }}>
-                      <EmojiPicker.SkinToneSelector
-                        style={{
-                          all: "unset",
-                          cursor: "pointer",
-                          fontSize: "16px",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          border: "1px solid var(--theme-bg-tertiary)",
-                          background: "var(--theme-bg-tertiary)",
-                        }}
-                        aria-label="Change skin tone"
-                      />
-                    </div>
-                  </EmojiPicker.Root>
-                </div>
-              )}
-              {pickerTab === "gif" && (
-                <div id="dm-picker-gif-panel" role="tabpanel" aria-labelledby="dm-picker-gif-tab" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
-                  <input
-                    value={gifQuery}
-                    onChange={(e) => setGifQuery(e.target.value)}
-                    placeholder="Search GIFs"
-                    aria-label="Search GIFs"
-                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)]"
-                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
-                  />
-                  {gifSuggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {gifSuggestions.map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => setGifQuery(s)}
-                          className="px-2 py-0.5 rounded-full text-[11px] hover:opacity-80 transition-opacity"
-                          style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-secondary)" }}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {!gifQuery.trim() && !gifLoading && gifResults.length > 0 && (
-                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--theme-text-muted)" }}>
-                      Trending
-                    </p>
-                  )}
-                  {gifLoading ? (
-                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading GIFs…</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                      {gifResults.map((gif) => (
-                        <button
-                          key={gif.id}
-                          onClick={() => {
-                            const gifUrl = gif.url || gif.gifUrl
-                            if (gifUrl?.trim()) handleSendGif(gifUrl)
-                          }}
-                          className="rounded overflow-hidden hover:opacity-90"
-                          title={gif.title}
-                          aria-label={gif.title}
-                        >
-                          <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-video object-cover" />
-                          <span className="block px-1 py-0.5 text-[10px] truncate text-left" style={{ color: "var(--theme-text-secondary)", background: "var(--theme-bg-tertiary)" }}>{gif.title || "GIF"}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              {pickerTab === "sticker" && (
-                <div id="dm-picker-sticker-panel" role="tabpanel" aria-labelledby="dm-picker-sticker-tab" className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
-                  <input
-                    value={stickerQuery}
-                    onChange={(e) => setStickerQuery(e.target.value)}
-                    placeholder="Search stickers"
-                    aria-label="Search stickers"
-                    className="w-full px-2 py-1.5 rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--theme-accent)] shrink-0"
-                    style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
-                  />
-                  {!stickerQuery.trim() && !stickerLoading && stickerResults.length > 0 && (
-                    <p className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--theme-text-muted)" }}>
-                      Trending
-                    </p>
-                  )}
-                  {stickerLoading ? (
-                    <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>Loading stickers…</p>
-                  ) : (
-                    <div className="grid grid-cols-4 gap-2 overflow-y-auto flex-1 min-h-0">
-                      {stickerResults.map((sticker) => (
-                        <button
-                          key={sticker.id}
-                          onClick={() => {
-                            const stickerUrl = sticker.url || sticker.gifUrl
-                            if (stickerUrl?.trim()) handleSendGif(stickerUrl)
-                          }}
-                          className="rounded-lg overflow-hidden hover:scale-105 transition-transform aspect-square"
-                          style={{ background: "transparent" }}
-                          title={sticker.title}
-                          aria-label={sticker.title}
-                        >
-                          <img src={sticker.previewUrl} alt={sticker.title} className="w-full h-full object-contain" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Emoji picker button (opens tabbed Emoji/GIF/Sticker picker) */}
-          <button
-            type="button"
-            ref={emojiButtonRef}
-            onClick={() => {
-              setShowEmojiPicker((prev) => !prev)
-            }}
-            className="flex-shrink-0 rounded hover:bg-white/10 transition-colors"
-            style={{ color: showEmojiPicker ? "var(--theme-accent)" : "var(--theme-text-muted)" }}
-            title="Emoji, GIFs & Stickers"
-            aria-label="Open emoji, GIF and sticker picker"
-          >
-            <Smile className="w-5 h-5" />
-          </button>
-          {content.trim() && (
-            <button onClick={handleSend} disabled={sending} style={{ color: "var(--theme-accent)" }} aria-label="Send message">
-              <Send className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      </div>}
+      {/* Input — hidden during active/ringing calls */}
+      {!activeCall && !ringing && (
+        <MessageInput
+          variant="dm"
+          channelName={displayName}
+          draft=""
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          onSend={handleDmSend}
+          onDraftChange={() => {}}
+          onTyping={onKeystroke}
+          onSent={onSent}
+        />
+      )}
 
       {/* Local search modal for encrypted DM channels */}
       {showLocalSearch && channel?.is_encrypted && (
