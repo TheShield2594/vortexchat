@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const baseBuilder = () => {
       let builder = supabase
         .from("app_catalog")
-        .select("id, slug, name, description, category, trust_badge, average_rating, review_count, permissions")
+        .select("id, slug, name, description, category, trust_badge, average_rating, review_count, permissions, icon_url")
         .eq("is_published", true)
 
       if (category && category !== "all") {

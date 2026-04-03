@@ -10,6 +10,7 @@
 | Custom emoji upload (PNG/GIF/WEBP, 256 KB) | Done | `POST /api/servers/[serverId]/emojis` — gated by `MANAGE_EMOJIS` permission (bit 20) |
 | Emoji autocomplete (`:name:`) | Done | `use-emoji-autocomplete` hook |
 | Emoji management page in server settings | Done | `EmojisTab` in server-settings-modal |
+| Fix double X close button in server settings (#671) | Done | Removed duplicate custom close button; `DialogContent` already provides one |
 | Emoji attribution — uploader name & date | Done | API returns `uploader` join; shown in management UI |
 | Audit logging for emoji upload/delete | Done | `audit_logs` entries with `emoji_uploaded` / `emoji_deleted` actions |
 | CDN cache-bust on emoji delete | Done | `CDN-Cache-Control: no-store` header on DELETE response |

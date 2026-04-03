@@ -1,26 +1,12 @@
 import { NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
-
-export interface CuratedSection {
-  id: string
-  slug: string
-  title: string
-  description: string | null
-  apps: {
-    id: string
-    name: string
-    slug: string
-    description: string | null
-    category: string
-    trust_badge: "verified" | "partner" | "internal" | null
-    average_rating: number
-    review_count: number
-    icon_url: string | null
-  }[]
-}
+import type { CuratedSection } from "@vortex/shared"
 
 export async function GET(): Promise<NextResponse> {
   try {
+    // Use service-role client because app_curated_sections/entries have
+    // public SELECT RLS policies but the anon role lacks direct SELECT
+    // on app_catalog (same pattern as /api/apps/discover).
     const supabase = await createServiceRoleClient()
 
     const { data: sections, error: sectionsError } = await supabase
@@ -29,14 +15,14 @@ export async function GET(): Promise<NextResponse> {
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
 
-    if (sectionsError || !sections) {
+    if (sectionsError) {
+      return NextResponse.json({ error: "Failed to load curated sections" }, { status: 500 })
+    }
+    if (!sections || sections.length === 0) {
       return NextResponse.json([])
     }
 
     const sectionIds = sections.map((s) => s.id)
-    if (sectionIds.length === 0) {
-      return NextResponse.json([])
-    }
 
     const { data: entries, error: entriesError } = await supabase
       .from("app_curated_entries")
@@ -44,7 +30,10 @@ export async function GET(): Promise<NextResponse> {
       .in("section_id", sectionIds)
       .order("sort_order", { ascending: true })
 
-    if (entriesError || !entries || entries.length === 0) {
+    if (entriesError) {
+      return NextResponse.json({ error: "Failed to load curated entries" }, { status: 500 })
+    }
+    if (!entries || entries.length === 0) {
       return NextResponse.json([])
     }
 
@@ -56,7 +45,10 @@ export async function GET(): Promise<NextResponse> {
       .in("id", appIds)
       .eq("is_published", true)
 
-    if (appsError || !apps) {
+    if (appsError) {
+      return NextResponse.json({ error: "Failed to load curated apps" }, { status: 500 })
+    }
+    if (!apps) {
       return NextResponse.json([])
     }
 

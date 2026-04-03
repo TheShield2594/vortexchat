@@ -1,24 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-
-export type UserNotificationPreferences = {
-  mention_notifications: boolean
-  reply_notifications: boolean
-  friend_request_notifications: boolean
-  server_invite_notifications: boolean
-  system_notifications: boolean
-  sound_enabled: boolean
-  notification_volume: number
-  suppress_everyone: boolean
-  suppress_role_mentions: boolean
-  quiet_hours_enabled: boolean
-  quiet_hours_start: string
-  quiet_hours_end: string
-  quiet_hours_timezone: string
-  push_notifications: boolean
-  show_message_preview: boolean
-  show_unread_badge: boolean
-}
+import type { UserNotificationPreferences } from "@vortex/shared"
 
 const DEFAULTS: UserNotificationPreferences = {
   mention_notifications: true,
@@ -46,11 +28,15 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("user_notification_preferences")
       .select("mention_notifications, reply_notifications, friend_request_notifications, server_invite_notifications, system_notifications, sound_enabled, notification_volume, suppress_everyone, suppress_role_mentions, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone, push_notifications, show_message_preview, show_unread_badge")
       .eq("user_id", user.id)
       .maybeSingle()
+
+    if (error) {
+      return NextResponse.json({ error: "Failed to load notification preferences" }, { status: 500 })
+    }
 
     return NextResponse.json(data ?? DEFAULTS)
   } catch {

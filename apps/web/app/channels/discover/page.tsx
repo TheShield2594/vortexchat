@@ -12,7 +12,7 @@ import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils/cn"
 import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
-import type { CuratedSection } from "@/app/api/apps/curated/route"
+import type { CuratedSection } from "@vortex/shared"
 
 interface PublicServer {
   id: string
@@ -33,6 +33,7 @@ interface DiscoverApp {
   average_rating: number
   review_count: number
   permissions: string[]
+  icon_url?: string | null
 }
 
 const APP_CATEGORIES = ["all", "productivity", "ops", "community"]
@@ -82,7 +83,20 @@ function curatedSectionIcon(slug: string): React.ReactNode {
   }
 }
 
-function AppIcon({ name }: { name: string }): React.ReactElement {
+function AppIcon({ name, iconUrl }: { name: string; iconUrl?: string | null }): React.ReactElement {
+  const [imgFailed, setImgFailed] = useState(false)
+
+  if (iconUrl && !imgFailed) {
+    return (
+      <img
+        src={iconUrl}
+        alt={name}
+        className="h-12 w-12 flex-shrink-0 rounded-xl object-cover shadow-sm"
+        onError={() => setImgFailed(true)}
+      />
+    )
+  }
+
   const colors = [
     "from-violet-500 to-purple-600",
     "from-blue-500 to-cyan-500",
@@ -212,7 +226,12 @@ export default function DiscoverPage() {
     setApps(await res.json())
   }, [])
 
-  const fetchCurated = useCallback(async () => {
+  const fetchCurated = useCallback(async (): Promise<void> => {
+    // Only fetch curated sections for the apps tab without an active search
+    if (mode !== "apps" || query) {
+      setCuratedSections([])
+      return
+    }
     try {
       const res = await fetch("/api/apps/curated")
       if (res.ok) {
@@ -222,7 +241,7 @@ export default function DiscoverPage() {
     } catch {
       // Graceful fallback — curated sections are optional
     }
-  }, [])
+  }, [mode, query])
 
   const previousCategoryRef = useRef(category)
   const previousSortRef = useRef(sort)
@@ -496,7 +515,7 @@ export default function DiscoverPage() {
                       className="flex w-56 flex-shrink-0 flex-col rounded-xl border border-border/50 bg-card p-4 transition-all hover:border-border hover:shadow-md"
                     >
                       <div className="mb-3 flex items-center gap-3">
-                        <AppIcon name={app.name} />
+                        <AppIcon name={app.name} iconUrl={app.icon_url} />
                         <div className="min-w-0 flex-1">
                           <h3 className="truncate text-sm font-semibold">{app.name}</h3>
                           {app.trust_badge && (
@@ -547,7 +566,7 @@ export default function DiscoverPage() {
                   >
                     {/* Card header with icon and title */}
                     <div className="flex items-start gap-4 p-5 pb-0">
-                      <AppIcon name={app.name} />
+                      <AppIcon name={app.name} iconUrl={app.icon_url} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="truncate text-base font-semibold">{app.name}</h3>

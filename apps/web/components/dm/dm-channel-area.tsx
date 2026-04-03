@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -614,14 +614,28 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     loadMessages()
   }, [loadMessages])
 
-  // Scroll to bottom on channel switch, reset new-message counter
-  useEffect(() => {
+  // Scroll to bottom on channel switch, reset new-message counter.
+  // Uses useLayoutEffect + messages.length dependency (same pattern as chat-area.tsx)
+  // so we wait until messages are rendered before scrolling.
+  const shouldScrollToBottomRef = useRef(true)
+  const prevChannelIdScrollRef = useRef(channelId)
+  useLayoutEffect(() => {
+    if (prevChannelIdScrollRef.current !== channelId) {
+      shouldScrollToBottomRef.current = true
+      prevChannelIdScrollRef.current = channelId
+      setPendingNewMessageCount(0)
+      setIsAtBottom(true)
+      prevLastMsgIdRef.current = null
+    }
+
+    if (!shouldScrollToBottomRef.current) return
+    if (messages.length === 0) return
+    shouldScrollToBottomRef.current = false
+
     const container = scrollerRef.current
     if (container) container.scrollTop = 0 // column-reverse: 0 = bottom
-    setPendingNewMessageCount(0)
-    setIsAtBottom(true)
-    prevLastMsgIdRef.current = null
-  }, [channelId])
+    prevLastMsgIdRef.current = messages[messages.length - 1]?.id ?? null
+  }, [channelId, messages.length])
 
   // Track active DM channel for notification suppression
   useEffect(() => {
@@ -695,12 +709,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   useEffect(() => {
     const newestMsg = messages[messages.length - 1]
     if (!newestMsg) return
-    // On initial load just record the id without scrolling (channelId effect handles initial scroll)
-    if (prevLastMsgIdRef.current === null) {
-      prevLastMsgIdRef.current = newestMsg.id
-      return
-    }
-    if (newestMsg.id === prevLastMsgIdRef.current) return
+    if (prevLastMsgIdRef.current === null || newestMsg.id === prevLastMsgIdRef.current) return
     prevLastMsgIdRef.current = newestMsg.id
     if (isAtBottom || newestMsg.sender_id === currentUserId) {
       scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" }) // column-reverse: 0 = bottom
