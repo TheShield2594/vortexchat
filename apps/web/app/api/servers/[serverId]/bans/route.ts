@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAuth, insertAuditLog } from "@/lib/utils/api-helpers"
 import { hasPermission as checkPermission } from "@vortex/shared"
 import { aggregateMemberPermissions } from "@/lib/server-auth"
+import { getActorMaxRolePosition } from "@/lib/role-utils"
 import { rateLimiter } from "@/lib/rate-limit"
 import { createLogger } from "@/lib/logger"
 import { sendPushToUser } from "@/lib/push"
@@ -104,27 +105,19 @@ export async function POST(
     }
 
     // Role hierarchy check: requester must outrank the target.
-    // Fetch both members' role positions and compare.
-    const [requesterRoles, targetRoles] = await Promise.all([
-      supabase
-        .from("member_roles")
-        .select("roles(position)")
-        .eq("server_id", serverId)
-        .eq("user_id", user.id),
-      supabase
-        .from("member_roles")
-        .select("roles(position)")
-        .eq("server_id", serverId)
-        .eq("user_id", userId),
-    ])
-
-    if (requesterRoles.error || targetRoles.error) {
+    let requesterMaxPosition: number
+    let targetMaxPosition: number
+    try {
+      [requesterMaxPosition, targetMaxPosition] = await Promise.all([
+        getActorMaxRolePosition(supabase, serverId, user.id),
+        getActorMaxRolePosition(supabase, serverId, userId),
+      ])
+    } catch (err) {
       log.error({
         serverId,
         actorId: user.id,
         targetId: userId,
-        requesterErr: requesterRoles.error?.message,
-        targetErr: targetRoles.error?.message,
+        err,
       }, "Failed to evaluate ban hierarchy")
       const { error: auditError } = await insertAuditLog(supabase, {
         server_id: serverId,
@@ -139,16 +132,6 @@ export async function POST(
       }
       return NextResponse.json({ error: "Unable to verify role hierarchy" }, { status: 500 })
     }
-
-    interface RoleJoin { roles: { position: number } | null }
-    const requesterMaxPosition = (requesterRoles.data as RoleJoin[] ?? []).reduce(
-      (max: number, mr: RoleJoin) => Math.max(max, mr.roles?.position ?? 0),
-      0
-    )
-    const targetMaxPosition = (targetRoles.data as RoleJoin[] ?? []).reduce(
-      (max: number, mr: RoleJoin) => Math.max(max, mr.roles?.position ?? 0),
-      0
-    )
 
     if (targetMaxPosition >= requesterMaxPosition) {
       const { error: auditError } = await insertAuditLog(supabase, {
@@ -232,7 +215,7 @@ export async function POST(
   }
 
   // Audit log
-  await insertAuditLog(supabase, {
+  const { error: banAuditError } = await insertAuditLog(supabase, {
     server_id: serverId,
     actor_id: user.id,
     action: "member_ban",
@@ -240,6 +223,9 @@ export async function POST(
     target_type: "user",
     changes: { reason },
   })
+  if (banAuditError) {
+    log.warn({ serverId, actorId: user.id, targetId: userId, err: banAuditError.message }, "Failed to write ban audit log")
+  }
 
   // Notify the banned user
   const { data: serverInfo } = await supabase.from("servers").select("name").eq("id", serverId).maybeSingle()
@@ -268,7 +254,7 @@ export async function DELETE(
   if (authError) return authError
 
   const { searchParams } = new URL(req.url)
-  const userId = searchParams.get("userId")
+  const userId = searchParams.get("userId")?.trim()
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 })
 
   const { data: server } = await supabase
