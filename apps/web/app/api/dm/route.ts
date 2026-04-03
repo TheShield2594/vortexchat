@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { checkRateLimit } from "@/lib/utils/api-helpers"
+import { isBlockedBetweenUsers } from "@/lib/blocking"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/dm")
 
 export async function GET(request: Request) {
   try {
@@ -60,10 +65,12 @@ export async function GET(request: Request) {
     return NextResponse.json(messages ?? [])
 
   } catch (err) {
-    console.error("[dm GET] error:", err);
+    log.error({ error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+const MAX_DM_CONTENT_LENGTH = 4000
 
 export async function POST(request: Request) {
   try {
@@ -71,15 +78,40 @@ export async function POST(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+    // Rate limit: 15 messages per 10 seconds (matches newer DM route)
+    const limited = await checkRateLimit(user.id, "dm:send", { limit: 15, windowMs: 10_000 })
+    if (limited) return limited
+
     const { receiverId, content } = await request.json()
 
     if (!receiverId || !content?.trim()) {
       return NextResponse.json({ error: "receiverId and content required" }, { status: 400 })
     }
 
+    // Validate receiverId is a valid UUID
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!UUID_RE.test(receiverId)) {
+      return NextResponse.json({ error: "Invalid receiverId" }, { status: 400 })
+    }
+
+    // Content length validation
+    const trimmed = content.trim()
+    if (trimmed.length > MAX_DM_CONTENT_LENGTH) {
+      return NextResponse.json(
+        { error: `Content exceeds maximum length of ${MAX_DM_CONTENT_LENGTH} characters` },
+        { status: 400 },
+      )
+    }
+
+    // Block check: prevent messaging blocked users
+    const blocked = await isBlockedBetweenUsers(supabase, user.id, receiverId)
+    if (blocked) {
+      return NextResponse.json({ error: "Cannot send message to this user" }, { status: 403 })
+    }
+
     const { data, error } = await supabase
       .from("direct_messages")
-      .insert({ sender_id: user.id, receiver_id: receiverId, content: content.trim() })
+      .insert({ sender_id: user.id, receiver_id: receiverId, content: trimmed })
       .select()
       .single()
 
@@ -88,7 +120,7 @@ export async function POST(request: Request) {
     return NextResponse.json(data, { status: 201 })
 
   } catch (err) {
-    console.error("[dm POST] error:", err);
+    log.error({ error: err }, "POST error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -11,55 +11,14 @@ import { RedisRoomManager } from "./redis-rooms"
 import { createVoiceStateSync } from "./voice-state-sync"
 import { RedisEventBus } from "./event-bus"
 import { PresenceManager } from "./presence"
-import { initGateway } from "./gateway"
+import { initGateway, stopGatewayCleanup } from "./gateway"
+import { SocketRateLimiter } from "./rate-limiter"
 
 dotenv.config()
 
 // ─── Per-socket rate limiter ─────────────────────────────────────────────────
 
-class SocketRateLimiter {
-  // Nested map: socketId → (action → timestamps)
-  private windows = new Map<string, Map<string, { timestamps: number[] }>>()
-
-  check(socketId: string, action: string, limit: number, windowMs: number): boolean {
-    const now = Date.now()
-    const cutoff = now - windowMs
-    let socketMap = this.windows.get(socketId)
-    if (!socketMap) {
-      socketMap = new Map()
-      this.windows.set(socketId, socketMap)
-    }
-    let entry = socketMap.get(action)
-    if (!entry) {
-      entry = { timestamps: [] }
-      socketMap.set(action, entry)
-    }
-    entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
-    if (entry.timestamps.length >= limit) return false
-    entry.timestamps.push(now)
-    return true
-  }
-
-  remove(socketId: string): void {
-    this.windows.delete(socketId)
-  }
-
-  cleanup(maxAgeMs: number): void {
-    const cutoff = Date.now() - maxAgeMs
-    for (const [socketId, socketMap] of this.windows) {
-      for (const [action, entry] of socketMap) {
-        entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
-        if (entry.timestamps.length === 0) socketMap.delete(action)
-      }
-      if (socketMap.size === 0) this.windows.delete(socketId)
-    }
-  }
-}
-
-const socketLimiter = new SocketRateLimiter()
-
-// Periodic cleanup of stale entries
-setInterval(() => socketLimiter.cleanup(120_000), 60_000)
+const socketLimiter = new SocketRateLimiter().startCleanup()
 
 // Rate limit presets (limit, windowMs)
 const RATE_LIMITS = {
@@ -1349,6 +1308,10 @@ const DRAIN_TIMEOUT_MS = 30_000
 
 async function gracefulShutdown(signal: string): Promise<void> {
   logger.info({ signal, drainTimeoutMs: DRAIN_TIMEOUT_MS }, "graceful shutdown initiated — draining connections")
+
+  // 0. Stop rate-limiter cleanup timers so they don't keep the event loop alive
+  socketLimiter.stopCleanup()
+  stopGatewayCleanup()
 
   // 1. Stop accepting new HTTP connections and wait for in-flight requests
   //    to complete before disconnecting Redis pub/sub clients. This ensures

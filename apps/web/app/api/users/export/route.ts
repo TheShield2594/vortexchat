@@ -61,8 +61,8 @@ export async function GET() {
     // Friends
     supabase
       .from("friendships")
-      .select("id, user_id, friend_id, status, created_at")
-      .or(`user_id.eq.${userId},friend_id.eq.${userId}`),
+      .select("id, requester_id, addressee_id, status, created_at")
+      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`),
     // Server memberships
     supabase
       .from("server_members")

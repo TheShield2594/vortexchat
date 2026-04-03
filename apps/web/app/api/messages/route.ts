@@ -3,6 +3,9 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { rateLimiter } from "@/lib/rate-limit"
 import { sendPushToChannel } from "@/lib/push"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/messages")
 import {
   evaluateAllRules,
   shouldBlockMessage,
@@ -76,7 +79,7 @@ async function getMessagesAroundTarget(supabase: ServerSupabaseClient, channelId
   ])
 
   if (beforeError || afterError) {
-    console.error("[messages GET] around query error:", beforeError?.message ?? afterError?.message)
+    log.error({ error: beforeError?.message ?? afterError?.message }, "around query error")
     return { error: NextResponse.json({ error: "Failed to load message context" }, { status: 500 }) }
   }
 
@@ -103,7 +106,7 @@ async function resolveSafeMentions(supabase: ServerSupabaseClient, userId: strin
     const filteredMentions = await filterMentionsByBlockState(supabase, userId, mentions)
     return { safeMentions: filteredMentions.allowed }
   } catch (error) {
-    console.error("[messages POST] mention validation error:", error instanceof Error ? error.message : error)
+    log.error({ error: error instanceof Error ? error.message : error }, "mention validation error")
     return {
       error: NextResponse.json(
         { error: "Failed to validate mentions" },
@@ -325,7 +328,7 @@ async function runServerAutomodChecks({
     },
   })
   if (auditErr) {
-    console.error("[automod] Audit log insert failed", { serverId, userId: user.id, action: dryRun ? "automod_dry_run" : blocked ? "automod_block" : "automod_action", error: auditErr.message })
+    log.error({ serverId, userId: user.id, action: dryRun ? "automod_dry_run" : blocked ? "automod_block" : "automod_action", error: auditErr.message }, "automod audit log insert failed")
   }
 
   await Promise.all(
@@ -358,7 +361,7 @@ async function runServerAutomodChecks({
       changes: { duration_seconds: timeoutDuration, reason: violations[0].reason },
     })
     if (timeoutAuditErr) {
-      console.error("[automod] Timeout audit log insert failed", { serverId, userId: user.id, error: timeoutAuditErr.message })
+      log.error({ serverId, userId: user.id, error: timeoutAuditErr.message }, "automod timeout audit log insert failed")
     }
   }
 
@@ -387,7 +390,7 @@ async function runServerAutomodChecks({
                   changes: { channel_id: alertChannelId, reason: violations[0].reason },
                 })
                 if (alertAuditErr) {
-                  console.error("[automod] Alert audit log insert failed", { serverId, channelId: alertChannelId, error: alertAuditErr.message })
+                  log.error({ serverId, channelId: alertChannelId, error: alertAuditErr.message }, "automod alert audit log insert failed")
                 }
               })
           )
@@ -479,7 +482,7 @@ async function insertMessageWithAttachments({
       for (const att of insertedAttachments) {
         if (att.storage_path && isProcessableImage(att.content_type)) {
           processAttachmentImage(att.id, att.storage_path, att.content_type).catch((err) => {
-            console.error("Image processing failed for attachment", { attachmentId: att.id, error: err })
+            log.error({ attachmentId: att.id, error: err }, "image processing failed for attachment")
           })
         }
       }
@@ -532,7 +535,7 @@ export async function GET(request: Request) {
     return NextResponse.json(await withReplyTo(supabase, (messages ?? []).reverse()))
 
   } catch (err) {
-    console.error("[messages GET] error:", err);
+    log.error({ error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -542,7 +545,7 @@ export async function POST(request: Request) {
   const t0 = performance.now()
   const lap = (label: string) => {
     const elapsed = (performance.now() - t0).toFixed(1)
-    console.info(`[msg-send] ${elapsed}ms — ${label}`)
+    log.debug({ elapsed, label }, "msg-send lap")
   }
 
   const { supabase, user, error: authError } = await requireAuth()
@@ -706,7 +709,7 @@ export async function POST(request: Request) {
       }
     }
 
-    console.error("messages POST: insert failed", msgError.message)
+    log.error({ error: msgError.message }, "insert failed")
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
   }
   // --- Send push notifications (fire-and-forget) ---
@@ -783,7 +786,7 @@ export async function POST(request: Request) {
         await serviceSupabase.from("notifications").insert(rows)
       }
     })
-    .catch((err) => { console.error("messages POST: in-app notification insert failed", err) })
+    .catch((err) => { log.error({ error: err }, "in-app notification insert failed") })
 
   // When @everyone/@here is used, treat all channel members as mentioned
   // so they receive push notifications even if their mode is "mentions only"
@@ -825,7 +828,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (err) {
-      console.error("messages POST: failed to resolve role mentions", err)
+      log.error({ error: err }, "failed to resolve role mentions")
     }
   }
 
@@ -838,7 +841,7 @@ export async function POST(request: Request) {
     mentionedIds: pushMentionedIds,
     mentionEveryone,
     excludeUserId: user.id,
-  }).catch((err) => { console.error("messages POST: sendPushToChannel failed", err) })
+  }).catch((err) => { log.error({ error: err }, "sendPushToChannel failed") })
 
   // Skip the extra DB query when there's no reply to hydrate
   const hydratedMessage = replyToId
@@ -847,7 +850,7 @@ export async function POST(request: Request) {
   lap("total")
   return NextResponse.json(hydratedMessage, { status: 201 })
   } catch (err) {
-    console.error("[messages POST] error:", err)
+    log.error({ error: err }, "POST error")
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
