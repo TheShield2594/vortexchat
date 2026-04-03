@@ -873,6 +873,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
 
         {/* Channel list */}
         <div className="flex-1 overflow-y-auto py-2">
+          {canManageChannels ? (
           <DndContext
             sensors={sensors}
             collisionDetection={collisionDetection}
@@ -1002,6 +1003,85 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
               ) : null}
             </DragOverlay>
           </DndContext>
+          ) : (
+            /* Non-admin: render channel list without drag-and-drop overhead */
+            <div>
+            {liveGrouped.map(({ category, channels: categoryChannels }) => {
+              const containerId = category?.id ?? NO_CATEGORY
+              const isCollapsed = category ? !expandedCategoryIds.has(category.id) : false
+              return (
+                <div key={containerId} className="mb-2">
+                  {category && (
+                    <CategoryHeader
+                      category={category}
+                      containerId={containerId}
+                      isCollapsed={isCollapsed}
+                      canManageChannels={false}
+                      isDragOver={false}
+                      onToggle={() => toggleCategory(category.id)}
+                      onAddChannel={() => {}}
+                      onCopyId={() => {
+                        navigator.clipboard.writeText(category.id).catch(() => {})
+                        toast({ title: "Category ID copied!" })
+                      }}
+                    />
+                  )}
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+                      isCollapsed ? "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none" : "grid-rows-[1fr] opacity-100 translate-y-0"
+                    )}
+                    aria-hidden={isCollapsed || undefined}
+                    ref={(node) => {
+                      if (node) {
+                        if (isCollapsed) node.setAttribute("inert", "")
+                        else node.removeAttribute("inert")
+                      }
+                    }}
+                  >
+                  <div className="space-y-0.5 px-2 min-h-[4px] overflow-hidden">
+                    {categoryChannels.map((channel) => (
+                      <SortableChannelItem
+                        key={channel.id}
+                        channel={channel}
+                        isActive={activeChannelId === channel.id}
+                        isVoiceActive={voiceChannelId === channel.id}
+                        onOpenNotificationSettings={setNotifSettingsChannelId}
+                        onMarkRead={() => markChannelRead(channel.id)}
+                        canManageChannels={false}
+                        isDragging={false}
+                        isUnread={unreadChannelIds.has(channel.id)}
+                        mentionCount={mentionCounts[channel.id] ?? 0}
+                        activeThreadCount={activeThreadCounts[channel.id] ?? 0}
+                        voiceParticipants={
+                          (VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)
+                            ? voiceParticipantsByChannel.get(channel.id)
+                            : undefined
+                        }
+                        href={`/channels/${server.id}/${channel.id}`}
+                        onClick={() => {
+                          if (channel.parent_id) {
+                            setCategoryExpansionOverrides((prev) => ({ ...prev, [channel.parent_id!]: true }))
+                          }
+                          if ((VOICE_CHANNEL_TYPES as readonly string[]).includes(channel.type)) {
+                            setVoiceChannel(channel.id, server.id, channel.name)
+                          }
+                          router.push(`/channels/${server.id}/${channel.id}`)
+                        }}
+                        onEdit={() => {}}
+                        onDelete={() => {}}
+                        onCreateThread={() => {
+                          router.push(`/channels/${server.id}/${channel.id}?createThread=1`)
+                        }}
+                      />
+                    ))}
+                  </div>
+                  </div>
+                </div>
+              )
+            })}
+            </div>
+          )}
 
           {/* Add channel button */}
           {canManageChannels && (

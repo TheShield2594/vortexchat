@@ -8,6 +8,7 @@ import { ServerEmojiProvider } from "@/components/chat/server-emoji-context"
 import { ServerMobileLayout } from "@/components/layout/server-mobile-layout"
 import type { RoleRow } from "@/types/database"
 import type { MemberData } from "@/components/layout/member-list"
+import { MessageListSkeleton } from "@/components/ui/skeleton"
 import { perfTimer } from "@/lib/perf"
 
 interface Props {
@@ -229,8 +230,17 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
         }
       >
         <Suspense fallback={
-          <div className="flex-1 flex items-center justify-center" style={{ background: "var(--theme-bg-primary)" }}>
-            <div className="animate-pulse text-sm" style={{ color: "var(--theme-text-muted)" }}>Loading channel...</div>
+          <div className="flex flex-1 flex-col overflow-hidden" style={{ background: "var(--theme-bg-primary)" }}>
+            <div
+              className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0"
+              style={{ borderColor: "var(--theme-bg-tertiary)", background: "var(--theme-bg-secondary)" }}
+            >
+              <div className="skeleton-shimmer h-4 w-4 rounded" aria-hidden="true" />
+              <div className="skeleton-shimmer h-4 w-32 rounded" aria-hidden="true" />
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <MessageListSkeleton count={8} />
+            </div>
           </div>
         }>
           {children}

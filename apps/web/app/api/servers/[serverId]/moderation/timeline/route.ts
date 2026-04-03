@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import {
-  applyTimelineFilters,
   deriveIncidentKey,
   mapActionType,
-  paginateTimeline,
   timelineToCsv,
   type TimelineActionType,
   type TimelineCursor,
@@ -65,14 +63,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
       to: searchParams.get("to"),
     }
 
-    // Reuse existing audit_logs as the primary data source.
-    const { data: logs, error } = await supabase
+    // Build the query with DB-level filtering instead of fetching all rows.
+    let query = supabase
       .from("audit_logs")
       .select("id, action, actor_id, target_id, target_type, changes, created_at")
       .eq("server_id", serverId)
+
+    if (filters.actorId) query = query.eq("actor_id", filters.actorId)
+    if (filters.targetId) query = query.eq("target_id", filters.targetId)
+    if (filters.from) query = query.gte("created_at", filters.from)
+    if (filters.to) query = query.lte("created_at", filters.to)
+
+    // Apply cursor-based pagination at the DB level
+    if (cursor) {
+      query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`)
+    }
+
+    query = query
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
-      .limit(5000)
+
+    // Fetch more than `limit` to allow for action_type filtering in JS
+    // (action_type is derived, not a DB column), but cap at a reasonable number.
+    const fetchLimit = filters.actionTypes.length > 0 ? limit * 10 : limit + 1
+    query = query.limit(fetchLimit)
+
+    const { data: logs, error } = await query
 
     if (error) return NextResponse.json({ error: "Failed to fetch moderation timeline" }, { status: 500 })
 
@@ -104,8 +120,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ serv
       }
     })
 
-    const filtered = applyTimelineFilters(entries, filters)
-    const { data: page, nextCursor } = paginateTimeline(filtered, limit, cursor)
+    // Only action_type filtering remains in JS (it's a derived field)
+    const actionTypeSet = filters.actionTypes.length > 0 ? new Set(filters.actionTypes) : null
+    const filtered = actionTypeSet ? entries.filter((e) => actionTypeSet.has(e.action_type)) : entries
+    const page = filtered.slice(0, limit)
+    const nextCursor: TimelineCursor | null = page.length === limit && filtered.length > limit
+      ? { created_at: page[page.length - 1].created_at, id: page[page.length - 1].id }
+      : null
 
     const userIds = new Set<string>()
     for (const event of page) {

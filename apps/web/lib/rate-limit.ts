@@ -20,24 +20,42 @@ type RateLimitResult = {
 
 // ─── Upstash Redis rate limiter ──────────────────────────────────────────────
 
-async function checkUpstash(
-  key: string,
-  opts: { limit: number; windowMs: number }
-): Promise<RateLimitResult> {
-  const { Ratelimit } = await import("@upstash/ratelimit")
-  const { Redis } = await import("@upstash/redis")
+// Lazily initialized singletons — the Upstash REST client is stateless,
+// so a single instance is safe to share across all rate-limit checks.
+let _redis: InstanceType<typeof import("@upstash/redis").Redis> | null = null
+let _limiterCache: Map<string, InstanceType<typeof import("@upstash/ratelimit").Ratelimit>> = new Map()
 
-  const redis = new Redis({
+async function getRedis(): Promise<InstanceType<typeof import("@upstash/redis").Redis>> {
+  if (_redis) return _redis
+  const { Redis } = await import("@upstash/redis")
+  _redis = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL!,
     token: process.env.UPSTASH_REDIS_REST_TOKEN!,
   })
+  return _redis
+}
 
+async function getLimiter(opts: { limit: number; windowMs: number }): Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>> {
+  const cacheKey = `${opts.limit}:${opts.windowMs}`
+  const cached = _limiterCache.get(cacheKey)
+  if (cached) return cached
+
+  const { Ratelimit } = await import("@upstash/ratelimit")
+  const redis = await getRedis()
   const limiter = new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(opts.limit, `${opts.windowMs}ms`),
     prefix: "vortex:rl",
   })
+  _limiterCache.set(cacheKey, limiter)
+  return limiter
+}
 
+async function checkUpstash(
+  key: string,
+  opts: { limit: number; windowMs: number }
+): Promise<RateLimitResult> {
+  const limiter = await getLimiter(opts)
   const { success, remaining, reset } = await limiter.limit(key)
   return { allowed: success, remaining, resetAt: reset }
 }

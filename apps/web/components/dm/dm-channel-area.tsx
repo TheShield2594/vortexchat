@@ -7,7 +7,7 @@ import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { setActiveDmChannel } from "@/lib/notification-manager"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Phone, Video, Users, Paperclip, Pencil, Trash2, PhoneOff, Mic, MicOff, VideoOff, Search, Pin, Smile, Reply, X, ArrowLeft } from "lucide-react"
-import { EmojiPicker } from "frimousse"
+import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
 import { CustomEmojiGrid } from "@/components/chat/custom-emoji-grid"
 import { format, isToday, isYesterday } from "date-fns"
 import { cn } from "@/lib/utils/cn"
@@ -119,7 +119,7 @@ function addEmojiRecent(emoji: string): void {
 }
 
 /** Reusable reaction picker content with recent emojis, search, categories, and skin tone selector. */
-function DmReactionPickerContent({ msgId, onReaction, onClose, maxHeight }: { msgId: string; onReaction: (emoji: string) => void; onClose: () => void; maxHeight?: string }) {
+function DmReactionPickerContent({ msgId, onReaction, onClose, maxHeight, EmojiPicker }: { msgId: string; onReaction: (emoji: string) => void; onClose: () => void; maxHeight?: string; EmojiPicker: NonNullable<ReturnType<typeof import("@/hooks/use-lazy-emoji-picker").useLazyEmojiPicker>["EmojiPicker"]> }) {
   const [recents, setRecents] = useState<string[]>([])
   const [searchActive, setSearchActive] = useState(false)
 
@@ -403,7 +403,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
-  const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null)
+  const [reactionPickerMsgId, setReactionPickerMsgIdRaw] = useState<string | null>(null)
+  const { EmojiPicker, loadEmojiPicker } = useLazyEmojiPicker()
+  const setReactionPickerMsgId = useCallback((v: string | null) => {
+    if (v) loadEmojiPicker()
+    setReactionPickerMsgIdRaw(v)
+  }, [loadEmojiPicker])
   const [reactionPickerPos, setReactionPickerPos] = useState<{ top: number; left: number } | null>(null)
   const [poppingReactions, setPoppingReactions] = useState<Record<string, Record<string, number>>>({})
   const popTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -1777,7 +1782,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                 </div>
               )}
               {/* Desktop: positioned reaction emoji picker */}
-              {reactionPickerMsgId === msg.id && reactionPickerPos && createPortal(
+              {reactionPickerMsgId === msg.id && EmojiPicker && reactionPickerPos && createPortal(
                 <div
                   data-dm-reaction-picker-portal
                   onClick={(e) => { if (e.target === e.currentTarget) { setReactionPickerMsgId(null); setReactionPickerPos(null) } }}
@@ -1792,13 +1797,14 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                       msgId={msg.id}
                       onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
                       onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
+                      EmojiPicker={EmojiPicker}
                     />
                   </div>
                 </div>,
                 document.body,
               )}
               {/* Mobile: reaction emoji picker as bottom sheet */}
-              {reactionPickerMsgId === msg.id && createPortal(
+              {reactionPickerMsgId === msg.id && EmojiPicker && createPortal(
                 <div
                   data-dm-reaction-picker-portal
                   className="md:hidden fixed inset-0 z-[9999] flex flex-col justify-end"
@@ -1838,6 +1844,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                       onReaction={(emoji) => { handleDmReaction(msg.id, emoji); setReactionPickerMsgId(null); setReactionPickerPos(null) }}
                       onClose={() => { setReactionPickerMsgId(null); setReactionPickerPos(null) }}
                       maxHeight="calc(70vh - 100px)"
+                      EmojiPicker={EmojiPicker}
                     />
                   </div>
                 </div>,

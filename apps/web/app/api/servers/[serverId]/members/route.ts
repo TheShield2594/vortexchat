@@ -37,10 +37,14 @@ export async function GET(
     return NextResponse.json({ error: "Failed to initialize member list service" }, { status: 500 })
   }
 
+  // Pagination: cursor-based using user_id for stable ordering
+  const { searchParams } = new URL(request.url)
+  const limit = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "100", 10), 1), 500)
+  const afterCursor = searchParams.get("after") // user_id cursor
+
   // Slim projection for member lists — omits status_message, bio, banner_color,
   // custom_tag which are only needed for profile modals (~60-70% payload reduction).
   // Use ?fields=full to get the complete profile data.
-  const { searchParams } = new URL(request.url)
   const fieldsParam = searchParams.get("fields")
   const wantFull = fieldsParam === "full"
 
@@ -136,22 +140,30 @@ export async function GET(
       )
     ` as const
 
-  let { data: members, error } = await adminSupabase
+  let query = adminSupabase
     .from("server_members")
     .select(wantFull ? MEMBER_SELECT_FULL : MEMBER_SELECT_SLIM)
     .eq("server_id", params.serverId)
-    .order("nickname", { ascending: true, nullsFirst: false })
     .order("user_id", { ascending: true })
+    .limit(limit + 1) // fetch one extra to detect next page
+
+  if (afterCursor) {
+    query = query.gt("user_id", afterCursor)
+  }
+
+  let { data: members, error } = await query
 
   // If the query fails (e.g. last_online_at column missing), retry without it
   if (error) {
     console.warn("[members] GET query failed, retrying without last_online_at", { code: error.code, message: error.message })
-    const fallback = await adminSupabase
+    let fallbackQuery = adminSupabase
       .from("server_members")
       .select(MEMBER_SELECT_COMPAT)
       .eq("server_id", params.serverId)
-      .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
+      .limit(limit + 1)
+    if (afterCursor) fallbackQuery = fallbackQuery.gt("user_id", afterCursor)
+    const fallback = await fallbackQuery
     // Normalize: add last_online_at: null to match expected type
     if (fallback.data) {
       members = fallback.data.map((m) => ({
@@ -169,10 +181,20 @@ export async function GET(
     return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 })
   }
 
-  const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
-  const visibleMembers = filterBlockedUserIds(members ?? [], (member) => member.user_id, blockedUserIds)
+  const allMembers = members ?? []
+  const hasMore = allMembers.length > limit
+  const pageMembers = hasMore ? allMembers.slice(0, limit) : allMembers
 
-  return NextResponse.json(visibleMembers, {
+  const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
+  const visibleMembers = filterBlockedUserIds(pageMembers, (member) => member.user_id, blockedUserIds)
+
+  const lastMember = pageMembers[pageMembers.length - 1]
+  const nextCursor = hasMore && lastMember ? lastMember.user_id : null
+
+  return NextResponse.json({
+    data: visibleMembers,
+    next_cursor: nextCursor,
+  }, {
     headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
   })
   } catch (err) {
