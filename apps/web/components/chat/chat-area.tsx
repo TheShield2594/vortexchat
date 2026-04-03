@@ -860,7 +860,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [isOnline, channel.id, flushOutbox, flushTrigger])
 
   // On channel switch, scroll to the bottom (newest messages).
-  // If there's a cached scroll position (user was scrolled up), restore it.
+  // Same pattern as DM: immediate scroll + double RAF re-scroll so the
+  // virtualizer can measure real DOM heights and correct any drift.
   useLayoutEffect(() => {
     if (prevChannelIdRef.current !== channel.id) {
       shouldAutoScrollToLatestRef.current = true
@@ -873,18 +874,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (messages.length === 0) return
     shouldAutoScrollToLatestRef.current = false
 
-    const container = messageScrollerRef.current
-    if (!container) return
-
-    // Check for cached scroll position from a previous visit to this channel
-    const cachedState = useAppStore.getState().messageCache[channel.id]
-    if (cachedState) {
-      container.scrollTop = cachedState.scrollOffset
-    } else {
-      // Scroll to bottom (newest messages)
-      container.scrollTop = container.scrollHeight
+    scrollToBottom()
+    // Re-scroll after layout settles — the virtualizer's estimated row
+    // heights change once real DOM nodes are measured, shifting scrollHeight.
+    let rafInner = 0
+    const rafOuter = requestAnimationFrame(() => {
+      rafInner = requestAnimationFrame(() => {
+        scrollToBottom()
+      })
+    })
+    previousLastMessageIdRef.current = messages[messages.length - 1]?.id ?? null
+    return () => {
+      cancelAnimationFrame(rafOuter)
+      cancelAnimationFrame(rafInner)
     }
-  }, [channel.id, jumpToMessageId, messages.length, openThreadId])
+  }, [channel.id, jumpToMessageId, messages.length, openThreadId, scrollToBottom])
 
   useEffect(() => {
     const newestMessage = messages[messages.length - 1]
