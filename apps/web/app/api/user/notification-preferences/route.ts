@@ -35,6 +35,11 @@ export async function GET() {
       .maybeSingle()
 
     if (error) {
+      console.error("[api/user/notification-preferences][GET] failed to load preferences", {
+        userId: user.id,
+        action: "load_preferences",
+        error: error.message,
+      })
       return NextResponse.json({ error: "Failed to load notification preferences" }, { status: 500 })
     }
 

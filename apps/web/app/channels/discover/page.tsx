@@ -234,12 +234,14 @@ export default function DiscoverPage() {
     }
     try {
       const res = await fetch("/api/apps/curated")
-      if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data)) setCuratedSections(data)
+      if (!res.ok) {
+        setCuratedSections([])
+        return
       }
+      const data = await res.json()
+      setCuratedSections(Array.isArray(data) ? data : [])
     } catch {
-      // Graceful fallback — curated sections are optional
+      setCuratedSections([])
     }
   }, [mode, query])
 
