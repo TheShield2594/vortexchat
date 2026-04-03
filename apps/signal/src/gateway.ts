@@ -74,11 +74,10 @@ export interface GatewayOptions {
 /** Stop the gateway rate-limiter cleanup timer (call during graceful shutdown). */
 export function stopGatewayCleanup(): void {
   gatewayLimiter?.stopCleanup()
-  gatewayLimiter = null
 }
 
 export function initGateway(options: GatewayOptions): void {
-  gatewayLimiter ??= new SocketRateLimiter().startCleanup()
+  gatewayLimiter = (gatewayLimiter ?? new SocketRateLimiter()).startCleanup()
   const { io, eventBus, presence, supabase, validateSession, getSessionUserId } = options
 
   // Subscribe to event bus to fan out events to connected sockets

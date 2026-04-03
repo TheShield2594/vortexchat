@@ -15,10 +15,11 @@ export default async function ServerEventsPage({ params: paramsPromise }: { para
 
   if (!perms.isMember) notFound()
 
-  const { data: channels } = await supabase
+  const { data: channels, error: channelsError } = await supabase
     .from("channels")
     .select("id,name,type")
     .eq("server_id", params.serverId)
+  if (channelsError) throw channelsError
 
   const canManageEvents = perms.isAdmin || hasPermission(perms.permissions, "MANAGE_EVENTS")
 

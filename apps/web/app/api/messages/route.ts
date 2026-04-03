@@ -390,7 +390,7 @@ async function runServerAutomodChecks({
                   changes: { channel_id: alertChannelId, reason: violations[0].reason },
                 })
                 if (alertAuditErr) {
-                  log.error({ serverId, channelId: alertChannelId, error: alertAuditErr.message }, "automod alert audit log insert failed")
+                  log.error({ serverId, channelId: alertChannelId, userId: user.id, error: alertAuditErr.message }, "automod alert audit log insert failed")
                 }
               })
           )
@@ -535,7 +535,7 @@ export async function GET(request: Request) {
     return NextResponse.json(await withReplyTo(supabase, (messages ?? []).reverse()))
 
   } catch (err) {
-    log.error({ route: "/api/messages", action: "GET", error: err }, "GET error");
+    log.error({ route: "/api/messages", action: "GET", userId: user?.id, error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -850,7 +850,7 @@ export async function POST(request: Request) {
   lap("total")
   return NextResponse.json(hydratedMessage, { status: 201 })
   } catch (err) {
-    log.error({ route: "/api/messages", action: "POST", error: err }, "POST error")
+    log.error({ route: "/api/messages", action: "POST", userId: user?.id, error: err }, "POST error")
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
