@@ -14,8 +14,10 @@ const MAX_SLOWMODE_SECONDS = 21600
  * Requires MANAGE_CHANNELS permission.
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
+  let serverId: string | undefined
+  let channelId: string | undefined
   try {
-  const { serverId, channelId } = await params
+  ({ serverId, channelId } = await params)
   const { supabase, user, error } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
   if (error) return error
 
@@ -128,7 +130,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .single()
 
   if (dbErr) {
-    console.error("[channels PATCH] DB error:", dbErr.message)
+    console.error("[channels PATCH] DB error", {
+      action: "channel_update",
+      serverId,
+      channelId,
+      userId: user!.id,
+      err: dbErr,
+    })
     return NextResponse.json({ error: "Failed to update channel" }, { status: 500 })
   }
 
@@ -155,7 +163,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   return NextResponse.json(updated)
   } catch (err) {
-    console.error("[channels PATCH] unhandled error:", err instanceof Error ? err.message : String(err))
+    console.error("[channels PATCH] unhandled error", {
+      action: "channel_update",
+      serverId,
+      channelId,
+      err,
+    })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

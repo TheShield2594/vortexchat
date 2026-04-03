@@ -297,7 +297,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     }
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (err) {
+    console.error("[servers DELETE] unhandled error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

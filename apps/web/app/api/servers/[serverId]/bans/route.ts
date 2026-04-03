@@ -129,6 +129,14 @@ export async function POST(
     )
 
     if (targetMaxPosition >= requesterMaxPosition) {
+      await insertAuditLog(supabase, {
+        server_id: serverId,
+        actor_id: user.id,
+        action: "member_ban_denied",
+        target_id: userId,
+        target_type: "user",
+        changes: { reason: "target_outranks_actor" },
+      })
       return NextResponse.json(
         { error: "Cannot ban a member with equal or higher role" },
         { status: 403 }
