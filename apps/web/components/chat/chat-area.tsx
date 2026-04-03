@@ -104,7 +104,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [isPaginating, setIsPaginating] = useState(false)
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
-  const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set())
+  const animatedMessageIdsRef = useRef<Set<string>>(new Set())
+  const [animatedVersion, setAnimatedVersion] = useState(0)
   const [showSummary, setShowSummary] = useState(false)
   const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
@@ -141,10 +142,17 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const createThreadParam = searchParams.get("createThread")
 
   useEffect(() => {
-    const onResize = () => setViewportWidth(window.innerWidth)
-    onResize()
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    const onResize = () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => setViewportWidth(window.innerWidth), 150)
+    }
+    setViewportWidth(window.innerWidth)
     window.addEventListener("resize", onResize)
-    return () => window.removeEventListener("resize", onResize)
+    return () => {
+      window.removeEventListener("resize", onResize)
+      if (timeoutId) clearTimeout(timeoutId)
+    }
   }, [])
 
   // Consume mobile header actions dispatched via the Zustand store
@@ -280,22 +288,14 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         : prev.map((message, idx) => (idx === existingIndex ? { ...prev[existingIndex], ...incoming } : message))
 
       if (isNewMessage) {
-        setAnimatedMessageIds((current) => {
-          const nextIds = new Set(current)
-          nextIds.add(incoming.id)
-          return nextIds
-        })
+        animatedMessageIdsRef.current.add(incoming.id)
 
         const existingTimer = animatedMessageTimersRef.current.get(incoming.id)
         if (existingTimer) clearTimeout(existingTimer)
         const timer = setTimeout(() => {
-          setAnimatedMessageIds((current) => {
-            if (!current.has(incoming.id)) return current
-            const nextIds = new Set(current)
-            nextIds.delete(incoming.id)
-            return nextIds
-          })
+          animatedMessageIdsRef.current.delete(incoming.id)
           animatedMessageTimersRef.current.delete(incoming.id)
+          setAnimatedVersion((v) => v + 1)
         }, 220)
         animatedMessageTimersRef.current.set(incoming.id, timer)
       }
@@ -510,7 +510,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       clearTimeout(timer)
     }
     animatedMessageTimersRef.current.clear()
-    setAnimatedMessageIds(new Set())
+    animatedMessageIdsRef.current.clear()
     setIsPaginating(false)
     paginationRequestRef.current = null
   }, [initialMessages, channel.id])
@@ -1529,12 +1529,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       clearTimeout(timer)
       animatedMessageTimersRef.current.delete(messageId)
     }
-    setAnimatedMessageIds((current) => {
-      if (!current.has(messageId)) return current
-      const next = new Set(current)
-      next.delete(messageId)
-      return next
-    })
+    animatedMessageIdsRef.current.delete(messageId)
+    setAnimatedVersion((v) => v + 1)
   }, [])
 
   useEffect(() => {
@@ -1551,6 +1547,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [typingUsers])
 
   useEffect(() => {
+    // Only run the decay interval when there are active timestamps to expire
+    if (Object.keys(recentlyActiveTimestamps).length === 0) return
+
     const interval = setInterval(() => {
       const now = Date.now()
       setRecentlyActiveTimestamps((prev) => {
@@ -1568,7 +1567,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }, 1_000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [recentlyActiveTimestamps])
 
   const recentlyActiveUserIds = useMemo(() => {
     const now = Date.now()
@@ -1628,8 +1627,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           sendState={outboxStateByMessageId[message.id]}
           onRetry={outboxStateByMessageId[message.id] === "failed" ? () => handleRetryMessage(message.id) : undefined}
           recentlyActive={Boolean(message.author_id && recentlyActiveUserIds.has(message.author_id))}
-          animateOnMount={animatedMessageIds.has(message.id)}
-          onMountAnimationComplete={animatedMessageIds.has(message.id)
+          animateOnMount={animatedMessageIdsRef.current.has(message.id)}
+          onMountAnimationComplete={animatedMessageIdsRef.current.has(message.id)
             ? () => handleMountAnimationComplete(message.id)
             : undefined}
           onReply={() => handleReply(message)}
@@ -1642,7 +1641,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         />
       </>
     )
-  }, [messageGrouping, unreadDividerMessageId, highlightedMessageId, currentUserId, canManageMessages, outboxStateByMessageId, recentlyActiveUserIds, animatedMessageIds, handleMountAnimationComplete, handleReply, jumpToMessage, handleThreadCreated, handleMessageEdit, handleMessageDelete, handlePinToggle, handleReaction])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animatedVersion triggers re-eval when animation refs change
+  }, [messageGrouping, unreadDividerMessageId, highlightedMessageId, currentUserId, canManageMessages, outboxStateByMessageId, recentlyActiveUserIds, animatedVersion, handleMountAnimationComplete, handleReply, jumpToMessage, handleThreadCreated, handleMessageEdit, handleMessageDelete, handlePinToggle, handleReaction])
 
   type CommandAction = { id: string; label: string; group: "search" | "pins" | "threads" | "voice" | "help"; groupLabel: string; priority: number; ariaLabel: string; icon: ReactNode; onSelect: () => void }
   const commandActions = useMemo<CommandAction[]>(() => {

@@ -311,53 +311,57 @@ export async function sendPushToChannel(opts: {
 
   if (!memberIds.length) return
 
-    // Fetch only relevant notification settings for potential recipients
-  const settingsBatches: Array<Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>> = []
+    // Fetch all relevant notification settings in parallel instead of sequentially
+  type SettingsRow = { user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }
+  const settingsQueries: Array<PromiseLike<{ data: SettingsRow[] | null }>> = []
+
+  const handleSettingsResult = (r: { data: unknown[] | null; error: { message: string } | null }, scope: string): { data: SettingsRow[] } => {
+    if (r.error) {
+      console.error("sendPushToChannel: failed to fetch settings", { action: "batch-settings", scope, recipientCount: memberIds.length, error: r.error.message })
+    }
+    return { data: (r.data ?? []) as SettingsRow[] }
+  }
 
   if (threadId) {
-    const { data: threadSettings } = await supabase
-      .from("notification_settings")
-      .select("user_id, mode, server_id, channel_id, thread_id")
-      .in("user_id", memberIds)
-      .eq("thread_id", threadId)
-    settingsBatches.push((threadSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+    settingsQueries.push(
+      supabase.from("notification_settings").select("user_id, mode, server_id, channel_id, thread_id").in("user_id", memberIds).eq("thread_id", threadId)
+        .then((r) => handleSettingsResult(r, "thread"))
+    )
   }
 
   if (channelId) {
-    const { data: channelSettings } = await supabase
-      .from("notification_settings")
-      .select("user_id, mode, server_id, channel_id, thread_id")
-      .in("user_id", memberIds)
-      .eq("channel_id", channelId)
-    settingsBatches.push((channelSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+    settingsQueries.push(
+      supabase.from("notification_settings").select("user_id, mode, server_id, channel_id, thread_id").in("user_id", memberIds).eq("channel_id", channelId)
+        .then((r) => handleSettingsResult(r, "channel"))
+    )
   }
 
   if (serverId) {
-    const { data: serverSettings } = await supabase
-      .from("notification_settings")
-      .select("user_id, mode, server_id, channel_id, thread_id")
-      .in("user_id", memberIds)
-      .eq("server_id", serverId)
-    settingsBatches.push((serverSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+    settingsQueries.push(
+      supabase.from("notification_settings").select("user_id, mode, server_id, channel_id, thread_id").in("user_id", memberIds).eq("server_id", serverId)
+        .then((r) => handleSettingsResult(r, "server"))
+    )
   }
 
-  const { data: globalSettings } = await supabase
-    .from("notification_settings")
-    .select("user_id, mode, server_id, channel_id, thread_id")
-    .in("user_id", memberIds)
-    .is("server_id", null)
-    .is("channel_id", null)
-    .is("thread_id", null)
-  settingsBatches.push((globalSettings ?? []) as Array<{ user_id: string; mode: "all" | "mentions" | "muted"; server_id?: string | null; channel_id?: string | null; thread_id?: string | null }>)
+  settingsQueries.push(
+    supabase.from("notification_settings").select("user_id, mode, server_id, channel_id, thread_id").in("user_id", memberIds).is("server_id", null).is("channel_id", null).is("thread_id", null)
+      .then((r) => handleSettingsResult(r, "global"))
+  )
+
+  const settingsResults = await Promise.all(settingsQueries)
+  const settingsBatches = settingsResults.map((r) => r.data ?? [])
 
   const settings = settingsBatches.flat()
 
   // Fetch global notification type preferences so mention opt-outs and
   // @everyone/@role suppression are respected (#607)
-  const { data: globalTypePrefs } = await supabase
+  const { data: globalTypePrefs, error: globalTypePrefsError } = await supabase
     .from("user_notification_preferences")
     .select("user_id, mention_notifications, suppress_everyone, suppress_role_mentions")
     .in("user_id", memberIds)
+  if (globalTypePrefsError) {
+    console.error("sendPushToChannel: failed to fetch type preferences", { action: "type-prefs", recipientCount: memberIds.length, error: globalTypePrefsError.message })
+  }
   interface TypePref { user_id: string; mention_notifications: boolean | null; suppress_everyone: boolean | null; suppress_role_mentions: boolean | null }
   const globalTypePrefMap = new Map<string, TypePref>(
     (globalTypePrefs ?? []).map((p: TypePref) => [p.user_id, p])

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   Hash, Volume2, Plus, Clipboard, Pencil, Trash2, MessageSquare, Mic2, Megaphone, Image, Clock, GripVertical, MessageCircle,
   MicOff, Headphones, Bell, BellOff, Eye, CheckCheck
@@ -55,6 +56,7 @@ interface SortableChannelItemProps {
   mentionCount?: number
   activeThreadCount?: number
   voiceParticipants?: VoiceParticipant[]
+  href?: string
   onClick: () => void
   onEdit: () => void
   onDelete: () => void
@@ -73,6 +75,7 @@ export function SortableChannelItem({
   mentionCount,
   activeThreadCount,
   voiceParticipants,
+  href,
   onClick,
   onEdit,
   onDelete,
@@ -81,6 +84,7 @@ export function SortableChannelItem({
   onOpenNotificationSettings,
 }: SortableChannelItemProps): React.ReactElement {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: channel.id })
+  const router = useRouter()
   const { toast } = useToast()
   const notificationMode = useAppStore((s) => s.notificationModes[channel.id])
   const isMuted = notificationMode === "muted"
@@ -123,6 +127,8 @@ export function SortableChannelItem({
             role="button"
             tabIndex={0}
             onClick={onClick}
+            onMouseEnter={() => { if (href) router.prefetch(href) }}
+            onFocus={() => { if (href) router.prefetch(href) }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault()

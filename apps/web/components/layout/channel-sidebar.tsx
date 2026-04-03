@@ -950,6 +950,7 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
                                 ? voiceParticipantsByChannel.get(channel.id)
                                 : undefined
                             }
+                            href={`/channels/${server.id}/${channel.id}`}
                             onClick={() => {
                               if (channel.parent_id) {
                                 setCategoryExpansionOverrides((prev) => ({ ...prev, [channel.parent_id!]: true }))

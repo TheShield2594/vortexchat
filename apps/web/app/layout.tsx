@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next"
-import { headers } from "next/headers"
 import localFont from "next/font/local"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
@@ -63,24 +62,18 @@ export const viewport: Viewport = {
   themeColor: "#00e5ff",
 }
 
-// Nonce-based CSP requires per-request rendering — cannot be statically generated
+/** Top-level HTML shell — applies Inter (body) + Space Grotesk (display/headings), dark theme, and global toast notifications.
+ *  force-dynamic is required because proxy.ts generates a per-request nonce for CSP;
+ *  static caching would serve stale nonces and cause CSP violations. */
 export const dynamic = "force-dynamic"
 
-/** Top-level HTML shell — applies Inter (body) + Space Grotesk (display/headings), dark theme, and global toast notifications. */
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
-}): Promise<React.ReactElement> {
-  let nonce = ""
-  try {
-    nonce = (await headers()).get("x-nonce") ?? ""
-  } catch {
-    // Fallback to empty nonce if headers() is unavailable (e.g. static generation)
-  }
-
+}): React.ReactElement {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning nonce={nonce}>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <meta name="color-scheme" content="dark" />
         <meta name="format-detection" content="telephone=no" />
