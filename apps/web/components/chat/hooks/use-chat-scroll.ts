@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } from "react"
 
 interface UseChatScrollArgs {
   hasMoreHistory: boolean
@@ -15,16 +15,23 @@ interface UseChatScrollArgs {
 /**
  * Scroll management hook for chat message containers.
  *
- * Implements Fluxer-style sticky pin tolerance:
- *   - 10px tolerance to initially detect "at bottom"
- *   - 80px sticky tolerance to stay pinned while small layout shifts occur
+ * Pin-to-bottom strategy (adapted from Fluxer's ScrollManager):
  *
- * Uses a ResizeObserver on the scroll container's content to detect height
- * changes and immediately scroll to bottom when pinned — no racy double-RAF.
+ * 1. useLayoutEffect — runs synchronously after every React render but BEFORE
+ *    paint.  If pinned to bottom, we set scrollTop = scrollHeight so the user
+ *    never sees a frame where content shifted but scroll didn't follow.
+ *
+ * 2. MutationObserver — catches DOM changes that don't trigger React renders
+ *    (image loads via naturalWidth, lazy embeds, virtualizer re-measurement).
+ *    Fires in the same microtask as the mutation, so it's still pre-paint.
+ *
+ * 3. Sticky pin tolerance — 10px to initially pin, 100px to stay pinned.
+ *    Small layout shifts (reactions, edited messages, embed heights) don't
+ *    accidentally unpin the user.
  */
 
 const PIN_TOLERANCE = 10
-const STICKY_TOLERANCE = 80
+const STICKY_TOLERANCE = 100
 const SCROLL_TRIGGER_THRESHOLD = 120
 
 export function useChatScroll({
@@ -39,8 +46,20 @@ export function useChatScroll({
   const [isAtBottom, setIsAtBottom] = useState(true)
   const isPinnedRef = useRef(true)
   const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const cachedScrollHeightRef = useRef(0)
-  const isProgrammaticScrollRef = useRef(false)
+
+  // ── Core: snap to bottom on every render when pinned ────────────────
+  // Runs in useLayoutEffect (before paint) so new messages, channel
+  // switches, and virtualizer re-measurements all settle before the user
+  // sees the frame.
+  useLayoutEffect(() => {
+    const container = messageScrollerRef.current
+    if (!container || !isPinnedRef.current) return
+    const maxScroll = container.scrollHeight - container.clientHeight
+    // Only touch scrollTop when there's actually a gap to close
+    if (maxScroll - container.scrollTop > 1) {
+      container.scrollTop = maxScroll
+    }
+  })
 
   useEffect(() => {
     const container = messageScrollerRef.current
@@ -52,16 +71,14 @@ export function useChatScroll({
       }
     }
 
-    const evaluatePin = (): { distanceFromBottom: number; isWithinTolerance: boolean; isPinned: boolean } => {
+    const evaluatePin = (): boolean => {
       const distanceFromBottom = Math.max(
         container.scrollHeight - container.clientHeight - container.scrollTop,
         0,
       )
       const isWithinTolerance = distanceFromBottom <= PIN_TOLERANCE
       const isWithinStickyRange = distanceFromBottom <= STICKY_TOLERANCE
-      const shouldPin = isWithinTolerance || (isPinnedRef.current && isWithinStickyRange)
-
-      return { distanceFromBottom, isWithinTolerance, isPinned: shouldPin }
+      return isWithinTolerance || (isPinnedRef.current && isWithinStickyRange)
     }
 
     const onScroll = () => {
@@ -72,7 +89,7 @@ export function useChatScroll({
         void loadOlderMessages()
       }
 
-      const { isPinned: nextPinned } = evaluatePin()
+      const nextPinned = evaluatePin()
       isPinnedRef.current = nextPinned
       setIsAtBottom(nextPinned)
 
@@ -94,30 +111,29 @@ export function useChatScroll({
       }
     }
 
-    // ResizeObserver: when the scroll container's scrollHeight grows while
-    // pinned to bottom, immediately scroll to keep the newest messages visible.
-    // This replaces the racy double-RAF pattern.
-    cachedScrollHeightRef.current = container.scrollHeight
-
-    const resizeObserver = new ResizeObserver(() => {
-      const newScrollHeight = container.scrollHeight
-      const heightGrew = newScrollHeight > cachedScrollHeightRef.current
-      cachedScrollHeightRef.current = newScrollHeight
-
-      if (heightGrew && isPinnedRef.current) {
-        isProgrammaticScrollRef.current = true
-        container.scrollTop = newScrollHeight
-        isProgrammaticScrollRef.current = false
-      }
+    // ── MutationObserver: catch DOM changes outside React renders ──────
+    // Virtualizer re-measures, image loads, embed heights — anything that
+    // changes children/styles in the scroll container without a React
+    // state update.  Fires synchronously in the mutation microtask, so we
+    // can adjust scrollTop before the next paint.
+    let mutationRaf = 0
+    const mutationObserver = new MutationObserver(() => {
+      if (!isPinnedRef.current) return
+      // Batch via rAF — multiple mutations (virtualizer re-measuring many
+      // items) collapse into a single scroll adjustment.
+      cancelAnimationFrame(mutationRaf)
+      mutationRaf = requestAnimationFrame(() => {
+        if (!isPinnedRef.current) return
+        const maxScroll = container.scrollHeight - container.clientHeight
+        if (maxScroll - container.scrollTop > 1) {
+          container.scrollTop = maxScroll
+        }
+      })
     })
-
-    // Observe the first child (the content wrapper) so we catch height changes
-    // from new messages, images loading, embeds expanding, etc.
-    if (container.firstElementChild) {
-      resizeObserver.observe(container.firstElementChild)
-    }
-    // Also observe the container itself for viewport size changes
-    resizeObserver.observe(container)
+    mutationObserver.observe(container, {
+      childList: true,
+      subtree: true,
+    })
 
     onScroll()
     container.addEventListener("scroll", onScroll, { passive: true })
@@ -129,7 +145,8 @@ export function useChatScroll({
       }
       if (scrollStorageKey) persistScroll()
       container.removeEventListener("scroll", onScroll)
-      resizeObserver.disconnect()
+      cancelAnimationFrame(mutationRaf)
+      mutationObserver.disconnect()
     }
   }, [hasMoreHistory, loadOlderMessages, messageScrollerRef, onReachedBottom, paginationRequestRef, scrollStorageKey, unreadAnchorStorageKey])
 

@@ -121,7 +121,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageScrollerRef = useRef<HTMLDivElement>(null)
   const virtualizerRef = useRef<VirtualizedMessageListHandle>(null)
-  useKeyboardAvoidance(messageScrollerRef, isMobile)
+  useKeyboardAvoidance(messageScrollerRef, isMobile, false)
   const previousLastMessageIdRef = useRef<string | null>(null)
   const jumpedRef = useRef(false)
   const lastJumpMessageIdRef = useRef<string | null>(null)
@@ -1918,7 +1918,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           role="log"
           aria-label="Message history"
           aria-relevant="additions"
-          style={{ overflowAnchor: isAtBottom ? "auto" : "none", overscrollBehaviorY: "contain" }}
+          style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}
           {...(isMobile ? pullToRefreshHandlers : {})}
         >
           {/* Pull-to-refresh indicator (mobile only) — require meaningful pull before showing */}

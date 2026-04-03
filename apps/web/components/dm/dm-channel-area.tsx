@@ -1350,7 +1350,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
       {/* Messages */}
       {/* Scroll container: standard direction (scrollTop = scrollHeight = newest messages) */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ overflowAnchor: isAtBottom ? "auto" : "none", overscrollBehaviorY: "contain" }}>
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ overflowAnchor: "none", overscrollBehaviorY: "contain" }}>
         <div className="space-y-1" style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", minHeight: "100%" }}>
         {/* Load more */}
         {hasMore && (
