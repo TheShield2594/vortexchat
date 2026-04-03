@@ -3,6 +3,9 @@ import { getBatchChannelPermissions, hasPermission } from "@/lib/permissions"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { filterBlockedUserIds, getBlockedUserIdsForViewer } from "@/lib/social-block-policy"
 import { rateLimiter } from "@/lib/rate-limit"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/search")
 
 interface SearchFilters {
   fromUserId?: string
@@ -85,7 +88,7 @@ export async function GET(req: NextRequest) {
         .maybeSingle()
 
       if (membershipError) {
-        console.error("[search GET] DM membership check failed", { dmChannelId, userId: user.id, error: membershipError.message })
+        log.error({ route: "/api/search", action: "dmMembershipCheck", dmChannelId, userId: user.id, error: membershipError.message }, "DM membership check failed")
         return NextResponse.json({ error: "Internal server error" }, { status: 500 })
       }
       if (!membership) {
@@ -129,7 +132,7 @@ export async function GET(req: NextRequest) {
       const { data: dmMessages, error: dmError } = await dmQuery
 
       if (dmError) {
-        console.error("[search GET] DM search query failed", { dmChannelId, userId: user.id, error: dmError.message })
+        log.error({ route: "/api/search", action: "dmSearch", dmChannelId, userId: user.id, error: dmError.message }, "DM search query failed")
         return NextResponse.json({ error: "Internal server error" }, { status: 500 })
       }
 
@@ -303,7 +306,7 @@ export async function GET(req: NextRequest) {
     })
 
   } catch (err) {
-    console.error("[search GET] error:", err);
+    log.error({ route: "/api/search", action: "GET", error: err }, "GET error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

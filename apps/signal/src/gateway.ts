@@ -23,51 +23,15 @@ import {
 } from "@vortex/shared"
 import type { RedisEventBus } from "./event-bus"
 import type { PresenceManager } from "./presence"
+import { SocketRateLimiter } from "./rate-limiter"
 
 const log = pino({ name: "gateway" })
 
-// ── Per-socket rate limiter (reused pattern from main index.ts) ─────────────
+// ── Per-socket rate limiter (shared with index.ts) ──────────────────────────
+// Instantiated at module scope but cleanup timer is only started inside
+// initGateway() so disabled/test processes don't leak intervals.
 
-class GatewayRateLimiter {
-  private windows = new Map<string, Map<string, { timestamps: number[] }>>()
-
-  check(socketId: string, action: string, limit: number, windowMs: number): boolean {
-    const now = Date.now()
-    const cutoff = now - windowMs
-    let socketMap = this.windows.get(socketId)
-    if (!socketMap) {
-      socketMap = new Map()
-      this.windows.set(socketId, socketMap)
-    }
-    let entry = socketMap.get(action)
-    if (!entry) {
-      entry = { timestamps: [] }
-      socketMap.set(action, entry)
-    }
-    entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
-    if (entry.timestamps.length >= limit) return false
-    entry.timestamps.push(now)
-    return true
-  }
-
-  remove(socketId: string): void {
-    this.windows.delete(socketId)
-  }
-
-  cleanup(maxAgeMs: number): void {
-    const cutoff = Date.now() - maxAgeMs
-    for (const [socketId, socketMap] of this.windows) {
-      for (const [action, entry] of socketMap) {
-        entry.timestamps = entry.timestamps.filter((t) => t > cutoff)
-        if (entry.timestamps.length === 0) socketMap.delete(action)
-      }
-      if (socketMap.size === 0) this.windows.delete(socketId)
-    }
-  }
-}
-
-const gatewayLimiter = new GatewayRateLimiter()
-setInterval(() => gatewayLimiter.cleanup(120_000), 60_000)
+let gatewayLimiter: SocketRateLimiter | null = null
 
 // ── Gateway socket state ────────────────────────────────────────────────────
 
@@ -107,7 +71,13 @@ export interface GatewayOptions {
   getSessionUserId: (socket: Socket) => string | undefined
 }
 
+/** Stop the gateway rate-limiter cleanup timer (call during graceful shutdown). */
+export function stopGatewayCleanup(): void {
+  gatewayLimiter?.stopCleanup()
+}
+
 export function initGateway(options: GatewayOptions): void {
+  gatewayLimiter = (gatewayLimiter ?? new SocketRateLimiter()).startCleanup()
   const { io, eventBus, presence, supabase, validateSession, getSessionUserId } = options
 
   // Subscribe to event bus to fan out events to connected sockets
@@ -235,7 +205,7 @@ export function initGateway(options: GatewayOptions): void {
         if (typeof channelId !== "string" || !channelId) return
         if (typeof isTyping !== "boolean") return
 
-        if (!gatewayLimiter.check(socket.id, "typing", TYPING_RATE_LIMIT, 60_000)) return
+        if (!gatewayLimiter!.check(socket.id, "typing", TYPING_RATE_LIMIT, 60_000)) return
         if (!(await validateSession(socket))) return
 
         const state = socketStates.get(socket.id)
@@ -309,7 +279,7 @@ export function initGateway(options: GatewayOptions): void {
         const validStatuses: UserStatus[] = ["online", "idle", "dnd", "invisible", "offline"]
         if (!validStatuses.includes(status as UserStatus)) return
 
-        if (!gatewayLimiter.check(socket.id, "presence", PRESENCE_RATE_LIMIT, 60_000)) return
+        if (!gatewayLimiter!.check(socket.id, "presence", PRESENCE_RATE_LIMIT, 60_000)) return
         if (!(await validateSession(socket))) return
 
         const state = socketStates.get(socket.id)
@@ -508,7 +478,7 @@ export function initGateway(options: GatewayOptions): void {
           })
         }
 
-        gatewayLimiter.remove(socket.id)
+        gatewayLimiter!.remove(socket.id)
         socketStates.delete(socket.id)
       } catch (err) {
         log.error({ socketId: socket.id, err }, "gateway disconnect cleanup error")

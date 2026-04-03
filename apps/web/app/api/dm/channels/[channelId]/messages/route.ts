@@ -3,6 +3,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { sendPushToChannel } from "@/lib/push"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
 import { checkRateLimit } from "@/lib/utils/api-helpers"
+import { createLogger } from "@/lib/logger"
+
+const log = createLogger("api/dm/messages")
 
 function isValidDmE2eeEnvelope(value: unknown): boolean {
   if (!value || typeof value !== "object") return false
@@ -68,7 +71,7 @@ export async function POST(
   ])
 
   if (blockCheckResult.error) {
-    console.error("[dm/messages POST] block check failed:", blockCheckResult.error.message)
+    log.error({ route: "/api/dm/channels/[channelId]/messages", action: "blockCheck", userId: user.id, channelId, error: blockCheckResult.error.message }, "block check failed")
     return NextResponse.json(
       { error: "Error checking block status" },
       { status: 500 }
@@ -153,7 +156,7 @@ export async function POST(
   return NextResponse.json({ ...message, reply_to_id: replyToId, reply_to: replyToMessage }, { status: 201 })
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : "Unknown error"
-    console.error("[dm/messages POST] error", { action: "dm_send", error: errMsg })
+    log.error({ route: "/api/dm/channels/[channelId]/messages", action: "POST", error: errMsg }, "POST error")
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
