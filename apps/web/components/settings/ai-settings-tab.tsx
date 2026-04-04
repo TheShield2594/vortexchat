@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { AiPersonasSection } from "@/components/settings/ai-personas-section"
 import {
   Key,
   Loader2,
@@ -588,6 +589,9 @@ export function AiSettingsTab({ serverId }: AiSettingsTabProps) {
           </div>
         </div>
       )}
+
+      {/* ── AI Personas ──────────────────────────────────────────────── */}
+      <AiPersonasSection serverId={serverId} />
 
       {/* ── Legacy Gemini status ───────────────────────────────────────── */}
       {state?.hasGeminiKey && providers.length === 0 && (
