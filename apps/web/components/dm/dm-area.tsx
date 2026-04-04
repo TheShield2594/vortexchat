@@ -109,7 +109,7 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1" role="log" aria-live="polite" aria-relevant="additions">
         {messages.length === 0 && (
           <div className="text-center py-16">
             <Avatar className="w-20 h-20 mx-auto mb-4">

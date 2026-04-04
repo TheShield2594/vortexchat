@@ -6,7 +6,8 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <div
+    <main
+      id="main-content"
       className="relative flex min-h-[100dvh] items-center justify-center overflow-x-hidden overflow-y-auto px-6 py-8"
       style={{
         background:
@@ -21,6 +22,6 @@ export default function AuthLayout({
       <div className="relative w-full max-w-md">
         {children}
       </div>
-    </div>
+    </main>
   )
 }

@@ -1739,7 +1739,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
             </>
           )}
           <Hash className="w-5 h-5 flex-shrink-0 chat-area-header-hash" />
-          <span className="font-semibold chat-area-text-bright">{channel.name}</span>
+          <h1 className="font-semibold chat-area-text-bright text-base m-0">{channel.name}</h1>
           {!isOnline && (
             <span className="text-xs px-2 py-0.5 rounded chat-area-offline-pill">
               Offline
