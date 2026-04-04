@@ -74,6 +74,36 @@ export function useApplyAppearance(): void {
       root.style.removeProperty("--theme-accent")
     }
 
+    // ── Theme-specific external stylesheet ─────────────────────────────
+    // Some themes ship an extended CSS file in /themes/{preset}.css that
+    // adds signature effects (scanlines, glitch animations, custom fonts,
+    // etc.) beyond what the globals.css color tokens provide.
+    const THEMES_WITH_EXTERNAL_CSS: ReadonlySet<string> = new Set([
+      "night-city-neural",
+      "terminal",
+      "frosthearth",
+      "sakura-blossom",
+    ])
+    const themeLinkId = "vortex-theme-external-css"
+    const existingLink = document.getElementById(themeLinkId) as HTMLLinkElement | null
+    if (THEMES_WITH_EXTERNAL_CSS.has(themePreset)) {
+      const href = `/themes/${themePreset}.css`
+      if (existingLink) {
+        if (existingLink.getAttribute("href") !== href) {
+          existingLink.href = href
+        }
+      } else {
+        const link = document.createElement("link")
+        link.id = themeLinkId
+        link.rel = "stylesheet"
+        link.href = href
+        document.head.appendChild(link)
+      }
+    } else if (existingLink) {
+      existingLink.remove()
+    }
+
+    // ── User custom CSS ──────────────────────────────────────────────────
     const customCssStyleId = "vortex-custom-theme-css"
     let styleTag = document.getElementById(customCssStyleId) as HTMLStyleElement | null
     if (!styleTag) {

@@ -1,84 +1,48 @@
 /**
- * Night City Neural — VortexChat custom theme
+ * Night City Neural — VortexChat extended theme effects
  *
- * A Cyberpunk 2077-inspired aesthetic with deep black backgrounds,
- * neon cyan/magenta/yellow accents, glitch animations, scanline overlays,
- * corrupted text hover effects, and netrunner uplink status bars.
+ * A Cyberpunk 2077-inspired aesthetic with scanline overlays, glitch
+ * animations, corrupted RGB-split text, dual cyberpunk fonts, and
+ * netrunner uplink status bars that pulse at status-specific rates.
  *
- * HOW TO USE:
- *   1. Open Profile Settings → Appearance tab
- *   2. Select the "Night City Neural" preset from the theme picker
- *   3. (Optional) For the full cyberpunk experience, scroll to "Custom CSS"
- *   4. Click "Clear" to remove any existing CSS
- *   5. Paste the entire contents of this file into the textarea
- *   6. Click "Save Theme & Appearance"
+ * This file is auto-loaded when the Night City Neural preset is active.
+ * All selectors are scoped to [data-theme-preset="night-city-neural"]
+ * so nothing leaks to other themes.
  *
- * The preset gives you the neon-on-black color scheme. This custom CSS
- * adds the scanlines, glitch effects, corrupted text, and monospace font
- * for the complete Night City experience.
- *
- * Toggle the Arasaka watermark by setting --ncn-watermark-display below.
+ * EFFECT CONTROL KNOBS (override via Custom CSS or inline style):
+ *   --ncn-scanline-opacity   (default 0.06)  — scanline darkness
+ *   --ncn-glitch-intensity   (default 1)     — glitch animation scale
+ *   --ncn-glow-strength      (default 1)     — neon glow multiplier
+ *   --ncn-watermark-display  (default none)  — "block" to show Arasaka watermark
+ *   --ncn-watermark-opacity  (default 0.02)  — watermark opacity
  */
 
-/* ── Monospace cyberpunk font ───────────────────────────────────────── */
+/* ── Cyberpunk font stack ─────────────────────────────────────────────── */
 @import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap");
 
-:root {
-  /* ─── Night City neon palette ─────────────────────────────── */
-  --ncn-cyan: #00e6ff;
-  --ncn-cyan-dim: rgba(0, 230, 255, 0.6);
-  --ncn-cyan-muted: rgba(0, 230, 255, 0.3);
-  --ncn-cyan-faint: rgba(0, 230, 255, 0.12);
-  --ncn-cyan-ghost: rgba(0, 230, 255, 0.04);
-
-  --ncn-magenta: #ff2a6d;
-  --ncn-magenta-dim: rgba(255, 42, 109, 0.6);
-  --ncn-magenta-muted: rgba(255, 42, 109, 0.3);
-  --ncn-magenta-faint: rgba(255, 42, 109, 0.12);
-
-  --ncn-yellow: #fcee09;
-  --ncn-yellow-dim: rgba(252, 238, 9, 0.6);
-  --ncn-yellow-faint: rgba(252, 238, 9, 0.12);
-
-  /* Background — near-pure black with cold blue shift */
-  --ncn-bg: #0a0a12;
-  --ncn-bg-deep: #030308;
-  --ncn-bg-panel: rgba(6, 6, 14, 0.95);
-
-  /* ─── Effect controls — adjust to taste ───────────────────── */
-  --ncn-scanline-opacity: 0.06;
-  --ncn-glitch-intensity: 1;
-  --ncn-glow-strength: 1;
-
-  /* ─── Arasaka watermark — set to "block" to show, "none" to hide */
-  --ncn-watermark-display: none;
-  --ncn-watermark-opacity: 0.02;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
- *  GLOBAL — Cyberpunk font stack
- * ═══════════════════════════════════════════════════════════════════════ */
-body,
-body * {
+/* Rajdhani for UI text — readable but stylized */
+[data-theme-preset="night-city-neural"] body,
+[data-theme-preset="night-city-neural"] body * {
   font-family: "Rajdhani", "Share Tech Mono", system-ui, sans-serif !important;
 }
 
-/* Code/mono elements stay monospace */
-code, pre, .font-mono,
-[class*="code"], [class*="mono"] {
+/* Share Tech Mono for code/mono elements */
+[data-theme-preset="night-city-neural"] code,
+[data-theme-preset="night-city-neural"] pre,
+[data-theme-preset="night-city-neural"] .font-mono,
+[data-theme-preset="night-city-neural"] [class*="code"],
+[data-theme-preset="night-city-neural"] [class*="mono"] {
   font-family: "Share Tech Mono", "JetBrains Mono", "Fira Code", monospace !important;
 }
 
-body {
-  background: var(--ncn-bg) !important;
-  color: var(--theme-text-primary) !important;
-  caret-color: var(--ncn-cyan) !important;
+[data-theme-preset="night-city-neural"] body {
+  caret-color: var(--ncn-cyan);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  SCANLINE OVERLAY — horizontal lines across the entire viewport
- * ═══════════════════════════════════════════════════════════════════════ */
-body::before {
+/* ═════════════════════════════════════════════════════════════════════════
+ *  SCANLINE OVERLAY — horizontal CRT lines across the entire viewport
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] body::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -99,10 +63,10 @@ body::before {
   100% { background-position: 0 200px; }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  SUBTLE SCREEN FLICKER — vignette + slight brightness oscillation
- * ═══════════════════════════════════════════════════════════════════════ */
-body::after {
+/* ═════════════════════════════════════════════════════════════════════════
+ *  SCREEN FLICKER — vignette + subtle brightness oscillation
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] body::after {
   content: "";
   position: fixed;
   inset: 0;
@@ -123,23 +87,22 @@ body::after {
   82% { opacity: 0.96; }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  GLITCH ANIMATION — triggered on message send
- *  Applies to chat message area; the animation uses clip-path +
- *  translate for a data-corruption look.
- * ═══════════════════════════════════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════════════════════════════
+ *  GLITCH ANIMATION — triggered on newest message arrival
+ *  Clip-path + translate for a data-corruption look.
+ * ═════════════════════════════════════════════════════════════════════════ */
 @keyframes ncn-glitch {
   0% {
     clip-path: inset(40% 0 61% 0);
-    transform: translate(-2px, 1px);
+    transform: translate(calc(-2px * var(--ncn-glitch-intensity)), calc(1px * var(--ncn-glitch-intensity)));
   }
   10% {
     clip-path: inset(92% 0 1% 0);
-    transform: translate(1px, -1px);
+    transform: translate(calc(1px * var(--ncn-glitch-intensity)), calc(-1px * var(--ncn-glitch-intensity)));
   }
   20% {
     clip-path: inset(10% 0 85% 0);
-    transform: translate(-1px, 2px);
+    transform: translate(calc(-1px * var(--ncn-glitch-intensity)), calc(2px * var(--ncn-glitch-intensity)));
   }
   30% {
     clip-path: inset(0);
@@ -153,24 +116,23 @@ body::after {
 
 @keyframes ncn-glitch-skew {
   0% { transform: skew(0deg); }
-  5% { transform: skew(-2deg); }
-  10% { transform: skew(1.5deg); }
-  15% { transform: skew(-0.5deg); }
+  5% { transform: skew(calc(-2deg * var(--ncn-glitch-intensity))); }
+  10% { transform: skew(calc(1.5deg * var(--ncn-glitch-intensity))); }
+  15% { transform: skew(calc(-0.5deg * var(--ncn-glitch-intensity))); }
   20% { transform: skew(0deg); }
   100% { transform: skew(0deg); }
 }
 
-/* Message that just appeared — apply glitch */
-[data-message]:last-child {
+/* Newest message gets the glitch entrance */
+[data-theme-preset="night-city-neural"] [data-message]:last-child {
   animation: ncn-glitch 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) 1,
              ncn-glitch-skew 0.4s ease-in-out 1;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  CORRUPTED TEXT EFFECT — data-corruption shimmer on hover
- *  Uses text-shadow stacking for a "misaligned RGB channels" look.
- * ═══════════════════════════════════════════════════════════════════════ */
-[data-message]:hover .message-content {
+/* ═════════════════════════════════════════════════════════════════════════
+ *  CORRUPTED TEXT — RGB-split on hover (misaligned color channels)
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] [data-message]:hover .message-content {
   text-shadow:
     0.5px 0 var(--ncn-cyan-muted),
     -0.5px 0 var(--ncn-magenta-muted);
@@ -178,7 +140,7 @@ body::after {
 }
 
 /* Stronger corruption on username hover */
-[data-message]:hover .message-author-name {
+[data-theme-preset="night-city-neural"] [data-message]:hover .message-author-name {
   text-shadow:
     1px 0 var(--ncn-cyan-dim),
     -1px 0 var(--ncn-magenta-dim),
@@ -187,198 +149,247 @@ body::after {
   transition: text-shadow 0.15s ease-out, letter-spacing 0.15s ease-out;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  NEON GLOW ACCENTS — buttons, links, and interactive elements
- * ═══════════════════════════════════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════════════════════════════
+ *  NEON GLOW — buttons, links, and interactive elements
+ * ═════════════════════════════════════════════════════════════════════════ */
 
-/* Primary buttons get a neon glow */
-button[class*="primary"],
-button[class*="Primary"],
-a[class*="primary"] {
-  box-shadow: 0 0 8px var(--ncn-cyan-muted), 0 0 16px var(--ncn-cyan-faint) !important;
-  border: 1px solid var(--ncn-cyan-muted) !important;
+/* Primary buttons — cyan neon glow */
+[data-theme-preset="night-city-neural"] button[class*="primary"],
+[data-theme-preset="night-city-neural"] button[class*="Primary"],
+[data-theme-preset="night-city-neural"] a[class*="primary"] {
+  box-shadow: 0 0 8px var(--ncn-cyan-muted), 0 0 16px var(--ncn-cyan-faint);
+  border: 1px solid var(--ncn-cyan-muted);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-button[class*="primary"]:hover,
-button[class*="Primary"]:hover,
-a[class*="primary"]:hover {
-  box-shadow: 0 0 12px var(--ncn-cyan-dim), 0 0 24px var(--ncn-cyan-muted) !important;
-  border-color: var(--ncn-cyan) !important;
+[data-theme-preset="night-city-neural"] button[class*="primary"]:hover,
+[data-theme-preset="night-city-neural"] button[class*="Primary"]:hover,
+[data-theme-preset="night-city-neural"] a[class*="primary"]:hover {
+  box-shadow: 0 0 12px var(--ncn-cyan-dim), 0 0 24px var(--ncn-cyan-muted);
+  border-color: var(--ncn-cyan);
 }
 
-/* Danger buttons glow magenta */
-button[class*="destructive"],
-button[class*="Destructive"],
-button[class*="danger"] {
-  box-shadow: 0 0 8px var(--ncn-magenta-muted), 0 0 16px var(--ncn-magenta-faint) !important;
-  border: 1px solid var(--ncn-magenta-muted) !important;
+/* Destructive buttons — magenta neon glow */
+[data-theme-preset="night-city-neural"] button[class*="destructive"],
+[data-theme-preset="night-city-neural"] button[class*="Destructive"],
+[data-theme-preset="night-city-neural"] button[class*="danger"] {
+  box-shadow: 0 0 8px var(--ncn-magenta-muted), 0 0 16px var(--ncn-magenta-faint);
+  border: 1px solid var(--ncn-magenta-muted);
 }
 
-button[class*="destructive"]:hover,
-button[class*="Destructive"]:hover,
-button[class*="danger"]:hover {
-  box-shadow: 0 0 12px var(--ncn-magenta-dim), 0 0 24px var(--ncn-magenta-muted) !important;
+[data-theme-preset="night-city-neural"] button[class*="destructive"]:hover,
+[data-theme-preset="night-city-neural"] button[class*="Destructive"]:hover,
+[data-theme-preset="night-city-neural"] button[class*="danger"]:hover {
+  box-shadow: 0 0 12px var(--ncn-magenta-dim), 0 0 24px var(--ncn-magenta-muted);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
+/* Links — cyan default, magenta on hover with glow */
+[data-theme-preset="night-city-neural"] a:not([class]) {
+  color: var(--ncn-cyan);
+  text-decoration-color: var(--ncn-cyan-muted);
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+
+[data-theme-preset="night-city-neural"] a:not([class]):hover {
+  color: var(--ncn-magenta);
+  text-shadow: 0 0 8px var(--ncn-magenta-muted);
+  text-decoration-color: var(--ncn-magenta-muted);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
  *  NETRUNNER UPLINK STATUS BARS
- *  Override presence indicators to look like horizontal signal bars
- *  with a pulsing neon glow.
- * ═══════════════════════════════════════════════════════════════════════ */
-.presence-indicator {
-  border-radius: 1px !important;
-  width: 12px !important;
-  height: 3px !important;
-  animation: ncn-uplink-pulse 2s ease-in-out infinite alternate;
-}
-
+ *  Horizontal signal bars with status-specific pulse rates:
+ *    online → 2s (steady), idle → 1.5s (moderate), dnd → 0.8s (urgent)
+ * ═════════════════════════════════════════════════════════════════════════ */
 @keyframes ncn-uplink-pulse {
   0% { filter: brightness(1); }
   100% { filter: brightness(1.3); }
 }
 
-.presence-indicator[data-status="online"] {
-  background: var(--theme-presence-online) !important;
+[data-theme-preset="night-city-neural"] .presence-indicator {
+  border-radius: 1px;
+  width: 12px;
+  height: 3px;
+  animation: ncn-uplink-pulse 2s ease-in-out infinite alternate;
+}
+
+[data-theme-preset="night-city-neural"] .presence-indicator[data-status="online"] {
+  background: var(--theme-presence-online);
   box-shadow: 0 0 4px var(--theme-presence-online),
               0 0 10px var(--theme-presence-online),
-              0 0 20px rgba(1, 255, 195, 0.15) !important;
+              0 0 20px rgba(1, 255, 195, 0.15);
 }
 
-.presence-indicator[data-status="idle"] {
-  background: var(--theme-presence-idle) !important;
+[data-theme-preset="night-city-neural"] .presence-indicator[data-status="idle"] {
+  background: var(--theme-presence-idle);
   box-shadow: 0 0 4px var(--theme-presence-idle),
               0 0 10px var(--theme-presence-idle),
-              0 0 20px rgba(252, 238, 9, 0.15) !important;
-  animation: ncn-uplink-pulse 1.5s ease-in-out infinite alternate;
+              0 0 20px rgba(252, 238, 9, 0.15);
+  animation-duration: 1.5s;
 }
 
-.presence-indicator[data-status="dnd"] {
-  background: var(--theme-presence-dnd) !important;
+[data-theme-preset="night-city-neural"] .presence-indicator[data-status="dnd"] {
+  background: var(--theme-presence-dnd);
   box-shadow: 0 0 4px var(--theme-presence-dnd),
               0 0 10px var(--theme-presence-dnd),
-              0 0 20px rgba(255, 42, 109, 0.15) !important;
-  animation: ncn-uplink-pulse 0.8s ease-in-out infinite alternate;
+              0 0 20px rgba(255, 42, 109, 0.15);
+  animation-duration: 0.8s;
 }
 
-.presence-indicator[data-status="offline"] {
-  background: var(--theme-presence-offline) !important;
-  box-shadow: none !important;
+[data-theme-preset="night-city-neural"] .presence-indicator[data-status="offline"] {
+  background: var(--theme-presence-offline);
+  box-shadow: none;
   animation: none;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  CHAT PANEL — neon accent borders on the main chat area
- * ═══════════════════════════════════════════════════════════════════════ */
-.chat-area {
+/* ═════════════════════════════════════════════════════════════════════════
+ *  CHAT PANEL — neon accent borders
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] .chat-area {
   border-left: 1px solid var(--ncn-cyan-faint);
   border-right: 1px solid var(--ncn-cyan-faint);
 }
 
-.chat-area .chat-area-header-surface {
-  border-bottom: 1px solid var(--ncn-cyan-faint) !important;
+[data-theme-preset="night-city-neural"] .chat-area .chat-area-header-surface {
+  border-bottom: 1px solid var(--ncn-cyan-faint);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--ncn-cyan) 4%, var(--theme-bg-primary)),
     var(--theme-bg-primary)
-  ) !important;
+  );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  SIDEBAR — subtle gradient border glow
- * ═══════════════════════════════════════════════════════════════════════ */
-nav {
-  border-right: 1px solid var(--ncn-cyan-faint) !important;
+/* ═════════════════════════════════════════════════════════════════════════
+ *  SIDEBAR — magenta hover, cyan active, neon border
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] nav {
+  border-right: 1px solid var(--ncn-cyan-faint);
 }
 
-/* Server list — magenta highlight on hover */
-nav .interactive-list-item:hover {
-  background: color-mix(in srgb, var(--ncn-magenta) 6%, var(--theme-bg-secondary)) !important;
+[data-theme-preset="night-city-neural"] nav .interactive-list-item:hover {
+  background: color-mix(in srgb, var(--ncn-magenta) 6%, var(--theme-bg-secondary));
 }
 
-nav .channel-active {
-  background: color-mix(in srgb, var(--ncn-cyan) 10%, var(--theme-bg-secondary)) !important;
-  box-shadow: inset 2px 0 0 var(--ncn-cyan) !important;
+[data-theme-preset="night-city-neural"] nav .channel-active {
+  background: color-mix(in srgb, var(--ncn-cyan) 10%, var(--theme-bg-secondary));
+  box-shadow: inset 2px 0 0 var(--ncn-cyan);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  INPUT FIELD — neon border glow on focus
- * ═══════════════════════════════════════════════════════════════════════ */
-input:focus-visible,
-textarea:focus-visible,
-[contenteditable="true"]:focus-visible {
-  outline: none !important;
+/* ═════════════════════════════════════════════════════════════════════════
+ *  INPUT FIELDS — neon focus ring
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] input:focus-visible,
+[data-theme-preset="night-city-neural"] textarea:focus-visible,
+[data-theme-preset="night-city-neural"] [contenteditable="true"]:focus-visible {
+  outline: none;
   box-shadow: 0 0 0 1px var(--ncn-cyan),
               0 0 12px var(--ncn-cyan-muted),
-              0 0 24px var(--ncn-cyan-faint) !important;
+              0 0 24px var(--ncn-cyan-faint);
 }
 
-/* Message input box */
-[class*="message-input"],
-[class*="messageInput"],
-[class*="chat-input"] {
-  border: 1px solid var(--ncn-cyan-faint) !important;
+/* Message input container — neon border on focus */
+[data-theme-preset="night-city-neural"] .message-input-container {
+  border: 1px solid var(--ncn-cyan-faint);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-[class*="message-input"]:focus-within,
-[class*="messageInput"]:focus-within,
-[class*="chat-input"]:focus-within {
-  border-color: var(--ncn-cyan-muted) !important;
-  box-shadow: 0 0 16px var(--ncn-cyan-faint) !important;
+[data-theme-preset="night-city-neural"] .message-input-container:focus-within {
+  border-color: var(--ncn-cyan-muted);
+  box-shadow: 0 0 16px var(--ncn-cyan-faint);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  SCROLLBAR — neon gradient thumb
- * ═══════════════════════════════════════════════════════════════════════ */
-::-webkit-scrollbar {
+/* ═════════════════════════════════════════════════════════════════════════
+ *  SCROLLBAR — cyan-to-magenta neon gradient
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-::-webkit-scrollbar-track {
+[data-theme-preset="night-city-neural"] ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    var(--ncn-cyan-muted),
-    var(--ncn-magenta-muted)
-  );
+[data-theme-preset="night-city-neural"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--ncn-cyan-muted), var(--ncn-magenta-muted));
   border-radius: 2px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(
-    180deg,
-    var(--ncn-cyan-dim),
-    var(--ncn-magenta-dim)
-  );
+[data-theme-preset="night-city-neural"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--ncn-cyan-dim), var(--ncn-magenta-dim));
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
+/* ═════════════════════════════════════════════════════════════════════════
  *  CODE BLOCKS — matrix-style with neon border
- * ═══════════════════════════════════════════════════════════════════════ */
-.message-content :is(code, pre) {
-  background: rgba(0, 230, 255, 0.04) !important;
-  border: 1px solid var(--ncn-cyan-faint) !important;
-  font-family: "Share Tech Mono", "JetBrains Mono", monospace !important;
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] .message-content :is(code, pre) {
+  background: rgba(0, 230, 255, 0.04);
+  border: 1px solid var(--ncn-cyan-faint);
 }
 
-.message-content code {
-  color: var(--ncn-cyan) !important;
+[data-theme-preset="night-city-neural"] .message-content code {
+  color: var(--ncn-cyan);
 }
 
-pre code {
-  color: var(--theme-text-normal) !important;
+[data-theme-preset="night-city-neural"] pre code {
+  color: var(--theme-text-normal);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
+/* ═════════════════════════════════════════════════════════════════════════
+ *  TOOLTIPS & POPOVERS — dark glass with neon border
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] [role="tooltip"],
+[data-theme-preset="night-city-neural"] [data-radix-popper-content-wrapper] > * {
+  background: var(--ncn-bg-panel);
+  border: 1px solid var(--ncn-cyan-faint);
+  box-shadow: 0 0 16px var(--ncn-cyan-faint);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ *  DIALOGS — magenta top accent + neon border
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] [role="dialog"] {
+  border: 1px solid var(--ncn-cyan-faint);
+  box-shadow:
+    0 0 32px var(--ncn-cyan-ghost),
+    0 0 64px rgba(255, 42, 109, 0.04),
+    inset 0 1px 0 var(--ncn-magenta-faint);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ *  SELECTION — magenta-tinted highlight
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] ::selection {
+  background: var(--ncn-magenta-muted);
+  color: var(--theme-text-bright);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ *  SERVER ICON — dual-tone neon halo on active
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] .server-sidebar-icon-active {
+  box-shadow:
+    0 0 12px var(--ncn-cyan-muted),
+    0 0 28px var(--ncn-magenta-faint);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ *  HEADINGS — neon text glow (cyan with magenta fringe)
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] h1,
+[data-theme-preset="night-city-neural"] h2,
+[data-theme-preset="night-city-neural"] .channel-sidebar-title {
+  text-shadow:
+    0 0 8px var(--ncn-cyan-muted),
+    0 0 20px var(--ncn-cyan-faint),
+    0 0 40px rgba(255, 42, 109, 0.06);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
  *  ARASAKA CORP WATERMARK — optional background branding
- *  Toggle with --ncn-watermark-display: block / none
- * ═══════════════════════════════════════════════════════════════════════ */
-.chat-area::after {
+ *  Toggle: --ncn-watermark-display: block / none
+ * ═════════════════════════════════════════════════════════════════════════ */
+[data-theme-preset="night-city-neural"] .chat-area::after {
   content: "ARASAKA";
   display: var(--ncn-watermark-display);
   position: fixed;
@@ -398,58 +409,42 @@ pre code {
   user-select: none;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  SELECTION — neon-tinted highlight
- * ═══════════════════════════════════════════════════════════════════════ */
-::selection {
-  background: var(--ncn-cyan-muted) !important;
-  color: var(--theme-text-bright) !important;
+/* ═════════════════════════════════════════════════════════════════════════
+ *  VOICE CONNECTED — neon pulse
+ * ═════════════════════════════════════════════════════════════════════════ */
+@keyframes ncn-voice-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
- *  LINKS — magenta with neon underline
- * ═══════════════════════════════════════════════════════════════════════ */
-a:not([class]) {
-  color: var(--ncn-cyan) !important;
-  text-decoration-color: var(--ncn-cyan-muted) !important;
-  transition: color 0.15s ease, text-shadow 0.15s ease;
+[data-theme-preset="night-city-neural"] .voice-connected-indicator {
+  animation: ncn-voice-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--theme-presence-online), 0 0 16px rgba(1, 255, 195, 0.3);
 }
 
-a:not([class]):hover {
-  color: var(--ncn-magenta) !important;
-  text-shadow: 0 0 8px var(--ncn-magenta-muted);
-  text-decoration-color: var(--ncn-magenta-muted) !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
- *  TOOLTIPS & POPOVERS — dark glass with neon border
- * ═══════════════════════════════════════════════════════════════════════ */
-[role="tooltip"],
-[data-radix-popper-content-wrapper] > * {
-  background: var(--ncn-bg-panel) !important;
-  border: 1px solid var(--ncn-cyan-faint) !important;
-  box-shadow: 0 0 16px var(--ncn-cyan-faint) !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
- *  RESPECT REDUCED MOTION — disable all animations
- * ═══════════════════════════════════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════════════════════════════
+ *  RESPECT REDUCED MOTION — disable all effects
+ * ═════════════════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
-  body::before,
-  body::after {
+  [data-theme-preset="night-city-neural"] body::before,
+  [data-theme-preset="night-city-neural"] body::after {
     animation: none !important;
   }
 
-  [data-message]:last-child {
+  [data-theme-preset="night-city-neural"] [data-message]:last-child {
     animation: none !important;
   }
 
-  .presence-indicator {
+  [data-theme-preset="night-city-neural"] .presence-indicator {
     animation: none !important;
   }
 
-  [data-message]:hover .message-content,
-  [data-message]:hover .message-author-name {
+  [data-theme-preset="night-city-neural"] .voice-connected-indicator {
+    animation: none !important;
+  }
+
+  [data-theme-preset="night-city-neural"] [data-message]:hover .message-content,
+  [data-theme-preset="night-city-neural"] [data-message]:hover .message-author-name {
     text-shadow: none !important;
     letter-spacing: inherit !important;
     transition: none !important;
