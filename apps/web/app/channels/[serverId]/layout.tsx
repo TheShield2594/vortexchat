@@ -85,18 +85,20 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
         server_id, user_id, nickname,
         user:users!server_members_user_id_fkey(
           id, username, display_name, avatar_url, status_message,
-          bio, banner_color, custom_tag, game_activity, created_at
+          bio, banner_color, custom_tag, created_at
         ),
         roles:member_roles(role_id, roles(id, server_id, name, color, permissions, position, created_at))
       `)
       .eq("server_id", params.serverId)
       .order("nickname", { ascending: true, nullsFirst: false })
       .order("user_id", { ascending: true })
-    // Normalize: add last_online_at: null so downstream MemberData type is satisfied
+    // Normalize: add missing fields so downstream MemberData type is satisfied
     if (compat.data) {
       for (const member of compat.data) {
-        if (member.user && !("last_online_at" in member.user)) {
-          (member.user as Record<string, unknown>).last_online_at = null
+        const u = member.user as Record<string, unknown> | null
+        if (u) {
+          if (!("last_online_at" in u)) u.last_online_at = null
+          if (!("game_activity" in u)) u.game_activity = null
         }
       }
     }
