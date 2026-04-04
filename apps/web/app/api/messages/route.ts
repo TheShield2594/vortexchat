@@ -850,7 +850,7 @@ export async function POST(request: Request) {
     channelId,
     serverId: channel.server_id,
     actorId: user.id,
-    data: { messageId: message.id },
+    data: { messageId: message.id, replyToId: replyToId ?? null },
   }, { route: "/api/messages" }).catch(() => {})
 
   // Skip the extra DB query when there's no reply to hydrate

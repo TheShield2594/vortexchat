@@ -1168,7 +1168,11 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
             }}
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
-            aria-label={replyTo ? `Reply in #${channelName}` : `Message #${channelName}`}
+            aria-label={
+              variant === "dm"
+                ? (replyTo ? `Reply to ${channelName}` : `Message ${channelName}`)
+                : (replyTo ? `Reply in #${channelName}` : `Message #${channelName}`)
+            }
             placeholder={replyTo
               ? (isMobile ? `Reply in #${channelName}` : `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`)
               : (isMobile ? `Message #${channelName}` : `Message #${channelName} — @ mention, : emoji, / command`)

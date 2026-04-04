@@ -45,7 +45,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Invalid transcriptionMode" }, { status: 400 })
     }
 
-    const VOICE_SESSION_SELECT = "id, started_by, scope_id, scope_type, transcription_mode, summary_status, created_at, ended_at"
+    const VOICE_SESSION_SELECT = "id, started_by, scope_id, scope_type, transcription_mode, summary_status, started_at, created_at, ended_at"
 
     // Idempotency: return an existing active session for this user + scope
     const { data: existing, error: existingError } = await supabase

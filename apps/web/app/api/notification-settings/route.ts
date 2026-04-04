@@ -24,11 +24,15 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Failed to fetch notification settings" }, { status: 500 })
       }
 
-      const { data: thread } = await supabase
+      const { data: thread, error: threadError } = await supabase
         .from("threads")
         .select("parent_channel_id, channels(server_id)")
         .eq("id", threadId)
         .maybeSingle()
+
+      if (threadError) {
+        return NextResponse.json({ error: "Failed to resolve thread notification context" }, { status: 500 })
+      }
 
       const derivedChannelId: string | null = thread?.parent_channel_id ?? null
       const derivedServerId: string | null = (thread?.channels as { server_id?: string | null } | null)?.server_id ?? null
