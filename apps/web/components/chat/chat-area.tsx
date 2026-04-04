@@ -105,6 +105,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
   const [reconnectGap, setReconnectGap] = useState(false)
   const [voiceRecaps, setVoiceRecaps] = useState<Array<{ sessionId: string; channelName: string; durationSeconds: number }>>([])
+  const voiceRecapSubIdRef = useRef(0)
   const [viewportWidth, setViewportWidth] = useState(1280)
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [focusedActionIndex, setFocusedActionIndex] = useState(0)
@@ -1129,8 +1130,9 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   // ── Voice Recap — listen for ended voice sessions in this channel ──
   useEffect(() => {
     setVoiceRecaps([])
+    const subId = ++voiceRecapSubIdRef.current
     const recapChannel = supabase
-      .channel(`voice-recap:${channel.id}`)
+      .channel(`voice-recap:${channel.id}:${subId}`)
       .on(
         "postgres_changes" as "system",
         {

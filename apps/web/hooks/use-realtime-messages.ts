@@ -20,15 +20,17 @@ export function useRealtimeMessages(
 ) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const wasConnectedRef = useRef(false)
+  const subIdRef = useRef(0)
 
   useEffect(() => {
     wasConnectedRef.current = false
     // Effect-local flag — avoids the race condition of a shared ref when
     // channelId changes rapidly (each effect instance has its own copy).
     let isCleaningUp = false
+    const subId = ++subIdRef.current
 
     const channel = supabase
-      .channel(`messages:${channelId}`)
+      .channel(`messages:${channelId}:${subId}`)
       .on(
         "postgres_changes",
         {

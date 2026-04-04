@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Pin, PinOff, X, Loader2, ExternalLink } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
 import { format } from "date-fns"
@@ -31,6 +31,7 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [permissionDenied, setPermissionDenied] = useState(false)
+  const subIdRef = useRef(0)
 
   const upsertPinnedMessage = useCallback((incoming: PinnedMessage) => {
     setMessages((prev) => {
@@ -89,8 +90,9 @@ export function PinnedMessagesPanel({ channelId, channelName, canManageMessages 
   }, [loadPinnedMessages])
 
   useEffect(() => {
+    const subId = ++subIdRef.current
     const realtimeChannel = supabase
-      .channel(`pinned-messages:${channelId}`)
+      .channel(`pinned-messages:${channelId}:${subId}`)
       .on("postgres_changes", {
         event: "UPDATE",
         schema: "public",

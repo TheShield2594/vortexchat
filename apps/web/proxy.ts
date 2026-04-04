@@ -26,15 +26,10 @@ function buildCsp(): { nonce: string; header: string } {
   const sentryHost = safeHost(sentryDsn)         // e.g. "oXXXXXX.ingest.sentry.io"
   const signalHost = safeHost(signalUrl)         // e.g. "vortex-signal.up.railway.app"
 
-  // img-src: Supabase storage, Klipy CDN, Giphy media, Twemoji
+  // img-src: allow any HTTPS image (link previews can reference arbitrary hosts)
   const imgSrc = [
-    "'self' blob: data:",
-    supabaseHost ? `https://${supabaseHost}` : "",
-    "https://*.supabase.co https://*.supabase.in",
-    "https://klipy.com https://cdn.klipy.co https://*.klipy.com",
-    "https://*.giphy.com https://media.giphy.com",
-    "https://cdn.jsdelivr.net",
-  ].filter(Boolean).join(" ")
+    "'self' blob: data: https:",
+  ].join(" ")
 
   // connect-src: Supabase (REST + Realtime WS), LiveKit, Klipy, Giphy, Sentry
   const connectSrc = [
@@ -42,7 +37,7 @@ function buildCsp(): { nonce: string; header: string } {
     supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : "",
     "https://*.supabase.co wss://*.supabase.co",
     livekitHost ? `wss://${livekitHost}` : "",
-    "https://api.klipy.co https://api.klipy.com https://api.giphy.com",
+    "https://api.klipy.co https://api.klipy.com https://api.giphy.com https://cdn.jsdelivr.net",
     sentryHost ? `https://${sentryHost}` : "",
     signalHost ? `https://${signalHost} wss://${signalHost}` : "",
     "ws: wss:", // TODO: tighten once signal server is deployed

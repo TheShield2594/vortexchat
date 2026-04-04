@@ -85,6 +85,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
   const [memberFetchKey, setMemberFetchKey] = useState(0)
   const [serverRoles, setServerRoles] = useState<RoleRow[]>([])
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const presenceSubIdRef = useRef(0)
   const memberFetchControllerRef = useRef<AbortController | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
@@ -198,7 +199,8 @@ export function MemberList({ serverId, initialMembers }: Props) {
 
   // Presence subscription (always runs regardless of SSR data)
   useEffect(() => {
-    const channel = supabase.channel(`presence:${serverId}`)
+    const subId = ++presenceSubIdRef.current
+    const channel = supabase.channel(`presence:${serverId}:${subId}`)
     channelRef.current = channel
     channel
       .on("presence", { event: "sync" }, () => {

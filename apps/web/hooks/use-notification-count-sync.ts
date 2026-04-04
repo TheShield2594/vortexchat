@@ -12,6 +12,7 @@ import { useAppStore } from "@/lib/stores/app-store"
 export function useNotificationCountSync(userId: string | null): void {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const seededRef = useRef(false)
+  const subIdRef = useRef(0)
 
   useEffect(() => {
     if (!userId) return
@@ -39,8 +40,9 @@ export function useNotificationCountSync(userId: string | null): void {
     void fetchCount()
 
     // Realtime subscription to keep count in sync
+    const subId = ++subIdRef.current
     const ch = supabase
-      .channel(`notif-count-sync:${userId}`)
+      .channel(`notif-count-sync:${userId}:${subId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },

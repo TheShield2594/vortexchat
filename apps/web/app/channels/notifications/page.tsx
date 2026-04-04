@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Check, CheckCheck, Hash, AtSign, UserPlus, X } from "lucide-react"
 import { createClientSupabaseClient } from "@/lib/supabase/client"
@@ -53,6 +53,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>("all")
+  const subIdRef = useRef(0)
 
   // Local unread count for UI within this page (may be truncated to 50 rows)
   const localUnreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
@@ -93,8 +94,9 @@ export default function NotificationsPage() {
   // Real-time subscription
   useEffect(() => {
     if (!currentUser) return
+    const subId = ++subIdRef.current
     const ch = supabase
-      .channel(`notifications-page:${currentUser.id}`)
+      .channel(`notifications-page:${currentUser.id}:${subId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${currentUser.id}` },

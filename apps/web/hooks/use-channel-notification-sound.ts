@@ -21,12 +21,14 @@ export function useChannelNotificationSound(userId: string | null): void {
   const { playNotification } = useNotificationSound()
   const playRef = useRef(playNotification)
   playRef.current = playNotification
+  const subIdRef = useRef(0)
 
   useEffect(() => {
     if (!userId) return
 
+    const subId = ++subIdRef.current
     const ch = supabase
-      .channel(`channel-notif-sound:${userId}`)
+      .channel(`channel-notif-sound:${userId}:${subId}`)
       .on(
         "postgres_changes",
         {

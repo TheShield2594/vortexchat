@@ -67,6 +67,7 @@ function computeAggregated(
 export function usePresenceSync(userId: string | null, status?: UserStatus): void {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const presenceSubIdRef = useRef(0)
 
   // Current status for THIS tab
   const tabStatusRef = useRef<UserStatus>(resolveInitialStatus(status))
@@ -299,7 +300,8 @@ export function usePresenceSync(userId: string | null, status?: UserStatus): voi
     }
 
     // ── Supabase Realtime presence channel ─────────────────────────────────
-    const channel = supabase.channel("presence:global", {
+    const presSubId = ++presenceSubIdRef.current
+    const channel = supabase.channel(`presence:global:${presSubId}`, {
       config: { presence: { key: userId } },
     })
     channelRef.current = channel

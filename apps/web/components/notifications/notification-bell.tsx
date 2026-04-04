@@ -53,6 +53,7 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
   const { playNotification } = useNotificationSound()
   const { prefs } = useNotificationPreferences(userId)
   const soundEnabledRef = useRef(prefs.sound_enabled)
+  const subIdRef = useRef(0)
   soundEnabledRef.current = prefs.sound_enabled
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -97,8 +98,9 @@ export function NotificationBell({ userId, variant = "icon" }: Props) {
 
   // Real-time: listen for new notifications
   useEffect(() => {
+    const subId = ++subIdRef.current
     const ch = supabase
-      .channel(`notifications:${userId}`)
+      .channel(`notifications:${userId}:${subId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
