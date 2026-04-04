@@ -188,10 +188,19 @@ function TimestampDisplay({ epoch, format }: { epoch: number; format: string }) 
     if (format !== "R") return
     function updateRelative() {
       const diff = Math.floor((Date.now() - date.getTime()) / 1000)
-      if (diff < 60) setRelative("just now")
-      else if (diff < 3600) setRelative(`${Math.floor(diff / 60)} minutes ago`)
-      else if (diff < 86400) setRelative(`${Math.floor(diff / 3600)} hours ago`)
-      else setRelative(`${Math.floor(diff / 86400)} days ago`)
+      const absDiff = Math.abs(diff)
+      const isFuture = diff < 0
+      if (absDiff < 60) setRelative(isFuture ? "in a few seconds" : "just now")
+      else if (absDiff < 3600) {
+        const mins = Math.floor(absDiff / 60)
+        setRelative(isFuture ? `in ${mins} minute${mins === 1 ? "" : "s"}` : `${mins} minute${mins === 1 ? "" : "s"} ago`)
+      } else if (absDiff < 86400) {
+        const hrs = Math.floor(absDiff / 3600)
+        setRelative(isFuture ? `in ${hrs} hour${hrs === 1 ? "" : "s"}` : `${hrs} hour${hrs === 1 ? "" : "s"} ago`)
+      } else {
+        const days = Math.floor(absDiff / 86400)
+        setRelative(isFuture ? `in ${days} day${days === 1 ? "" : "s"}` : `${days} day${days === 1 ? "" : "s"} ago`)
+      }
     }
     updateRelative()
     const id = setInterval(updateRelative, 60_000)

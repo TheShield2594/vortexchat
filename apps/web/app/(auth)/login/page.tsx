@@ -564,7 +564,7 @@ export default function LoginPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
                   style={{ color: "var(--theme-text-secondary)" }}
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  tabIndex={-1}
+                  tabIndex={0}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>

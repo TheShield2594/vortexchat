@@ -517,8 +517,11 @@ export const MessageItem = memo(function MessageItem({
         <div
           ref={containerRef}
           id={containerId}
+          tabIndex={0}
+          role="article"
+          aria-label={`Message from ${message.author?.display_name ?? message.author?.username ?? "unknown"}`}
           className={cn(
-            "relative group px-4 message-hover motion-interactive message-group-spacer",
+            "relative group px-4 message-hover motion-interactive message-group-spacer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--theme-accent)]",
             highlighted && "mention-highlight",
             animateOnMount && "message-arrival",
             isGrouped ? "py-0.5" : "pt-2.5 pb-0.5",

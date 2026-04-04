@@ -884,7 +884,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
         <div className={cn("px-3 py-2", files.length > 0 ? "rounded-none" : "rounded-t")} style={{ background: "var(--theme-bg-secondary)", borderBottom: "1px solid var(--theme-bg-tertiary)" }}>
           {uploadProgress !== null && (
             <div>
-              <div className="h-1.5 rounded" style={{ background: "var(--theme-bg-tertiary)" }}>
+              <div className="h-1.5 rounded" style={{ background: "var(--theme-bg-tertiary)" }} role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(uploadProgress)}>
                 <div className="h-1.5 rounded upload-progress-bar" style={{ width: `${uploadProgress}%`, background: "var(--theme-accent)" }} />
               </div>
               <div className="flex items-center justify-between mt-1">
@@ -1033,11 +1033,14 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
             {showPlusMenu && (
               <div
                 ref={plusMenuRef}
+                role="menu"
+                aria-label="More options"
                 className="absolute bottom-full mb-2 left-0 z-50 rounded-lg shadow-xl overflow-hidden"
                 style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)", minWidth: "200px" }}
               >
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => { setShowPlusMenu(false); fileRef.current?.click() }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
                   style={{ color: "var(--theme-text-primary)" }}
@@ -1047,6 +1050,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
                 </button>
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => {
                     setShowPlusMenu(false)
                     poll.openPollCreator()
@@ -1060,6 +1064,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
                 {onCreateThread && (
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => { setShowPlusMenu(false); onCreateThread() }}
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left surface-hover motion-interactive"
                     style={{ color: "var(--theme-text-primary)" }}

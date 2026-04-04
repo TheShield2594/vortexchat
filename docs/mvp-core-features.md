@@ -192,6 +192,9 @@
 |---------|--------|-------|
 | Screen reader live announcements for new messages | Done | `aria-live="polite"` region announces all incoming messages with author + preview; `role="log"` with `aria-relevant="additions"` on message container |
 | Auto-detect `prefers-contrast: more` (#579) | Done | CSS `@media (prefers-contrast: more)` in `globals.css` + JS `matchMedia` detection in `use-apply-appearance.ts`; manual toggle overrides system preference |
+| Color contrast WCAG AA compliance (#712) | Done | Bumped `--theme-text-muted` to `#a2aed0` and `--theme-text-faint` to `#a0abcb` in `globals.css`; all text tokens now meet 4.5:1 ratio against primary/secondary backgrounds |
+| Missing landmarks, headings, and ARIA roles (#713) | Done | Auth layout `<div>` → `<main>`; channel name `<span>` → `<h1>`; DM message list `aria-live="polite"` + `role="log"`; plus menu `role="menu"` / `role="menuitem"`; day separator `role="separator"` + `aria-label`; progress bar `role="progressbar"` with `aria-value*`; password toggle `tabIndex={0}` |
+| Message action buttons keyboard accessible (#714) | Done | Message container gets `tabIndex={0}` + `role="article"` + `aria-label`; existing `onFocus`/`onBlur` handlers now trigger action bar visibility for keyboard users; `focus-visible` ring styling |
 
 ## App Store / Bot Apps
 
@@ -382,7 +385,9 @@
 | Shared package tests in CI (#716) | Done | Added `npm test --workspace=packages/shared` to CI test job; removed `continue-on-error` from E2E job |
 | Signal server Dockerfile multi-stage build (#715) | Done | Replaced manual `COPY packages/shared → node_modules` with proper npm workspace resolution; added `build` script + `tsconfig.build.json` to `@vortex/shared`; multi-stage Docker build |
 | DMChannelArea shared utilities (#719) | Done | Extracted `formatDaySeparator`, `extractGifUrl`, `groupReactionsByEmoji` to `lib/utils/message-helpers.ts`; shared `DaySeparator` component used by both `ChatArea` and `DMChannelArea` |
+| Tune Socket.IO ping/pong for faster disconnect detection (#669) | Done | `pingInterval` 25s→10s, `pingTimeout` 60s→20s in signal server; disconnect detection reduced from ~85s to ~30s |
+| Giveaway relative timestamp handles future dates (#680) | Done | `TimestampDisplay` `:R` format now renders "in X hours/minutes/days" for future timestamps; proper singular/plural |
 
 ---
 
-*Last updated: 2026-04-03 (sprint 4)*
+*Last updated: 2026-04-04 (sprint 4)*
