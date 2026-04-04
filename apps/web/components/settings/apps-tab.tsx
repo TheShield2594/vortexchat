@@ -10,6 +10,8 @@ import { GiveawayAppConfig } from "@/components/settings/giveaway-app-config"
 import { StandupAppConfig } from "@/components/settings/standup-app-config"
 import { IncidentAppConfig } from "@/components/settings/incident-app-config"
 import { ReminderAppConfig } from "@/components/settings/reminder-app-config"
+import { RssFeedAppConfig } from "@/components/settings/rss-feed-app-config"
+import { BibleAppConfig } from "@/components/settings/bible-app-config"
 import { TRUST_BADGE_INFO } from "@vortex/shared"
 import type { TrustBadgeType } from "@vortex/shared"
 import {
@@ -273,7 +275,7 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
             <div className="space-y-2">
               {installed.map((entry) => {
                 const slug = entry.app_catalog?.slug
-                const hasConfig = slug === "welcome-guide" || slug === "giveaway-bot" || slug === "standup-assistant" || slug === "incident-bot" || slug === "reminder-bot"
+                const hasConfig = slug === "welcome-guide" || slug === "giveaway-bot" || slug === "standup-assistant" || slug === "incident-bot" || slug === "reminder-bot" || slug === "rss-feed-bot" || slug === "bible-bot"
                 const isExpanded = expandedAppSlug === slug
                 const appName = entry.app_catalog?.name ?? entry.app_id
                 return (
@@ -335,6 +337,8 @@ export function AppsTab({ serverId, canManageApps }: AppsTabProps) {
                         {slug === "standup-assistant" && <StandupAppConfig serverId={serverId} />}
                         {slug === "incident-bot" && <IncidentAppConfig serverId={serverId} />}
                         {slug === "reminder-bot" && <ReminderAppConfig serverId={serverId} />}
+                        {slug === "rss-feed-bot" && <RssFeedAppConfig serverId={serverId} />}
+                        {slug === "bible-bot" && <BibleAppConfig serverId={serverId} />}
                       </div>
                     )}
                   </div>
