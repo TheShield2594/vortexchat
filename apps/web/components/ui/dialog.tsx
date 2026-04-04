@@ -134,10 +134,10 @@ const DialogContent = React.forwardRef<
         <SheetDragHandle contentRef={internalRef} />
         {children}
         <DialogPrimitive.Close
-          className="absolute right-4 top-4 rounded-sm surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          className="absolute right-2 top-2 sm:right-4 sm:top-4 rounded-md min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 hover:bg-white/10 active:bg-white/15 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
           aria-label="Close dialog"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5 sm:h-4 sm:w-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPortal>

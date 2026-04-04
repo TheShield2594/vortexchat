@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
-import { Loader2, Upload, LogOut, Lock, Hash, Plus, GripVertical, Globe, Users, Trash2 } from "lucide-react"
+import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { Loader2, Upload, LogOut, Lock, Hash, Plus, GripVertical, Globe, Users, Trash2, X } from "lucide-react"
 import {
   DndContext,
   PointerSensor,
@@ -125,6 +126,7 @@ function SortablePinItem({ pin, onRemove }: { pin: UserPinnedItemRow; onRemove: 
 export function ProfileSettingsModal({ open, onClose, user }: Props) {
   const router = useRouter()
   const { toast } = useToast()
+  const isMobile = useMobileLayout()
   const { setCurrentUser } = useAppStore(
     useShallow((s) => ({ setCurrentUser: s.setCurrentUser }))
   )
@@ -504,34 +506,77 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-2xl max-h-[90vh] overflow-hidden p-0"
-        style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)" }}
+        className={`overflow-hidden p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none rounded-none border-0 [&>button[aria-label="Close\\ dialog"]]:hidden' : 'max-w-2xl max-h-[90vh]'}`}
+        style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)", paddingTop: isMobile ? "env(safe-area-inset-top)" : undefined }}
       >
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "profile" | "security" | "connections" | "appearance")} orientation="vertical" className="flex h-[80vh]">
-          {/* Settings nav */}
-          <div className="w-52 flex-shrink-0 p-4 flex flex-col" style={{ background: "var(--theme-bg-secondary)" }}>
-            <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>
+        {/* Mobile header with close button */}
+        {isMobile && (
+          <div
+            className="flex items-center gap-2 px-3 py-2 border-b flex-shrink-0"
+            style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)" }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
+              style={{ color: "var(--theme-text-secondary)" }}
+              aria-label="Close settings"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>
               User Settings
-            </h3>
-
-            <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
-              <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
-                My Account
-              </TabsTrigger>
-              <TabsTrigger value="security" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
-                Security
-              </TabsTrigger>
-              <TabsTrigger value="connections" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
-                Connections
-              </TabsTrigger>
-              <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
-                Appearance
-              </TabsTrigger>
-            </TabsList>
+            </span>
           </div>
+        )}
+
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "profile" | "security" | "connections" | "appearance")} orientation={isMobile ? "horizontal" : "vertical"} className={`flex ${isMobile ? 'flex-col flex-1 min-h-0' : 'flex-row h-[80vh]'}`}>
+          {/* Desktop: vertical sidebar nav */}
+          {!isMobile && (
+            <div className="w-52 flex-shrink-0 p-4 flex flex-col" style={{ background: "var(--theme-bg-secondary)" }}>
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--theme-text-muted)" }}>
+                User Settings
+              </h3>
+
+              <TabsList className="flex flex-col h-auto bg-transparent gap-0.5 w-full">
+                <TabsTrigger value="profile" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                  My Account
+                </TabsTrigger>
+                <TabsTrigger value="security" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                  Security
+                </TabsTrigger>
+                <TabsTrigger value="connections" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                  Connections
+                </TabsTrigger>
+                <TabsTrigger value="appearance" className="w-full justify-start text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                  Appearance
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          )}
+
+          {/* Mobile: horizontal scrollable tabs */}
+          {isMobile && (
+            <div className="flex-shrink-0 border-b" style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-bg-tertiary)" }}>
+              <TabsList className="flex h-auto bg-transparent gap-1 px-3 py-2 overflow-x-auto w-full justify-start">
+                <TabsTrigger value="profile" className="flex-shrink-0 text-sm px-3 py-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                  Account
+                </TabsTrigger>
+                <TabsTrigger value="security" className="flex-shrink-0 text-sm px-3 py-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                  Security
+                </TabsTrigger>
+                <TabsTrigger value="connections" className="flex-shrink-0 text-sm px-3 py-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                  Connections
+                </TabsTrigger>
+                <TabsTrigger value="appearance" className="flex-shrink-0 text-sm px-3 py-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded" style={{ color: "var(--theme-text-secondary)" }}>
+                  Appearance
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          )}
 
           {/* Main content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className={`flex-1 overflow-y-auto ${isMobile ? 'p-4' : 'p-6'}`}>
                 <DialogHeader className="mb-6 space-y-1">
                   <DialogTitle className="text-2xl font-semibold leading-tight text-white">{tabMeta[activeTab].title}</DialogTitle>
                   <DialogDescription className="sr-only">Edit your profile settings</DialogDescription>

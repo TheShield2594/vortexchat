@@ -221,12 +221,34 @@ export function ServerSettingsModal({ open, onClose, server, isOwner, canManageA
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className={`p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none' : 'h-[100dvh] w-screen max-w-none max-h-none sm:max-w-none sm:rounded-none rounded-none border-0'}`}
-        style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)' }}
+        className={`p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none rounded-none border-0 [&>button[aria-label="Close\\ dialog"]]:hidden' : 'h-[100dvh] w-screen max-w-none max-h-none sm:max-w-none sm:rounded-none rounded-none border-0'}`}
+        style={{ background: 'var(--theme-bg-primary)', borderColor: 'var(--theme-bg-tertiary)', paddingTop: isMobile ? 'env(safe-area-inset-top)' : undefined }}
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">{liveServer.name} — Server Settings</DialogTitle>
-        <Tabs defaultValue="overview" orientation="vertical" className={`flex ${isMobile ? 'flex-col h-full' : 'flex-row h-full'}`}>
+
+        {/* Mobile header with close button */}
+        {isMobile && (
+          <div
+            className="flex items-center gap-2 px-3 py-2 border-b flex-shrink-0"
+            style={{ background: 'var(--theme-bg-secondary)', borderColor: 'var(--theme-bg-tertiary)' }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-10 h-10 flex items-center justify-center rounded-md transition-colors hover:bg-white/10 active:bg-white/15"
+              style={{ color: 'var(--theme-text-secondary)' }}
+              aria-label="Close server settings"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-semibold truncate" style={{ color: 'var(--theme-text-primary)' }}>
+              {liveServer.name} — Settings
+            </span>
+          </div>
+        )}
+
+        <Tabs defaultValue="overview" orientation="vertical" className={`flex ${isMobile ? 'flex-col flex-1 min-h-0' : 'flex-row h-full'}`}>
           {/* Settings sidebar */}
           <div className={`flex-shrink-0 flex flex-col overflow-hidden ${isMobile ? 'hidden' : 'w-60'}`} style={{ background: 'var(--theme-bg-secondary)' }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider px-4 pt-4 pb-2 flex-shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
