@@ -45,7 +45,6 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const incomingCallRef = useRef<IncomingCall | null>(null)
-  const subIdRef = useRef(0)
   // Keep ref in sync so broadcast handlers always see latest value
   incomingCallRef.current = incomingCall
 
@@ -53,9 +52,8 @@ export const IncomingCallUI = memo(function IncomingCallUI() {
   useEffect(() => {
     if (!currentUser) return
 
-    const subId = ++subIdRef.current
     const supabase = supabaseRef.current
-    const channel = supabase.channel(`dm-incoming-call:${currentUser.id}:${subId}`)
+    const channel = supabase.channel(`dm-incoming-call:${currentUser.id}`)
     channelRef.current = channel
 
     channel.on("broadcast", { event: "incoming-call" }, ({ payload }) => {

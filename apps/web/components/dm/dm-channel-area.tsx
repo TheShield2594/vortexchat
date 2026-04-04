@@ -1909,7 +1909,6 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
   const localStreamRef = useRef<MediaStream | null>(null)
   const sigChannelRef = useRef<ReturnType<ReturnType<typeof createClientSupabaseClient>["channel"]> | null>(null)
   const clientId = useRef(crypto.randomUUID())
-  const callSubIdRef = useRef(0)
   const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting")
   const [failReason, setFailReason] = useState("")
 
@@ -1943,8 +1942,7 @@ function DMCallView({ channelId, currentUserId, partner, displayName, withVideo,
     let initReady = false
     const pendingSignals: Array<Record<string, unknown>> = []
 
-    const callSubId = ++callSubIdRef.current
-    const sigChannel = supabase.channel(`dm-call:${channelId}:${callSubId}`)
+    const sigChannel = supabase.channel(`dm-call:${channelId}`)
     sigChannelRef.current = sigChannel
 
     async function processSignal(payload: Record<string, unknown>): Promise<void> {

@@ -85,7 +85,6 @@ export function MemberList({ serverId, initialMembers }: Props) {
   const [memberFetchKey, setMemberFetchKey] = useState(0)
   const [serverRoles, setServerRoles] = useState<RoleRow[]>([])
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const presenceSubIdRef = useRef(0)
   const memberFetchControllerRef = useRef<AbortController | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
 
@@ -199,8 +198,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
 
   // Presence subscription (always runs regardless of SSR data)
   useEffect(() => {
-    const subId = ++presenceSubIdRef.current
-    const channel = supabase.channel(`presence:${serverId}:${subId}`)
+    const channel = supabase.channel(`presence:${serverId}`)
     channelRef.current = channel
     channel
       .on("presence", { event: "sync" }, () => {
@@ -246,18 +244,22 @@ export function MemberList({ serverId, initialMembers }: Props) {
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            // Read user's actual status from the database
-            const { data: profile } = await supabase
-              .from("users")
-              .select("status")
-              .eq("id", user.id)
-              .single()
-            await channel.track({
-              user_id: user.id,
-              status: profile?.status ?? "online",
-            })
+          try {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+              // Read user's actual status from the database
+              const { data: profile } = await supabase
+                .from("users")
+                .select("status")
+                .eq("id", user.id)
+                .single()
+              await channel.track({
+                user_id: user.id,
+                status: profile?.status ?? "online",
+              })
+            }
+          } catch (err) {
+            console.error("[member-list] Failed to track presence", { serverId, error: err })
           }
         }
       })

@@ -18,11 +18,9 @@ export function useTyping(channelId: string, currentUserId: string, currentDispl
   const isTypingRef = useRef(false)
   const stopTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
-  const subIdRef = useRef(0)
 
   useEffect(() => {
-    const subId = ++subIdRef.current
-    const bc = supabase.channel(`typing:${channelId}:${subId}`)
+    const bc = supabase.channel(`typing:${channelId}`)
 
     bc.on("broadcast", { event: "typing" }, ({ payload }) => {
       const { userId, displayName, isTyping } = payload as {
