@@ -34,9 +34,9 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
   const round1Timer = perfTimer("server-layout round-1 (member/server/channels/roles)")
   const [{ data: member }, { data: server }, { data: channels }, { data: memberRoles }] = await Promise.all([
     supabase.from("server_members").select("server_id").eq("server_id", params.serverId).eq("user_id", user.id).single(),
-    supabase.from("servers").select("id, name, owner_id").eq("id", params.serverId).single(),
-    supabase.from("channels").select("id, name, type, position, parent_id").eq("server_id", params.serverId).order("position", { ascending: true }),
-    supabase.from("member_roles").select("role_id, roles(permissions)").eq("server_id", params.serverId).eq("user_id", user.id),
+    supabase.from("servers").select("*").eq("id", params.serverId).single(),
+    supabase.from("channels").select("*").eq("server_id", params.serverId).order("position", { ascending: true }),
+    supabase.from("member_roles").select("role_id, roles(*)").eq("server_id", params.serverId).eq("user_id", user.id),
   ])
 
   round1Timer.end()

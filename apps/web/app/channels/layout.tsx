@@ -51,7 +51,7 @@ async function ChannelsLayoutContent({ children }: { children: React.ReactNode }
     // Fetch user profile and server memberships in parallel
     const profileTimer = perfTimer("channels-layout profile+memberships")
     const [{ data: profile, error: profileError }, { data: serverMembers, error: serverMembersError }] = await Promise.all([
-      supabase.from("users").select("id, username, display_name, onboarding_completed_at, appearance_settings, status").eq("id", user.id).single(),
+      supabase.from("users").select("*").eq("id", user.id).single(),
       supabase.from("server_members").select("server_id, joined_at").eq("user_id", user.id).order("joined_at", { ascending: true }),
     ])
     profileTimer.end()
@@ -65,7 +65,7 @@ async function ChannelsLayoutContent({ children }: { children: React.ReactNode }
     const membershipIds = (serverMembers ?? []).map((membership) => membership.server_id)
     const serverListTimer = perfTimer("channels-layout server-list")
     const { data: serverRows, error: serversError } = membershipIds.length
-      ? await supabase.from("servers").select("id, name, icon_url, owner_id, invite_code").in("id", membershipIds)
+      ? await supabase.from("servers").select("*").in("id", membershipIds)
       : { data: [], error: null }
     serverListTimer.end()
 

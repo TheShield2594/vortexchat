@@ -396,7 +396,7 @@
 | Tune Socket.IO ping/pong for faster disconnect detection (#669) | Done | `pingInterval` 25s→10s, `pingTimeout` 60s→20s in signal server; disconnect detection reduced from ~85s to ~30s |
 | Giveaway relative timestamp handles future dates (#680) | Done | `TimestampDisplay` `:R` format now renders "in X hours/minutes/days" for future timestamps; proper singular/plural |
 | LinkEmbed oembed client-side cache (#705) | Done | Module-level `Map<url, OGData>` cache + in-flight dedup in `link-embed.tsx`; eliminates redundant `/api/oembed` fetches when same URL mounts multiple times |
-| Replace `select('*')` over-fetching in layout queries (#704) | Done | Explicit column projections in `channels/layout.tsx`, `[serverId]/layout.tsx`, `settings/layout.tsx`, `[channelId]/page.tsx`, `notification-settings`, `role-manager`, `dm/route`, `voice/sessions`, `channels/[channelId]` route |
+| Replace `select('*')` over-fetching in API routes (#704) | Done | Explicit column projections in `notification-settings`, `dm/route`, `voice/sessions/route`, `channels/[channelId]/route`; layout queries kept as `select('*')` since results are passed as full Row types to downstream components |
 
 ---
 

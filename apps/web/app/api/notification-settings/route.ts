@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from("notification_settings")
-      .select("*")
+      .select("id, user_id, server_id, channel_id, thread_id, mode")
       .eq("user_id", user.id)
 
     if (serverId) query = query.eq("server_id", serverId)
