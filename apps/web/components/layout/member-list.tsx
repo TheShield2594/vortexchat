@@ -196,6 +196,15 @@ export function MemberList({ serverId, initialMembers }: Props) {
     }
   }, [serverId, initialMembers, memberFetchKey])
 
+  // Periodic background refetch to pick up game_activity changes from the cron job
+  useEffect(() => {
+    const GAME_ACTIVITY_POLL_MS = 120_000 // 2 minutes — matches cron interval
+    const interval = setInterval(() => {
+      setMemberFetchKey((k) => k + 1)
+    }, GAME_ACTIVITY_POLL_MS)
+    return () => clearInterval(interval)
+  }, [serverId])
+
   // Presence subscription (always runs regardless of SSR data)
   useEffect(() => {
     const channel = supabase.channel(`presence:${serverId}`)

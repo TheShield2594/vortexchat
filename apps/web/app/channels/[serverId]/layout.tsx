@@ -66,7 +66,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
         server_id, user_id, nickname,
         user:users!server_members_user_id_fkey(
           id, username, display_name, avatar_url, status_message,
-          bio, banner_color, custom_tag, created_at, last_online_at
+          bio, banner_color, custom_tag, game_activity, created_at, last_online_at
         ),
         roles:member_roles(role_id, roles(id, server_id, name, color, permissions, position, created_at))
       `)
@@ -85,7 +85,7 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
         server_id, user_id, nickname,
         user:users!server_members_user_id_fkey(
           id, username, display_name, avatar_url, status_message,
-          bio, banner_color, custom_tag, created_at
+          bio, banner_color, custom_tag, game_activity, created_at
         ),
         roles:member_roles(role_id, roles(id, server_id, name, color, permissions, position, created_at))
       `)
