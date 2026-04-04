@@ -23,7 +23,7 @@
 /* Rajdhani for UI text — readable but stylized */
 [data-theme-preset="night-city-neural"] body,
 [data-theme-preset="night-city-neural"] body * {
-  font-family: "Rajdhani", "Share Tech Mono", system-ui, sans-serif !important;
+  font-family: Rajdhani, "Share Tech Mono", system-ui, sans-serif !important;
 }
 
 /* Share Tech Mono for code/mono elements */
@@ -287,7 +287,7 @@
   outline: none;
   box-shadow: 0 0 0 1px var(--ncn-cyan),
               0 0 12px var(--ncn-cyan-muted),
-              0 0 24px var(--ncn-cyan-faint);
+              0 0 24px var(--ncn-magenta-faint);
 }
 
 /* Message input container — neon border on focus */
@@ -298,7 +298,9 @@
 
 [data-theme-preset="night-city-neural"] .message-input-container:focus-within {
   border-color: var(--ncn-cyan-muted);
-  box-shadow: 0 0 16px var(--ncn-cyan-faint);
+  box-shadow:
+    0 0 8px var(--ncn-cyan-faint),
+    0 0 16px var(--ncn-magenta-faint);
 }
 
 /* ═════════════════════════════════════════════════════════════════════════
