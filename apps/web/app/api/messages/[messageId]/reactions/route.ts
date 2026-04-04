@@ -106,7 +106,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
       serverId: channelServerId,
       actorId: user.id,
       data: { messageId, emoji },
-    }).catch(() => {})
+    }).catch((err: unknown) => {
+      console.error("[reactions POST] gateway publish failed", { route: "/api/messages/[messageId]/reactions", action: "reaction.added", userId: user.id, messageId, channelId: message.channel_id, error: err instanceof Error ? err.message : String(err) })
+    })
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
   } catch {
@@ -174,7 +176,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
       serverId: channelServerId,
       actorId: user.id,
       data: { messageId, emoji },
-    }).catch(() => {})
+    }).catch((err: unknown) => {
+      console.error("[reactions DELETE] gateway publish failed", { route: "/api/messages/[messageId]/reactions", action: "reaction.removed", userId: user.id, messageId, channelId: message.channel_id, error: err instanceof Error ? err.message : String(err) })
+    })
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
   } catch {

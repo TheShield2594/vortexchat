@@ -84,15 +84,25 @@ export function getEmbeddableGiphyUrl(url: string): string | null {
 const oembedCache = new Map<string, OGData | null>()
 // In-flight deduplication: if two components request the same URL concurrently,
 // the second one reuses the first's promise instead of firing a second fetch.
-const oembedInFlight = new Map<string, Promise<OGData | null>>()
+const oembedInFlight = new Map<string, Promise<OGData | null | undefined>>()
 
-function fetchOembed(url: string): Promise<OGData | null> {
+function fetchOembed(url: string): Promise<OGData | null | undefined> {
   const existing = oembedInFlight.get(url)
   if (existing) return existing
 
   const promise = fetch(`/api/oembed?url=${encodeURIComponent(url)}`)
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d: OGData | null) => {
+    .then((r) => {
+      if (!r.ok) {
+        // 404 = definitive "no embed"; other errors are transient — don't cache
+        if (r.status === 404) {
+          oembedCache.set(url, null)
+        }
+        return undefined
+      }
+      return r.json() as Promise<OGData | null>
+    })
+    .then((d) => {
+      if (d === undefined) return undefined
       if (!d || (!d.title && !d.description && !d.image)) {
         oembedCache.set(url, null)
         return null
@@ -101,12 +111,12 @@ function fetchOembed(url: string): Promise<OGData | null> {
       return d
     })
     .catch(() => {
-      oembedCache.set(url, null)
-      return null
+      // Network error / transient failure — don't cache, allow retry
+      return undefined
     })
     .finally(() => {
       oembedInFlight.delete(url)
-    })
+    }) as Promise<OGData | null | undefined>
 
   oembedInFlight.set(url, promise)
   return promise
@@ -117,19 +127,24 @@ export function LinkEmbed({ url }: Props) {
   const [failed, setFailed] = useState(() => oembedCache.has(url) && oembedCache.get(url) === null)
 
   useEffect(() => {
+    // Reset state when URL changes so stale failed/data don't persist
+    setData(null)
+    setFailed(false)
+
     // Already have cached data — skip fetch
     if (oembedCache.has(url)) {
       const cached = oembedCache.get(url) ?? null
-      if (cached) setData(cached)
-      else setFailed(true)
+      setData(cached)
+      setFailed(cached === null)
       return
     }
 
     let cancelled = false
     fetchOembed(url).then((d) => {
       if (cancelled) return
-      if (d) setData(d)
-      else setFailed(true)
+      if (d === undefined) return // transient failure — leave as loading, allow retry on re-mount
+      setData(d)
+      setFailed(d === null)
     })
     return () => { cancelled = true }
   }, [url])

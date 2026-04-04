@@ -45,10 +45,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Invalid transcriptionMode" }, { status: 400 })
     }
 
+    const VOICE_SESSION_SELECT = "id, started_by, scope_id, scope_type, transcription_mode, summary_status, created_at, ended_at"
+
     // Idempotency: return an existing active session for this user + scope
     const { data: existing, error: existingError } = await supabase
       .from("voice_call_sessions")
-      .select("id, started_by, scope_id, scope_type, transcription_mode, created_at, ended_at")
+      .select(VOICE_SESSION_SELECT)
       .eq("started_by", user.id)
       .eq("scope_id", scopeId)
       .is("ended_at", null)
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         transcription_mode: mode,
         summary_status: "pending",
       })
-      .select()
+      .select(VOICE_SESSION_SELECT)
       .single()
 
     if (error) {
