@@ -74,6 +74,7 @@ export function useApplyAppearance(): void {
       root.style.removeProperty("--theme-accent")
     }
 
+    // ── User custom CSS ──────────────────────────────────────────────────
     const customCssStyleId = "vortex-custom-theme-css"
     let styleTag = document.getElementById(customCssStyleId) as HTMLStyleElement | null
     if (!styleTag) {
@@ -88,4 +89,40 @@ export function useApplyAppearance(): void {
     emojiSize, accentColorOverride, highContrast, gifAutoplay, linkPreviews,
     imagePreviews, notificationBadgeStyle, focusIndicator,
   ])
+
+  // ── Theme-specific external stylesheet ─────────────────────────────────
+  // Some themes ship an extended CSS file in /themes/{preset}.css that adds
+  // signature effects (scanlines, glitch, fonts, etc.) beyond globals.css
+  // color tokens. Isolated to its own effect so unrelated appearance changes
+  // (fontScale, customCss, etc.) don't remove/re-append the <link>.
+  // Only themes with fully scoped CSS are safe to auto-load.
+  useEffect((): (() => void) | void => {
+    const themeLinkId = "vortex-theme-external-css"
+    const href = themePreset === "night-city-neural"
+      ? `/themes/${themePreset}.css`
+      : null
+
+    const existingNode = document.getElementById(themeLinkId)
+    const existingLink = existingNode instanceof HTMLLinkElement ? existingNode : null
+
+    if (!href) {
+      existingLink?.remove()
+      return
+    }
+
+    const link = existingLink ?? document.createElement("link")
+    link.id = themeLinkId
+    link.rel = "stylesheet"
+    link.href = href
+
+    if (!existingLink) {
+      // Insert before custom CSS so user overrides still win
+      const customCssTag = document.getElementById("vortex-custom-theme-css")
+      document.head.insertBefore(link, customCssTag ?? null)
+    }
+
+    return (): void => {
+      link.remove()
+    }
+  }, [themePreset])
 }

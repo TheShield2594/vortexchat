@@ -2086,6 +2086,30 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 }
 
 [data-theme-preset="night-city-neural"] {
+  /* ─── Effect control knobs — users can override via Custom CSS ─── */
+  --ncn-scanline-opacity: 0.06;
+  --ncn-glitch-intensity: 1;
+  --ncn-glow-strength: 1;
+  --ncn-watermark-display: none;
+  --ncn-watermark-opacity: 0.02;
+
+  /* ─── Neon palette shorthands ─── */
+  --ncn-cyan: #00e6ff;
+  --ncn-cyan-dim: rgba(0, 230, 255, 0.6);
+  --ncn-cyan-muted: rgba(0, 230, 255, 0.3);
+  --ncn-cyan-faint: rgba(0, 230, 255, 0.12);
+  --ncn-cyan-ghost: rgba(0, 230, 255, 0.04);
+  --ncn-magenta: #ff2a6d;
+  --ncn-magenta-dim: rgba(255, 42, 109, 0.6);
+  --ncn-magenta-muted: rgba(255, 42, 109, 0.3);
+  --ncn-magenta-faint: rgba(255, 42, 109, 0.12);
+  --ncn-yellow: #fcee09;
+  --ncn-yellow-dim: rgba(252, 238, 9, 0.6);
+  --ncn-yellow-faint: rgba(252, 238, 9, 0.12);
+  --ncn-bg: #0a0a12;
+  --ncn-bg-deep: #030308;
+  --ncn-bg-panel: rgba(6, 6, 14, 0.95);
+
   /* Core surface palette — deep black with blue undertone */
   --background: 240 10% 4%;
   --foreground: 195 100% 90%;
@@ -2124,8 +2148,8 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-surface-elevation-5: #26264e;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
-  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
-  --theme-shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 8px rgba(0, 230, 255, 0.04), 0 0 0 1px rgba(0, 230, 255, 0.06) inset;
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent-secondary) 30%, transparent);
+  --theme-shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 8px rgba(0, 230, 255, 0.04), 0 0 8px rgba(255, 42, 109, 0.03), 0 0 0 1px rgba(0, 230, 255, 0.06) inset;
   --theme-shadow-elevation-2: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 230, 255, 0.06), 0 1px 0 rgba(0, 230, 255, 0.08) inset;
   --theme-shadow-elevation-3: 0 8px 28px rgba(0, 0, 0, 0.65), 0 0 24px rgba(0, 230, 255, 0.08), 0 1px 0 rgba(0, 230, 255, 0.10) inset;
   --theme-shadow-elevation-4: 0 14px 36px rgba(0, 0, 0, 0.7), 0 0 32px rgba(0, 230, 255, 0.10), 0 1px 0 rgba(0, 230, 255, 0.12) inset;
@@ -2172,78 +2196,38 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --radius: 0.25rem;
 }
 
-/* Night City Neural — neon glow on borders */
+/* ── Night City Neural — signature behaviors (basic fallback) ─────────
+ *  The full cyberpunk experience (scanlines, glitch, fonts, RGB-split,
+ *  status-rate pulses, Arasaka watermark) is loaded from
+ *  /themes/night-city-neural.css via the appearance hook.
+ *  These rules provide core neon styling while that file loads.
+ * ──────────────────────────────────────────────────────────────────── */
 [data-theme-preset="night-city-neural"] [data-message].message-hover:hover {
-  background: color-mix(in srgb, var(--theme-accent) 6%, var(--theme-bg-primary));
-  box-shadow: inset 2px 0 0 var(--theme-accent);
+  background: color-mix(in srgb, var(--ncn-cyan) 6%, var(--theme-bg-primary));
+  box-shadow: inset 2px 0 0 var(--ncn-cyan);
 }
 
 [data-theme-preset="night-city-neural"] ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(0, 230, 255, 0.25), rgba(255, 42, 109, 0.25));
+  background: linear-gradient(180deg, var(--ncn-cyan-muted), var(--ncn-magenta-muted));
   border-radius: 2px;
 }
 
-[data-theme-preset="night-city-neural"] ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(0, 230, 255, 0.45), rgba(255, 42, 109, 0.45));
-}
-
-[data-theme-preset="night-city-neural"] input:focus-visible,
-[data-theme-preset="night-city-neural"] textarea:focus-visible,
-[data-theme-preset="night-city-neural"] [contenteditable="true"]:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 1px var(--theme-accent), 0 0 12px rgba(0, 230, 255, 0.2);
-}
-
 [data-theme-preset="night-city-neural"] nav .interactive-list-item:hover {
-  background: color-mix(in srgb, var(--theme-accent) 8%, var(--theme-bg-secondary));
+  background: color-mix(in srgb, var(--ncn-magenta) 6%, var(--theme-bg-secondary));
 }
 
 [data-theme-preset="night-city-neural"] nav .channel-active {
-  background: color-mix(in srgb, var(--theme-accent) 12%, var(--theme-bg-secondary));
-  box-shadow: inset 2px 0 0 var(--theme-accent);
-}
-
-/* Night City Neural — status bars styled as netrunner uplink indicators */
-[data-theme-preset="night-city-neural"] .presence-indicator {
-  border-radius: 1px;
-  width: 10px;
-  height: 3px;
-  box-shadow: 0 0 6px currentColor;
-}
-
-[data-theme-preset="night-city-neural"] .presence-indicator[data-status="online"] {
-  box-shadow: 0 0 6px var(--theme-presence-online), 0 0 12px var(--theme-presence-online);
-}
-
-[data-theme-preset="night-city-neural"] .presence-indicator[data-status="idle"] {
-  box-shadow: 0 0 6px var(--theme-presence-idle), 0 0 12px var(--theme-presence-idle);
-}
-
-[data-theme-preset="night-city-neural"] .presence-indicator[data-status="dnd"] {
-  box-shadow: 0 0 6px var(--theme-presence-dnd), 0 0 12px var(--theme-presence-dnd);
-}
-
-/* Night City Neural — code blocks with matrix-style styling */
-[data-theme-preset="night-city-neural"] .message-content :is(code, pre) {
-  background: rgba(0, 230, 255, 0.06);
-  border: 1px solid rgba(0, 230, 255, 0.12);
+  background: color-mix(in srgb, var(--ncn-cyan) 10%, var(--theme-bg-secondary));
+  box-shadow: inset 2px 0 0 var(--ncn-cyan);
 }
 
 [data-theme-preset="night-city-neural"] .message-content code {
-  color: #05d9e8;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: var(--ncn-cyan);
 }
 
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  [data-theme-preset="night-city-neural"] [data-message].message-hover:hover,
-  [data-theme-preset="night-city-neural"] nav .interactive-list-item:hover,
-  [data-theme-preset="night-city-neural"] nav .channel-active,
-  [data-theme-preset="night-city-neural"] input:focus-visible,
-  [data-theme-preset="night-city-neural"] textarea:focus-visible,
-  [data-theme-preset="night-city-neural"] [contenteditable="true"]:focus-visible {
-    transition-duration: 0ms !important;
-  }
+[data-theme-preset="night-city-neural"] ::selection {
+  background: var(--ncn-magenta-muted);
+  color: var(--theme-text-bright);
 }
 
 /* ── Color mode overrides — scoped to the default "twilight" preset so they
