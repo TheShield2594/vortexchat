@@ -40,12 +40,13 @@ export function groupReactionsByEmoji(
   reactions: ReadonlyArray<{ emoji: string; user_id: string }>,
   currentUserId: string
 ): Array<[string, { count: number; users: string[]; hasOwn: boolean }]> {
-  const groups: Record<string, { count: number; users: string[]; hasOwn: boolean }> = {}
+  const groups = new Map<string, { count: number; users: string[]; hasOwn: boolean }>()
   for (const r of reactions) {
-    if (!groups[r.emoji]) groups[r.emoji] = { count: 0, users: [], hasOwn: false }
-    groups[r.emoji].count++
-    groups[r.emoji].users.push(r.user_id)
-    if (r.user_id === currentUserId) groups[r.emoji].hasOwn = true
+    const current = groups.get(r.emoji) ?? { count: 0, users: [], hasOwn: false }
+    current.count++
+    current.users.push(r.user_id)
+    if (r.user_id === currentUserId) current.hasOwn = true
+    groups.set(r.emoji, current)
   }
-  return Object.entries(groups)
+  return Array.from(groups.entries())
 }
