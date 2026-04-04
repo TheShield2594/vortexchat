@@ -128,7 +128,8 @@ export async function GET(
       )
     ` as const
 
-  // Fallback select without last_online_at for environments where migration 00092 hasn't been applied yet
+  // Fallback select without game_activity or last_online_at for environments
+  // where recent migrations haven't been applied yet.
   const MEMBER_SELECT_COMPAT = `
       server_id,
       user_id,
@@ -142,7 +143,6 @@ export async function GET(
         bio,
         banner_color,
         custom_tag,
-        game_activity,
         created_at
       ),
       roles:member_roles(
@@ -183,12 +183,13 @@ export async function GET(
       .limit(limit + 1)
     if (afterCursor) fallbackQuery = fallbackQuery.gt("user_id", afterCursor)
     const fallback = await fallbackQuery
-    // Normalize: add last_online_at: null to match expected type
+    // Normalize: add fields omitted by COMPAT select to match primary query shape
     if (fallback.data) {
-      members = fallback.data.map((m) => ({
-        ...m,
-        user: m.user ? { ...m.user, last_online_at: null as string | null } : m.user,
-      })) as typeof members
+      members = fallback.data.map((m) => {
+        if (!m.user) return m
+        const normalizedUser = { ...m.user, game_activity: null, last_online_at: null }
+        return { ...m, user: normalizedUser }
+      }) as typeof members
     } else {
       members = null
     }
@@ -204,7 +205,17 @@ export async function GET(
   const hasMore = allMembers.length > limit
   const pageMembers = hasMore ? allMembers.slice(0, limit) : allMembers
 
-  const blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
+  let blockedUserIds: Set<string>
+  try {
+    blockedUserIds = await getBlockedUserIdsForViewer(supabase, user.id)
+  } catch (blockErr) {
+    console.error("[members] Failed to resolve block policy", {
+      serverId: params.serverId,
+      userId: user.id,
+      error: blockErr instanceof Error ? blockErr.message : String(blockErr),
+    })
+    return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 })
+  }
   const visibleMembers = filterBlockedUserIds(pageMembers, (member) => member.user_id, blockedUserIds)
 
   const lastMember = pageMembers[pageMembers.length - 1]
