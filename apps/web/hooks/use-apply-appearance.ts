@@ -78,11 +78,11 @@ export function useApplyAppearance(): void {
     // Some themes ship an extended CSS file in /themes/{preset}.css that
     // adds signature effects (scanlines, glitch animations, custom fonts,
     // etc.) beyond what the globals.css color tokens provide.
+    // Only themes whose CSS is fully scoped to [data-theme-preset="..."]
+    // are safe to auto-load. Others (terminal, frosthearth, sakura-blossom)
+    // still use unscoped selectors and remain manual-paste only for now.
     const THEMES_WITH_EXTERNAL_CSS: ReadonlySet<string> = new Set([
       "night-city-neural",
-      "terminal",
-      "frosthearth",
-      "sakura-blossom",
     ])
     const themeLinkId = "vortex-theme-external-css"
     const existingLink = document.getElementById(themeLinkId) as HTMLLinkElement | null
@@ -112,6 +112,14 @@ export function useApplyAppearance(): void {
       document.head.appendChild(styleTag)
     }
     styleTag.textContent = customCss.trim()
+
+    // Cleanup: remove injected elements on unmount so no orphaned styles remain
+    return (): void => {
+      const themeLink = document.getElementById(themeLinkId)
+      if (themeLink) {
+        themeLink.remove()
+      }
+    }
   }, [
     messageDisplay, fontScale, saturation, themePreset, reducedMotion, customCss,
     fontFamily, lineHeight, codeFont, colorMode, chatBubbleStyle, messageGrouping,

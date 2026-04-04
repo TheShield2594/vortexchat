@@ -46,7 +46,9 @@
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  /* Above overlays (--z-overlay: 700) but not absurdly high.
+     pointer-events: none ensures no interaction blocking. */
+  z-index: 800;
   pointer-events: none;
   background: repeating-linear-gradient(
     to bottom,
@@ -70,7 +72,8 @@
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 99998;
+  /* One below scanlines; both above --z-overlay (700) */
+  z-index: 799;
   pointer-events: none;
   background: radial-gradient(
     ellipse at center,
