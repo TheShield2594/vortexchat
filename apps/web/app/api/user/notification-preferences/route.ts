@@ -25,8 +25,8 @@ const DEFAULTS: UserNotificationPreferences = {
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { data, error } = await supabase
       .from("user_notification_preferences")
@@ -53,8 +53,8 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const rawBody = await req.json().catch(() => null)
     if (rawBody == null || typeof rawBody !== "object" || Array.isArray(rawBody)) {

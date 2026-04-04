@@ -206,15 +206,18 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   }, [channels])
 
   // Refresh list when DM messages or membership changes happen
+  const dmSubIdRef = useRef(0)
   useEffect(() => {
     if (!currentUserId) return
+
+    const subId = ++dmSubIdRef.current
 
     const dmMessageFilter = channelIdsStr
       ? `dm_channel_id=in.(${channelIdsStr})`
       : `sender_id=eq.${currentUserId}`
 
     const ch = supabase
-      .channel("dm-list-updates")
+      .channel(`dm-list-updates:${subId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "direct_messages", filter: dmMessageFilter },

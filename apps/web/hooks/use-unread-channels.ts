@@ -142,11 +142,14 @@ export function useUnreadChannels(
   }, [serverId, currentUserId])
 
   // Subscribe to new messages across this server's channels
+  const unreadSubIdRef = useRef(0)
   useEffect(() => {
     if (channelIds.length === 0) return
 
+    const subId = ++unreadSubIdRef.current
+
     const channel = supabase
-      .channel(`server-messages:${serverId}`)
+      .channel(`server-messages:${serverId}:${subId}`)
       .on(
         "postgres_changes",
         {
