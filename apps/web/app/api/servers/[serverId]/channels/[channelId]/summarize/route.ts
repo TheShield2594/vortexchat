@@ -1,29 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
-import { resolveGeminiApiKey } from "@/lib/ai/resolve-gemini-key"
+import { resolveAdapter } from "@/lib/ai/ai-router"
 
 type Params = { params: Promise<{ serverId: string; channelId: string }> }
-
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string
-      }>
-    }
-  }>
-}
 
 /**
  * POST /api/servers/[serverId]/channels/[channelId]/summarize
  *
  * AI-powered channel catch-up summary.
- * Fetches recent messages and summarises them with Gemini.
+ * Fetches recent messages and summarises them via the server's configured
+ * AI provider for the `chat_summary` function.
  * Requires VIEW_CHANNELS permission.
  */
 export async function POST(req: NextRequest, { params }: Params) {
   const { serverId, channelId } = await params
-  const { supabase, user, error } = await requireServerPermission(serverId, "VIEW_CHANNELS")
+  const { supabase, error } = await requireServerPermission(serverId, "VIEW_CHANNELS")
   if (error) return error
 
   // Optional: since=ISO timestamp passed by client (user's last read time)
@@ -100,20 +91,21 @@ export async function POST(req: NextRequest, { params }: Params) {
     })
     .join("\n")
 
-  const apiKey = await resolveGeminiApiKey(supabase, serverId)
-  if (!apiKey) {
-    return NextResponse.json({ error: "AI summarization is not configured. The server owner must set a Gemini API key in server settings." }, { status: 503 })
+  // Resolve the AI provider for chat_summary (uses per-function routing → default → legacy Gemini)
+  const adapter = await resolveAdapter(supabase, serverId, "chat_summary")
+  if (!adapter) {
+    return NextResponse.json(
+      { error: "AI summarization is not configured. The server owner must add an AI provider in server settings." },
+      { status: 503 }
+    )
   }
 
   try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [
-            {
-              text: `You are a helpful assistant that summarizes chat channel conversations.
+    const result = await adapter.complete(
+      [
+        {
+          role: "system",
+          content: `You are a helpful assistant that summarizes chat channel conversations.
 Return your response as JSON with this exact shape:
 {
   "summary": "2-4 sentence overview of what was discussed",
@@ -121,40 +113,20 @@ Return your response as JSON with this exact shape:
   "topics": ["topic1", "topic2"]
 }
 Be concise and factual. Only include information from the conversation.`,
-            },
-          ],
         },
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `Summarize this conversation from the #${channel.name} channel (${chronological.length} messages):\n\n${transcript}`,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 512,
-          responseMimeType: "application/json",
+        {
+          role: "user",
+          content: `Summarize this conversation from the #${channel.name} channel (${chronological.length} messages):\n\n${transcript}`,
         },
-      }),
-    })
-
-    if (!response.ok) {
-      const errorBody = await response.text()
-      console.error("Gemini API request failed", response.status, errorBody)
-      return NextResponse.json({ error: "AI summarization failed" }, { status: 500 })
-    }
-
-    const result = await response.json() as GeminiResponse
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}"
+      ],
+      { maxTokens: 512, jsonMode: true }
+    )
 
     let parsed: { summary: string; highlights: string[]; topics: string[] }
     try {
-      parsed = JSON.parse(text)
+      parsed = JSON.parse(result.text)
     } catch {
-      parsed = { summary: text, highlights: [], topics: [] }
+      parsed = { summary: result.text, highlights: [], topics: [] }
     }
 
     return NextResponse.json({
@@ -165,7 +137,7 @@ Be concise and factual. Only include information from the conversation.`,
       since: since ?? chronological[0]?.created_at ?? null,
     })
   } catch (aiError: unknown) {
-    console.error("AI summarization failed", aiError)
+    console.error("[summarize] AI call failed", { serverId, channelId, error: aiError })
     return NextResponse.json({ error: "AI summarization failed" }, { status: 500 })
   }
 }

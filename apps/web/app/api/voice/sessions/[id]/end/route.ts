@@ -7,7 +7,6 @@ import {
   writeAuditEvent,
   SUMMARY_MIN_SEGMENT_COUNT,
 } from "@/lib/voice/vortex-recap-service"
-import { resolveGeminiApiKey } from "@/lib/ai/resolve-gemini-key"
 import type { EndSessionRequest } from "@/types/vortex-recap"
 
 type Params = { params: Promise<{ id: string }> }
@@ -92,21 +91,19 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       return NextResponse.json({ error: "Failed to end session" }, { status: 500 })
     }
 
-    // Resolve the server-level Gemini API key for summary generation
-    let geminiApiKey: string | null = null
+    // Resolve the server ID for AI provider routing
+    let serverId: string | null = null
     if (session.scope_type === "server_channel") {
       const { data: channel } = await supabase
         .from("channels")
         .select("server_id")
         .eq("id", session.scope_id)
         .single()
-      if (channel?.server_id) {
-        geminiApiKey = await resolveGeminiApiKey(supabase, channel.server_id)
-      }
+      serverId = channel?.server_id ?? null
     }
 
     // Trigger summary generation asynchronously (fire-and-forget from this request)
-    generateSummary(sessionId, user.id, geminiApiKey).catch((err) => {
+    generateSummary(sessionId, user.id, serverId).catch((err) => {
       console.error("[voice/sessions/end] generateSummary failed", { sessionId, userId: user.id, error: err })
     })
 
@@ -117,7 +114,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
   }
 }
 
-async function generateSummary(sessionId: string, actorUserId: string, geminiApiKey: string | null): Promise<void> {
+async function generateSummary(sessionId: string, actorUserId: string, serverId: string | null): Promise<void> {
   const serviceClient = await createServiceRoleClient()
 
   // Fetch all non-purged final segments for this session
@@ -138,7 +135,11 @@ async function generateSummary(sessionId: string, actorUserId: string, geminiApi
   }
 
   const transcriptText = assembleTranscriptText(segments)
-  const summary = await generateVoiceCallSummary(transcriptText, geminiApiKey)
+
+  // Use the multi-provider router (falls back to legacy Gemini key)
+  const summary = serverId
+    ? await generateVoiceCallSummary(serviceClient, serverId, transcriptText)
+    : null
 
   if (!summary) {
     await serviceClient
@@ -147,7 +148,7 @@ async function generateSummary(sessionId: string, actorUserId: string, geminiApi
       .eq("id", sessionId)
 
     await writeAuditEvent(serviceClient, sessionId, actorUserId, "summary_generation_failed", {
-      reason: "AI provider returned null or key is missing",
+      reason: serverId ? "AI provider returned null or not configured" : "No server context for DM calls",
     })
     return
   }
@@ -163,7 +164,7 @@ async function generateSummary(sessionId: string, actorUserId: string, geminiApi
 
   await serviceClient.from("voice_call_summaries").upsert({
     session_id: sessionId,
-    model: "gemini-2.5-flash",
+    model: "multi-provider",
     highlights_md: summary.highlights,
     decisions_md: summary.decisions,
     action_items_md: summary.actionItems,
@@ -177,6 +178,6 @@ async function generateSummary(sessionId: string, actorUserId: string, geminiApi
     .eq("id", sessionId)
 
   await writeAuditEvent(serviceClient, sessionId, actorUserId, "summary_generated", {
-    model: "gemini-2.5-flash",
+    model: "multi-provider",
   })
 }

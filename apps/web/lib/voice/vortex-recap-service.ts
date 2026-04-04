@@ -8,6 +8,7 @@ import type {
   VortexRecapPolicyRow,
   VoiceCallSummarySections,
 } from "@/types/vortex-recap"
+import { resolveAdapter } from "@/lib/ai/ai-router"
 
 // ── Default policy (global fallback) ─────────────────────────────────────────
 
@@ -91,61 +92,48 @@ export async function writeAuditEvent(
   })
 }
 
-// ── Summary generation (Gemini) ───────────────────────────────────────────────
-
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> }
-  }>
-}
+// ── Summary generation (multi-provider) ──────────────────────────────────────
 
 /**
  * Generate a structured post-call summary from assembled transcript text.
- * Returns null when the API key is absent or the call fails, so the worker
+ *
+ * Uses the server's configured AI provider for the `voice_summary` function.
+ * Falls back through: per-function routing → default provider → legacy Gemini key.
+ *
+ * Returns null when no provider is configured or the call fails, so the worker
  * can mark summary_status = 'failed' and retry later.
  */
 export async function generateVoiceCallSummary(
-  transcriptText: string,
-  apiKey: string | null
+  supabase: SupabaseClient,
+  serverId: string,
+  transcriptText: string
 ): Promise<VoiceCallSummarySections | null> {
-  if (!apiKey) return null
+  const adapter = await resolveAdapter(supabase, serverId, "voice_summary")
+  if (!adapter) return null
 
-  const systemPrompt = `You are an assistant that summarizes voice call transcripts.
+  try {
+    const result = await adapter.complete(
+      [
+        {
+          role: "system",
+          content: `You are an assistant that summarizes voice call transcripts.
 Return your response as JSON with this exact shape:
 {
   "highlights": "markdown prose — key highlights from the call",
   "decisions": "markdown prose — decisions reached during the call",
   "action_items": "markdown prose — concrete action items with owners where mentioned"
 }
-Be concise and factual. Use only information from the transcript.`
-
-  try {
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: `Summarize this voice call transcript:\n\n${transcriptText}` }],
-            },
-          ],
-          generationConfig: {
-            maxOutputTokens: 1024,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
+Be concise and factual. Use only information from the transcript.`,
+        },
+        {
+          role: "user",
+          content: `Summarize this voice call transcript:\n\n${transcriptText}`,
+        },
+      ],
+      { maxTokens: 1024, jsonMode: true }
     )
 
-    if (!response.ok) return null
-
-    const result = (await response.json()) as GeminiResponse
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}"
-    const parsed = JSON.parse(text) as {
+    const parsed = JSON.parse(result.text) as {
       highlights?: string
       decisions?: string
       action_items?: string
