@@ -61,32 +61,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const staleIds = staleUsers.map((u) => u.id)
 
-    // Batch update all stale users to offline.
-    // Reapply the heartbeat staleness predicate so a user who heartbeated
-    // between the SELECT and this UPDATE is not incorrectly flipped offline.
-    // The status filter from the SELECT is implicitly satisfied since staleIds
-    // only contains online/idle/dnd users.
-    const { data: cleanedUsers, error: updateError } = await supabase
-      .from("users")
-      .update({
-        status: "offline" as const,
-        updated_at: now.toISOString(),
-        last_online_at: now.toISOString(),
-      })
-      .in("id", staleIds)
-      .or(`last_heartbeat_at.is.null,last_heartbeat_at.lt.${staleThreshold}`)
-      .select("id") as unknown as { data: { id: string }[] | null; error: { message: string } | null }
+    // Batch update stale users to offline.
+    // The SELECT already filtered by stale heartbeat, so we only need to
+    // re-check heartbeat in the UPDATE to guard against a race where a user
+    // heartbeated between the SELECT and this UPDATE.
+    // Process in batches of 50 to avoid query-string length limits.
+    let cleanedCount = 0
+    const BATCH_SIZE = 50
+    for (let i = 0; i < staleIds.length; i += BATCH_SIZE) {
+      const batch = staleIds.slice(i, i + BATCH_SIZE)
+      const { count, error: updateError } = await supabase
+        .from("users")
+        .update({
+          status: "offline" as const,
+          updated_at: now.toISOString(),
+          last_online_at: now.toISOString(),
+        }, { count: "exact" })
+        .in("id", batch)
+        .or(`last_heartbeat_at.is.null,last_heartbeat_at.lt.${staleThreshold}`)
 
-    if (updateError) {
-      console.error("presence-cleanup: update failed", {
-        route: "cron/presence-cleanup",
-        error: updateError.message,
-        count: cleanedUsers?.length ?? 0,
-      })
-      return NextResponse.json({ error: "Update failed" }, { status: 500 })
+      if (updateError) {
+        console.error("presence-cleanup: update failed", {
+          route: "cron/presence-cleanup",
+          error: updateError.message,
+          batchIndex: i,
+        })
+        // Continue with remaining batches rather than aborting
+        continue
+      }
+      cleanedCount += count ?? 0
     }
-
-    const cleanedCount = cleanedUsers?.length ?? 0
 
     console.log("presence-cleanup: marked users offline", {
       route: "cron/presence-cleanup",
