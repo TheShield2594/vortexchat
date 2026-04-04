@@ -250,8 +250,8 @@ body {
 /* ── Nordic rune decorations ──────────────────────────────────────────── */
 
 /* Rune glyphs flanking day separators — Elder Futhark ᛟ (Othala, heritage) */
-[role="separator"]::before,
-[role="separator"]::after {
+[role="separator"][aria-label]::before,
+[role="separator"][aria-label]::after {
   content: "ᛟ";
   font-size: 0.6rem;
   color: color-mix(in srgb, var(--theme-accent-secondary) 45%, transparent);

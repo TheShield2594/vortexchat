@@ -139,7 +139,7 @@ body::after {
     sakura-sway 6s ease-in-out infinite;
 }
 
-/* Disable fixed background on mobile to reduce GPU cost */
+/* Reduce petal intensity and slow animation on mobile to save GPU */
 @media (max-width: 768px) {
   body::after {
     opacity: 0.18;
