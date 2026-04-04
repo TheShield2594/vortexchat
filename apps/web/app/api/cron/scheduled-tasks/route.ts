@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/server"
 import { verifyBearerToken } from "@/lib/utils/timing-safe"
 
@@ -117,10 +117,10 @@ async function runThreadAutoArchive(service: Awaited<ReturnType<typeof createSer
 // ── Attachment decay (delegated to existing route) ──────────────────────────
 async function runAttachmentDecay(request: Request): Promise<Record<string, unknown>> {
   const { GET: attachmentDecayHandler } = await import("@/app/api/cron/attachment-decay/route")
-  const forwardedRequest = new Request(request.url, {
+  const forwardedRequest = new NextRequest(request.url, {
     method: "GET",
     headers: request.headers,
   })
-  const res = await attachmentDecayHandler(forwardedRequest as import("next/server").NextRequest)
+  const res = await attachmentDecayHandler(forwardedRequest)
   return await res.json() as Record<string, unknown>
 }

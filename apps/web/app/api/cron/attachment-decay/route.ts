@@ -10,7 +10,8 @@ import { verifyBearerToken } from "@/lib/utils/timing-safe"
  * and marks the database rows as purged. Processes both channel attachments
  * and DM attachments in batches.
  *
- * Called hourly by Vercel Cron. Requires CRON_SECRET.
+ * Called daily by scheduled-tasks cron dispatcher. Also available for
+ * manual invocation. Requires CRON_SECRET.
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
