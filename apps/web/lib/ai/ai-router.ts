@@ -17,7 +17,7 @@ import { createAdapter, type AiProviderAdapter } from "./providers"
 
 interface ProviderConfigRow {
   id: string
-  provider: AiProvider
+  provider: string  // Supabase returns string; validated by DB CHECK constraint
   api_key: string | null
   base_url: string | null
   model: string | null
@@ -123,10 +123,11 @@ async function fetchProviderConfig(
 }
 
 function configRowToResolved(row: ProviderConfigRow): ResolvedAiProvider {
+  const provider = row.provider as AiProvider
   return {
-    provider: row.provider,
+    provider,
     apiKey: row.api_key,
     baseUrl: row.base_url,
-    model: row.model ?? AI_PROVIDER_META[row.provider].defaultModel,
+    model: row.model ?? AI_PROVIDER_META[provider].defaultModel,
   }
 }

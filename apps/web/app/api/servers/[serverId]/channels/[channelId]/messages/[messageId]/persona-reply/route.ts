@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission, SYSTEM_BOT_ID } from "@/lib/server-auth"
 import { resolveAdapter } from "@/lib/ai/ai-router"
 import type { AiProviderAdapter } from "@/lib/ai/providers"
+import type { AiProvider } from "@vortex/shared"
 
 type Params = { params: Promise<{ serverId: string; channelId: string; messageId: string }> }
 
@@ -130,12 +131,13 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
         .maybeSingle()
       if (config) {
         const { AI_PROVIDER_META } = await import("@vortex/shared")
+        const provider = config.provider as AiProvider
         try {
           adapter = createAdapter({
-            provider: config.provider,
+            provider,
             apiKey: config.api_key,
             baseUrl: config.base_url,
-            model: config.model ?? AI_PROVIDER_META[config.provider as keyof typeof AI_PROVIDER_META]?.defaultModel ?? config.provider,
+            model: config.model ?? AI_PROVIDER_META[provider]?.defaultModel ?? provider,
           })
         } catch {
           // Fall through to default
@@ -168,7 +170,9 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       { maxTokens: 512, temperature: 0.7 }
     )
 
-    // Insert the persona response as a system bot message with persona metadata
+    // Insert the persona response as a system bot message.
+    // Use webhook_display_name/webhook_avatar_url to carry persona identity
+    // (these fields already exist on the messages table for bot-like messages).
     const personaReplyContent = result.text.trim()
     const { data: inserted, error: insertError } = await supabase
       .from("messages")
@@ -176,15 +180,10 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
         channel_id: channelId,
         author_id: SYSTEM_BOT_ID,
         content: personaReplyContent,
-        metadata: {
-          persona_id: persona.id,
-          persona_name: persona.name,
-          persona_avatar_url: persona.avatar_url,
-          triggered_by: user.id,
-          triggered_message_id: messageId,
-        },
+        webhook_display_name: `${persona.name} [AI]`,
+        webhook_avatar_url: persona.avatar_url,
       })
-      .select("id, content, created_at, metadata")
+      .select("id, content, created_at")
       .single()
 
     if (insertError) {

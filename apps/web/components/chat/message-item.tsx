@@ -438,14 +438,14 @@ export const MessageItem = memo(function MessageItem({
     }
   }
 
-  // AI Persona metadata (stored in message.metadata by persona-reply endpoint)
-  const rawMeta = "metadata" in message ? (message as Record<string, unknown>).metadata : null
-  const personaMeta = rawMeta && typeof rawMeta === "object" ? rawMeta as Record<string, unknown> : null
-  const personaName = typeof personaMeta?.persona_name === "string" ? personaMeta.persona_name : null
-  const isPersonaMessage = !!personaName
+  // AI Persona detection — persona replies use webhook_display_name ending with " [AI]"
+  const isPersonaMessage = !!message.webhook_display_name?.endsWith(" [AI]")
+  const personaDisplayName = isPersonaMessage
+    ? message.webhook_display_name!.replace(/ \[AI\]$/, "")
+    : null
 
   const displayName = isPersonaMessage
-    ? personaName ?? "Bot"
+    ? personaDisplayName ?? "Bot"
     : message.webhook_display_name
       ? message.webhook_display_name
       : message.author?.display_name || message.author?.username || "Unknown"
