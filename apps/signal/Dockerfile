@@ -16,8 +16,8 @@ COPY packages/shared ./packages/shared
 COPY apps/signal ./apps/signal
 
 # Build shared package first, then signal
-RUN npm run build --workspace=packages/shared
-RUN npm run build --workspace=apps/signal
+RUN npm run build --workspace=packages/shared && \
+    npm run build --workspace=apps/signal
 
 # ─── Production image ────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
