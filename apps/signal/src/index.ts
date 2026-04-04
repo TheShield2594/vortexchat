@@ -80,7 +80,7 @@ const REVOKE_TOKEN_SECRET = process.env.SIGNAL_REVOKE_SECRET ?? ""
 const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" })
-    res.end(JSON.stringify({ status: "ok", rooms: await rooms.getStats() }))
+    res.end(JSON.stringify({ status: "ok" }))
     return
   }
 

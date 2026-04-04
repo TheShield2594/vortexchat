@@ -44,7 +44,8 @@ export async function GET() {
     }
 
     return NextResponse.json(data ?? DEFAULTS)
-  } catch {
+  } catch (err) {
+    console.error("[api/user/notification-preferences][GET] unexpected error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -133,9 +134,17 @@ export async function PUT(req: NextRequest) {
         { onConflict: "user_id" }
       )
 
-    if (error) return NextResponse.json({ error: "Failed to save notification preferences" }, { status: 500 })
+    if (error) {
+      console.error("[api/user/notification-preferences][PUT] failed to save preferences", {
+        userId: user.id,
+        action: "save_preferences",
+        error: error.message,
+      })
+      return NextResponse.json({ error: "Failed to save notification preferences" }, { status: 500 })
+    }
     return NextResponse.json({ ok: true })
-  } catch {
+  } catch (err) {
+    console.error("[api/user/notification-preferences][PUT] unexpected error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

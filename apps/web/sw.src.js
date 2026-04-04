@@ -2,7 +2,10 @@
 // In production this is processed by `scripts/build-sw.mjs` (workbox-build
 // injectManifest), which replaces the WB_MANIFEST placeholder with the list of
 // content-hashed /_next/static/ assets and writes the result to public/sw.js.
-// In development, public/sw.js is used directly as a fallback.
+// In development, public/sw.js does not exist (it is gitignored). SW
+// registration will 404 silently, which is expected — offline support and
+// push notifications are not available in dev. Run `npm run build` once if
+// you need to test SW features locally.
 
 // ─── VAPID key helper ────────────────────────────────────────────────────────
 // Convert a base64url-encoded VAPID public key to a Uint8Array.
@@ -149,7 +152,7 @@ self.addEventListener("fetch", (event) => {
   // Caches GET /api/messages and /api/channels/*/messages responses so users
   // can view recent messages when offline.
   // Cache entries are scoped per-user via cookie hash to prevent cross-account leaks.
-  if (url.pathname.match(/\/api\/(messages|channels\/[^/]+\/messages)/)) {
+  if (/^\/api\/(messages|channels\/[^/]+\/messages)\/?$/.test(url.pathname)) {
     // Cache is keyed by full request URL (including channelId query params),
     // which is inherently user-scoped since channel access is auth-gated.
     // The SW runs in a single-user browser context so cross-account risk
@@ -187,6 +190,7 @@ self.addEventListener("fetch", (event) => {
           })
         })
     )
+    return
   }
 })
 
@@ -311,6 +315,11 @@ self.addEventListener("message", (event) => {
   }
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting()
+  }
+  // Clear API cache on auth transitions to prevent cross-account data leaks.
+  // The main app should postMessage({ type: "CLEAR_API_CACHE" }) on logout/login.
+  if (event.data?.type === "CLEAR_API_CACHE") {
+    event.waitUntil(caches.delete(API_CACHE))
   }
 })
 

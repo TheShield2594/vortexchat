@@ -47,14 +47,8 @@ import { useMarkChannelRead } from "@/hooks/use-mark-channel-read"
 import { useKeyboardAvoidance } from "@/hooks/use-keyboard-avoidance"
 import { ConnectionBanner } from "@/components/connection-banner"
 import { VoiceRecapCard } from "@/components/voice/voice-recap-card"
-import { format, isToday, isYesterday } from "date-fns"
-
-/** Format a date for the day separator. */
-function formatDaySeparator(date: Date): string {
-  if (isToday(date)) return "Today"
-  if (isYesterday(date)) return "Yesterday"
-  return format(date, "MMMM d, yyyy")
-}
+import { formatDaySeparator } from "@/lib/utils/message-helpers"
+import { DaySeparator } from "@/components/chat/day-separator"
 
 interface Props {
   channel: ChannelRow
@@ -1597,15 +1591,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
 
     return (
       <>
-        {showDaySeparator && (
-          <div className="flex items-center gap-3 my-3 px-4">
-            <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
-            <span className="text-xs font-medium flex-shrink-0" style={{ color: "var(--theme-text-muted)" }}>
-              {formatDaySeparator(msgDate)}
-            </span>
-            <div className="flex-1 h-px" style={{ background: "var(--theme-bg-tertiary)" }} />
-          </div>
-        )}
+        {showDaySeparator && <DaySeparator date={msgDate} className="px-4" />}
         {unreadDividerMessageId === message.id && (
           <div className="px-4 py-2 flex items-center gap-3" role="separator" aria-label="New messages">
             <div className="h-px flex-1 chat-area-danger-bg opacity-50" />
