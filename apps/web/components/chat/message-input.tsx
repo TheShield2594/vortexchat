@@ -948,6 +948,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
             onChange={(event) => poll.setPollQuestion(event.target.value)}
             onKeyDown={poll.handlePollInputKeyDown}
             placeholder="Poll question"
+            aria-label="Poll question"
             className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
             style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
           />
@@ -963,6 +964,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
                   }}
                   onKeyDown={poll.handlePollInputKeyDown}
                   placeholder={`Option ${index + 1}`}
+                  aria-label={`Poll option ${index + 1}`}
                   className="w-full px-2 py-1.5 rounded text-sm focus:outline-none"
                   style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-normal)" }}
                 />
@@ -1166,6 +1168,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
             }}
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
+            aria-label={replyTo ? `Reply in #${channelName}` : `Message #${channelName}`}
             placeholder={replyTo
               ? (isMobile ? `Reply in #${channelName}` : `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`)
               : (isMobile ? `Message #${channelName}` : `Message #${channelName} — @ mention, : emoji, / command`)

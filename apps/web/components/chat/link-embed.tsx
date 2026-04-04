@@ -79,23 +79,58 @@ export function getEmbeddableGiphyUrl(url: string): string | null {
   }
 }
 
+// Module-level cache shared across all LinkEmbed instances within a session.
+// Keyed by URL → resolved OGData (or null for failed fetches).
+const oembedCache = new Map<string, OGData | null>()
+// In-flight deduplication: if two components request the same URL concurrently,
+// the second one reuses the first's promise instead of firing a second fetch.
+const oembedInFlight = new Map<string, Promise<OGData | null>>()
+
+function fetchOembed(url: string): Promise<OGData | null> {
+  const existing = oembedInFlight.get(url)
+  if (existing) return existing
+
+  const promise = fetch(`/api/oembed?url=${encodeURIComponent(url)}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d: OGData | null) => {
+      if (!d || (!d.title && !d.description && !d.image)) {
+        oembedCache.set(url, null)
+        return null
+      }
+      oembedCache.set(url, d)
+      return d
+    })
+    .catch(() => {
+      oembedCache.set(url, null)
+      return null
+    })
+    .finally(() => {
+      oembedInFlight.delete(url)
+    })
+
+  oembedInFlight.set(url, promise)
+  return promise
+}
+
 export function LinkEmbed({ url }: Props) {
-  const [data, setData] = useState<OGData | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [data, setData] = useState<OGData | null>(() => oembedCache.get(url) ?? null)
+  const [failed, setFailed] = useState(() => oembedCache.has(url) && oembedCache.get(url) === null)
 
   useEffect(() => {
+    // Already have cached data — skip fetch
+    if (oembedCache.has(url)) {
+      const cached = oembedCache.get(url) ?? null
+      if (cached) setData(cached)
+      else setFailed(true)
+      return
+    }
+
     let cancelled = false
-    fetch(`/api/oembed?url=${encodeURIComponent(url)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled) return
-        if (!d || (!d.title && !d.description && !d.image)) {
-          setFailed(true)
-        } else {
-          setData(d)
-        }
-      })
-      .catch(() => { if (!cancelled) setFailed(true) })
+    fetchOembed(url).then((d) => {
+      if (cancelled) return
+      if (d) setData(d)
+      else setFailed(true)
+    })
     return () => { cancelled = true }
   }, [url])
 

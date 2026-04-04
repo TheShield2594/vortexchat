@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     if (threadId) {
       const { data: allSettings, error: allSettingsError } = await supabase
         .from("notification_settings")
-        .select("*")
+        .select("id, user_id, server_id, channel_id, thread_id, mode")
         .eq("user_id", user.id)
 
       if (allSettingsError) {
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       // Return all settings for this user
       const { data } = await supabase
         .from("notification_settings")
-        .select("*")
+        .select("id, user_id, server_id, channel_id, thread_id, mode")
         .eq("user_id", user.id)
       return NextResponse.json(data ?? [])
     }

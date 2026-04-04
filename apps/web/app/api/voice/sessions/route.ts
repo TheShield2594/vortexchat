@@ -48,7 +48,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Idempotency: return an existing active session for this user + scope
     const { data: existing, error: existingError } = await supabase
       .from("voice_call_sessions")
-      .select("*")
+      .select("id, started_by, scope_id, scope_type, transcription_mode, created_at, ended_at")
       .eq("started_by", user.id)
       .eq("scope_id", scopeId)
       .is("ended_at", null)

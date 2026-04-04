@@ -104,7 +104,7 @@ export function RoleManager({ serverId, isOwner }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from("roles")
-      .select("*")
+      .select("id, server_id, name, color, position, permissions, is_default, is_hoisted, mentionable, created_at")
       .eq("server_id", serverId)
       .order("position", { ascending: false })
     setRoles(data ?? [])

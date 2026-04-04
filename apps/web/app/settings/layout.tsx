@@ -16,7 +16,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
 
   const { data: profile, error: profileError } = await supabase
     .from("users")
-    .select("*")
+    .select("id, username, display_name, avatar_url, banner_color, custom_tag")
     .eq("id", user.id)
     .single()
 

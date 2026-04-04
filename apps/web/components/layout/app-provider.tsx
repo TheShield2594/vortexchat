@@ -5,7 +5,7 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useApplyAppearance } from "@/hooks/use-apply-appearance"
-import { usePresenceSync } from "@/hooks/use-presence-sync"
+import { useGatewayPresence } from "@/hooks/use-gateway-presence"
 import { GatewayProvider } from "@/hooks/use-gateway-context"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
@@ -57,7 +57,7 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
   }, [user, servers, setCurrentUser, setServers, setIsLoadingServers, hydrateFromSettings, loadNotificationSettings])
 
   // Auto-sync presence: marks user online on mount, offline on tab close
-  usePresenceSync(user?.id ?? null, user?.status ?? "online")
+  useGatewayPresence(user?.id ?? null, user?.status ?? "online")
 
   // GIF autoplay: freeze/restore GIF images based on user preference
   useGifAutoplay(gifAutoplay)

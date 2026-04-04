@@ -143,7 +143,7 @@ export async function PATCH(
       .from("channels")
       .update(update)
       .eq("id", channelId)
-      .select("*")
+      .select("id, server_id, name, type, topic, position, parent_id, slowmode_delay, nsfw, forum_guidelines, stream_url")
       .single()
 
     if (updateError) {

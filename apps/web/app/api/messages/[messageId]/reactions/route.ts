@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
 import { sendPushToUser } from "@/lib/push"
+import { publishGatewayEvent } from "@/lib/gateway-publish"
 import type { MessageWithChannelServerId } from "@/types/database"
 
 interface Body {
@@ -98,6 +99,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
       }).catch((err) => { console.error("Failed to send reaction push", err) })
     }
 
+    // Publish to gateway for real-time delivery (#696)
+    publishGatewayEvent({
+      type: "reaction.added",
+      channelId: message.channel_id,
+      serverId: channelServerId,
+      actorId: user.id,
+      data: { messageId, emoji },
+    }).catch(() => {})
+
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -156,6 +166,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
         }
       })().catch((err: unknown) => { console.error("Giveaway auto-leave failed", err) })
     }
+
+    // Publish to gateway for real-time delivery (#696)
+    publishGatewayEvent({
+      type: "reaction.removed",
+      channelId: message.channel_id,
+      serverId: channelServerId,
+      actorId: user.id,
+      data: { messageId, emoji },
+    }).catch(() => {})
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
   } catch {

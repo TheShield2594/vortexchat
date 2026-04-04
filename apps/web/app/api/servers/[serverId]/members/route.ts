@@ -112,6 +112,7 @@ export async function GET(
         banner_color,
         custom_tag,
         game_activity,
+        created_at,
         last_online_at
       ),
       roles:member_roles(

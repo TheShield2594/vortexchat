@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/utils/api-helpers"
 import { rateLimiter } from "@/lib/rate-limit"
 import { sendPushToChannel } from "@/lib/push"
+import { publishGatewayEvent } from "@/lib/gateway-publish"
 import { createLogger } from "@/lib/logger"
 
 const log = createLogger("api/messages")
@@ -842,6 +843,15 @@ export async function POST(request: Request) {
     mentionEveryone,
     excludeUserId: user.id,
   }).catch((err) => { log.error({ route: "/api/messages", action: "sendPush", userId: user.id, channelId, error: err }, "sendPushToChannel failed") })
+
+  // Publish to Socket.IO gateway for real-time delivery (#696)
+  publishGatewayEvent({
+    type: "message.created",
+    channelId,
+    serverId: channel.server_id,
+    actorId: user.id,
+    data: { messageId: message.id },
+  }).catch((err) => { log.error({ route: "/api/messages", action: "gatewayPublish", userId: user.id, channelId, error: err }, "gateway publish failed") })
 
   // Skip the extra DB query when there's no reply to hydrate
   const hydratedMessage = replyToId

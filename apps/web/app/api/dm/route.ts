@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     // Get messages with specific partner
     const { data: messages, error } = await supabase
       .from("direct_messages")
-      .select("*")
+      .select("id, sender_id, receiver_id, content, created_at, edited_at, deleted_at, attachments, reply_to_id")
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${user.id})`)
       .is("deleted_at", null)
       .order("created_at", { ascending: true })

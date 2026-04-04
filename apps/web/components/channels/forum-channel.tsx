@@ -11,7 +11,7 @@ import { useShallow } from "zustand/react/shallow"
 import type { ChannelRow, MessageWithAuthor } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
-import { useRealtimeMessages } from "@/hooks/use-realtime-messages"
+import { useGatewayMessages } from "@/hooks/use-gateway-messages"
 
 interface Props {
   channel: ChannelRow
@@ -60,7 +60,7 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
     setThreadReplyDraft("")
   }, [activeThread?.id])
 
-  useRealtimeMessages(
+  useGatewayMessages(
     channel.id,
     (newMessage) => {
       setMessages((prev) => {

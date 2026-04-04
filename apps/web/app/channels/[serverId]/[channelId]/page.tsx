@@ -48,7 +48,7 @@ export default async function ChannelPage({ params: paramsPromise }: Props) {
   ] = await Promise.all([
     supabase
       .from("channels")
-      .select("*")
+      .select("id, server_id, name, type, topic, forum_guidelines, stream_url")
       .eq("id", params.channelId)
       .eq("server_id", params.serverId)
       .single(),
