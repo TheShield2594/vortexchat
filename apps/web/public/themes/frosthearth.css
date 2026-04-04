@@ -259,7 +259,7 @@ body {
 }
 
 /* Category headers — small rune ᚱ (Raido, journey) before the label */
-nav .text-xs.font-semibold.uppercase::before {
+nav .tertiary-metadata.uppercase::before {
   content: "ᚱ ";
   font-size: 0.65rem;
   color: color-mix(in srgb, var(--theme-accent-secondary) 50%, transparent);
