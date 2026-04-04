@@ -11,11 +11,32 @@ type Params = { params: Promise<{ serverId: string; channelId: string }> }
  * Uses the server's configured AI provider for the `smart_reply` function.
  */
 export async function POST(_req: NextRequest, { params }: Params): Promise<NextResponse> {
+  let serverId = "unknown"
+  let channelId = "unknown"
   try {
-    const { serverId, channelId } = await params
+    const resolved = await params
+    serverId = resolved.serverId
+    channelId = resolved.channelId
     const { supabase, user, error } = await requireServerPermission(serverId, "SEND_MESSAGES")
     if (error) return error
     if (!user) return NextResponse.json({ suggestions: [] })
+
+    // Verify channel belongs to this server
+    const { data: channel, error: channelError } = await supabase
+      .from("channels")
+      .select("id, server_id")
+      .eq("id", channelId)
+      .eq("server_id", serverId)
+      .single()
+
+    if (channelError) {
+      console.error("[smart-replies] channel query failed", { serverId, channelId, error: channelError.message })
+      return NextResponse.json({ error: "Failed to verify channel" }, { status: 500 })
+    }
+
+    if (!channel) {
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+    }
 
     // Fetch recent messages for context (last 20)
     const { data: messages, error: msgError } = await supabase
@@ -101,8 +122,9 @@ Rules:
       .slice(0, 3)
 
     return NextResponse.json({ suggestions })
-  } catch (err) {
-    console.error("[smart-replies] error:", err)
-    return NextResponse.json({ suggestions: [] })
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : "unknown"
+    console.error("[smart-replies] error:", { error: errMsg, serverId, channelId })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

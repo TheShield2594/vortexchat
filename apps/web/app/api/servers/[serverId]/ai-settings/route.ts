@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         .maybeSingle(),
       supabase
         .from("ai_provider_configs")
-        .select("id, provider, label, base_url, model, is_default, created_at, updated_at")
+        .select("id, provider, label, api_key, base_url, model, is_default, created_at, updated_at")
         .eq("server_id", serverId)
         .order("created_at", { ascending: true }),
       supabase

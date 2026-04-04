@@ -13,85 +13,89 @@ type Params = { params: Promise<{ serverId: string; channelId: string }> }
  * Requires VIEW_CHANNELS permission.
  */
 export async function POST(req: NextRequest, { params }: Params) {
-  const { serverId, channelId } = await params
-  const { supabase, error } = await requireServerPermission(serverId, "VIEW_CHANNELS")
-  if (error) return error
-
-  // Optional: since=ISO timestamp passed by client (user's last read time)
-  let since: string | null = null
+  let serverId = "unknown"
+  let channelId = "unknown"
   try {
-    const body = await req.json().catch(() => ({}))
-    if (typeof body.since === "string") since = body.since
-  } catch {
-    // ignore parse errors
-  }
+    const resolved = await params
+    serverId = resolved.serverId
+    channelId = resolved.channelId
+    const { supabase, error } = await requireServerPermission(serverId, "VIEW_CHANNELS")
+    if (error) return error
 
-  // Verify channel belongs to this server
-  const { data: channel, error: channelError } = await supabase
-    .from("channels")
-    .select("id, name, server_id")
-    .eq("id", channelId)
-    .eq("server_id", serverId)
-    .single()
+    // Optional: since=ISO timestamp passed by client (user's last read time)
+    let since: string | null = null
+    try {
+      const body = await req.json().catch(() => ({}))
+      if (typeof body.since === "string") since = body.since
+    } catch {
+      // ignore parse errors
+    }
 
-  if (channelError) {
-    console.error("[summarize] channel query failed", { serverId, channelId, error: channelError.message })
-    return NextResponse.json({ error: "Failed to verify channel" }, { status: 500 })
-  }
+    // Verify channel belongs to this server
+    const { data: channel, error: channelError } = await supabase
+      .from("channels")
+      .select("id, name, server_id")
+      .eq("id", channelId)
+      .eq("server_id", serverId)
+      .single()
 
-  if (!channel) {
-    return NextResponse.json({ error: "Channel not found" }, { status: 404 })
-  }
+    if (channelError) {
+      console.error("[summarize] channel query failed", { serverId, channelId, error: channelError.message })
+      return NextResponse.json({ error: "Failed to verify channel" }, { status: 500 })
+    }
 
-  // Fetch recent messages (up to 150, or since last read)
-  let query = supabase
-    .from("messages")
-    .select(`
-      id,
-      content,
-      created_at,
-      author:users!author_id(username, display_name),
-      deleted_at
-    `)
-    .eq("channel_id", channelId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(150)
+    if (!channel) {
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+    }
 
-  if (since) {
-    query = query.gte("created_at", since)
-  }
+    // Fetch recent messages (up to 150, or since last read)
+    let query = supabase
+      .from("messages")
+      .select(`
+        id,
+        content,
+        created_at,
+        author:users!author_id(username, display_name),
+        deleted_at
+      `)
+      .eq("channel_id", channelId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(150)
 
-  const { data: messages, error: msgError } = await query
+    if (since) {
+      query = query.gte("created_at", since)
+    }
 
-  if (msgError) {
-    return NextResponse.json({ error: "Failed to load messages" }, { status: 500 })
-  }
+    const { data: messages, error: msgError } = await query
 
-  if (!messages || messages.length === 0) {
-    return NextResponse.json({
-      summary: "No new messages to summarize.",
-      highlights: [],
-      topics: [],
-      messageCount: 0,
-      since: since ?? null,
-    })
-  }
+    if (msgError) {
+      return NextResponse.json({ error: "Failed to load messages" }, { status: 500 })
+    }
 
-  // Reverse so they're chronological for the prompt
-  const chronological = [...messages].reverse()
+    if (!messages || messages.length === 0) {
+      return NextResponse.json({
+        summary: "No new messages to summarize.",
+        highlights: [],
+        topics: [],
+        messageCount: 0,
+        since: since ?? null,
+      })
+    }
 
-  const transcript = chronological
-    .map((m) => {
-      const author = Array.isArray(m.author) ? m.author[0] : m.author
-      const name = (author as { display_name?: string; username?: string } | null)?.display_name
-        || (author as { username?: string } | null)?.username
-        || "Unknown"
-      return `[${name}]: ${m.content}`
-    })
-    .join("\n")
+    // Reverse so they're chronological for the prompt
+    const chronological = [...messages].reverse()
 
-  try {
+    const transcript = chronological
+      .map((m) => {
+        const author = Array.isArray(m.author) ? m.author[0] : m.author
+        const name = (author as { display_name?: string; username?: string } | null)?.display_name
+          || (author as { username?: string } | null)?.username
+          || "Unknown"
+        return `[${name}]: ${m.content}`
+      })
+      .join("\n")
+
     // Resolve the AI provider for chat_summary (uses per-function routing → default → legacy Gemini)
     const adapter = await resolveAdapter(supabase, serverId, "chat_summary")
     if (!adapter) {
@@ -136,9 +140,9 @@ Be concise and factual. Only include information from the conversation.`,
       messageCount: chronological.length,
       since: since ?? chronological[0]?.created_at ?? null,
     })
-  } catch (aiError: unknown) {
-    const errMsg = aiError instanceof Error ? aiError.message : "unknown"
-    console.error("[summarize] AI call failed", { serverId, channelId, error: errMsg })
-    return NextResponse.json({ error: "AI summarization failed" }, { status: 500 })
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : "unknown"
+    console.error("[summarize] error", { serverId, channelId, error: errMsg })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

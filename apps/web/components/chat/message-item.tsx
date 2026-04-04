@@ -1037,7 +1037,7 @@ export const MessageItem = memo(function MessageItem({
                 <Reply className="w-4 h-4" />
               </button>
 
-              {messageBodyContent && activeServerId && (
+              {messageBodyContent && activeServerId && activeChannelId && (
                 <button
                   onClick={handleTranslate}
                   className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
