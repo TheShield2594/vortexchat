@@ -364,7 +364,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState(false)
-  const dmSubIdRef = useRef(0)
+  const dmSubIdRef = useRef(Date.now())
+  const channelRef = useRef<Channel | null>(null)
+  const conversationKeyRef = useRef<Uint8Array | null>(null)
   const [decryptedContent, setDecryptedContent] = useState<Record<string, { text: string; failed: boolean }>>({})
   const decryptedRef = useRef<Record<string, { text: string; failed: boolean }>>({})
   const [conversationKey, setConversationKey] = useState<Uint8Array | null>(null)
@@ -399,6 +401,12 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const prevLastMsgIdRef = useRef<string | null>(null)
   const topRef = useRef<HTMLDivElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+
+  // Keep refs in sync so the realtime subscription can read latest values
+  // without needing them in its dependency array.
+  channelRef.current = channel
+  conversationKeyRef.current = conversationKey
+
   const { toast } = useToast()
   const { currentUser, serverCount } = useAppStore(
     useShallow((s) => ({ currentUser: s.currentUser, serverCount: s.servers.length }))
@@ -815,7 +823,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
                 // Incrementally index the new message if the channel is encrypted
                 // and we can decrypt it.
-                if (channel?.is_encrypted && conversationKey) {
+                if (channelRef.current?.is_encrypted && conversationKeyRef.current) {
                   const envelope = parseEncryptedEnvelope(newMsg.content)
                   if (envelope) {
                     getConversationKey(`dm-conversation-key:${channelId}:${envelope.keyVersion}`)
@@ -842,7 +850,11 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
       .subscribe()
 
     return () => { supabase.removeChannel(ch) }
-  }, [channelId, currentUserId, supabase, channel, conversationKey])
+    // channelRef / conversationKeyRef are used inside the callback so they
+    // don't need to be deps – this prevents tearing down and recreating the
+    // realtime subscription every time encryption state loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId, currentUserId, supabase])
 
   // Realtime subscription for DM reactions
   useEffect(() => {
