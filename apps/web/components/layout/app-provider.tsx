@@ -26,6 +26,14 @@ interface AppProviderProps {
 
 /** Root client-side provider that seeds Zustand stores, syncs presence, applies appearance settings, and registers push notifications. */
 export function AppProvider({ user, servers, children }: AppProviderProps) {
+  return (
+    <GatewayProvider>
+      <AppProviderInner user={user} servers={servers}>{children}</AppProviderInner>
+    </GatewayProvider>
+  )
+}
+
+function AppProviderInner({ user, servers, children }: AppProviderProps) {
   const { setCurrentUser, setServers, setIsLoadingServers, loadNotificationSettings } = useAppStore(
     useShallow((s) => ({ setCurrentUser: s.setCurrentUser, setServers: s.setServers, setIsLoadingServers: s.setIsLoadingServers, loadNotificationSettings: s.loadNotificationSettings }))
   )
@@ -92,5 +100,5 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     setNotifManagerActiveChannel(activeChannelId)
   }, [activeChannelId])
 
-  return <GatewayProvider>{children}</GatewayProvider>
+  return <>{children}</>
 }

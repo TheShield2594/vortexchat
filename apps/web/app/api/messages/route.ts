@@ -851,7 +851,7 @@ export async function POST(request: Request) {
     serverId: channel.server_id,
     actorId: user.id,
     data: { messageId: message.id },
-  }).catch((err) => { log.error({ route: "/api/messages", action: "gatewayPublish", userId: user.id, channelId, error: err }, "gateway publish failed") })
+  }, { route: "/api/messages" }).catch(() => {})
 
   // Skip the extra DB query when there's no reply to hydrate
   const hydratedMessage = replyToId

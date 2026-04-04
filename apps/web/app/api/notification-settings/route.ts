@@ -55,10 +55,13 @@ export async function GET(req: NextRequest) {
 
     if (!serverId && !channelId) {
       // Return all settings for this user
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("notification_settings")
         .select("id, user_id, server_id, channel_id, thread_id, mode")
         .eq("user_id", user.id)
+      if (error) {
+        return NextResponse.json({ error: "Failed to fetch notification settings" }, { status: 500 })
+      }
       return NextResponse.json(data ?? [])
     }
 
@@ -70,7 +73,10 @@ export async function GET(req: NextRequest) {
     if (serverId) query = query.eq("server_id", serverId)
     else if (channelId) query = query.eq("channel_id", channelId)
 
-    const { data } = await query.maybeSingle()
+    const { data, error } = await query.maybeSingle()
+    if (error) {
+      return NextResponse.json({ error: "Failed to fetch notification setting" }, { status: 500 })
+    }
     return NextResponse.json(data ?? { mode: "all" })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

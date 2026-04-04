@@ -110,8 +110,15 @@ function fetchOembed(url: string): Promise<OGData | null | undefined> {
       oembedCache.set(url, d)
       return d
     })
-    .catch(() => {
+    .catch((err: unknown) => {
       // Network error / transient failure — don't cache, allow retry
+      let host = "unknown"
+      try { host = new URL(url).host } catch {}
+      console.warn("[link-embed] fetchOembed transient failure", {
+        action: "fetchOembed",
+        host,
+        error: err instanceof Error ? err.message : String(err),
+      })
       return undefined
     })
     .finally(() => {
