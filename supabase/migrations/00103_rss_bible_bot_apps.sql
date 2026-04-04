@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS public.bible_app_configs (
 
 -- Note: bible_id default 'de4e12af7f28f599-02' is the King James Version on scripture.api.bible
 
+COMMENT ON COLUMN public.bible_app_configs.api_key IS
+  'Third-party API key for scripture.api.bible. Stored plain-text for server-side retrieval only; never returned by GET endpoints.';
+
 ---------------------------------------------------------------------------
 -- 4. RLS
 ---------------------------------------------------------------------------

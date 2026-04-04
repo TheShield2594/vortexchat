@@ -20,6 +20,15 @@ export async function GET(_req: NextRequest, { params }: Params): Promise<NextRe
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+    // Verify server membership
+    const { data: membership } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+    if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const [configResult, feedsResult] = await Promise.all([
       untypedFrom(supabase, "rss_feed_app_configs")
         .select("*")
@@ -262,7 +271,11 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
             webhook_display_name: "RSS Feed Bot",
           })
 
-        if (!msgError) posted++
+        if (msgError) {
+          console.error(`[rss-feed fetch_feeds] Failed to post message for feed ${feed.id}:`, msgError)
+        } else {
+          posted++
+        }
 
         // Update last fetched
         await untypedFrom(authSupabase, "rss_feeds")
@@ -311,8 +324,17 @@ function parseRssItems(xml: string): RssItem[] {
   return items
 }
 
+const TAG_REGEXES: Record<string, RegExp> = {
+  title: /<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title[^>]*>([^<]*)<\/title>/i,
+  link: /<link[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/link>|<link[^>]*>([^<]*)<\/link>/i,
+  description: /<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description[^>]*>([^<]*)<\/description>/i,
+  pubDate: /<pubDate[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/pubDate>|<pubDate[^>]*>([^<]*)<\/pubDate>/i,
+  guid: /<guid[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/guid>|<guid[^>]*>([^<]*)<\/guid>/i,
+}
+
 function extractTag(xml: string, tag: string): string | undefined {
-  const regex = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tag}>|<${tag}[^>]*>([^<]*)</${tag}>`, "i")
+  const regex = TAG_REGEXES[tag]
+  if (!regex) return undefined
   const m = xml.match(regex)
   return m?.[1]?.trim() || m?.[2]?.trim() || undefined
 }

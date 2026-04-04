@@ -20,6 +20,15 @@ export async function GET(_req: NextRequest, { params }: Params): Promise<NextRe
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+    // Verify server membership
+    const { data: membership } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+    if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const { data: config, error } = await untypedFrom(supabase, "bible_app_configs")
       .select("server_id, channel_id, bible_id, daily_verse_enabled, daily_verse_time, timezone, embed_color, enabled")
       .eq("server_id", serverId)
@@ -126,6 +135,15 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
 
   // ── Get a specific verse ──
   if (action === "get_verse") {
+    // Verify server membership
+    const { data: membership } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+    if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const reference = (body.reference as string)?.trim()
     if (!reference || reference.length > 100) {
       return NextResponse.json({ error: "A Bible reference is required (e.g. 'John 3:16')" }, { status: 400 })
@@ -275,6 +293,15 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
 
   // ── List available Bibles ──
   if (action === "list_bibles") {
+    // Verify server membership
+    const { data: bibleMembership } = await supabase
+      .from("server_members")
+      .select("user_id")
+      .eq("server_id", serverId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+    if (!bibleMembership) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const { data: configData } = await untypedFrom(supabase, "bible_app_configs")
       .select("api_key")
       .eq("server_id", serverId)
