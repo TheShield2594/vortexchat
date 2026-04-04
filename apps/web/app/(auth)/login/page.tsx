@@ -141,6 +141,9 @@ export default function LoginPage() {
         description: "Please sign in again.",
       })
     }
+    // Clear SW API cache on login page mount to prevent cross-account data
+    // leaks from server-side signOut flows that bypass AppProvider cleanup.
+    navigator.serviceWorker?.controller?.postMessage({ type: "CLEAR_API_CACHE" })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

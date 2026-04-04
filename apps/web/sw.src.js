@@ -2,7 +2,10 @@
 // In production this is processed by `scripts/build-sw.mjs` (workbox-build
 // injectManifest), which replaces the WB_MANIFEST placeholder with the list of
 // content-hashed /_next/static/ assets and writes the result to public/sw.js.
-// In development, public/sw.js is used directly as a fallback.
+// In development, public/sw.js does not exist (it is gitignored). SW
+// registration will 404 silently, which is expected — offline support and
+// push notifications are not available in dev. Run `npm run build` once if
+// you need to test SW features locally.
 
 // ─── VAPID key helper ────────────────────────────────────────────────────────
 // Convert a base64url-encoded VAPID public key to a Uint8Array.
