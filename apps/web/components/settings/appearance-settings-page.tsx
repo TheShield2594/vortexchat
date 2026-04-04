@@ -105,6 +105,7 @@ export const THEME_PRESET_OPTIONS: {
   { value: "terminal", label: "Terminal", description: "Green phosphor CRT terminal", accent: "#4aef98", bg: "#000900", surface: "#001a05", textPrimary: "#4aef98", textMuted: "#4aef9859", supportsColorMode: false },
   { value: "sakura-blossom", label: "Sakura Blossom", description: "Warm cherry-blossom with rose accents", accent: "#e84393", bg: "#2b1a2e", surface: "#231525", textPrimary: "#fef0f5", textMuted: "#b08a9e", supportsColorMode: false },
   { value: "frosthearth", label: "Frosthearth", description: "Nordic frost meets warm tavern", accent: "#6eafc8", bg: "#1c1e1f", surface: "#161819", textPrimary: "#e8dcc8", textMuted: "#9a8f7c", supportsColorMode: false },
+  { value: "night-city-neural", label: "Night City Neural", description: "Cyberpunk neon with cyan & magenta", accent: "#00e6ff", bg: "#0a0a12", surface: "#06060e", textPrimary: "#e0f7ff", textMuted: "#5a8a9e", supportsColorMode: false },
 ]
 
 /* ─── Mock chat preview data ──────────────────────────── */

@@ -440,7 +440,7 @@ describe("Appearance", () => {
   describe("theme presets", () => {
     const ALL_PRESETS = [
       "twilight", "midnight-neon", "synthwave", "carbon", "oled-black",
-      "frost", "clarity", "velvet-dusk", "terminal", "sakura-blossom", "frosthearth",
+      "frost", "clarity", "velvet-dusk", "terminal", "sakura-blossom", "frosthearth", "night-city-neural",
     ] as const
 
     it("all 11 presets can be set without error", () => {

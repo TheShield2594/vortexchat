@@ -2085,6 +2085,167 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   }
 }
 
+[data-theme-preset="night-city-neural"] {
+  /* Core surface palette — deep black with blue undertone */
+  --background: 240 10% 4%;
+  --foreground: 195 100% 90%;
+  --card: 240 12% 7%;
+  --card-foreground: 195 100% 90%;
+  --popover: 240 14% 5%;
+  --popover-foreground: 195 100% 90%;
+  /* Brand / interactive — neon cyan */
+  --primary: 186 100% 50%;
+  --primary-foreground: 240 10% 4%;
+  --secondary: 240 10% 12%;
+  --secondary-foreground: 195 60% 70%;
+  --accent: 186 100% 50%;
+  --accent-foreground: 240 10% 4%;
+  /* Neutral */
+  --muted: 240 8% 18%;
+  --muted-foreground: 220 15% 55%;
+  --border: 240 12% 16%;
+  --input: 240 10% 10%;
+  --ring: 186 100% 50%;
+  /* Destructive */
+  --destructive: 340 100% 55%;
+  --destructive-foreground: 0 0% 100%;
+  /* App-specific surfaces */
+  --app-bg-primary: #0a0a12;
+  --app-bg-secondary: #06060e;
+  --theme-bg-primary: #0a0a12;
+  --theme-bg-secondary: #06060e;
+  --theme-bg-tertiary: #030308;
+  --theme-surface-elevated: #14142a;
+  --theme-surface-input: #12121f;
+  --theme-surface-elevation-1: #0e0e1a;
+  --theme-surface-elevation-2: #14142a;
+  --theme-surface-elevation-3: #1a1a36;
+  --theme-surface-elevation-4: #202042;
+  --theme-surface-elevation-5: #26264e;
+  --theme-surface-passive: var(--theme-surface-elevation-1);
+  --theme-surface-active: var(--theme-surface-elevation-3);
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  --theme-shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 8px rgba(0, 230, 255, 0.04), 0 0 0 1px rgba(0, 230, 255, 0.06) inset;
+  --theme-shadow-elevation-2: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 230, 255, 0.06), 0 1px 0 rgba(0, 230, 255, 0.08) inset;
+  --theme-shadow-elevation-3: 0 8px 28px rgba(0, 0, 0, 0.65), 0 0 24px rgba(0, 230, 255, 0.08), 0 1px 0 rgba(0, 230, 255, 0.10) inset;
+  --theme-shadow-elevation-4: 0 14px 36px rgba(0, 0, 0, 0.7), 0 0 32px rgba(0, 230, 255, 0.10), 0 1px 0 rgba(0, 230, 255, 0.12) inset;
+  --theme-shadow-elevation-5: 0 24px 48px rgba(0, 0, 0, 0.8), 0 0 48px rgba(0, 230, 255, 0.12), 0 1px 0 rgba(0, 230, 255, 0.14) inset;
+  /* Typography — cool cyan-white tones */
+  --theme-text-primary: #e0f7ff;
+  --theme-text-normal: #c8e6f0;
+  --theme-text-secondary: #8cb8cc;
+  --theme-text-muted: #5a8a9e;
+  --theme-text-faint: #3d6a7e;
+  --theme-text-bright: #f0fcff;
+  /* Accent — neon cyan primary, magenta secondary */
+  --theme-accent: #00e6ff;
+  --theme-accent-secondary: #ff2a6d;
+  --theme-link: #05d9e8;
+  --theme-success: #01ffc3;
+  --theme-positive: #01ffc3;
+  --theme-warning: #fcee09;
+  --theme-danger: #ff2a6d;
+  --theme-presence-offline: #4a5568;
+  --theme-mention-self-color: color-mix(in srgb, var(--theme-warning) 70%, white);
+  --theme-mention-self-bg: color-mix(in srgb, var(--theme-warning) 18%, transparent);
+  --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 45%, transparent);
+  --color-tertiary-metadata: #5a8a9e;
+  /* Audit log categories — neon-tinted */
+  --theme-cat-member: #05d9e8;
+  --theme-cat-role: #d300c5;
+  --theme-cat-channel: #00e6ff;
+  --theme-cat-message: #01ffc3;
+  --theme-cat-server: #fcee09;
+  --theme-cat-automod: #ff6b35;
+  --theme-cat-other: #4a5568;
+  /* Presence — cyberpunk neon */
+  --theme-presence-online: #01ffc3;
+  --theme-presence-idle: #fcee09;
+  --theme-presence-dnd: #ff2a6d;
+  /* Selection */
+  --theme-selection-bg: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  --theme-selection-text: var(--theme-text-bright);
+  /* Overlay */
+  --theme-overlay-bg: color-mix(in srgb, black 82%, transparent);
+  --theme-backdrop-blur: 12px;
+  /* Border radius — sharper for cyberpunk feel */
+  --radius: 0.25rem;
+}
+
+/* Night City Neural — neon glow on borders */
+[data-theme-preset="night-city-neural"] [data-message].message-hover:hover {
+  background: color-mix(in srgb, var(--theme-accent) 6%, var(--theme-bg-primary));
+  box-shadow: inset 2px 0 0 var(--theme-accent);
+}
+
+[data-theme-preset="night-city-neural"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(0, 230, 255, 0.25), rgba(255, 42, 109, 0.25));
+  border-radius: 2px;
+}
+
+[data-theme-preset="night-city-neural"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(0, 230, 255, 0.45), rgba(255, 42, 109, 0.45));
+}
+
+[data-theme-preset="night-city-neural"] input:focus-visible,
+[data-theme-preset="night-city-neural"] textarea:focus-visible,
+[data-theme-preset="night-city-neural"] [contenteditable="true"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--theme-accent), 0 0 12px rgba(0, 230, 255, 0.2);
+}
+
+[data-theme-preset="night-city-neural"] nav .interactive-list-item:hover {
+  background: color-mix(in srgb, var(--theme-accent) 8%, var(--theme-bg-secondary));
+}
+
+[data-theme-preset="night-city-neural"] nav .channel-active {
+  background: color-mix(in srgb, var(--theme-accent) 12%, var(--theme-bg-secondary));
+  box-shadow: inset 2px 0 0 var(--theme-accent);
+}
+
+/* Night City Neural — status bars styled as netrunner uplink indicators */
+[data-theme-preset="night-city-neural"] .presence-indicator {
+  border-radius: 1px;
+  width: 10px;
+  height: 3px;
+  box-shadow: 0 0 6px currentColor;
+}
+
+[data-theme-preset="night-city-neural"] .presence-indicator[data-status="online"] {
+  box-shadow: 0 0 6px var(--theme-presence-online), 0 0 12px var(--theme-presence-online);
+}
+
+[data-theme-preset="night-city-neural"] .presence-indicator[data-status="idle"] {
+  box-shadow: 0 0 6px var(--theme-presence-idle), 0 0 12px var(--theme-presence-idle);
+}
+
+[data-theme-preset="night-city-neural"] .presence-indicator[data-status="dnd"] {
+  box-shadow: 0 0 6px var(--theme-presence-dnd), 0 0 12px var(--theme-presence-dnd);
+}
+
+/* Night City Neural — code blocks with matrix-style styling */
+[data-theme-preset="night-city-neural"] .message-content :is(code, pre) {
+  background: rgba(0, 230, 255, 0.06);
+  border: 1px solid rgba(0, 230, 255, 0.12);
+}
+
+[data-theme-preset="night-city-neural"] .message-content code {
+  color: #05d9e8;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme-preset="night-city-neural"] [data-message].message-hover:hover,
+  [data-theme-preset="night-city-neural"] nav .interactive-list-item:hover,
+  [data-theme-preset="night-city-neural"] nav .channel-active,
+  [data-theme-preset="night-city-neural"] input:focus-visible,
+  [data-theme-preset="night-city-neural"] textarea:focus-visible,
+  [data-theme-preset="night-city-neural"] [contenteditable="true"]:focus-visible {
+    transition-duration: 0ms !important;
+  }
+}
+
 /* ── Color mode overrides — scoped to the default "twilight" preset so they
    do NOT clobber themes that already define a complete token set.  Each theme
    preset declares every token it needs, so a generic light/dark override must
