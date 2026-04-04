@@ -619,9 +619,11 @@ export function NotificationsSettingsPage({ userId }: Props) {
                 value={settings.quiet_hours_start}
                 onChange={(e) => {
                   const val = e.target.value
-                  const next = { ...settings, quiet_hours_start: val }
-                  setSettings(next)
-                  if (val) void persistSetting(next)
+                  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(val)) {
+                    const next = { ...settings, quiet_hours_start: val }
+                    setSettings(next)
+                    void persistSetting(next)
+                  }
                 }}
                 className="w-full rounded px-2 py-1.5 text-sm focus-ring"
                 style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-bright)", border: "1px solid var(--theme-bg-tertiary)" }}
@@ -634,9 +636,11 @@ export function NotificationsSettingsPage({ userId }: Props) {
                 value={settings.quiet_hours_end}
                 onChange={(e) => {
                   const val = e.target.value
-                  const next = { ...settings, quiet_hours_end: val }
-                  setSettings(next)
-                  if (val) void persistSetting(next)
+                  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(val)) {
+                    const next = { ...settings, quiet_hours_end: val }
+                    setSettings(next)
+                    void persistSetting(next)
+                  }
                 }}
                 className="w-full rounded px-2 py-1.5 text-sm focus-ring"
                 style={{ background: "var(--theme-bg-tertiary)", color: "var(--theme-text-bright)", border: "1px solid var(--theme-bg-tertiary)" }}

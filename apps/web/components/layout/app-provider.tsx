@@ -33,7 +33,7 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
   )
 }
 
-function AppProviderInner({ user, servers, children }: AppProviderProps) {
+function AppProviderInner({ user, servers, children }: AppProviderProps): React.ReactNode {
   const { setCurrentUser, setServers, setIsLoadingServers, loadNotificationSettings } = useAppStore(
     useShallow((s) => ({ setCurrentUser: s.setCurrentUser, setServers: s.setServers, setIsLoadingServers: s.setIsLoadingServers, loadNotificationSettings: s.loadNotificationSettings }))
   )

@@ -69,9 +69,12 @@ export function ForumChannel({ channel, initialMessages, currentUserId, serverId
       })
     },
     (updatedMessage) => {
-      setMessages((prev) =>
-        prev.map((m) => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m)
-      )
+      setMessages((prev) => {
+        if (updatedMessage.deleted_at) {
+          return prev.filter((m) => m.id !== updatedMessage.id)
+        }
+        return prev.map((m) => m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m)
+      })
     },
     (reaction) => {
       setMessages((prev) =>

@@ -79,8 +79,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       .select(VOICE_SESSION_SELECT)
       .single()
 
-    if (error) {
-      console.error("[voice/sessions] insert failed", { userId: user.id, scopeId, error: error.message })
+    if (error || !session) {
+      console.error("[voice/sessions] insert failed", { userId: user.id, scopeId, error: error?.message ?? "No row returned" })
       return NextResponse.json({ error: "Failed to create session" }, { status: 500 })
     }
 

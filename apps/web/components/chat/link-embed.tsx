@@ -131,17 +131,20 @@ function fetchOembed(url: string): Promise<OGData | null | undefined> {
 
 export function LinkEmbed({ url }: Props) {
   const [data, setData] = useState<OGData | null>(() => oembedCache.get(url) ?? null)
+  const [dataUrl, setDataUrl] = useState<string | null>(() => oembedCache.has(url) ? url : null)
   const [failed, setFailed] = useState(() => oembedCache.has(url) && oembedCache.get(url) === null)
 
   useEffect(() => {
     // Reset state when URL changes so stale failed/data don't persist
     setData(null)
+    setDataUrl(null)
     setFailed(false)
 
     // Already have cached data — skip fetch
     if (oembedCache.has(url)) {
       const cached = oembedCache.get(url) ?? null
       setData(cached)
+      setDataUrl(url)
       setFailed(cached === null)
       return
     }
@@ -151,12 +154,13 @@ export function LinkEmbed({ url }: Props) {
       if (cancelled) return
       if (d === undefined) return // transient failure — leave as loading, allow retry on re-mount
       setData(d)
+      setDataUrl(url)
       setFailed(d === null)
     })
     return () => { cancelled = true }
   }, [url])
 
-  if (failed || !data) return null
+  if (failed || !data || dataUrl !== url) return null
 
   // Truncate URL for display
   let displayUrl = url

@@ -36,6 +36,10 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Failed to resolve thread notification context" }, { status: 500 })
       }
 
+      if (!thread) {
+        return NextResponse.json({ error: "Thread not found" }, { status: 404 })
+      }
+
       const derivedChannelId: string | null = thread?.parent_channel_id ?? null
       const derivedServerId: string | null = (thread?.channels as { server_id?: string | null } | null)?.server_id ?? null
 
