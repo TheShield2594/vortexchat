@@ -25,14 +25,16 @@ export async function GET(request: Request) {
     const service = await createServiceRoleClient()
 
     // Run all tasks concurrently — each is independent.
-    const [eventReminders, threadAutoArchive] = await Promise.allSettled([
+    const [eventReminders, threadAutoArchive, attachmentDecay] = await Promise.allSettled([
       runEventReminders(service),
       runThreadAutoArchive(service),
+      runAttachmentDecay(request),
     ])
 
     return NextResponse.json({
       eventReminders: eventReminders.status === "fulfilled" ? eventReminders.value : { error: (eventReminders as PromiseRejectedResult).reason?.message },
       threadAutoArchive: threadAutoArchive.status === "fulfilled" ? threadAutoArchive.value : { error: (threadAutoArchive as PromiseRejectedResult).reason?.message },
+      attachmentDecay: attachmentDecay.status === "fulfilled" ? attachmentDecay.value : { error: (attachmentDecay as PromiseRejectedResult).reason?.message },
     })
   } catch (err) {
     console.error("[cron/scheduled-tasks GET] error:", err)
@@ -110,4 +112,15 @@ async function runThreadAutoArchive(service: Awaited<ReturnType<typeof createSer
   }
 
   return { archived: archivedCount }
+}
+
+// ── Attachment decay (delegated to existing route) ──────────────────────────
+async function runAttachmentDecay(request: Request): Promise<Record<string, unknown>> {
+  const { GET: attachmentDecayHandler } = await import("@/app/api/cron/attachment-decay/route")
+  const forwardedRequest = new Request(request.url, {
+    method: "GET",
+    headers: request.headers,
+  })
+  const res = await attachmentDecayHandler(forwardedRequest as import("next/server").NextRequest)
+  return await res.json() as Record<string, unknown>
 }

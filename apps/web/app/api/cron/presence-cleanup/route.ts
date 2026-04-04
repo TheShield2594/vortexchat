@@ -93,7 +93,26 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       count: cleanedCount,
     })
 
-    return NextResponse.json({ ok: true, cleaned: cleanedCount })
+    // Also run game-activity on even minutes (effectively every 2 minutes)
+    // to stay within Vercel Hobby plan's 2-cron limit.
+    let gameActivity: Record<string, unknown> | null = null
+    const currentMinute = new Date().getMinutes()
+    if (currentMinute % 2 === 0) {
+      try {
+        const { GET: gameActivityHandler } = await import("@/app/api/cron/game-activity/route")
+        const forwardedRequest = new Request(req.url, {
+          method: "GET",
+          headers: req.headers,
+        })
+        const gameRes = await gameActivityHandler(forwardedRequest as NextRequest)
+        gameActivity = await gameRes.json() as Record<string, unknown>
+      } catch (err) {
+        console.error("presence-cleanup: game-activity dispatch failed", { error: err })
+        gameActivity = { error: "dispatch failed" }
+      }
+    }
+
+    return NextResponse.json({ ok: true, cleaned: cleanedCount, gameActivity })
   } catch (err) {
     console.error("presence-cleanup: unexpected error", {
       route: "cron/presence-cleanup",
