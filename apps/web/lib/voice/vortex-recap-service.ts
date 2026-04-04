@@ -144,7 +144,12 @@ Be concise and factual. Use only information from the transcript.`,
       decisions: parsed.decisions ?? "",
       actionItems: parsed.action_items ?? "",
     }
-  } catch {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    console.error("[generateVoiceCallSummary] failed to generate summary", {
+      serverId,
+      error: message,
+    })
     return null
   }
 }

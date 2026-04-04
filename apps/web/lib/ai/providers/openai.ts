@@ -49,26 +49,33 @@ export class OpenAiAdapter implements AiProviderAdapter {
       ...this.config.extraHeaders,
     }
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60_000)
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "unknown error")
-      throw new Error(`${this.name} API error ${response.status}: ${errorText}`)
-    }
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "unknown error")
+        throw new Error(`${this.name} API error ${response.status}: ${errorText}`)
+      }
 
-    const result = (await response.json()) as OpenAiResponse
-    const text = result.choices?.[0]?.message?.content ?? ""
+      const result = (await response.json()) as OpenAiResponse
+      const text = result.choices?.[0]?.message?.content ?? ""
 
-    return {
-      text,
-      usage: {
-        promptTokens: result.usage?.prompt_tokens,
-        completionTokens: result.usage?.completion_tokens,
-      },
+      return {
+        text,
+        usage: {
+          promptTokens: result.usage?.prompt_tokens,
+          completionTokens: result.usage?.completion_tokens,
+        },
+      }
+    } finally {
+      clearTimeout(timeout)
     }
   }
 }

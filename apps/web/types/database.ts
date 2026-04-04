@@ -422,6 +422,114 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_provider_configs: {
+        Row: {
+          id: string
+          server_id: string
+          provider: string
+          label: string | null
+          api_key: string | null
+          base_url: string | null
+          model: string | null
+          is_default: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          provider: string
+          label?: string | null
+          api_key?: string | null
+          base_url?: string | null
+          model?: string | null
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          provider?: string
+          label?: string | null
+          api_key?: string | null
+          base_url?: string | null
+          model?: string | null
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_function_routing: {
+        Row: {
+          server_id: string
+          ai_function: string
+          provider_config_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          server_id: string
+          ai_function: string
+          provider_config_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          server_id?: string
+          ai_function?: string
+          provider_config_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_personas: {
+        Row: {
+          id: string
+          server_id: string
+          name: string
+          avatar_url: string | null
+          system_prompt: string
+          description: string | null
+          provider_config_id: string | null
+          allowed_channel_ids: string[]
+          is_active: boolean
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          server_id: string
+          name: string
+          avatar_url?: string | null
+          system_prompt: string
+          description?: string | null
+          provider_config_id?: string | null
+          allowed_channel_ids?: string[]
+          is_active?: boolean
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          server_id?: string
+          name?: string
+          avatar_url?: string | null
+          system_prompt?: string
+          description?: string | null
+          provider_config_id?: string | null
+          allowed_channel_ids?: string[]
+          is_active?: boolean
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       server_secrets: {
         Row: {
           server_id: string

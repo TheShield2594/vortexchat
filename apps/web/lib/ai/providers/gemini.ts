@@ -51,29 +51,36 @@ export class GeminiAdapter implements AiProviderAdapter {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model}:generateContent`
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": this.config.apiKey,
-      },
-      body: JSON.stringify(body),
-    })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60_000)
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": this.config.apiKey,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "unknown error")
-      throw new Error(`Gemini API error ${response.status}: ${errorText}`)
-    }
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "unknown error")
+        throw new Error(`Gemini API error ${response.status}: ${errorText}`)
+      }
 
-    const result = (await response.json()) as GeminiResponse
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text ?? ""
+      const result = (await response.json()) as GeminiResponse
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text ?? ""
 
-    return {
-      text,
-      usage: {
-        promptTokens: result.usageMetadata?.promptTokenCount,
-        completionTokens: result.usageMetadata?.candidatesTokenCount,
-      },
+      return {
+        text,
+        usage: {
+          promptTokens: result.usageMetadata?.promptTokenCount,
+          completionTokens: result.usageMetadata?.candidatesTokenCount,
+        },
+      }
+    } finally {
+      clearTimeout(timeout)
     }
   }
 }

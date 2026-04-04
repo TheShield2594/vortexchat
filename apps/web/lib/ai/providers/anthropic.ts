@@ -44,33 +44,40 @@ export class AnthropicAdapter implements AiProviderAdapter {
     }
     if (options.temperature !== undefined) body.temperature = options.temperature
 
-    const response = await fetch(`${baseUrl}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": this.config.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify(body),
-    })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60_000)
+    try {
+      const response = await fetch(`${baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": this.config.apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "unknown error")
-      throw new Error(`Anthropic API error ${response.status}: ${errorText}`)
-    }
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "unknown error")
+        throw new Error(`Anthropic API error ${response.status}: ${errorText}`)
+      }
 
-    const result = (await response.json()) as AnthropicResponse
-    const text = result.content
-      ?.filter((b) => b.type === "text")
-      .map((b) => b.text ?? "")
-      .join("") ?? ""
+      const result = (await response.json()) as AnthropicResponse
+      const text = result.content
+        ?.filter((b) => b.type === "text")
+        .map((b) => b.text ?? "")
+        .join("") ?? ""
 
-    return {
-      text,
-      usage: {
-        promptTokens: result.usage?.input_tokens,
-        completionTokens: result.usage?.output_tokens,
-      },
+      return {
+        text,
+        usage: {
+          promptTokens: result.usage?.input_tokens,
+          completionTokens: result.usage?.output_tokens,
+        },
+      }
+    } finally {
+      clearTimeout(timeout)
     }
   }
 }

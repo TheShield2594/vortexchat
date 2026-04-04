@@ -43,26 +43,33 @@ export class OllamaAdapter implements AiProviderAdapter {
       body.format = "json"
     }
 
-    const response = await fetch(`${baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60_000)
+    try {
+      const response = await fetch(`${baseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "unknown error")
-      throw new Error(`Ollama API error ${response.status}: ${errorText}`)
-    }
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "unknown error")
+        throw new Error(`Ollama API error ${response.status}: ${errorText}`)
+      }
 
-    const result = (await response.json()) as OllamaResponse
-    const text = result.message?.content ?? ""
+      const result = (await response.json()) as OllamaResponse
+      const text = result.message?.content ?? ""
 
-    return {
-      text,
-      usage: {
-        promptTokens: result.prompt_eval_count,
-        completionTokens: result.eval_count,
-      },
+      return {
+        text,
+        usage: {
+          promptTokens: result.prompt_eval_count,
+          completionTokens: result.eval_count,
+        },
+      }
+    } finally {
+      clearTimeout(timeout)
     }
   }
 }

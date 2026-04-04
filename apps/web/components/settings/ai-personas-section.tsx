@@ -118,6 +118,7 @@ export function AiPersonasSection({ serverId }: AiPersonasSectionProps) {
   }
 
   const handleDelete = async (personaId: string, name: string): Promise<void> => {
+    if (!window.confirm(`Delete persona "${name}"?`)) return
     setError(null)
     try {
       const res = await fetch(`/api/servers/${serverId}/ai-personas`, {

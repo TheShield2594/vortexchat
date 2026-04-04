@@ -306,7 +306,7 @@ export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, on
             style={{ borderColor: "var(--theme-bg-tertiary)" }}
           >
             <button
-              onClick={() => { setSearchMode("text"); setResults([]); setText("") }}
+              onClick={() => { setSearchMode("text"); setResults([]); setText(""); setFilters({}) }}
               className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
               style={
                 searchMode === "text"
@@ -317,7 +317,7 @@ export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, on
               Text
             </button>
             <button
-              onClick={() => { setSearchMode("ai"); setResults([]); setText("") }}
+              onClick={() => { setSearchMode("ai"); setResults([]); setText(""); setFilters({}) }}
               className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors"
               style={
                 searchMode === "ai"

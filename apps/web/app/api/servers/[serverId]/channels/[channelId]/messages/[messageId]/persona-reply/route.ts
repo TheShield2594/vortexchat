@@ -35,6 +35,41 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       return NextResponse.json({ error: "personaId is required" }, { status: 400 })
     }
 
+    // Validate channel belongs to this server
+    const { data: channel, error: channelError } = await supabase
+      .from("channels")
+      .select("id, server_id")
+      .eq("id", channelId)
+      .eq("server_id", serverId)
+      .maybeSingle()
+
+    if (channelError) {
+      console.error("[persona-reply] channel lookup failed", { channelId, error: channelError.message })
+      return NextResponse.json({ error: "Failed to verify channel" }, { status: 500 })
+    }
+
+    if (!channel) {
+      return NextResponse.json({ error: "Channel not found in this server" }, { status: 404 })
+    }
+
+    // Validate messageId exists in this channel
+    const { data: triggerMessage, error: triggerError } = await supabase
+      .from("messages")
+      .select("id, created_at")
+      .eq("id", messageId)
+      .eq("channel_id", channelId)
+      .is("deleted_at", null)
+      .maybeSingle()
+
+    if (triggerError) {
+      console.error("[persona-reply] message lookup failed", { messageId, error: triggerError.message })
+      return NextResponse.json({ error: "Failed to verify message" }, { status: 500 })
+    }
+
+    if (!triggerMessage) {
+      return NextResponse.json({ error: "Message not found in this channel" }, { status: 404 })
+    }
+
     // Fetch persona
     const { data: persona, error: personaError } = await supabase
       .from("ai_personas")
@@ -69,6 +104,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       `)
       .eq("channel_id", channelId)
       .is("deleted_at", null)
+      .lte("created_at", triggerMessage.created_at)
       .order("created_at", { ascending: false })
       .limit(15)
 

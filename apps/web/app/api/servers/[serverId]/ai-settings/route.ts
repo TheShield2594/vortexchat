@@ -44,6 +44,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
         .eq("server_id", serverId),
     ])
 
+    if (secretsResult.error || providersResult.error || routingResult.error) {
+      console.error("[ai-settings GET] query errors:", {
+        secrets: secretsResult.error?.message,
+        providers: providersResult.error?.message,
+        routing: routingResult.error?.message,
+      })
+      return NextResponse.json({ error: "Failed to load AI settings" }, { status: 500 })
+    }
+
     // Build routing map: { chat_summary: "config-uuid", ... }
     const routing: Record<string, string> = {}
     if (routingResult.data) {
@@ -275,12 +284,17 @@ async function handleUpdateProvider(
   }
 
   // Verify the config belongs to this server
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("ai_provider_configs")
-    .select("id, server_id")
+    .select("id, server_id, provider, api_key, base_url")
     .eq("id", data.configId)
     .eq("server_id", serverId)
     .maybeSingle()
+
+  if (existingError) {
+    console.error("[ai-settings] update_provider lookup error:", existingError)
+    return NextResponse.json({ error: "Failed to look up provider config" }, { status: 500 })
+  }
 
   if (!existing) {
     return NextResponse.json({ error: "Provider config not found" }, { status: 404 })
@@ -292,6 +306,19 @@ async function handleUpdateProvider(
   if (typeof data.apiKey === "string") updates.api_key = data.apiKey.trim() || null
   if (typeof data.baseUrl === "string") updates.base_url = data.baseUrl.trim() || null
   if (typeof data.model === "string") updates.model = data.model.trim() || null
+
+  // Validate that after merge, required fields are not empty
+  const mergedApiKey = typeof data.apiKey === "string" ? data.apiKey.trim() : existing.api_key
+  const mergedBaseUrl = typeof data.baseUrl === "string" ? data.baseUrl.trim() : existing.base_url
+  const provider = existing.provider as string
+
+  const providerMeta = AI_PROVIDER_META[provider as keyof typeof AI_PROVIDER_META]
+  if (providerMeta?.requiresApiKey && !mergedApiKey) {
+    return NextResponse.json({ error: `${providerMeta.label} requires an API key` }, { status: 400 })
+  }
+  if (provider === "ollama" && !mergedBaseUrl) {
+    return NextResponse.json({ error: "Ollama requires a base URL" }, { status: 400 })
+  }
 
   if (typeof data.isDefault === "boolean") {
     // If setting as default, clear others first
@@ -328,12 +355,17 @@ async function handleRemoveProvider(
   }
 
   // Verify ownership before deleting
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("ai_provider_configs")
     .select("id, server_id")
     .eq("id", data.configId)
     .eq("server_id", serverId)
     .maybeSingle()
+
+  if (existingError) {
+    console.error("[ai-settings] remove_provider lookup error:", existingError)
+    return NextResponse.json({ error: "Failed to look up provider config" }, { status: 500 })
+  }
 
   if (!existing) {
     return NextResponse.json({ error: "Provider config not found" }, { status: 404 })
@@ -388,12 +420,17 @@ async function handleSetRouting(
   }
 
   // Verify the provider config belongs to this server
-  const { data: config } = await supabase
+  const { data: config, error: configError } = await supabase
     .from("ai_provider_configs")
     .select("id")
     .eq("id", data.providerConfigId)
     .eq("server_id", serverId)
     .maybeSingle()
+
+  if (configError) {
+    console.error("[ai-settings] set_routing lookup error:", configError)
+    return NextResponse.json({ error: "Failed to look up provider config" }, { status: 500 })
+  }
 
   if (!config) {
     return NextResponse.json({ error: "Provider config not found" }, { status: 404 })
