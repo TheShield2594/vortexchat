@@ -1,119 +1,115 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
-import { resolveGeminiApiKey } from "@/lib/ai/resolve-gemini-key"
+import { resolveAdapter } from "@/lib/ai/ai-router"
 
 type Params = { params: Promise<{ serverId: string; channelId: string }> }
-
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string
-      }>
-    }
-  }>
-}
 
 /**
  * POST /api/servers/[serverId]/channels/[channelId]/summarize
  *
  * AI-powered channel catch-up summary.
- * Fetches recent messages and summarises them with Gemini.
+ * Fetches recent messages and summarises them via the server's configured
+ * AI provider for the `chat_summary` function.
  * Requires VIEW_CHANNELS permission.
  */
 export async function POST(req: NextRequest, { params }: Params) {
-  const { serverId, channelId } = await params
-  const { supabase, user, error } = await requireServerPermission(serverId, "VIEW_CHANNELS")
-  if (error) return error
-
-  // Optional: since=ISO timestamp passed by client (user's last read time)
-  let since: string | null = null
+  let serverId = "unknown"
+  let channelId = "unknown"
   try {
-    const body = await req.json().catch(() => ({}))
-    if (typeof body.since === "string") since = body.since
-  } catch {
-    // ignore parse errors
-  }
+    const resolved = await params
+    serverId = resolved.serverId
+    channelId = resolved.channelId
+    const { supabase, error } = await requireServerPermission(serverId, "VIEW_CHANNELS")
+    if (error) return error
 
-  // Verify channel belongs to this server
-  const { data: channel, error: channelError } = await supabase
-    .from("channels")
-    .select("id, name, server_id")
-    .eq("id", channelId)
-    .eq("server_id", serverId)
-    .single()
+    // Optional: since=ISO timestamp passed by client (user's last read time)
+    let since: string | null = null
+    try {
+      const body = await req.json().catch(() => ({}))
+      if (typeof body.since === "string") since = body.since
+    } catch {
+      // ignore parse errors
+    }
 
-  if (channelError) {
-    console.error("[summarize] channel query failed", { serverId, channelId, error: channelError.message })
-    return NextResponse.json({ error: "Failed to verify channel" }, { status: 500 })
-  }
+    // Verify channel belongs to this server
+    const { data: channel, error: channelError } = await supabase
+      .from("channels")
+      .select("id, name, server_id")
+      .eq("id", channelId)
+      .eq("server_id", serverId)
+      .single()
 
-  if (!channel) {
-    return NextResponse.json({ error: "Channel not found" }, { status: 404 })
-  }
+    if (channelError) {
+      console.error("[summarize] channel query failed", { serverId, channelId, error: channelError.message })
+      return NextResponse.json({ error: "Failed to verify channel" }, { status: 500 })
+    }
 
-  // Fetch recent messages (up to 150, or since last read)
-  let query = supabase
-    .from("messages")
-    .select(`
-      id,
-      content,
-      created_at,
-      author:users!author_id(username, display_name),
-      deleted_at
-    `)
-    .eq("channel_id", channelId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(150)
+    if (!channel) {
+      return NextResponse.json({ error: "Channel not found" }, { status: 404 })
+    }
 
-  if (since) {
-    query = query.gte("created_at", since)
-  }
+    // Fetch recent messages (up to 150, or since last read)
+    let query = supabase
+      .from("messages")
+      .select(`
+        id,
+        content,
+        created_at,
+        author:users!author_id(username, display_name),
+        deleted_at
+      `)
+      .eq("channel_id", channelId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(150)
 
-  const { data: messages, error: msgError } = await query
+    if (since) {
+      query = query.gte("created_at", since)
+    }
 
-  if (msgError) {
-    return NextResponse.json({ error: "Failed to load messages" }, { status: 500 })
-  }
+    const { data: messages, error: msgError } = await query
 
-  if (!messages || messages.length === 0) {
-    return NextResponse.json({
-      summary: "No new messages to summarize.",
-      highlights: [],
-      topics: [],
-      messageCount: 0,
-      since: since ?? null,
-    })
-  }
+    if (msgError) {
+      return NextResponse.json({ error: "Failed to load messages" }, { status: 500 })
+    }
 
-  // Reverse so they're chronological for the prompt
-  const chronological = [...messages].reverse()
+    if (!messages || messages.length === 0) {
+      return NextResponse.json({
+        summary: "No new messages to summarize.",
+        highlights: [],
+        topics: [],
+        messageCount: 0,
+        since: since ?? null,
+      })
+    }
 
-  const transcript = chronological
-    .map((m) => {
-      const author = Array.isArray(m.author) ? m.author[0] : m.author
-      const name = (author as { display_name?: string; username?: string } | null)?.display_name
-        || (author as { username?: string } | null)?.username
-        || "Unknown"
-      return `[${name}]: ${m.content}`
-    })
-    .join("\n")
+    // Reverse so they're chronological for the prompt
+    const chronological = [...messages].reverse()
 
-  const apiKey = await resolveGeminiApiKey(supabase, serverId)
-  if (!apiKey) {
-    return NextResponse.json({ error: "AI summarization is not configured. The server owner must set a Gemini API key in server settings." }, { status: 503 })
-  }
+    const transcript = chronological
+      .map((m) => {
+        const author = Array.isArray(m.author) ? m.author[0] : m.author
+        const name = (author as { display_name?: string; username?: string } | null)?.display_name
+          || (author as { username?: string } | null)?.username
+          || "Unknown"
+        return `[${name}]: ${m.content}`
+      })
+      .join("\n")
 
-  try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [
-            {
-              text: `You are a helpful assistant that summarizes chat channel conversations.
+    // Resolve the AI provider for chat_summary (uses per-function routing → default → legacy Gemini)
+    const adapter = await resolveAdapter(supabase, serverId, "chat_summary")
+    if (!adapter) {
+      return NextResponse.json(
+        { error: "AI summarization is not configured. The server owner must add an AI provider in server settings." },
+        { status: 503 }
+      )
+    }
+
+    const result = await adapter.complete(
+      [
+        {
+          role: "system",
+          content: `You are a helpful assistant that summarizes chat channel conversations.
 Return your response as JSON with this exact shape:
 {
   "summary": "2-4 sentence overview of what was discussed",
@@ -121,40 +117,20 @@ Return your response as JSON with this exact shape:
   "topics": ["topic1", "topic2"]
 }
 Be concise and factual. Only include information from the conversation.`,
-            },
-          ],
         },
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `Summarize this conversation from the #${channel.name} channel (${chronological.length} messages):\n\n${transcript}`,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 512,
-          responseMimeType: "application/json",
+        {
+          role: "user",
+          content: `Summarize this conversation from the #${channel.name} channel (${chronological.length} messages):\n\n${transcript}`,
         },
-      }),
-    })
-
-    if (!response.ok) {
-      const errorBody = await response.text()
-      console.error("Gemini API request failed", response.status, errorBody)
-      return NextResponse.json({ error: "AI summarization failed" }, { status: 500 })
-    }
-
-    const result = await response.json() as GeminiResponse
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}"
+      ],
+      { maxTokens: 512, jsonMode: true }
+    )
 
     let parsed: { summary: string; highlights: string[]; topics: string[] }
     try {
-      parsed = JSON.parse(text)
+      parsed = JSON.parse(result.text)
     } catch {
-      parsed = { summary: text, highlights: [], topics: [] }
+      parsed = { summary: result.text, highlights: [], topics: [] }
     }
 
     return NextResponse.json({
@@ -164,8 +140,9 @@ Be concise and factual. Only include information from the conversation.`,
       messageCount: chronological.length,
       since: since ?? chronological[0]?.created_at ?? null,
     })
-  } catch (aiError: unknown) {
-    console.error("AI summarization failed", aiError)
-    return NextResponse.json({ error: "AI summarization failed" }, { status: 500 })
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : "unknown"
+    console.error("[summarize] error", { serverId, channelId, error: errMsg })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

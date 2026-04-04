@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useId, useRef, useState, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip, Clock, Loader2, AlertTriangle } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip, Clock, Loader2, AlertTriangle, Globe, Bot } from "lucide-react"
 import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { OptimizedAvatarImage } from "@/components/ui/optimized-avatar-image"
@@ -311,6 +311,8 @@ export const MessageItem = memo(function MessageItem({
   const [showCreateThread, setShowCreateThread] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [translatedText, setTranslatedText] = useState<string | null>(null)
+  const [translating, setTranslating] = useState(false)
   const { toast } = useToast()
   const timestampFormat = useAppearanceStore((s) => s.timestampFormat)
   const { emojis: serverEmojis } = useServerEmojis()
@@ -398,10 +400,34 @@ export const MessageItem = memo(function MessageItem({
     }
   }, [message.reactions])
 
-  const { activeServerId, membersByServer } = useAppStore(
-    useShallow((s) => ({ activeServerId: s.activeServerId, membersByServer: s.members }))
+  const { activeServerId, activeChannelId, membersByServer } = useAppStore(
+    useShallow((s) => ({ activeServerId: s.activeServerId, activeChannelId: s.activeChannelId, membersByServer: s.members }))
   )
   const memberLookup = activeServerId ? membersByServer[activeServerId] ?? [] : []
+
+  async function handleTranslate(): Promise<void> {
+    if (translating || !activeServerId || !activeChannelId || !message.content) return
+    if (translatedText) { setTranslatedText(null); return } // Toggle off
+    setTranslating(true)
+    try {
+      const userLang = navigator.language?.split("-")[0] || "en"
+      const res = await fetch(
+        `/api/servers/${activeServerId}/channels/${activeChannelId}/messages/${message.id}/translate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ targetLanguage: userLang === "en" ? "English" : new Intl.DisplayNames(["en"], { type: "language" }).of(userLang) || "English" }),
+        }
+      )
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Translation failed") }
+      const data = await res.json()
+      setTranslatedText(data.translatedText ?? null)
+    } catch {
+      toast({ variant: "destructive", title: "Translation failed", description: "Could not translate this message" })
+    } finally {
+      setTranslating(false)
+    }
+  }
 
   async function confirmDelete() {
     try {
@@ -412,9 +438,17 @@ export const MessageItem = memo(function MessageItem({
     }
   }
 
-  const displayName = message.webhook_display_name
-    ? message.webhook_display_name
-    : message.author?.display_name || message.author?.username || "Unknown"
+  // AI Persona detection — persona replies use webhook_display_name ending with " [AI]"
+  const isPersonaMessage = !!message.webhook_display_name?.endsWith(" [AI]")
+  const personaDisplayName = isPersonaMessage
+    ? message.webhook_display_name!.replace(/ \[AI\]$/, "")
+    : null
+
+  const displayName = isPersonaMessage
+    ? personaDisplayName ?? "Bot"
+    : message.webhook_display_name
+      ? message.webhook_display_name
+      : message.author?.display_name || message.author?.username || "Unknown"
   const initials = displayName.slice(0, 2).toUpperCase()
   const timestamp = new Date(message.created_at)
   const messageMetaId = useId()
@@ -660,6 +694,15 @@ export const MessageItem = memo(function MessageItem({
                       APP
                     </span>
                   )}
+                  {isPersonaMessage && (
+                    <span
+                      className="inline-flex items-center gap-0.5 px-1.5 py-px rounded text-[10px] font-bold uppercase leading-none"
+                      style={{ background: "var(--theme-ai-badge-bg)", color: "var(--theme-ai-badge-text)" }}
+                      aria-label="AI persona"
+                    >
+                      <Bot className="w-2.5 h-2.5" /> BOT
+                    </span>
+                  )}
                   <span id={messageMetaId} className="text-xs tertiary-metadata message-cozy-timestamp">
                     {format(timestamp, timestampFormat === "24h" ? "MM/dd/yyyy HH:mm" : "MM/dd/yyyy h:mm a")}
                   </span>
@@ -774,6 +817,20 @@ export const MessageItem = memo(function MessageItem({
                       style={{ color: "var(--theme-text-normal)" }}
                     >
                       <MessageMarkdown content={messageBodyContent} currentUserId={currentUserId} serverId={activeServerId} />
+                    </div>
+                  )}
+
+                  {/* Inline translation block */}
+                  {translatedText && (
+                    <div
+                      className="mt-1.5 rounded-md px-3 py-2 text-sm leading-relaxed"
+                      style={{ background: "var(--theme-ai-surface)", border: "1px solid var(--theme-ai-border)" }}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Globe className="w-3 h-3" style={{ color: "var(--theme-ai-badge-text)" }} />
+                        <span className="text-xs font-medium" style={{ color: "var(--theme-ai-badge-text)" }}>Translated</span>
+                      </div>
+                      <div style={{ color: "var(--theme-text-normal)" }}>{translatedText}</div>
                     </div>
                   )}
 
@@ -979,6 +1036,20 @@ export const MessageItem = memo(function MessageItem({
               >
                 <Reply className="w-4 h-4" />
               </button>
+
+              {messageBodyContent && activeServerId && activeChannelId && (
+                <button
+                  onClick={handleTranslate}
+                  className="motion-interactive motion-press w-8 h-8 flex items-center justify-center surface-hover-md focus-ring"
+                  style={{ color: translatedText ? "var(--theme-accent)" : "var(--theme-text-secondary)" }}
+                  title={translatedText ? "Hide translation" : "Translate"}
+                  aria-label={translatedText ? "Hide translation" : "Translate message"}
+                  aria-describedby={messageMetaId}
+                  tabIndex={showActions ? 0 : -1}
+                >
+                  {translating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                </button>
+              )}
 
               {onThreadCreated && (
                 <button

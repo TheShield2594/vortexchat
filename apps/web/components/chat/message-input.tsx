@@ -23,6 +23,7 @@ import { useGifMemeSticker } from "@/hooks/use-gif-meme-sticker"
 import { usePollCreator } from "@/hooks/use-poll-creator"
 import { useSlashModeration } from "@/hooks/use-slash-moderation"
 import { useMobileLayout } from "@/hooks/use-mobile-layout"
+import { SmartReplyTray } from "@/components/chat/smart-reply-tray"
 
 /** Module-level cache for slash commands to avoid refetching on every server revisit. */
 const SLASH_COMMAND_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
@@ -143,8 +144,8 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
   }, [])
 
   // Mention autocomplete
-  const { activeServerId, members: membersByServer, serverRoles: rolesByServer } = useAppStore(
-    useShallow((s) => ({ activeServerId: s.activeServerId, members: s.members, serverRoles: s.serverRoles }))
+  const { activeServerId, activeChannelId, members: membersByServer, serverRoles: rolesByServer } = useAppStore(
+    useShallow((s) => ({ activeServerId: s.activeServerId, activeChannelId: s.activeChannelId, members: s.members, serverRoles: s.serverRoles }))
   )
   const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
   const roles = serverId ? rolesByServer[serverId] ?? [] : []
@@ -809,6 +810,21 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
         <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg pointer-events-none" style={{ background: "color-mix(in srgb, var(--theme-accent) 10%, transparent)", border: "2px dashed var(--theme-accent)" }}>
           <span className="text-sm font-medium" style={{ color: "var(--theme-accent)" }}>Drop files here</span>
         </div>
+      )}
+
+      {/* Smart reply suggestions */}
+      {variant === "channel" && activeServerId && activeChannelId && (
+        <SmartReplyTray
+          serverId={activeServerId}
+          channelId={activeChannelId}
+          isTyping={content.length > 0 && content !== draft}
+          hasContent={content.trim().length > 0}
+          onSelect={(text) => {
+            setContent(text)
+            onDraftChange(text)
+            textareaRef.current?.focus()
+          }}
+        />
       )}
 
       {/* Reply indicator */}

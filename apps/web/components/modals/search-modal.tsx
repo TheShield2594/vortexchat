@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Search, X, Loader2, Calendar, CheckSquare, FileText, Link, Image, Paperclip, User, ChevronDown, ShieldCheck } from "lucide-react"
+import { Search, X, Loader2, Calendar, CheckSquare, FileText, Link, Image, Paperclip, User, ChevronDown, ShieldCheck, Sparkles } from "lucide-react"
 import { format } from "date-fns"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { BrandedEmptyState } from "@/components/ui/branded-empty-state"
@@ -79,6 +79,7 @@ const HAS_OPTIONS: { value: NonNullable<ActiveFilters["has"]>; label: string; ic
 
 export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, onJumpToMessage }: Props) {
   const isDmSearch = Boolean(dmChannelId)
+  const [searchMode, setSearchMode] = useState<"text" | "ai">("text")
   const [text, setText] = useState("")
   const [filters, setFilters] = useState<ActiveFilters>({})
   const [showFilterBar, setShowFilterBar] = useState(false)
@@ -156,10 +157,51 @@ export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, on
     }
   }, [serverId, dmChannelId])
 
+  const aiSearch = useCallback(async (query: string) => {
+    if (!query.trim() || !serverId) return setResults([])
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/servers/${serverId}/semantic-search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: query.trim() }),
+        signal: controller.signal,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const mapped: SearchResult[] = (data.results ?? []).map((r: Record<string, unknown>) => ({
+          type: "message" as const,
+          id: r.id as string,
+          content: r.content as string,
+          channel_id: r.channelId as string,
+          created_at: r.createdAt as string,
+          author_id: (r.author as Record<string, unknown>)?.id as string,
+          author: {
+            display_name: (r.author as Record<string, unknown>)?.displayName as string,
+            username: (r.author as Record<string, unknown>)?.username as string,
+            avatar_url: (r.author as Record<string, unknown>)?.avatarUrl as string,
+          },
+          _relevance: r.relevance as number,
+        }))
+        setResults(mapped)
+        setTotal(mapped.length)
+      }
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return
+    } finally {
+      if (!controller.signal.aborted) setLoading(false)
+    }
+  }, [serverId])
+
   const scheduleSearch = useCallback((t: string, f: ActiveFilters) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => search(t, f), 300)
-  }, [search])
+    debounceRef.current = setTimeout(() => {
+      if (searchMode === "ai") { aiSearch(t) } else { search(t, f) }
+    }, searchMode === "ai" ? 600 : 300)
+  }, [search, aiSearch, searchMode])
 
   function handleTextInput(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value
@@ -185,7 +227,9 @@ export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, on
 
   const placeholderText = isDmSearch
     ? `Search${dmChannelLabel ? ` in ${dmChannelLabel}` : " messages"}…`
-    : "Search messages, tasks, docs…"
+    : searchMode === "ai"
+      ? "Ask a question about your conversations…"
+      : "Search messages, tasks, docs…"
 
   return (
     <div
@@ -255,8 +299,39 @@ export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, on
           </button>
         </div>
 
+        {/* Search mode toggle — Text vs AI */}
+        {serverId && !isDmSearch && (
+          <div
+            className="flex items-center gap-1 px-4 py-1.5 border-b"
+            style={{ borderColor: "var(--theme-bg-tertiary)" }}
+          >
+            <button
+              onClick={() => { setSearchMode("text"); setResults([]); setText(""); setFilters({}) }}
+              className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={
+                searchMode === "text"
+                  ? { background: "var(--theme-surface-elevated)", color: "var(--theme-text-bright)" }
+                  : { color: "var(--theme-text-muted)" }
+              }
+            >
+              Text
+            </button>
+            <button
+              onClick={() => { setSearchMode("ai"); setResults([]); setText(""); setFilters({}) }}
+              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={
+                searchMode === "ai"
+                  ? { background: "var(--theme-ai-surface)", border: "1px solid var(--theme-ai-border)", color: "var(--theme-ai-badge-text)" }
+                  : { color: "var(--theme-text-muted)" }
+              }
+            >
+              <Sparkles className="w-3 h-3" /> AI Search
+            </button>
+          </div>
+        )}
+
         {/* Filter bar */}
-        {showFilterBar && (
+        {showFilterBar && searchMode === "text" && (
           <div
             className="px-4 py-2.5 border-b flex flex-wrap gap-2 items-center"
             style={{ borderColor: "var(--theme-bg-tertiary)", background: "color-mix(in srgb, var(--theme-bg-tertiary) 40%, var(--theme-bg-secondary))" }}
@@ -425,6 +500,23 @@ export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, on
                             </span>
                           </div>
                           <p className="text-sm truncate" style={{ color: "var(--theme-text-secondary)" }}>{result.content}</p>
+                          {/* Relevance dots for AI search */}
+                          {searchMode === "ai" && "_relevance" in result && typeof (result as Record<string, unknown>)._relevance === "number" && (
+                            <div className="flex items-center gap-1 mt-1">
+                              {[1, 2, 3, 4].map((level) => (
+                                <span
+                                  key={level}
+                                  className="w-1.5 h-1.5 rounded-full"
+                                  style={{
+                                    background: level <= ((result as Record<string, unknown>)._relevance as number)
+                                      ? "var(--theme-ai-badge-text)"
+                                      : "var(--theme-bg-tertiary)",
+                                  }}
+                                />
+                              ))}
+                              <span className="text-[10px] ml-1" style={{ color: "var(--theme-text-muted)" }}>Relevance</span>
+                            </div>
+                          )}
                         </div>
                       </button>
                     )

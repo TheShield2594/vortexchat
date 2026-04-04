@@ -1,6 +1,22 @@
 // Shared types for Vortex
 
 export {
+  AI_PROVIDERS,
+  AI_PROVIDER_META,
+  AI_FUNCTIONS,
+  AI_FUNCTION_META,
+} from './ai'
+export type {
+  AiProvider,
+  AiFunction,
+  AiProviderConfig,
+  AiFunctionRouting,
+  AiProviderConfigInput,
+  AiFunctionRoutingInput,
+  ResolvedAiProvider,
+} from './ai'
+
+export {
   DECAY_CONSTANTS,
   RENEWAL_CONSTANTS,
   computeDecay,
