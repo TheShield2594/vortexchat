@@ -2124,8 +2124,8 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --theme-surface-elevation-5: #26264e;
   --theme-surface-passive: var(--theme-surface-elevation-1);
   --theme-surface-active: var(--theme-surface-elevation-3);
-  --theme-focus-shift: color-mix(in srgb, var(--theme-accent) 30%, transparent);
-  --theme-shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 8px rgba(0, 230, 255, 0.04), 0 0 0 1px rgba(0, 230, 255, 0.06) inset;
+  --theme-focus-shift: color-mix(in srgb, var(--theme-accent-secondary) 30%, transparent);
+  --theme-shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 8px rgba(0, 230, 255, 0.04), 0 0 8px rgba(255, 42, 109, 0.03), 0 0 0 1px rgba(0, 230, 255, 0.06) inset;
   --theme-shadow-elevation-2: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 230, 255, 0.06), 0 1px 0 rgba(0, 230, 255, 0.08) inset;
   --theme-shadow-elevation-3: 0 8px 28px rgba(0, 0, 0, 0.65), 0 0 24px rgba(0, 230, 255, 0.08), 0 1px 0 rgba(0, 230, 255, 0.10) inset;
   --theme-shadow-elevation-4: 0 14px 36px rgba(0, 0, 0, 0.7), 0 0 32px rgba(0, 230, 255, 0.10), 0 1px 0 rgba(0, 230, 255, 0.12) inset;
@@ -2172,38 +2172,117 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   --radius: 0.25rem;
 }
 
-/* Night City Neural — neon glow on borders */
-[data-theme-preset="night-city-neural"] [data-message].message-hover:hover {
-  background: color-mix(in srgb, var(--theme-accent) 6%, var(--theme-bg-primary));
-  box-shadow: inset 2px 0 0 var(--theme-accent);
+/* ── Night City Neural — cyberpunk neon with cyan & magenta ──────────── */
+
+/* Background — subtle grid overlay + dual-glow radials (cyan + magenta) */
+[data-theme-preset="night-city-neural"] body {
+  background-image:
+    radial-gradient(900px 400px at 75% -5%, rgba(0, 230, 255, 0.07), transparent 60%),
+    radial-gradient(700px 350px at 10% 105%, rgba(255, 42, 109, 0.06), transparent 55%),
+    linear-gradient(
+      rgba(0, 230, 255, 0.03) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(0, 230, 255, 0.03) 1px,
+      transparent 1px
+    );
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+  background-attachment: fixed;
 }
 
+/* Headings — neon text glow (cyan with magenta fringe) */
+[data-theme-preset="night-city-neural"] h1,
+[data-theme-preset="night-city-neural"] h2,
+[data-theme-preset="night-city-neural"] .channel-sidebar-title {
+  text-shadow:
+    0 0 8px rgba(0, 230, 255, 0.35),
+    0 0 20px rgba(0, 230, 255, 0.12),
+    0 0 40px rgba(255, 42, 109, 0.06);
+}
+
+/* Message hover — cyan left-bar + magenta ambient glow */
+[data-theme-preset="night-city-neural"] [data-message].message-hover:hover {
+  background: color-mix(in srgb, var(--theme-accent) 6%, var(--theme-bg-primary));
+  box-shadow:
+    inset 2px 0 0 var(--theme-accent),
+    0 0 16px rgba(255, 42, 109, 0.04);
+}
+
+/* Scrollbar — cyan-to-magenta gradient */
 [data-theme-preset="night-city-neural"] ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(0, 230, 255, 0.25), rgba(255, 42, 109, 0.25));
+  background: linear-gradient(180deg, rgba(0, 230, 255, 0.3), rgba(255, 42, 109, 0.3));
   border-radius: 2px;
 }
 
 [data-theme-preset="night-city-neural"] ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(0, 230, 255, 0.45), rgba(255, 42, 109, 0.45));
+  background: linear-gradient(180deg, rgba(0, 230, 255, 0.5), rgba(255, 42, 109, 0.5));
 }
 
+/* Input focus — cyan ring with magenta outer glow */
 [data-theme-preset="night-city-neural"] input:focus-visible,
 [data-theme-preset="night-city-neural"] textarea:focus-visible,
 [data-theme-preset="night-city-neural"] [contenteditable="true"]:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 1px var(--theme-accent), 0 0 12px rgba(0, 230, 255, 0.2);
+  box-shadow:
+    0 0 0 1px var(--theme-accent),
+    0 0 12px rgba(0, 230, 255, 0.25),
+    0 0 28px rgba(255, 42, 109, 0.1);
 }
 
+/* Nav items — hover uses magenta tint */
 [data-theme-preset="night-city-neural"] nav .interactive-list-item:hover {
-  background: color-mix(in srgb, var(--theme-accent) 8%, var(--theme-bg-secondary));
+  background: color-mix(in srgb, var(--theme-accent-secondary) 8%, var(--theme-bg-secondary));
 }
 
+/* Active channel — cyan bar + magenta glow halo */
 [data-theme-preset="night-city-neural"] nav .channel-active {
   background: color-mix(in srgb, var(--theme-accent) 12%, var(--theme-bg-secondary));
-  box-shadow: inset 2px 0 0 var(--theme-accent);
+  box-shadow:
+    inset 2px 0 0 var(--theme-accent),
+    0 0 14px rgba(255, 42, 109, 0.08);
 }
 
-/* Night City Neural — status bars styled as netrunner uplink indicators */
+/* Active server icon — dual-tone neon halo */
+[data-theme-preset="night-city-neural"] .server-sidebar-icon-active {
+  box-shadow:
+    0 0 12px rgba(0, 230, 255, 0.35),
+    0 0 28px rgba(255, 42, 109, 0.18);
+}
+
+/* Sidebar panel border — magenta accent line */
+[data-theme-preset="night-city-neural"] .channel-sidebar-surface {
+  border-right: 1px solid rgba(255, 42, 109, 0.12);
+}
+
+/* Chat header — cyan-to-magenta gradient underline */
+[data-theme-preset="night-city-neural"] .chat-area-header-surface {
+  border-bottom: 1px solid transparent;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 3%, transparent), transparent 50%),
+    var(--theme-bg-primary);
+  border-image: linear-gradient(90deg, rgba(0, 230, 255, 0.2), rgba(255, 42, 109, 0.2), rgba(0, 230, 255, 0.05)) 1;
+}
+
+/* Dialogs — magenta top accent + neon border */
+[data-theme-preset="night-city-neural"] [role="dialog"] {
+  border: 1px solid rgba(0, 230, 255, 0.1);
+  box-shadow:
+    0 0 32px rgba(0, 230, 255, 0.06),
+    0 0 64px rgba(255, 42, 109, 0.04),
+    inset 0 1px 0 rgba(255, 42, 109, 0.15);
+}
+
+/* Buttons — magenta hover glow on primary buttons */
+[data-theme-preset="night-city-neural"] button[data-variant="default"]:hover,
+[data-theme-preset="night-city-neural"] .btn-primary:hover {
+  box-shadow:
+    0 0 10px rgba(0, 230, 255, 0.3),
+    0 0 20px rgba(255, 42, 109, 0.15);
+}
+
+/* Status bars styled as netrunner uplink indicators */
 [data-theme-preset="night-city-neural"] .presence-indicator {
   border-radius: 1px;
   width: 10px;
@@ -2212,26 +2291,50 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
 }
 
 [data-theme-preset="night-city-neural"] .presence-indicator[data-status="online"] {
-  box-shadow: 0 0 6px var(--theme-presence-online), 0 0 12px var(--theme-presence-online);
+  box-shadow: 0 0 6px var(--theme-presence-online), 0 0 14px var(--theme-presence-online);
 }
 
 [data-theme-preset="night-city-neural"] .presence-indicator[data-status="idle"] {
-  box-shadow: 0 0 6px var(--theme-presence-idle), 0 0 12px var(--theme-presence-idle);
+  box-shadow: 0 0 6px var(--theme-presence-idle), 0 0 14px var(--theme-presence-idle);
 }
 
 [data-theme-preset="night-city-neural"] .presence-indicator[data-status="dnd"] {
-  box-shadow: 0 0 6px var(--theme-presence-dnd), 0 0 12px var(--theme-presence-dnd);
+  box-shadow: 0 0 6px var(--theme-presence-dnd), 0 0 14px var(--theme-presence-dnd);
 }
 
-/* Night City Neural — code blocks with matrix-style styling */
+/* Code blocks — matrix-style with magenta border accent */
 [data-theme-preset="night-city-neural"] .message-content :is(code, pre) {
   background: rgba(0, 230, 255, 0.06);
   border: 1px solid rgba(0, 230, 255, 0.12);
+  box-shadow: 0 0 8px rgba(255, 42, 109, 0.04);
 }
 
 [data-theme-preset="night-city-neural"] .message-content code {
   color: #05d9e8;
   font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* Mention badges — magenta-tinted */
+[data-theme-preset="night-city-neural"] .mention-badge,
+[data-theme-preset="night-city-neural"] [data-mention] {
+  text-shadow: 0 0 6px rgba(255, 42, 109, 0.3);
+}
+
+/* Selection — magenta highlight */
+[data-theme-preset="night-city-neural"] ::selection {
+  background: rgba(255, 42, 109, 0.25);
+  color: var(--theme-text-bright);
+}
+
+/* Neon pulse animation for active/connected states */
+@keyframes night-city-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+[data-theme-preset="night-city-neural"] .voice-connected-indicator {
+  animation: night-city-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--theme-presence-online), 0 0 16px rgba(1, 255, 195, 0.3);
 }
 
 /* Respect reduced motion */
@@ -2243,6 +2346,10 @@ html[data-line-height] body { line-height: var(--vortex-line-height); }
   [data-theme-preset="night-city-neural"] textarea:focus-visible,
   [data-theme-preset="night-city-neural"] [contenteditable="true"]:focus-visible {
     transition-duration: 0ms !important;
+  }
+
+  [data-theme-preset="night-city-neural"] .voice-connected-indicator {
+    animation: none;
   }
 }
 
