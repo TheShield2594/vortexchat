@@ -20,6 +20,7 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const subIdRef = useRef(0)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView()
@@ -27,8 +28,9 @@ export function DMArea({ partner, currentUserId, initialMessages }: Props) {
 
   useEffect(() => {
     // Subscribe to new DMs
+    const subId = ++subIdRef.current
     const channel = supabase
-      .channel(`dm:${currentUserId}:${partner.id}`)
+      .channel(`dm:${currentUserId}:${partner.id}:${subId}`)
       .on(
         "postgres_changes",
         {

@@ -363,10 +363,12 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   }, [items])
 
   // Subscribe to realtime channel changes (INSERT / UPDATE / DELETE)
+  const channelSidebarSubIdRef = useRef(0)
   useEffect(() => {
+    const subId = ++channelSidebarSubIdRef.current
     const supabase = createClientSupabaseClient()
     const subscription = supabase
-      .channel(`channels:${server.id}`)
+      .channel(`channels:${server.id}:${subId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "channels", filter: `server_id=eq.${server.id}` },

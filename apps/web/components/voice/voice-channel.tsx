@@ -143,6 +143,7 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
   const supabaseRef = useRef<ReturnType<typeof createClientSupabaseClient> | null>(null)
   if (!supabaseRef.current) supabaseRef.current = createClientSupabaseClient()
   const supabase = supabaseRef.current
+  const voiceSubIdRef = useRef(0)
 
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
   const [statsOverlayOpen, setStatsOverlayOpen] = useState(false)
@@ -335,8 +336,9 @@ export function VoiceChannel({ channelId, channelName, serverId, currentUserId, 
     }
     fetchParticipants()
 
+    const vcSubId = ++voiceSubIdRef.current
     const channel = supabase
-      .channel(`voice:${channelId}`)
+      .channel(`voice:${channelId}:${vcSubId}`)
       .on("postgres_changes", {
         event: "*", schema: "public", table: "voice_states", filter: `channel_id=eq.${channelId}`,
       }, fetchParticipants)

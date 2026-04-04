@@ -19,16 +19,17 @@ export function useRealtimeMessages(
   messagesRef?: React.RefObject<MessageWithAuthor[]>,
 ) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
-  const wasConnectedRef = useRef(false)
+  const subIdRef = useRef(0)
 
   useEffect(() => {
-    wasConnectedRef.current = false
-    // Effect-local flag — avoids the race condition of a shared ref when
+    // Effect-local flags — avoids race conditions from shared refs when
     // channelId changes rapidly (each effect instance has its own copy).
     let isCleaningUp = false
+    let wasConnected = false
+    const subId = ++subIdRef.current
 
     const channel = supabase
-      .channel(`messages:${channelId}`)
+      .channel(`messages:${channelId}:${subId}`)
       .on(
         "postgres_changes",
         {
@@ -97,12 +98,13 @@ export function useRealtimeMessages(
         }
       )
       .subscribe((status) => {
+        if (isCleaningUp) return
         if (status === "SUBSCRIBED") {
-          if (wasConnectedRef.current) {
+          if (wasConnected) {
             // This is a reconnection — backfill any missed messages
             onReconnect?.()
           }
-          wasConnectedRef.current = true
+          wasConnected = true
           onStatusChange?.("connected")
           // Notify the connection-status FSM that realtime is healthy
           window.dispatchEvent(new CustomEvent("vortex:realtime-connect"))

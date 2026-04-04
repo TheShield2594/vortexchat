@@ -52,6 +52,7 @@ export function useSupabaseSubscription(
 ) {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const wasConnectedRef = useRef(false)
+  const subIdRef = useRef(0)
 
   // Store latest callbacks in refs to avoid stale closures
   const handlersRef = useRef(options.handlers)
@@ -64,8 +65,9 @@ export function useSupabaseSubscription(
   useEffect(() => {
     wasConnectedRef.current = false
     let isCleaningUp = false
+    const subId = ++subIdRef.current
 
-    let builder = supabase.channel(options.channelName)
+    let builder = supabase.channel(`${options.channelName}:${subId}`)
 
     for (const handler of handlersRef.current) {
       builder = builder.on(

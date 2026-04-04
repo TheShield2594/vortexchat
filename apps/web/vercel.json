@@ -10,16 +10,8 @@
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/cron/attachment-decay",
-      "schedule": "0 0 * * *"
-    },
-    {
       "path": "/api/cron/presence-cleanup",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/game-activity",
-      "schedule": "*/2 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

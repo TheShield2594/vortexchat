@@ -19,10 +19,12 @@ export function useRealtimeThreads(
   const onUpdateRef = useRef(onThreadUpdate)
   onInsertRef.current = onThreadInsert
   onUpdateRef.current = onThreadUpdate
+  const threadSubIdRef = useRef(0)
 
   useEffect(() => {
+    const subId = ++threadSubIdRef.current
     const subscription = supabase
-      .channel(`threads:channel:${channelId}`)
+      .channel(`threads:channel:${channelId}:${subId}`)
       .on(
         "postgres_changes",
         {
@@ -74,10 +76,12 @@ export function useRealtimeThreadMessages(
   onUpdateRef.current = onUpdate
   onReactionInsertRef.current = onReactionInsert
   onReactionDeleteRef.current = onReactionDelete
+  const threadMsgSubIdRef = useRef(0)
 
   useEffect(() => {
+    const subId = ++threadMsgSubIdRef.current
     const subscription = supabase
-      .channel(`thread_messages:${threadId}`)
+      .channel(`thread_messages:${threadId}:${subId}`)
       .on(
         "postgres_changes",
         {

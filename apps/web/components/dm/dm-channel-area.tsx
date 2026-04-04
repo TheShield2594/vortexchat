@@ -364,6 +364,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState(false)
+  const dmSubIdRef = useRef(0)
   const [decryptedContent, setDecryptedContent] = useState<Record<string, { text: string; failed: boolean }>>({})
   const decryptedRef = useRef<Record<string, { text: string; failed: boolean }>>({})
   const [conversationKey, setConversationKey] = useState<Uint8Array | null>(null)
@@ -770,8 +771,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
   }, [channelId, clearLocalChannel])
 
   useEffect(() => {
+    const subId = ++dmSubIdRef.current
     const ch = supabase
-      .channel(`dm-channel:${channelId}`)
+      .channel(`dm-channel:${channelId}:${subId}`)
       .on(
         "postgres_changes",
         {
@@ -844,8 +846,9 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
 
   // Realtime subscription for DM reactions
   useEffect(() => {
+    const subId = ++dmSubIdRef.current
     const ch = supabase
-      .channel(`dm-reactions:${channelId}`)
+      .channel(`dm-reactions:${channelId}:${subId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "dm_reactions" },

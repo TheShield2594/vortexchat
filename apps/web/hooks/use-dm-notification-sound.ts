@@ -18,6 +18,7 @@ export function useDmNotificationSound(userId: string | null): void {
   const { playNotification } = useNotificationSound()
   const playRef = useRef(playNotification)
   playRef.current = playNotification
+  const subIdRef = useRef(0)
 
   useEffect(() => {
     if (!userId) return
@@ -25,8 +26,9 @@ export function useDmNotificationSound(userId: string | null): void {
     // Subscribe to all direct_messages sent TO this user (sender_id != userId)
     // We filter by the table and check sender_id in the callback since
     // Supabase realtime doesn't support != filters.
+    const subId = ++subIdRef.current
     const ch = supabase
-      .channel(`dm-notif-sound:${userId}`)
+      .channel(`dm-notif-sound:${userId}:${subId}`)
       .on(
         "postgres_changes",
         {
