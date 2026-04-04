@@ -39,9 +39,9 @@
   /* ── Typography — aged parchment & candlelight ───────────────────────── */
   --theme-text-primary: #e8dcc8;
   --theme-text-normal: #d4c9b5;
-  --theme-text-secondary: #b0a590;
-  --theme-text-muted: #9a8f7c;
-  --theme-text-faint: #7e7466;
+  --theme-text-secondary: #b8ad98;
+  --theme-text-muted: #a89c88;
+  --theme-text-faint: #8e8372;
   --theme-text-bright: #f5eedf;
 
   /* ── Accent & semantic — ice & hearthfire ─────────────────────────────── */
@@ -74,7 +74,7 @@
   /* ── Opacity & misc design tokens ────────────────────────────────────── */
   --theme-opacity-overlay: 0.72;
   --theme-opacity-muted: 0.7;
-  --color-tertiary-metadata: #9a8f7c;
+  --color-tertiary-metadata: #a89c88;
   --theme-radius: 0.5rem;
   --radius: var(--theme-radius);
 
@@ -113,7 +113,7 @@
   --accent: 200 40% 60%;
   --accent-foreground: 36 30% 95%;
   --muted: 200 4% 20%;
-  --muted-foreground: 36 14% 48%;
+  --muted-foreground: 36 14% 53%;
   --border: 200 4% 18%;
   --input: 200 4% 12%;
   --ring: 200 40% 60%;
@@ -246,6 +246,68 @@ body {
     background-attachment: initial;
   }
 }
+
+/* ── Nordic rune decorations ──────────────────────────────────────────── */
+
+/* Rune glyphs flanking day separators — Elder Futhark ᛟ (Othala, heritage) */
+[role="separator"][aria-label]::before,
+[role="separator"][aria-label]::after {
+  content: "ᛟ";
+  font-size: 0.6rem;
+  color: color-mix(in srgb, var(--theme-accent-secondary) 45%, transparent);
+  letter-spacing: 0.15em;
+}
+
+/* Category headers — small rune ᚱ (Raido, journey) before the label */
+nav .tertiary-metadata.uppercase::before {
+  content: "ᚱ ";
+  font-size: 0.65rem;
+  color: color-mix(in srgb, var(--theme-accent-secondary) 50%, transparent);
+  letter-spacing: 0.1em;
+}
+
+/* Runic separator line — replaces plain hr/divider with engraved stone look */
+nav hr,
+nav [role="separator"]:not([aria-label]) {
+  border: none;
+  height: 1px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--theme-accent-secondary) 25%, transparent) 15%,
+      color-mix(in srgb, var(--theme-accent) 18%, transparent) 50%,
+      color-mix(in srgb, var(--theme-accent-secondary) 25%, transparent) 85%,
+      transparent 100%
+    );
+}
+
+/* Chat header — add small rune ornament ᛉ (Algiz, protection) */
+.chat-area .chat-area-header-surface::before {
+  content: "ᛉ";
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  pointer-events: none;
+}
+
+.chat-area .chat-area-header-surface {
+  position: relative;
+}
+
+/* Active channel rune accent — ᚦ (Thurisaz, strength) after channel name */
+nav .channel-active::after {
+  content: " ᚦ";
+  font-size: 0.55rem;
+  color: color-mix(in srgb, var(--theme-accent-secondary) 55%, transparent);
+  margin-left: auto;
+  padding-right: 0.35rem;
+}
+
+/* Reduced motion — keep runes, they're static decoration */
 
 /* Higher contrast users get stronger active/focus affordances */
 [data-high-contrast="true"] nav .channel-active {
