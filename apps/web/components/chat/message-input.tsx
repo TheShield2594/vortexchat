@@ -1173,9 +1173,14 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
                 ? (replyTo ? `Reply to ${channelName}` : `Message ${channelName}`)
                 : (replyTo ? `Reply in #${channelName}` : `Message #${channelName}`)
             }
-            placeholder={replyTo
-              ? (isMobile ? `Reply in #${channelName}` : `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`)
-              : (isMobile ? `Message #${channelName}` : `Message #${channelName} — @ mention, : emoji, / command`)
+            placeholder={
+              variant === "dm"
+                ? (replyTo
+                    ? (isMobile ? `Reply to ${channelName}` : `Reply to ${channelName} — press Enter to send, Shift+Enter for newline`)
+                    : (isMobile ? `Message ${channelName}` : `Message ${channelName} — press Enter to send, Shift+Enter for newline`))
+                : (replyTo
+                    ? (isMobile ? `Reply in #${channelName}` : `Reply in #${channelName} — press Enter to send, Shift+Enter for newline`)
+                    : (isMobile ? `Message #${channelName}` : `Message #${channelName} — @ mention, : emoji, / command`))
             }
             rows={1}
             className="w-full resize-none bg-transparent text-sm focus:outline-none block"

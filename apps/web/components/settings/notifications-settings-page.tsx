@@ -619,7 +619,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
                 value={settings.quiet_hours_start}
                 onChange={(e) => {
                   const val = e.target.value
-                  const next = { ...settings, quiet_hours_start: val || settings.quiet_hours_start }
+                  const next = { ...settings, quiet_hours_start: val }
                   setSettings(next)
                   if (val) void persistSetting(next)
                 }}
@@ -634,7 +634,7 @@ export function NotificationsSettingsPage({ userId }: Props) {
                 value={settings.quiet_hours_end}
                 onChange={(e) => {
                   const val = e.target.value
-                  const next = { ...settings, quiet_hours_end: val || settings.quiet_hours_end }
+                  const next = { ...settings, quiet_hours_end: val }
                   setSettings(next)
                   if (val) void persistSetting(next)
                 }}

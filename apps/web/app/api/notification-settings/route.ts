@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
         .eq("user_id", user.id)
 
       if (allSettingsError) {
+        console.error("[api/notification-settings][GET] failed to fetch notification settings", { userId: user.id, action: "fetch_all_for_thread", threadId, error: allSettingsError.message })
         return NextResponse.json({ error: "Failed to fetch notification settings" }, { status: 500 })
       }
 
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
         .maybeSingle()
 
       if (threadError) {
+        console.error("[api/notification-settings][GET] failed to resolve thread notification context", { userId: user.id, action: "resolve_thread_context", threadId, error: threadError.message })
         return NextResponse.json({ error: "Failed to resolve thread notification context" }, { status: 500 })
       }
 
@@ -64,6 +66,7 @@ export async function GET(req: NextRequest) {
         .select("id, user_id, server_id, channel_id, thread_id, mode")
         .eq("user_id", user.id)
       if (error) {
+        console.error("[api/notification-settings][GET] failed to fetch notification settings", { userId: user.id, action: "fetch_all", error: error.message })
         return NextResponse.json({ error: "Failed to fetch notification settings" }, { status: 500 })
       }
       return NextResponse.json(data ?? [])
@@ -79,6 +82,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await query.maybeSingle()
     if (error) {
+      console.error("[api/notification-settings][GET] failed to fetch notification setting", { userId: user.id, action: "fetch_single", serverId, channelId, error: error.message })
       return NextResponse.json({ error: "Failed to fetch notification setting" }, { status: 500 })
     }
     return NextResponse.json(data ?? { mode: "all" })
