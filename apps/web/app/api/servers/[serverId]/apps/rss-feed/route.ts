@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -20,13 +21,11 @@ export async function GET(_req: NextRequest, { params }: Params): Promise<NextRe
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const [configResult, feedsResult] = await Promise.all([
-      supabase
-        .from("rss_feed_app_configs")
+      untypedFrom(supabase, "rss_feed_app_configs")
         .select("*")
         .eq("server_id", serverId)
         .maybeSingle(),
-      supabase
-        .from("rss_feeds")
+      untypedFrom(supabase, "rss_feeds")
         .select("id, server_id, channel_id, feed_url, feed_title, last_fetched_at, created_by, created_at")
         .eq("server_id", serverId)
         .order("created_at", { ascending: false }),
@@ -93,8 +92,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       ...(enabled !== undefined && { enabled }),
     }
 
-    const { data, error } = await authSupabase
-      .from("rss_feed_app_configs")
+    const { data, error } = await untypedFrom(authSupabase, "rss_feed_app_configs")
       .upsert(upsertData, { onConflict: "server_id" })
       .select("*")
       .single()
@@ -126,8 +124,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     }
 
     // Check per-server feed limit
-    const { data: configData } = await authSupabase
-      .from("rss_feed_app_configs")
+    const { data: configData } = await untypedFrom(authSupabase, "rss_feed_app_configs")
       .select("max_feeds, enabled, channel_id")
       .eq("server_id", serverId)
       .maybeSingle()
@@ -138,8 +135,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
 
     const maxAllowed = configData?.max_feeds ?? 10
 
-    const { count } = await authSupabase
-      .from("rss_feeds")
+    const { count } = await untypedFrom(authSupabase, "rss_feeds")
       .select("id", { count: "exact", head: true })
       .eq("server_id", serverId)
 
@@ -148,8 +144,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     }
 
     // Check for duplicate URL
-    const { data: existing } = await authSupabase
-      .from("rss_feeds")
+    const { data: existing } = await untypedFrom(authSupabase, "rss_feeds")
       .select("id")
       .eq("server_id", serverId)
       .eq("feed_url", feedUrl)
@@ -182,8 +177,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       // Non-fatal — we just won't have a title
     }
 
-    const { data, error } = await authSupabase
-      .from("rss_feeds")
+    const { data, error } = await untypedFrom(authSupabase, "rss_feeds")
       .insert({
         server_id: serverId,
         channel_id: targetChannel,
@@ -206,8 +200,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     const feedId = body.feed_id as string
     if (!feedId) return NextResponse.json({ error: "feed_id is required" }, { status: 400 })
 
-    const { error } = await authSupabase
-      .from("rss_feeds")
+    const { error } = await untypedFrom(authSupabase, "rss_feeds")
       .delete()
       .eq("id", feedId)
       .eq("server_id", serverId)
@@ -221,8 +214,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     const { supabase: authSupabase, error: permError } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
     if (permError) return permError
 
-    const { data: configData } = await authSupabase
-      .from("rss_feed_app_configs")
+    const { data: configData } = await untypedFrom(authSupabase, "rss_feed_app_configs")
       .select("enabled, channel_id")
       .eq("server_id", serverId)
       .maybeSingle()
@@ -231,8 +223,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       return NextResponse.json({ error: "RSS Feed Bot is disabled on this server" }, { status: 400 })
     }
 
-    const { data: feeds } = await authSupabase
-      .from("rss_feeds")
+    const { data: feeds } = await untypedFrom(authSupabase, "rss_feeds")
       .select("*")
       .eq("server_id", serverId)
 
@@ -274,8 +265,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
         if (!msgError) posted++
 
         // Update last fetched
-        await authSupabase
-          .from("rss_feeds")
+        await untypedFrom(authSupabase, "rss_feeds")
           .update({
             last_fetched_at: new Date().toISOString(),
             ...(latest.id && { last_entry_id: latest.id }),

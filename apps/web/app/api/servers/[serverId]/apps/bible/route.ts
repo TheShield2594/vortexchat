@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
+import { untypedFrom } from "@/lib/supabase/untyped-table"
 
 type Params = { params: Promise<{ serverId: string }> }
 
@@ -19,8 +20,7 @@ export async function GET(_req: NextRequest, { params }: Params): Promise<NextRe
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { data: config, error } = await supabase
-      .from("bible_app_configs")
+    const { data: config, error } = await untypedFrom(supabase, "bible_app_configs")
       .select("server_id, channel_id, bible_id, daily_verse_enabled, daily_verse_time, timezone, embed_color, enabled")
       .eq("server_id", serverId)
       .maybeSingle()
@@ -115,8 +115,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       ...(enabled !== undefined && { enabled }),
     }
 
-    const { data, error } = await authSupabase
-      .from("bible_app_configs")
+    const { data, error } = await untypedFrom(authSupabase, "bible_app_configs")
       .upsert(upsertData, { onConflict: "server_id" })
       .select("server_id, channel_id, bible_id, daily_verse_enabled, daily_verse_time, timezone, embed_color, enabled")
       .single()
@@ -132,8 +131,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       return NextResponse.json({ error: "A Bible reference is required (e.g. 'John 3:16')" }, { status: 400 })
     }
 
-    const { data: configData } = await supabase
-      .from("bible_app_configs")
+    const { data: configData } = await untypedFrom(supabase, "bible_app_configs")
       .select("api_key, bible_id, enabled, channel_id, embed_color")
       .eq("server_id", serverId)
       .maybeSingle()
@@ -209,8 +207,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     const { supabase: authSupabase, error: permError } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
     if (permError) return permError
 
-    const { data: configData } = await authSupabase
-      .from("bible_app_configs")
+    const { data: configData } = await untypedFrom(authSupabase, "bible_app_configs")
       .select("api_key, bible_id, enabled, channel_id, embed_color")
       .eq("server_id", serverId)
       .maybeSingle()
@@ -232,7 +229,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     const bibleId = configData?.bible_id || DEFAULT_BIBLE_ID
 
     try {
-      // Get verse of the day using a random popular verse approach
+      // Get verse of the day using a rotating popular verse list
       const verse = getDailyVerseReference()
 
       const searchRes = await fetch(
@@ -278,8 +275,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
 
   // ── List available Bibles ──
   if (action === "list_bibles") {
-    const { data: configData } = await supabase
-      .from("bible_app_configs")
+    const { data: configData } = await untypedFrom(supabase, "bible_app_configs")
       .select("api_key")
       .eq("server_id", serverId)
       .maybeSingle()
@@ -323,7 +319,7 @@ function formatVerseEmbed(reference: string, content: string, embedColor: string
   return [
     `**Daily Verse** | ${embedColor}`,
     `> *${content}*`,
-    `**— ${reference}**`,
+    `**\u2014 ${reference}**`,
   ].join("\n\n")
 }
 
