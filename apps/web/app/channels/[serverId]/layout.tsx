@@ -95,10 +95,10 @@ export default async function ServerLayout({ children, params: paramsPromise }: 
     // Normalize: add missing fields so downstream MemberData type is satisfied
     if (compat.data) {
       for (const member of compat.data) {
-        const u = member.user as Record<string, unknown> | null
-        if (u) {
-          if (!("last_online_at" in u)) u.last_online_at = null
-          if (!("game_activity" in u)) u.game_activity = null
+        if (typeof member.user === "object" && member.user !== null) {
+          const u = member.user
+          if (!("last_online_at" in u)) Object.assign(u, { last_online_at: null })
+          if (!("game_activity" in u)) Object.assign(u, { game_activity: null })
         }
       }
     }
