@@ -1,0 +1,342 @@
+import { NextRequest, NextResponse } from "next/server"
+import { requireServerPermission } from "@/lib/server-auth"
+import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { SYSTEM_BOT_ID } from "@/lib/server-auth"
+
+type Params = { params: Promise<{ serverId: string }> }
+
+const MAX_FEEDS_PER_SERVER = 25
+const MAX_URL_LENGTH = 2048
+
+/**
+ * GET /api/servers/[serverId]/apps/rss-feed
+ * Returns RSS feed config + list of subscribed feeds.
+ */
+export async function GET(_req: NextRequest, { params }: Params): Promise<NextResponse> {
+  try {
+    const { serverId } = await params
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const [configResult, feedsResult] = await Promise.all([
+      supabase
+        .from("rss_feed_app_configs")
+        .select("*")
+        .eq("server_id", serverId)
+        .maybeSingle(),
+      supabase
+        .from("rss_feeds")
+        .select("id, server_id, channel_id, feed_url, feed_title, last_fetched_at, created_by, created_at")
+        .eq("server_id", serverId)
+        .order("created_at", { ascending: false }),
+    ])
+
+    if (configResult.error) return NextResponse.json({ error: "Failed to fetch RSS feed configuration" }, { status: 500 })
+
+    return NextResponse.json({
+      config: configResult.data,
+      feeds: feedsResult.data ?? [],
+    })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/rss-feed GET] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+/**
+ * POST /api/servers/[serverId]/apps/rss-feed
+ * Actions: save_config, add_feed, remove_feed, fetch_feeds
+ */
+export async function POST(req: NextRequest, { params }: Params): Promise<NextResponse> {
+  const { serverId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  let body: Record<string, unknown>
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
+
+  const action = body.action as string
+
+  // ── Save config — requires MANAGE_CHANNELS ──
+  if (action === "save_config") {
+    const { supabase: authSupabase, error: permError } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
+    if (permError) return permError
+
+    const { channel_id, max_feeds, enabled } = body as {
+      channel_id?: string | null
+      max_feeds?: number
+      enabled?: boolean
+    }
+
+    if (channel_id) {
+      const { data: ch } = await authSupabase
+        .from("channels")
+        .select("id")
+        .eq("id", channel_id)
+        .eq("server_id", serverId)
+        .single()
+      if (!ch) return NextResponse.json({ error: "Channel not found in this server" }, { status: 400 })
+    }
+
+    const clampedMaxFeeds = Math.min(MAX_FEEDS_PER_SERVER, Math.max(1, max_feeds ?? 10))
+
+    const upsertData = {
+      server_id: serverId,
+      ...(channel_id !== undefined && { channel_id }),
+      max_feeds: clampedMaxFeeds,
+      ...(enabled !== undefined && { enabled }),
+    }
+
+    const { data, error } = await authSupabase
+      .from("rss_feed_app_configs")
+      .upsert(upsertData, { onConflict: "server_id" })
+      .select("*")
+      .single()
+
+    if (error) return NextResponse.json({ error: "Failed to save RSS feed configuration" }, { status: 500 })
+    return NextResponse.json(data)
+  }
+
+  // ── Add feed — requires MANAGE_CHANNELS ──
+  if (action === "add_feed") {
+    const { supabase: authSupabase, error: permError } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
+    if (permError) return permError
+
+    const feedUrl = (body.feed_url as string)?.trim()
+    const channelId = body.channel_id as string | undefined
+
+    if (!feedUrl || feedUrl.length > MAX_URL_LENGTH) {
+      return NextResponse.json({ error: "A valid feed URL is required (max 2048 characters)" }, { status: 400 })
+    }
+
+    // Basic URL validation
+    try {
+      const parsed = new URL(feedUrl)
+      if (!parsed.protocol.startsWith("http")) {
+        return NextResponse.json({ error: "Feed URL must use HTTP or HTTPS" }, { status: 400 })
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
+    }
+
+    // Check per-server feed limit
+    const { data: configData } = await authSupabase
+      .from("rss_feed_app_configs")
+      .select("max_feeds, enabled, channel_id")
+      .eq("server_id", serverId)
+      .maybeSingle()
+
+    if (configData && !configData.enabled) {
+      return NextResponse.json({ error: "RSS Feed Bot is disabled on this server" }, { status: 400 })
+    }
+
+    const maxAllowed = configData?.max_feeds ?? 10
+
+    const { count } = await authSupabase
+      .from("rss_feeds")
+      .select("id", { count: "exact", head: true })
+      .eq("server_id", serverId)
+
+    if ((count ?? 0) >= maxAllowed) {
+      return NextResponse.json({ error: `Maximum ${maxAllowed} feeds allowed per server` }, { status: 400 })
+    }
+
+    // Check for duplicate URL
+    const { data: existing } = await authSupabase
+      .from("rss_feeds")
+      .select("id")
+      .eq("server_id", serverId)
+      .eq("feed_url", feedUrl)
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json({ error: "This feed URL is already added" }, { status: 400 })
+    }
+
+    const targetChannel = channelId || configData?.channel_id
+    if (!targetChannel) {
+      return NextResponse.json({ error: "No channel configured. Set a default channel or specify one." }, { status: 400 })
+    }
+
+    // Try to fetch the feed title
+    let feedTitle: string | null = null
+    try {
+      const feedRes = await fetch(feedUrl, {
+        headers: { "Accept": "application/rss+xml, application/xml, text/xml" },
+        signal: AbortSignal.timeout(5000),
+      })
+      if (feedRes.ok) {
+        const text = await feedRes.text()
+        const titleMatch = text.match(/<title[^>]*>([^<]+)<\/title>/i)
+        if (titleMatch?.[1]) {
+          feedTitle = titleMatch[1].trim().substring(0, 256)
+        }
+      }
+    } catch {
+      // Non-fatal — we just won't have a title
+    }
+
+    const { data, error } = await authSupabase
+      .from("rss_feeds")
+      .insert({
+        server_id: serverId,
+        channel_id: targetChannel,
+        feed_url: feedUrl,
+        feed_title: feedTitle,
+        created_by: user.id,
+      })
+      .select("*")
+      .single()
+
+    if (error) return NextResponse.json({ error: "Failed to add RSS feed" }, { status: 500 })
+    return NextResponse.json(data)
+  }
+
+  // ── Remove feed — requires MANAGE_CHANNELS ──
+  if (action === "remove_feed") {
+    const { supabase: authSupabase, error: permError } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
+    if (permError) return permError
+
+    const feedId = body.feed_id as string
+    if (!feedId) return NextResponse.json({ error: "feed_id is required" }, { status: 400 })
+
+    const { error } = await authSupabase
+      .from("rss_feeds")
+      .delete()
+      .eq("id", feedId)
+      .eq("server_id", serverId)
+
+    if (error) return NextResponse.json({ error: "Failed to remove feed" }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
+  // ── Fetch feeds — manually trigger a fetch of all feeds ──
+  if (action === "fetch_feeds") {
+    const { supabase: authSupabase, error: permError } = await requireServerPermission(serverId, "MANAGE_CHANNELS")
+    if (permError) return permError
+
+    const { data: configData } = await authSupabase
+      .from("rss_feed_app_configs")
+      .select("enabled, channel_id")
+      .eq("server_id", serverId)
+      .maybeSingle()
+
+    if (configData && !configData.enabled) {
+      return NextResponse.json({ error: "RSS Feed Bot is disabled on this server" }, { status: 400 })
+    }
+
+    const { data: feeds } = await authSupabase
+      .from("rss_feeds")
+      .select("*")
+      .eq("server_id", serverId)
+
+    if (!feeds || feeds.length === 0) {
+      return NextResponse.json({ error: "No feeds configured" }, { status: 400 })
+    }
+
+    let posted = 0
+
+    for (const feed of feeds) {
+      try {
+        const feedRes = await fetch(feed.feed_url, {
+          headers: { "Accept": "application/rss+xml, application/xml, text/xml" },
+          signal: AbortSignal.timeout(10000),
+        })
+        if (!feedRes.ok) continue
+
+        const text = await feedRes.text()
+        const items = parseRssItems(text)
+
+        if (items.length === 0) continue
+
+        // Post the latest item as an embed-style message
+        const latest = items[0]
+        const targetChannel = feed.channel_id || configData?.channel_id
+        if (!targetChannel) continue
+
+        const embedContent = formatRssEmbed(latest, feed.feed_title || feed.feed_url)
+
+        const { error: msgError } = await authSupabase
+          .from("messages")
+          .insert({
+            channel_id: targetChannel,
+            author_id: SYSTEM_BOT_ID,
+            content: embedContent,
+            webhook_display_name: "RSS Feed Bot",
+          })
+
+        if (!msgError) posted++
+
+        // Update last fetched
+        await authSupabase
+          .from("rss_feeds")
+          .update({
+            last_fetched_at: new Date().toISOString(),
+            ...(latest.id && { last_entry_id: latest.id }),
+          })
+          .eq("id", feed.id)
+      } catch {
+        // Non-fatal per feed
+      }
+    }
+
+    return NextResponse.json({ ok: true, posted })
+  }
+
+  return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+}
+
+// ── Helpers ──
+
+interface RssItem {
+  title?: string
+  link?: string
+  description?: string
+  pubDate?: string
+  id?: string
+}
+
+function parseRssItems(xml: string): RssItem[] {
+  const items: RssItem[] = []
+  const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi
+  let match: RegExpExecArray | null = null
+
+  while ((match = itemRegex.exec(xml)) !== null && items.length < 5) {
+    const block = match[1]
+    items.push({
+      title: extractTag(block, "title"),
+      link: extractTag(block, "link"),
+      description: extractTag(block, "description"),
+      pubDate: extractTag(block, "pubDate"),
+      id: extractTag(block, "guid") || extractTag(block, "link"),
+    })
+  }
+
+  return items
+}
+
+function extractTag(xml: string, tag: string): string | undefined {
+  const regex = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tag}>|<${tag}[^>]*>([^<]*)</${tag}>`, "i")
+  const m = xml.match(regex)
+  return m?.[1]?.trim() || m?.[2]?.trim() || undefined
+}
+
+function formatRssEmbed(item: RssItem, feedName: string): string {
+  const lines: string[] = []
+  lines.push(`**${feedName}**`)
+  if (item.title) lines.push(`### ${item.title}`)
+  if (item.description) {
+    // Strip HTML tags and limit length
+    const clean = item.description.replace(/<[^>]+>/g, "").substring(0, 300)
+    lines.push(clean + (item.description.length > 300 ? "..." : ""))
+  }
+  if (item.link) lines.push(`[Read more](${item.link})`)
+  if (item.pubDate) lines.push(`*${item.pubDate}*`)
+  return lines.join("\n\n")
+}

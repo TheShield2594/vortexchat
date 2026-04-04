@@ -227,6 +227,11 @@
 | Reminder Bot — personal reminders (up to 24h) | Done | `reminders` table, `reminder_app_configs`, per-user max limit |
 | Reminder Bot — slash commands | Done | `/reminder`, `/reminders`, `/rcancel` |
 | Giveaway Bot + Reminder Bot marketplace visibility | Done | Fixed via migration 00071 — upsert ensures `is_published = TRUE` (00066/00068 used `ON CONFLICT DO NOTHING` which silently skipped rows) |
+| RSS Feed Bot — channel, add/remove feeds, fetch (#679) | Done | `rss_feed_app_configs` + `rss_feeds` tables, `/api/servers/[serverId]/apps/rss-feed`, auto-title detection, embed messages via system bot |
+| RSS Feed Bot — slash commands | Done | `/rssfeed`, `/rsslist`, `/rssremove`, `/rssfetch` |
+| Bible Bot — channel, API key, translation, daily verse (#480) | Done | `bible_app_configs` table, `/api/servers/[serverId]/apps/bible`, scripture.api.bible integration, embed color picker |
+| Bible Bot — daily verse schedule + manual post | Done | Configurable time/timezone, rotating verse list, manual post button |
+| Bible Bot — slash commands | Done | `/verse`, `/dailyverse`, `/bibleconfig` |
 | Premium marketplace card design (#673) | Done | Redesigned app cards with icon, trust badge pill, star rating, hover effects; improved visual hierarchy and spacing |
 | Curated discovery sections (#674) | Done | `app_curated_sections` + `app_curated_entries` tables, `/api/apps/curated` endpoint; Featured / Trending / Staff Picks above catalog grid; graceful fallback when empty |
 | Trust & permission transparency UX (#675) | Done | `TrustBadgeTooltip` with hover descriptions; `PermissionList` grouped by impact level (low/medium/high/critical); `AlertDialog` pre-install confirmation for elevated scopes; `TRUST_BADGE_INFO` + `APP_PERMISSION_META` in `@vortex/shared` |
