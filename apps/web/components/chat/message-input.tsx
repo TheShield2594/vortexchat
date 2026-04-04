@@ -813,7 +813,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
       )}
 
       {/* Smart reply suggestions */}
-      {variant === "channel" && (
+      {variant === "channel" && activeServerId && activeChannelId && (
         <SmartReplyTray
           serverId={activeServerId}
           channelId={activeChannelId}

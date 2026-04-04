@@ -60,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         id: p.id,
         provider: p.provider,
         label: p.label,
-        hasApiKey: true, // they wouldn't be in the table without one (or ollama which doesn't need one)
+        hasApiKey: !!p.api_key,
         baseUrl: p.base_url,
         model: p.model,
         isDefault: p.is_default,
@@ -369,11 +369,16 @@ async function handleSetRouting(
 
   // null = clear routing (use default)
   if (data.providerConfigId === null) {
-    await supabase
+    const { error: deleteError } = await supabase
       .from("ai_function_routing")
       .delete()
       .eq("server_id", serverId)
       .eq("ai_function", aiFunction)
+
+    if (deleteError) {
+      console.error("[ai-settings] clear routing error:", deleteError)
+      return NextResponse.json({ error: "Failed to clear routing" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true })
   }

@@ -15,6 +15,7 @@ export async function POST(_req: NextRequest, { params }: Params): Promise<NextR
     const { serverId, channelId } = await params
     const { supabase, user, error } = await requireServerPermission(serverId, "SEND_MESSAGES")
     if (error) return error
+    if (!user) return NextResponse.json({ suggestions: [] })
 
     // Fetch recent messages for context (last 20)
     const { data: messages, error: msgError } = await supabase
@@ -59,7 +60,7 @@ export async function POST(_req: NextRequest, { params }: Params): Promise<NextR
     const { data: profile } = await supabase
       .from("users")
       .select("display_name, username")
-      .eq("id", user!.id)
+      .eq("id", user.id)
       .maybeSingle()
 
     const userName = profile?.display_name || profile?.username || "User"

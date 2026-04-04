@@ -16,6 +16,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     const { serverId, channelId, messageId } = await params
     const { supabase, user, error } = await requireServerPermission(serverId, "SEND_MESSAGES")
     if (error) return error
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     let body: unknown
     try {
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
             provider: config.provider,
             apiKey: config.api_key,
             baseUrl: config.base_url,
-            model: config.model ?? AI_PROVIDER_META[config.provider as keyof typeof AI_PROVIDER_META]?.defaultModel ?? "gpt-4o",
+            model: config.model ?? AI_PROVIDER_META[config.provider as keyof typeof AI_PROVIDER_META]?.defaultModel ?? config.provider,
           })
         } catch {
           // Fall through to default
@@ -143,7 +144,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
           persona_id: persona.id,
           persona_name: persona.name,
           persona_avatar_url: persona.avatar_url,
-          triggered_by: user!.id,
+          triggered_by: user.id,
           triggered_message_id: messageId,
         },
       })

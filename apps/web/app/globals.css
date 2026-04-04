@@ -173,7 +173,7 @@
     --theme-mention-self-border: color-mix(in srgb, var(--theme-warning) 55%, transparent);
     /* ── AI feature semantic colors ──────────────────────────────────── */
     --theme-ai-surface: color-mix(in srgb, var(--theme-accent) 6%, var(--theme-bg-secondary));
-    --theme-ai-border: color-mix(in srgb, var(--theme-accent) 15%, var(--theme-border));
+    --theme-ai-border: color-mix(in srgb, var(--theme-accent) 15%, var(--theme-bg-tertiary));
     --theme-ai-label: var(--theme-text-muted);
     --theme-ai-badge-bg: color-mix(in srgb, var(--theme-accent) 20%, var(--theme-bg-tertiary));
     --theme-ai-badge-text: var(--theme-accent);

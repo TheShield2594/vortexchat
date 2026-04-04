@@ -439,15 +439,17 @@ export const MessageItem = memo(function MessageItem({
   }
 
   // AI Persona metadata (stored in message.metadata by persona-reply endpoint)
-  const personaMeta = (message as unknown as Record<string, unknown>).metadata as { persona_name?: string; persona_avatar_url?: string; persona_id?: string } | null
-  const isPersonaMessage = !!personaMeta?.persona_name
+  const rawMeta = "metadata" in message ? (message as Record<string, unknown>).metadata : null
+  const personaMeta = rawMeta && typeof rawMeta === "object" ? rawMeta as Record<string, unknown> : null
+  const personaName = typeof personaMeta?.persona_name === "string" ? personaMeta.persona_name : null
+  const isPersonaMessage = !!personaName
 
   const displayName = isPersonaMessage
-    ? personaMeta.persona_name
+    ? personaName ?? "Bot"
     : message.webhook_display_name
       ? message.webhook_display_name
       : message.author?.display_name || message.author?.username || "Unknown"
-  const initials = displayName!.slice(0, 2).toUpperCase()
+  const initials = displayName.slice(0, 2).toUpperCase()
   const timestamp = new Date(message.created_at)
   const messageMetaId = useId()
   const giphyUrl = message.content ? extractGiphyUrl(message.content) : null

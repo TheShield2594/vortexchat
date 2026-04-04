@@ -3,6 +3,10 @@ import { requireServerOwner, requireServerPermission } from "@/lib/server-auth"
 
 type Params = { params: Promise<{ serverId: string }> }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+}
+
 /**
  * GET /api/servers/[serverId]/ai-personas
  *
@@ -44,6 +48,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     const { serverId } = await params
     const { supabase, user, error } = await requireServerOwner(serverId)
     if (error) return error
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     let body: unknown
     try {
@@ -75,7 +80,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     const description = typeof data.description === "string" ? data.description.trim() || null : null
     const avatarUrl = typeof data.avatarUrl === "string" ? data.avatarUrl.trim() || null : null
     const providerConfigId = typeof data.providerConfigId === "string" ? data.providerConfigId : null
-    const allowedChannelIds = Array.isArray(data.allowedChannelIds) ? data.allowedChannelIds : []
+    const allowedChannelIds = isStringArray(data.allowedChannelIds) ? data.allowedChannelIds : []
 
     const { data: persona, error: insertError } = await supabase
       .from("ai_personas")
@@ -87,7 +92,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
         avatar_url: avatarUrl,
         provider_config_id: providerConfigId,
         allowed_channel_ids: allowedChannelIds,
-        created_by: user!.id,
+        created_by: user.id,
       })
       .select()
       .single()
@@ -151,17 +156,35 @@ export async function PATCH(req: NextRequest, { params }: Params): Promise<NextR
       return NextResponse.json({ success: true })
     }
 
-    // Update
+    // Update — validate fields with same rules as POST
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
-    if (typeof data.name === "string") updates.name = data.name.trim()
-    if (typeof data.systemPrompt === "string") updates.system_prompt = data.systemPrompt.trim()
+
+    if (typeof data.name === "string") {
+      const name = data.name.trim()
+      if (name.length < 1 || name.length > 32) {
+        return NextResponse.json({ error: "Name must be 1-32 characters" }, { status: 400 })
+      }
+      updates.name = name
+    }
+
+    if (typeof data.systemPrompt === "string") {
+      const prompt = data.systemPrompt.trim()
+      if (prompt.length === 0) {
+        return NextResponse.json({ error: "System prompt cannot be empty" }, { status: 400 })
+      }
+      if (prompt.length > 4000) {
+        return NextResponse.json({ error: "System prompt must be under 4000 characters" }, { status: 400 })
+      }
+      updates.system_prompt = prompt
+    }
+
     if (typeof data.description === "string") updates.description = data.description.trim() || null
     if (typeof data.avatarUrl === "string") updates.avatar_url = data.avatarUrl.trim() || null
     if (typeof data.isActive === "boolean") updates.is_active = data.isActive
     if (typeof data.providerConfigId === "string" || data.providerConfigId === null) {
       updates.provider_config_id = data.providerConfigId
     }
-    if (Array.isArray(data.allowedChannelIds)) updates.allowed_channel_ids = data.allowedChannelIds
+    if (isStringArray(data.allowedChannelIds)) updates.allowed_channel_ids = data.allowedChannelIds
 
     const { error: updateError } = await supabase
       .from("ai_personas")

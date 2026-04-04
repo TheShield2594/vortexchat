@@ -94,11 +94,14 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     // Resolve the server ID for AI provider routing
     let serverId: string | null = null
     if (session.scope_type === "server_channel") {
-      const { data: channel } = await supabase
+      const { data: channel, error: channelError } = await supabase
         .from("channels")
         .select("server_id")
         .eq("id", session.scope_id)
         .single()
+      if (channelError) {
+        console.error("[voice/sessions/end] channel lookup failed", { sessionId, scopeId: session.scope_id, error: channelError.message })
+      }
       serverId = channel?.server_id ?? null
     }
 

@@ -91,16 +91,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     })
     .join("\n")
 
-  // Resolve the AI provider for chat_summary (uses per-function routing → default → legacy Gemini)
-  const adapter = await resolveAdapter(supabase, serverId, "chat_summary")
-  if (!adapter) {
-    return NextResponse.json(
-      { error: "AI summarization is not configured. The server owner must add an AI provider in server settings." },
-      { status: 503 }
-    )
-  }
-
   try {
+    // Resolve the AI provider for chat_summary (uses per-function routing → default → legacy Gemini)
+    const adapter = await resolveAdapter(supabase, serverId, "chat_summary")
+    if (!adapter) {
+      return NextResponse.json(
+        { error: "AI summarization is not configured. The server owner must add an AI provider in server settings." },
+        { status: 503 }
+      )
+    }
+
     const result = await adapter.complete(
       [
         {
@@ -137,7 +137,8 @@ Be concise and factual. Only include information from the conversation.`,
       since: since ?? chronological[0]?.created_at ?? null,
     })
   } catch (aiError: unknown) {
-    console.error("[summarize] AI call failed", { serverId, channelId, error: aiError })
+    const errMsg = aiError instanceof Error ? aiError.message : "unknown"
+    console.error("[summarize] AI call failed", { serverId, channelId, error: errMsg })
     return NextResponse.json({ error: "AI summarization failed" }, { status: 500 })
   }
 }
