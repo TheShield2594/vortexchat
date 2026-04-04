@@ -206,40 +206,41 @@ export function DMList({ onNavigate }: { onNavigate?: () => void } = {}) {
   }, [channels])
 
   // Refresh list when DM messages or membership changes happen
-  const dmSubIdRef = useRef(0)
   useEffect(() => {
     if (!currentUserId) return
 
-    const subId = ++dmSubIdRef.current
+    let cancelled = false
 
     const dmMessageFilter = channelIdsStr
       ? `dm_channel_id=in.(${channelIdsStr})`
       : `sender_id=eq.${currentUserId}`
 
+    // Use a random name so we never collide with a channel that is still
+    // being torn down asynchronously by a previous effect cleanup.
     const ch = supabase
-      .channel(`dm-list-updates:${subId}`)
+      .channel(`dm-list-updates:${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "direct_messages", filter: dmMessageFilter },
         () => {
-          // Sound/browser notifications are handled by the global
-          // useDmNotificationSound hook in AppProvider — DMList only
-          // needs to refresh the channel list.
-          refreshChannels()
+          if (!cancelled) refreshChannels()
         }
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "dm_channel_members", filter: `user_id=eq.${currentUserId}` },
-        () => refreshChannels()
+        () => { if (!cancelled) refreshChannels() }
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "dm_channel_members", filter: `user_id=eq.${currentUserId}` },
-        () => refreshChannels()
+        () => { if (!cancelled) refreshChannels() }
       )
       .subscribe()
-    return () => { supabase.removeChannel(ch) }
+    return () => {
+      cancelled = true
+      supabase.removeChannel(ch)
+    }
   }, [supabase, refreshChannels, channelIdsStr, currentUserId])
 
   async function startDM(friendId: string): Promise<boolean> {

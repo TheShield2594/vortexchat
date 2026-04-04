@@ -35,10 +35,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let dsn: URL
     try {
       const parsed: { dsn?: string } = JSON.parse(header)
-      if (!parsed.dsn) {
-        return NextResponse.json({ error: "Missing DSN in envelope header" }, { status: 400 })
+      if (parsed.dsn) {
+        dsn = new URL(parsed.dsn)
+      } else {
+        // Some envelope types (sessions, replays, client reports) omit the
+        // dsn field from the header. Fall back to the configured DSN so we
+        // can still forward them.
+        dsn = new URL(process.env.NEXT_PUBLIC_SENTRY_DSN!)
       }
-      dsn = new URL(parsed.dsn)
     } catch {
       return NextResponse.json({ error: "Invalid envelope header" }, { status: 400 })
     }
