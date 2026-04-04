@@ -95,3 +95,62 @@ textarea:focus {
 
 /* Links get a soft rose color */
 .message-content a { color: var(--theme-link); }
+
+/* ── Falling cherry blossom petals ─────────────────────────────────────
+   Pure-CSS petal rain using layered radial-gradient dots on a fixed
+   pseudo-element overlay. pointer-events:none keeps it non-intrusive.
+   Three petal layers fall at different speeds for parallax depth.
+   Covers both server chat and DM areas via body::after.               */
+
+@keyframes sakura-fall {
+  from { background-position-y: -200px, -120px, -320px; }
+  to   { background-position-y: calc(100vh + 200px), calc(100vh + 120px), calc(100vh + 320px); }
+}
+
+@keyframes sakura-sway {
+  0%   { background-position-x: 0px, 0px, 0px; }
+  25%  { background-position-x: 14px, -8px, 6px; }
+  50%  { background-position-x: 20px, -14px, 10px; }
+  75%  { background-position-x: 10px, -4px, 14px; }
+  100% { background-position-x: 0px, 0px, 0px; }
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.30;
+  background-image:
+    /* Small near petals — fastest, most visible */
+    radial-gradient(2.5px 3.5px at center, #e8439366 65%, transparent 100%),
+    /* Medium mid-depth petals */
+    radial-gradient(2px 2.5px at center, #fd79a850 65%, transparent 100%),
+    /* Large far petals — slowest, most diffuse */
+    radial-gradient(3.5px 4.5px at center, #f8a5c230 60%, transparent 100%);
+  background-size:
+    160px 200px,
+    240px 280px,
+    340px 380px;
+  background-repeat: repeat;
+  animation:
+    sakura-fall 14s linear infinite,
+    sakura-sway 6s ease-in-out infinite;
+}
+
+/* Disable fixed background on mobile to reduce GPU cost */
+@media (max-width: 768px) {
+  body::after {
+    opacity: 0.18;
+    animation-duration: 18s, 8s;
+  }
+}
+
+/* Respect reduced motion — disable petal rain entirely */
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    animation: none;
+    display: none;
+  }
+}
