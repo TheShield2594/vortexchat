@@ -17,7 +17,7 @@ import { getMemberPermissions } from "@/lib/permissions"
 
 const VALID_THEMES = [
   "twilight", "midnight-neon", "synthwave", "carbon", "oled-black",
-  "frost", "clarity", "velvet-dusk", "terminal", "sakura-blossom", "frosthearth",
+  "frost", "clarity", "velvet-dusk", "terminal", "sakura-blossom", "frosthearth", "night-city-neural",
 ]
 
 const META_REGEX = /<!-- vortex:(.*?) -->/
