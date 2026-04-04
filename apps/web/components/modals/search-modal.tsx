@@ -501,14 +501,14 @@ export function SearchModal({ serverId, dmChannelId, dmChannelLabel, onClose, on
                           </div>
                           <p className="text-sm truncate" style={{ color: "var(--theme-text-secondary)" }}>{result.content}</p>
                           {/* Relevance dots for AI search */}
-                          {searchMode === "ai" && (result as unknown as Record<string, unknown>)._relevance && (
+                          {searchMode === "ai" && "_relevance" in result && typeof (result as Record<string, unknown>)._relevance === "number" && (
                             <div className="flex items-center gap-1 mt-1">
                               {[1, 2, 3, 4].map((level) => (
                                 <span
                                   key={level}
                                   className="w-1.5 h-1.5 rounded-full"
                                   style={{
-                                    background: level <= ((result as unknown as Record<string, unknown>)._relevance as number)
+                                    background: level <= ((result as Record<string, unknown>)._relevance as number)
                                       ? "var(--theme-ai-badge-text)"
                                       : "var(--theme-bg-tertiary)",
                                   }}
