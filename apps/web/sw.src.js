@@ -149,7 +149,7 @@ self.addEventListener("fetch", (event) => {
   // Caches GET /api/messages and /api/channels/*/messages responses so users
   // can view recent messages when offline.
   // Cache entries are scoped per-user via cookie hash to prevent cross-account leaks.
-  if (url.pathname.match(/\/api\/(messages|channels\/[^/]+\/messages)/)) {
+  if (/^\/api\/(messages|channels\/[^/]+\/messages)\/?$/.test(url.pathname)) {
     // Cache is keyed by full request URL (including channelId query params),
     // which is inherently user-scoped since channel access is auth-gated.
     // The SW runs in a single-user browser context so cross-account risk
@@ -187,6 +187,7 @@ self.addEventListener("fetch", (event) => {
           })
         })
     )
+    return
   }
 })
 
@@ -311,6 +312,11 @@ self.addEventListener("message", (event) => {
   }
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting()
+  }
+  // Clear API cache on auth transitions to prevent cross-account data leaks.
+  // The main app should postMessage({ type: "CLEAR_API_CACHE" }) on logout/login.
+  if (event.data?.type === "CLEAR_API_CACHE") {
+    event.waitUntil(caches.delete(API_CACHE))
   }
 })
 

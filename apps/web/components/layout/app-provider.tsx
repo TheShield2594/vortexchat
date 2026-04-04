@@ -51,6 +51,8 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     } else {
       // Clear cached prefs on logout so next user doesn't inherit stale values
       clearPreferencesCache()
+      // Clear SW API cache to prevent cross-account data leaks
+      navigator.serviceWorker?.controller?.postMessage({ type: "CLEAR_API_CACHE" })
     }
   }, [user, servers, setCurrentUser, setServers, setIsLoadingServers, hydrateFromSettings, loadNotificationSettings])
 
