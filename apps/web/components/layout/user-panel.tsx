@@ -22,7 +22,7 @@ export function UserPanel() {
   const [deafened, setDeafened] = useState(false)
   const { toast } = useToast()
   const supabase = useMemo(() => createClientSupabaseClient(), [])
-  const [isStatusExpired, setIsStatusExpired] = useState(() => Boolean(currentUser?.status_expires_at && new Date(currentUser.status_expires_at).getTime() <= Date.now()))
+  const [isStatusExpired, setIsStatusExpired] = useState(false)
 
   useEffect(() => {
     if (!currentUser?.status_expires_at) {

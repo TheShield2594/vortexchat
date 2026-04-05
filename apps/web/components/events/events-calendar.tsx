@@ -83,8 +83,8 @@ export function EventsCalendar({
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [location, setLocation] = useState("")
-  const [startAt, setStartAt] = useState(() => toLocalDatetime(new Date(Date.now() + 24 * 60 * 60 * 1000)))
-  const [endAt, setEndAt] = useState(() => toLocalDatetime(new Date(Date.now() + 25 * 60 * 60 * 1000)))
+  const [startAt, setStartAt] = useState("")
+  const [endAt, setEndAt] = useState("")
   const [capacity, setCapacity] = useState("")
   const [linkedChannelId, setLinkedChannelId] = useState(channels[0]?.id ?? "")
   const [eventType, setEventType] = useState<EventType>("general")
@@ -96,6 +96,12 @@ export function EventsCalendar({
   const [recurrenceUntil, setRecurrenceUntil] = useState("")
 
 
+  // Initialize date-dependent form defaults on mount to avoid hydration mismatch
+  useEffect(() => {
+    if (!startAt) setStartAt(toLocalDatetime(new Date(Date.now() + 24 * 60 * 60 * 1000)))
+    if (!endAt) setEndAt(toLocalDatetime(new Date(Date.now() + 25 * 60 * 60 * 1000)))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function load() {
     const res = await fetch(`/api/servers/${serverId}/events`, { cache: "no-store" })
     if (res.ok) setEvents(await res.json())
@@ -103,7 +109,7 @@ export function EventsCalendar({
 
   useEffect(() => { void load() }, [serverId])
 
-  const [anchor, setAnchor] = useState(() => new Date())
+  const [anchor, setAnchor] = useState(new Date())
 
   const range = useMemo(() => {
     if (view === "month") {
@@ -159,6 +165,12 @@ export function EventsCalendar({
 
   async function createEvent() {
     if (!title.trim()) return
+    const startDate = new Date(startAt)
+    const endDate = new Date(endAt)
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      toast({ variant: "destructive", title: "Invalid date/time", description: "Please set both start and end times." })
+      return
+    }
     setCreating(true)
     try {
       let bannerUrl: string | null = null
@@ -176,8 +188,8 @@ export function EventsCalendar({
           description: description.trim() || undefined,
           location: location.trim() || undefined,
           timezone,
-          startAt: new Date(startAt).toISOString(),
-          endAt: new Date(endAt).toISOString(),
+          startAt: startDate.toISOString(),
+          endAt: endDate.toISOString(),
           recurrence,
           recurrenceUntil: recurrence !== "none" && recurrenceUntil ? recurrenceUntil : undefined,
           capacity: capacity ? parseInt(capacity, 10) : undefined,
