@@ -70,6 +70,23 @@ interface AppState {
   toggleWorkspacePanel: () => void
   setWorkspaceOpen: (open: boolean) => void
 
+  // Modal / panel visibility (extracted from ChatArea to avoid re-rendering the message list)
+  showSearchModal: boolean
+  setShowSearchModal: (open: boolean) => void
+  showKeyboardShortcuts: boolean
+  setShowKeyboardShortcuts: (open: boolean) => void
+  showCreateChannelThread: boolean
+  setShowCreateChannelThread: (open: boolean) => void
+  showSummary: boolean
+  toggleShowSummary: () => void
+  setShowSummary: (open: boolean) => void
+  showPinnedPanel: boolean
+  toggleShowPinnedPanel: () => void
+  setShowPinnedPanel: (open: boolean) => void
+  overflowOpen: boolean
+  toggleOverflowOpen: () => void
+  setOverflowOpen: (open: boolean) => void
+
   // Per-server unread indicator (true = at least one unread channel in this server)
   serverHasUnread: Record<string, boolean>
   setServerHasUnread: (serverId: string, hasUnread: boolean) => void
@@ -214,6 +231,23 @@ export const useAppStore = create<AppState>((set) => ({
     persistBooleanStorage(WORKSPACE_PANEL_STORAGE_KEY, open)
     return { workspaceOpen: open }
   }),
+
+  // Modal / panel visibility
+  showSearchModal: false,
+  setShowSearchModal: (open) => set({ showSearchModal: open }),
+  showKeyboardShortcuts: false,
+  setShowKeyboardShortcuts: (open) => set({ showKeyboardShortcuts: open }),
+  showCreateChannelThread: false,
+  setShowCreateChannelThread: (open) => set({ showCreateChannelThread: open }),
+  showSummary: false,
+  toggleShowSummary: () => set((state) => ({ showSummary: !state.showSummary })),
+  setShowSummary: (open) => set({ showSummary: open }),
+  showPinnedPanel: false,
+  toggleShowPinnedPanel: () => set((state) => ({ showPinnedPanel: !state.showPinnedPanel })),
+  setShowPinnedPanel: (open) => set({ showPinnedPanel: open }),
+  overflowOpen: false,
+  toggleOverflowOpen: () => set((state) => ({ overflowOpen: !state.overflowOpen })),
+  setOverflowOpen: (open) => set({ overflowOpen: open }),
 
   serverHasUnread: {},
   setServerHasUnread: (serverId, hasUnread) =>
