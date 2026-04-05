@@ -232,6 +232,7 @@
 | Bible Bot — channel, API key, translation, daily verse (#480) | Done | `bible_app_configs` table, `/api/servers/[serverId]/apps/bible`, scripture.api.bible integration, embed color picker |
 | Bible Bot — daily verse schedule + manual post | Done | Configurable time/timezone, rotating verse list, manual post button |
 | Bible Bot — slash commands | Done | `/verse`, `/dailyverse`, `/bibleconfig` |
+| RSS Feed Bot + Bible Bot marketplace visibility | Done | Fixed via migration 00104 — upsert ensures `is_published = TRUE` (00103 used `ON CONFLICT DO NOTHING` which silently skipped rows; same issue as 00071) |
 | Premium marketplace card design (#673) | Done | Redesigned app cards with icon, trust badge pill, star rating, hover effects; improved visual hierarchy and spacing |
 | Curated discovery sections (#674) | Done | `app_curated_sections` + `app_curated_entries` tables, `/api/apps/curated` endpoint; Featured / Trending / Staff Picks above catalog grid; graceful fallback when empty |
 | Trust & permission transparency UX (#675) | Done | `TrustBadgeTooltip` with hover descriptions; `PermissionList` grouped by impact level (low/medium/high/critical); `AlertDialog` pre-install confirmation for elevated scopes; `TRUST_BADGE_INFO` + `APP_PERMISSION_META` in `@vortex/shared` |
