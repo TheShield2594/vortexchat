@@ -165,6 +165,12 @@ export function EventsCalendar({
 
   async function createEvent() {
     if (!title.trim()) return
+    const startDate = new Date(startAt)
+    const endDate = new Date(endAt)
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      toast({ variant: "destructive", title: "Invalid date/time", description: "Please set both start and end times." })
+      return
+    }
     setCreating(true)
     try {
       let bannerUrl: string | null = null
@@ -182,8 +188,8 @@ export function EventsCalendar({
           description: description.trim() || undefined,
           location: location.trim() || undefined,
           timezone,
-          startAt: new Date(startAt).toISOString(),
-          endAt: new Date(endAt).toISOString(),
+          startAt: startDate.toISOString(),
+          endAt: endDate.toISOString(),
           recurrence,
           recurrenceUntil: recurrence !== "none" && recurrenceUntil ? recurrenceUntil : undefined,
           capacity: capacity ? parseInt(capacity, 10) : undefined,
