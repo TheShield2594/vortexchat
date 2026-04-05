@@ -87,6 +87,14 @@ export default async function RootLayout({
       <head>
         <meta name="color-scheme" content="dark" />
         <meta name="format-detection" content="telephone=no" />
+        {/* Preconnect to Supabase — saves ~100-300ms on first API call (DNS + TLS) */}
+        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
+          <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+        )}
+        {/* DNS-prefetch for third-party origins used later in the session */}
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+        <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+        <link rel="dns-prefetch" href="https://api.giphy.com" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1170-2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1284-2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1125-2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />

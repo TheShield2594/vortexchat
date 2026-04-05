@@ -78,6 +78,10 @@ const nextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
+          {
+            key: "X-DNS-Prefetch-Control",
+            value: "on",
+          },
           // CSP is set dynamically per-request in proxy.ts with nonce-based script-src
           // (see proxy.ts buildCsp() — no unsafe-eval or unsafe-inline for scripts)
         ],
@@ -119,6 +123,12 @@ const nextConfig = {
           supabase: {
             test: /[\\/]node_modules[\\/]@supabase[\\/]/,
             name: "supabase",
+            chunks: "all",
+            priority: 25,
+          },
+          markdown: {
+            test: /[\\/]node_modules[\\/](react-markdown|remark-.*|rehype-.*|unified|unist-.*|mdast-.*|hast-.*|micromark.*|decode-named-character-reference)[\\/]/,
+            name: "markdown",
             chunks: "all",
             priority: 25,
           },

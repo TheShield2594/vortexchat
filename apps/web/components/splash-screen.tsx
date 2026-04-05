@@ -15,13 +15,13 @@ export function SplashScreen(): React.ReactElement | null {
   const [fading, setFading] = useState(false)
 
   useEffect(() => {
-    // Phase 1: start the fade-out once React hydrates
-    const fadeTimer = setTimeout(() => setFading(true), 0)
+    // Phase 1: start the fade-out on the next paint after hydration
+    const rafId = requestAnimationFrame(() => setFading(true))
     // Phase 2: unmount after the 300ms CSS transition finishes
     // Delay slightly beyond 300ms so screen readers can process the "loaded" announcement
     const unmountTimer = setTimeout(() => setMounted(false), 500)
     return () => {
-      clearTimeout(fadeTimer)
+      cancelAnimationFrame(rafId)
       clearTimeout(unmountTimer)
     }
   }, [])

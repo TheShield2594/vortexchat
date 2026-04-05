@@ -823,7 +823,7 @@ export function EmojisTab({ serverId }: { serverId: string }) {
         <div className="space-y-1">
           {emojis.map((e) => (
             <div key={e.id} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: 'var(--theme-bg-secondary)' }}>
-              <img src={e.image_url} alt={e.name} className="w-8 h-8 object-contain rounded" />
+              <img src={e.image_url} alt={e.name} className="w-8 h-8 object-contain rounded" loading="lazy" />
               <div className="flex-1 min-w-0">
                 <span className="text-sm text-white">:{e.name}:</span>
                 {e.uploader && (

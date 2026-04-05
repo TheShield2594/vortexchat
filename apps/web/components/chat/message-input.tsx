@@ -1450,7 +1450,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
                             title={gif.title}
                             aria-label={gif.title}
                           >
-                            <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-square object-cover" />
+                            <img src={gif.previewUrl} alt={gif.title} className="w-full aspect-square object-cover" loading="lazy" />
                             <span className="absolute inset-x-0 bottom-0 px-1.5 py-1 text-[10px] truncate text-left opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "#fff", background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}>{gif.title || "GIF"}</span>
                           </button>
                         ))}
@@ -1515,7 +1515,7 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
                             title={sticker.title}
                             aria-label={sticker.title}
                           >
-                            <img src={sticker.previewUrl} alt={sticker.title} className="w-full h-full object-contain" />
+                            <img src={sticker.previewUrl} alt={sticker.title} className="w-full h-full object-contain" loading="lazy" />
                           </button>
                         ))}
                       </div>
