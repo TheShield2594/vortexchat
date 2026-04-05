@@ -83,8 +83,8 @@ export function EventsCalendar({
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [location, setLocation] = useState("")
-  const [startAt, setStartAt] = useState(() => toLocalDatetime(new Date(Date.now() + 24 * 60 * 60 * 1000)))
-  const [endAt, setEndAt] = useState(() => toLocalDatetime(new Date(Date.now() + 25 * 60 * 60 * 1000)))
+  const [startAt, setStartAt] = useState("")
+  const [endAt, setEndAt] = useState("")
   const [capacity, setCapacity] = useState("")
   const [linkedChannelId, setLinkedChannelId] = useState(channels[0]?.id ?? "")
   const [eventType, setEventType] = useState<EventType>("general")
@@ -96,6 +96,12 @@ export function EventsCalendar({
   const [recurrenceUntil, setRecurrenceUntil] = useState("")
 
 
+  // Initialize date-dependent form defaults on mount to avoid hydration mismatch
+  useEffect(() => {
+    if (!startAt) setStartAt(toLocalDatetime(new Date(Date.now() + 24 * 60 * 60 * 1000)))
+    if (!endAt) setEndAt(toLocalDatetime(new Date(Date.now() + 25 * 60 * 60 * 1000)))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function load() {
     const res = await fetch(`/api/servers/${serverId}/events`, { cache: "no-store" })
     if (res.ok) setEvents(await res.json())
@@ -103,7 +109,7 @@ export function EventsCalendar({
 
   useEffect(() => { void load() }, [serverId])
 
-  const [anchor, setAnchor] = useState(() => new Date())
+  const [anchor, setAnchor] = useState(new Date())
 
   const range = useMemo(() => {
     if (view === "month") {
