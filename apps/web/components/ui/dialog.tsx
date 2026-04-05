@@ -100,8 +100,8 @@ function SheetDragHandle({ contentRef }: { contentRef: React.RefObject<HTMLDivEl
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean }
+>(({ className, children, hideClose, ...props }, ref) => {
   const internalRef = React.useRef<HTMLDivElement | null>(null)
 
   const setRefs = React.useCallback((node: HTMLDivElement | null) => {
@@ -133,12 +133,14 @@ const DialogContent = React.forwardRef<
         {/* Drag handle for mobile bottom sheet — functional swipe-to-dismiss */}
         <SheetDragHandle contentRef={internalRef} />
         {children}
-        <DialogPrimitive.Close
-          className="absolute right-2 top-2 sm:right-4 sm:top-4 rounded-md min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 hover:bg-white/10 active:bg-white/15 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
-          aria-label="Close dialog"
-        >
-          <X className="h-5 w-5 sm:h-4 sm:w-4" />
-        </DialogPrimitive.Close>
+        {!hideClose && (
+          <DialogPrimitive.Close
+            className="absolute right-2 top-2 sm:right-4 sm:top-4 rounded-md min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 hover:bg-white/10 active:bg-white/15 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+            aria-label="Close dialog"
+          >
+            <X className="h-5 w-5 sm:h-4 sm:w-4" />
+          </DialogPrimitive.Close>
+        )}
       </DialogPrimitive.Content>
     </DialogPortal>
   )
