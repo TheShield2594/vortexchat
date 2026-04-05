@@ -80,8 +80,8 @@ function sortMessagesChronologically(items: MessageWithAuthor[]): MessageWithAut
 export function ChatArea({ channel, initialMessages, currentUserId, serverId, initialLastReadAt, canManageMessages }: Props) {
   const messageGrouping = useAppearanceStore((s) => s.messageGrouping)
   const isMobile = useMobileLayout()
-  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages, mobilePendingAction, setMobilePendingAction, servers } = useAppStore(
-    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages, mobilePendingAction: s.mobilePendingAction, setMobilePendingAction: s.setMobilePendingAction, servers: s.servers }))
+  const { setActiveServer, setActiveChannel, memberListOpen, toggleMemberList, currentUser, workspaceOpen, toggleWorkspacePanel, threadPanelOpen, toggleThreadPanel, setThreadPanelOpen, cacheMessages, mobilePendingAction, setMobilePendingAction, servers, showSearchModal, setShowSearchModal, showKeyboardShortcuts, setShowKeyboardShortcuts, showCreateChannelThread, setShowCreateChannelThread, showSummary, toggleShowSummary, setShowSummary, showPinnedPanel, toggleShowPinnedPanel, setShowPinnedPanel, overflowOpen, toggleOverflowOpen, setOverflowOpen } = useAppStore(
+    useShallow((s) => ({ setActiveServer: s.setActiveServer, setActiveChannel: s.setActiveChannel, memberListOpen: s.memberListOpen, toggleMemberList: s.toggleMemberList, currentUser: s.currentUser, workspaceOpen: s.workspaceOpen, toggleWorkspacePanel: s.toggleWorkspacePanel, threadPanelOpen: s.threadPanelOpen, toggleThreadPanel: s.toggleThreadPanel, setThreadPanelOpen: s.setThreadPanelOpen, cacheMessages: s.cacheMessages, mobilePendingAction: s.mobilePendingAction, setMobilePendingAction: s.setMobilePendingAction, servers: s.servers, showSearchModal: s.showSearchModal, setShowSearchModal: s.setShowSearchModal, showKeyboardShortcuts: s.showKeyboardShortcuts, setShowKeyboardShortcuts: s.setShowKeyboardShortcuts, showCreateChannelThread: s.showCreateChannelThread, setShowCreateChannelThread: s.setShowCreateChannelThread, showSummary: s.showSummary, toggleShowSummary: s.toggleShowSummary, setShowSummary: s.setShowSummary, showPinnedPanel: s.showPinnedPanel, toggleShowPinnedPanel: s.toggleShowPinnedPanel, setShowPinnedPanel: s.setShowPinnedPanel, overflowOpen: s.overflowOpen, toggleOverflowOpen: s.toggleOverflowOpen, setOverflowOpen: s.setOverflowOpen }))
   )
   const serverName = useMemo(() => servers.find((s) => s.id === serverId)?.name ?? "", [servers, serverId])
   const [messages, setMessages] = useState<MessageWithAuthor[]>(initialMessages)
@@ -92,22 +92,16 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const [unreadAnchorMessageId, setUnreadAnchorMessageId] = useState<string | null>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showReturnToContext, setShowReturnToContext] = useState(false)
-  const [showSearchModal, setShowSearchModal] = useState(false)
-  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
-  const [showCreateChannelThread, setShowCreateChannelThread] = useState(false)
   const [isPaginating, setIsPaginating] = useState(false)
   const [hasMoreHistory, setHasMoreHistory] = useState(() => initialMessages.length >= 50)
   const [recentlyActiveTimestamps, setRecentlyActiveTimestamps] = useState<Record<string, number>>({})
   const animatedMessageIdsRef = useRef<Set<string>>(new Set())
   const [animatedVersion, setAnimatedVersion] = useState(0)
-  const [showSummary, setShowSummary] = useState(false)
-  const [showPinnedPanel, setShowPinnedPanel] = useState(false)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting")
   const [reconnectGap, setReconnectGap] = useState(false)
   const [voiceRecaps, setVoiceRecaps] = useState<Array<{ sessionId: string; channelName: string; durationSeconds: number }>>([])
   const voiceRecapSubIdRef = useRef(0)
   const [viewportWidth, setViewportWidth] = useState(1280)
-  const [overflowOpen, setOverflowOpen] = useState(false)
   const [focusedActionIndex, setFocusedActionIndex] = useState(0)
   const commandActionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const overflowRef = useRef<HTMLDivElement>(null)
@@ -155,8 +149,8 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     if (!mobilePendingAction) return
     switch (mobilePendingAction) {
       case "search": setShowSearchModal(true); break
-      case "summary": setShowSummary((v) => !v); break
-      case "pins": setShowPinnedPanel((v) => !v); break
+      case "summary": toggleShowSummary(); break
+      case "pins": toggleShowPinnedPanel(); break
       case "help": setShowKeyboardShortcuts(true); break
     }
     setMobilePendingAction(null)
@@ -437,8 +431,15 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     return () => {
       setActiveServer(null)
       setActiveChannel(null)
+      // Reset modal/panel visibility so stale modals don't persist across channel switches
+      setShowSearchModal(false)
+      setShowKeyboardShortcuts(false)
+      setShowCreateChannelThread(false)
+      setShowSummary(false)
+      setShowPinnedPanel(false)
+      setOverflowOpen(false)
     }
-  }, [serverId, channel.id, setActiveServer, setActiveChannel])
+  }, [serverId, channel.id, setActiveServer, setActiveChannel, setShowSearchModal, setShowKeyboardShortcuts, setShowCreateChannelThread, setShowSummary, setShowPinnedPanel, setOverflowOpen])
 
   // Mark channel as read in DB on mount and on departure
   useMarkChannelRead(channel.id)
@@ -1653,7 +1654,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
         priority: 2,
         ariaLabel: showPinnedPanel ? "Hide pinned messages" : "Show pinned messages",
         icon: <Pin className={`w-4 h-4 ${showPinnedPanel ? "chat-area-text-accent" : "text-[var(--theme-text-secondary)]"}`} />,
-        onSelect: () => setShowPinnedPanel((v) => !v),
+        onSelect: () => toggleShowPinnedPanel(),
       },
       {
         id: "threads",
@@ -1687,7 +1688,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       },
     ]
     return actions
-  }, [memberListOpen, showPinnedPanel, threadPanelOpen, toggleMemberList, toggleThreadPanel])
+  }, [memberListOpen, showPinnedPanel, threadPanelOpen, toggleMemberList, toggleThreadPanel, toggleShowPinnedPanel, setShowSearchModal, setShowKeyboardShortcuts])
 
   const layout = useMemo(
     () => resolveCommandBarLayout(viewportWidth, [...commandActions, { id: "inbox", group: "inbox", priority: 4 }]),
@@ -1757,7 +1758,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowSummary((v) => !v)}
+              onClick={toggleShowSummary}
               className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
               title="AI catch-up summary"
               aria-label={showSummary ? "Hide AI channel summary" : "Show AI channel summary"}
@@ -1808,7 +1809,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
                   <button
                     type="button"
                     onClick={() => {
-                      setOverflowOpen((v) => !v)
+                      toggleOverflowOpen()
                       trackCommandEvent("discoverability", { actionId: "overflow", source: "toolbar" })
                     }}
                     className="motion-interactive motion-press p-1.5 rounded surface-hover-md"
