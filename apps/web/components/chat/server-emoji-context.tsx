@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, memo, type ReactNode } from "react"
 
 interface ServerEmoji {
   id: string
@@ -95,12 +95,18 @@ export function ServerEmojiProvider({ serverId, initialEmojis, children }: { ser
   )
 }
 
+const DEFAULT_EMOJI_STYLE: React.CSSProperties = { width: 22, height: 22, objectFit: "contain" }
+
 /** Inline component to render :emoji_name: tokens.
  *  Falls back to :name: text when the emoji is unknown or the image fails to load. */
-export function ServerEmojiImage({ name, size = 22 }: { name: string; size?: number }) {
+export const ServerEmojiImage = memo(function ServerEmojiImage({ name, size = 22 }: { name: string; size?: number }) {
   const { getEmoji } = useServerEmojis()
   const [broken, setBroken] = useState(false)
   const emoji = getEmoji(name)
+  const style = useMemo<React.CSSProperties>(
+    () => (size === 22 ? DEFAULT_EMOJI_STYLE : { width: size, height: size, objectFit: "contain" }),
+    [size],
+  )
   if (!emoji || broken) return <span>:{name}:</span>
   return (
     <img
@@ -110,8 +116,8 @@ export function ServerEmojiImage({ name, size = 22 }: { name: string; size?: num
       loading="lazy"
       draggable={false}
       className="inline-block align-middle"
-      style={{ width: size, height: size, objectFit: "contain" }}
+      style={style}
       onError={() => setBroken(true)}
     />
   )
-}
+})
