@@ -133,14 +133,16 @@ const DialogContent = React.forwardRef<
         {/* Drag handle for mobile bottom sheet — functional swipe-to-dismiss */}
         <SheetDragHandle contentRef={internalRef} />
         {children}
-        {!hideClose && (
-          <DialogPrimitive.Close
-            className="absolute right-2 top-2 sm:right-4 sm:top-4 rounded-md min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 hover:bg-white/10 active:bg-white/15 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
-            aria-label="Close dialog"
-          >
-            <X className="h-5 w-5 sm:h-4 sm:w-4" />
-          </DialogPrimitive.Close>
-        )}
+        <DialogPrimitive.Close
+          className={cn(
+            "absolute right-2 top-2 sm:right-4 sm:top-4 rounded-md min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center surface-muted-fg ring-offset-background transition-opacity hover:opacity-100 hover:bg-white/10 active:bg-white/15 focus-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+            hideClose && "opacity-0 pointer-events-none"
+          )}
+          aria-label="Close dialog"
+          tabIndex={hideClose ? -1 : undefined}
+        >
+          <X className="h-5 w-5 sm:h-4 sm:w-4" />
+        </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPortal>
   )
