@@ -506,8 +506,9 @@ export function ProfileSettingsModal({ open, onClose, user }: Props) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
-        className={`overflow-hidden p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none rounded-none border-0 [&>button[aria-label="Close\\ dialog"]]:hidden' : 'max-w-2xl max-h-[90vh]'}`}
+        className={`overflow-hidden p-0 ${isMobile ? 'h-[100dvh] w-screen max-w-none max-h-none rounded-none border-0' : 'max-w-2xl max-h-[90vh]'}`}
         style={{ background: "var(--theme-bg-primary)", borderColor: "var(--theme-bg-tertiary)", paddingTop: isMobile ? "env(safe-area-inset-top)" : undefined }}
+        hideClose={isMobile}
       >
         {/* Mobile header with close button */}
         {isMobile && (
