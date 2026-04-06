@@ -293,12 +293,15 @@ export function initGateway(options: GatewayOptions): void {
         if (supabase) {
           try {
             const now = new Date().toISOString()
-            await supabase
+            const { error: dbErr } = await supabase
               .from("users")
               .update({ status: userStatus, last_heartbeat_at: now, updated_at: now })
               .eq("id", state.userId)
+            if (dbErr) {
+              log.error({ err: dbErr, userId: state.userId }, "gateway:presence DB status update failed")
+            }
           } catch (err) {
-            log.error({ err, userId: state.userId }, "gateway:presence DB status update failed")
+            log.error({ err, userId: state.userId }, "gateway:presence DB status update threw")
           }
         }
 
@@ -443,12 +446,15 @@ export function initGateway(options: GatewayOptions): void {
         if (supabase) {
           try {
             const now = new Date().toISOString()
-            await supabase
+            const { error: dbErr } = await supabase
               .from("users")
               .update({ status, last_heartbeat_at: now, updated_at: now })
               .eq("id", userId)
+            if (dbErr) {
+              log.error({ err: dbErr, userId }, "gateway:init DB status update failed")
+            }
           } catch (err) {
-            log.error({ err, userId }, "gateway:init DB status update failed")
+            log.error({ err, userId }, "gateway:init DB status update threw")
           }
         }
 
@@ -503,12 +509,15 @@ export function initGateway(options: GatewayOptions): void {
         if (supabase) {
           try {
             const now = new Date().toISOString()
-            await supabase
+            const { error: dbErr } = await supabase
               .from("users")
               .update({ status: "offline", last_online_at: now, updated_at: now })
               .eq("id", state.userId)
+            if (dbErr) {
+              log.error({ err: dbErr, userId: state.userId }, "disconnect DB status update failed")
+            }
           } catch (err) {
-            log.error({ err, userId: state.userId }, "disconnect DB status update failed")
+            log.error({ err, userId: state.userId }, "disconnect DB status update threw")
           }
         }
 
