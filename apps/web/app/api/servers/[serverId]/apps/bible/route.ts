@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import { untypedFrom } from "@/lib/supabase/untyped-table"
 
@@ -203,18 +203,27 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
         embed_color: embedColor,
       }
 
-      // If channel is configured, also post it
+      // If channel is configured, also post it (requires SEND_MESSAGES permission)
       const targetChannel = configData?.channel_id
       if (targetChannel) {
-        const embedMsg = formatVerseEmbed(result.reference, result.content, embedColor)
-        await supabase
-          .from("messages")
-          .insert({
-            channel_id: targetChannel,
-            author_id: SYSTEM_BOT_ID,
-            content: embedMsg,
-            webhook_display_name: "Bible Bot",
-          })
+        const { error: sendPermError } = await requireServerPermission(serverId, "SEND_MESSAGES")
+        if (!sendPermError) {
+          const embedMsg = formatVerseEmbed(result.reference, result.content, embedColor)
+          // Use service-role client to insert as system bot (bypasses RLS)
+          const serviceClient = await createServiceRoleClient()
+          const { error: insertError } = await serviceClient
+            .from("messages")
+            .insert({
+              channel_id: targetChannel,
+              author_id: SYSTEM_BOT_ID,
+              content: embedMsg,
+              webhook_display_name: "Bible Bot",
+            })
+          if (insertError) {
+            console.error("[bible get_verse] failed to post verse to channel:", insertError)
+            return NextResponse.json({ error: "Verse fetched but failed to post to channel" }, { status: 500 })
+          }
+        }
       }
 
       return NextResponse.json(result)
@@ -277,7 +286,9 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       const embedColor = configData?.embed_color || "#C4A747"
       const embedMsg = formatVerseEmbed(passage.reference || verse, cleanContent, embedColor)
 
-      const { error: msgError } = await authSupabase
+      // Use service-role client to insert as system bot (bypasses RLS)
+      const serviceClient = await createServiceRoleClient()
+      const { error: msgError } = await serviceClient
         .from("messages")
         .insert({
           channel_id: targetChannel,
