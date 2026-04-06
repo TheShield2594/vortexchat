@@ -94,7 +94,7 @@ export default async function RootLayout({
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement,s=JSON.parse(localStorage.getItem("vortex-appearance")||"{}").state||{};if(s.colorMode)d.dataset.colorMode=s.colorMode;if(s.themePreset)d.dataset.themePreset=s.themePreset;var cm=s.colorMode||"dark";if(cm==="light"){d.className="light";d.querySelector('meta[name=color-scheme]')?.setAttribute("content","light")}else if(cm==="system"){var q=matchMedia("(prefers-color-scheme:light)").matches;d.className=q?"light":"dark";d.querySelector('meta[name=color-scheme]')?.setAttribute("content",q?"light":"dark")}}catch(e){}})();`,
+            __html: `(function(){try{var d=document.documentElement,s=JSON.parse(localStorage.getItem("vortex:appearance")||"{}").state||{};if(s.colorMode)d.dataset.colorMode=s.colorMode;if(s.themePreset)d.dataset.themePreset=s.themePreset;var cm=s.colorMode||"dark";if(cm==="light"){d.className="light";d.querySelector('meta[name=color-scheme]')?.setAttribute("content","light")}else if(cm==="system"){var q=matchMedia("(prefers-color-scheme:light)").matches;d.className=q?"light":"dark";d.querySelector('meta[name=color-scheme]')?.setAttribute("content",q?"light":"dark")}}catch(e){}})();`,
           }}
         />
         <meta name="format-detection" content="telephone=no" />
