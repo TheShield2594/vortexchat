@@ -353,9 +353,12 @@ function extractImageUrl(xml: string): string | undefined {
   // Try <media:content url="...">
   const mediaMatch = xml.match(/<media:content[^>]+url=["']([^"']+)["']/i)
   if (mediaMatch?.[1]) return mediaMatch[1]
-  // Try <enclosure url="..." type="image/...">
-  const enclosureMatch = xml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']+["']/i)
-  if (enclosureMatch?.[1]) return enclosureMatch[1]
+  // Try <enclosure url="..." type="image/..."> (either attribute order)
+  const enclosureTag = xml.match(/<enclosure[^>]+>/i)?.[0]
+  if (enclosureTag && /type=["']image\//i.test(enclosureTag)) {
+    const urlMatch = enclosureTag.match(/url=["']([^"']+)["']/i)
+    if (urlMatch?.[1]) return urlMatch[1]
+  }
   // Try <media:thumbnail url="...">
   const thumbMatch = xml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i)
   if (thumbMatch?.[1]) return thumbMatch[1]
@@ -370,13 +373,13 @@ function extractImageUrl(xml: string): string | undefined {
 
 function formatRssEmbed(item: RssItem, feedName: string): string {
   const title = (item.title ?? "").replace(/\n/g, " ").trim()
-  const link = (item.link ?? "").trim()
-  const description = item.description
-    ? item.description.replace(/<[^>]+>/g, "").replace(/\n+/g, " ").trim().substring(0, 300) +
-      (item.description.length > 300 ? "..." : "")
+  const link = (item.link ?? "").replace(/\n/g, "").trim()
+  const stripped = item.description
+    ? item.description.replace(/<[^>]+>/g, "").replace(/\n+/g, " ").trim()
     : ""
-  const pubDate = (item.pubDate ?? "").trim()
-  const imageUrl = (item.imageUrl ?? "").trim()
+  const description = stripped.substring(0, 300) + (stripped.length > 300 ? "..." : "")
+  const pubDate = (item.pubDate ?? "").replace(/\n/g, " ").trim()
+  const imageUrl = (item.imageUrl ?? "").replace(/\n/g, "").trim()
   const source = feedName.replace(/\n/g, " ").trim()
 
   return [

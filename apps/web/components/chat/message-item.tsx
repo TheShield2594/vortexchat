@@ -901,7 +901,7 @@ export const MessageItem = memo(function MessageItem({
                             {parsedRssEmbed.source}
                           </p>
                           {parsedRssEmbed.title && (
-                            parsedRssEmbed.link ? (
+                            parsedRssEmbed.link && /^https?:\/\//i.test(parsedRssEmbed.link) ? (
                               <a
                                 href={parsedRssEmbed.link}
                                 target="_blank"
@@ -922,7 +922,7 @@ export const MessageItem = memo(function MessageItem({
                               {parsedRssEmbed.description}
                             </p>
                           )}
-                          {parsedRssEmbed.imageUrl && (
+                          {parsedRssEmbed.imageUrl && /^https?:\/\//i.test(parsedRssEmbed.imageUrl) && (
                             <img
                               src={parsedRssEmbed.imageUrl}
                               alt={parsedRssEmbed.title || "RSS feed image"}
