@@ -15,8 +15,6 @@ RUN npm ci --workspace=apps/web --workspace=packages/shared --include-workspace-
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules 2>/dev/null || true
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules 2>/dev/null || true
 
 # Copy source
 COPY package.json ./
@@ -28,7 +26,9 @@ RUN npm run build --workspace=packages/shared 2>/dev/null || true
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DOCKER_BUILD=1
-RUN cd apps/web && npx next build
+WORKDIR /app/apps/web
+RUN npx next build
+WORKDIR /app
 
 # Production image
 FROM base AS runner

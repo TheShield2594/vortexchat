@@ -13,6 +13,7 @@
  */
 
 import cron from "node-cron"
+import { createServer } from "node:http"
 
 const WEB_URL = process.env.WEB_URL?.replace(/\/$/, "")
 const CRON_SECRET = process.env.CRON_SECRET
@@ -72,8 +73,6 @@ async function callEndpoint(path, retries = 2) {
 }
 
 // ─── Schedule definitions ───────────────────────────────────────────────────
-// Mirror the schedules from vercel.json + add more frequent jobs for
-// self-hosted deployments where we're not paying per-invocation.
 
 const jobs = [
   {
@@ -105,16 +104,17 @@ console.log(`│  Web URL: ${WEB_URL.padEnd(33)}│`)
 console.log(`│  Jobs:    ${String(jobs.length).padEnd(33)}│`)
 console.log("└─────────────────────────────────────────────┘")
 
+const scheduledTasks = []
+
 for (const job of jobs) {
-  cron.schedule(job.schedule, () => callEndpoint(job.path), {
+  const task = cron.schedule(job.schedule, () => callEndpoint(job.path), {
     timezone: "UTC",
   })
+  scheduledTasks.push(task)
   log("info", `Scheduled: ${job.name} [${job.schedule}] — ${job.description}`)
 }
 
 // Healthcheck: simple HTTP server for Docker HEALTHCHECK
-import { createServer } from "node:http"
-
 const healthPort = parseInt(process.env.HEALTH_PORT || "3002", 10)
 const server = createServer((req, res) => {
   if (req.url === "/health") {
@@ -132,8 +132,10 @@ server.listen(healthPort, () => {
 // Graceful shutdown
 function shutdown(signal) {
   log("info", `Received ${signal}, shutting down...`)
-  server.close()
-  process.exit(0)
+  scheduledTasks.forEach(task => task.stop())
+  server.close(() => process.exit(0))
+  // Force exit after 5s if server.close hangs
+  setTimeout(() => process.exit(0), 5000).unref()
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"))
 process.on("SIGINT", () => shutdown("SIGINT"))

@@ -15,7 +15,6 @@ set -euo pipefail
 ##############################################################################
 
 ENV_FILE=".env"
-ENV_EXAMPLE="apps/web/.env.local.example"
 
 # ─── Colors ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -98,7 +97,7 @@ read_with_default() {
     echo -ne "  ${prompt}: "
   fi
   read -r input
-  eval "$varname=\"${input:-$default}\""
+  printf -v "$varname" '%s' "${input:-$default}"
 }
 
 read_with_default "Supabase URL" "" SUPABASE_URL

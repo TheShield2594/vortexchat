@@ -77,7 +77,7 @@ VortexChat will be available at `http://localhost:3000` (or your configured URL)
 | `web` | 3000 | Next.js frontend + API routes |
 | `signal` | 3001 | Socket.IO signaling (WebRTC, presence, gateway events) |
 | `redis` | 6379 | Shared cache, rate limiting, event bus |
-| `cron` | 3002 | Periodic task runner (health endpoint only) |
+| `cron` | — | Periodic task runner (internal only, calls web via Docker network) |
 
 ---
 
