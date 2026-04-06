@@ -50,6 +50,7 @@
     "date-fns": "^3.6.0",
     "frimousse": "^0.3.0",
     "hark": "^1.2.3",
+    "ioredis": "^5.10.1",
     "livekit-client": "^2.17.2",
     "livekit-server-sdk": "^2.15.0",
     "lucide-react": "^0.400.0",

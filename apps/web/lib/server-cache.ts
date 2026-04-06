@@ -1,9 +1,9 @@
 /**
- * Application cache with Upstash Redis primary + in-memory fallback.
+ * Application cache with Redis primary + in-memory fallback.
  *
- * When UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set, cached
- * values are stored in Redis so they survive serverless cold starts and are
- * shared across Vercel replicas.
+ * Supports two Redis backends via `lib/redis-client.ts`:
+ *   - Standard Redis (self-hosted) — set `REDIS_URL`
+ *   - Upstash Redis (serverless) — set `UPSTASH_REDIS_REST_URL` + token
  *
  * Falls back to an in-memory TTL cache when Redis is unavailable or not
  * configured (local dev / single-instance deployments).
@@ -14,6 +14,8 @@
  *                  state, nonce checks.
  */
 
+import { getRedisClient, redisConfigured, type RedisClient } from "@/lib/redis-client"
+
 interface CacheEntry<T> {
   value: T
   expiresAt: number
@@ -23,26 +25,12 @@ interface CacheEntry<T> {
 
 const memStore = new Map<string, CacheEntry<unknown>>()
 
-// ─── Redis availability detection ───────────────────────────────────────────
+// ─── Redis access ───────────────────────────────────────────────────────────
 
-const redisConfigured =
-  typeof process !== "undefined" &&
-  !!process.env.UPSTASH_REDIS_REST_URL &&
-  !!process.env.UPSTASH_REDIS_REST_TOKEN
-
-/** Lazy-initialized Redis client (avoids import cost when not configured). */
-let redisInstance: import("@upstash/redis").Redis | null = null
-
-async function getRedis(): Promise<import("@upstash/redis").Redis | null> {
+async function getRedis(): Promise<RedisClient | null> {
   if (!redisConfigured) return null
-  if (redisInstance) return redisInstance
   try {
-    const { Redis } = await import("@upstash/redis")
-    redisInstance = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    })
-    return redisInstance
+    return await getRedisClient()
   } catch {
     return null
   }
