@@ -11,16 +11,24 @@ interface TypingUser {
 }
 
 /** Broadcasts and listens for typing indicators on a channel via Supabase Realtime. Returns the list of currently-typing users plus `onKeystroke` / `onSent` callbacks for the input. */
-export function useTyping(channelId: string, currentUserId: string, currentDisplayName: string) {
+export function useTyping(channelId: string, currentUserId: string, currentDisplayName: string): {
+  typingUsers: TypingUser[]
+  onKeystroke: () => void
+  onSent: () => void
+} {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const typingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const isTypingRef = useRef(false)
   const stopTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const subIdRef = useRef(0)
+  const currentUserIdRef = useRef(currentUserId)
+  currentUserIdRef.current = currentUserId
 
   useEffect(() => {
-    const bc = supabase.channel(`typing:${channelId}`)
+    const subId = ++subIdRef.current
+    const bc = supabase.channel(`typing:${channelId}:${subId}`)
 
     bc.on("broadcast", { event: "typing" }, ({ payload }) => {
       const { userId, displayName, isTyping } = payload as {
@@ -30,7 +38,7 @@ export function useTyping(channelId: string, currentUserId: string, currentDispl
       }
 
       // Ignore own events
-      if (userId === currentUserId) return
+      if (userId === currentUserIdRef.current) return
 
       if (isTyping) {
         // Add or refresh user in typing list
@@ -71,7 +79,7 @@ export function useTyping(channelId: string, currentUserId: string, currentDispl
       }
       isTypingRef.current = false
     }
-  }, [channelId, currentUserId])
+  }, [channelId, supabase])
 
   const sendTypingStart = useCallback(() => {
     if (!channelRef.current) return

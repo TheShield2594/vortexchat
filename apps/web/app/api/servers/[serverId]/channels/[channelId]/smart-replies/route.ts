@@ -19,7 +19,7 @@ export async function POST(_req: NextRequest, { params }: Params): Promise<NextR
     channelId = resolved.channelId
     const { supabase, user, error } = await requireServerPermission(serverId, "SEND_MESSAGES")
     if (error) return error
-    if (!user) return NextResponse.json({ suggestions: [] })
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     // Verify channel belongs to this server
     const { data: channel, error: channelError } = await supabase
@@ -27,7 +27,7 @@ export async function POST(_req: NextRequest, { params }: Params): Promise<NextR
       .select("id, server_id")
       .eq("id", channelId)
       .eq("server_id", serverId)
-      .single()
+      .maybeSingle()
 
     if (channelError) {
       console.error("[smart-replies] channel query failed", { serverId, channelId, error: channelError.message })

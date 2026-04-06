@@ -7,7 +7,7 @@ import { untypedFrom } from "@/lib/supabase/untyped-table"
 type Params = { params: Promise<{ serverId: string }> }
 
 const DEFAULT_BIBLE_ID = "de4e12af7f28f599-02" // King James Version
-const API_BIBLE_BASE = "https://api.scripture.api.bible/v1"
+const API_BIBLE_BASE = "https://rest.api.bible/v1"
 
 /**
  * GET /api/servers/[serverId]/apps/bible
@@ -48,6 +48,7 @@ export async function GET(_req: NextRequest, { params }: Params): Promise<NextRe
  * Actions: save_config, get_verse, post_daily_verse, list_bibles
  */
 export async function POST(req: NextRequest, { params }: Params): Promise<NextResponse> {
+  try {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -60,7 +61,10 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const action = body.action as string
+  const action = body.action
+  if (typeof action !== "string" || !action) {
+    return NextResponse.json({ error: "Invalid or missing action" }, { status: 400 })
+  }
 
   // ── Save config — requires MANAGE_CHANNELS ──
   if (action === "save_config") {
@@ -93,7 +97,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
         .select("id")
         .eq("id", channel_id)
         .eq("server_id", serverId)
-        .single()
+        .maybeSingle()
       if (!ch) return NextResponse.json({ error: "Channel not found in this server" }, { status: 400 })
     }
 
@@ -338,6 +342,10 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+  } catch (err) {
+    console.error("[bible POST] error:", err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 // ── Helpers ──
