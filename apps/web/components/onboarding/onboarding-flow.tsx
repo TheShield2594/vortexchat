@@ -48,7 +48,12 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
   const [loading, setLoading] = useState(false)
   const [createdServer, setCreatedServer] = useState<ServerRow | null>(null)
   const [copied, setCopied] = useState(false)
+  const [origin, setOrigin] = useState("")
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
 
   const clearIconState = useCallback(() => {
     setIconFile(null)
@@ -485,9 +490,7 @@ export function OnboardingFlow({ username, userId }: OnboardingFlowProps) {
                     color: "var(--theme-text-primary)",
                   }}
                 >
-                  {typeof window !== "undefined"
-                    ? `${window.location.origin}/invite/${createdServer.invite_code}`
-                    : createdServer.invite_code}
+                  {`${origin}/invite/${createdServer.invite_code}`}
                 </div>
                 <Button
                   onClick={handleCopyInvite}
