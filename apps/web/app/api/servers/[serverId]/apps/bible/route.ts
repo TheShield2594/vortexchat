@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerPermission } from "@/lib/server-auth"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { SYSTEM_BOT_ID } from "@/lib/server-auth"
 import { untypedFrom } from "@/lib/supabase/untyped-table"
 
@@ -207,7 +207,9 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       const targetChannel = configData?.channel_id
       if (targetChannel) {
         const embedMsg = formatVerseEmbed(result.reference, result.content, embedColor)
-        await supabase
+        // Use service-role client to insert as system bot (bypasses RLS)
+        const serviceClient = await createServiceRoleClient()
+        await serviceClient
           .from("messages")
           .insert({
             channel_id: targetChannel,
@@ -277,7 +279,9 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       const embedColor = configData?.embed_color || "#C4A747"
       const embedMsg = formatVerseEmbed(passage.reference || verse, cleanContent, embedColor)
 
-      const { error: msgError } = await authSupabase
+      // Use service-role client to insert as system bot (bypasses RLS)
+      const serviceClient = await createServiceRoleClient()
+      const { error: msgError } = await serviceClient
         .from("messages")
         .insert({
           channel_id: targetChannel,
