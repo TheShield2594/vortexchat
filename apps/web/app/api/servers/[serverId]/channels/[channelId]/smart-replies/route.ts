@@ -110,8 +110,15 @@ Rules:
         { maxTokens: 128, temperature: 0.8, jsonMode: true }
       )
     } catch (aiErr: unknown) {
-      const msg = aiErr instanceof Error ? aiErr.message : "unknown"
-      console.error("[smart-replies] AI provider error", { serverId, channelId, error: msg })
+      const errorName = aiErr instanceof Error ? aiErr.name : "UnknownError"
+      console.error("[smart-replies] AI provider error", {
+        route: "POST /api/servers/[serverId]/channels/[channelId]/smart-replies",
+        userId: user.id,
+        action: "generate_smart_replies",
+        serverId,
+        channelId,
+        errorName,
+      })
       return NextResponse.json({ suggestions: [] })
     }
 
