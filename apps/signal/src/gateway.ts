@@ -288,6 +288,20 @@ export function initGateway(options: GatewayOptions): void {
         const userStatus = status as UserStatus
         await presence.updateStatus(state.userId, userStatus)
 
+        // Persist status change to DB so Supabase Realtime presence
+        // and subsequent page loads reflect the correct status (#presence-fix)
+        if (supabase) {
+          try {
+            const now = new Date().toISOString()
+            await supabase
+              .from("users")
+              .update({ status: userStatus, last_heartbeat_at: now, updated_at: now })
+              .eq("id", state.userId)
+          } catch (err) {
+            log.error({ err, userId: state.userId }, "gateway:presence DB status update failed")
+          }
+        }
+
         // Broadcast to all servers the user belongs to.
         // Uses socket.to() which is cluster-aware via the Redis adapter,
         // ensuring recipients on other replicas also receive the update.
@@ -424,6 +438,20 @@ export function initGateway(options: GatewayOptions): void {
         // Set presence
         await presence.setOnline(userId, socket.id, status, serverIds)
 
+        // Persist status to DB so Supabase Realtime presence and page
+        // loads reflect the correct status (#presence-fix)
+        if (supabase) {
+          try {
+            const now = new Date().toISOString()
+            await supabase
+              .from("users")
+              .update({ status, last_heartbeat_at: now, updated_at: now })
+              .eq("id", userId)
+          } catch (err) {
+            log.error({ err, userId }, "gateway:init DB status update failed")
+          }
+        }
+
         // Join presence rooms
         for (const serverId of serverIds) {
           socket.join(`presence:${serverId}`)
@@ -470,6 +498,20 @@ export function initGateway(options: GatewayOptions): void {
 
         // Set offline and broadcast
         const serverIds = await presence.setOffline(state.userId)
+
+        // Persist offline status to DB (#presence-fix)
+        if (supabase) {
+          try {
+            const now = new Date().toISOString()
+            await supabase
+              .from("users")
+              .update({ status: "offline", last_online_at: now, updated_at: now })
+              .eq("id", state.userId)
+          } catch (err) {
+            log.error({ err, userId: state.userId }, "disconnect DB status update failed")
+          }
+        }
+
         for (const serverId of serverIds) {
           io.to(`presence:${serverId}`).emit("gateway:presence", {
             userId: state.userId,
