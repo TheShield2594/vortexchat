@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { AiFunction, AiProvider, ResolvedAiProvider } from "@vortex/shared"
 import { AI_PROVIDER_META } from "@vortex/shared"
 import { createAdapter, type AiProviderAdapter } from "./providers"
+import { createServiceRoleClient } from "@/lib/supabase/server"
 
 interface ProviderConfigRow {
   id: string
@@ -31,15 +32,22 @@ interface FunctionRoutingRow {
 /**
  * Resolve which AI provider to use for a given server + function.
  * Returns null when no provider is configured.
+ *
+ * Uses service-role client to bypass RLS on ai_provider_configs,
+ * ai_function_routing, and server_secrets tables, which are owner-only.
+ * This allows any server member to use AI features configured by the owner.
  */
 export async function resolveProviderConfig(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   serverId: string,
   aiFunction: AiFunction
 ): Promise<ResolvedAiProvider | null> {
   try {
+    // Use service-role client to bypass owner-only RLS on AI config tables
+    const serviceClient = await createServiceRoleClient()
+
     // 1. Check per-function routing
-    const { data: routing } = await supabase
+    const { data: routing } = await serviceClient
       .from("ai_function_routing")
       .select("provider_config_id")
       .eq("server_id", serverId)
@@ -47,12 +55,12 @@ export async function resolveProviderConfig(
       .maybeSingle<FunctionRoutingRow>()
 
     if (routing?.provider_config_id) {
-      const config = await fetchProviderConfig(supabase, routing.provider_config_id)
+      const config = await fetchProviderConfig(serviceClient, routing.provider_config_id)
       if (config) return config
     }
 
     // 2. Check server default provider
-    const { data: defaultConfig } = await supabase
+    const { data: defaultConfig } = await serviceClient
       .from("ai_provider_configs")
       .select("id, provider, api_key, base_url, model, is_default")
       .eq("server_id", serverId)
@@ -64,7 +72,7 @@ export async function resolveProviderConfig(
     }
 
     // 3. Legacy fallback: server_secrets.gemini_api_key
-    const { data: secrets } = await supabase
+    const { data: secrets } = await serviceClient
       .from("server_secrets")
       .select("gemini_api_key")
       .eq("server_id", serverId)
@@ -109,10 +117,10 @@ export async function resolveAdapter(
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
 async function fetchProviderConfig(
-  supabase: SupabaseClient,
+  serviceClient: SupabaseClient,
   configId: string
 ): Promise<ResolvedAiProvider | null> {
-  const { data } = await supabase
+  const { data } = await serviceClient
     .from("ai_provider_configs")
     .select("id, provider, api_key, base_url, model, is_default")
     .eq("id", configId)

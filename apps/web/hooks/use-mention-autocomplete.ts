@@ -1,16 +1,18 @@
 import { useCallback } from "react"
-import type { MemberForMention, RoleForMention } from "@/lib/stores/app-store"
+import type { MemberForMention, RoleForMention, PersonaForMention } from "@/lib/stores/app-store"
 import { useAutocomplete } from "./use-autocomplete"
 
 export type MentionSuggestion =
   | { type: "member"; data: MemberForMention }
   | { type: "role"; data: RoleForMention }
+  | { type: "persona"; data: PersonaForMention }
 
 interface Options {
   content: string
   cursorPosition: number
   members: MemberForMention[]
   roles?: RoleForMention[]
+  personas?: PersonaForMention[]
 }
 
 interface Result {
@@ -43,7 +45,7 @@ function findMentionQuery(text: string, cursor: number): string | null {
   return null
 }
 
-export function useMentionAutocomplete({ content, cursorPosition, members, roles = [] }: Options): Result {
+export function useMentionAutocomplete({ content, cursorPosition, members, roles = [], personas = [] }: Options): Result {
   const filter = useCallback(
     (query: string): MentionSuggestion[] => {
       const lower = query.toLowerCase()
@@ -63,9 +65,14 @@ export function useMentionAutocomplete({ content, cursorPosition, members, roles
         .slice(0, 4)
         .map((r) => ({ type: "role", data: r }))
 
-      return [...roleResults, ...memberResults].slice(0, 10)
+      const personaResults: MentionSuggestion[] = personas
+        .filter((p) => p.name.toLowerCase().includes(lower))
+        .slice(0, 4)
+        .map((p) => ({ type: "persona", data: p }))
+
+      return [...personaResults, ...roleResults, ...memberResults].slice(0, 10)
     },
-    [members, roles]
+    [members, roles, personas]
   )
 
   const { isOpen, query, matches, selectedIndex, handleKeyDown, close } = useAutocomplete({
@@ -83,6 +90,8 @@ export function useMentionAutocomplete({ content, cursorPosition, members, roles
     let mention: string
     if (suggestion.type === "role") {
       mention = `<@&${suggestion.data.id}> `
+    } else if (suggestion.type === "persona") {
+      mention = `<@bot:${suggestion.data.id}> `
     } else {
       mention = `<@${suggestion.data.username}> `
     }

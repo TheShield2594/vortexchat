@@ -24,6 +24,13 @@ export interface RoleForMention {
   mentionable: boolean
 }
 
+export interface PersonaForMention {
+  id: string
+  name: string
+  avatar_url: string | null
+  description: string | null
+}
+
 interface AppState {
   // Current user
   currentUser: UserRow | null
@@ -52,6 +59,10 @@ interface AppState {
   // Roles (for @role mention autocomplete + rendering)
   serverRoles: Record<string, RoleForMention[]> // serverId -> roles
   setServerRoles: (serverId: string, roles: RoleForMention[]) => void
+
+  // AI Personas (for @persona mention autocomplete)
+  personas: Record<string, PersonaForMention[]> // serverId -> personas
+  setPersonas: (serverId: string, personas: PersonaForMention[]) => void
 
   // Active state
   activeServerId: string | null
@@ -195,6 +206,10 @@ export const useAppStore = create<AppState>((set) => ({
   serverRoles: {},
   setServerRoles: (serverId, roles) =>
     set((state) => ({ serverRoles: { ...state.serverRoles, [serverId]: roles } })),
+
+  personas: {},
+  setPersonas: (serverId, personas) =>
+    set((state) => ({ personas: { ...state.personas, [serverId]: personas } })),
 
   activeServerId: null,
   activeChannelId: null,

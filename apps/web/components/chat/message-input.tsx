@@ -144,12 +144,13 @@ export function MessageInput({ variant = "channel", channelName, draft, replyTo,
   }, [])
 
   // Mention autocomplete
-  const { activeServerId, activeChannelId, members: membersByServer, serverRoles: rolesByServer } = useAppStore(
-    useShallow((s) => ({ activeServerId: s.activeServerId, activeChannelId: s.activeChannelId, members: s.members, serverRoles: s.serverRoles }))
+  const { activeServerId, activeChannelId, members: membersByServer, serverRoles: rolesByServer, personas: personasByServer } = useAppStore(
+    useShallow((s) => ({ activeServerId: s.activeServerId, activeChannelId: s.activeChannelId, members: s.members, serverRoles: s.serverRoles, personas: s.personas }))
   )
   const members = activeServerId ? membersByServer[activeServerId] ?? [] : []
   const roles = serverId ? rolesByServer[serverId] ?? [] : []
-  const mention = useMentionAutocomplete({ content, cursorPosition, members, roles })
+  const personas = serverId ? personasByServer[serverId] ?? [] : []
+  const mention = useMentionAutocomplete({ content, cursorPosition, members, roles, personas })
 
   // Slash command state (needed by moderation hook below)
   const [appCommands, setAppCommands] = useState<SlashCommand[]>([])

@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: Params): Promise<NextRe
 
     const { data: personas, error: queryError } = await supabase
       .from("ai_personas")
-      .select("id, name, avatar_url, description, is_active, allowed_channel_ids, created_at")
+      .select("id, name, avatar_url, description, system_prompt, is_active, allowed_channel_ids, created_at")
       .eq("server_id", serverId)
       .eq("is_active", true)
       .order("name", { ascending: true })

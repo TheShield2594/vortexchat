@@ -122,6 +122,16 @@ export function MemberList({ serverId, initialMembers }: Props) {
       .catch((err) => { console.error("Failed to fetch roles for server", { serverId, error: err }) })
   }, [serverId])
 
+  // Fetch AI personas for @persona mention autocomplete
+  useEffect(() => {
+    fetch(`/api/servers/${encodeURIComponent(serverId)}/ai-personas`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : { personas: [] }))
+      .then((data: { personas: Array<{ id: string; name: string; avatar_url: string | null; description: string | null }> }) => {
+        useAppStore.getState().setPersonas(serverId, data.personas ?? [])
+      })
+      .catch((err) => { console.error("Failed to fetch AI personas for server", { serverId, error: err }) })
+  }, [serverId])
+
   useEffect(() => {
     setSelectedMemberId(null)
   }, [serverId])

@@ -110,6 +110,12 @@ const remarkRoleMentions = splitTextByPattern(
   (m) => `<vortex-role-mention data-rid="${m[1]}"></vortex-role-mention>`,
 )
 
+/** Remark plugin: <@bot:personaId> → <vortex-persona-mention> elements. */
+const remarkPersonaMentions = splitTextByPattern(
+  /<@bot:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi,
+  (m) => `<vortex-persona-mention data-pid="${m[1]}"></vortex-persona-mention>`,
+)
+
 /** Remark plugin: ||spoiler|| → <vortex-spoiler> elements. */
 const remarkSpoiler = splitTextByPattern(
   /\|\|([\s\S]*?)\|\|/g,
@@ -486,6 +492,25 @@ function buildComponents(currentUserId: string, serverId: string | null, bigEmoj
       )
     },
 
+    "vortex-persona-mention": ({ node, ...props }: { node?: { properties?: Record<string, string> }; [key: string]: unknown }) => {
+      const pid = (props.dataPid ?? props["data-pid"] ?? node?.properties?.dataPid ?? "") as string
+      const personas = serverId ? useAppStore.getState().personas[serverId] ?? [] : []
+      const persona = personas.find((p) => p.id === pid)
+      return (
+        <span
+          className="inline-flex items-center gap-0.5 px-1 rounded cursor-pointer font-medium"
+          style={{
+            color: "var(--theme-ai-badge-text, #5865f2)",
+            background: "var(--theme-ai-badge-bg, rgba(88,101,242,0.15))",
+          }}
+          title={persona ? `AI Persona: ${persona.name}` : pid}
+        >
+          @{persona?.name ?? pid}
+          <span className="text-[9px] font-bold uppercase ml-0.5 opacity-70">BOT</span>
+        </span>
+      )
+    },
+
     "vortex-timestamp": ({ node, ...props }: { node?: { properties?: Record<string, string> }; [key: string]: unknown }) => {
       const epoch = parseInt((props.dataEpoch ?? props["data-epoch"] ?? node?.properties?.dataEpoch ?? "0") as string, 10)
       const format = (props.dataFormat ?? props["data-format"] ?? node?.properties?.dataFormat ?? "f") as string
@@ -524,6 +549,10 @@ function preProcessContent(content: string): string {
     tokens.push(match)
     return `__TOKEN_${tokens.length - 1}__`
   })
+  processed = processed.replace(/<@bot:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi, (match) => {
+    tokens.push(match)
+    return `__TOKEN_${tokens.length - 1}__`
+  })
   processed = processed.replace(/<t:(\d+)(?::([tTdDfFR]))?>/g, (match) => {
     tokens.push(match)
     return `__TOKEN_${tokens.length - 1}__`
@@ -540,7 +569,7 @@ function preProcessContent(content: string): string {
 
 // ─── Stable plugin arrays ───────────────────────────────────────────────────
 
-const remarkPlugins = [remarkGfm, remarkBreaks, remarkCustomEmoji, remarkMentions, remarkRoleMentions, remarkSpoiler, remarkTimestamps, remarkUnicodeEmoji]
+const remarkPlugins = [remarkGfm, remarkBreaks, remarkCustomEmoji, remarkMentions, remarkRoleMentions, remarkPersonaMentions, remarkSpoiler, remarkTimestamps, remarkUnicodeEmoji]
 const sanitizeSchema = {
   ...defaultSchema,
   tagNames: [
@@ -549,6 +578,7 @@ const sanitizeSchema = {
     "vortex-emoji",
     "vortex-mention",
     "vortex-role-mention",
+    "vortex-persona-mention",
     "vortex-spoiler",
     "vortex-timestamp",
   ],
@@ -557,6 +587,7 @@ const sanitizeSchema = {
     "vortex-emoji": ["dataName"],
     "vortex-mention": ["dataUid"],
     "vortex-role-mention": ["dataRid"],
+    "vortex-persona-mention": ["dataPid"],
     "vortex-timestamp": ["dataEpoch", "dataFormat"],
     // Allow only src and alt on img — className/draggable/loading are hardcoded
     // in the component handler, not parsed from HTML attributes
