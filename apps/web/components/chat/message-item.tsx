@@ -56,7 +56,8 @@ function extractBibleEmbed(content: string | null): { color: string; reference: 
   if (!content) return null
   const match = content.match(/\[BIBLE_EMBED\]\n(.+)\n(.+)\n([\s\S]+?)\n\[\/BIBLE_EMBED\]/)
   if (!match) return null
-  const color = match[1]?.trim() || "#C4A747"
+  const rawColor = match[1]?.trim() || ""
+  const color = /^#[0-9A-Fa-f]{6}$/.test(rawColor) ? rawColor : "#C4A747"
   const reference = match[2]?.trim() || ""
   const verseText = match[3]?.trim() || ""
   if (!reference || !verseText) return null
@@ -471,7 +472,13 @@ export const MessageItem = memo(function MessageItem({
     : message.content
   const parsedPoll = extractPoll(renderedContent)
   const parsedBibleEmbed = extractBibleEmbed(renderedContent)
-  const messageBodyContent = parsedPoll ? parsedPoll.sanitizedContent : parsedBibleEmbed ? parsedBibleEmbed.sanitizedContent : renderedContent
+  let messageBodyContent: string | null = renderedContent
+  if (parsedPoll) {
+    messageBodyContent = parsedPoll.sanitizedContent
+  }
+  if (parsedBibleEmbed && messageBodyContent) {
+    messageBodyContent = messageBodyContent.replace(/\[BIBLE_EMBED\][\s\S]*?\[\/BIBLE_EMBED\]/g, "").trim() || null
+  }
 
   const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "sending" ? "Sending" : sendState === "failed" ? "Failed" : null
   const SendStateIcon = sendState === "queued" ? Clock : sendState === "sending" ? Loader2 : sendState === "failed" ? AlertTriangle : null
