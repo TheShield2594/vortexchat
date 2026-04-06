@@ -98,8 +98,8 @@ export async function PUT(req: NextRequest) {
       patch.notification_volume = vol
     }
 
-    // Validate quiet hours time fields (HH:MM format)
-    const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+    // Validate quiet hours time fields (HH:MM or HH:MM:SS format)
+    const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/
     for (const key of ["quiet_hours_start", "quiet_hours_end"] as const) {
       if (key in body) {
         if (typeof body[key] !== "string" || !TIME_RE.test(body[key] as string)) {
