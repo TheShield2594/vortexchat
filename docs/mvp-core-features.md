@@ -56,6 +56,7 @@
 | Gateway messages hook (`useGatewayMessages`) | Done | `apps/web/hooks/use-gateway-messages.ts` — drop-in for `useRealtimeMessages`; handles replay on reconnect (#597) |
 | Client gateway context + provider | Done | `GatewayProvider` in `app-provider.tsx`; single Socket.IO connection shared via React context; auto-reconnect with exponential backoff (#592) |
 | Message gap indicator after reconnection (#611) | Done | `chat-area.tsx` detects when refetch doesn't overlap with local messages; shows "You may have missed messages" banner; dismiss button; no false alerts for quick reconnections |
+| Migrate components from Supabase Realtime to gateway (#696) | Done | Swapped `useRealtimeMessages` → `useGatewayMessages`, `useTyping` → `useGatewayTyping`, `usePresenceSync` → `useGatewayPresence` in all active components; added `publishGatewayEvent` utility + wired into message/reaction API routes |
 
 ## Moderation
 
@@ -195,6 +196,7 @@
 | Color contrast WCAG AA compliance (#712) | Done | Bumped `--theme-text-muted` to `#a2aed0` and `--theme-text-faint` to `#a0abcb` in `globals.css`; all text tokens now meet 4.5:1 ratio against primary/secondary backgrounds |
 | Missing landmarks, headings, and ARIA roles (#713) | Done | Auth layout `<div>` → `<main>`; channel name `<span>` → `<h1>`; DM message list `aria-live="polite"` + `role="log"`; plus menu `role="menu"` / `role="menuitem"`; day separator `role="separator"` + `aria-label`; progress bar `role="progressbar"` with `aria-value*`; password toggle `tabIndex={0}` |
 | Message action buttons keyboard accessible (#714) | Done | Message container gets `tabIndex={0}` + `role="article"` + `aria-label`; existing `onFocus`/`onBlur` handlers now trigger action bar visibility for keyboard users; `focus-visible` ring styling |
+| Form inputs missing accessible labels (#711) | Done | Registration form: added `htmlFor`/`id` to all 5 fields; chat textarea: `aria-label`; poll creator: `aria-label` on question + options; DM edit input: `aria-label` |
 
 ## App Store / Bot Apps
 
@@ -393,6 +395,8 @@
 | DMChannelArea shared utilities (#719) | Done | Extracted `formatDaySeparator`, `extractGifUrl`, `groupReactionsByEmoji` to `lib/utils/message-helpers.ts`; shared `DaySeparator` component used by both `ChatArea` and `DMChannelArea` |
 | Tune Socket.IO ping/pong for faster disconnect detection (#669) | Done | `pingInterval` 25s→10s, `pingTimeout` 60s→20s in signal server; disconnect detection reduced from ~85s to ~30s |
 | Giveaway relative timestamp handles future dates (#680) | Done | `TimestampDisplay` `:R` format now renders "in X hours/minutes/days" for future timestamps; proper singular/plural |
+| LinkEmbed oembed client-side cache (#705) | Done | Module-level `Map<url, OGData>` cache + in-flight dedup in `link-embed.tsx`; eliminates redundant `/api/oembed` fetches when same URL mounts multiple times |
+| Replace `select('*')` over-fetching in API routes (#704) | Done | Explicit column projections in `notification-settings`, `dm/route`, `voice/sessions/route`, `channels/[channelId]/route`; layout queries kept as `select('*')` since results are passed as full Row types to downstream components |
 
 ---
 

@@ -17,18 +17,28 @@ export async function GET(req: NextRequest) {
     if (threadId) {
       const { data: allSettings, error: allSettingsError } = await supabase
         .from("notification_settings")
-        .select("*")
+        .select("id, user_id, server_id, channel_id, thread_id, mode")
         .eq("user_id", user.id)
 
       if (allSettingsError) {
+        console.error("[api/notification-settings][GET] failed to fetch notification settings", { userId: user.id, action: "fetch_all_for_thread", threadId, error: allSettingsError.message })
         return NextResponse.json({ error: "Failed to fetch notification settings" }, { status: 500 })
       }
 
-      const { data: thread } = await supabase
+      const { data: thread, error: threadError } = await supabase
         .from("threads")
         .select("parent_channel_id, channels(server_id)")
         .eq("id", threadId)
         .maybeSingle()
+
+      if (threadError) {
+        console.error("[api/notification-settings][GET] failed to resolve thread notification context", { userId: user.id, action: "resolve_thread_context", threadId, error: threadError.message })
+        return NextResponse.json({ error: "Failed to resolve thread notification context" }, { status: 500 })
+      }
+
+      if (!thread) {
+        return NextResponse.json({ error: "Thread not found" }, { status: 404 })
+      }
 
       const derivedChannelId: string | null = thread?.parent_channel_id ?? null
       const derivedServerId: string | null = (thread?.channels as { server_id?: string | null } | null)?.server_id ?? null
@@ -55,22 +65,30 @@ export async function GET(req: NextRequest) {
 
     if (!serverId && !channelId) {
       // Return all settings for this user
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("notification_settings")
-        .select("*")
+        .select("id, user_id, server_id, channel_id, thread_id, mode")
         .eq("user_id", user.id)
+      if (error) {
+        console.error("[api/notification-settings][GET] failed to fetch notification settings", { userId: user.id, action: "fetch_all", error: error.message })
+        return NextResponse.json({ error: "Failed to fetch notification settings" }, { status: 500 })
+      }
       return NextResponse.json(data ?? [])
     }
 
     let query = supabase
       .from("notification_settings")
-      .select("*")
+      .select("id, user_id, server_id, channel_id, thread_id, mode")
       .eq("user_id", user.id)
 
     if (serverId) query = query.eq("server_id", serverId)
     else if (channelId) query = query.eq("channel_id", channelId)
 
-    const { data } = await query.maybeSingle()
+    const { data, error } = await query.maybeSingle()
+    if (error) {
+      console.error("[api/notification-settings][GET] failed to fetch notification setting", { userId: user.id, action: "fetch_single", serverId, channelId, error: error.message })
+      return NextResponse.json({ error: "Failed to fetch notification setting" }, { status: 500 })
+    }
     return NextResponse.json(data ?? { mode: "all" })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

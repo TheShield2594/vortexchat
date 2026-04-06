@@ -123,10 +123,11 @@ export default function RegisterPage() {
 
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+          <Label htmlFor="register-email" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Email <span style={{ color: 'var(--theme-danger)' }}>*</span>
           </Label>
           <Input
+            id="register-email"
             type="email"
             autoComplete="email"
             value={form.email}
@@ -137,10 +138,11 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+          <Label htmlFor="register-username" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Username <span style={{ color: 'var(--theme-danger)' }}>*</span>
           </Label>
           <Input
+            id="register-username"
             type="text"
             autoComplete="username"
             value={form.username}
@@ -152,10 +154,11 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+          <Label htmlFor="register-display-name" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Display Name
           </Label>
           <Input
+            id="register-display-name"
             type="text"
             value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
@@ -165,10 +168,11 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+          <Label htmlFor="register-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Password <span style={{ color: 'var(--theme-danger)' }}>*</span>
           </Label>
           <Input
+            id="register-password"
             type="password"
             autoComplete="new-password"
             value={form.password}
@@ -179,10 +183,11 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
+          <Label htmlFor="register-confirm-password" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--theme-text-secondary)' }}>
             Confirm Password <span style={{ color: 'var(--theme-danger)' }}>*</span>
           </Label>
           <Input
+            id="register-confirm-password"
             type="password"
             autoComplete="new-password"
             value={form.confirmPassword}

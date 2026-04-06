@@ -5,7 +5,7 @@ import { useAppStore } from "@/lib/stores/app-store"
 import { useShallow } from "zustand/react/shallow"
 import { useAppearanceStore } from "@/lib/stores/appearance-store"
 import { useApplyAppearance } from "@/hooks/use-apply-appearance"
-import { usePresenceSync } from "@/hooks/use-presence-sync"
+import { useGatewayPresence } from "@/hooks/use-gateway-presence"
 import { GatewayProvider } from "@/hooks/use-gateway-context"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 import { useTabUnreadTitle } from "@/hooks/use-tab-unread-title"
@@ -26,6 +26,14 @@ interface AppProviderProps {
 
 /** Root client-side provider that seeds Zustand stores, syncs presence, applies appearance settings, and registers push notifications. */
 export function AppProvider({ user, servers, children }: AppProviderProps) {
+  return (
+    <GatewayProvider>
+      <AppProviderInner user={user} servers={servers}>{children}</AppProviderInner>
+    </GatewayProvider>
+  )
+}
+
+function AppProviderInner({ user, servers, children }: AppProviderProps): React.ReactNode {
   const { setCurrentUser, setServers, setIsLoadingServers, loadNotificationSettings } = useAppStore(
     useShallow((s) => ({ setCurrentUser: s.setCurrentUser, setServers: s.setServers, setIsLoadingServers: s.setIsLoadingServers, loadNotificationSettings: s.loadNotificationSettings }))
   )
@@ -57,7 +65,7 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
   }, [user, servers, setCurrentUser, setServers, setIsLoadingServers, hydrateFromSettings, loadNotificationSettings])
 
   // Auto-sync presence: marks user online on mount, offline on tab close
-  usePresenceSync(user?.id ?? null, user?.status ?? "online")
+  useGatewayPresence(user?.id ?? null, user?.status ?? "online")
 
   // GIF autoplay: freeze/restore GIF images based on user preference
   useGifAutoplay(gifAutoplay)
@@ -92,5 +100,5 @@ export function AppProvider({ user, servers, children }: AppProviderProps) {
     setNotifManagerActiveChannel(activeChannelId)
   }, [activeChannelId])
 
-  return <GatewayProvider>{children}</GatewayProvider>
+  return <>{children}</>
 }

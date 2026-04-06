@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { getChannelPermissions, hasPermission } from "@/lib/permissions"
 import { isBlockedBetweenUsers } from "@/lib/blocking"
 import { sendPushToUser } from "@/lib/push"
+import { publishGatewayEvent } from "@/lib/gateway-publish"
 import type { MessageWithChannelServerId } from "@/types/database"
 
 interface Body {
@@ -98,6 +99,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mes
       }).catch((err) => { console.error("Failed to send reaction push", err) })
     }
 
+    // Publish to gateway for real-time delivery (#696)
+    publishGatewayEvent({
+      type: "reaction.added",
+      channelId: message.channel_id,
+      serverId: channelServerId,
+      actorId: user.id,
+      data: { message_id: messageId, user_id: user.id, emoji },
+    }).catch((err: unknown) => {
+      console.error("[reactions POST] gateway publish failed", { route: "/api/messages/[messageId]/reactions", action: "reaction.added", userId: user.id, messageId, channelId: message.channel_id, error: err instanceof Error ? err.message : String(err) })
+    })
+
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -156,6 +168,17 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ m
         }
       })().catch((err: unknown) => { console.error("Giveaway auto-leave failed", err) })
     }
+
+    // Publish to gateway for real-time delivery (#696)
+    publishGatewayEvent({
+      type: "reaction.removed",
+      channelId: message.channel_id,
+      serverId: channelServerId,
+      actorId: user.id,
+      data: { message_id: messageId, user_id: user.id, emoji },
+    }).catch((err: unknown) => {
+      console.error("[reactions DELETE] gateway publish failed", { route: "/api/messages/[messageId]/reactions", action: "reaction.removed", userId: user.id, messageId, channelId: message.channel_id, error: err instanceof Error ? err.message : String(err) })
+    })
 
     return NextResponse.json({ ok: true, emoji, nonce: body.nonce ?? null })
   } catch {

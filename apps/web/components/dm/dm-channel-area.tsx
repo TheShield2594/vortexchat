@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils/cn"
 import { useCallMediaToggles } from "@/lib/webrtc/use-call-media-toggles"
 import { useDMCall, IncomingCallToast, CallerRingingOverlay } from "@/components/dm/dm-call"
 import { useToast } from "@/components/ui/use-toast"
-import { useTyping } from "@/hooks/use-typing"
+import { useGatewayTyping } from "@/hooks/use-gateway-typing"
 import { useAppStore } from "@/lib/stores/app-store"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useChatScroll } from "@/components/chat/hooks/use-chat-scroll"
@@ -545,7 +545,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
     return nextKey
   }, [currentUserId, ensureDeviceIdentity])
 
-  const { typingUsers, onKeystroke, onSent } = useTyping(channelId, currentUserId, currentDisplayName)
+  const { typingUsers, onKeystroke, onSent } = useGatewayTyping(channelId, currentUserId, currentDisplayName)
 
   const loadMessages = useCallback(async (before?: string) => {
     if (!before) setLoadError(false)
@@ -1485,6 +1485,7 @@ export function DMChannelArea({ channelId, currentUserId }: Props) {
                           if (e.key === "Enter" && !e.shiftKey) handleEditSave(msg.id)
                           if (e.key === "Escape") setEditingId(null)
                         }}
+                        aria-label="Edit message"
                         className="flex-1 bg-transparent border-b text-sm focus:outline-none"
                         style={{ color: "var(--theme-text-normal)", borderColor: "var(--theme-accent)" }}
                       />

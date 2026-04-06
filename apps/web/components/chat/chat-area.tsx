@@ -13,8 +13,8 @@ import { useShallow } from "zustand/react/shallow"
 import type { AttachmentRow, ChannelRow, MessageWithAuthor, ThreadRow } from "@/types/database"
 import { MessageItem } from "@/components/chat/message-item"
 import { MessageInput } from "@/components/chat/message-input"
-import { useRealtimeMessages, type RealtimeStatus } from "@/hooks/use-realtime-messages"
-import { useTyping } from "@/hooks/use-typing"
+import { useGatewayMessages, type RealtimeStatus } from "@/hooks/use-gateway-messages"
+import { useGatewayTyping } from "@/hooks/use-gateway-typing"
 import { useToast } from "@/components/ui/use-toast"
 const ThreadPanel = lazy(() => import("@/components/chat/thread-panel").then((m) => ({ default: m.ThreadPanel })))
 const SearchModal = lazy(() => import("@/components/modals/search-modal").then((m) => ({ default: m.SearchModal })))
@@ -125,7 +125,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const currentDisplayName = currentUser?.display_name || currentUser?.username || "Unknown"
-  const { typingUsers, onKeystroke, onSent } = useTyping(channel.id, currentUserId, currentDisplayName)
+  const { typingUsers, onKeystroke, onSent } = useGatewayTyping(channel.id, currentUserId, currentDisplayName)
   const jumpToMessageId = searchParams.get("message")
   const openThreadId = searchParams.get("thread")
   const createThreadParam = searchParams.get("createThread")
@@ -1089,11 +1089,11 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     }
   }, [channel.id])
 
-  useRealtimeMessages(
+  useGatewayMessages(
     channel.id,
     (newMessage) => {
       upsertMessage(newMessage)
-      setAndPersistOutbox((current) => removeOutboxEntry(current, newMessage.id))
+      setAndPersistOutbox((current) => removeOutboxEntry(current, newMessage.client_nonce ?? newMessage.id))
     },
     (updatedMessage) => {
       setMessages((prev) => {
@@ -1107,25 +1107,30 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
       }
     },
     (reaction) => {
-      setMessages((prev) =>
-        prev.map((m) => {
-          if (m.id !== reaction.message_id) return m
-          if (m.reactions.some((r) => r.emoji === reaction.emoji && r.user_id === reaction.user_id)) return m
-          return { ...m, reactions: [...m.reactions, reaction] }
-        })
-      )
+      setMessages((prev) => {
+        const index = prev.findIndex((m) => m.id === reaction.message_id)
+        if (index === -1) return prev
+        if (prev[index].reactions.some((r) => r.emoji === reaction.emoji && r.user_id === reaction.user_id)) return prev
+        const next = [...prev]
+        next[index] = { ...prev[index], reactions: [...prev[index].reactions, reaction] }
+        return next
+      })
     },
     (reaction) => {
-      setMessages((prev) =>
-        prev.map((m) => {
-          if (m.id !== reaction.message_id) return m
-          return { ...m, reactions: m.reactions.filter((r) => !(r.emoji === reaction.emoji && r.user_id === reaction.user_id)) }
-        })
-      )
+      setMessages((prev) => {
+        const index = prev.findIndex((m) => m.id === reaction.message_id)
+        if (index === -1) return prev
+        const nextReactions = prev[index].reactions.filter(
+          (r) => !(r.emoji === reaction.emoji && r.user_id === reaction.user_id)
+        )
+        if (nextReactions.length === prev[index].reactions.length) return prev
+        const next = [...prev]
+        next[index] = { ...prev[index], reactions: nextReactions }
+        return next
+      })
     },
     setRealtimeStatus,
     backfillMissedMessages,
-    messagesRef,
   )
 
   // ── Voice Recap — listen for ended voice sessions in this channel ──

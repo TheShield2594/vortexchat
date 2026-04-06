@@ -143,11 +143,11 @@ export async function PATCH(
       .from("channels")
       .update(update)
       .eq("id", channelId)
-      .select("*")
+      .select("id, server_id, name, type, topic, position, parent_id, slowmode_delay, nsfw, forum_guidelines, stream_url")
       .single()
 
-    if (updateError) {
-      console.error("[channels/[channelId] PATCH] update error:", updateError.message)
+    if (updateError || !updated) {
+      console.error("[channels/[channelId] PATCH] update error:", { channelId, userId: user.id, error: updateError?.message ?? "No row returned" })
       return NextResponse.json({ error: "Failed to update channel" }, { status: 500 })
     }
 
