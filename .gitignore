@@ -46,3 +46,4 @@ yarn-debug.log*
 
 # Turbo cache
 .turbo/
+MIGRATION-PLAN.md
