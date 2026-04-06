@@ -27,7 +27,7 @@ export async function POST(_req: NextRequest, { params }: Params): Promise<NextR
       .select("id, server_id")
       .eq("id", channelId)
       .eq("server_id", serverId)
-      .single()
+      .maybeSingle()
 
     if (channelError) {
       console.error("[smart-replies] channel query failed", { serverId, channelId, error: channelError.message })

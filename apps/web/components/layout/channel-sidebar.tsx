@@ -212,15 +212,21 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   const { activeChannelId, voiceChannelId, setVoiceChannel, channels: storeChannels, setChannels, addChannel, updateChannel, removeChannel, toggleMemberList, toggleThreadPanel, toggleWorkspacePanel, setServerHasUnread } = useAppStore(
     useShallow((s) => ({ activeChannelId: s.activeChannelId, voiceChannelId: s.voiceChannelId, setVoiceChannel: s.setVoiceChannel, channels: s.channels, setChannels: s.setChannels, addChannel: s.addChannel, updateChannel: s.updateChannel, removeChannel: s.removeChannel, toggleMemberList: s.toggleMemberList, toggleThreadPanel: s.toggleThreadPanel, toggleWorkspacePanel: s.toggleWorkspacePanel, setServerHasUnread: s.setServerHasUnread }))
   )
-  const [categoryExpansionOverrides, setCategoryExpansionOverridesRaw] = useState<Record<string, boolean>>(() => {
-    if (typeof window === "undefined") return {}
+  const [categoryExpansionOverrides, setCategoryExpansionOverridesRaw] = useState<Record<string, boolean>>({})
+
+  // Hydrate category expansion state from localStorage after mount to avoid
+  // SSR/client mismatch (React Error #418). The server always renders with
+  // all categories expanded ({}); localStorage values are applied after hydration.
+  useEffect(() => {
     try {
       const stored = window.localStorage.getItem(`vortexchat:category-expansion:${server.id}`)
-      return stored ? (JSON.parse(stored) as Record<string, boolean>) : {}
+      if (stored) {
+        setCategoryExpansionOverridesRaw(JSON.parse(stored) as Record<string, boolean>)
+      }
     } catch {
-      return {}
+      // best effort
     }
-  })
+  }, [server.id])
   const setCategoryExpansionOverrides: typeof setCategoryExpansionOverridesRaw = (action) => {
     setCategoryExpansionOverridesRaw((prev) => {
       const next = typeof action === "function" ? action(prev) : action
