@@ -86,11 +86,13 @@ export async function POST(_req: NextRequest, { params }: Params): Promise<NextR
 
     const userName = profile?.display_name || profile?.username || "User"
 
-    const result = await adapter.complete(
-      [
-        {
-          role: "system",
-          content: `You generate short, natural reply suggestions for a chat app user named "${userName}".
+    let result
+    try {
+      result = await adapter.complete(
+        [
+          {
+            role: "system",
+            content: `You generate short, natural reply suggestions for a chat app user named "${userName}".
 Given a conversation, suggest 2-3 brief replies the user might send next.
 Return JSON: { "suggestions": ["reply1", "reply2", "reply3"] }
 Rules:
@@ -99,14 +101,19 @@ Rules:
 - Match the tone of the conversation (casual, professional, etc.)
 - Include at most one emoji-only reply
 - Don't repeat what was already said`,
-        },
-        {
-          role: "user",
-          content: `Recent conversation:\n${transcript}\n\nSuggest replies for ${userName}:`,
-        },
-      ],
-      { maxTokens: 128, temperature: 0.8, jsonMode: true }
-    )
+          },
+          {
+            role: "user",
+            content: `Recent conversation:\n${transcript}\n\nSuggest replies for ${userName}:`,
+          },
+        ],
+        { maxTokens: 128, temperature: 0.8, jsonMode: true }
+      )
+    } catch (aiErr: unknown) {
+      const msg = aiErr instanceof Error ? aiErr.message : "unknown"
+      console.error("[smart-replies] AI provider error", { serverId, channelId, error: msg })
+      return NextResponse.json({ suggestions: [] })
+    }
 
     let parsed: { suggestions: string[] }
     try {
