@@ -288,6 +288,23 @@ export function initGateway(options: GatewayOptions): void {
         const userStatus = status as UserStatus
         await presence.updateStatus(state.userId, userStatus)
 
+        // Persist status change to DB so Supabase Realtime presence
+        // and subsequent page loads reflect the correct status (#presence-fix)
+        if (supabase) {
+          try {
+            const now = new Date().toISOString()
+            const { error: dbErr } = await supabase
+              .from("users")
+              .update({ status: userStatus, last_heartbeat_at: now, updated_at: now })
+              .eq("id", state.userId)
+            if (dbErr) {
+              log.error({ err: dbErr, userId: state.userId }, "gateway:presence DB status update failed")
+            }
+          } catch (err) {
+            log.error({ err, userId: state.userId }, "gateway:presence DB status update threw")
+          }
+        }
+
         // Broadcast to all servers the user belongs to.
         // Uses socket.to() which is cluster-aware via the Redis adapter,
         // ensuring recipients on other replicas also receive the update.
@@ -424,6 +441,23 @@ export function initGateway(options: GatewayOptions): void {
         // Set presence
         await presence.setOnline(userId, socket.id, status, serverIds)
 
+        // Persist status to DB so Supabase Realtime presence and page
+        // loads reflect the correct status (#presence-fix)
+        if (supabase) {
+          try {
+            const now = new Date().toISOString()
+            const { error: dbErr } = await supabase
+              .from("users")
+              .update({ status, last_heartbeat_at: now, updated_at: now })
+              .eq("id", userId)
+            if (dbErr) {
+              log.error({ err: dbErr, userId }, "gateway:init DB status update failed")
+            }
+          } catch (err) {
+            log.error({ err, userId }, "gateway:init DB status update threw")
+          }
+        }
+
         // Join presence rooms
         for (const serverId of serverIds) {
           socket.join(`presence:${serverId}`)
@@ -470,6 +504,23 @@ export function initGateway(options: GatewayOptions): void {
 
         // Set offline and broadcast
         const serverIds = await presence.setOffline(state.userId)
+
+        // Persist offline status to DB (#presence-fix)
+        if (supabase) {
+          try {
+            const now = new Date().toISOString()
+            const { error: dbErr } = await supabase
+              .from("users")
+              .update({ status: "offline", last_online_at: now, updated_at: now })
+              .eq("id", state.userId)
+            if (dbErr) {
+              log.error({ err: dbErr, userId: state.userId }, "disconnect DB status update failed")
+            }
+          } catch (err) {
+            log.error({ err, userId: state.userId }, "disconnect DB status update threw")
+          }
+        }
+
         for (const serverId of serverIds) {
           io.to(`presence:${serverId}`).emit("gateway:presence", {
             userId: state.userId,

@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/use-toast"
 import type { RoleRow } from "@/types/database"
 import { PERMISSIONS } from "@vortex/shared"
 import type { RealtimeChannel } from "@supabase/supabase-js"
+import { useGatewayContext } from "@/hooks/use-gateway-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { openDmChannel, sendFriendRequest } from "@/lib/social-actions"
 const ReportModal = lazy(() => import("@/components/modals/report-modal").then((m) => ({ default: m.ReportModal })))
@@ -87,6 +88,7 @@ export function MemberList({ serverId, initialMembers }: Props) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const memberFetchControllerRef = useRef<AbortController | null>(null)
   const supabase = useMemo(() => createClientSupabaseClient(), [])
+  const gateway = useGatewayContext()
 
   // Perf: log mount time relative to navigation start
   useEffect(() => {
@@ -256,15 +258,16 @@ export function MemberList({ serverId, initialMembers }: Props) {
           try {
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-              // Read user's actual status from the database
-              const { data: profile } = await supabase
-                .from("users")
-                .select("status")
-                .eq("id", user.id)
-                .single()
+              // Use the current user status from the app store (kept in sync
+              // by useGatewayPresence) rather than reading from the DB, which
+              // may be stale if the gateway:init DB write hasn't landed yet.
+              const storeStatus = useAppStore.getState().currentUser?.status
+              const trackStatus = storeStatus && storeStatus !== "offline"
+                ? storeStatus
+                : "online"
               await channel.track({
                 user_id: user.id,
-                status: profile?.status ?? "online",
+                status: trackStatus,
               })
             }
           } catch (err) {
@@ -294,6 +297,27 @@ export function MemberList({ serverId, initialMembers }: Props) {
       })
     }
   }, [currentUser?.status, currentUser?.id])
+
+  // Listen for gateway:presence Socket.IO events for real-time presence updates
+  // from other users. This is the primary presence path now that usePresenceSync
+  // has been replaced by useGatewayPresence (#presence-fix).
+  useEffect(() => {
+    const unsubscribe = gateway.addPresenceListener((data) => {
+      setPresence((prev) => {
+        const current = prev[data.userId]
+        // Skip update if status hasn't changed
+        if (current?.status === data.status) return prev
+        return {
+          ...prev,
+          [data.userId]: {
+            ...current,
+            status: data.status,
+          },
+        }
+      })
+    })
+    return unsubscribe
+  }, [gateway])
 
   const onlineMembers = useMemo(
     () => members.filter((m) => {
