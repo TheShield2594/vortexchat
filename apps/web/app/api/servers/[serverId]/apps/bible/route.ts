@@ -7,7 +7,7 @@ import { untypedFrom } from "@/lib/supabase/untyped-table"
 type Params = { params: Promise<{ serverId: string }> }
 
 const DEFAULT_BIBLE_ID = "de4e12af7f28f599-02" // King James Version
-const API_BIBLE_BASE = "https://api.scripture.api.bible/v1"
+const API_BIBLE_BASE = "https://rest.api.bible/v1"
 
 /**
  * GET /api/servers/[serverId]/apps/bible

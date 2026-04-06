@@ -157,7 +157,7 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
   }, [mobilePendingAction, setMobilePendingAction])
 
   const trackCommandEvent = useCallback((eventType: "action" | "discoverability", payload: Record<string, string | number | boolean>) => {
-    const route = "/api/t/ccb"
+    const route = "/api/internal/command-bar-log"
     const logTelemetryFailure = (err: unknown): void => {
       console.warn("[telemetry] send failed", {
         route,
