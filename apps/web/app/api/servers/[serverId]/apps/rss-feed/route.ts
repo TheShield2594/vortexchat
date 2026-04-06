@@ -57,6 +57,7 @@ export async function GET(_req: NextRequest, { params }: Params): Promise<NextRe
  * Actions: save_config, add_feed, remove_feed, fetch_feeds
  */
 export async function POST(req: NextRequest, { params }: Params): Promise<NextResponse> {
+  try {
   const { serverId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -70,6 +71,9 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
   }
 
   const action = body.action as string
+  if (!action || typeof action !== "string") {
+    return NextResponse.json({ error: "action is required" }, { status: 400 })
+  }
 
   // ── Save config — requires MANAGE_CHANNELS ──
   if (action === "save_config") {
@@ -293,6 +297,10 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
+  } catch (err) {
+    console.error("[servers/[serverId]/apps/rss-feed POST] error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }
 
 // ── Helpers ──
@@ -303,6 +311,7 @@ interface RssItem {
   description?: string
   pubDate?: string
   id?: string
+  imageUrl?: string
 }
 
 function parseRssItems(xml: string): RssItem[] {
@@ -318,6 +327,7 @@ function parseRssItems(xml: string): RssItem[] {
       description: extractTag(block, "description"),
       pubDate: extractTag(block, "pubDate"),
       id: extractTag(block, "guid") || extractTag(block, "link"),
+      imageUrl: extractImageUrl(block),
     })
   }
 
@@ -339,16 +349,44 @@ function extractTag(xml: string, tag: string): string | undefined {
   return m?.[1]?.trim() || m?.[2]?.trim() || undefined
 }
 
+function extractImageUrl(xml: string): string | undefined {
+  // Try <media:content url="...">
+  const mediaMatch = xml.match(/<media:content[^>]+url=["']([^"']+)["']/i)
+  if (mediaMatch?.[1]) return mediaMatch[1]
+  // Try <enclosure url="..." type="image/...">
+  const enclosureMatch = xml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]+type=["']image\/[^"']+["']/i)
+  if (enclosureMatch?.[1]) return enclosureMatch[1]
+  // Try <media:thumbnail url="...">
+  const thumbMatch = xml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i)
+  if (thumbMatch?.[1]) return thumbMatch[1]
+  // Try <image><url>...</url></image> — but only at item level, not channel level
+  const imgUrlMatch = xml.match(/<image[^>]*>[\s\S]*?<url[^>]*>([^<]+)<\/url>/i)
+  if (imgUrlMatch?.[1]) return imgUrlMatch[1].trim()
+  // Try to find an <img> tag in description
+  const imgTagMatch = xml.match(/<img[^>]+src=["']([^"']+)["']/i)
+  if (imgTagMatch?.[1]) return imgTagMatch[1]
+  return undefined
+}
+
 function formatRssEmbed(item: RssItem, feedName: string): string {
-  const lines: string[] = []
-  lines.push(`**${feedName}**`)
-  if (item.title) lines.push(`### ${item.title}`)
-  if (item.description) {
-    // Strip HTML tags and limit length
-    const clean = item.description.replace(/<[^>]+>/g, "").substring(0, 300)
-    lines.push(clean + (item.description.length > 300 ? "..." : ""))
-  }
-  if (item.link) lines.push(`[Read more](${item.link})`)
-  if (item.pubDate) lines.push(`*${item.pubDate}*`)
-  return lines.join("\n\n")
+  const title = (item.title ?? "").replace(/\n/g, " ").trim()
+  const link = (item.link ?? "").trim()
+  const description = item.description
+    ? item.description.replace(/<[^>]+>/g, "").replace(/\n+/g, " ").trim().substring(0, 300) +
+      (item.description.length > 300 ? "..." : "")
+    : ""
+  const pubDate = (item.pubDate ?? "").trim()
+  const imageUrl = (item.imageUrl ?? "").trim()
+  const source = feedName.replace(/\n/g, " ").trim()
+
+  return [
+    "[RSS_EMBED]",
+    source,
+    title,
+    description,
+    link,
+    pubDate,
+    imageUrl,
+    "[/RSS_EMBED]",
+  ].join("\n")
 }
