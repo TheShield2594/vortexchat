@@ -221,7 +221,10 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
     try {
       const stored = window.localStorage.getItem(`vortexchat:category-expansion:${server.id}`)
       if (stored) {
-        setCategoryExpansionOverridesRaw(JSON.parse(stored) as Record<string, boolean>)
+        const parsed: unknown = JSON.parse(stored)
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          setCategoryExpansionOverridesRaw(parsed as Record<string, boolean>)
+        }
       }
     } catch {
       // best effort

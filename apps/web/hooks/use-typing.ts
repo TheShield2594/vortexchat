@@ -11,7 +11,11 @@ interface TypingUser {
 }
 
 /** Broadcasts and listens for typing indicators on a channel via Supabase Realtime. Returns the list of currently-typing users plus `onKeystroke` / `onSent` callbacks for the input. */
-export function useTyping(channelId: string, currentUserId: string, currentDisplayName: string) {
+export function useTyping(channelId: string, currentUserId: string, currentDisplayName: string): {
+  typingUsers: TypingUser[]
+  onKeystroke: () => void
+  onSent: () => void
+} {
   const supabase = useMemo(() => createClientSupabaseClient(), [])
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const typingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
