@@ -65,6 +65,33 @@ function extractBibleEmbed(content: string | null): { color: string; reference: 
   return { color, reference, verseText, sanitizedContent: sanitized.length > 0 ? sanitized : null }
 }
 
+interface RssEmbedData {
+  source: string
+  title: string
+  description: string
+  link: string
+  pubDate: string
+  imageUrl: string
+  sanitizedContent: string | null
+}
+
+function extractRssEmbed(content: string | null): RssEmbedData | null {
+  if (!content) return null
+  const match = content.match(/\[RSS_EMBED\]\n([\s\S]*?)\n\[\/RSS_EMBED\]/)
+  if (!match) return null
+  const lines = match[1].split("\n")
+  if (lines.length < 6) return null
+  const source = lines[0]?.trim() || ""
+  const title = lines[1]?.trim() || ""
+  const description = lines[2]?.trim() || ""
+  const link = lines[3]?.trim() || ""
+  const pubDate = lines[4]?.trim() || ""
+  const imageUrl = lines[5]?.trim() || ""
+  if (!title && !description) return null
+  const sanitized = content.replace(match[0], "").trim()
+  return { source, title, description, link, pubDate, imageUrl, sanitizedContent: sanitized.length > 0 ? sanitized : null }
+}
+
 function extractPoll(content: string | null): { question: string; options: string[]; sanitizedContent: string | null } | null {
   if (!content) return null
   const pollMatch = content.match(/\[POLL\]\s*([\s\S]*?)\s*\[\/POLL\]/i)
@@ -472,12 +499,16 @@ export const MessageItem = memo(function MessageItem({
     : message.content
   const parsedPoll = extractPoll(renderedContent)
   const parsedBibleEmbed = extractBibleEmbed(renderedContent)
+  const parsedRssEmbed = extractRssEmbed(renderedContent)
   let messageBodyContent: string | null = renderedContent
   if (parsedPoll) {
     messageBodyContent = parsedPoll.sanitizedContent
   }
   if (parsedBibleEmbed && messageBodyContent) {
     messageBodyContent = messageBodyContent.replace(/\[BIBLE_EMBED\][\s\S]*?\[\/BIBLE_EMBED\]/g, "").trim() || null
+  }
+  if (parsedRssEmbed && messageBodyContent) {
+    messageBodyContent = messageBodyContent.replace(/\[RSS_EMBED\][\s\S]*?\[\/RSS_EMBED\]/g, "").trim() || null
   }
 
   const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "sending" ? "Sending" : sendState === "failed" ? "Failed" : null
@@ -852,6 +883,60 @@ export const MessageItem = memo(function MessageItem({
                           <p className="text-xs font-semibold" style={{ color: "var(--theme-text-secondary)" }}>
                             — {parsedBibleEmbed.reference}
                           </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {parsedRssEmbed && (
+                    <div
+                      className="mt-1 rounded overflow-hidden max-w-lg"
+                      style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                    >
+                      <div className="flex">
+                        <div className="w-1 flex-shrink-0 rounded-l" style={{ background: "#f97316" }} />
+                        <div className="px-3 py-2.5 space-y-2 min-w-0 flex-1">
+                          <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={{ color: "#f97316" }}>
+                            <Globe className="w-3 h-3" />
+                            {parsedRssEmbed.source}
+                          </p>
+                          {parsedRssEmbed.title && (
+                            parsedRssEmbed.link && /^https?:\/\//i.test(parsedRssEmbed.link) ? (
+                              <a
+                                href={parsedRssEmbed.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-semibold leading-snug hover:underline block"
+                                style={{ color: "var(--theme-accent, #5865f2)" }}
+                              >
+                                {parsedRssEmbed.title}
+                              </a>
+                            ) : (
+                              <p className="text-sm font-semibold leading-snug" style={{ color: "var(--theme-text-bright)" }}>
+                                {parsedRssEmbed.title}
+                              </p>
+                            )
+                          )}
+                          {parsedRssEmbed.description && (
+                            <p className="text-xs leading-relaxed" style={{ color: "var(--theme-text-normal)" }}>
+                              {parsedRssEmbed.description}
+                            </p>
+                          )}
+                          {parsedRssEmbed.imageUrl && /^https?:\/\//i.test(parsedRssEmbed.imageUrl) && (
+                            <img
+                              src={parsedRssEmbed.imageUrl}
+                              alt={parsedRssEmbed.title || "RSS feed image"}
+                              className="rounded mt-1 max-h-48 w-auto object-cover"
+                              style={{ maxWidth: "100%" }}
+                              loading="lazy"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                            />
+                          )}
+                          {parsedRssEmbed.pubDate && (
+                            <p className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                              {parsedRssEmbed.pubDate}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
