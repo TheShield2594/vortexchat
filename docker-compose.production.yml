@@ -1,0 +1,64 @@
+# Production docker-compose for Portainer / Dokploy
+# Reverse proxy: Nginx Proxy Manager (external — not managed here)
+#
+# Setup:
+#   1. Copy apps/web/.env.local.example → apps/web/.env.local and fill in values
+#   2. Copy apps/signal/.env.example → apps/signal/.env and fill in values
+#   3. Update NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SIGNAL_URL, ALLOWED_ORIGINS for your domain
+#   4. Deploy via Portainer Stacks or: docker compose -f docker-compose.production.yml up -d
+
+services:
+  # ─── Vortex Web (Next.js) ──────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: vortex-web
+    restart: unless-stopped
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./apps/web/.env.local
+    environment:
+      NODE_ENV: production
+
+  # ─── Vortex Signal Server (Socket.IO / WebRTC) ────────────────────────────
+  signal:
+    build:
+      context: .
+      dockerfile: apps/signal/Dockerfile
+    container_name: vortex-signal
+    restart: unless-stopped
+    expose:
+      - "3001"
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./apps/signal/.env
+    environment:
+      NODE_ENV: production
+
+  # ─── Cron (scheduled tasks via curl) ───────────────────────────────────────
+  # Replaces Vercel Cron — calls the existing /api/cron/* endpoints
+  cron:
+    image: alpine:3.20
+    container_name: vortex-cron
+    restart: unless-stopped
+    depends_on:
+      - web
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache curl
+        echo "0 0 * * * curl -sf -H 'Authorization: Bearer '$$CRON_SECRET http://vortex-web:3000/api/cron/scheduled-tasks" >> /etc/crontabs/root
+        echo "0 0 * * * curl -sf -H 'Authorization: Bearer '$$CRON_SECRET http://vortex-web:3000/api/cron/presence-cleanup" >> /etc/crontabs/root
+        crond -f -l 2
+    env_file:
+      - ./apps/web/.env.local
+
+networks:
+  default:
+    name: vortex_network
