@@ -101,6 +101,7 @@ const nextConfig = {
     // to avoid a workspace hoisting issue with minimatch versions
     ignoreDuringBuilds: true,
   },
+  output: process.env.DOCKER_BUILD === '1' ? 'standalone' : undefined,
   transpilePackages: ['@vortex/shared'],
   webpack: (config, { isServer }) => {
     if (!isServer) {

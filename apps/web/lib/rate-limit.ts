@@ -1,8 +1,11 @@
 /**
- * Rate limiter with Redis backend (Upstash) for multi-instance deployments.
+ * Rate limiter with Redis backend for multi-instance deployments.
  *
- * When UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set, uses
- * Upstash's sliding window algorithm — safe across Vercel serverless replicas.
+ * Supports two Redis backends via `lib/redis-client.ts`:
+ *   - Standard Redis (self-hosted) — set `REDIS_URL`
+ *   - Upstash Redis (serverless) — set `UPSTASH_REDIS_REST_URL` + token
+ *
+ * Uses a Lua-based sliding window algorithm that works on any Redis server.
  *
  * Falls back to an in-memory sliding window when Redis is not configured
  * (local dev or single-instance deployments).
@@ -12,86 +15,77 @@
  *   if (!result.allowed) return 429
  */
 
+import { getRedisClient, redisConfigured } from "@/lib/redis-client"
+
 type RateLimitResult = {
   allowed: boolean
   remaining: number
   resetAt: number
 }
 
-// ─── Upstash Redis rate limiter ──────────────────────────────────────────────
+// ─── Redis sliding-window rate limiter ──────────────────────────────────────
 
-// Lazily initialized singletons — the Upstash REST client is stateless,
-// so a single instance is safe to share across all rate-limit checks.
-let _redis: InstanceType<typeof import("@upstash/redis").Redis> | null = null
-let _pendingRedis: Promise<InstanceType<typeof import("@upstash/redis").Redis>> | null = null
-const _limiterCache = new Map<string, InstanceType<typeof import("@upstash/ratelimit").Ratelimit>>()
-const _pendingLimiters = new Map<string, Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>>>()
+/**
+ * Lua script for sliding-window rate limiting.
+ * Works on any Redis >= 3.2 (standard or Upstash).
+ *
+ * KEYS[1] = rate limit key
+ * ARGV[1] = window size in ms
+ * ARGV[2] = max requests per window
+ * ARGV[3] = current timestamp in ms
+ *
+ * Returns: [allowed (0/1), remaining, resetAt (ms)]
+ */
+const SLIDING_WINDOW_LUA = `
+local key = KEYS[1]
+local window = tonumber(ARGV[1])
+local limit = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local cutoff = now - window
 
-async function getRedis(): Promise<InstanceType<typeof import("@upstash/redis").Redis>> {
-  if (_redis) return _redis
-  if (_pendingRedis) return _pendingRedis
+redis.call('ZREMRANGEBYSCORE', key, '-inf', cutoff)
+local count = redis.call('ZCARD', key)
 
-  _pendingRedis = (async () => {
-    try {
-      const { Redis } = await import("@upstash/redis")
-      _redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL!,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-      })
-      return _redis
-    } catch (err) {
-      throw new Error(`Failed to initialize Upstash Redis client: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      _pendingRedis = null
-    }
-  })()
+if count < limit then
+  redis.call('ZADD', key, now, now .. ':' .. math.random(1000000))
+  redis.call('PEXPIRE', key, window)
+  return {1, limit - count - 1, now + window}
+else
+  local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+  local resetAt = now + window
+  if oldest and #oldest >= 2 then
+    resetAt = tonumber(oldest[2]) + window
+  end
+  return {0, 0, resetAt}
+end
+`
 
-  return _pendingRedis
-}
-
-async function getLimiter(opts: { limit: number; windowMs: number }): Promise<InstanceType<typeof import("@upstash/ratelimit").Ratelimit>> {
-  try {
-    const cacheKey = `${opts.limit}:${opts.windowMs}`
-    const cached = _limiterCache.get(cacheKey)
-    if (cached) return cached
-
-    // Deduplicate concurrent initialization for the same key
-    const pending = _pendingLimiters.get(cacheKey)
-    if (pending) return pending
-
-    const initPromise = (async () => {
-      try {
-        const { Ratelimit } = await import("@upstash/ratelimit")
-        const redis = await getRedis()
-        const limiter = new Ratelimit({
-          redis,
-          limiter: Ratelimit.slidingWindow(opts.limit, `${opts.windowMs}ms`),
-          prefix: "vortex:rl",
-        })
-        _limiterCache.set(cacheKey, limiter)
-        return limiter
-      } finally {
-        _pendingLimiters.delete(cacheKey)
-      }
-    })()
-
-    _pendingLimiters.set(cacheKey, initPromise)
-    return initPromise
-  } catch (err) {
-    throw new Error(`Failed to get limiter (${opts.limit}/${opts.windowMs}ms): ${err instanceof Error ? err.message : String(err)}`)
-  }
-}
-
-async function checkUpstash(
+async function checkRedis(
   key: string,
   opts: { limit: number; windowMs: number }
 ): Promise<RateLimitResult> {
+  const redis = await getRedisClient()
+  if (!redis) {
+    throw new Error("Redis not available")
+  }
+
+  const now = Date.now()
+  const redisKey = `vortex:rl:${key}`
+
   try {
-    const limiter = await getLimiter(opts)
-    const { success, remaining, reset } = await limiter.limit(key)
-    return { allowed: success, remaining, resetAt: reset }
+    const result = await redis.eval(
+      SLIDING_WINDOW_LUA,
+      [redisKey],
+      [opts.windowMs, opts.limit, now]
+    ) as [number, number, number]
+
+    return {
+      allowed: result[0] === 1,
+      remaining: Number(result[1]),
+      resetAt: Number(result[2]),
+    }
   } catch (err) {
-    throw new Error(`Upstash rate-limit check failed: ${err instanceof Error ? err.message : String(err)}`)
+    throw new Error(`Redis rate-limit check failed: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 
@@ -145,10 +139,7 @@ if (typeof setInterval !== "undefined") {
 
 // ─── Unified interface ───────────────────────────────────────────────────────
 
-const useRedis =
-  typeof process !== "undefined" &&
-  !!process.env.UPSTASH_REDIS_REST_URL &&
-  !!process.env.UPSTASH_REDIS_REST_TOKEN
+const useRedis = redisConfigured
 
 interface CheckOptions {
   limit: number
@@ -163,7 +154,7 @@ export const rateLimiter = {
   async check(key: string, opts: CheckOptions): Promise<RateLimitResult> {
     try {
       if (useRedis) {
-        return await checkUpstash(key, opts)
+        return await checkRedis(key, opts)
       }
       return inMemory.check(key, opts)
     } catch (err) {
