@@ -203,20 +203,27 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
         embed_color: embedColor,
       }
 
-      // If channel is configured, also post it
+      // If channel is configured, also post it (requires SEND_MESSAGES permission)
       const targetChannel = configData?.channel_id
       if (targetChannel) {
-        const embedMsg = formatVerseEmbed(result.reference, result.content, embedColor)
-        // Use service-role client to insert as system bot (bypasses RLS)
-        const serviceClient = await createServiceRoleClient()
-        await serviceClient
-          .from("messages")
-          .insert({
-            channel_id: targetChannel,
-            author_id: SYSTEM_BOT_ID,
-            content: embedMsg,
-            webhook_display_name: "Bible Bot",
-          })
+        const { error: sendPermError } = await requireServerPermission(serverId, "SEND_MESSAGES")
+        if (!sendPermError) {
+          const embedMsg = formatVerseEmbed(result.reference, result.content, embedColor)
+          // Use service-role client to insert as system bot (bypasses RLS)
+          const serviceClient = await createServiceRoleClient()
+          const { error: insertError } = await serviceClient
+            .from("messages")
+            .insert({
+              channel_id: targetChannel,
+              author_id: SYSTEM_BOT_ID,
+              content: embedMsg,
+              webhook_display_name: "Bible Bot",
+            })
+          if (insertError) {
+            console.error("[bible get_verse] failed to post verse to channel:", insertError)
+            return NextResponse.json({ error: "Verse fetched but failed to post to channel" }, { status: 500 })
+          }
+        }
       }
 
       return NextResponse.json(result)

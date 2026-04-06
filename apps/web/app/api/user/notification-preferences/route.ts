@@ -103,7 +103,7 @@ export async function PUT(req: NextRequest) {
     for (const key of ["quiet_hours_start", "quiet_hours_end"] as const) {
       if (key in body) {
         if (typeof body[key] !== "string" || !TIME_RE.test(body[key] as string)) {
-          return NextResponse.json({ error: `${key} must be HH:MM format` }, { status: 400 })
+          return NextResponse.json({ error: `${key} must be HH:MM or HH:MM:SS format` }, { status: 400 })
         }
         patch[key] = body[key] as string
       }
