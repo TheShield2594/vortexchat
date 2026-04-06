@@ -29,8 +29,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Sentry DSN not configured" }, { status: 503 })
     }
 
-    const envelope = await request.text()
-    const [header] = envelope.split("\n", 1)
+    // Read as raw bytes to preserve binary replay/session data intact.
+    // Only the first line (the JSON header) needs to be decoded as text.
+    const rawBody = await request.arrayBuffer()
+    const bytes = new Uint8Array(rawBody)
+
+    if (bytes.length === 0) {
+      return NextResponse.json({ error: "Empty envelope" }, { status: 400 })
+    }
+
+    // Find the first newline to extract the JSON header line
+    const newlineIdx = bytes.indexOf(0x0a) // '\n'
+    const headerBytes = newlineIdx === -1 ? bytes : bytes.subarray(0, newlineIdx)
+    const header = new TextDecoder().decode(headerBytes)
 
     let dsn: URL
     try {
@@ -67,7 +78,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const upstreamRes = await fetch(upstreamUrl, {
       method: "POST",
-      body: envelope,
+      body: rawBody,
       headers: { "Content-Type": "application/x-sentry-envelope" },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     })

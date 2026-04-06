@@ -11,11 +11,13 @@ const inter = localFont({
   src: "../public/fonts/inter-latin-var.woff2",
   variable: "--font-body",
   display: "swap",
+  preload: false,
 })
 const spaceGrotesk = localFont({
   src: "../public/fonts/space-grotesk-latin-var.woff2",
   variable: "--font-display",
   display: "swap",
+  preload: false,
 })
 
 export const metadata: Metadata = {
@@ -83,9 +85,18 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className="dark" suppressHydrationWarning nonce={nonce}>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <meta name="color-scheme" content="dark" />
+        {/* Inline theme init script — runs before React hydrates so the
+            data-attributes and className on <html> match what the client
+            components will set, preventing hydration mismatch (#418). */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var d=document.documentElement,s=JSON.parse(localStorage.getItem("vortex-appearance")||"{}").state||{};if(s.colorMode)d.dataset.colorMode=s.colorMode;if(s.themePreset)d.dataset.themePreset=s.themePreset;var cm=s.colorMode||"dark";if(cm==="light"){d.className="light";d.querySelector('meta[name=color-scheme]')?.setAttribute("content","light")}else if(cm==="system"){var q=matchMedia("(prefers-color-scheme:light)").matches;d.className=q?"light":"dark";d.querySelector('meta[name=color-scheme]')?.setAttribute("content",q?"light":"dark")}}catch(e){}})();`,
+          }}
+        />
         <meta name="format-detection" content="telephone=no" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1170-2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
         <link rel="apple-touch-startup-image" href="/startup/apple-splash-1284-2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
