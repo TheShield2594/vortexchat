@@ -25,14 +25,12 @@ export function SmartReplyTray({ serverId, channelId, isTyping, hasContent, onSe
   const [loading, setLoading] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastFetchRef = useRef<string>("")
+  const fetchCountRef = useRef(0)
 
   const fetchSuggestions = useCallback(async () => {
     if (!serverId || !channelId) return
-    const key = `${serverId}-${channelId}`
-    if (key === lastFetchRef.current) return // Don't re-fetch for same context
-    lastFetchRef.current = key
     setLoading(true)
+    fetchCountRef.current += 1
     try {
       const res = await fetch(`/api/servers/${serverId}/channels/${channelId}/smart-replies`, {
         method: "POST",
@@ -40,8 +38,11 @@ export function SmartReplyTray({ serverId, channelId, isTyping, hasContent, onSe
       })
       if (!res.ok) { setSuggestions([]); return }
       const data = await res.json()
-      setSuggestions(data.suggestions ?? [])
-      setDismissed(false)
+      const newSuggestions = data.suggestions ?? []
+      if (newSuggestions.length > 0) {
+        setSuggestions(newSuggestions)
+        setDismissed(false)
+      }
     } catch {
       setSuggestions([])
     } finally {
@@ -49,9 +50,11 @@ export function SmartReplyTray({ serverId, channelId, isTyping, hasContent, onSe
     }
   }, [serverId, channelId])
 
-  // Debounced fetch: trigger after 2s of idle
+  // Debounced fetch: trigger after 2s of idle (not typing, no content)
   useEffect(() => {
     if (isTyping || hasContent || !serverId || !channelId) return
+    // Only auto-fetch once per channel visit to avoid spamming
+    if (fetchCountRef.current > 0) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(fetchSuggestions, 2000)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
@@ -61,10 +64,10 @@ export function SmartReplyTray({ serverId, channelId, isTyping, hasContent, onSe
   useEffect(() => {
     setSuggestions([])
     setDismissed(false)
-    lastFetchRef.current = ""
+    fetchCountRef.current = 0
   }, [channelId])
 
-  // Hide when typing
+  // Hide when typing or has content
   if (isTyping || hasContent || dismissed || suggestions.length === 0) {
     if (loading && !isTyping && !hasContent && !dismissed) {
       return (

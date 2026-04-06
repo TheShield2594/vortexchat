@@ -1,8 +1,9 @@
 "use client"
 
 import { useRef, useEffect } from "react"
+import { Bot } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import type { MemberForMention } from "@/lib/stores/app-store"
+import type { MemberForMention, PersonaForMention } from "@/lib/stores/app-store"
 import type { MentionSuggestion } from "@/hooks/use-mention-autocomplete"
 
 interface Props {
@@ -31,6 +32,15 @@ function getMemberMatchConfidence(member: MemberForMention, query: string): "Exa
 
   if (options.some((value) => value === normalized)) return "Exact"
   if (options.some((value) => value.startsWith(normalized))) return "Strong"
+  return "Weak"
+}
+
+function getPersonaMatchConfidence(persona: PersonaForMention, query: string): "Exact" | "Strong" | "Weak" {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return "Strong"
+  const lower = persona.name.toLowerCase()
+  if (lower === normalized) return "Exact"
+  if (lower.startsWith(normalized)) return "Strong"
   return "Weak"
 }
 
@@ -97,6 +107,58 @@ export function MentionSuggestions({ suggestions, selectedIndex, query, onSelect
               <span
                 className="ml-auto text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
                 style={{ color: confidenceColor, background: `${confidenceColor}26` }}
+              >
+                {confidence}
+              </span>
+            </button>
+          )
+        }
+
+        if (suggestion.type === "persona") {
+          const persona = suggestion.data
+          const confidence = getPersonaMatchConfidence(persona, query)
+          const confidenceTone =
+            confidence === "Exact" ? "#3ba55d" : confidence === "Strong" ? "#5865f2" : "#faa81a"
+          const initials = persona.name.slice(0, 2).toUpperCase()
+
+          return (
+            <button
+              key={`persona-${persona.id}`}
+              role="option"
+              aria-selected={isSelected}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors"
+              style={{
+                background: isSelected ? "rgba(88,101,242,0.2)" : "transparent",
+                color: "var(--theme-text-normal)",
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                onSelect(suggestion)
+              }}
+            >
+              <Avatar className="w-6 h-6">
+                {persona.avatar_url && <AvatarImage src={persona.avatar_url} />}
+                <AvatarFallback
+                  style={{ background: "var(--theme-ai-badge-bg, #5865f2)", color: "var(--theme-ai-badge-text, white)", fontSize: "10px" }}
+                >
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium truncate">{persona.name}</span>
+              <span
+                className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[9px] font-bold uppercase"
+                style={{ background: "var(--theme-ai-badge-bg, rgba(88,101,242,0.3))", color: "var(--theme-ai-badge-text, #5865f2)" }}
+              >
+                <Bot className="w-2.5 h-2.5" /> BOT
+              </span>
+              {persona.description && (
+                <span className="text-[10px] truncate max-w-[120px]" style={{ color: "var(--theme-text-muted)" }}>
+                  {persona.description}
+                </span>
+              )}
+              <span
+                className="ml-auto text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
+                style={{ color: confidenceTone, background: `${confidenceTone}26` }}
               >
                 {confidence}
               </span>

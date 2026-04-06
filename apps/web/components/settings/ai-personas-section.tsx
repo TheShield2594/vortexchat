@@ -8,6 +8,7 @@ interface Persona {
   name: string
   avatar_url: string | null
   description: string | null
+  system_prompt: string | null
   is_active: boolean
   allowed_channel_ids: string[]
   created_at: string
@@ -268,6 +269,11 @@ export function AiPersonasSection({ serverId }: AiPersonasSectionProps) {
                     {p.description && (
                       <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{p.description}</div>
                     )}
+                    {p.system_prompt && !isEditing && (
+                      <div className="text-[11px] mt-1 line-clamp-2 italic" style={{ color: "var(--theme-text-muted)", opacity: 0.7 }}>
+                        {p.system_prompt}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -277,7 +283,7 @@ export function AiPersonasSection({ serverId }: AiPersonasSectionProps) {
                         setEditingId(p.id)
                         setEditName(p.name)
                         setEditDescription(p.description ?? "")
-                        setEditPrompt("")
+                        setEditPrompt(p.system_prompt ?? "")
                       }
                     }}
                     className="p-1.5 rounded transition-colors hover:bg-white/5"
@@ -325,12 +331,15 @@ export function AiPersonasSection({ serverId }: AiPersonasSectionProps) {
                     <textarea
                       value={editPrompt}
                       onChange={(e) => setEditPrompt(e.target.value)}
-                      placeholder="Enter new system prompt to replace current..."
-                      rows={3}
+                      placeholder="Define the persona's personality and knowledge..."
+                      rows={4}
                       maxLength={4000}
                       className="w-full rounded-md border py-1.5 px-2 text-xs text-white placeholder:text-gray-500 resize-none"
                       style={{ background: "var(--theme-bg-secondary)", borderColor: "var(--theme-border)" }}
                     />
+                    <div className="text-right text-[10px]" style={{ color: "var(--theme-text-muted)" }}>
+                      {editPrompt.length}/4000
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <button

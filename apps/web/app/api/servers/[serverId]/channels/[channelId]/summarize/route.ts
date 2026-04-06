@@ -105,11 +105,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       )
     }
 
-    const result = await adapter.complete(
-      [
-        {
-          role: "system",
-          content: `You are a helpful assistant that summarizes chat channel conversations.
+    let result
+    try {
+      result = await adapter.complete(
+        [
+          {
+            role: "system",
+            content: `You are a helpful assistant that summarizes chat channel conversations.
 Return your response as JSON with this exact shape:
 {
   "summary": "2-4 sentence overview of what was discussed",
@@ -117,14 +119,22 @@ Return your response as JSON with this exact shape:
   "topics": ["topic1", "topic2"]
 }
 Be concise and factual. Only include information from the conversation.`,
-        },
-        {
-          role: "user",
-          content: `Summarize this conversation from the #${channel.name} channel (${chronological.length} messages):\n\n${transcript}`,
-        },
-      ],
-      { maxTokens: 512, jsonMode: true }
-    )
+          },
+          {
+            role: "user",
+            content: `Summarize this conversation from the #${channel.name} channel (${chronological.length} messages):\n\n${transcript}`,
+          },
+        ],
+        { maxTokens: 512, jsonMode: true }
+      )
+    } catch (aiErr: unknown) {
+      console.error("[summarize] AI provider error", {
+        serverId,
+        channelId,
+        error: aiErr instanceof Error ? aiErr.message : "Unknown AI error",
+      })
+      return NextResponse.json({ error: "AI summarization failed. Please try again later." }, { status: 502 })
+    }
 
     let parsed: { summary: string; highlights: string[]; topics: string[] }
     try {

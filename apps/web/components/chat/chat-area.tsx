@@ -1390,6 +1390,21 @@ export function ChatArea({ channel, initialMessages, currentUserId, serverId, in
     setAndPersistOutbox((current) => removeOutboxEntry(current, messageId))
     upsertMessage(message)
 
+    // Fire-and-forget: trigger AI persona replies for any @bot mentions
+    const personaMentions = (content.match(/<@bot:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi) ?? [])
+      .map((m) => m.slice(6, -1))
+    if (personaMentions.length > 0) {
+      for (const personaId of personaMentions) {
+        fetch(`/api/servers/${serverId}/channels/${channel.id}/messages/${message.id}/persona-reply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ personaId }),
+        }).catch((err) => {
+          console.error("[persona-reply] failed to trigger persona reply", { personaId, error: err })
+        })
+      }
+    }
+
     resetComposerState()
     onSent()
   }
