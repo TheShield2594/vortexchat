@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useId, useRef, useState, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
-import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip, Clock, Loader2, AlertTriangle, Globe, Bot } from "lucide-react"
+import { Reply, Edit2, Trash2, Smile, Clipboard, Hash, MessageSquare, RefreshCcw, CheckSquare, Flag, Pin, PinOff, Share2, Paperclip, Clock, Loader2, AlertTriangle, Globe, Bot, BookOpen } from "lucide-react"
 import { useLazyEmojiPicker } from "@/hooks/use-lazy-emoji-picker"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { OptimizedAvatarImage } from "@/components/ui/optimized-avatar-image"
@@ -50,6 +50,18 @@ interface Props {
   recentlyActive?: boolean
   animateOnMount?: boolean
   onMountAnimationComplete?: () => void
+}
+
+function extractBibleEmbed(content: string | null): { color: string; reference: string; verseText: string; sanitizedContent: string | null } | null {
+  if (!content) return null
+  const match = content.match(/\[BIBLE_EMBED\]\n(.+)\n(.+)\n([\s\S]+?)\n\[\/BIBLE_EMBED\]/)
+  if (!match) return null
+  const color = match[1]?.trim() || "#C4A747"
+  const reference = match[2]?.trim() || ""
+  const verseText = match[3]?.trim() || ""
+  if (!reference || !verseText) return null
+  const sanitized = content.replace(match[0], "").trim()
+  return { color, reference, verseText, sanitizedContent: sanitized.length > 0 ? sanitized : null }
 }
 
 function extractPoll(content: string | null): { question: string; options: string[]; sanitizedContent: string | null } | null {
@@ -458,7 +470,8 @@ export const MessageItem = memo(function MessageItem({
     ? stripUrlFromContent(message.content, giphyUrl)
     : message.content
   const parsedPoll = extractPoll(renderedContent)
-  const messageBodyContent = parsedPoll ? parsedPoll.sanitizedContent : renderedContent
+  const parsedBibleEmbed = extractBibleEmbed(renderedContent)
+  const messageBodyContent = parsedPoll ? parsedPoll.sanitizedContent : parsedBibleEmbed ? parsedBibleEmbed.sanitizedContent : renderedContent
 
   const sendStateLabel = sendState === "queued" ? "Queued" : sendState === "sending" ? "Sending" : sendState === "failed" ? "Failed" : null
   const SendStateIcon = sendState === "queued" ? Clock : sendState === "sending" ? Loader2 : sendState === "failed" ? AlertTriangle : null
@@ -807,6 +820,32 @@ export const MessageItem = memo(function MessageItem({
                             </button>
                           )
                         })}
+                      </div>
+                    </div>
+                  )}
+
+                  {parsedBibleEmbed && (
+                    <div
+                      className="mt-1 rounded overflow-hidden max-w-md"
+                      style={{ background: "var(--theme-bg-secondary)", border: "1px solid var(--theme-bg-tertiary)" }}
+                    >
+                      <div className="flex">
+                        <div className="w-1 flex-shrink-0 rounded-l" style={{ background: parsedBibleEmbed.color }} />
+                        <div className="px-3 py-2.5 space-y-1.5 min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1" style={{ color: parsedBibleEmbed.color }}>
+                            <BookOpen className="w-3 h-3" />
+                            Daily Verse
+                          </p>
+                          <blockquote
+                            className="text-sm leading-relaxed italic pl-2"
+                            style={{ color: "var(--theme-text-normal)", borderLeft: `2px solid ${parsedBibleEmbed.color}30` }}
+                          >
+                            {parsedBibleEmbed.verseText}
+                          </blockquote>
+                          <p className="text-xs font-semibold" style={{ color: "var(--theme-text-secondary)" }}>
+                            — {parsedBibleEmbed.reference}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}

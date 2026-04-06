@@ -362,11 +362,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
 // ── Helpers ──
 
 function formatVerseEmbed(reference: string, content: string, embedColor: string): string {
-  return [
-    `**Daily Verse** | ${embedColor}`,
-    `> *${content}*`,
-    `**\u2014 ${reference}**`,
-  ].join("\n\n")
+  return `[BIBLE_EMBED]\n${embedColor}\n${reference}\n${content}\n[/BIBLE_EMBED]`
 }
 
 /**
