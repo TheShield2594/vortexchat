@@ -101,7 +101,9 @@ export async function GET(
       return NextResponse.json({ error: "Failed to generate signed URL" }, { status: 500 })
     }
 
-    return NextResponse.redirect(signedData.signedUrl)
+    return NextResponse.redirect(signedData.signedUrl, {
+      headers: { "Cache-Control": "private, max-age=1800, stale-while-revalidate=3600" },
+    })
   } catch (err) {
     console.error("dm-attachments/download: unexpected error", { error: err })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

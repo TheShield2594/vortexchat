@@ -318,10 +318,13 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
   )
   const channelById = useMemo(() => new Map(channels.map((channel) => [channel.id, channel])), [channels])
 
+  // Fetch thread counts once on mount, then subscribe to Realtime changes
+  // instead of polling every 30 seconds.
+  const threadCountSubIdRef = useRef(0)
   useEffect(() => {
     const controller = new AbortController()
 
-    async function loadThreadCounts() {
+    async function loadThreadCounts(): Promise<void> {
       try {
         const data = await fetchThreadCounts(server.id, controller.signal)
         if (!controller.signal.aborted && data) {
@@ -332,16 +335,28 @@ export function ChannelSidebar({ server, channels: initialChannels, currentUserI
       }
     }
 
-    // Skip the immediate fetch if SSR data was provided — the 30s poll will pick up changes
     if (!initialThreadCounts) {
       void loadThreadCounts()
     }
-    const interval = window.setInterval(() => {
-      void loadThreadCounts()
-    }, 30000)
+
+    // Subscribe to thread changes instead of polling
+    const subId = ++threadCountSubIdRef.current
+    const supabase = createClientSupabaseClient()
+    const channel = supabase
+      .channel(`thread-counts:${server.id}:${subId}`)
+      .on(
+        "postgres_changes" as "system",
+        { event: "*", schema: "public", table: "threads" },
+        () => {
+          // Refetch counts when any thread is created/updated/deleted
+          void loadThreadCounts()
+        },
+      )
+      .subscribe()
+
     return () => {
       controller.abort()
-      window.clearInterval(interval)
+      supabase.removeChannel(channel)
     }
   }, [server.id]) // eslint-disable-line react-hooks/exhaustive-deps
 

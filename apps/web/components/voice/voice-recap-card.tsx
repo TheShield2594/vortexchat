@@ -4,9 +4,10 @@
 // after a voice session ends. Displays duration, participant count, and
 // AI-generated summary (highlights, decisions, action items).
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Mic, Clock, Users, FileText, Loader2, ChevronDown, ChevronUp, Copy, Check } from "lucide-react"
 import type { VoiceCallSummaryRow, VoiceSummaryStatus } from "@/types/vortex-recap"
+import { createClientSupabaseClient } from "@/lib/supabase/client"
 
 interface VoiceRecapCardProps {
   sessionId: string
@@ -66,13 +67,43 @@ export function VoiceRecapCard({
     }
   }, [sessionId])
 
+  // Subscribe to Realtime changes on voice_call_summaries instead of polling
+  const subIdRef = useRef(0)
   useEffect(() => {
     if (status !== "pending") return
 
+    // Initial fetch to get current state
     fetchSummary()
-    const interval = setInterval(fetchSummary, 5000)
-    return () => clearInterval(interval)
-  }, [status, fetchSummary])
+
+    // Subscribe to updates via Supabase Realtime
+    const subId = ++subIdRef.current
+    const supabase = createClientSupabaseClient()
+    const channel = supabase
+      .channel(`voice-recap:${sessionId}:${subId}`)
+      .on(
+        "postgres_changes" as "system",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "voice_call_summaries",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        () => { fetchSummary() },
+      )
+      .on(
+        "postgres_changes" as "system",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "voice_call_summaries",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        () => { fetchSummary() },
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [status, fetchSummary, sessionId])
 
   async function handleCopySummary(): Promise<void> {
     if (!summary) return

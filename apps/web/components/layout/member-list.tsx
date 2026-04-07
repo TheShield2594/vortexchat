@@ -208,13 +208,37 @@ export function MemberList({ serverId, initialMembers }: Props) {
     }
   }, [serverId, initialMembers, memberFetchKey])
 
-  // Periodic background refetch to pick up game_activity changes from the cron job
+  // Subscribe to game_activity changes via Realtime instead of polling every 2 minutes.
+  // When any member's user row is updated (e.g. cron updates game_activity), we apply
+  // the change directly without refetching the entire member list.
+  const gameActivitySubIdRef = useRef(0)
   useEffect(() => {
-    const GAME_ACTIVITY_POLL_MS = 120_000 // 2 minutes — matches cron interval
-    const interval = setInterval(() => {
-      setMemberFetchKey((k) => k + 1)
-    }, GAME_ACTIVITY_POLL_MS)
-    return () => clearInterval(interval)
+    const subId = ++gameActivitySubIdRef.current
+    const supabase = createClientSupabaseClient()
+    const channel = supabase
+      .channel(`game-activity:${serverId}:${subId}`)
+      .on(
+        "postgres_changes" as "system",
+        { event: "UPDATE", schema: "public", table: "users" },
+        (payload) => {
+          const updated = payload.new as { id: string; game_activity?: unknown }
+          // Apply the game_activity change directly to the matching member
+          setMembers((prev) => {
+            const idx = prev.findIndex((m) => m.user_id === updated.id)
+            if (idx === -1) return prev
+            const member = prev[idx]
+            if (!member.user) return prev
+            // Skip update if game_activity hasn't changed
+            if (JSON.stringify(member.user.game_activity) === JSON.stringify(updated.game_activity)) return prev
+            const next = [...prev]
+            next[idx] = { ...member, user: { ...member.user, game_activity: updated.game_activity } }
+            return next
+          })
+        },
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [serverId])
 
   // Presence subscription (always runs regardless of SSR data)

@@ -95,7 +95,9 @@ export async function GET(
           .from("attachments")
           .createSignedUrl(variantInfo.path, 3600)
         if (!variantSignError && variantSigned?.signedUrl) {
-          return NextResponse.redirect(variantSigned.signedUrl)
+          return NextResponse.redirect(variantSigned.signedUrl, {
+            headers: { "Cache-Control": "private, max-age=1800, stale-while-revalidate=3600" },
+          })
         }
         // Fall through to original if variant URL fails
       }
@@ -140,7 +142,9 @@ export async function GET(
       return NextResponse.redirect(attachment.url)
     }
 
-    return NextResponse.redirect(signedData.signedUrl)
+    return NextResponse.redirect(signedData.signedUrl, {
+      headers: { "Cache-Control": "private, max-age=1800, stale-while-revalidate=3600" },
+    })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
